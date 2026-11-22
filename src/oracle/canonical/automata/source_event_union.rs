@@ -7,6 +7,7 @@
 //!              | "leaves the battlefield"
 //!              | "is put into a graveyard from the battlefield"
 //!              | "becomes" ("tapped" | "untapped" | "blocked")
+//!              | "exploits" COUNTERPART
 //! ```
 //!
 //! The subject is the shared source reference; each verb is one event atom.
@@ -40,6 +41,8 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     BecameTapped,
     BecameUntapped,
     BecameBlocked,
+    /// `exploits a creature` (CR 702.110b), always with its counterpart.
+    Exploited,
 }
 
 impl SourceEventVerb {
@@ -163,6 +166,13 @@ fn recognize_source_event_verb(
             read_counterpart(cursor, SourceEventVerb::Blocked, modifiers)?;
         }
         return Ok(SourceEventVerb::Blocked);
+    }
+    if verb_at(cursor, VerbLemma::Exploit) {
+        // CR 702.110b: the source's controller sacrificed the counterpart as
+        // the source's exploit ability resolved.
+        consume_verb(cursor, VerbLemma::Exploit)?;
+        read_counterpart(cursor, SourceEventVerb::Exploited, modifiers)?;
+        return Ok(SourceEventVerb::Exploited);
     }
     if verb_at(cursor, VerbLemma::Leave) {
         cursor.enter("event.source.leaves");

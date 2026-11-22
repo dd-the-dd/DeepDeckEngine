@@ -135,6 +135,26 @@ créature », CR 702.110b ; Renown : « devient renommé » ; Evolve : « évolu
 n'est ajouté que lorsque cet événement est publié par le moteur. Une
 définition compilée ne publie pas d'événement du seul fait du mot-clé.
 
+La ligne déclare cette politique (`namedAction`) : le lemme de l'action et
+l'action moteur qui l'accomplit (`performedBy: sacrifice`). L'expansion la
+recopie dans `keywordProvenance.namedAction`. Quand une règle qui la porte a
+fini de se résoudre, `keyword_actions.rs` publie un enregistrement du lemme
+pour chaque action de ce type accomplie par son contrôleur pendant la
+résolution (sacrifices du journal entre le début et la fin) : sujet = la
+source (même si elle s'est sacrifiée elle-même), objet = le permanent
+sacrifié. Un déclencheur le lit par un motif générique :
+
+```json
+{"kind": "eventPattern", "lemma": "exploit",
+ "subject": {"object": {"kind": "self"}},
+ "counterpart": {"where": {"kind": "cardTypeContains", "value": "Creature"}}}
+```
+
+L'analyseur lit `SOURCE exploits QUERY` par le lemme `exploit` du lexique
+des verbes (cadre `ObjectSelection`) et le lecteur de contrepartie partagé.
+Restent explicites : un autre sujet que la source (`a creature you control
+exploits`), une contrepartie avec contrôleur ou caractéristique numérique.
+
 ## Migration des programmes natifs
 
 Une ligne remplace un programme natif seulement si la définition compilée
@@ -167,6 +187,9 @@ donne une IR exécutable équivalente, prouvée par test.
 | Outlast | 702.107a | [cost] | `outlast_and_reinforce_activate_from_their_definitions_zones` |
 | Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
 | Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
+| Exploit | 702.110a | — (`namedAction: exploit`) | `exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed` |
+| Bloodthirst | 702.54a | N | `bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn` |
+| Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
 
 ## Défauts trouvés par les preuves runtime
 
@@ -183,22 +206,68 @@ donne une IR exécutable équivalente, prouvée par test.
   comme les autres consommateurs (`created_tokens_are_next_antecedent`).
   Changement d'IR assumé : ajout de `"bind": "createdTokens"`.
 
+## Dernière information connue des déclencheurs « regard en arrière »
+
+Un déclencheur de la source elle-même publié après son départ du champ de
+bataille (`dies`, `is put into a graveyard from the battlefield`, …) lit
+l'information de dernier état de cette incarnation (CR 603.10a). La sortie
+centrale `capture_pending_source_lki` enregistre déjà la capture de départ
+authentifiée (force, endurance, traits de source de dégâts, objet avec ses
+marqueurs) pour les capacités en attente ; elle la conserve désormais aussi
+par incarnation (`SourceLkiContexts::departed`). `publish_triggered_ability`
+la donne à un déclencheur dont la source n'est plus sur le champ de bataille
+dans cette incarnation. Les lectures vérifiées de la source (marqueurs,
+caractéristiques, source de dégâts) acceptent alors cette capture au lieu
+d'échouer : le cas « exécutable à l'admission, refusé à l'exécution » relevé
+avec Modular est fermé pour toute carte imprimée de même forme. Une sortie
+hors des sorties centrales ne produit pas de capture et garde l'échec
+explicite.
+
+## Corrections de grammaire partagée
+
+- **Condition d'entrée antéposée** (Bloodthirst, CR 702.54a) : le lecteur
+  partagé `SOURCE enters with N COUNTER counters on it` acceptait déjà une
+  condition `if CONDITION` après la modification ; il l'accepte aussi avant
+  (`If CONDITION, SOURCE enters with …`), dans le même emplacement unique.
+  Deux conditions (avant et après) échouent explicitement.
+- **Historique de dégâts d'un adversaire** : `an opponent was dealt damage
+  this turn` est un atome de condition statique (participe passé du lemme
+  `deal` lu dans le lexique des verbes). IR : `countOpponentsDealtDamageThisTurn`
+  (dégâts à un joueur adversaire ce tour, toute source, CR 120.3), évalué par
+  le moteur sur le journal des dégâts.
+
 ## Mots-clés en attente (raison mesurée)
 
-| Mot-clé | Cartes corpus bloquées seulement par lui | Blocage |
+Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
+définition compilée, et l'échec nomme la partie et l'état de la grammaire
+partagée qui manque (`keyword.template.expansion`, preuve candidate). Une
+correction de cette grammaire débloque le mot-clé sans code de plus.
+Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
+
+| Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Modular | 17 | la définition compile, mais le déclencheur de mort lit les marqueurs de la source partie : le moteur exige une capture de départ authentifiée que les déclencheurs « regard en arrière » créés après le départ n'ont pas (`source counter query … without effective LKI`) |
-| Backup | 18 | « gains the non-backup abilities printed below » : référence aux capacités imprimées |
-| Bloodthirst | 15 | remplacement d'entrée conditionnel (`ability-frame.conditional.body`) |
-| Unleash | 14 | entrée facultative avec marqueur, restriction conditionnelle |
-| Renown | 13 | désignation « renowned » |
-| Evolve | 12 | comparaison de caractéristiques de l'objet d'événement (`reference.source.start`) |
-| Devour | 11 | « sacrifice any number … for each creature sacrificed this way » à l'entrée |
-| Mentor, Extort | 11, 11 | comparaison de force à la cible ; « life lost this way » |
-| Fading, Vanishing | 10, 9 | « If you can't, sacrifice the permanent » ; « when the last time counter is removed » |
-| Graft | 10 | « move a +1/+1 counter » et condition de possession |
-| Rampage, Provoke, Ingest, Dethrone, Training, Melee, Increment, Decayed | 9, 6, 6, 6, 5, 4, 5, 1 | grammaires de corps diverses (`sequence.for-each.action`, `choose.verb`, `effect.start`, …) |
-| Exploit | 0 | la définition compile, mais l'événement « exploite » (CR 702.110b) n'est pas publié : politique d'événement manquante |
+| Evolve | 23 | `reference.source.start` (`that creature's power`, objet d'événement) |
+| Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
+| Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |
+| Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
+| Vanishing | 17 | `condition.sentence.object.possession` (`has a time counter on it`), puis retrait de marqueur |
+| Fading | 14 | `effect.unsupported-verb` (`remove a fade counter`) |
+| Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |
+| Graft | 13 | `condition.sentence.object.possession`, puis `move a counter` |
+| Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
+| Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
+| Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
+| Dethrone | 9 | `trigger.envelope.separator` (`attacks the player with the most life`) |
+| Rampage | 9 | `sequence.for-each.action` (`for each creature blocking it beyond the first`) |
+| Ingest | 9 | `effect.start` (`that player exiles the top card`) |
+| Provoke | 8 | `choose.verb` |
+| Decayed | 1 | `lower.delayed.object-references` (`sacrifice it at end of combat`) |
+| Backup | — | non ajouté : « the non-backup abilities printed below » demande une référence au texte imprimé |
+| Devour | — | non ajouté : le rappel « twice / three times that many » n'a pas de forme d'emplacement |
+
+Cinq lignes échouent sur un rappel de libellé ancien ou rare (`one fade
+counter`, `enters the battlefield`, enchantement/terrain) : échec explicite
+`keyword.template.reminder.body`.
 
 Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
 eux : Crew 74, Unearth 40, Madness 39, Partner 32 (règle de construction),

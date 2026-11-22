@@ -68,6 +68,11 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             json!({ "kind": "countOpponentsWhoLostLifeThisTurn", "player": controller() }),
             integer(1),
         ),
+        StaticConditionAtom::OpponentDealtDamageThisTurn => compare(
+            ">=",
+            json!({ "kind": "countOpponentsDealtDamageThisTurn", "player": controller() }),
+            integer(1),
+        ),
         StaticConditionAtom::OpponentControlledCountComparison {
             predicate,
             relation,

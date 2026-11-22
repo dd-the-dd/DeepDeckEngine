@@ -319,6 +319,10 @@ fn lower_source_event_union(
                         "a source event with a runtime self matcher (no became-untapped self matcher)",
                     ));
                 }
+                // Read only with its counterpart, as an event pattern.
+                SourceEventVerb::Exploited => {
+                    return Err(cursor.fail("`exploits` with the exploited object"));
+                }
             })
         })
         .collect::<MachineResult<Vec<_>>>()?;
@@ -362,6 +366,34 @@ fn lower_source_event_patterns(
             SourceEventModifier::Counterpart(node) if node.verb == *verb => Some(node),
             _ => None,
         });
+        // CR 702.110b: the keyword action published when the source's exploit
+        // ability sacrifices the counterpart (src/engine/keyword_actions.rs).
+        if *verb == SourceEventVerb::Exploited {
+            let counterpart =
+                counterpart.ok_or_else(|| cursor.fail("`exploits` with the exploited object"))?;
+            if first_time
+                || counterpart.one_or_more
+                || counterpart.query.controller.is_some()
+                || counterpart.query.predicate.contains_numeric_comparison()
+                || !domain_filter_is_representable(&counterpart.query.predicate)
+            {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for an exploited object without controller, numeric characteristics or a turn ordinal",
+                ));
+            }
+            let filter = lower_permanent_object_predicate(&counterpart.query.predicate);
+            if filter.is_null() {
+                return Err(engine_gap(cursor, "a lowered exploited-object predicate"));
+            }
+            events.push(json!({
+                "kind": "eventPattern",
+                "lemma": "exploit",
+                "subject": {"object": self_ref()},
+                "counterpart": {"where": filter},
+            }));
+            continue;
+        }
         let (lemma, role) = match verb {
             SourceEventVerb::Attacked if not_blocked => ("becomeUnblocked", "attacker"),
             SourceEventVerb::Attacked => ("attack", "attacker"),

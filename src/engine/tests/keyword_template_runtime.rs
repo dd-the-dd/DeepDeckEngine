@@ -315,3 +315,155 @@ fn entry_keywords_create_and_attach_or_grow_from_their_definitions() {
         "counters {placed}, Servos {tokens}"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn modular_moves_the_last_known_counters_of_its_dead_source() {
+    // CR 702.43a and 603.10a: the death trigger counts the counters the
+    // creature had when it left the battlefield, a +1/+1 counter added after
+    // entering included.
+    let hoarder = compiled(
+        "Arcbound Hoarder",
+        "Artifact Creature \u{2014} Construct",
+        ("0", "0"),
+        "Modular 2 (This creature enters with two +1/+1 counters on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+    );
+    assert_eq!(hoarder.rules.len(), 2);
+    let mut engine = test_engine(2);
+    let mut entering = test_instance("arcbound-hoarder", hoarder, "player-0");
+    engine
+        .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+        .expect("the modular counters are placed as it enters");
+    assert_eq!(entering.counters.get("+1/+1"), Some(&2));
+    entering.counters.insert("+1/+1".to_string(), 3);
+    let mut receiver_definition =
+        test_definition("receiver", "Artifact Creature \u{2014} Construct");
+    receiver_definition.power = Some("1".to_string());
+    receiver_definition.toughness = Some("1".to_string());
+    engine.state.players[0].battlefield = vec![
+        entering,
+        test_instance("receiver", receiver_definition, "player-0"),
+        creature("plain-creature", "player-0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let killer = StackObject {
+        id: "stack:killer".to_string(),
+        controller: "player-1".to_string(),
+        card: creature("killer", "player-1"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .destroy_permanent_from_stack("arcbound-hoarder", &killer)
+        .expect("the destruction resolves");
+    assert_eq!(engine.state.stack.len(), 1, "one modular trigger");
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("modular resolves with the source's last-known counters");
+    assert_eq!(counters(&engine, "receiver"), 3);
+    assert_eq!(counters(&engine, "plain-creature"), 0);
+}
+
+/// Accepts or declines every optional choice; every other choice is the first.
+struct Optional(bool);
+
+impl DecisionProvider for Optional {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        Ok(match request.kind {
+            DecisionKind::ResolutionChoice if self.0 => request.options.len().saturating_sub(1),
+            _ => 0,
+        })
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed() {
+    // An unused combination: exploit with a life-gain exploit trigger.
+    let oracle = "Exploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, you gain 3 life.";
+    for (accept, exploited) in [(true, true), (false, false)] {
+        let scavenger = compiled(
+            "Exploit Probe",
+            "Creature \u{2014} Zombie",
+            ("2", "2"),
+            oracle,
+        );
+        let mut engine = test_engine(2);
+        engine.state.players[0]
+            .battlefield
+            .push(creature("fodder", "player-0"));
+        let card = test_instance("exploit-probe", scavenger, "player-0");
+        engine.state.players[0].battlefield.push(card.clone());
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine.permanent_position("exploit-probe").expect("entered");
+        let live = engine.state.players[player].battlefield[index].clone();
+        engine.enqueue_enter_battlefield_triggers(&live);
+        assert_eq!(engine.state.stack.len(), 1, "the exploit trigger");
+        let life = engine.state.players[0].life;
+        engine
+            .resolve_top_stack(&mut Optional(accept))
+            .expect("exploit resolves");
+        // CR 702.110b: the keyword action triggers "exploits a creature".
+        assert_eq!(
+            engine.state.stack.len(),
+            usize::from(exploited),
+            "accept {accept}"
+        );
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut Optional(accept))
+                .expect("the exploit trigger resolves");
+        }
+        assert_eq!(
+            engine.state.players[0].life,
+            life + if exploited { 3 } else { 0 },
+            "accept {accept}"
+        );
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn() {
+    // CR 702.54a: checked as the creature enters; damage to a permanent or to
+    // its own controller does not count.
+    let minotaurs = compiled(
+        "Gorehorn Minotaurs",
+        "Creature \u{2014} Minotaur Warrior",
+        ("3", "3"),
+        "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
+    );
+    for (recipient, expected) in [
+        (None, None),
+        (Some(("player-0", false)), None),
+        (Some(("player-1", true)), None),
+        (Some(("player-1", false)), Some(&2)),
+    ] {
+        let mut engine = test_engine(2);
+        if let Some((player, to_permanent)) = recipient {
+            engine.record_event(
+                "damageDealt",
+                (!to_permanent).then(|| player.to_string()),
+                to_permanent.then(|| "some-permanent".to_string()),
+                json!({ "amount": 2, "combat": true }),
+            );
+        }
+        let mut entering = test_instance("gorehorn-minotaurs", minotaurs.clone(), "player-0");
+        engine
+            .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+            .expect("the creature enters");
+        assert_eq!(entering.counters.get("+1/+1"), expected, "{recipient:?}");
+    }
+}

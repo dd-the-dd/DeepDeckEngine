@@ -282,6 +282,18 @@ fn migrated_keywords_keep_their_explicit_failures() {
 fn batch_keywords_compile_their_cr_definitions_on_real_cards() {
     for (name, type_line, line, definition) in [
         (
+            "Arcbound Worker",
+            "Artifact Creature \u{2014} Construct",
+            "Modular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+            "This permanent enters with a +1/+1 counter on it.\nWhen this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.",
+        ),
+        (
+            "Arcbound Bruiser",
+            "Artifact Creature \u{2014} Construct",
+            "Modular 3 (This creature enters with three +1/+1 counters on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+            "This permanent enters with three +1/+1 counters on it.\nWhen this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.",
+        ),
+        (
             "Peema Outrider",
             "Creature \u{2014} Elf Knight",
             "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)",
@@ -374,9 +386,8 @@ fn unsupported_batch_shapes_stay_explicit() {
         parsed.abilities[0].diagnostics[0].automaton.as_deref(),
         Some("keyword-template")
     );
-    // Arcbound Wanderer: modular is not a template row yet (its death
-    // trigger reads the departed source's counters, an engine LKI gap); the
-    // structural keyword frame still reports the line.
+    // Arcbound Wanderer: a modular line without a count is not claimed by
+    // the template; the structural keyword frame reports it.
     let parsed = parse(
         "Arcbound Wanderer",
         "Artifact Creature \u{2014} Construct",
@@ -386,5 +397,95 @@ fn unsupported_batch_shapes_stay_explicit() {
     assert_ne!(
         parsed.abilities[0].diagnostics[0].automaton.as_deref(),
         Some("keyword-template")
+    );
+}
+
+#[test]
+fn exploit_names_its_action_and_its_trigger_reads_the_keyword_event() {
+    // Fell Stinger: exploit (CR 702.110a) and "exploits a creature" (702.110b).
+    let parsed = parse(
+        "Fell Stinger",
+        "Creature \u{2014} Zombie Scorpion",
+        "Deathtouch\nExploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, target player draws two cards and loses 2 life.",
+    );
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    let expansion = parsed.abilities[1].rule.as_ref().unwrap();
+    assert_eq!(expansion["keyword"], "exploit");
+    assert_eq!(
+        expansion["namedAction"],
+        json!({ "lemma": "exploit", "performedBy": "sacrifice" })
+    );
+    let playable = keyword_expansion_rules(expansion);
+    assert_eq!(
+        playable[0]["keywordProvenance"]["namedAction"]["lemma"],
+        "exploit"
+    );
+    let trigger = parsed.abilities[2].rule.as_ref().unwrap();
+    assert_eq!(
+        trigger["event"],
+        json!({
+            "kind": "eventPattern",
+            "lemma": "exploit",
+            "subject": { "object": { "kind": "self" } },
+            "counterpart": { "where": { "kind": "cardTypeContains", "value": "Creature" } },
+        })
+    );
+    // The named form of the source (Sidisi, Undead Vizier) is the same event.
+    let named = parse(
+        "Sidisi, Undead Vizier",
+        "Legendary Creature \u{2014} Zombie Naga",
+        "When Sidisi exploits a creature, you gain 2 life.",
+    );
+    assert_eq!(named.status, "canonical", "{:#?}", named.diagnostics);
+    assert_eq!(
+        named.abilities[0].rule.as_ref().unwrap()["event"],
+        trigger["event"]
+    );
+    // Another creature exploiting (Skull Skaab) has no matcher: explicit.
+    let other = parse(
+        "Skull Skaab",
+        "Creature \u{2014} Zombie",
+        "Whenever a creature you control exploits a nontoken creature, create a 2/2 black Zombie creature token.",
+    );
+    assert_eq!(other.status, "unsupported");
+}
+
+#[test]
+fn bloodthirst_compiles_through_the_shared_conditional_entry_replacement() {
+    // Gorehorn Minotaurs (bloodthirst 2), CR 702.54a.
+    const TYPE_LINE: &str = "Creature \u{2014} Minotaur Warrior";
+    let rules = expanded(
+        "Gorehorn Minotaurs",
+        TYPE_LINE,
+        "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
+    );
+    let condition = json!({
+        "kind": "compare",
+        "left": {
+            "kind": "countOpponentsDealtDamageThisTurn",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        },
+        "operator": ">=",
+        "right": { "kind": "integer", "value": 1 },
+    });
+    assert_eq!(rules[0]["kind"], "replacementEffect");
+    assert_eq!(rules[0]["condition"], condition);
+    // The same condition written after the modification is the same rule
+    // (a printed sibling wording); the condition slot is shared.
+    let trailing = printed_rules(
+        TYPE_LINE,
+        "This creature enters with two +1/+1 counters on it if an opponent was dealt damage this turn.",
+    );
+    assert_eq!(rules, trailing);
+    // Near miss: one condition before and another after is refused.
+    let parsed = parse(
+        "Near Miss",
+        TYPE_LINE,
+        "If you control a Swamp, this creature enters with a +1/+1 counter on it if an opponent was dealt damage this turn.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert_eq!(
+        parsed.abilities[0].diagnostics[0].state.as_deref(),
+        Some("replacement.entry-counters.condition")
     );
 }

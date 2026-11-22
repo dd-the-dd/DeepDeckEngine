@@ -120,6 +120,7 @@ mod effect_domains;
 mod event_batch;
 mod event_model;
 mod invariants;
+mod keyword_actions;
 mod keyword_programs;
 mod landwalk;
 mod library_shuffle;
@@ -2649,9 +2650,11 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 .is_none_or(player_reference_supported)
                 && card_filter_supported(&expression["where"])
         }
-        Some("countOpponents" | "countOpponentsWhoLostLifeThisTurn") => {
-            player_reference_supported(&expression["player"])
-        }
+        Some(
+            "countOpponents"
+            | "countOpponentsWhoLostLifeThisTurn"
+            | "countOpponentsDealtDamageThisTurn",
+        ) => player_reference_supported(&expression["player"]),
         Some("countOpponentsWithPermanent") => {
             player_reference_supported(&expression["player"])
                 && card_filter_supported(&expression["where"])
@@ -4809,6 +4812,10 @@ fn activation_cost_modifier_supported(modifier: &Value) -> bool {
 fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
+    }
+    // Keyword actions named by a keyword ability (exploit, CR 702.110b).
+    if let Some(supported) = keyword_actions::keyword_action_event_supported(event) {
+        return supported;
     }
     // Combat events are patterns of the generic event model.
     if let Some(supported) = event_model::combat_event_supported(event) {
@@ -9680,6 +9687,24 @@ impl GameEngine {
                         self.state.events.iter().any(|event| {
                             event.turn_number == self.state.turn_number
                                 && event.kind == "lifeLost"
+                                && event.player_id.as_deref() == Some(player.id.as_str())
+                                && integer_value(&event.detail["amount"])
+                                    .is_some_and(|amount| amount > 0)
+                        })
+                    })
+                    .count() as i32,
+            ),
+            // CR 120.3: damage dealt to the player this turn, by any source.
+            Some("countOpponentsDealtDamageThisTurn") => Some(
+                self.state
+                    .players
+                    .iter()
+                    .filter(|player| !player.has_lost && player.id != controller_id)
+                    .filter(|player| {
+                        self.state.events.iter().any(|event| {
+                            event.turn_number == self.state.turn_number
+                                && event.kind == "damageDealt"
+                                && event.card_instance_id.is_none()
                                 && event.player_id.as_deref() == Some(player.id.as_str())
                                 && integer_value(&event.detail["amount"])
                                     .is_some_and(|amount| amount > 0)
@@ -21819,18 +21844,31 @@ impl GameEngine {
         }
         let mut last_stack_id = String::new();
         let mut published_stack_ids = Vec::with_capacity(trigger_count);
+        // CR 603.10a: a trigger of a source that already left the battlefield
+        // reads that incarnation's authenticated last-known information.
+        let departed = self.departed_trigger_source(source);
         for copy_index in 0..trigger_count {
             self.stack_sequence += 1;
             let stack_id = format!("stack:{}", self.stack_sequence);
+            let mut trigger_decisions = decisions.clone();
+            let mut card = source.clone();
+            if let Some(departed) = &departed {
+                card = departed.card.clone();
+                for (key, value) in &departed.decisions {
+                    trigger_decisions
+                        .entry(key.clone())
+                        .or_insert_with(|| value.clone());
+                }
+            }
             self.state.stack.push(StackObject {
                 id: stack_id.clone(),
                 controller: source.controller.clone(),
-                card: source.clone(),
+                card,
                 cant_be_countered: false,
                 exile_on_leave_stack: false,
                 ability_kind: Some("triggeredAbility".to_string()),
                 ability_rule: Some(rule.clone()),
-                decisions: decisions.clone(),
+                decisions: trigger_decisions,
                 targets: BTreeMap::new(),
             });
             self.record_event(
@@ -30268,9 +30306,21 @@ impl GameEngine {
             .pop_stack_object_with_lki()
             .ok_or_else(|| EngineError::new("resolving stack object disappeared"))?;
         let context = self.target_numeric_context(&stack_object);
+        // A keyword ability that names its action publishes it once it has
+        // resolved (CR 702.110b), from the actions recorded meanwhile.
+        let first_event = self.state.events.len();
+        let resolved = stack_object
+            .ability_rule
+            .as_ref()
+            .is_some_and(keyword_actions::rule_names_keyword_action)
+            .then(|| stack_object.clone());
         self.with_target_numeric_context(context, |engine| {
             engine.resolve_prepared_stack_object_body(stack_object, provider)
-        })
+        })?;
+        if let Some(resolved) = resolved {
+            self.publish_keyword_named_actions(&resolved, first_event);
+        }
+        Ok(())
     }
 
     fn resolve_prepared_stack_object_body<P: DecisionProvider>(
@@ -31774,9 +31824,11 @@ impl GameEngine {
             Some("deadPermanentPower") => stack_object.decisions["deadPermanentPower"]
                 .as_i64()
                 .and_then(|value| i32::try_from(value).ok()),
-            Some("countOpponents" | "countOpponentsWhoLostLifeThisTurn") => {
-                self.numeric_expression(expression, &stack_object.controller)
-            }
+            Some(
+                "countOpponents"
+                | "countOpponentsWhoLostLifeThisTurn"
+                | "countOpponentsDealtDamageThisTurn",
+            ) => self.numeric_expression(expression, &stack_object.controller),
             Some("sourceCastXValue") => {
                 self.source_cast_x_value(&stack_object.card.instance_id, decisions)
             }

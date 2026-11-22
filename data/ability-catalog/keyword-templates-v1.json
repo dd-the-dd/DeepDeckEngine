@@ -160,6 +160,286 @@
       "reminders": [
         "Whenever this creature attacks and isn't blocked, it gets +$N/+0 until end of turn."
       ]
+    },
+    {
+      "canonicalId": "modular",
+      "templateVersion": 1,
+      "lexeme": "modular",
+      "parameter": "count",
+      "rulesClause": "modular.cr-702-43a",
+      "rulesSection": "702.43a",
+      "abilities": [
+        "This permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it.",
+        "When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent."
+      ],
+      "reminders": [
+        "This creature enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it. When it dies, you may put its +1/+1 counters on target artifact creature."
+      ]
+    },
+    {
+      "canonicalId": "exploit",
+      "templateVersion": 1,
+      "lexeme": "exploit",
+      "parameter": "none",
+      "rulesClause": "exploit.cr-702-110a",
+      "rulesSection": "702.110a",
+      "namedAction": {
+        "lemma": "exploit",
+        "performedBy": "sacrifice"
+      },
+      "abilities": [
+        "When this creature enters, you may sacrifice a creature."
+      ],
+      "reminders": [
+        "When this creature enters, you may sacrifice a creature."
+      ]
+    },
+    {
+      "canonicalId": "fading",
+      "templateVersion": 1,
+      "lexeme": "fading",
+      "parameter": "count",
+      "rulesClause": "fading.cr-702-32a",
+      "rulesSection": "702.32a",
+      "abilities": [
+        "This permanent enters with $N{a fade counter|$Nw fade counters} on it.",
+        "At the beginning of your upkeep, remove a fade counter from this permanent. If you can't, sacrifice the permanent."
+      ],
+      "reminders": [
+        "This creature enters with $N{a fade counter|$Nw fade counters} on it. At the beginning of your upkeep, remove a fade counter from it. If you can't, sacrifice it.",
+        "This enchantment enters with $N{a fade counter|$Nw fade counters} on it. At the beginning of your upkeep, remove a fade counter from it. If you can't, sacrifice it."
+      ]
+    },
+    {
+      "canonicalId": "vanishing",
+      "templateVersion": 1,
+      "lexeme": "vanishing",
+      "parameter": "count",
+      "rulesClause": "vanishing.cr-702-63a",
+      "rulesSection": "702.63a",
+      "abilities": [
+        "This permanent enters with $N{a time counter|$Nw time counters} on it.",
+        "At the beginning of your upkeep, if this permanent has a time counter on it, remove a time counter from it.",
+        "When the last time counter is removed from this permanent, sacrifice it."
+      ],
+      "reminders": [
+        "This creature enters with $N{a time counter|$Nw time counters} on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.",
+        "This enchantment enters with $N{a time counter|$Nw time counters} on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it."
+      ]
+    },
+    {
+      "canonicalId": "renown",
+      "templateVersion": 1,
+      "lexeme": "renown",
+      "parameter": "count",
+      "rulesClause": "renown.cr-702-112a",
+      "rulesSection": "702.112a",
+      "abilities": [
+        "When this creature deals combat damage to a player, if it isn't renowned, put $N{a +1/+1 counter|$Nw +1/+1 counters} on it and it becomes renowned."
+      ],
+      "reminders": [
+        "When this creature deals combat damage to a player, if it isn't renowned, put $N{a +1/+1 counter|$Nw +1/+1 counters} on it and it becomes renowned."
+      ]
+    },
+    {
+      "canonicalId": "bloodthirst",
+      "templateVersion": 1,
+      "lexeme": "bloodthirst",
+      "parameter": "count",
+      "rulesClause": "bloodthirst.cr-702-54a",
+      "rulesSection": "702.54a",
+      "abilities": [
+        "If an opponent was dealt damage this turn, this permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it."
+      ],
+      "reminders": [
+        "If an opponent was dealt damage this turn, this creature enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it."
+      ]
+    },
+    {
+      "canonicalId": "evolve",
+      "templateVersion": 1,
+      "lexeme": "evolve",
+      "parameter": "none",
+      "rulesClause": "evolve.cr-702-100a",
+      "rulesSection": "702.100a",
+      "abilities": [
+        "Whenever a creature you control enters, if that creature's power is greater than this creature's power and/or that creature's toughness is greater than this creature's toughness, put a +1/+1 counter on this creature."
+      ],
+      "reminders": [
+        "Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature."
+      ]
+    },
+    {
+      "canonicalId": "mentor",
+      "templateVersion": 1,
+      "lexeme": "mentor",
+      "parameter": "none",
+      "rulesClause": "mentor.cr-702-134a",
+      "rulesSection": "702.134a",
+      "abilities": [
+        "Whenever this creature attacks, put a +1/+1 counter on target attacking creature with power less than this creature's power."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power."
+      ]
+    },
+    {
+      "canonicalId": "extort",
+      "templateVersion": 1,
+      "lexeme": "extort",
+      "parameter": "none",
+      "rulesClause": "extort.cr-702-101a",
+      "rulesSection": "702.101a",
+      "abilities": [
+        "Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain life equal to the total life lost this way."
+      ],
+      "reminders": [
+        "Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life."
+      ]
+    },
+    {
+      "canonicalId": "training",
+      "templateVersion": 1,
+      "lexeme": "training",
+      "parameter": "none",
+      "rulesClause": "training.cr-702-149a",
+      "rulesSection": "702.149a",
+      "abilities": [
+        "Whenever this creature and at least one other creature with power greater than this creature's power attack, put a +1/+1 counter on this creature."
+      ],
+      "reminders": [
+        "Whenever this creature attacks with another creature with greater power, put a +1/+1 counter on this creature."
+      ]
+    },
+    {
+      "canonicalId": "dethrone",
+      "templateVersion": 1,
+      "lexeme": "dethrone",
+      "parameter": "none",
+      "rulesClause": "dethrone.cr-702-105a",
+      "rulesSection": "702.105a",
+      "abilities": [
+        "Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on this creature."
+      ],
+      "reminders": [
+        "Whenever this creature attacks the player with the most life or tied for most life, put a +1/+1 counter on it."
+      ]
+    },
+    {
+      "canonicalId": "unleash",
+      "templateVersion": 1,
+      "lexeme": "unleash",
+      "parameter": "none",
+      "rulesClause": "unleash.cr-702-98a",
+      "rulesSection": "702.98a",
+      "abilities": [
+        "You may have this permanent enter with an additional +1/+1 counter on it.",
+        "This permanent can't block as long as it has a +1/+1 counter on it."
+      ],
+      "reminders": [
+        "You may have this creature enter with a +1/+1 counter on it. It can't block as long as it has a +1/+1 counter on it."
+      ]
+    },
+    {
+      "canonicalId": "graft",
+      "templateVersion": 1,
+      "lexeme": "graft",
+      "parameter": "count",
+      "rulesClause": "graft.cr-702-58a",
+      "rulesSection": "702.58a",
+      "abilities": [
+        "This permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it.",
+        "Whenever another creature enters, if this permanent has a +1/+1 counter on it, you may move a +1/+1 counter from this permanent onto that creature."
+      ],
+      "reminders": [
+        "This creature enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.",
+        "This land enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it. Whenever a creature enters, you may move a +1/+1 counter from this land onto it."
+      ]
+    },
+    {
+      "canonicalId": "rampage",
+      "templateVersion": 1,
+      "lexeme": "rampage",
+      "parameter": "count",
+      "rulesClause": "rampage.cr-702-23a",
+      "rulesSection": "702.23a",
+      "abilities": [
+        "Whenever this creature becomes blocked, it gets +$N/+$N until end of turn for each creature blocking it beyond the first."
+      ],
+      "reminders": [
+        "Whenever this creature becomes blocked, it gets +$N/+$N until end of turn for each creature blocking it beyond the first."
+      ]
+    },
+    {
+      "canonicalId": "provoke",
+      "templateVersion": 1,
+      "lexeme": "provoke",
+      "parameter": "none",
+      "rulesClause": "provoke.cr-702-39a",
+      "rulesSection": "702.39a",
+      "abilities": [
+        "Whenever this creature attacks, you may choose to have target creature defending player controls block this creature this combat if able. If you do, untap that creature."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, you may have target creature defending player controls untap and block it if able."
+      ]
+    },
+    {
+      "canonicalId": "ingest",
+      "templateVersion": 1,
+      "lexeme": "ingest",
+      "parameter": "none",
+      "rulesClause": "ingest.cr-702-115a",
+      "rulesSection": "702.115a",
+      "abilities": [
+        "Whenever this creature deals combat damage to a player, that player exiles the top card of their library."
+      ],
+      "reminders": [
+        "Whenever this creature deals combat damage to a player, that player exiles the top card of their library."
+      ]
+    },
+    {
+      "canonicalId": "melee",
+      "templateVersion": 1,
+      "lexeme": "melee",
+      "parameter": "none",
+      "rulesClause": "melee.cr-702-121a",
+      "rulesSection": "702.121a",
+      "abilities": [
+        "Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked with a creature this combat."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat."
+      ]
+    },
+    {
+      "canonicalId": "increment",
+      "templateVersion": 1,
+      "lexeme": "increment",
+      "parameter": "none",
+      "rulesClause": "increment.cr-702-191a",
+      "rulesSection": "702.191a",
+      "abilities": [
+        "Whenever you cast a spell, if this permanent is a creature and the amount of mana spent to cast that spell is greater than this creature's power or this creature's toughness, put a +1/+1 counter on this creature."
+      ],
+      "reminders": [
+        "Whenever you cast a spell, if the amount of mana you spent is greater than this creature's power or toughness, put a +1/+1 counter on this creature."
+      ]
+    },
+    {
+      "canonicalId": "decayed",
+      "templateVersion": 1,
+      "lexeme": "decayed",
+      "parameter": "none",
+      "rulesClause": "decayed.cr-702-147a",
+      "rulesSection": "702.147a",
+      "abilities": [
+        "This creature can't block.",
+        "When this creature attacks, sacrifice it at end of combat."
+      ],
+      "reminders": [
+        "This creature can't block. When it attacks, sacrifice it at end of combat."
+      ]
     }
   ]
 }

@@ -5,8 +5,10 @@
 //! counter kind and quantity are independent children: the subject is the
 //! shared source reference, the kind is the shared counter-name child, and
 //! the quantity is the shared numeric atom optionally scaled by the shared
-//! `for each` count. A trailing `if CONDITION` (CR 614.1c with a condition
-//! checked as the permanent enters) reuses the shared static condition.
+//! `for each` count. An `if CONDITION` (CR 614.1c with a condition checked
+//! as the permanent enters) reuses the shared static condition, written
+//! after the modification or before it (`If CONDITION, SOURCE enters with
+//! ...`, CR 702.54a); one condition slot, never both.
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -28,6 +30,7 @@ pub(in crate::oracle::canonical) struct SourceEntryCountersNode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum State {
+    LeadingCondition,
     Source,
     Event,
     Relation,
@@ -49,13 +52,33 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<SourceEntryCountersNode> {
-    let mut state = State::Source;
+    let mut state = State::LeadingCondition;
     let mut source = None;
     let mut counter = None;
     let mut count = None;
     let mut condition = None;
     loop {
         state = match state {
+            State::LeadingCondition => {
+                cursor.enter("replacement.entry-counters.leading-condition");
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
+                {
+                    cursor.consume("if")?;
+                    condition = Some(recognize_static_condition(
+                        cursor,
+                        StaticConditionContext {
+                            source_subject: false,
+                            name_links,
+                            name_failure,
+                        },
+                    )?);
+                    cursor.enter("replacement.entry-counters.leading-condition.separator");
+                    cursor.consume(",")?;
+                }
+                State::Source
+            }
             State::Source => {
                 cursor.enter("replacement.entry-counters.source");
                 source = Some(recognize_source_reference(
@@ -137,6 +160,10 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
                 {
+                    cursor.require(
+                        condition.is_none(),
+                        "one entry condition, before or after the modification",
+                    )?;
                     cursor.consume("if")?;
                     condition = Some(recognize_static_condition(
                         cursor,

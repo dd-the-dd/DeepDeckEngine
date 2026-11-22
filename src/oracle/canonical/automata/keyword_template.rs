@@ -63,10 +63,38 @@ pub(in crate::oracle::canonical) struct KeywordTemplate {
     /// it (`this Equipment`, CR 702.92a).
     #[serde(default)]
     pub face_subtype: Option<String>,
+    /// The action the keyword's ability performs, published as an event of
+    /// that lemma when it is performed as the ability resolves (exploit,
+    /// CR 702.110b). `None` for a keyword that names no action.
+    #[serde(default)]
+    pub named_action: Option<KeywordNamedAction>,
     /// One Oracle ability per ability the keyword represents.
     pub abilities: Vec<String>,
     /// Accepted reminder renderings, without their parentheses.
     pub reminders: Vec<String>,
+}
+
+/// A keyword's named action: its lemma and the engine action performing it.
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(in crate::oracle::canonical) struct KeywordNamedAction {
+    pub lemma: String,
+    pub performed_by: KeywordActionPerformer,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(in crate::oracle::canonical) enum KeywordActionPerformer {
+    /// The ability's controller sacrifices a permanent as it resolves.
+    Sacrifice,
+}
+
+impl KeywordActionPerformer {
+    pub(in crate::oracle::canonical) fn as_str(self) -> &'static str {
+        match self {
+            Self::Sacrifice => "sacrifice",
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

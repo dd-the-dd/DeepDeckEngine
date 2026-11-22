@@ -123,6 +123,33 @@ impl GameEngine {
             toughness,
             damage.as_ref(),
         );
+        // A trigger of this incarnation published after it left (a look-back
+        // self trigger, CR 603.10a) receives the same capture.
+        if let Some(identity) =
+            GameEngine::tracked_zone_identity(&source).filter(|id| !id.is_empty())
+        {
+            let mut template = StackObject {
+                id: String::new(),
+                controller: source.controller.clone(),
+                card: source.clone(),
+                cant_be_countered: false,
+                exile_on_leave_stack: false,
+                ability_kind: Some("triggeredAbility".to_string()),
+                ability_rule: None,
+                decisions: Default::default(),
+                targets: Default::default(),
+            };
+            capture_departing_source(
+                std::slice::from_mut(&mut template),
+                &source,
+                power,
+                toughness,
+                damage.as_ref(),
+            );
+            self.source_lki_contexts
+                .departed
+                .insert(format!("{}@{identity}", source.instance_id), template);
+        }
         // Immediate observers require a genuine matching incarnation. Legacy
         // stack snapshots retain their historical admission policy above.
         for object in self.source_lki_contexts.frames.iter_mut().filter(|object| {
@@ -138,6 +165,27 @@ impl GameEngine {
                 damage.as_ref(),
             );
         }
+    }
+
+    /// The departure capture of a trigger source that has left the battlefield
+    /// in the incarnation the trigger was published for (CR 603.10a): the
+    /// captured object and its authenticated last-known markers. `None` while
+    /// that incarnation is still on the battlefield or without a capture.
+    pub(super) fn departed_trigger_source(&self, source: &CardInstance) -> Option<StackObject> {
+        let identity = GameEngine::tracked_zone_identity(source).filter(|id| !id.is_empty())?;
+        let still_present = self
+            .permanent_position(&source.instance_id)
+            .is_some_and(|(p, c)| {
+                GameEngine::tracked_zone_identity(&self.state.players[p].battlefield[c])
+                    == Some(identity)
+            });
+        if still_present {
+            return None;
+        }
+        self.source_lki_contexts
+            .departed
+            .get(&format!("{}@{identity}", source.instance_id))
+            .cloned()
     }
 
     /// CR 602.2a/602.2h: an activated ability exists before its costs are
