@@ -394,6 +394,19 @@ fn read_effect_player(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
     };
+    // `they`: the player `that player` would name, with the plural verb.
+    if !context.causative
+        && head_is(0, "they")
+        && (context.player_antecedent.is_some() || context.frame.event_player)
+    {
+        if cursor.consume("they").is_err() {
+            return SubjectRead::Absent;
+        }
+        let player = context
+            .player_antecedent
+            .map_or(PlayerEffectSubject::EventPlayer, PlayerEffectSubject::Bound);
+        return SubjectRead::Read(ClauseSubject::Player(player), VerbAgreement::Base);
+    }
     if !(head_is(0, "you") || head_is(0, "target") || (head_is(0, "that") && head_is(1, "player")))
     {
         return SubjectRead::Absent;

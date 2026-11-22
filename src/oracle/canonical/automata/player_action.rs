@@ -270,12 +270,23 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
     let explicit_you = inherited.is_some() && head.eq_ignore_ascii_case("you");
+    // `they` (CR 109.5: singular they) names the same player `that player`
+    // would: the program's player binding, else the event's player. It takes
+    // the plural verb form; without such a player it is not claimed here.
+    let explicit_they = !bare
+        && head.eq_ignore_ascii_case("they")
+        && (antecedent.is_some() || context.frame.event_player);
+    let plural = bare || explicit_they;
     let object_relation = object_related_player_head_length(cursor).is_some();
     let defending = defending_player_starts(cursor);
     let player = if explicit_target || explicit_bound || explicit_you {
         // Binding validation is tentative until this child owns the action.
         // Another parent may supply a different typed player relationship.
         recognize_player_effect_subject(cursor, binding, antecedent, context.frame.event_player)
+    } else if explicit_they {
+        cursor.enter("player-subject.pronoun");
+        cursor.consume("they")?;
+        Ok(antecedent.map_or(PlayerEffectSubject::EventPlayer, PlayerEffectSubject::Bound))
     } else if defending {
         match recognize_defending_player_subject(cursor, context.frame.defending_player) {
             Ok(player) => Ok(player),
@@ -324,7 +335,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     let is_mill = lemma == Some(VerbLemma::Mill);
     // `reveals|discards their hand`: the possessive must name the acting
     // player's own hand; other objects stay with their own readers.
-    let hand_form = if bare {
+    let hand_form = if plural {
         VerbAgreement::Base
     } else {
         VerbAgreement::ThirdPersonSingular
@@ -336,7 +347,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             .is_some_and(|raw| raw.eq_ignore_ascii_case("into"));
     // Imperative `discard`/`sacrifice` of the controller keeps its established
     // readers; these third-person actions belong to a non-controller subject.
-    let agreement = if bare {
+    let agreement = if plural {
         VerbAgreement::Base
     } else {
         VerbAgreement::ThirdPersonSingular
@@ -353,7 +364,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     let is_referenced_exile =
         crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Exile, agreement)
             && referenced_card_operand_follows(cursor);
-    let is_proliferate = verb == "proliferate" || (!bare && verb == "proliferates");
+    let is_proliferate = verb == "proliferate" || (!plural && verb == "proliferates");
     let is_counters = lemma == Some(VerbLemma::Get) && player_counters_follow(cursor);
     let claimed = is_counters
         || is_draw
@@ -391,7 +402,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     }
     let player = player?;
     let form = match player {
-        _ if bare => VerbAgreement::Base,
+        _ if plural => VerbAgreement::Base,
         PlayerEffectSubject::Controller => VerbAgreement::Base,
         PlayerEffectSubject::DeclaredTarget { .. }
         | PlayerEffectSubject::Bound(_)
@@ -400,7 +411,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     };
     // `ActingSubject` is the shared conjugation of the selecting verbs: the
     // bare surface keeps the third-person chooser (`of their choice`).
-    let other_form = if bare {
+    let other_form = if plural {
         ActingSubject::THIRD_PLURAL
     } else {
         ActingSubject::THIRD_SINGULAR

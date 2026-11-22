@@ -256,3 +256,20 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   quasi-échec (rappel qui ne compte pas les symboles), exécution
   (`effect_subject_runtime.rs` : poison au joueur de l'événement, énergie
   au contrôleur).
+
+### Étape 15 : `they` sujet joueur, joueur des dégâts d'une population
+
+- `they` (CR 109.5, « they » singulier) nomme le joueur que nommerait
+  `that player` : la liaison de joueur du programme, sinon le joueur de
+  l'événement ; il prend la forme verbale plurielle. Lu par le même lecteur
+  de sujet que les actions de joueur et la proposition de vie ; sans joueur
+  lié, il n'est pas revendiqué (les antécédents d'objets pluriels gardent
+  leurs lecteurs).
+- Cadre : `a creature you control deals combat damage to a player` (par
+  objet) publie le joueur blessé ; chaque enregistrement de dégâts du moteur
+  porte déjà `triggeringPlayerId` (CR 510.2).
+- Sonde : ligue 809 → 809, corpus 14363 → 14371 (+8, dont Sheoldred, the
+  Apocalypse et Larceny), 0 perte, IR des cartes supportées inchangée.
+  Preuves : IR identique entre `they` et `that player` (cartes réelles et
+  recombinaison inédite après `target player`), quasi-échecs sans joueur
+  lié, exécution (le joueur qui pioche perd la vie).

@@ -219,3 +219,56 @@ fn player_counters_near_misses() {
         .is_empty()
     );
 }
+
+/// `they` names the player `that player` would name, with the plural verb:
+/// the same IR. A creature-population damage trigger records the damaged
+/// player (CR 510.2), so its `that player` is the event's player.
+#[test]
+fn they_and_that_player_are_one_player_reference() {
+    // Real cards: Sheoldred, the Apocalypse (draw event, life), Larceny
+    // (population combat damage, discard). Unused recombinations: `they`
+    // after a declared target player, `they` with discard.
+    for (type_line, pronoun, phrase) in [
+        (
+            CREATURE,
+            "Whenever an opponent draws a card, they lose 2 life.",
+            "Whenever an opponent draws a card, that player loses 2 life.",
+        ),
+        (
+            SORCERY,
+            "Target player draws a card. They lose 1 life.",
+            "Target player draws a card. That player loses 1 life.",
+        ),
+        (
+            "Enchantment",
+            "Whenever a creature you control deals combat damage to a player, they discard a card.",
+            "Whenever a creature you control deals combat damage to a player, that player discards a card.",
+        ),
+    ] {
+        assert_eq!(
+            effects(type_line, pronoun),
+            effects(type_line, phrase),
+            "{pronoun}"
+        );
+    }
+    let discard = effects(
+        "Enchantment",
+        "Whenever a creature you control deals combat damage to a player, that player discards a card.",
+    );
+    assert!(
+        discard
+            .iter()
+            .any(|effect| effect["player"]["kind"] == "triggeringPlayer"),
+        "{discard:#?}"
+    );
+}
+
+/// Near misses: `they` without a player binding is not a player subject, and
+/// a plural object antecedent keeps its own readers.
+#[test]
+fn they_without_a_player_is_not_claimed() {
+    let (status, _, _) = parse(CREATURE, "When this creature enters, they lose 2 life.");
+    assert_ne!(status, "canonical");
+    let (status, _, _) = parse(CREATURE, "When this creature enters, they discard a card.");
+    assert_ne!(status, "canonical");
+}

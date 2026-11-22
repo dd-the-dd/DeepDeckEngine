@@ -69,3 +69,25 @@ fn player_counters_go_to_the_player_the_subject_names() {
     assert_eq!(counters(&engine, 0, "energy"), 2, "the controller");
     assert_eq!(counters(&engine, 2, "energy"), 0);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn they_is_the_player_the_event_records() {
+    // Sheoldred, the Apocalypse's opponent clause: the drawing opponent loses
+    // the life, not the controller nor the other opponent.
+    let rules = parsed_rules(
+        "Creature \u{2014} Phyrexian Praetor",
+        "Whenever an opponent draws a card, they lose 2 life.",
+    );
+    let mut definition = test_definition("sheoldred", "Creature");
+    definition.rules = rules;
+    let mut engine = test_engine(3);
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("sheoldred", definition, "player-0"));
+    engine.draw_cards("player-1", 1).expect("player-1 draws");
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[1].life, 18, "the drawing opponent");
+    assert_eq!(engine.state.players[2].life, 20);
+    assert_eq!(engine.state.players[0].life, 20);
+}
