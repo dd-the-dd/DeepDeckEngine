@@ -251,6 +251,22 @@ mod unless_payment_runtime;
 mod permanent_attacks_event_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/combat_event_model_runtime.rs"]
+mod combat_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/damage_event_model_runtime.rs"]
+mod damage_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/zone_change_event_model_runtime.rs"]
+mod zone_change_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/cast_event_model_runtime.rs"]
+mod cast_event_model_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/exalted_runtime.rs"]
 mod exalted_runtime;
 

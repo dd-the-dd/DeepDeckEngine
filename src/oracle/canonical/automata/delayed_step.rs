@@ -10,6 +10,19 @@ pub(in crate::oracle::canonical) enum DelayedTurnReference {
 pub(in crate::oracle::canonical) enum DelayedTurnStep {
     Upkeep,
     EndStep,
+    /// The end of combat step (CR 511): `at end of combat`.
+    EndOfCombat,
+}
+
+impl DelayedTurnStep {
+    /// The runtime name of the step that wakes the delayed trigger.
+    pub(in crate::oracle::canonical) fn runtime_step(self) -> &'static str {
+        match self {
+            Self::Upkeep => "upkeep",
+            Self::EndStep => "endStep",
+            Self::EndOfCombat => "endOfCombat",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -399,7 +399,10 @@ impl GameEngine {
         step: super::CombatDamageStep,
         provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<(), EngineError> {
-        self.with_quantity_transaction(|engine| {
+        // Combat damage of one step is dealt simultaneously: one event for
+        // observers that aggregate a source's damage (CR 510.2, 603.2c).
+        let scope = self.begin_event_batch();
+        let result = self.with_quantity_transaction(|engine| {
             engine.resolve_combat_damage_step_quantity_inner(
                 attacks,
                 blocks,
@@ -407,7 +410,9 @@ impl GameEngine {
                 step,
                 provider,
             )
-        })
+        });
+        self.end_event_batch(scope);
+        result
     }
 
     fn quantity_program_matches(

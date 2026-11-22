@@ -60,11 +60,20 @@ fn unrelated_event_restores_nonzero_checkpoint_and_prior_trace() {
 
 #[test]
 fn filtered_ordinal_missing_domain_and_extra_caster_are_not_approximated() {
+    // A filtered ordinal is recognized by the trigger envelope: its basis is
+    // a typed attribute that each consumer's lowering checks (event model).
+    let tokens =
+        recognize_entities("Whenever you cast your second creature spell each turn, draw a card.");
+    let mut cursor = OracleTokenCursor::new("spell-event-test", &tokens);
+    let SpellCastEventAttempt::Recognized(event) = try_recognize_spell_cast_event(&mut cursor)
+    else {
+        panic!("a filtered ordinal is a typed event attribute");
+    };
+    assert_eq!(
+        event.ordinal.expect("ordinal").basis,
+        SpellCastOrdinalBasis::MatchingSpellsByCasterThisTurn
+    );
     for (text, state) in [
-        (
-            "Whenever you cast your second creature spell each turn, draw a card.",
-            "event.spell-cast.ordinal-basis",
-        ),
         (
             "Whenever you cast a creature, draw a card.",
             "event.spell-cast.spell-domain",

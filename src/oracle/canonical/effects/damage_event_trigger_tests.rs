@@ -149,10 +149,14 @@ fn received_combat_damage_filters_the_damage_kind() {
 
 #[test]
 fn dealt_damage_near_misses_fail_inside_the_trigger_frame() {
-    // No recipient: one event may damage several recipients at once.
+    // No recipient: one event may damage several recipients at once; the
+    // aggregated damage pattern observes the whole event (event model).
     assert_eq!(
-        committed_state("Whenever this creature deals damage, you gain that much life."),
-        "trigger.dealt-damage.recipient-support"
+        event(
+            "Whenever this creature deals damage, you gain that much life.",
+            "Creature"
+        ),
+        json!({"kind": "eventPattern", "lemma": "dealDamage", "source": self_ref()})
     );
     // A one-or-more batch of damage sources to a permanent recipient.
     assert_eq!(

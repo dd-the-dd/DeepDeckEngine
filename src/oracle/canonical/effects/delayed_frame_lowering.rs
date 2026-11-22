@@ -137,10 +137,7 @@ pub(super) fn apply_delayed_frames(
         )?;
         let mut install = json!({
             "kind": "installDelayedStepTrigger",
-            "step": match frame.timing.step {
-                DelayedTurnStep::Upkeep => "upkeep",
-                DelayedTurnStep::EndStep => "endStep",
-            },
+            "step": frame.timing.step.runtime_step(),
             "controller": controller(),
             "effects": delayed,
         });

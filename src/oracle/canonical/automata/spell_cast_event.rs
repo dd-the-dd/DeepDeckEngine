@@ -30,12 +30,60 @@ pub(in crate::oracle::canonical) struct SpellCastEventOrdinal {
     pub basis: SpellCastOrdinalBasis,
 }
 
+/// One object or player a cast spell targets (CR 115.1, 601.2c).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SpellTargetNode {
+    /// `this creature`, the ability source.
+    Source,
+    /// A player in a relation to the ability controller.
+    Player(EventActorScope),
+    /// A permanent matching the shared object query.
+    Permanent(super::ObjectQueryNode),
+}
+
+/// `from ZONE` / `from anywhere other than your hand`: the zone the spell
+/// was cast from (CR 601.2a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SpellOriginNode {
+    /// Runtime zone name: `hand`, `graveyard`, `exile`, `library`.
+    pub zone: &'static str,
+    /// `anywhere other than ZONE`.
+    pub excluded: bool,
+    /// `your ZONE`: the spell's owner is the ability controller.
+    pub own_zone: bool,
+}
+
+/// `during your turn` / `during an opponent's turn` (CR 500.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SpellTurnNode {
+    ControllerTurn,
+    OpponentTurn,
+}
+
+/// `that targets [only] T [or T]...`: the spell's targets (CR 115.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SpellTargetsNode {
+    /// `only`: every target is one of the alternatives.
+    pub only: bool,
+    pub alternatives: Vec<SpellTargetNode>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SpellCastEventNode {
     pub caster: SpellCastEventCaster,
     pub query: SpellCastQueryNode,
     pub ordinal: Option<SpellCastEventOrdinal>,
     pub triggering_player: TriggeringPlayerBinding,
+    /// `cast this spell`: the cast spell is the ability source itself
+    /// (CR 601.2i), observed from the stack.
+    pub source_spell: bool,
+    /// `cast or copy`: the same spell predicate also observes a copy of a
+    /// spell (CR 707.10), a distinct event of the same lemma family.
+    pub also_copy: bool,
+    /// `that targets …`: a predicate on the spell's targets.
+    pub targets: Option<SpellTargetsNode>,
+    pub origin: Option<SpellOriginNode>,
+    pub turn: Option<SpellTurnNode>,
 }
 
 pub(in crate::oracle::canonical) enum SpellCastEventAttempt {
@@ -60,6 +108,96 @@ struct SpellCastEventFrame {
     caster: Option<SpellCastEventCaster>,
     query: Option<SpellCastQueryNode>,
     ordinal: Option<SpellCastEventOrdinal>,
+    source_spell: bool,
+    also_copy: bool,
+    targets: Option<SpellTargetsNode>,
+    origin: Option<SpellOriginNode>,
+    turn: Option<SpellTurnNode>,
+}
+
+/// Reads `from [your|a] ZONE` or `from anywhere other than your hand`.
+fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellOriginNode> {
+    cursor.enter("event.spell-cast.origin");
+    cursor.consume("from")?;
+    let excluded = peek_word(cursor, 0, "anywhere");
+    if excluded {
+        cursor.consume_phrase(&["anywhere", "other", "than"])?;
+    }
+    cursor.enter("event.spell-cast.origin-owner");
+    let own_zone = peek_word(cursor, 0, "your");
+    if own_zone {
+        cursor.consume("your")?;
+    } else if peek_word(cursor, 0, "a") {
+        cursor.consume("a")?;
+    }
+    cursor.enter("event.spell-cast.origin-zone");
+    let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("hand") => "hand",
+        Some("graveyard") => "graveyard",
+        Some("exile") => "exile",
+        Some("library") => "library",
+        _ => return Err(cursor.fail("hand, graveyard, exile or library")),
+    };
+    let raw = cursor.peek().expect("checked zone").to_string();
+    cursor.consume(&raw)?;
+    Ok(SpellOriginNode {
+        zone,
+        excluded,
+        own_zone,
+    })
+}
+
+/// Reads `during your turn` or `during an opponent's turn`.
+fn recognize_spell_turn(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTurnNode> {
+    cursor.enter("event.spell-cast.turn");
+    cursor.consume("during")?;
+    if peek_word(cursor, 0, "your") {
+        cursor.consume_phrase(&["your", "turn"])?;
+        return Ok(SpellTurnNode::ControllerTurn);
+    }
+    cursor.consume_phrase(&["an", "opponent's", "turn"])?;
+    Ok(SpellTurnNode::OpponentTurn)
+}
+
+fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// Reads `that targets [only] T (or T)*` after a spell query: each target is
+/// the source, a player relation, or a permanent through the shared query.
+fn recognize_spell_targets(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTargetsNode> {
+    cursor.enter("event.spell-cast.targets");
+    cursor.consume_phrase(&["that", "targets"])?;
+    let only = peek_word(cursor, 0, "only");
+    if only {
+        cursor.consume("only")?;
+    }
+    let mut alternatives = Vec::new();
+    loop {
+        cursor.enter("event.spell-cast.target");
+        let target = if peek_word(cursor, 0, "this") {
+            super::recognize_source_reference(cursor, &[], None)?;
+            SpellTargetNode::Source
+        } else if let Some(player) = super::try_recognize_event_actor_scope(cursor)? {
+            SpellTargetNode::Player(player)
+        } else {
+            let article = cursor
+                .peek()
+                .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+                .ok_or_else(|| cursor.fail("`this PERMANENT`, a player, or `a PERMANENT`"))?
+                .to_string();
+            cursor.consume(&article)?;
+            SpellTargetNode::Permanent(super::recognize_object_query_before_separator(cursor)?)
+        };
+        alternatives.push(target);
+        if peek_word(cursor, 0, "or") {
+            cursor.consume("or")?;
+            continue;
+        }
+        return Ok(SpellTargetsNode { only, alternatives });
+    }
 }
 
 /// The enclosing ability owns the trigger word and separator. This wrapper
@@ -80,9 +218,11 @@ pub(in crate::oracle::canonical) fn try_recognize_spell_cast_event(
     if let Err(failure) = cursor.consume(&trigger) {
         return SpellCastEventAttempt::Unpromoted(failure);
     }
+    // The generic cast pattern counts matching spells by the caster this
+    // turn; each consumer checks the ordinal basis its lowering preserves.
     match recognize_optional_spell_cast_event_atom(
         cursor,
-        SpellCastOrdinalSupport::UnfilteredOrdinalsOnly,
+        SpellCastOrdinalSupport::MatchingSpellOrdinals,
     ) {
         Ok(Some(node)) => {
             cursor.enter("event.spell-cast.separator");
@@ -138,6 +278,18 @@ fn recognize_optional_spell_cast_event_atom(
                 } else {
                     "casts"
                 })?;
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+                    && cursor.peek_ahead(1).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("copy") || raw.eq_ignore_ascii_case("copies")
+                    })
+                {
+                    cursor.enter("event.spell-cast.copy-union");
+                    let copy = cursor.peek_ahead(1).expect("checked verb").to_string();
+                    cursor.consume_phrase(&["or", &copy])?;
+                    frame.also_copy = true;
+                }
                 SpellCastEventState::Determiner
             }
             SpellCastEventState::Determiner => {
@@ -148,6 +300,24 @@ fn recognize_optional_spell_cast_event_atom(
                     let article = cursor.peek().expect("checked article").to_string();
                     cursor.consume(&article)?;
                     SpellCastEventState::Query
+                } else if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("spell"))
+                    && frame.caster == Some(SpellCastEventCaster::Controller)
+                    && !frame.also_copy
+                {
+                    // `When you cast this spell`: the source itself.
+                    cursor.enter("event.spell-cast.source-spell");
+                    cursor.consume_phrase(&["this", "spell"])?;
+                    frame.source_spell = true;
+                    frame.query = Some(SpellCastQueryNode {
+                        predicate: ObjectPredicate::ObjectKind(ObjectKind::Spell),
+                        caster: None,
+                    });
+                    SpellCastEventState::Complete
                 } else {
                     cursor.enter("event.spell-cast.ordinal-owner");
                     cursor.consume(if frame.caster == Some(SpellCastEventCaster::Controller) {
@@ -199,7 +369,28 @@ fn recognize_optional_spell_cast_event_atom(
                         ordinal.basis = SpellCastOrdinalBasis::MatchingSpellsByCasterThisTurn;
                     }
                 }
+                let mut query = query;
+                // `that has KEYWORD`: the shared keyword vocabulary as one more
+                // conjunct of the spell predicate (the card's own keywords).
+                if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "has") {
+                    cursor.enter("event.spell-cast.keyword");
+                    cursor.consume_phrase(&["that", "has"])?;
+                    let keyword = super::recognize_parameterless_keyword(cursor)?;
+                    query.predicate = ObjectPredicate::Intersection(vec![
+                        query.predicate,
+                        ObjectPredicate::HasKeyword(keyword),
+                    ]);
+                }
                 frame.query = Some(query);
+                if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "targets") {
+                    frame.targets = Some(recognize_spell_targets(cursor)?);
+                }
+                if peek_word(cursor, 0, "from") {
+                    frame.origin = Some(recognize_spell_origin(cursor)?);
+                }
+                if peek_word(cursor, 0, "during") {
+                    frame.turn = Some(recognize_spell_turn(cursor)?);
+                }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
                 } else {
@@ -218,6 +409,11 @@ fn recognize_optional_spell_cast_event_atom(
                     query: cursor.require_value(frame.query, "a typed spell query")?,
                     ordinal: frame.ordinal,
                     triggering_player: TriggeringPlayerBinding,
+                    source_spell: frame.source_spell,
+                    also_copy: frame.also_copy,
+                    targets: frame.targets,
+                    origin: frame.origin,
+                    turn: frame.turn,
                 }));
             }
         };

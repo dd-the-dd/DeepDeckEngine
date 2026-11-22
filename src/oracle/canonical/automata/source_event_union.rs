@@ -30,6 +30,13 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     LeftBattlefield,
     /// `is put into a graveyard from the battlefield` (any permanent type).
     PutIntoGraveyardFromBattlefield,
+    /// `is put into a graveyard from anywhere`.
+    PutIntoGraveyardFromAnywhere,
+    /// `is put into your graveyard from your library|hand`: the card's own
+    /// arrival from that zone (its owner's graveyard, CR 400.3).
+    PutIntoGraveyardFromZone(&'static str),
+    /// `is put into exile from the battlefield` (CR 603.10a look-back).
+    PutIntoExileFromBattlefield,
     BecameTapped,
     BecameUntapped,
     BecameBlocked,
@@ -46,15 +53,26 @@ impl SourceEventVerb {
     }
 }
 
+/// The other combatant of a block event: the attacker a source `blocks`, or
+/// the blocker it `becomes blocked by`. A counterpart makes the pattern match
+/// once per block pair (CR 509.3b, 509.3d); `one or more` matches once each
+/// combat, at the first matching counterpart.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EventCounterpartNode {
+    pub verb: SourceEventVerb,
+    pub query: super::ObjectQueryNode,
+    pub one_or_more: bool,
+}
+
 /// A generic modifier of an event pattern. Each is a typed attribute that a
 /// runtime matcher must honor; a pattern carrying one the engine has no
 /// matcher for fails in lowering as an engine gap, never widened.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SourceEventModifier {
     /// `attacks alone` (CR 506.5).
     AttackingAlone,
-    /// `blocks QUERY` / `becomes blocked by QUERY` other than `a creature`.
-    CounterpartQualifier,
+    /// `blocks QUERY` / `becomes blocked by QUERY`.
+    Counterpart(EventCounterpartNode),
     /// `and isn't blocked` (CR 509.1h, the declare-blockers step).
     NotBlocked,
     /// `for the first time each turn`.
@@ -84,41 +102,32 @@ fn consume_verb(cursor: &mut OracleTokenCursor<'_>, lemma: VerbLemma) -> Machine
     consume_lemma(cursor, lemma, VerbAgreement::ThirdPersonSingular)
 }
 
-/// True when a creature counterpart is exactly `a creature` (every blocker
-/// and every blocked object is a creature, CR 509.1a): the event is the
-/// same as without it. Any other counterpart is a qualifier the runtime has
-/// no matcher for.
+/// Reads the counterpart object of `blocks` / `becomes blocked by` with the
+/// shared object query. Even `a creature` is kept: it changes the event's
+/// multiplicity from once per combat to once per block pair (CR 509.3d).
 fn read_counterpart(
     cursor: &mut OracleTokenCursor<'_>,
+    verb: SourceEventVerb,
     modifiers: &mut Vec<SourceEventModifier>,
 ) -> MachineResult<()> {
     cursor.enter("event.source.counterpart");
-    let boundary = |raw: Option<&str>| {
-        raw.is_none_or(|raw| {
-            matches!(raw, "," | ".")
-                || raw.eq_ignore_ascii_case("or")
-                || raw.eq_ignore_ascii_case("and")
-        })
-    };
-    if (peek_is(cursor, 0, "a") || peek_is(cursor, 0, "an"))
-        && peek_is(cursor, 1, "creature")
-        && boundary(cursor.peek_ahead(2))
-    {
-        cursor.advance_to(cursor.position() + 2)?;
-        return Ok(());
-    }
     let article = cursor
         .peek()
         .map(str::to_ascii_lowercase)
         .filter(|raw| matches!(raw.as_str(), "a" | "an" | "one"))
         .ok_or_else(|| cursor.fail("`a creature` or a creature counterpart"))?;
-    if article == "one" {
+    let one_or_more = article == "one";
+    if one_or_more {
         cursor.consume_phrase(&["one", "or", "more"])?;
     } else {
         cursor.consume(&article)?;
     }
-    super::recognize_object_query_before_separator(cursor)?;
-    modifiers.push(SourceEventModifier::CounterpartQualifier);
+    let query = super::recognize_object_query_before_separator(cursor)?;
+    modifiers.push(SourceEventModifier::Counterpart(EventCounterpartNode {
+        verb,
+        query,
+        one_or_more,
+    }));
     Ok(())
 }
 
@@ -151,7 +160,7 @@ fn recognize_source_event_verb(
     if verb_at(cursor, VerbLemma::Block) {
         consume_verb(cursor, VerbLemma::Block)?;
         if peek_is(cursor, 0, "a") || peek_is(cursor, 0, "an") || peek_is(cursor, 0, "one") {
-            read_counterpart(cursor, modifiers)?;
+            read_counterpart(cursor, SourceEventVerb::Blocked, modifiers)?;
         }
         return Ok(SourceEventVerb::Blocked);
     }
@@ -167,10 +176,42 @@ fn recognize_source_event_verb(
         cursor.consume("is")?;
         consume_lemma(cursor, VerbLemma::Put, VerbAgreement::Base)?;
         cursor.consume("into")?;
+        if peek_is(cursor, 0, "exile") {
+            cursor.enter("event.source.put-into-exile.origin");
+            cursor.consume("exile")?;
+            if peek_is(cursor, 0, "from") {
+                cursor.consume_phrase(&["from", "the", "battlefield"])?;
+            }
+            return Ok(SourceEventVerb::PutIntoExileFromBattlefield);
+        }
         cursor.enter("event.source.put-into-graveyard.zone");
-        // `your graveyard` adds an owner relation without a matcher.
-        cursor.consume_phrase(&["a", "graveyard"])?;
+        // `your graveyard` is the card's own (its owner's) graveyard; from
+        // the battlefield it would add a controller relation without matcher.
+        let own = peek_is(cursor, 0, "your");
+        if own {
+            cursor.consume_phrase(&["your", "graveyard"])?;
+        } else {
+            cursor.consume_phrase(&["a", "graveyard"])?;
+        }
         cursor.enter("event.source.put-into-graveyard.origin");
+        if peek_is(cursor, 0, "from") && peek_is(cursor, 1, "anywhere") {
+            cursor.consume_phrase(&["from", "anywhere"])?;
+            return Ok(SourceEventVerb::PutIntoGraveyardFromAnywhere);
+        }
+        if own && peek_is(cursor, 0, "from") && peek_is(cursor, 1, "your") {
+            cursor.consume_phrase(&["from", "your"])?;
+            let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                Some("library") => "library",
+                Some("hand") => "hand",
+                _ => return Err(cursor.fail("library or hand")),
+            };
+            cursor.consume(zone)?;
+            return Ok(SourceEventVerb::PutIntoGraveyardFromZone(zone));
+        }
+        cursor.require(
+            !own,
+            "a graveyard (an owner relation from the battlefield has no matcher)",
+        )?;
         cursor.consume_phrase(&["from", "the", "battlefield"])?;
         return Ok(SourceEventVerb::PutIntoGraveyardFromBattlefield);
     }
@@ -190,7 +231,7 @@ fn recognize_source_event_verb(
         cursor.consume(&state)?;
         if verb == SourceEventVerb::BecameBlocked && peek_is(cursor, 0, "by") {
             cursor.consume("by")?;
-            read_counterpart(cursor, modifiers)?;
+            read_counterpart(cursor, SourceEventVerb::BecameBlocked, modifiers)?;
         }
         return Ok(verb);
     }
@@ -217,6 +258,27 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
         cursor.enter("event.source.union-distinct");
         cursor.require(!verbs.contains(&verb), "a distinct event in the union")?;
         verbs.push(verb);
+    }
+    // `blocks or becomes blocked by QUERY`: the trailing counterpart is shared
+    // by a bare preceding `blocks` (it blocks such a creature or becomes
+    // blocked by one). A separately qualified `blocks QUERY` keeps its own.
+    if verbs.len() > 1
+        && let Some(SourceEventModifier::Counterpart(shared)) = modifiers
+            .iter()
+            .find(|modifier| matches!(modifier, SourceEventModifier::Counterpart(node) if node.verb == *verbs.last().expect("verb")))
+            .cloned()
+    {
+        for verb in &verbs[..verbs.len() - 1] {
+            let qualified = modifiers.iter().any(|modifier| {
+                matches!(modifier, SourceEventModifier::Counterpart(node) if node.verb == *verb)
+            });
+            if *verb == SourceEventVerb::Blocked && !qualified {
+                modifiers.push(SourceEventModifier::Counterpart(EventCounterpartNode {
+                    verb: *verb,
+                    ..shared.clone()
+                }));
+            }
+        }
     }
     // Generic event modifiers: the negated companion event and the
     // turn-ordinal qualifier. They are typed attributes of the pattern.

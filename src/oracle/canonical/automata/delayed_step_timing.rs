@@ -41,14 +41,14 @@ impl DelayedFrameNode {
 pub(in crate::oracle::canonical) fn delayed_step_timing_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    ["at", "the", "beginning", "of"]
-        .iter()
-        .enumerate()
-        .all(|(offset, word)| {
+    let phrase = |words: &[&str]| {
+        words.iter().enumerate().all(|(offset, word)| {
             cursor
                 .peek_ahead(offset)
                 .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
         })
+    };
+    phrase(&["at", "the", "beginning", "of"]) || phrase(&["at", "end", "of", "combat"])
 }
 
 /// Reads `at the beginning of {the|your} next {end step|upkeep}`.
@@ -56,6 +56,18 @@ pub(in crate::oracle::canonical) fn recognize_delayed_step_timing(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DelayedStepTimingNode> {
     cursor.enter("delayed-step.timing.introducer");
+    // `at end of combat`: the next end of combat step, this combat's when
+    // one is in progress (CR 511.2, 603.7a).
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("end"))
+    {
+        cursor.consume_phrase(&["at", "end", "of", "combat"])?;
+        return Ok(DelayedStepTimingNode {
+            step: DelayedTurnStep::EndOfCombat,
+            turn: DelayedStepTurnNode::AnyTurn,
+        });
+    }
     cursor.consume_phrase(&["at", "the", "beginning", "of"])?;
     cursor.enter("delayed-step.timing.turn");
     let turn = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {

@@ -27,20 +27,23 @@ fn parse(type_line: &str, text: &str) -> (String, Option<String>, Option<String>
 }
 
 #[test]
-fn a_creature_counterpart_is_the_same_event_and_qualifiers_are_engine_gaps() {
-    // Every blocker and blocked object is a creature: no attribute added.
+fn combat_event_modifiers_compile_and_unsupported_ones_are_engine_gaps() {
+    // Counterparts, `alone`, `and isn't blocked` and the attack ordinal have
+    // a runtime matcher (docs/oracle-event-model.md).
     for text in [
         "Whenever this creature blocks a creature, draw a card.",
         "Whenever this creature becomes blocked by a creature, draw a card.",
         "Whenever this creature attacks or blocks, draw a card.",
-    ] {
-        assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
-    }
-    for text in [
         "Whenever this creature attacks and isn't blocked, draw a card.",
         "Whenever this creature attacks alone, draw a card.",
         "Whenever this creature attacks for the first time each turn, draw a card.",
         "Whenever this creature blocks a creature with flying, draw a card.",
+    ] {
+        assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
+    }
+    for text in [
+        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        "Whenever this creature blocks a creature with power 2 or less, draw a card.",
     ] {
         assert_eq!(
             parse("Creature — Wall", text).1.as_deref(),

@@ -2112,6 +2112,22 @@ fn recognize_effect(
     if cursor
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|token| token.eq_ignore_ascii_case("that"))
+    {
+        // `destroy that creature`: a bound reference, never a declaration.
+        return super::recognize_destroy_reference_effect(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )
+        .map(LocalEffectNode::DestroyReference);
+    }
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
         && cursor.peek_ahead(1).is_some_and(|token| {
             !token.eq_ignore_ascii_case("all")
                 && !token.eq_ignore_ascii_case("each")

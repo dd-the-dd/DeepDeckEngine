@@ -129,11 +129,15 @@ fn numeric_spell_characteristics_require_the_context_of_the_observed_stack_spell
         "Whenever you cast a spell with mana value 4 or greater, draw a card.",
         "Whenever a player casts a creature spell with power 4 or greater, draw a card.",
     ] {
-        let SpellCastTriggerProgramParseAttempt::Unpromoted(failure) = program(text, "Enchantment")
-        else {
-            panic!("printed characteristics must not silently replace stack context: {text}");
-        };
-        assert_eq!(failure.state, "trigger.spell-cast.numeric-stack-context");
+        // The battlefield parent leaves stack characteristics to the generic
+        // cast pattern, which reads them on the cast record (event model).
+        assert!(
+            matches!(
+                program(text, "Enchantment"),
+                SpellCastTriggerProgramParseAttempt::NotClaimed
+            ),
+            "printed characteristics must not silently replace stack context: {text}"
+        );
     }
     let numeric = ObjectPredicate::NumericComparison {
         left: SelectorNumericProperty::ManaValue,

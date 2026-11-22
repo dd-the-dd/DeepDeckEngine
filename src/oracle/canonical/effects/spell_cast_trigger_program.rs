@@ -24,6 +24,17 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_spell_cast_trigger_progra
         }
         SpellCastEventAttempt::Recognized(event) => event,
     };
+    if event.source_spell
+        || event.also_copy
+        || event.targets.is_some()
+        || event.origin.is_some()
+        || event.turn.is_some()
+        || event.ordinal.as_ref().is_some_and(|ordinal| {
+            ordinal.basis != SpellCastOrdinalBasis::AllSpellsByCasterThisTurn
+        })
+    {
+        return SpellCastTriggerProgramParseAttempt::NotClaimed;
+    }
     cursor.enter("trigger.spell-cast.permanent-face");
     if let Err(failure) = cursor.require(
         type_line_has_permanent_card_type(input.face_type_line),
@@ -46,11 +57,9 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_spell_cast_trigger_progra
     // unsupported here, including a literal threshold on a spell with mana X.
     // Player scope and ordinary ObjectQuery characteristics are shared with
     // the companion runtime player-and-object-filter correction.
+    // Numeric stack characteristics are read by the generic cast pattern.
     if spell_cast_predicate_requires_numeric_stack_context(&event.query.predicate) {
-        cursor.enter("trigger.spell-cast.numeric-stack-context");
-        return SpellCastTriggerProgramParseAttempt::Unpromoted(
-            cursor.fail("a spell event predicate without unproved numeric stack characteristics"),
-        );
+        return SpellCastTriggerProgramParseAttempt::NotClaimed;
     }
     let sequence = match try_recognize_effect_sequence_with_context(
         &mut cursor,

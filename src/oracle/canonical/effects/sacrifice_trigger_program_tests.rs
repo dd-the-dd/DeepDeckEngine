@@ -48,7 +48,7 @@ fn any_player_event_and_damage_keep_source_and_target_declaration() {
 }
 
 #[test]
-fn query_grammar_stays_shared_while_unproved_characteristics_are_not_lowered() {
+fn query_grammar_stays_shared_and_characteristics_read_the_departure_snapshot() {
     let text =
         "Whenever you sacrifice another artifact or creature, draw two cards and gain 1 life.";
     let tokens = recognize_oracle_entities(text);
@@ -66,13 +66,13 @@ fn query_grammar_stays_shared_while_unproved_characteristics_are_not_lowered() {
             ObjectPredicate::CardType(ObjectCardType::Creature),
         ])
     );
-    let SacrificeTriggerProgramParseAttempt::FailedSupport(failure) = program(text) else {
-        panic!("printed characteristics must not approximate the event snapshot")
+    // The engine reads the predicate on the effective characteristics it
+    // captures as the object leaves the battlefield (event model).
+    let SacrificeTriggerProgramParseAttempt::Parsed(draft) = program(text) else {
+        panic!("card types are captured in the departure snapshot")
     };
-    assert_eq!(
-        failure.state,
-        "trigger.sacrifice.characteristic-snapshot-support"
-    );
+    assert_eq!(draft.rule["event"]["kind"], "permanentSacrificed");
+    assert_eq!(draft.rule["event"]["excludeSource"], true);
 
     let SacrificeTriggerProgramParseAttempt::Parsed(draft) =
         program("Whenever you sacrifice another permanent, draw two cards and gain 1 life.")

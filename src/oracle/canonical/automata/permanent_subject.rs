@@ -112,6 +112,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(subject_after_operand(&node.recipient, effect_index))
         }
         LocalEffectNode::UntapTarget(node) => Local(Some(node.permanent)),
+        LocalEffectNode::DestroyReference(node) => Local(Some(node.object)),
         LocalEffectNode::CreateExplicitTokens(_) => Local(Some(
             PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
         )),
@@ -323,6 +324,17 @@ fn recognize_nominal_permanent_anaphor(
         _ => return Err(cursor.fail("a registered card type or permanent nominal")),
     };
     cursor.enter("permanent.subject.nominal-anaphor.antecedent");
+    // Without a local antecedent, a block event's other combatant is the
+    // creature named (every blocker and blocked object is a creature).
+    if context.combat_counterpart
+        && context.permanent_subject_scope == PermanentSubjectScope::AbilityContext
+        && nominal.as_predicate() == ObjectPredicate::CardType(ObjectCardType::Creature)
+    {
+        cursor.consume(&noun)?;
+        return Ok(PermanentOperandNode::BoundReference(
+            PermanentEffectReference::Observed(TypedObservedEventObject::CombatCounterpart),
+        ));
+    }
     let reference = proven_permanent_antecedent(context).ok_or_else(|| {
         cursor.fail("a preceding singular permanent subject in this lexical scope")
     })?;

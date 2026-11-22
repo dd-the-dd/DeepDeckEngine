@@ -41,13 +41,15 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             Ok(lower_source_transition_event(envelope))
         }
         GenericTriggerEventNode::SpellCast(event) => {
-            // The existing matcher observes a printed definition, not the
-            // contextual stack spell. Preserve the old numeric support cap.
+            // Numeric characteristics are read on the cast record: mana
+            // value with the announced X (CR 202.3e), the card's power and
+            // toughness. The right side must be a literal (no other producer).
             if event.query.predicate.contains_numeric_comparison() {
                 cursor.enter("trigger.spell-cast.numeric-stack-context");
-                return Err(cursor.fail(
-                    "a spell event predicate without unproved numeric stack characteristics",
-                ));
+                cursor.require(
+                    literal_numeric_comparisons(&event.query.predicate),
+                    "a spell characteristic compared with a literal number",
+                )?;
             }
             let predicate =
                 lower_spell_object_predicate(&event.query.predicate).unwrap_or(Value::Null);
@@ -60,11 +62,51 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                 }
             }
             if let Some(ordinal) = &event.ordinal {
+                // A matching-spell ordinal counts the caster's logged spells
+                // this turn that satisfy the same predicate; the log keeps
+                // type line and name only.
+                cursor.enter("trigger.spell-cast.ordinal-basis-support");
                 cursor.require(
-                    ordinal.basis == SpellCastOrdinalBasis::AllSpellsByCasterThisTurn,
-                    "an ordinal counted among all spells cast by that caster this turn",
+                    ordinal.basis == SpellCastOrdinalBasis::AllSpellsByCasterThisTurn
+                        || spell_history_predicate(&event.query.predicate),
+                    "an ordinal over spells whose type line or name the spell history records",
                 )?;
                 lowered["spellCastOrdinal"] = json!(ordinal.value);
+            }
+            if event.source_spell {
+                // CR 601.2i: the cast spell's own ability, from the stack.
+                lowered["sourceIsSelf"] = json!(true);
+            }
+            if let Some(targets) = &event.targets {
+                lowered["targets"] = lower_spell_targets(cursor, targets)?;
+            }
+            // The cast record carries the zone the spell was cast from.
+            if let Some(origin) = event.origin {
+                let field = if origin.excluded {
+                    "fromZoneNot"
+                } else {
+                    "fromZone"
+                };
+                lowered[field] = json!(origin.zone);
+                if origin.own_zone && !origin.excluded {
+                    lowered["fromOwnZone"] = json!(true);
+                }
+            }
+            match event.turn {
+                Some(SpellTurnNode::ControllerTurn) => {
+                    lowered["duringControllerTurn"] = json!(true)
+                }
+                Some(SpellTurnNode::OpponentTurn) => lowered["duringOpponentTurn"] = json!(true),
+                None => {}
+            }
+            if event.also_copy {
+                cursor.enter("trigger.spell-cast.copy-support");
+                cursor.require(
+                    event.caster == SpellCastEventCaster::Controller && event.ordinal.is_none(),
+                    "a spell copied by the ability controller (the copy observer's only player)",
+                )?;
+                let copied = json!({"kind": "spellCopied", "player": controller(), "where": lowered["where"].clone()});
+                return Ok(json!({"kind": "oneOf", "events": [lowered, copied]}));
             }
             Ok(lowered)
         }
@@ -101,27 +143,31 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             kind,
             subjects,
             entry_state,
+            union_kind,
         } => {
             cursor.require(
                 !subjects.alternatives.is_empty(),
                 "one or more permanent event subjects",
             )?;
-            let events = subjects
-                .alternatives
-                .iter()
-                .map(|subject| {
-                    let mut lowered = lower_transition_branch(cursor, *kind, subject)?;
-                    if let Some(state) = entry_state {
-                        cursor.require(
-                            *kind == PermanentTransitionKind::Entered,
-                            "an entry observation only on a battlefield-entry event",
-                        )?;
+            let mut events = Vec::new();
+            for transition in std::iter::once(*kind).chain(*union_kind) {
+                for subject in &subjects.alternatives {
+                    let mut lowered = lower_transition_branch(cursor, transition, subject)?;
+                    if let Some(state) = entry_state
+                        && transition == PermanentTransitionKind::Entered
+                    {
                         lowered["entryState"] =
                             json!({"tapped":*state==EntryStatePredicate::Tapped});
                     }
-                    Ok(lowered)
-                })
-                .collect::<MachineResult<Vec<_>>>()?;
+                    events.push(lowered);
+                }
+            }
+            if entry_state.is_some() {
+                cursor.require(
+                    *kind == PermanentTransitionKind::Entered,
+                    "an entry observation only on a battlefield-entry event",
+                )?;
+            }
             if events.len() == 1 {
                 Ok(events.into_iter().next().expect("one validated subject"))
             } else {
@@ -215,24 +261,11 @@ fn lower_source_event_union(
         event.source == LocalObjectReference::SourceSelf && !event.verbs.is_empty(),
         "the current source as event subject",
     )?;
-    // A typed modifier the runtime has no matcher for is an engine gap,
+    // A modified verb is a generic event pattern (docs/oracle-event-model.md);
+    // a modifier the runtime matcher cannot evaluate is an engine gap,
     // reported apart from grammar and never dropped.
-    if let Some(modifier) = event.modifiers.first() {
-        cursor.enter("trigger.event.engine-gap");
-        return Err(cursor.fail(match modifier {
-            SourceEventModifier::AttackingAlone => {
-                "an engine event matcher for `attacks alone` on the source"
-            }
-            SourceEventModifier::CounterpartQualifier => {
-                "an engine event matcher for a qualified block counterpart"
-            }
-            SourceEventModifier::NotBlocked => {
-                "an engine event matcher for `attacks and isn't blocked`"
-            }
-            SourceEventModifier::FirstTimeEachTurn => {
-                "an engine event matcher for `for the first time each turn`"
-            }
-        }));
+    if !event.modifiers.is_empty() {
+        return lower_source_event_patterns(cursor, event);
     }
     cursor.enter("trigger.source-event.verb-support");
     let events = event
@@ -252,6 +285,26 @@ fn lower_source_event_union(
                 SourceEventVerb::LeftBattlefield => {
                     json!({"kind": "permanentLeftBattlefield", "object": object})
                 }
+                // A card's own `from anywhere` ability, matched as it arrives.
+                SourceEventVerb::PutIntoGraveyardFromAnywhere => json!({
+                    "kind": "eventPattern",
+                    "lemma": "move",
+                    "subject": {"object": object},
+                    "to": "graveyard",
+                }),
+                SourceEventVerb::PutIntoGraveyardFromZone(zone) => json!({
+                    "kind": "eventPattern",
+                    "lemma": "move",
+                    "subject": {"object": object},
+                    "from": zone,
+                    "to": "graveyard",
+                }),
+                // CR 603.10a: look-back on the exiled source.
+                SourceEventVerb::PutIntoExileFromBattlefield => json!({
+                    "kind": "permanentLeftBattlefield",
+                    "object": object,
+                    "destination": "exile",
+                }),
                 SourceEventVerb::PutIntoGraveyardFromBattlefield => json!({
                     "kind": "permanentLeftBattlefield",
                     "object": object,
@@ -274,6 +327,225 @@ fn lower_source_event_union(
     } else {
         json!({"kind": "oneOf", "events": events})
     })
+}
+
+fn engine_gap(cursor: &mut OracleTokenCursor<'_>, expected: &str) -> MachineFailure {
+    cursor.enter("trigger.event.engine-gap");
+    cursor.fail(expected)
+}
+
+/// The source as the subject of a combat event pattern, with the typed
+/// modifiers the runtime matcher evaluates: `alone` (CR 506.5), `and isn't
+/// blocked` (CR 509.1h), a block counterpart (CR 509.3b, 509.3d) and the
+/// per-turn ordinal of attacks and blocks.
+fn lower_source_event_patterns(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &SourceEventUnionNode,
+) -> MachineResult<Value> {
+    let first_time = event
+        .modifiers
+        .contains(&SourceEventModifier::FirstTimeEachTurn);
+    let not_blocked = event.modifiers.contains(&SourceEventModifier::NotBlocked);
+    if not_blocked && event.verbs != [SourceEventVerb::Attacked] {
+        return Err(engine_gap(
+            cursor,
+            "an engine event matcher for `and isn't blocked` after an event other than one attack",
+        ));
+    }
+    let mut events = Vec::new();
+    for verb in &event.verbs {
+        let alone = *verb == SourceEventVerb::Attacked
+            && event
+                .modifiers
+                .contains(&SourceEventModifier::AttackingAlone);
+        let counterpart = event.modifiers.iter().find_map(|modifier| match modifier {
+            SourceEventModifier::Counterpart(node) if node.verb == *verb => Some(node),
+            _ => None,
+        });
+        let (lemma, role) = match verb {
+            SourceEventVerb::Attacked if not_blocked => ("becomeUnblocked", "attacker"),
+            SourceEventVerb::Attacked => ("attack", "attacker"),
+            SourceEventVerb::Blocked => ("block", "blocker"),
+            SourceEventVerb::BecameBlocked => ("block", "attacker"),
+            _ if first_time => {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an attack or a block",
+                ));
+            }
+            // An unmodified verb of a modified union keeps its own matcher.
+            _ => {
+                events.push(lower_source_event_union(
+                    cursor,
+                    &SourceEventUnionNode {
+                        source: event.source,
+                        verbs: vec![*verb],
+                        modifiers: Vec::new(),
+                    },
+                )?);
+                continue;
+            }
+        };
+        if !alone && counterpart.is_none() && !first_time && !not_blocked {
+            events.push(lower_source_event_union(
+                cursor,
+                &SourceEventUnionNode {
+                    source: event.source,
+                    verbs: vec![*verb],
+                    modifiers: Vec::new(),
+                },
+            )?);
+            continue;
+        }
+        let mut pattern = json!({
+            "kind": "eventPattern",
+            "lemma": lemma,
+            "subject": {"role": role, "object": self_ref()},
+        });
+        if alone {
+            pattern["attackingAlone"] = json!(true);
+        }
+        if not_blocked {
+            pattern["declaredAttacker"] = json!(true);
+        }
+        if first_time {
+            // The runtime records the ordinal of the attacker of an attack and
+            // of the blocker of a block.
+            if not_blocked || *verb == SourceEventVerb::BecameBlocked {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an attack or a block",
+                ));
+            }
+            pattern["turnOrdinal"] = json!(1);
+        }
+        if let Some(counterpart) = counterpart {
+            if counterpart.query.controller.is_some()
+                || counterpart.query.predicate.contains_numeric_comparison()
+                || !domain_filter_is_representable(&counterpart.query.predicate)
+            {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for a block counterpart without controller or numeric characteristics",
+                ));
+            }
+            let filter = lower_permanent_object_predicate(&counterpart.query.predicate);
+            if filter.is_null() {
+                return Err(engine_gap(cursor, "a lowered block counterpart predicate"));
+            }
+            let mut lowered = json!({
+                "role": if role == "attacker" { "blocker" } else { "attacker" },
+                "where": filter,
+            });
+            if counterpart.one_or_more {
+                lowered["oneOrMore"] = json!(true);
+            }
+            pattern["counterpart"] = lowered;
+        }
+        events.push(pattern);
+    }
+    Ok(if events.len() == 1 {
+        events.into_iter().next().expect("one source event")
+    } else {
+        json!({"kind": "oneOf", "events": events})
+    })
+}
+
+/// A departure of a permanent with any controller, or an opponent's: the
+/// generic zone-change pattern, read on the last-known object (CR 603.10a).
+fn lower_departure_move_pattern(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+) -> MachineResult<Value> {
+    let subject = &event.subject;
+    cursor.require(
+        !subject.query.predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(&subject.query.predicate),
+        "a representable departing-permanent predicate without numeric characteristics",
+    )?;
+    let mut object = json!({"kind": "permanents"});
+    match subject.query.controller {
+        None => {}
+        Some(ObjectControllerScope::AbilityController) => object["controller"] = controller(),
+        Some(ObjectControllerScope::OpponentOfAbilityController) => {
+            object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+        Some(_) => {
+            return Err(cursor.fail("a departing permanent with any controller or an opponent"));
+        }
+    }
+    if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+        let filter = lower_permanent_object_predicate(&subject.query.predicate);
+        cursor.require(!filter.is_null(), "a lowered departing-permanent predicate")?;
+        object["where"] = filter;
+    }
+    if subject.exclude_source {
+        object["excludeSource"] = json!(true);
+    }
+    let mut lowered = json!({
+        "kind": "eventPattern",
+        "lemma": "move",
+        "subject": {"object": object},
+        "from": "battlefield",
+    });
+    if event.verb == ObjectEventVerb::PutIntoGraveyardFromBattlefield {
+        lowered["to"] = json!("graveyard");
+    }
+    // `one or more`: one trigger per simultaneous event (CR 603.2c).
+    if matches!(
+        event.subject.multiplicity,
+        EventMultiplicity::PerEvent { .. }
+    ) {
+        lowered["aggregation"] = json!("oneOrMore");
+    }
+    Ok(lowered)
+}
+
+/// A card arriving in a graveyard from any zone: the generic move pattern
+/// read on the card in its new zone; `one or more` is one trigger per
+/// simultaneous event (CR 603.2c).
+fn lower_graveyard_arrival_pattern(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+    owner: GraveyardOwner,
+    origin: Option<&'static str>,
+) -> MachineResult<Value> {
+    let subject = &event.subject;
+    cursor.enter("trigger.object-event.graveyard-arrival");
+    cursor.require(
+        subject.query.controller.is_none()
+            && !subject.exclude_source
+            && subject.query.predicate.supports_domain(ObjectKind::Card)
+            && !subject.query.predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(&subject.query.predicate),
+        "a representable card predicate without controller or source exclusion",
+    )?;
+    let mut object = json!({"kind": "cards"});
+    match owner {
+        GraveyardOwner::Any => {}
+        GraveyardOwner::Controller => object["owner"] = controller(),
+        GraveyardOwner::Opponent => {
+            object["owner"] = json!({"kind": "opponentsOf", "player": controller()});
+        }
+    }
+    if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Card) {
+        let filter = lower_card_object_predicate(&subject.query.predicate);
+        cursor.require(!filter.is_null(), "a lowered arriving-card predicate")?;
+        object["where"] = filter;
+    }
+    let mut lowered = json!({
+        "kind": "eventPattern",
+        "lemma": "move",
+        "subject": {"object": object},
+        "to": "graveyard",
+    });
+    if let Some(origin) = origin {
+        lowered["from"] = json!(origin);
+    }
+    if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. }) {
+        lowered["aggregation"] = json!("oneOrMore");
+    }
+    Ok(lowered)
 }
 
 /// Maps (verb, multiplicity) to the runtime matcher that already implements
@@ -328,18 +600,19 @@ fn lower_object_event(
     if let ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield =
         event.verb
     {
-        // The departure matcher observes permanents the ability controller
-        // controlled, with an explicit source exclusion (CR 603.10a).
+        // The departure matcher observes one permanent as it last existed on
+        // the battlefield, with an explicit source exclusion (CR 603.10a).
         cursor.enter("trigger.object-event.departure-support");
         cursor.require(
-            !per_event
-                && subject.query.controller == Some(ObjectControllerScope::AbilityController)
-                && subject
-                    .query
-                    .predicate
-                    .supports_domain(ObjectKind::Permanent),
-            "one permanent the ability controller controls (no other departure observer)",
+            subject
+                .query
+                .predicate
+                .supports_domain(ObjectKind::Permanent),
+            "a permanent leaving the battlefield",
         )?;
+        if per_event || subject.query.controller != Some(ObjectControllerScope::AbilityController) {
+            return lower_departure_move_pattern(cursor, event);
+        }
         let mut lowered = json!({
             "kind": "controlledPermanentLeftBattlefield",
             "player": controller(),
@@ -350,6 +623,9 @@ fn lower_object_event(
             lowered["destination"] = json!("graveyard");
         }
         return Ok(lowered);
+    }
+    if let ObjectEventVerb::PutIntoGraveyard(owner, origin) = event.verb {
+        return lower_graveyard_arrival_pattern(cursor, event, owner, origin);
     }
     if event.verb == ObjectEventVerb::DealDamage
         || (event.verb == ObjectEventVerb::DealCombatDamageToPlayer && !per_event)
@@ -389,8 +665,9 @@ fn lower_object_event(
         return lower_damage_dealt_event(cursor, source, complement);
     }
     cursor.enter("trigger.object-event.source-exclusion-support");
+    // The generic attack pattern carries its own source exclusion.
     cursor.require(
-        !subject.exclude_source,
+        !subject.exclude_source || (event.verb == ObjectEventVerb::Attack && !per_event),
         "an object event without an unproved source exclusion",
     )?;
     cursor.enter("trigger.object-event.verb-support");
@@ -406,6 +683,45 @@ fn lower_object_event(
                 "player": controller(),
                 "where": lower_card_object_predicate(&subject.query.predicate),
                 "aggregation": if per_event { "oneOrMore" } else { "perCard" },
+            }))
+        }
+        // One trigger per attacking creature (CR 508.3a): the generic attack
+        // pattern with the subject's controller relation and predicate.
+        ObjectEventVerb::Attack if !per_event => {
+            cursor.enter("trigger.object-event.attack-subject");
+            cursor.require(
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent)
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "a representable attacking-permanent predicate",
+            )?;
+            let mut object = json!({"kind": "permanents"});
+            match subject.query.controller {
+                None => {}
+                Some(ObjectControllerScope::AbilityController) => {
+                    object["controller"] = controller();
+                }
+                Some(ObjectControllerScope::OpponentOfAbilityController) => {
+                    object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+                }
+                Some(ObjectControllerScope::NotAbilityController) => {
+                    return Err(cursor.fail("a positive controller relation for an attacker"));
+                }
+            }
+            if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+                let filter = lower_permanent_object_predicate(&subject.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered attacking-permanent predicate")?;
+                object["where"] = filter;
+            }
+            if subject.exclude_source {
+                object["excludeSource"] = json!(true);
+            }
+            Ok(json!({
+                "kind": "eventPattern",
+                "lemma": "attack",
+                "subject": {"role": "attacker", "object": object},
             }))
         }
         ObjectEventVerb::Attack | ObjectEventVerb::DealCombatDamageToPlayer => {
@@ -437,13 +753,52 @@ fn lower_object_event(
                 }),
             })
         }
+        // `one or more PERMANENTS block / become blocked`: the generic block
+        // pattern, once per declare-blockers event (CR 509.1, 603.2c).
+        ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked if per_event => {
+            cursor.enter("trigger.object-event.block-batch");
+            cursor.require(
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent)
+                    && !subject.exclude_source
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "a representable combatant predicate without source exclusion",
+            )?;
+            let mut object = json!({"kind": "permanents"});
+            match subject.query.controller {
+                None => {}
+                Some(ObjectControllerScope::AbilityController) => {
+                    object["controller"] = controller()
+                }
+                Some(ObjectControllerScope::OpponentOfAbilityController) => {
+                    object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+                }
+                Some(ObjectControllerScope::NotAbilityController) => {
+                    return Err(cursor.fail("a positive controller relation for a combatant"));
+                }
+            }
+            if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+                let filter = lower_permanent_object_predicate(&subject.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered combatant predicate")?;
+                object["where"] = filter;
+            }
+            let role = if event.verb == ObjectEventVerb::Block {
+                "blocker"
+            } else {
+                "attacker"
+            };
+            Ok(json!({
+                "kind": "eventPattern",
+                "lemma": "block",
+                "subject": {"role": role, "object": object},
+                "aggregation": "oneOrMore",
+            }))
+        }
         ObjectEventVerb::Block | ObjectEventVerb::BecomeBlocked => {
             // One trigger per blocking creature, or once per combat for each
             // attacking creature that becomes blocked (CR 509.1h).
-            cursor.require(
-                !per_event,
-                "a singular combat subject (no one-or-more block matcher)",
-            )?;
             cursor.require(
                 subject.query.controller == Some(ObjectControllerScope::AbilityController)
                     && subject
@@ -463,8 +818,10 @@ fn lower_object_event(
                 "where": lower_permanent_object_predicate(&subject.query.predicate),
             }))
         }
-        ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
-            unreachable!("departures are lowered before the per-verb support checks")
+        ObjectEventVerb::LeaveBattlefield
+        | ObjectEventVerb::PutIntoGraveyardFromBattlefield
+        | ObjectEventVerb::PutIntoGraveyard(..) => {
+            unreachable!("zone changes are lowered before the per-verb support checks")
         }
         ObjectEventVerb::BeDealtDamage(damage) => {
             // One event per damaged object per damage event (CR 120.3, 603.2c).
@@ -565,10 +922,18 @@ fn lower_damage_dealt_event(
     }
     cursor.enter("trigger.dealt-damage.recipient-support");
     // Without a recipient one event can damage several objects and players
-    // at once and must trigger only once; that aggregation is not proved.
-    let recipient = complement.recipient.as_ref().ok_or_else(|| {
-        cursor.fail("a damage recipient (no aggregation over every recipient is proved)")
-    })?;
+    // at once: the generic damage pattern triggers once per source and
+    // simultaneous event, with the total amount (docs/oracle-event-model.md).
+    let Some(recipient) = complement.recipient.as_ref() else {
+        let source = lowered["source"].take();
+        let mut pattern = json!({"kind": "eventPattern", "lemma": "dealDamage", "source": source});
+        for flag in ["combatOnly", "noncombatOnly"] {
+            if let Some(value) = lowered.get(flag) {
+                pattern[flag] = value.clone();
+            }
+        }
+        return Ok(pattern);
+    };
     lowered["recipient"] = match recipient {
         DamageRecipient::Player(actor) => {
             json!({"kind": "player", "player": event_actor_player(*actor)})
@@ -600,6 +965,63 @@ fn apply_damage_event_kind(
     Ok(())
 }
 
+/// `that targets [only] T`: each alternative through the shared player and
+/// permanent-query lowering (CR 115.1).
+fn lower_spell_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    targets: &SpellTargetsNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.spell-cast.target-support");
+    let alternatives = targets
+        .alternatives
+        .iter()
+        .map(|target| match target {
+            SpellTargetNode::Source => Ok(json!({"kind": "self"})),
+            SpellTargetNode::Player(actor) => {
+                Ok(json!({"kind": "player", "player": event_actor_player(*actor)}))
+            }
+            SpellTargetNode::Permanent(query) => {
+                let mut lowered = json!({"kind": "permanents"});
+                if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut lowered)? {
+                    lowered["where"] = filter;
+                }
+                Ok(lowered)
+            }
+        })
+        .collect::<MachineResult<Vec<_>>>()?;
+    Ok(json!({"only": targets.only, "anyOf": alternatives}))
+}
+
+/// Every numeric comparison of the predicate has a literal right side.
+fn literal_numeric_comparisons(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::NumericComparison { right, .. } => {
+            matches!(**right, NumericExpression::Atom(NumericAtom::Integer(_)))
+        }
+        ObjectPredicate::Not(child) => literal_numeric_comparisons(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            children.iter().all(literal_numeric_comparisons)
+        }
+        _ => true,
+    }
+}
+
+/// The characteristics the spell-cast history records for each spell: its
+/// type line (types, subtypes, supertypes) and name.
+fn spell_history_predicate(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::ObjectKind(ObjectKind::Spell)
+        | ObjectPredicate::CardType(_)
+        | ObjectPredicate::Subtype(_)
+        | ObjectPredicate::Supertype(_) => true,
+        ObjectPredicate::Not(child) => spell_history_predicate(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            !children.is_empty() && children.iter().all(spell_history_predicate)
+        }
+        _ => false,
+    }
+}
+
 /// Only permanent-domain identity and token status survive this existing
 /// departure observer unchanged. Characteristics require an effective LKI
 /// snapshot and remain explicitly unsupported; the full predicate is retained.
@@ -628,6 +1050,26 @@ fn require_stable_permanent_event_predicate(
         "a stable permanent/token identity predicate until effective object characteristics are captured")
 }
 
+/// The characteristics the engine captures when an object leaves the
+/// battlefield (types, subtypes, colors, supertypes, token status, keywords;
+/// docs/oracle-event-model.md). Numeric characteristics are not captured.
+fn snapshot_permanent_event_predicate(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::ObjectKind(ObjectKind::Permanent)
+        | ObjectPredicate::IsToken
+        | ObjectPredicate::CardType(_)
+        | ObjectPredicate::Subtype(_)
+        | ObjectPredicate::Color(_)
+        | ObjectPredicate::Supertype(_)
+        | ObjectPredicate::HasKeyword(_) => true,
+        ObjectPredicate::Not(child) => snapshot_permanent_event_predicate(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            !children.is_empty() && children.iter().all(snapshot_permanent_event_predicate)
+        }
+        _ => false,
+    }
+}
+
 /// Shared by the generic event parent and the established sacrifice adapter.
 pub(in crate::oracle::canonical) fn lower_sacrifice_event(
     cursor: &mut OracleTokenCursor<'_>,
@@ -639,7 +1081,20 @@ pub(in crate::oracle::canonical) fn lower_sacrifice_event(
             cursor.fail("an accepted shared sacrifice matcher for the opponent actor scope")
         );
     }
-    require_stable_permanent_event_predicate(cursor, &event.object.predicate)?;
+    if event.object.predicate.contains_numeric_comparison() {
+        cursor.enter("trigger.sacrifice.numeric-snapshot-support");
+        return Err(cursor.fail(
+            "a predicate without numeric sacrificed-object characteristics (not captured at departure)",
+        ));
+    }
+    // The engine reads the predicate on the effective characteristics
+    // captured as the object left the battlefield (CR 603.10a).
+    cursor.enter("trigger.sacrifice.characteristic-snapshot-support");
+    cursor.require(
+        snapshot_permanent_event_predicate(&event.object.predicate)
+            && domain_filter_is_representable(&event.object.predicate),
+        "a predicate over the characteristics captured at departure",
+    )?;
     let mut lowered = json!({"kind":"permanentSacrificed", "where":lower_permanent_object_predicate(&event.object.predicate)});
     if event.actor == EventActorScope::Controller {
         lowered["player"] = controller();

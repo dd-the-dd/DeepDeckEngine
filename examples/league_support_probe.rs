@@ -63,7 +63,14 @@ fn evaluate(row: Row) -> Value {
     } else {
         "unexecutable"
     };
-    json!({"oracle_id":oracle_id,"name":name,"abilities":abilities.len(),"canonical":canonical,
+    // Stable digest of the emitted IR, to count cards whose IR changed.
+    let ir_digest = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        v["candidateRules"].to_string().hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
+    };
+    json!({"oracle_id":oracle_id,"name":name,"abilities":abilities.len(),"canonical":canonical,"irDigest":ir_digest,
       "executable":executable,"supported":supported,"state":state,"parseStatus":status,
       "engineStatus":v["engineStatus"],"unexecutableRuleCount":unexec,
       "unexecutableKinds":unexec_kinds,"failures":failures})

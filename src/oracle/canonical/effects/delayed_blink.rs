@@ -86,10 +86,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_attack_delayed_return_counter
         TargetlessDeclarationSupport::None,
     )
     .map_err(|error| cursor.fail(error.expectation()))?;
-    let delayed_step = match node.delayed_return.step {
-        DelayedTurnStep::Upkeep => "upkeep",
-        DelayedTurnStep::EndStep => "endStep",
-    };
+    let delayed_step = node.delayed_return.step.runtime_step();
     let exiled = json!({
         "kind": "singleBoundObject",
         "binding": EXILED_BINDING,

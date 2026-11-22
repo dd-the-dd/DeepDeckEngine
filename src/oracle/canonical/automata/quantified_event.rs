@@ -56,8 +56,20 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     LeaveBattlefield,
     /// `put into a graveyard from the battlefield`, for any permanent type.
     PutIntoGraveyardFromBattlefield,
+    /// `put into OWNER graveyard [from anywhere]`: a card arriving in a
+    /// graveyard from any zone (CR 400.3: a card goes to its owner's).
+    /// The origin zone when written (`from your library`), else any zone.
+    PutIntoGraveyard(GraveyardOwner, Option<&'static str>),
     /// Passive of `deal damage`: the subject is the damaged object (CR 120.3).
     BeDealtDamage(DamageKind),
+}
+
+/// Whose graveyard a card arrives in, relative to the ability controller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum GraveyardOwner {
+    Any,
+    Controller,
+    Opponent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -173,7 +185,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
     };
-    let (base, verb) = match raw.as_str() {
+    let (base, mut verb) = match raw.as_str() {
         "leave" | "leaves" if next_is("the") => ("leave", ObjectEventVerb::LeaveBattlefield),
         "leave" | "leaves" => ("leave", ObjectEventVerb::LeaveControllerGraveyard),
         "attack" | "attacks" => ("attack", ObjectEventVerb::Attack),
@@ -207,15 +219,55 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         }
         ObjectEventVerb::LeaveBattlefield => cursor.consume_phrase(&["the", "battlefield"])?,
         ObjectEventVerb::BecomeBlocked => cursor.consume("blocked")?,
-        ObjectEventVerb::PutIntoGraveyardFromBattlefield => cursor.consume_phrase(&[
-            "put",
-            "into",
-            "a",
-            "graveyard",
-            "from",
-            "the",
-            "battlefield",
-        ])?,
+        ObjectEventVerb::PutIntoGraveyardFromBattlefield => {
+            cursor.consume_phrase(&["put", "into"])?;
+            cursor.enter("event.object.graveyard-owner");
+            let owner = if peek_word(cursor, 0, "your") {
+                cursor.consume("your")?;
+                GraveyardOwner::Controller
+            } else if peek_word(cursor, 0, "an") && peek_word(cursor, 1, "opponent's") {
+                cursor.consume_phrase(&["an", "opponent's"])?;
+                GraveyardOwner::Opponent
+            } else {
+                cursor.consume("a")?;
+                GraveyardOwner::Any
+            };
+            cursor.consume("graveyard")?;
+            cursor.enter("event.object.graveyard-origin");
+            if owner == GraveyardOwner::Any
+                && peek_word(cursor, 0, "from")
+                && peek_word(cursor, 1, "the")
+            {
+                cursor.consume_phrase(&["from", "the", "battlefield"])?;
+            } else {
+                let mut origin = None;
+                if peek_word(cursor, 0, "from") && peek_word(cursor, 1, "anywhere") {
+                    cursor.consume_phrase(&["from", "anywhere"])?;
+                } else if peek_word(cursor, 0, "from") {
+                    cursor.consume("from")?;
+                    if peek_word(cursor, 0, "your") {
+                        cursor.consume("your")?;
+                        origin = Some(
+                            match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                                Some("library") => "library",
+                                Some("hand") => "hand",
+                                _ => return Err(cursor.fail("library or hand")),
+                            },
+                        );
+                        cursor.consume(origin.expect("checked origin"))?;
+                        // A second origin (`or hand`) has no single matcher.
+                        cursor.require(
+                            !peek_word(cursor, 0, "or"),
+                            "one origin zone for a graveyard arrival",
+                        )?;
+                    } else {
+                        cursor.consume_phrase(&["the", "battlefield"])?;
+                        origin = Some("battlefield");
+                    }
+                }
+                verb = ObjectEventVerb::PutIntoGraveyard(owner, origin);
+            }
+        }
         // Damage verbs are the shared damage clause's (above).
         ObjectEventVerb::DealCombatDamageToPlayer
         | ObjectEventVerb::DealDamage
@@ -223,7 +275,8 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         ObjectEventVerb::Attack
         | ObjectEventVerb::Block
         | ObjectEventVerb::Enter
-        | ObjectEventVerb::Die => {}
+        | ObjectEventVerb::Die
+        | ObjectEventVerb::PutIntoGraveyard(..) => {}
     }
     cursor.enter("event.object.complete");
     Ok(ObjectEventNode {
@@ -231,6 +284,12 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         verb,
         damage: None,
     })
+}
+
+fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
 }
 
 #[cfg(test)]
