@@ -363,6 +363,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         LocalEffectNode::CreateExplicitTokens(node) => &mut node.quantity,
         LocalEffectNode::PlayerAction(node) => match &mut node.action {
             SingularPlayerAction::Draw(quantity) | SingularPlayerAction::Mill(quantity) => quantity,
+            SingularPlayerAction::Counters(node) => &mut node.count,
             SingularPlayerAction::Life(life) => &mut life.amount,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)

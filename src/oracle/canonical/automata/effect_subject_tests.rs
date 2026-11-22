@@ -120,3 +120,102 @@ fn an_unread_verb_of_the_controller_fails_at_the_clause() {
         "{states:?}"
     );
 }
+
+fn player_counters(type_line: &str, oracle: &str) -> Vec<Value> {
+    fn collect(effect: &Value, found: &mut Vec<Value>) {
+        if effect["kind"] == "addPlayerCounters" {
+            found.push(effect.clone());
+        }
+        for child in effect["effects"].as_array().into_iter().flatten() {
+            collect(child, found);
+        }
+    }
+    let mut found = Vec::new();
+    for effect in effects(type_line, oracle) {
+        collect(&effect, &mut found);
+    }
+    found
+}
+
+/// `get` with a player-counters frame (CR 122.1): every player subject the
+/// clause reads, one lowering.
+#[test]
+fn player_subjects_get_counters() {
+    use serde_json::json;
+    // Real cards: Pit Scorpion (event player), Pistus Strike (its
+    // controller), Aethertorch Renegade (energy symbols and reminder).
+    // Unused recombinations: a quantified population with a counter name
+    // and a counted experience counter for the controller.
+    for (type_line, oracle, player, counter, count) in [
+        (
+            "Creature \u{2014} Scorpion",
+            "Whenever this creature deals damage to a player, that player gets a poison counter.",
+            json!({"kind":"triggeringPlayer"}),
+            "poison",
+            1,
+        ),
+        (
+            "Instant",
+            "Destroy target creature with flying. Its controller gets a poison counter.",
+            json!("controllerOf"),
+            "poison",
+            1,
+        ),
+        (
+            CREATURE,
+            "When this creature enters, you get {E}{E}{E}{E} (four energy counters).",
+            json!({"kind":"controllerOf","object":{"kind":"self"}}),
+            "energy",
+            4,
+        ),
+        (
+            CREATURE,
+            "When this creature enters, each opponent gets two rad counters.",
+            json!(null),
+            "rad",
+            2,
+        ),
+        (
+            CREATURE,
+            "When this creature enters, you get an experience counter.",
+            json!({"kind":"controllerOf","object":{"kind":"self"}}),
+            "experience",
+            1,
+        ),
+    ] {
+        let effects = player_counters(type_line, oracle);
+        assert_eq!(effects.len(), 1, "{oracle}: {effects:#?}");
+        let effect = &effects[0];
+        assert_eq!(effect["counter"], counter, "{oracle}");
+        assert_eq!(effect["count"]["value"], count, "{oracle}: {effect:#}");
+        match player {
+            Value::Null => {}
+            Value::String(kind) => assert_eq!(effect["player"]["kind"], kind, "{oracle}"),
+            player => assert_eq!(effect["player"], player, "{oracle}"),
+        }
+    }
+}
+
+/// Near misses: a reminder that miscounts the symbols fails; counters put
+/// `on` an object stay with the counter-placement frame.
+#[test]
+fn player_counters_near_misses() {
+    let (status, _, states) = parse(
+        CREATURE,
+        "When this creature enters, you get {E}{E} (three energy counters).",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states.iter().any(
+            |state| state.starts_with("player-action.counters") || state.starts_with("numeric")
+        ),
+        "{states:?}"
+    );
+    assert!(
+        player_counters(
+            CREATURE,
+            "When this creature enters, put a +1/+1 counter on target creature.",
+        )
+        .is_empty()
+    );
+}

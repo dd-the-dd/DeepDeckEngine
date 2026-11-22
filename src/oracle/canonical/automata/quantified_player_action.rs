@@ -27,6 +27,8 @@ pub(in crate::oracle::canonical) enum QuantifiedPlayerAction {
     /// `discards|reveals their hand`: the same whole-hand child as singular
     /// subjects; no single hand becomes an observed collection here.
     Hand(PlayerHandVerb),
+    /// `gets N KIND counter(s)`: the singular subjects' counters child.
+    Counters(super::PlayerCountersNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -65,6 +67,7 @@ fn is_quantified_action_verb(cursor: &OracleTokenCursor<'_>) -> bool {
 /// clause starts the item in any agreement; the item reports a mismatch.
 fn quantified_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     is_quantified_action_verb(cursor)
+        || super::player_counters_follow(cursor)
         || player_hand_verb_at(cursor, VerbAgreement::ThirdPersonSingular).is_some()
         || supplied_life_action_starts(cursor, VerbAgreement::ThirdPersonSingular)
 }
@@ -169,6 +172,10 @@ fn recognize_quantified_action(
     };
     if let Some(life) = recognize_supplied_life_action(cursor, life_agreement, None)? {
         return Ok(QuantifiedPlayerAction::Life(life));
+    }
+    if super::player_counters_follow(cursor) {
+        return super::recognize_player_counters_fragment(cursor, life_agreement)
+            .map(QuantifiedPlayerAction::Counters);
     }
     let verb = cursor.peek().map(str::to_ascii_lowercase);
     Ok(match (quantified_lemma_at(cursor), verb.as_deref()) {

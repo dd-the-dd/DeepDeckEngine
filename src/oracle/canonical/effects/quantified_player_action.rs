@@ -84,6 +84,12 @@ fn lower_quantified_action(
             "kind":"mill", "player":player,
             "count":lower_targetless_numeric_expression(count, declarations)?,
         })],
+        // CR 122.1: counters on each player of the population.
+        QuantifiedPlayerAction::Counters(node) => vec![json!({
+            "kind":"addPlayerCounters", "player":player,
+            "counter":node.counter.as_str(),
+            "count":lower_targetless_numeric_expression(&node.count, declarations)?,
+        })],
         QuantifiedPlayerAction::Hand(PlayerHandVerb::Discard) => {
             vec![json!({"kind":"discardHand", "player":player})]
         }

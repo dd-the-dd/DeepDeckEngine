@@ -437,6 +437,10 @@ fn lower_local_effect_sequence_with_collections(
                 let (kind, field, amount) = match &action.action {
                     SingularPlayerAction::Draw(count) => ("drawCards", "count", count),
                     SingularPlayerAction::Mill(count) => ("mill", "count", count),
+                    // CR 122.1: counters on the acting player.
+                    SingularPlayerAction::Counters(node) => {
+                        ("addPlayerCounters", "count", &node.count)
+                    }
                     SingularPlayerAction::Life(life) => (
                         match life.action {
                             TargetPlayerLifeAction::Gain => "gainLife",
@@ -553,6 +557,9 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 let mut effect = json!({"kind": kind, "player": lowered.player});
                 effect[field] = amount;
+                if let SingularPlayerAction::Counters(node) = &action.action {
+                    effect["counter"] = json!(node.counter.as_str());
+                }
                 // `draw N cards and reveal them`: the drawn cards are the
                 // antecedent of the next card action, never otherwise bound.
                 if let SingularPlayerAction::Draw(count) = &action.action

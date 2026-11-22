@@ -83,6 +83,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
             | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },

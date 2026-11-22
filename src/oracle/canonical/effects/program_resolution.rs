@@ -118,6 +118,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             SingularPlayerAction::Life(life) => independent_number(&life.amount),
             // Choice-bearing player actions keep the native lowering boundary.
             // A revealed hand and a referenced discard bind card collections.
+            SingularPlayerAction::Counters(node) => independent_number(&node.count),
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)

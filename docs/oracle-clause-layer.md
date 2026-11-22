@@ -236,3 +236,23 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   cartes supportées inchangée. Preuve : IR identique entre `you VERB` et
   l'impératif (cartes réelles et recombinaisons inédites), sujet hérité
   remplacé, quasi-échec `you get an emblem`.
+
+### Étape 14 : lemme `get`, cadre compteurs de joueur
+
+- Lexique : `get` (cadre `PlayerCounters`, CR 122.1). Le lecteur d'action
+  de joueur et la liste quantifiée partagent un enfant
+  (`recognize_player_counters_fragment`) : `{E}{E} [(two energy counters)]`
+  (le rappel doit compter les symboles, CR 207.2) ou `N KIND counter(s)` par
+  le nom de compteur partagé. Tous les sujets de joueur l'atteignent :
+  impératif, `you`, `that player`, `its controller`, `target player`,
+  `each opponent`. Abaissement : primitive moteur existante
+  `addPlayerCounters` (poison et énergie déjà exécutés, CR 704.5c).
+- `put … counter on OBJECT` reste au cadre de placement : la revendication
+  exige un nom de compteur sans `on`/`from` après lui.
+- Sonde : ligue 809 → 809, corpus 14329 → 14363 (+34), 0 perte, IR des
+  cartes supportées inchangée. Preuves : cartes réelles (Pit Scorpion,
+  Pistus Strike, Aethertorch Renegade), recombinaisons inédites
+  (`each opponent gets two rad counters`, `you get an experience counter`),
+  quasi-échec (rappel qui ne compte pas les symboles), exécution
+  (`effect_subject_runtime.rs` : poison au joueur de l'événement, énergie
+  au contrôleur).

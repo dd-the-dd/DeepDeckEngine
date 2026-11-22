@@ -178,6 +178,8 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             super::SingularPlayerAction::Draw(_)
             | super::SingularPlayerAction::Mill(_)
             | super::SingularPlayerAction::Discard(_) => previous,
+            // Counters on a player change no permanent.
+            super::SingularPlayerAction::Counters(_) => previous,
             super::SingularPlayerAction::Sacrifice(_)
             | super::SingularPlayerAction::Venture(_)
             | super::SingularPlayerAction::Proliferate
