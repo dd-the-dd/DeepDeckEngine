@@ -315,3 +315,57 @@ fn entry_keywords_create_and_attach_or_grow_from_their_definitions() {
         "counters {placed}, Servos {tokens}"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn modular_moves_the_last_known_counters_of_its_dead_source() {
+    // CR 702.43a and 603.10a: the death trigger counts the counters the
+    // creature had when it left the battlefield, a +1/+1 counter added after
+    // entering included.
+    let hoarder = compiled(
+        "Arcbound Hoarder",
+        "Artifact Creature \u{2014} Construct",
+        ("0", "0"),
+        "Modular 2 (This creature enters with two +1/+1 counters on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+    );
+    assert_eq!(hoarder.rules.len(), 2);
+    let mut engine = test_engine(2);
+    let mut entering = test_instance("arcbound-hoarder", hoarder, "player-0");
+    engine
+        .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+        .expect("the modular counters are placed as it enters");
+    assert_eq!(entering.counters.get("+1/+1"), Some(&2));
+    entering.counters.insert("+1/+1".to_string(), 3);
+    let mut receiver_definition =
+        test_definition("receiver", "Artifact Creature \u{2014} Construct");
+    receiver_definition.power = Some("1".to_string());
+    receiver_definition.toughness = Some("1".to_string());
+    engine.state.players[0].battlefield = vec![
+        entering,
+        test_instance("receiver", receiver_definition, "player-0"),
+        creature("plain-creature", "player-0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let killer = StackObject {
+        id: "stack:killer".to_string(),
+        controller: "player-1".to_string(),
+        card: creature("killer", "player-1"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .destroy_permanent_from_stack("arcbound-hoarder", &killer)
+        .expect("the destruction resolves");
+    assert_eq!(engine.state.stack.len(), 1, "one modular trigger");
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("modular resolves with the source's last-known counters");
+    assert_eq!(counters(&engine, "receiver"), 3);
+    assert_eq!(counters(&engine, "plain-creature"), 0);
+}

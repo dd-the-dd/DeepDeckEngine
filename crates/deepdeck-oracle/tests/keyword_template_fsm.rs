@@ -282,6 +282,18 @@ fn migrated_keywords_keep_their_explicit_failures() {
 fn batch_keywords_compile_their_cr_definitions_on_real_cards() {
     for (name, type_line, line, definition) in [
         (
+            "Arcbound Worker",
+            "Artifact Creature \u{2014} Construct",
+            "Modular 1 (This creature enters with a +1/+1 counter on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+            "This permanent enters with a +1/+1 counter on it.\nWhen this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.",
+        ),
+        (
+            "Arcbound Bruiser",
+            "Artifact Creature \u{2014} Construct",
+            "Modular 3 (This creature enters with three +1/+1 counters on it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+            "This permanent enters with three +1/+1 counters on it.\nWhen this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.",
+        ),
+        (
             "Peema Outrider",
             "Creature \u{2014} Elf Knight",
             "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)",
@@ -374,9 +386,8 @@ fn unsupported_batch_shapes_stay_explicit() {
         parsed.abilities[0].diagnostics[0].automaton.as_deref(),
         Some("keyword-template")
     );
-    // Arcbound Wanderer: modular is not a template row yet (its death
-    // trigger reads the departed source's counters, an engine LKI gap); the
-    // structural keyword frame still reports the line.
+    // Arcbound Wanderer: a modular line without a count is not claimed by
+    // the template; the structural keyword frame reports it.
     let parsed = parse(
         "Arcbound Wanderer",
         "Artifact Creature \u{2014} Construct",

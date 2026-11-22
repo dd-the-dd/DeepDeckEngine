@@ -21819,18 +21819,31 @@ impl GameEngine {
         }
         let mut last_stack_id = String::new();
         let mut published_stack_ids = Vec::with_capacity(trigger_count);
+        // CR 603.10a: a trigger of a source that already left the battlefield
+        // reads that incarnation's authenticated last-known information.
+        let departed = self.departed_trigger_source(source);
         for copy_index in 0..trigger_count {
             self.stack_sequence += 1;
             let stack_id = format!("stack:{}", self.stack_sequence);
+            let mut trigger_decisions = decisions.clone();
+            let mut card = source.clone();
+            if let Some(departed) = &departed {
+                card = departed.card.clone();
+                for (key, value) in &departed.decisions {
+                    trigger_decisions
+                        .entry(key.clone())
+                        .or_insert_with(|| value.clone());
+                }
+            }
             self.state.stack.push(StackObject {
                 id: stack_id.clone(),
                 controller: source.controller.clone(),
-                card: source.clone(),
+                card,
                 cant_be_countered: false,
                 exile_on_leave_stack: false,
                 ability_kind: Some("triggeredAbility".to_string()),
                 ability_rule: Some(rule.clone()),
-                decisions: decisions.clone(),
+                decisions: trigger_decisions,
                 targets: BTreeMap::new(),
             });
             self.record_event(

@@ -167,6 +167,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Outlast | 702.107a | [cost] | `outlast_and_reinforce_activate_from_their_definitions_zones` |
 | Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
 | Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
+| Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
 
 ## Défauts trouvés par les preuves runtime
 
@@ -183,11 +184,27 @@ donne une IR exécutable équivalente, prouvée par test.
   comme les autres consommateurs (`created_tokens_are_next_antecedent`).
   Changement d'IR assumé : ajout de `"bind": "createdTokens"`.
 
+## Dernière information connue des déclencheurs « regard en arrière »
+
+Un déclencheur de la source elle-même publié après son départ du champ de
+bataille (`dies`, `is put into a graveyard from the battlefield`, …) lit
+l'information de dernier état de cette incarnation (CR 603.10a). La sortie
+centrale `capture_pending_source_lki` enregistre déjà la capture de départ
+authentifiée (force, endurance, traits de source de dégâts, objet avec ses
+marqueurs) pour les capacités en attente ; elle la conserve désormais aussi
+par incarnation (`SourceLkiContexts::departed`). `publish_triggered_ability`
+la donne à un déclencheur dont la source n'est plus sur le champ de bataille
+dans cette incarnation. Les lectures vérifiées de la source (marqueurs,
+caractéristiques, source de dégâts) acceptent alors cette capture au lieu
+d'échouer : le cas « exécutable à l'admission, refusé à l'exécution » relevé
+avec Modular est fermé pour toute carte imprimée de même forme. Une sortie
+hors des sorties centrales ne produit pas de capture et garde l'échec
+explicite.
+
 ## Mots-clés en attente (raison mesurée)
 
 | Mot-clé | Cartes corpus bloquées seulement par lui | Blocage |
 |---|---|---|
-| Modular | 17 | la définition compile, mais le déclencheur de mort lit les marqueurs de la source partie : le moteur exige une capture de départ authentifiée que les déclencheurs « regard en arrière » créés après le départ n'ont pas (`source counter query … without effective LKI`) |
 | Backup | 18 | « gains the non-backup abilities printed below » : référence aux capacités imprimées |
 | Bloodthirst | 15 | remplacement d'entrée conditionnel (`ability-frame.conditional.body`) |
 | Unleash | 14 | entrée facultative avec marqueur, restriction conditionnelle |

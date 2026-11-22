@@ -7,6 +7,11 @@ use crate::engine::{CardInstance, EngineError, GameEngine, LegalAction, StackObj
 #[derive(Clone, Debug, Default)]
 pub(in crate::engine) struct SourceLkiContexts {
     pub(super) frames: Vec<StackObject>,
+    /// The departure capture of each permanent incarnation that left the
+    /// battlefield through a central exit, keyed `instance@zoneIdentity`.
+    /// A look-back trigger of that incarnation, published after it left
+    /// (CR 603.10a), receives the same capture as a pending ability would.
+    pub(super) departed: std::collections::BTreeMap<String, StackObject>,
 }
 
 impl GameEngine {

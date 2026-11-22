@@ -160,6 +160,21 @@
       "reminders": [
         "Whenever this creature attacks and isn't blocked, it gets +$N/+0 until end of turn."
       ]
+    },
+    {
+      "canonicalId": "modular",
+      "templateVersion": 1,
+      "lexeme": "modular",
+      "parameter": "count",
+      "rulesClause": "modular.cr-702-43a",
+      "rulesSection": "702.43a",
+      "abilities": [
+        "This permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it.",
+        "When this permanent is put into a graveyard from the battlefield, you may put a +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent."
+      ],
+      "reminders": [
+        "This creature enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it. When it dies, you may put its +1/+1 counters on target artifact creature."
+      ]
     }
   ]
 }
