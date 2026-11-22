@@ -472,3 +472,35 @@ fn a_reflexive_frame_needs_one_measured_instruction() {
         "{states:?}"
     );
 }
+
+/// `For each opponent, BODY` is the distributive player frame (CR 608.2c),
+/// never a count: a body with targets would declare them per player (CR
+/// 601.2c) and fails as an engine gap; any other body has no player-loop
+/// lowering yet. Both failures are explicit and distinct.
+#[test]
+fn a_player_population_is_a_distributive_frame() {
+    // Real cards: Blatant Thievery (per-player targets), Soul of Eternity's
+    // shape (no target).
+    let (status, _, states) = parse(
+        SORCERY,
+        "For each opponent, gain control of target permanent that player controls.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.for-each-player.per-player-targets"),
+        "{states:?}"
+    );
+    let (status, _, states) = parse(
+        SORCERY,
+        "For each player, create a 1/1 white Soldier creature token.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.for-each-player.body"),
+        "{states:?}"
+    );
+}

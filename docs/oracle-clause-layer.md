@@ -357,3 +357,16 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Restes : corps des capacités activées (séquence, pas programme),
   instructions abaissées en plusieurs primitives (scry, sacrifice par un
   autre joueur), antécédent `it` transporté dans la capacité réflexive.
+
+### Étape 20 : `For each PLAYER, …` cadre distributif explicite
+
+- Une population de joueurs après `For each` est le cadre distributif
+  (CR 608.2c), jamais un dénombrable. Un corps qui déclare des cibles les
+  déclarerait par joueur à la mise sur la pile (CR 601.2c) : le moteur ne
+  déclare qu'une fois, échec `sequence.for-each-player.per-player-targets`
+  (52 capacités, 33 cartes dont c'est le seul bloqueur). Sans cible, le corps
+  n'a pas encore d'abaissement en boucle de joueurs (`forEachPlayer`
+  existe) : `sequence.for-each-player.body` (29 capacités, 20 cartes à
+  bloqueur unique, surtout des copies de jetons attaquant « that player »).
+- Sonde : ligue 816 → 816, corpus 14571 → 14571, 0 perte, aucune IR
+  modifiée ; seuls les diagnostics changent.
