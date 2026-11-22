@@ -608,3 +608,39 @@ fn cast_patterns_read_the_source_spell_copies_and_matching_ordinals() {
         assert_eq!(committed_state(text), state, "{text}");
     }
 }
+
+#[test]
+fn one_attacking_permanent_is_the_generic_attack_pattern() {
+    let subject = |object: Value| {
+        json!({"kind": "eventPattern", "lemma": "attack",
+            "subject": {"role": "attacker", "object": object}})
+    };
+    let creature =
+        lower_permanent_object_predicate(&ObjectPredicate::CardType(ObjectCardType::Creature));
+    for (text, object) in [
+        (
+            "Whenever a creature you control attacks, draw a card.",
+            json!({"kind": "permanents", "controller": controller(), "where": creature}),
+        ),
+        (
+            "Whenever a creature attacks, draw a card.",
+            json!({"kind": "permanents", "where": creature}),
+        ),
+        (
+            "Whenever another creature an opponent controls attacks, draw a card.",
+            json!({"kind": "permanents",
+                "controller": {"kind": "opponentsOf", "player": controller()},
+                "where": creature, "excludeSource": true}),
+        ),
+    ] {
+        assert_eq!(event(text, "Enchantment"), subject(object), "{text}");
+    }
+    // The one-or-more batch keeps its own observer.
+    assert_eq!(
+        event(
+            "Whenever one or more creatures you control attack, draw a card.",
+            "Enchantment"
+        )["kind"],
+        "controlledCreaturesAttacked"
+    );
+}

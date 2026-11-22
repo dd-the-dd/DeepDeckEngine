@@ -567,8 +567,9 @@ fn lower_object_event(
         return lower_damage_dealt_event(cursor, source, complement);
     }
     cursor.enter("trigger.object-event.source-exclusion-support");
+    // The generic attack pattern carries its own source exclusion.
     cursor.require(
-        !subject.exclude_source,
+        !subject.exclude_source || (event.verb == ObjectEventVerb::Attack && !per_event),
         "an object event without an unproved source exclusion",
     )?;
     cursor.enter("trigger.object-event.verb-support");
@@ -584,6 +585,45 @@ fn lower_object_event(
                 "player": controller(),
                 "where": lower_card_object_predicate(&subject.query.predicate),
                 "aggregation": if per_event { "oneOrMore" } else { "perCard" },
+            }))
+        }
+        // One trigger per attacking creature (CR 508.3a): the generic attack
+        // pattern with the subject's controller relation and predicate.
+        ObjectEventVerb::Attack if !per_event => {
+            cursor.enter("trigger.object-event.attack-subject");
+            cursor.require(
+                subject
+                    .query
+                    .predicate
+                    .supports_domain(ObjectKind::Permanent)
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "a representable attacking-permanent predicate",
+            )?;
+            let mut object = json!({"kind": "permanents"});
+            match subject.query.controller {
+                None => {}
+                Some(ObjectControllerScope::AbilityController) => {
+                    object["controller"] = controller();
+                }
+                Some(ObjectControllerScope::OpponentOfAbilityController) => {
+                    object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
+                }
+                Some(ObjectControllerScope::NotAbilityController) => {
+                    return Err(cursor.fail("a positive controller relation for an attacker"));
+                }
+            }
+            if subject.query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Permanent) {
+                let filter = lower_permanent_object_predicate(&subject.query.predicate);
+                cursor.require(!filter.is_null(), "a lowered attacking-permanent predicate")?;
+                object["where"] = filter;
+            }
+            if subject.exclude_source {
+                object["excludeSource"] = json!(true);
+            }
+            Ok(json!({
+                "kind": "eventPattern",
+                "lemma": "attack",
+                "subject": {"role": "attacker", "object": object},
             }))
         }
         ObjectEventVerb::Attack | ObjectEventVerb::DealCombatDamageToPlayer => {

@@ -692,3 +692,57 @@ fn at_end_of_combat_delays_the_action_on_the_bound_combatant() {
     resolve_stack(&mut engine);
     assert!(on_battlefield(&engine, "attacker"));
 }
+
+#[test]
+fn one_attacking_creature_is_one_record_for_any_controller_relation() {
+    // `Whenever a creature you control attacks`: one trigger per attacker.
+    let yours = parsed_rules(
+        "Attack Watcher",
+        "Enchantment",
+        "Whenever a creature you control attacks, you gain 1 life.",
+    );
+    assert_eq!(yours[0]["event"]["lemma"], "attack");
+    assert_eq!(
+        yours[0]["event"]["subject"]["object"]["controller"],
+        json!({"kind": "controllerOf", "object": {"kind": "self"}})
+    );
+    // Sibling: the defender observes an opponent's attacker.
+    let theirs = parsed_rules(
+        "Defense Watcher",
+        "Enchantment",
+        "Whenever a creature an opponent controls attacks, you gain 1 life.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance(
+            "watcher",
+            CardDefinition {
+                rules: yours,
+                ..test_definition("watcher", "Enchantment")
+            },
+            "player-0",
+        ),
+        vanilla("a", "player-0"),
+        vanilla("b", "player-0"),
+    ];
+    engine.state.players[1].battlefield = vec![test_instance(
+        "defender",
+        CardDefinition {
+            rules: theirs,
+            ..test_definition("defender", "Enchantment")
+        },
+        "player-1",
+    )];
+    declare_attack(&mut engine, &["a", "b"]);
+    let mut sources = engine
+        .state
+        .stack
+        .iter()
+        .map(|object| object.card.instance_id.clone())
+        .collect::<Vec<_>>();
+    sources.sort();
+    assert_eq!(sources, ["defender", "defender", "watcher", "watcher"]);
+    for object in &engine.state.stack {
+        assert_eq!(object.decisions["triggeringPlayerId"], "player-1");
+    }
+}

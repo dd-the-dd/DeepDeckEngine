@@ -196,6 +196,15 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
         event,
         GenericTriggerEventNode::SourceEvent(node)
             if node.verbs == [super::SourceEventVerb::Attacked]
+    ) || matches!(
+        // One attacking creature: the generic attack pattern binds the
+        // player it attacks.
+        event,
+        GenericTriggerEventNode::Object(super::ObjectEventNode {
+            verb: super::ObjectEventVerb::Attack,
+            subject,
+            ..
+        }) if subject.multiplicity == super::EventMultiplicity::PerObject
     )
 }
 

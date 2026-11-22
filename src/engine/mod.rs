@@ -24466,9 +24466,20 @@ impl GameEngine {
                             source,
                         )
                     })
-                    .filter_map(|record| self.combat_attacker_instance(&record.attacker))
+                    .filter_map(|record| {
+                        self.combat_attacker_instance(&record.attacker)
+                            .map(|attacker| (attacker, record.defending_player.clone()))
+                    })
                     .collect::<Vec<_>>();
-                for attacker in matching_attackers {
+                // A generic pattern names the defending player (CR 506.2);
+                // the historical kind keeps the attacker's controller.
+                let generic = event_model::rule_combat_patterns(&rule)
+                    .iter()
+                    .any(|pattern| {
+                        pattern.generic
+                            && pattern.group == event_model::PublicationGroup::AttackControlled
+                    });
+                for (attacker, defending_player) in matching_attackers {
                     self.put_triggered_ability_on_stack_with_decisions(
                         source,
                         rule.clone(),
@@ -24479,7 +24490,11 @@ impl GameEngine {
                             ),
                             (
                                 "triggeringPlayerId".to_string(),
-                                Value::String(attacker.controller),
+                                Value::String(if generic {
+                                    defending_player
+                                } else {
+                                    attacker.controller
+                                }),
                             ),
                         ]),
                     );

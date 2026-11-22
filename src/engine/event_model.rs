@@ -90,6 +90,21 @@ pub(super) enum SubjectRelation {
     AttachedTo,
     /// A permanent controlled by the source's controller.
     ControlledBySourceController,
+    /// A permanent with any controller, or an opponent's, other than the
+    /// source when `exclude_source` (`a creature attacks`, `another creature
+    /// an opponent controls attacks`).
+    Permanents {
+        scope: PermanentScope,
+        exclude_source: bool,
+    },
+}
+
+/// The controller relation of a `permanents` subject.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PermanentScope {
+    Any,
+    SourceController,
+    OpponentOfSourceController,
 }
 
 /// Which characteristics an object predicate reads. New patterns read the
@@ -397,6 +412,28 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             SubjectRelation::ControlledBySourceController,
             optional_filter(object, "where")?,
         ),
+        "permanents"
+            if has_only_fields(object, &["kind", "controller", "where", "excludeSource"]) =>
+        {
+            let scope = match object.get("controller") {
+                None => PermanentScope::Any,
+                Some(player) if is_source_controller(player) => PermanentScope::SourceController,
+                Some(player)
+                    if value_kind(player) == Some("opponentsOf")
+                        && is_source_controller(&player["player"]) =>
+                {
+                    PermanentScope::OpponentOfSourceController
+                }
+                Some(_) => return None,
+            };
+            (
+                SubjectRelation::Permanents {
+                    scope,
+                    exclude_source: optional_flag(object, "excludeSource")?,
+                },
+                optional_filter(object, "where")?,
+            )
+        }
         _ => return None,
     };
     let counterpart = match event.get("counterpart") {
@@ -447,9 +484,11 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
     }
     let group = match (lemma, subject_role, relation) {
         (CombatLemma::Attack, _, SubjectRelation::Source) => PublicationGroup::AttackSource,
-        (CombatLemma::Attack, _, SubjectRelation::ControlledBySourceController) => {
-            PublicationGroup::AttackControlled
-        }
+        (
+            CombatLemma::Attack,
+            _,
+            SubjectRelation::ControlledBySourceController | SubjectRelation::Permanents { .. },
+        ) => PublicationGroup::AttackControlled,
         (CombatLemma::Attack, _, SubjectRelation::AttachedTo) => PublicationGroup::AttackAttached,
         (CombatLemma::Block, Blocker, SubjectRelation::AttachedTo) => {
             PublicationGroup::AttachmentOfBlocker
@@ -540,6 +579,23 @@ impl GameEngine {
             SubjectRelation::ControlledBySourceController => self
                 .combat_permanent(subject_id)
                 .is_some_and(|subject| subject.controller == source.controller),
+            SubjectRelation::Permanents {
+                scope,
+                exclude_source,
+            } => {
+                !(exclude_source && source.instance_id == subject_id)
+                    && self
+                        .combat_permanent(subject_id)
+                        .is_some_and(|subject| match scope {
+                            PermanentScope::Any => true,
+                            PermanentScope::SourceController => {
+                                subject.controller == source.controller
+                            }
+                            PermanentScope::OpponentOfSourceController => {
+                                subject.controller != source.controller
+                            }
+                        })
+            }
         };
         if !related {
             return false;

@@ -382,11 +382,24 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Emeritus, Eldrazi Obligator, …), 0 perdue, 57 IR changées dont 0 déjà
   supportée.
 
+## Étape 7 réalisée : un attaquant quelconque (famille combat)
+
+- Le motif d'attaque générique accepte un sujet `permanents` avec relation
+  de contrôleur (aucune, contrôleur de la source, adversaire), prédicat et
+  exclusion de la source : `Whenever a creature you control attacks`,
+  `Whenever a creature attacks`, `Whenever another creature an opponent
+  controls attacks` — un enregistrement et un déclenchement par attaquant
+  (CR 508.3a). Le même groupe de publication que l'ancien
+  `controlledCreatureDeclaredAttacker` garde l'ordre d'empilement ; un motif
+  générique lie le joueur attaqué (CR 506.2) pour `defending player`.
+- Sondes : ligue inchangée ; corpus 13730 → 13745 (+15 : Dromoka the
+  Eternal, Utvara Hellkite, Linden, Sanctum Seeker, Leeching Sliver, …),
+  0 perdue, 23 IR changées dont 0 déjà supportée.
+
 ## Familles suivantes
 
-1. **Lancement** : `spellCast` et ses ordinaux (`spellCastOrdinal`) → lemme
-   `cast` ; l'ordinal par lanceur et par tour est déjà émis, il reste à le
-   lire comme modificateur du motif générique.
+1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui
+   ciblent, origine du sort.
 2. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`.
 3. **Entrées** : `enterBattlefield`, `permanentEntered` → lemme `move` vers le
    champ de bataille, avec l'état d'entrée.
