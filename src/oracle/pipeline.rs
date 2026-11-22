@@ -6,22 +6,23 @@ use crate::card_catalog::{named_token_names, ordinary_card_names};
 
 use super::audit::{build_stages, iterations_for_rule, semantic_kind, unsupported_iteration};
 use super::canonical::{
-    CanonicalParseOutcome, compose_card_rules_native, parse_canonical_rule_native,
+    CanonicalParseOutcome, compose_card_rules_native, expand_keyword_template_line,
+    parse_canonical_rule_native,
 };
 use super::card_structure::{
     CardPartRole, CardStructureKind, CardStructurePlan, plan_card_structure,
 };
 use super::contextual_binding::validate_native_contextual_bindings;
 use super::model::{
-    OracleCardParseRequest, OracleCardParseResult, ParsedOracleAbility, ParserDiagnostic,
-    ParserTransitionDiagnostic, RecognizerProvenance,
+    AbilitySource, OracleCardParseRequest, OracleCardParseResult, ParsedOracleAbility,
+    ParserDiagnostic, ParserTransitionDiagnostic, RecognizedEntity, RecognizerProvenance,
 };
 use super::syntax::{
-    AbilityInput, ExactNameTokenIndex, NameLinkKind, NameResolutionContext, NamedCardIndex,
-    apply_class_level_requirement, class_level_header_from_tokens,
-    classify_promoted_ability_from_tokens, documents, is_class_type_line, is_reminder_only_line,
-    recognize_oracle_entities, resolve_counter_name_spans, resolve_named_token_spans,
-    resolve_unknown_names, split_abilities,
+    AbilityInput, ExactNameTokenIndex, NameLinkKind, NameResolutionContext, NameResolutionFailure,
+    NamedCardIndex, ResolvedNameLink, apply_class_level_requirement,
+    class_level_header_from_tokens, classify_promoted_ability_from_tokens, documents,
+    is_class_type_line, is_reminder_only_line, recognize_oracle_entities,
+    resolve_counter_name_spans, resolve_named_token_spans, resolve_unknown_names, split_abilities,
 };
 
 const PARSER_SCHEMA_VERSION: &str = "oracle-parser/v1";
@@ -174,6 +175,34 @@ fn native_failure_kind(
     "staticAbility"
 }
 
+/// The shared token stream of one ability text with its resolved names.
+struct PreparedAbility {
+    entities: Vec<RecognizedEntity>,
+    name_links: Vec<ResolvedNameLink>,
+    name_resolution_failure: Option<NameResolutionFailure>,
+}
+
+fn prepare_ability(
+    text: &str,
+    mut entities: Vec<RecognizedEntity>,
+    name_context: &NameResolutionContext,
+    named_cards: &CatalogNamedCardIndex,
+    named_tokens: &CatalogNamedTokenIndex,
+) -> PreparedAbility {
+    resolve_named_token_spans(&mut entities, named_tokens);
+    resolve_counter_name_spans(&mut entities);
+    let (name_links, name_resolution_failure) =
+        match resolve_unknown_names(text, &entities, name_context, named_cards) {
+            Ok(resolution) => (resolution.resolved, None),
+            Err(failure) => (failure.resolved.clone(), Some(failure)),
+        };
+    PreparedAbility {
+        entities,
+        name_links,
+        name_resolution_failure,
+    }
+}
+
 /// Compiles exclusively through shared token automata and primitive IR.
 /// Unsupported grammar remains explicit; there is no legacy fallback.
 pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardParseResult {
@@ -225,22 +254,21 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
             let ability_index = abilities.len();
             #[cfg(feature = "automata-trace")]
             let _trace_ability = super::automata_trace::scope_ability(ability_index);
-            let mut entities = recognize_oracle_entities(&source.text);
+            let raw_entities = recognize_oracle_entities(&source.text);
             let announced_class_level = is_class
-                .then(|| class_level_header_from_tokens(&entities))
+                .then(|| class_level_header_from_tokens(&raw_entities))
                 .flatten();
-            resolve_named_token_spans(&mut entities, &named_tokens);
-            resolve_counter_name_spans(&mut entities);
-            let mut name_resolution_failure = None;
-            let name_links =
-                match resolve_unknown_names(&source.text, &entities, &name_context, &named_cards) {
-                    Ok(resolution) => resolution.resolved,
-                    Err(failure) => {
-                        let resolved = failure.resolved.clone();
-                        name_resolution_failure = Some(failure);
-                        resolved
-                    }
-                };
+            let PreparedAbility {
+                entities,
+                name_links,
+                name_resolution_failure,
+            } = prepare_ability(
+                &source.text,
+                raw_entities,
+                &name_context,
+                &named_cards,
+                &named_tokens,
+            );
             let input = AbilityInput {
                 face_name: document.face_name,
                 face_type_line: document.face_type_line,
@@ -251,7 +279,36 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
             };
             let promoted_ability_kind = classify_promoted_ability_from_tokens(&input);
             let ability_kind = { promoted_ability_kind.unwrap_or("unclassifiedAbility") };
-            let parse_outcome = { parse_canonical_rule_native(&input, promoted_ability_kind) };
+            // CR 702: a template keyword line is compiled by instantiating its
+            // rules definition and running each ability through this same
+            // per-ability parser, in this face's context.
+            let mut compile_expanded = |text: &str| {
+                let expanded_source = AbilitySource {
+                    face_id: source.face_id.clone(),
+                    text: text.to_string(),
+                    line_start: source.line_start,
+                    line_end: source.line_end,
+                };
+                let prepared = prepare_ability(
+                    text,
+                    recognize_oracle_entities(text),
+                    &name_context,
+                    &named_cards,
+                    &named_tokens,
+                );
+                let expanded_input = AbilityInput {
+                    face_name: document.face_name,
+                    face_type_line: document.face_type_line,
+                    source: &expanded_source,
+                    tokens: &prepared.entities,
+                    name_links: &prepared.name_links,
+                    name_resolution_failure: prepared.name_resolution_failure.as_ref(),
+                };
+                let kind = classify_promoted_ability_from_tokens(&expanded_input);
+                parse_canonical_rule_native(&expanded_input, kind)
+            };
+            let parse_outcome = expand_keyword_template_line(&input, &mut compile_expanded)
+                .unwrap_or_else(|| parse_canonical_rule_native(&input, promoted_ability_kind));
             // Move candidate evidence out without cloning its message/trace.
             // Normalize the owned primary into the existing failure path.
             let (parse_outcome, candidate_failure) = match parse_outcome {

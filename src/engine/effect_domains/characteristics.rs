@@ -150,8 +150,12 @@ impl GameEngine {
                                         && selected_player.as_ref().is_none_or(|player_id| {
                                             permanent.controller == *player_id
                                         })
-                                        && matches_card_filter(
-                                            &permanent.definition,
+                                        // CR 608.2h, 611.2c: the affected set is the
+                                        // permanents matching NOW, read from their
+                                        // battlefield state (attacking, tapped, …)
+                                        // and effective characteristics.
+                                        && self.permanent_matches_effective_filter(
+                                            permanent,
                                             &effect["object"]["where"],
                                         )
                                 })

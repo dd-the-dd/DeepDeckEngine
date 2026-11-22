@@ -15,6 +15,7 @@ mod suspend_native;
 mod typecycling_native;
 
 mod keyword_native;
+pub(super) mod keyword_template_expansion;
 mod mana_native;
 
 mod overload_native;

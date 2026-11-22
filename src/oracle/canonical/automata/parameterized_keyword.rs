@@ -325,7 +325,7 @@ fn recognize_parameter(
     })
 }
 
-fn number_word(value: i64) -> Option<&'static str> {
+pub(in crate::oracle::canonical) fn number_word(value: i64) -> Option<&'static str> {
     Some(match value {
         1 => "one",
         2 => "two",

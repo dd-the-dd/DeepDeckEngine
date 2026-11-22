@@ -16,6 +16,9 @@ mod machine_tests;
 mod numeric;
 mod primitive_helpers;
 
+pub(crate) use abilities::keyword_template_expansion::{
+    expand_keyword_template_line, keyword_expansion_rules,
+};
 use abilities::*;
 use automata::*;
 pub(crate) use card_composition::{compose_card_rules, compose_card_rules_native};

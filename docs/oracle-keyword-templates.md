@@ -1,0 +1,142 @@
+# Mots-clés compilés depuis leur définition (C6a)
+
+Ce document décrit le mécanisme qui compile un mot-clé (CR 702) en
+instanciant sa définition des règles et en la passant par l'analyseur
+ordinaire. Il complète `oracle-compositional-compiler.md` (workflow des
+nouveaux mots-clés : définition faisant autorité, expansion typée, politique
+d'événement, rejeu) et `oracle-clause-layer.md`.
+
+## Principe
+
+Un mot-clé « macro » (Modular, Fabricate, Battle cry, Outlast…) est défini par
+la CR comme un texte de règles ordinaire : « *Modular N* means *This permanent
+enters with N +1/+1 counters on it* and *When this permanent is put into a
+graveyard from the battlefield, …* ». Au lieu d'écrire à la main le programme
+JSON de chaque mot-clé, une ligne de données porte cette définition avec des
+emplacements de paramètres. À la compilation :
+
+1. la ligne de mot-clé est reconnue (lexème, paramètre imprimé lu par les
+   enfants partagés de nombre et de coût de mana, rappel facultatif validé) ;
+2. la définition est instanciée avec le paramètre imprimé ;
+3. chaque capacité instanciée est compilée par le **même** analyseur par
+   capacité que le texte imprimé, dans le contexte de la face (nom, ligne de
+   type, résolution des noms) ;
+4. le résultat est une règle `keywordExpansion` qui porte la provenance et les
+   règles compilées ; l'adaptateur de cartes jouables l'aplatit.
+
+Le mot-clé hérite ainsi de toutes les capacités de grammaire et d'exécution.
+Un mot-clé dont la définition se compose de concepts déjà pris en charge ne
+coûte qu'une ligne de données ; une correction de grammaire débloque
+automatiquement les mots-clés dont la définition l'utilise.
+
+## Données : `data/ability-catalog/keyword-templates-v1.json`
+
+Schéma `deepdeck-keyword-templates/v1`, versionné avec le catalogue
+(`catalogVersion`, `rulesEffectiveDate` identiques à l'index embarqué).
+
+| Champ | Rôle |
+|---|---|
+| `canonicalId` | identité du catalogue (`ability-catalog-v1.json`, catégorie `keywordAbility`) |
+| `templateVersion` | version de la ligne ; à incrémenter si la définition change |
+| `lexeme` | nom imprimé, tokenisé par le tokenizer partagé (`For Mirrodin!`) |
+| `parameter` | `none`, `count` (N), `manaCost` ([cost]), `countThenManaCost` (N—[cost], CR 702.77a) |
+| `rulesClause`, `rulesSection` | clause CR en cache citée (ex. `modular.cr-702-43a`, `702.43a`) |
+| `faceSubtype` | sous-type exigé quand la définition nomme la source par lui (`this Equipment`) |
+| `abilities` | une capacité Oracle par capacité représentée par le mot-clé |
+| `reminders` | rendus de rappel acceptés (sans parenthèses) |
+
+Emplacements (définitions et rappels) :
+
+| Emplacement | Rendu |
+|---|---|
+| `$N` | le nombre imprimé en chiffres (`+$N/+$N`, `loses $N life`) |
+| `$Nw` | le nombre en toutes lettres (`two`), jusqu'à vingt |
+| `$N{UN|PLUSIEURS}` | accord en nombre : `UN` si N = 1, sinon `PLUSIEURS` |
+| `$cost` | le coût de mana tel qu'imprimé |
+
+L'accord est explicite dans les données parce que la grammaire vérifie le
+nombre (`put a +1/+1 counter`, `put two +1/+1 counters`) ; aucune flexion
+n'est déduite. Un emplacement inconnu ou sans argument est une erreur, jamais
+un blanc.
+
+### Preuve de provenance
+
+`keyword_template_tests.rs` vérifie pour chaque ligne :
+
+- l'identité existe dans le catalogue en cache, catégorie `keywordAbility` ;
+- la clause citée existe et sa section correspond ;
+- chaque capacité, rendue sous sa forme symbolique de la CR (`N`, `[cost]`,
+  branche plurielle), est une **citation exacte** de la clause en cache
+  (apostrophes et guillemets typographiques normalisés, casse ignorée,
+  point final de citation ignoré) ;
+- aucune définition n'est elle-même une ligne de mot-clé (expansion à un seul
+  niveau, sans récursion) ;
+- chaque définition et chaque rappel s'instancient pour chaque forme de
+  paramètre.
+
+## Reconnaissance (`automata/keyword_template.rs`)
+
+```text
+Ligne     := LEXÈME Paramètre [ "(" Rappel ")" ]
+Paramètre := ε | N | COÛT-DE-MANA | N "—" COÛT-DE-MANA
+```
+
+- Revendication structurelle : le lexème en tête **immédiatement** suivi du
+  début de son paramètre (fin de ligne ou `(` pour `none`, un nombre, un
+  symbole de mana). `Battle cry creatures get…`, `Unleash Shell deals…`,
+  `Scavenge the Dead —` ou une liste `Flying, battle cry` ne sont pas
+  revendiqués.
+- Après revendication, tout échec est explicite (`keyword.template.*`) : compte
+  non littéral (`Reinforce X—…`), coût de mana non fixe, rappel étranger
+  (`keyword.template.reminder.body`), texte après le rappel, sous-type de face
+  manquant (`keyword.template.face-subtype`).
+- Le rappel n'a pas de sens de règle (CR 207.2) mais n'est jamais ignoré : il
+  doit égaler, token par token, un rendu déclaré instancié avec le paramètre.
+
+## Expansion (`abilities/keyword_template_expansion.rs`, `pipeline.rs`)
+
+Le pipeline prépare chaque capacité (`prepare_ability` : tokens, jetons
+nommés, noms de marqueurs, résolution des noms), puis appelle
+`expand_keyword_template_line` avec une fermeture qui compile un texte par ce
+même chemin, dans la même face. Une partie qui échoue fait échouer le mot-clé :
+
+- échec principal `keyword-template` / `keyword.template.expansion`, couvrant
+  la ligne imprimée, nommant le mot-clé, la section CR, la partie instanciée et
+  l'état où l'analyseur s'est arrêté ;
+- l'échec de la partie est conservé comme preuve candidate
+  (`oracle_candidate_machine_failure`).
+
+IR avant aplatissement :
+
+```json
+{"kind": "keywordExpansion", "source": {"kind": "self"},
+ "keyword": "modular", "parameters": {"N": 2},
+ "definition": {"rulesSection": "702.43a", "rulesClause": "modular.cr-702-43a",
+                "templateVersion": 1, "catalogVersion": "…", "rulesEffectiveDate": "…"},
+ "rules": [RÈGLE, RÈGLE]}
+```
+
+`keyword_expansion_rules` (exporté par `deepdeck_oracle::oracle`) rend les
+règles jouables : chaque règle compilée, avec les attributs de placement de
+l'expansion (`minimumClassLevel`, `roomDoorIndex`…) et un champ
+`keywordProvenance` `{keyword, parameters, rulesSection, templateVersion,
+part}`. Toute autre règle est rendue inchangée. Le moteur ne connaît pas
+`keywordExpansion` : une expansion non aplatie reste non exécutable (échec
+fermé). `playable_rules_for_face` (`src/model.rs`) est le seul point
+d'aplatissement.
+
+Chaque instance d'un mot-clé produit ses propres règles : « chaque instance
+fonctionne séparément » (CR 702.43b, 702.45b, …) est satisfait sans code.
+
+## Politique d'événement
+
+Un mot-clé qui définit un événement nommé (Exploit : « exploite une
+créature », CR 702.110b ; Renown : « devient renommé » ; Evolve : « évolue »)
+n'est ajouté que lorsque cet événement est publié par le moteur. Une
+définition compilée ne publie pas d'événement du seul fait du mot-clé.
+
+## Migration des programmes natifs
+
+`abilities/parameterized_keyword_native.rs` reste pour les mots-clés dont la
+définition ne compile pas encore à l'identique ou dont le moteur possède une
+règle intrinsèque. Voir l'état courant plus bas.

@@ -2,7 +2,7 @@ use crate::card_catalog::{named_card_printing, named_token_printing};
 use crate::engine::{CardDefinition, rule_is_executable};
 use crate::oracle::{
     CardPartRole, CardStructureKind, OracleCardParseRequest, OracleCardParseResult,
-    ParsedOracleAbility, parse_oracle_card, plan_card_structure,
+    ParsedOracleAbility, keyword_expansion_rules, parse_oracle_card, plan_card_structure,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -291,10 +291,17 @@ fn is_intrinsic_basic_land_mana_reminder(type_line: &str, ability: &ParsedOracle
         && normalized.contains(": add ")
 }
 
-fn playable_rule_for_ability(ability: &ParsedOracleAbility, type_line: &str) -> Option<Value> {
-    (!is_intrinsic_basic_land_mana_reminder(type_line, ability))
-        .then(|| ability.rule.clone())
-        .flatten()
+/// The playable rules of one parsed ability. A template keyword expands into
+/// the rules of its definition (`keyword_expansion_rules`).
+fn playable_rules_for_ability(ability: &ParsedOracleAbility, type_line: &str) -> Vec<Value> {
+    if is_intrinsic_basic_land_mana_reminder(type_line, ability) {
+        return Vec::new();
+    }
+    ability
+        .rule
+        .as_ref()
+        .map(keyword_expansion_rules)
+        .unwrap_or_default()
 }
 
 pub fn playable_rules_for_face(
@@ -319,7 +326,7 @@ pub fn playable_rules_for_face(
                 "loyalty": face.loyalty,
                 "rules": parser_result.abilities.iter()
                     .filter(|ability| ability.source.face_id.as_deref() == Some(face.id.as_str()))
-                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
+                    .flat_map(|ability| playable_rules_for_ability(ability, &face.type_line))
                     .filter(rule_is_executable)
                     .collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
@@ -339,7 +346,7 @@ pub fn playable_rules_for_face(
                     .filter(move |ability| {
                         ability.source.face_id.as_deref() == Some(face.id.as_str())
                     })
-                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
+                    .flat_map(|ability| playable_rules_for_ability(ability, &face.type_line))
                     .map(move |mut rule| {
                         if rule["kind"].as_str() != Some("rulesMarker") {
                             rule["roomDoorIndex"] = Value::from(door_index as u64);
@@ -364,7 +371,7 @@ pub fn playable_rules_for_face(
                 "toughness": face.toughness,
                 "rules": parser_result.abilities.iter()
                     .filter(|ability| ability.source.face_id.as_deref() == Some(face.id.as_str()))
-                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
+                    .flat_map(|ability| playable_rules_for_ability(ability, &face.type_line))
                     .collect::<Vec<_>>(),
             })).collect::<Vec<_>>(),
         })];
@@ -392,7 +399,7 @@ pub fn playable_rules_for_face(
                     .filter(move |ability| {
                         ability.source.face_id.as_deref() == Some(face.id.as_str())
                     })
-                    .filter_map(|ability| playable_rule_for_ability(ability, &face.type_line))
+                    .flat_map(|ability| playable_rules_for_ability(ability, &face.type_line))
                     .map(move |mut rule| {
                         rule["activeFaceIndex"] = Value::from(face_index as u64);
                         rule
@@ -430,7 +437,7 @@ pub fn playable_rules_for_face(
         .abilities
         .iter()
         .filter(|ability| ability.source.face_id.as_deref() == selected_face_id)
-        .filter_map(|ability| playable_rule_for_ability(ability, selected_type_line))
+        .flat_map(|ability| playable_rules_for_ability(ability, selected_type_line))
         .collect::<Vec<_>>();
 
     let Some(spell_face_id) = linked_prepare_face_id(parser_result, selected_face_id) else {
@@ -448,7 +455,7 @@ pub fn playable_rules_for_face(
         .abilities
         .iter()
         .filter(|ability| ability.source.face_id.as_deref() == Some(spell_face_id))
-        .filter_map(|ability| playable_rule_for_ability(ability, &spell_face.type_line))
+        .flat_map(|ability| playable_rules_for_ability(ability, &spell_face.type_line))
         .collect::<Vec<_>>();
     rules.push(json!({
         "kind": "prepareSpell",

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "deepdeck-keyword-templates/v1",
+  "catalogVersion": "2026.11.13-c24",
+  "rulesEffectiveDate": "2026-11-06",
+  "templates": [
+    {
+      "canonicalId": "battle-cry",
+      "templateVersion": 1,
+      "lexeme": "battle cry",
+      "parameter": "none",
+      "rulesClause": "battle-cry.cr-702-91a",
+      "rulesSection": "702.91a",
+      "abilities": [
+        "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn."
+      ]
+    }
+  ]
+}
