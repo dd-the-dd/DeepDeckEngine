@@ -1001,6 +1001,32 @@ fn lower_local_effect_sequence_with_collections(
                     );
                 }
             }
+            LocalEffectNode::UntapRestriction(restriction) => {
+                cursor.enter("lower.untap-restriction.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &restriction.objects,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                // CR 502.3: the permanent stays tapped during its
+                // controller's untap step for the stated window.
+                let duration = match restriction.duration {
+                    UntapRestrictionDuration::NextUntapStep => "nextUntapStep",
+                    UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
+                };
+                for object in objects {
+                    effects.push(json!({
+                        "kind": "installUntapRestriction",
+                        "permanent": object,
+                        "duration": {"kind": duration},
+                    }));
+                }
+            }
             LocalEffectNode::TapPermanents(tap) => {
                 cursor.enter("lower.tap-permanents.object");
                 let objects = lower_ordinary_permanent_subject(
@@ -2846,6 +2872,7 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],
         LocalEffectNode::PutCounters(node) => vec![&node.permanent],
         LocalEffectNode::TapPermanents(node) => vec![&node.targets],
+        LocalEffectNode::UntapRestriction(node) => vec![&node.objects],
         LocalEffectNode::PermanentKeywordAction(node) => vec![&node.targets],
         // `create a token, then attach this to it` (CR 702.92a, 702.163a):
         // the attach reads the created token as its recipient or attachment.

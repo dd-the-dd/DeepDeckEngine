@@ -290,3 +290,22 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   (déjà exécutée), quasi-échecs (deux actions, population de joueurs).
 - Restes mesurés : jetons nommés (`create a Treasure token`) sans quantité
   numérique, compteurs `on it` d'une source morte, `card exiled this way`.
+
+### Étape 17 : proposition négative `OBJECT doesn't untap during …`
+
+- Sujet permanent partagé (`that creature`, `it`, `that land`, cible) suivi
+  de la négation accordée au nombre du sujet (`doesn't` / `don't`), du lemme
+  `untap` du lexique et de la fenêtre `during its controller's next untap
+  step` ou `during its controller's untap step for as long as you control
+  SOURCE` (durée partagée, CR 611.2b). Nœud `UntapRestriction`, revendiqué
+  par le lecteur d'action de permanent après son sujet ; abaissement vers la
+  primitive moteur existante `installUntapRestriction` (CR 502.3), une par
+  objet du sujet.
+- Sonde : ligue 809 → 811 (+2 : Ty Lee, Chi Blocker ; Skyline Cascade),
+  corpus 14375 → 14421 (+46), 0 perte, IR des cartes supportées inchangée.
+  Preuves : cartes réelles (Frost Lynx, Chill of the Grave, Tidebinder Mage),
+  recombinaison inédite après un changement de caractéristiques,
+  quasi-échecs (accord, autre pas de dégagement), exécution (`skipNextUntap`
+  installé sur la cible engagée).
+- Reste : `Those creatures don't …` après une cible plurielle
+  (antécédent pluriel non lié).

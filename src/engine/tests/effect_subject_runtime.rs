@@ -91,3 +91,58 @@ fn they_is_the_player_the_event_records() {
     assert_eq!(engine.state.players[2].life, 20);
     assert_eq!(engine.state.players[0].life, 20);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn an_object_subject_that_does_not_untap_skips_its_next_untap_step() {
+    // Chill of the Grave's restriction after a tap: the tapped target gets
+    // the engine's next-untap-step restriction (CR 502.3).
+    let rule = parsed_rules(
+        "Instant",
+        "Tap target creature. It doesn't untap during its controller's next untap step.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-1",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:chill".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("chill", test_definition("chill", "Instant"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    assert!(engine.state.players[1].battlefield[0].tapped, "tapped");
+    assert!(
+        engine.state.rule_modifiers.iter().any(|modifier| {
+            modifier["kind"] == "skipNextUntap" && modifier["cardInstanceId"] == "bear"
+        }),
+        "{:#?}",
+        engine.state.rule_modifiers
+    );
+}

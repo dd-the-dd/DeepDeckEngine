@@ -322,3 +322,63 @@ fn a_preposed_for_each_scopes_one_counted_action() {
     );
     assert_ne!(status, "canonical");
 }
+
+fn untap_restrictions(type_line: &str, oracle: &str) -> Vec<Value> {
+    effects(type_line, oracle)
+        .into_iter()
+        .filter(|effect| effect["kind"] == "installUntapRestriction")
+        .collect()
+}
+
+/// The negated `untap` clause of a permanent subject (CR 502.3): the
+/// subject is the shared permanent reference, the window is the controller's
+/// next untap step or the source's control duration.
+#[test]
+fn a_permanent_subject_does_not_untap() {
+    // Real cards: Frost Lynx (`that creature`, next step), Chill of the Grave
+    // (`it`), Tidebinder Mage (while the source is controlled). Unused
+    // recombination: the restriction after a stat change.
+    for (type_line, oracle, duration) in [
+        (
+            CREATURE,
+            "When this creature enters, tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.",
+            "nextUntapStep",
+        ),
+        (
+            "Instant",
+            "Tap target creature. It doesn't untap during its controller's next untap step.",
+            "nextUntapStep",
+        ),
+        (
+            CREATURE,
+            "When this creature enters, tap target red or green creature an opponent controls. That creature doesn't untap during its controller's untap step for as long as you control this creature.",
+            "whileSourceControlled",
+        ),
+        (
+            "Instant",
+            "Target creature gets -2/-0 until end of turn. It doesn't untap during its controller's next untap step.",
+            "nextUntapStep",
+        ),
+    ] {
+        let restrictions = untap_restrictions(type_line, oracle);
+        assert_eq!(restrictions.len(), 1, "{oracle}");
+        assert_eq!(restrictions[0]["duration"]["kind"], duration, "{oracle}");
+        assert_eq!(
+            restrictions[0]["permanent"]["kind"], "chosenTarget",
+            "{oracle}: {restrictions:#?}"
+        );
+    }
+}
+
+/// Near misses: the negation agrees with a declared subject, and only the
+/// permanent's controller's untap step is a supported window.
+#[test]
+fn a_permanent_subject_does_not_untap_near_misses() {
+    for oracle in [
+        "Tap target creature. That creature don't untap during its controller's next untap step.",
+        "Tap target creature. It doesn't untap during your next untap step.",
+    ] {
+        let (status, _, _) = parse("Instant", oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}

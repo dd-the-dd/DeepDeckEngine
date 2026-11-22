@@ -115,6 +115,9 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::TapPermanents(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
+        LocalEffectNode::UntapRestriction(node) => {
+            Local(subject_after_operand(&node.objects, effect_index))
+        }
         LocalEffectNode::PermanentKeywordAction(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
@@ -291,6 +294,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::BecomeTypes(node) => &node.objects,
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
+        LocalEffectNode::UntapRestriction(node) => &node.objects,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,

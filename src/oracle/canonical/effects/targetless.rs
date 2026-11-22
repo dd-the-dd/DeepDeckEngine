@@ -354,6 +354,9 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
                 LocalObjectReference::SourceSelf => self_ref(),
             },
         })),
+        // The untap window names the permanent's controller; the sequence
+        // lowering owns its subject bindings.
+        LocalEffectNode::UntapRestriction(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         LocalEffectNode::TapPermanents(effect) => Ok(lower_tap_state_change(
             effect.untap,
             lower_nontargeted_permanent_operand(&effect.targets)?,
