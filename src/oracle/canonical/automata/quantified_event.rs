@@ -58,7 +58,8 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     PutIntoGraveyardFromBattlefield,
     /// `put into OWNER graveyard [from anywhere]`: a card arriving in a
     /// graveyard from any zone (CR 400.3: a card goes to its owner's).
-    PutIntoGraveyard(GraveyardOwner),
+    /// The origin zone when written (`from your library`), else any zone.
+    PutIntoGraveyard(GraveyardOwner, Option<&'static str>),
     /// Passive of `deal damage`: the subject is the damaged object (CR 120.3).
     BeDealtDamage(DamageKind),
 }
@@ -239,10 +240,32 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             {
                 cursor.consume_phrase(&["from", "the", "battlefield"])?;
             } else {
-                if peek_word(cursor, 0, "from") {
+                let mut origin = None;
+                if peek_word(cursor, 0, "from") && peek_word(cursor, 1, "anywhere") {
                     cursor.consume_phrase(&["from", "anywhere"])?;
+                } else if peek_word(cursor, 0, "from") {
+                    cursor.consume("from")?;
+                    if peek_word(cursor, 0, "your") {
+                        cursor.consume("your")?;
+                        origin = Some(
+                            match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                                Some("library") => "library",
+                                Some("hand") => "hand",
+                                _ => return Err(cursor.fail("library or hand")),
+                            },
+                        );
+                        cursor.consume(origin.expect("checked origin"))?;
+                        // A second origin (`or hand`) has no single matcher.
+                        cursor.require(
+                            !peek_word(cursor, 0, "or"),
+                            "one origin zone for a graveyard arrival",
+                        )?;
+                    } else {
+                        cursor.consume_phrase(&["the", "battlefield"])?;
+                        origin = Some("battlefield");
+                    }
                 }
-                verb = ObjectEventVerb::PutIntoGraveyard(owner);
+                verb = ObjectEventVerb::PutIntoGraveyard(owner, origin);
             }
         }
         // Damage verbs are the shared damage clause's (above).
@@ -253,7 +276,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         | ObjectEventVerb::Block
         | ObjectEventVerb::Enter
         | ObjectEventVerb::Die
-        | ObjectEventVerb::PutIntoGraveyard(_) => {}
+        | ObjectEventVerb::PutIntoGraveyard(..) => {}
     }
     cursor.enter("event.object.complete");
     Ok(ObjectEventNode {

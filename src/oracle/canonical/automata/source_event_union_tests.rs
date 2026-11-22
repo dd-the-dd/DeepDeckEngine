@@ -50,7 +50,7 @@ fn source_event_near_misses_fail_at_their_own_atom() {
         // An owner relation on the destination has no event matcher.
         (
             "When this creature is put into your graveyard from the battlefield, draw a card.",
-            "event.source.put-into-graveyard.zone",
+            "event.source.put-into-graveyard.origin",
         ),
         (
             "Whenever this creature becomes enchanted, draw a card.",

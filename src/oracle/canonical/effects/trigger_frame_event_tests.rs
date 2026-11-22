@@ -205,7 +205,7 @@ fn claimed_frames_report_the_furthest_event_failure() {
         ),
         (
             "When this creature is put into your graveyard from the battlefield, draw a card.",
-            "event.source.put-into-graveyard.zone",
+            "event.source.put-into-graveyard.origin",
         ),
         (
             "At end of combat, draw a card.",
@@ -521,8 +521,8 @@ fn zone_changes_without_an_established_observer_lower_to_move_patterns() {
     );
     // Near miss: an owner relation on the destination of a source move.
     for (text, state) in [(
-        "When this creature is put into your graveyard from anywhere, draw a card.",
-        "event.source.put-into-graveyard.zone",
+        "When this creature is put into your graveyard from the battlefield, draw a card.",
+        "event.source.put-into-graveyard.origin",
     )] {
         assert_eq!(committed_state(text), state, "{text}");
     }
@@ -757,7 +757,7 @@ fn one_or_more_moves_are_aggregated_move_patterns() {
     // Near miss: an origin the arrival record does not carry.
     assert_eq!(
         committed_state(
-            "Whenever one or more cards are put into your graveyard from your library, draw a card."
+            "Whenever one or more cards are put into your graveyard from your library or hand, draw a card."
         ),
         "event.object.graveyard-origin"
     );
@@ -783,4 +783,45 @@ fn a_transition_union_lowers_both_transitions_of_the_same_subjects() {
         committed_state("Whenever a creature you control enters or attacks, draw a card."),
         "trigger.envelope.separator"
     );
+}
+
+#[test]
+fn arrival_origins_and_exile_departures_are_typed() {
+    let source = event(
+        "When this card is put into your graveyard from your library, draw a card.",
+        "Creature",
+    );
+    assert_eq!(
+        source,
+        json!({"kind": "eventPattern", "lemma": "move",
+            "subject": {"object": {"kind": "self"}}, "from": "library", "to": "graveyard"})
+    );
+    let cards = event(
+        "Whenever a creature card is put into your graveyard from your library, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(cards["from"], "library");
+    assert_eq!(cards["subject"]["object"]["owner"], controller());
+    let exile = event(
+        "When this creature dies or is put into exile from the battlefield, draw a card.",
+        "Creature",
+    );
+    assert_eq!(exile["events"][0]["kind"], "permanentDied");
+    assert_eq!(
+        exile["events"][1],
+        json!({"kind": "permanentLeftBattlefield", "object": {"kind": "self"}, "destination": "exile"})
+    );
+    // Near misses: two origins, and an owner relation from the battlefield.
+    for (text, state) in [
+        (
+            "Whenever a creature card is put into your graveyard from your library or hand, draw a card.",
+            "event.object.graveyard-origin",
+        ),
+        (
+            "When this creature is put into your graveyard from the battlefield, draw a card.",
+            "event.source.put-into-graveyard.origin",
+        ),
+    ] {
+        assert_eq!(committed_state(text), state, "{text}");
+    }
 }

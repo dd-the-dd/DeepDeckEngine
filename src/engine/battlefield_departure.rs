@@ -613,9 +613,10 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         self.record_installed_battlefield_departure(movement, reason);
         if movement.destination == "graveyard" {
-            self.enqueue_cards_entered_graveyard_triggers(
+            self.enqueue_cards_entered_graveyard_triggers_from(
                 &movement.permanent.owner,
                 std::slice::from_ref(&movement.permanent),
+                "battlefield",
             );
             self.check_quantity_failure()?;
         }

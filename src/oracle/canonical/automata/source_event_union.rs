@@ -32,6 +32,11 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     PutIntoGraveyardFromBattlefield,
     /// `is put into a graveyard from anywhere`.
     PutIntoGraveyardFromAnywhere,
+    /// `is put into your graveyard from your library|hand`: the card's own
+    /// arrival from that zone (its owner's graveyard, CR 400.3).
+    PutIntoGraveyardFromZone(&'static str),
+    /// `is put into exile from the battlefield` (CR 603.10a look-back).
+    PutIntoExileFromBattlefield,
     BecameTapped,
     BecameUntapped,
     BecameBlocked,
@@ -171,14 +176,42 @@ fn recognize_source_event_verb(
         cursor.consume("is")?;
         consume_lemma(cursor, VerbLemma::Put, VerbAgreement::Base)?;
         cursor.consume("into")?;
+        if peek_is(cursor, 0, "exile") {
+            cursor.enter("event.source.put-into-exile.origin");
+            cursor.consume("exile")?;
+            if peek_is(cursor, 0, "from") {
+                cursor.consume_phrase(&["from", "the", "battlefield"])?;
+            }
+            return Ok(SourceEventVerb::PutIntoExileFromBattlefield);
+        }
         cursor.enter("event.source.put-into-graveyard.zone");
-        // `your graveyard` adds an owner relation without a matcher.
-        cursor.consume_phrase(&["a", "graveyard"])?;
+        // `your graveyard` is the card's own (its owner's) graveyard; from
+        // the battlefield it would add a controller relation without matcher.
+        let own = peek_is(cursor, 0, "your");
+        if own {
+            cursor.consume_phrase(&["your", "graveyard"])?;
+        } else {
+            cursor.consume_phrase(&["a", "graveyard"])?;
+        }
         cursor.enter("event.source.put-into-graveyard.origin");
         if peek_is(cursor, 0, "from") && peek_is(cursor, 1, "anywhere") {
             cursor.consume_phrase(&["from", "anywhere"])?;
             return Ok(SourceEventVerb::PutIntoGraveyardFromAnywhere);
         }
+        if own && peek_is(cursor, 0, "from") && peek_is(cursor, 1, "your") {
+            cursor.consume_phrase(&["from", "your"])?;
+            let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                Some("library") => "library",
+                Some("hand") => "hand",
+                _ => return Err(cursor.fail("library or hand")),
+            };
+            cursor.consume(zone)?;
+            return Ok(SourceEventVerb::PutIntoGraveyardFromZone(zone));
+        }
+        cursor.require(
+            !own,
+            "a graveyard (an owner relation from the battlefield has no matcher)",
+        )?;
         cursor.consume_phrase(&["from", "the", "battlefield"])?;
         return Ok(SourceEventVerb::PutIntoGraveyardFromBattlefield);
     }

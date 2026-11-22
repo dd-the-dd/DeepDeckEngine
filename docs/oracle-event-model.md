@@ -489,6 +489,24 @@ modificateurs actifs).
 - Sondes : ligue et corpus inchangés (800, 13844), 0 perdue, 1 IR changée :
   les cartes `enters or dies` échouent ensuite dans leur corps.
 
+## Étape 13 réalisée : zone d'origine des arrivées au cimetière, exil depuis le champ de bataille
+
+- Chaque publication d'arrivée au cimetière porte sa zone d'origine quand
+  elle la connaît : meule (`library`), défausse (`hand`), départ du champ de
+  bataille et sacrifice (`battlefield`), sort résolu ou contrecarré
+  (`stack`). Le chemin générique qui compare le cimetière avant et après une
+  instruction ne connaît pas l'origine : il ne satisfait aucun motif à
+  origine écrite (limite explicite, pas de déclenchement deviné).
+- Analyseur : `put into your graveyard from your library|hand` (source et
+  cartes) ; `from your library or hand` (deux origines) reste explicite.
+- `dies or is put into exile [from the battlefield]` de la source : départ
+  vers l'exil, regard en arrière (CR 603.10a).
+- Exil depuis les autres zones : non publié (les chemins d'exil hors champ
+  de bataille ne passent pas par une sortie centrale) ; reste explicite.
+- Sondes : ligue inchangée ; corpus 13844 → 13851 (+7 : Sidisi, Brood Tyrant,
+  Devourer of Memory, Pedantic Learning, Field of Souls, …), 0 perdue,
+  10 IR changées dont 0 déjà supportée.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

@@ -7905,7 +7905,7 @@ impl GameEngine {
                 json!({ "sourceControllerId": source_controller }),
             );
         }
-        self.enqueue_cards_entered_graveyard_triggers(player_id, &milled_cards);
+        self.enqueue_cards_entered_graveyard_triggers_from(player_id, &milled_cards, "library");
         Ok(milled)
     }
 
@@ -23566,9 +23566,10 @@ impl GameEngine {
                     return;
                 }
             }
-            self.enqueue_cards_entered_graveyard_triggers(
+            self.enqueue_cards_entered_graveyard_triggers_from(
                 discarding_player_id,
                 std::slice::from_ref(&discarded),
+                "hand",
             );
         } else {
             self.enqueue_opponent_card_entered_graveyard_triggers(discarding_player_id, &[]);
@@ -23646,7 +23647,23 @@ impl GameEngine {
         player_id: &str,
         cards: &[CardInstance],
     ) {
-        self.enqueue_cards_entered_graveyard_triggers_with_record(player_id, cards, true);
+        self.enqueue_cards_entered_graveyard_triggers_with_record(player_id, cards, true, None);
+    }
+
+    /// Cards entering a graveyard from a known zone (CR 400.1): the arrival
+    /// records carry their origin for `from your library`-style patterns.
+    fn enqueue_cards_entered_graveyard_triggers_from(
+        &mut self,
+        player_id: &str,
+        cards: &[CardInstance],
+        from: &'static str,
+    ) {
+        self.enqueue_cards_entered_graveyard_triggers_with_record(
+            player_id,
+            cards,
+            true,
+            Some(from),
+        );
     }
 
     fn record_cards_entered_graveyard_event(&mut self, player_id: &str, cards: &[CardInstance]) {
@@ -23670,7 +23687,13 @@ impl GameEngine {
         player_id: &str,
         cards: &[CardInstance],
     ) {
-        self.enqueue_cards_entered_graveyard_triggers_with_record(player_id, cards, false);
+        // Recorded sacrifice batches: the cards came from the battlefield.
+        self.enqueue_cards_entered_graveyard_triggers_with_record(
+            player_id,
+            cards,
+            false,
+            Some("battlefield"),
+        );
     }
 
     fn enqueue_cards_entered_graveyard_triggers_with_record(
@@ -23678,6 +23701,7 @@ impl GameEngine {
         player_id: &str,
         cards: &[CardInstance],
         record_event: bool,
+        from: Option<&'static str>,
     ) {
         if cards.is_empty() {
             return;
@@ -23715,7 +23739,7 @@ impl GameEngine {
             // The card's own `put into a graveyard from anywhere` abilities.
             let arrival = zone_change_events::ZoneChangeRecord {
                 object: source,
-                from: None,
+                from,
                 to: "graveyard",
                 reason: None,
             };
@@ -23762,7 +23786,7 @@ impl GameEngine {
                                     zone_change_events::ZoneChangeGroup::GraveyardArrival,
                                     &zone_change_events::ZoneChangeRecord {
                                         object: card,
-                                        from: None,
+                                        from,
                                         to: "graveyard",
                                         reason: None,
                                     },
@@ -30590,7 +30614,7 @@ impl GameEngine {
                     json!({ "destination": destination, "stackId": stack_id }),
                 );
                 if entered_graveyard {
-                    self.enqueue_cards_entered_graveyard_triggers(&owner_id, &[card]);
+                    self.enqueue_cards_entered_graveyard_triggers_from(&owner_id, &[card], "stack");
                 }
                 self.check_state_based_actions_with_provider(Some(provider))?;
                 return Ok(());
@@ -34664,9 +34688,10 @@ impl GameEngine {
             }),
         );
         if let Some(graveyard_card) = graveyard_card {
-            self.enqueue_cards_entered_graveyard_triggers(
+            self.enqueue_cards_entered_graveyard_triggers_from(
                 &graveyard_owner,
                 std::slice::from_ref(&graveyard_card),
+                "stack",
             );
         }
         if spell_copy {

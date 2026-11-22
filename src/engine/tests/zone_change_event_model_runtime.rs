@@ -448,3 +448,60 @@ fn enters_or_dies_is_one_pattern_per_transition_of_the_same_subject() {
         .expect("the bear dies");
     assert_eq!(stack_sources(&engine), ["watcher", "watcher"]);
 }
+
+#[test]
+fn a_graveyard_arrival_carries_its_origin_zone() {
+    // Narcomoeba's event, and the Hedge Shredder batch from the library.
+    let own = parsed_rules(
+        "Library Probe",
+        "Creature — Illusion",
+        "When this card is put into your graveyard from your library, draw a card.",
+    );
+    assert_eq!(own[0]["event"]["from"], "library");
+    let batch = parsed_rules(
+        "Library Watcher",
+        "Enchantment",
+        "Whenever one or more land cards are put into your graveyard from your library, draw a card.",
+    );
+    assert_eq!(batch[0]["event"]["from"], "library");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![object("watcher", "Enchantment", batch, "player-0")];
+    engine.state.players[0].library.extend([
+        object("forest", "Land — Forest", Vec::new(), "player-0"),
+        object("moeba", "Creature — Illusion", own.clone(), "player-0"),
+    ]);
+    admit(&mut engine);
+    // From the hand: neither pattern.
+    let discarded = object("discarded-land", "Land — Forest", Vec::new(), "player-0");
+    let discarded_moeba = object("discarded-moeba", "Creature — Illusion", own, "player-0");
+    engine.enqueue_cards_entered_graveyard_triggers_from(
+        "player-0",
+        &[discarded, discarded_moeba],
+        "hand",
+    );
+    assert!(engine.state.stack.is_empty(), "cards from the hand");
+    engine.mill_cards("player-0", 2, None).expect("mill");
+    let mut sources = stack_sources(&engine);
+    sources.sort();
+    assert_eq!(sources, ["moeba", "watcher"]);
+}
+
+#[test]
+fn a_source_put_into_exile_from_the_battlefield_looks_back() {
+    let rules = parsed_rules(
+        "God-Eternal Probe",
+        "Legendary Creature — Zombie God",
+        "When this creature dies or is put into exile from the battlefield, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["events"][1]["destination"], "exile");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![object(
+        "god",
+        "Legendary Creature — Zombie God",
+        rules,
+        "player-0",
+    )];
+    admit(&mut engine);
+    engine.exile_permanent("god").expect("exiled");
+    assert_eq!(stack_sources(&engine), ["god"]);
+}

@@ -292,6 +292,19 @@ fn lower_source_event_union(
                     "subject": {"object": object},
                     "to": "graveyard",
                 }),
+                SourceEventVerb::PutIntoGraveyardFromZone(zone) => json!({
+                    "kind": "eventPattern",
+                    "lemma": "move",
+                    "subject": {"object": object},
+                    "from": zone,
+                    "to": "graveyard",
+                }),
+                // CR 603.10a: look-back on the exiled source.
+                SourceEventVerb::PutIntoExileFromBattlefield => json!({
+                    "kind": "permanentLeftBattlefield",
+                    "object": object,
+                    "destination": "exile",
+                }),
                 SourceEventVerb::PutIntoGraveyardFromBattlefield => json!({
                     "kind": "permanentLeftBattlefield",
                     "object": object,
@@ -495,6 +508,7 @@ fn lower_graveyard_arrival_pattern(
     cursor: &mut OracleTokenCursor<'_>,
     event: &ObjectEventNode,
     owner: GraveyardOwner,
+    origin: Option<&'static str>,
 ) -> MachineResult<Value> {
     let subject = &event.subject;
     cursor.enter("trigger.object-event.graveyard-arrival");
@@ -525,6 +539,9 @@ fn lower_graveyard_arrival_pattern(
         "subject": {"object": object},
         "to": "graveyard",
     });
+    if let Some(origin) = origin {
+        lowered["from"] = json!(origin);
+    }
     if matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. }) {
         lowered["aggregation"] = json!("oneOrMore");
     }
@@ -607,8 +624,8 @@ fn lower_object_event(
         }
         return Ok(lowered);
     }
-    if let ObjectEventVerb::PutIntoGraveyard(owner) = event.verb {
-        return lower_graveyard_arrival_pattern(cursor, event, owner);
+    if let ObjectEventVerb::PutIntoGraveyard(owner, origin) = event.verb {
+        return lower_graveyard_arrival_pattern(cursor, event, owner, origin);
     }
     if event.verb == ObjectEventVerb::DealDamage
         || (event.verb == ObjectEventVerb::DealCombatDamageToPlayer && !per_event)
@@ -764,7 +781,7 @@ fn lower_object_event(
         }
         ObjectEventVerb::LeaveBattlefield
         | ObjectEventVerb::PutIntoGraveyardFromBattlefield
-        | ObjectEventVerb::PutIntoGraveyard(_) => {
+        | ObjectEventVerb::PutIntoGraveyard(..) => {
             unreachable!("zone changes are lowered before the per-verb support checks")
         }
         ObjectEventVerb::BeDealtDamage(damage) => {

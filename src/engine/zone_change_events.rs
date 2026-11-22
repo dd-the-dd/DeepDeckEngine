@@ -276,11 +276,15 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             ZoneChangeGroup::Entry
         }
         // Look-back departures, observed by the sources captured before it.
-        (Some("battlefield"), _, _) => ZoneChangeGroup::Departure,
-        // A card's own ability, wherever it comes from, as it arrives.
-        (None, Some("graveyard"), SubjectRelation::Source | SubjectRelation::Cards { .. }) => {
-            ZoneChangeGroup::GraveyardArrival
+        (Some("battlefield"), _, SubjectRelation::Source | SubjectRelation::Permanents { .. }) => {
+            ZoneChangeGroup::Departure
         }
+        // A card arriving in a graveyard, from any zone or the written one.
+        (
+            None | Some("library" | "hand" | "battlefield"),
+            Some("graveyard"),
+            SubjectRelation::Source | SubjectRelation::Cards { .. },
+        ) => ZoneChangeGroup::GraveyardArrival,
         _ => return None,
     };
     Some(ZoneChangePattern {
