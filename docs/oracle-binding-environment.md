@@ -252,8 +252,32 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   désignant une cible de carte mise sur le champ de bataille (`It gains
   haste`), `it` source de dégâts observée (Wrathful Red Dragon).
 
+## Étape 12 réalisée : permission d'un autre joueur
+
+- `that player may …`, `defending player may …` et `its controller may …`
+  ouvrent le même programme facultatif que `you may` ; l'acteur est lu dans
+  l'environnement du cadre (joueur de l'événement, contrôleur de l'objet
+  observé) et abaissé par `bound_player_reference_value`.
+- Le connecteur de résultat est généralisé : `if/when they do/don't`,
+  `if the player does/doesn't`, `if that player does/doesn't` désignent
+  l'exécutant de la permission (CR 608.2c).
+- Le moteur possédait déjà la primitive : `optionalEffects` et
+  `optionalPayCostPerformEffects` adressent la décision au joueur résolu ;
+  aucun nouveau type d'action. Test d'exécution : la décision est demandée au
+  joueur de l'événement, pas au contrôleur.
+- Sonde : ligue 808 → 808, corpus 14275 → 14275, 0 perte, 1 IR modifiée
+  (non supportée, bloqueur suivant). Les cartes `that player may` atteignent
+  désormais leurs bloqueurs suivants (`they draw`, `the creature`,
+  `choose any number`).
+
 ## Suite
 
-1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
-   d'un sort sur la pile ; `that player may` (permission facultative d'un
-   autre joueur, moteur).
+1. Collections révélées ou regardées (`reveal … until` dans une branche
+   `If you do`) et génitif numérique d'une carte observée
+   (`that card's mana value`, environ 29 cartes) : l'abaissement numérique
+   n'a pas encore accès aux collections.
+2. `that player's graveyard` (détenteur de zone lié dans la requête) et `it`
+   pour la carte déplacée par un changement de zone ciblé.
+3. Source de dégâts observée (`it`), retard avec jeton ou cible
+   (`Sacrifice it at the beginning of the next end step`), changement de
+   contrôle d'un sort (LKI non suivie, limite documentée).

@@ -513,3 +513,58 @@ fn the_cast_spells_controller_is_its_caster_once_it_left_the_stack() {
     assert_eq!(engine.state.players[1].life, 19, "the caster");
     assert_eq!(engine.state.players[0].life, 20);
 }
+
+/// Records the player each decision is addressed to; picks the first option.
+#[derive(Default)]
+struct RecordingProvider {
+    players: Vec<String>,
+}
+
+impl DecisionProvider for RecordingProvider {
+    fn choose(
+        &mut self,
+        _state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        self.players.push(request.player_id.clone());
+        Ok(0)
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn another_players_permission_is_that_players_choice() {
+    // `that player may discard a card`: the drawing opponent, not the
+    // ability's controller, decides (optionalEffects with triggeringPlayer).
+    let rules = parsed_rules(
+        "Enchantment",
+        "Whenever an opponent draws a card, that player may discard a card.",
+    );
+    assert_eq!(
+        rules[0]["effects"][0]["player"],
+        json!({"kind":"triggeringPlayer"}),
+        "{:#}",
+        rules[0]
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(permanent(
+        "watcher",
+        "Enchantment",
+        rules,
+        "player-0",
+    ));
+    admit(&mut engine);
+    engine.draw_cards("player-1", 1).expect("player-1 draws");
+    let mut provider = RecordingProvider::default();
+    while !engine.state.stack.is_empty() {
+        engine
+            .resolve_top_stack(&mut provider)
+            .expect("the trigger resolves");
+    }
+    assert!(!provider.players.is_empty(), "the permission was asked");
+    assert!(
+        provider.players.iter().all(|player| player == "player-1"),
+        "{:?}",
+        provider.players
+    );
+}

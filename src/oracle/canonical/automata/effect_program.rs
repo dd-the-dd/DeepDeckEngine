@@ -119,9 +119,22 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         } else {
             failure
         };
+        // `that player may ...`: another player's permission, read by the
+        // optional program below when no ordinary sentence claimed it.
+        let other_player_permission = other_player_permission_starts(cursor);
         // A later sentence may open an optional-cost block. The leading
         // sentences are then an ordinary, separately bounded program step.
-        let Some(block_start) = later_optional_outcome_block(cursor) else {
+        let block_start = later_optional_outcome_block(cursor);
+        let Some(block_start) = block_start.filter(|_| !other_player_permission) else {
+            if other_player_permission {
+                return recognize_other_player_permission(
+                    cursor,
+                    name_links,
+                    name_failure,
+                    context,
+                    failure,
+                );
+            }
             return Err(failure);
         };
         cursor.enter("program.steps.leading");
@@ -143,8 +156,28 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     }) {
         return Ok(EffectProgramNode::Sequence(sequence));
     }
+    recognize_permission_program(cursor, name_links, name_failure, context)
+}
+
+/// `PLAYER may ...`: an optional program whose actor is the controller or a
+/// player the binding environment names.
+fn recognize_permission_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
     cursor.enter("program.optional.actor");
-    let player = recognize_player_reference(cursor, None)?;
+    // The permission's actor reads the frame the program's parent owns
+    // (`that player may ...` names the event's player).
+    let enclosing =
+        cursor.replace_binding_environment(Some(std::sync::Arc::new(BindingEnvironment {
+            frame: FrameBindings::from_context(context),
+            ..BindingEnvironment::default()
+        })));
+    let player = recognize_player_reference(cursor, None);
+    cursor.replace_binding_environment(enclosing);
+    let player = player?;
     cursor.enter("program.optional.permission");
     cursor.consume("may")?;
     if cost_outcome_follows_first_sentence(cursor) {
@@ -418,6 +451,46 @@ fn top_level_sentence_end(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
         offset += 1;
     }
     None
+}
+
+/// `that player may`, `defending player may`, `its controller may`: a
+/// permission whose actor the binding environment names (lexical only).
+fn other_player_permission_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let fixed_head = ["that", "defending"].iter().any(|word| {
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    }) && cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
+    let head = if fixed_head {
+        Some(2)
+    } else {
+        super::object_related_player_head_length(cursor)
+    };
+    head.is_some_and(|head| {
+        cursor
+            .peek_ahead(head)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
+    })
+}
+
+/// Reads another player's permission with the optional program reader; the
+/// sentence reading's failure is kept when it progressed further.
+fn recognize_other_player_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    sequence_failure: super::super::MachineFailure,
+) -> MachineResult<EffectProgramNode> {
+    match cursor
+        .attempt(|attempt| recognize_permission_program(attempt, name_links, name_failure, context))
+    {
+        Ok(program) => Ok(program),
+        Err(failure) if failure.token_index > sequence_failure.token_index => Err(failure),
+        Err(_) => Err(sequence_failure),
+    }
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {

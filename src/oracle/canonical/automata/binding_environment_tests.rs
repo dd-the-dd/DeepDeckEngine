@@ -619,3 +619,31 @@ fn guard_objects_event_subjects_and_the_cast_spells_controller_are_bound() {
     );
     assert_ne!(status, "canonical");
 }
+
+#[test]
+fn another_players_permission_and_its_outcome_connector() {
+    // Apathy/Umbilicus shape: `that player may` names the event's player and
+    // `If they do` / `If the player does` refer to that permission.
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent draws a card, that player may discard a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(rules[0]["effects"][0]["kind"], "optionalEffects");
+    assert_eq!(
+        rules[0]["effects"][0]["player"],
+        json!({"kind":"triggeringPlayer"})
+    );
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent draws a card, that player may pay 2 life. If the player does, you draw a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(
+        rules[0]["effects"][0]["kind"],
+        "optionalPayCostPerformEffects"
+    );
+    // Near miss: no event records a player.
+    let (status, _, _) = parse(CREATURE, "{T}: That player may draw a card.");
+    assert_ne!(status, "canonical");
+}

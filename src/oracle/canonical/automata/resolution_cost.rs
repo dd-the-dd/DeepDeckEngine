@@ -131,13 +131,25 @@ fn outcome_at(
             .peek_ahead(offset + index)
             .map(str::to_ascii_lowercase)
     };
-    let outcome = match (word(0)?.as_str(), word(1)?.as_str(), word(2)?.as_str()) {
-        ("if", "you", "do") => CostOutcomeContinuation::IfPaid,
-        ("if", "you", "don't" | "don’t") => CostOutcomeContinuation::IfDeclined,
-        ("when", "you", "do") => CostOutcomeContinuation::WhenPaid,
+    // The connector's subject is the permission's performer: `you`, or
+    // another player named by `they` / `that player` / `the player`
+    // (CR 608.2c `if [that player] does`).
+    let (subject_width, singular) = match (word(1)?.as_str(), word(2).as_deref()) {
+        ("you" | "they", _) => (1, false),
+        ("that" | "the", Some("player")) => (2, true),
         _ => return None,
     };
-    (word(3)?.as_str() == ",").then_some((outcome, 4))
+    let verb = word(1 + subject_width)?;
+    let outcome = match (word(0)?.as_str(), verb.as_str(), singular) {
+        ("if", "do", false) | ("if", "does", true) => CostOutcomeContinuation::IfPaid,
+        ("if", "don't" | "don’t", false) | ("if", "doesn't" | "doesn’t", true) => {
+            CostOutcomeContinuation::IfDeclined
+        }
+        ("when", "do", false) | ("when", "does", true) => CostOutcomeContinuation::WhenPaid,
+        _ => return None,
+    };
+    let width = 2 + subject_width;
+    (word(width)?.as_str() == ",").then_some((outcome, width + 1))
 }
 
 /// One resolution cost: the shared cost sequence projected onto the engine's
