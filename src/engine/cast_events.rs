@@ -124,6 +124,60 @@ impl GameEngine {
         }
     }
 
+    /// A numeric characteristic of the spell on the stack, or `None` for a
+    /// property the cast record does not hold.
+    fn spell_numeric_property(record: &CastEventRecord<'_>, property: &Value) -> Option<i32> {
+        if value_kind(&property["object"]) != Some("candidate") {
+            return None;
+        }
+        match value_kind(property)? {
+            // CR 202.3e: X in the mana cost is the announced value.
+            "manaValueOf" => Some(mana_value_with_decisions(record.spell, record.decisions)),
+            "powerOf" => record.spell.power.as_deref()?.trim().parse().ok(),
+            "toughnessOf" => record.spell.toughness.as_deref()?.trim().parse().ok(),
+            _ => None,
+        }
+    }
+
+    /// The spell predicate on the cast record: numeric comparisons read the
+    /// stack characteristics, every other atom the spell's definition.
+    pub(super) fn cast_spell_matches(&self, filter: &Value, record: &CastEventRecord<'_>) -> bool {
+        match value_kind(filter) {
+            None if filter.is_null() => true,
+            Some("and") => filter["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .all(|operand| self.cast_spell_matches(operand, record))
+            }),
+            Some("or") => filter["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .any(|operand| self.cast_spell_matches(operand, record))
+            }),
+            Some("not") => !self.cast_spell_matches(&filter["operand"], record),
+            Some("compare") if value_kind(&filter["left"]["object"]) == Some("candidate") => {
+                let (Some(left), Some(right)) = (
+                    Self::spell_numeric_property(record, &filter["left"]),
+                    integer_value(&filter["right"]),
+                ) else {
+                    // A property the stack record does not hold (color
+                    // count, …) keeps the definition evaluator.
+                    return matches_card_filter(record.spell, filter);
+                };
+                let right = right as i32;
+                match filter["operator"].as_str() {
+                    Some("==") => left == right,
+                    Some("<=") => left <= right,
+                    Some(">=") => left >= right,
+                    Some("<") => left < right,
+                    Some(">") => left > right,
+                    _ => false,
+                }
+            }
+            _ => matches_card_filter(record.spell, filter),
+        }
+    }
+
     /// The caster's per-turn ordinal of this spell among the spells that
     /// satisfy `filter` (the spell itself is already logged).
     fn cast_turn_ordinal(&self, caster: &str, filter: &Value) -> usize {
@@ -258,6 +312,6 @@ impl GameEngine {
             && single_target_matches
             && mana_symbol_matches
             && caster_matches
-            && matches_card_filter(spell, &event["where"])
+            && self.cast_spell_matches(&event["where"], record)
     }
 }

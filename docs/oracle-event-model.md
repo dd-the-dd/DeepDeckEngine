@@ -442,6 +442,19 @@ modificateurs actifs).
   corpus 13798 → 13814 (+16), 0 perdue, 32 IR changées dont 0 déjà
   supportée.
 
+## Étape 10 réalisée : caractéristiques numériques du sort sur la pile
+
+- Le prédicat d'un motif de lancement est évalué sur l'enregistrement : une
+  comparaison numérique sur le candidat lit la valeur de mana avec le X
+  annoncé (CR 202.3e), la force et l'endurance de la carte ; une propriété
+  que l'enregistrement ne porte pas (nombre de couleurs, …) garde
+  l'évaluateur de définition. L'analyseur exige une constante à droite.
+- Le parent de champ de bataille historique laisse ces prédicats au motif
+  générique au lieu d'échouer.
+- Sondes : ligue 797 → 798 (+1 : Path of Annihilation) ; corpus 13814 →
+  13833 (+19 : Screamer-Killer, Enraged Flamecaster, Ascendant Packleader,
+  Bygone Bishop, …), 0 perdue, 29 IR changées dont 0 déjà supportée.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

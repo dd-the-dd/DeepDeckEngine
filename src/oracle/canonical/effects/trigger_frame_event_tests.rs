@@ -718,3 +718,22 @@ fn the_cast_origin_zone_and_turn_relation_are_pattern_modifiers() {
         "event.spell-cast.origin-zone"
     );
 }
+
+#[test]
+fn numeric_spell_characteristics_are_read_on_the_cast_record() {
+    let mana_value = event(
+        "Whenever you cast a spell with mana value 4 or greater, draw a card.",
+        "Creature",
+    );
+    assert_eq!(mana_value["where"]["kind"], "compare");
+    assert_eq!(mana_value["where"]["left"]["kind"], "manaValueOf");
+    assert_eq!(
+        mana_value["where"]["right"],
+        json!({"kind": "integer", "value": 4})
+    );
+    let power = event(
+        "Whenever a player casts a creature spell with power 4 or greater, draw a card.",
+        "Creature",
+    );
+    assert_eq!(power["where"]["kind"], "and");
+}

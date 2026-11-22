@@ -303,3 +303,41 @@ fn the_cast_record_carries_its_origin_zone_and_owner() {
     );
     assert_eq!(triggered_sources(&engine), ["watcher"]);
 }
+
+#[test]
+fn a_spells_mana_value_on_the_stack_includes_its_announced_x() {
+    // CR 202.3e: {X}{R} cast with X = 3 has mana value 4.
+    let rules = parsed_rules(
+        "Big Spell Watcher",
+        "Enchantment",
+        "Whenever you cast a spell with mana value 4 or greater, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![test_instance(
+        "watcher",
+        CardDefinition {
+            rules,
+            ..test_definition("watcher", "Enchantment")
+        },
+        "player-0",
+    )];
+    let mut fireball = test_definition("fireball", "Sorcery");
+    fireball.mana_cost = "{X}{R}".to_string();
+    let cast_x = |engine: &mut GameEngine, x: i64| {
+        engine.record_event(
+            "spellCast",
+            Some("player-0".to_string()),
+            Some("fireball".to_string()),
+            json!({"typeLine": "Sorcery", "cardName": "fireball"}),
+        );
+        engine.enqueue_spell_cast_triggers(
+            "player-0",
+            &fireball,
+            &BTreeMap::from([("xValue".to_string(), json!(x))]),
+        );
+    };
+    cast_x(&mut engine, 2);
+    assert!(triggered_sources(&engine).is_empty(), "mana value 3");
+    cast_x(&mut engine, 3);
+    assert_eq!(triggered_sources(&engine), ["watcher"]);
+}

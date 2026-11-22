@@ -41,13 +41,15 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             Ok(lower_source_transition_event(envelope))
         }
         GenericTriggerEventNode::SpellCast(event) => {
-            // The existing matcher observes a printed definition, not the
-            // contextual stack spell. Preserve the old numeric support cap.
+            // Numeric characteristics are read on the cast record: mana
+            // value with the announced X (CR 202.3e), the card's power and
+            // toughness. The right side must be a literal (no other producer).
             if event.query.predicate.contains_numeric_comparison() {
                 cursor.enter("trigger.spell-cast.numeric-stack-context");
-                return Err(cursor.fail(
-                    "a spell event predicate without unproved numeric stack characteristics",
-                ));
+                cursor.require(
+                    literal_numeric_comparisons(&event.query.predicate),
+                    "a spell characteristic compared with a literal number",
+                )?;
             }
             let predicate =
                 lower_spell_object_predicate(&event.query.predicate).unwrap_or(Value::Null);
@@ -873,6 +875,20 @@ fn lower_spell_targets(
         })
         .collect::<MachineResult<Vec<_>>>()?;
     Ok(json!({"only": targets.only, "anyOf": alternatives}))
+}
+
+/// Every numeric comparison of the predicate has a literal right side.
+fn literal_numeric_comparisons(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::NumericComparison { right, .. } => {
+            matches!(**right, NumericExpression::Atom(NumericAtom::Integer(_)))
+        }
+        ObjectPredicate::Not(child) => literal_numeric_comparisons(child),
+        ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
+            children.iter().all(literal_numeric_comparisons)
+        }
+        _ => true,
+    }
 }
 
 /// The characteristics the spell-cast history records for each spell: its
