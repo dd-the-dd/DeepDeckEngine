@@ -25,9 +25,53 @@ pub(super) fn object_condition_reference_supported(reference: &Value) -> bool {
 
 enum ConditionSubject<'a> {
     View(ObjectFilterView<'a>),
+    /// The event's permanent after it left the battlefield, as the event
+    /// record last saw it (CR 603.10a, 608.2h): its counters, combat state
+    /// and power/toughness captured when it died.
+    LastKnown(LastKnownEventObject),
     /// No object (no card looked at, an unchosen optional target): the
     /// object has no characteristic, so the condition is false.
     Absent,
+}
+
+struct LastKnownEventObject {
+    card: CardInstance,
+    was_creature: bool,
+    power: i32,
+    toughness: i32,
+}
+
+/// The death record's last-known event object, rebuilt from the record's
+/// own captures over the card it became. `None` without a death record.
+fn last_known_event_object(
+    card: &CardInstance,
+    decisions: &BTreeMap<String, Value>,
+) -> Option<LastKnownEventObject> {
+    let counters = decisions.get("triggeringPermanentCounters")?;
+    let integer = |key: &str| {
+        decisions
+            .get(key)
+            .and_then(Value::as_i64)
+            .and_then(|value| i32::try_from(value).ok())
+    };
+    let flag = |key: &str| decisions.get(key).and_then(Value::as_bool);
+    let mut card = card.clone();
+    card.counters = serde_json::from_value(counters.clone()).ok()?;
+    if let Some(controller) = decisions
+        .get("triggeringPermanentController")
+        .and_then(Value::as_str)
+    {
+        card.controller = controller.to_string();
+    }
+    // Combat status and designations (`renowned`, `monstrous`) as it last
+    // existed on the battlefield.
+    card.flags = serde_json::from_value(decisions.get("triggeringPermanentFlags")?.clone()).ok()?;
+    Some(LastKnownEventObject {
+        card,
+        was_creature: flag("triggeringPermanentWasCreature")?,
+        power: integer("triggeringPermanentPower")?,
+        toughness: integer("triggeringPermanentToughness")?,
+    })
 }
 
 impl GameEngine {
@@ -80,6 +124,26 @@ impl GameEngine {
                     None => ConditionSubject::Absent,
                 },
             ),
+            Some("triggeringPermanent")
+                if self
+                    .resolve_target(reference, stack_object, bindings)
+                    .is_none()
+                    && stack_object
+                        .decisions
+                        .contains_key("triggeringPermanentCounters") =>
+            {
+                // The event's permanent died: read the death record's
+                // last-known object, never the card in its new zone.
+                let instance_id = stack_object.decisions["triggeringPermanentId"]
+                    .as_str()
+                    .ok_or_else(|| EngineError::new("a death record without its permanent"))?;
+                let card = self.card_outside_battlefield(instance_id).ok_or_else(|| {
+                    EngineError::new("a dead event object whose card cannot be found")
+                })?;
+                last_known_event_object(card, &stack_object.decisions)
+                    .map(ConditionSubject::LastKnown)
+                    .ok_or_else(|| EngineError::new("an incomplete death record"))
+            }
             Some("boundObjects" | "decisionResult") => {
                 let objects = self.resolve_runtime_object_ids_checked(
                     reference,
@@ -137,12 +201,58 @@ impl GameEngine {
     ) -> Result<bool, EngineError> {
         let subject =
             self.object_condition_subject(&condition["object"], stack_object, bindings, decisions)?;
-        let ConditionSubject::View(view) = subject else {
-            return Ok(false);
+        let view = match &subject {
+            ConditionSubject::View(view) => *view,
+            ConditionSubject::LastKnown(object) => {
+                return try_evaluate_predicate(&condition["where"], &mut |leaf| {
+                    self.last_known_condition_leaf(object, leaf, stack_object, bindings, decisions)
+                });
+            }
+            ConditionSubject::Absent => return Ok(false),
         };
         try_evaluate_predicate(&condition["where"], &mut |leaf| {
             self.object_condition_leaf(view, leaf, stack_object, bindings, decisions)
         })
+    }
+
+    /// A leaf over the last-known event object: its captured power and
+    /// toughness, and its other atoms on the rebuilt battlefield view.
+    fn last_known_condition_leaf(
+        &self,
+        object: &LastKnownEventObject,
+        leaf: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<bool, EngineError> {
+        if value_kind(leaf) == Some("compare")
+            && value_kind(&leaf["left"]["object"]) == Some("candidate")
+            && let Some(left) = match value_kind(&leaf["left"]) {
+                Some("powerOf") => Some(object.power),
+                Some("toughnessOf") => Some(object.toughness),
+                _ => None,
+            }
+        {
+            // CR 208.3: an object without power/toughness never matches.
+            if !object.was_creature {
+                return Ok(false);
+            }
+            let right = self.checked_runtime_numeric_expression(
+                &leaf["right"],
+                stack_object,
+                bindings,
+                decisions,
+                "objectMatchesFilter.compare.right",
+            )?;
+            return Ok(compare_integers(left, leaf["operator"].as_str(), right));
+        }
+        self.object_condition_leaf(
+            ObjectFilterView::Permanent(&object.card),
+            leaf,
+            stack_object,
+            bindings,
+            decisions,
+        )
     }
 
     fn object_condition_leaf(

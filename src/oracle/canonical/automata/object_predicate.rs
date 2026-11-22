@@ -2,7 +2,7 @@ use crate::oracle::counter_name::CounterName;
 
 use super::{
     CardColor, CardSupertype, CharacteristicBatch, ColorQuantity, GrantedKeyword, ManaCostNode,
-    NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectKind,
+    NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectKind, PermanentDesignation,
     SelectorNumericProperty,
 };
 
@@ -83,6 +83,9 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     HasKeyword(GrantedKeyword),
     ObjectKind(ObjectKind),
     Status(ObjectStatus),
+    /// `renowned`, `monstrous`, `suspected` (CR 701.37b, 702.112b, 701.60b):
+    /// a designation of the permanent, from the shared registry.
+    Designation(PermanentDesignation),
     /// `permanent card`: a card with a permanent card type (CR 110.4b). The
     /// following `card` noun still supplies the object domain.
     PermanentCard,
@@ -163,6 +166,7 @@ impl ObjectPredicate {
             | Self::HasKeyword(_)
             | Self::ObjectKind(_)
             | Self::Status(_)
+            | Self::Designation(_)
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
@@ -194,7 +198,9 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
-            Self::Status(_) | Self::HasCounter(_) => domain == ObjectKind::Permanent,
+            Self::Status(_) | Self::Designation(_) | Self::HasCounter(_) => {
+                domain == ObjectKind::Permanent
+            }
             Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
@@ -241,6 +247,7 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::Designation(_)
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
@@ -277,6 +284,7 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::Status(_)
+            | Self::Designation(_)
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType

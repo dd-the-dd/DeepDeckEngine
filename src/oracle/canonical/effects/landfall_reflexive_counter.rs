@@ -35,11 +35,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_labeled_entry_reflexive_coun
 }
 
 fn comparison_operator(operator: NumericComparisonOperator) -> &'static str {
-    match operator {
-        NumericComparisonOperator::Equal => "==",
-        NumericComparisonOperator::LessThanOrEqual => "<=",
-        NumericComparisonOperator::GreaterThanOrEqual => ">=",
-    }
+    operator.ir_operator()
 }
 
 fn lower_duration(duration: &EffectDurationNode) -> Value {

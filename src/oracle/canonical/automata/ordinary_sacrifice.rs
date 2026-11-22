@@ -26,7 +26,9 @@ pub(in crate::oracle::canonical) fn recognize_ordinary_sacrifice_effect(
         crate::oracle::canonical::automata::VerbLemma::Sacrifice,
         crate::oracle::canonical::automata::VerbAgreement::Base,
     )?;
-    if source_or_anaphor_reference_starts_at(probe.position(), probe.peek(), names, name_failure) {
+    if source_or_anaphor_reference_starts_at(probe.position(), probe.peek(), names, name_failure)
+        || (antecedent.is_some() && definite_object_anaphor_starts(&probe))
+    {
         return recognize_sacrifice_source_effect(cursor, names, name_failure, antecedent)
             .map(SacrificeEffectNode::Source);
     }

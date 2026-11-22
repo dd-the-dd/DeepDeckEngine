@@ -22,9 +22,13 @@ pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
 /// `None` means this module does not own the effect kind.
 pub(super) fn direct_life_effect_supported(effect: &Value) -> Option<bool> {
     match value_kind(effect) {
-        Some("gainLife" | "loseLife") => Some(
+        Some(kind @ ("gainLife" | "loseLife")) => Some(
             numeric_expression_supported(&effect["amount"])
-                && player_reference_supported(&effect["player"]),
+                && player_reference_supported(&effect["player"])
+                // A life loss may record the life actually lost (CR 608.2c).
+                && effect
+                    .get("bind")
+                    .is_none_or(|bind| kind == "loseLife" && bind.is_string()),
         ),
         _ => None,
     }
@@ -51,7 +55,7 @@ impl GameEngine {
         &mut self,
         effect: &Value,
         stack_object: &StackObject,
-        bindings: &BTreeMap<String, RuntimeBinding>,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
         decisions: &BTreeMap<String, Value>,
     ) -> Result<bool, EngineError> {
         let Some(kind @ ("gainLife" | "loseLife")) = value_kind(effect) else {
@@ -81,6 +85,9 @@ impl GameEngine {
             })?
             .max(0);
         if amount == 0 {
+            if let Some(binding) = effect["bind"].as_str() {
+                bindings.insert(binding.to_string(), RuntimeBinding::Integer(0));
+            }
             return Ok(true);
         }
         if kind == "loseLife" {
@@ -96,13 +103,17 @@ impl GameEngine {
             }
             let recipients =
                 self.player_iteration_ids(&effect["player"], stack_object, bindings)?;
-            self.execute_life_loss_batch(
+            let lost = self.execute_life_loss_batch(
                 recipients,
                 amount,
                 &stack_object.card.instance_id,
                 Some(&stack_object.controller),
                 LifeLossEventStyle::Direct,
             )?;
+            // The total life actually lost (prevented loss is not lost).
+            if let Some(binding) = effect["bind"].as_str() {
+                bindings.insert(binding.to_string(), RuntimeBinding::Integer(lost));
+            }
         } else {
             for player_id in self.resolve_players(&effect["player"], stack_object, bindings) {
                 self.gain_life(&player_id, amount)?;
@@ -209,8 +220,13 @@ impl GameEngine {
         source: &str,
         ability_controller: Option<&str>,
         event_style: LifeLossEventStyle,
-    ) -> Result<(), EngineError> {
+    ) -> Result<i32, EngineError> {
         let prepared = self.prepare_life_loss_batch(recipients, amount)?;
+        let lost = prepared
+            .iter()
+            .filter(|loss| !loss.prevented)
+            .map(|loss| loss.amount)
+            .sum::<i32>();
         let source_controller = ability_controller.map(str::to_owned).or_else(|| {
             self.state
                 .players
@@ -264,7 +280,8 @@ impl GameEngine {
             }
         }
         // State-based actions belong to the enclosing resolution boundary.
-        self.check_quantity_failure()
+        self.check_quantity_failure()?;
+        Ok(lost)
     }
 
     fn publish_life_loss_consequences(

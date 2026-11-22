@@ -22,16 +22,16 @@ fn first_failure(parsed: &OracleCardParseResult) -> (Option<&str>, Option<&str>)
 
 #[test]
 fn an_unsupported_verb_is_not_reported_as_an_unresolved_name() {
-    // `move` has no effect grammar yet (`remove`, the former example, now has
-    // one: Dark Depths compiles).
+    // `switch` has no effect grammar yet (`remove` and `move`, the former
+    // examples, now have one: Dark Depths and Graft compile).
     let parsed = parse(
-        "Counter Mover",
+        "Stat Switcher",
         "Artifact",
-        "{3}: Move a +1/+1 counter from target creature onto target creature.",
+        "{3}: Switch target creature's power and toughness until end of turn.",
     );
     assert_eq!(
         first_failure(&parsed),
-        (Some("effect.unsupported-verb"), Some("Move"))
+        (Some("effect.unsupported-verb"), Some("Switch"))
     );
 }
 

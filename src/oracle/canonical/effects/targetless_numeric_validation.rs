@@ -65,6 +65,8 @@ fn visit(expression: &NumericExpression) -> Result<Option<i32>, TargetlessLoweri
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
+        | NumericExpression::OpponentCount(_)
+        | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }

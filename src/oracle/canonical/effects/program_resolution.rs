@@ -61,6 +61,8 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
+        | NumericExpression::OpponentCount(_)
+        | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }
@@ -185,6 +187,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::Earthbend(_)
         | LocalEffectNode::TransformPermanent(_)
         | LocalEffectNode::PutCounters(_)
+        | LocalEffectNode::MoveCounters(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::MoveCards(_)
         | LocalEffectNode::ZoneBatch(_)
@@ -420,6 +423,7 @@ fn resolve_sequence(
             | LocalEffectNode::Earthbend(_)
             | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::PutCounters(_)
+            | LocalEffectNode::MoveCounters(_)
             | LocalEffectNode::MoveSource(_)
             | LocalEffectNode::MoveCards(_)
             | LocalEffectNode::ZoneBatch(_)

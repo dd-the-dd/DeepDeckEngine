@@ -256,6 +256,7 @@ fn lower_local_effect_sequence(
             )
         }
         LocalEffectNode::PutCounters(_)
+        | LocalEffectNode::MoveCounters(_)
         | LocalEffectNode::Investigate(_)
         | LocalEffectNode::DiscardCards(_)
         | LocalEffectNode::Scry(_)
@@ -429,6 +430,7 @@ fn lower_local_effect_sequence(
             | LocalEffectNode::Earthbend(_)
             | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::PutCounters(_)
+            | LocalEffectNode::MoveCounters(_)
             | LocalEffectNode::MoveCards(_)
             | LocalEffectNode::TargetCardZoneChange(_)
             | LocalEffectNode::PlayerAction(_)
@@ -505,6 +507,7 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
     if sequence.effects.iter().any(|effect| {
         let subject = match effect {
             LocalEffectNode::PutCounters(node) => Some(&node.permanent),
+            LocalEffectNode::MoveCounters(node) => Some(&node.destination),
             LocalEffectNode::TemporaryKeywordGrant(node) => Some(&node.objects),
             LocalEffectNode::ModifyStats(node) => Some(&node.targets),
             LocalEffectNode::BecomeTypes(node) => Some(&node.objects),
@@ -587,6 +590,7 @@ fn lower_conditional_damage_effect(
             | LocalEffectNode::Earthbend(_)
             | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::PutCounters(_)
+            | LocalEffectNode::MoveCounters(_)
             | LocalEffectNode::MoveCards(_)
             | LocalEffectNode::TargetCardZoneChange(_)
             | LocalEffectNode::PlayerAction(_)
@@ -697,6 +701,7 @@ fn lower_conditional_damage_effect(
                 | LocalEffectNode::Earthbend(_)
                 | LocalEffectNode::TransformPermanent(_)
                 | LocalEffectNode::PutCounters(_)
+                | LocalEffectNode::MoveCounters(_)
                 | LocalEffectNode::MoveCards(_)
                 | LocalEffectNode::TargetCardZoneChange(_)
                 | LocalEffectNode::PlayerAction(_)

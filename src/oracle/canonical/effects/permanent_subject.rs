@@ -81,6 +81,9 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::TemporaryKeywordGrant(node) => &node.objects,
         LocalEffectNode::BecomeTypes(node) => &node.objects,
         LocalEffectNode::PutCounters(node) => &node.permanent,
+        // The removal is from the ability's own object (runtime boundary);
+        // the destination is the action's target operand.
+        LocalEffectNode::MoveCounters(node) => &node.destination,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,

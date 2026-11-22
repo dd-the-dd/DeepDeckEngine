@@ -86,6 +86,7 @@ mod delayed_draw;
 mod delayed_step;
 mod delayed_step_timing;
 mod delve;
+mod designation;
 mod destroy_collection;
 mod destroy_regeneration;
 mod draw_move;
@@ -338,6 +339,7 @@ pub(super) use delayed_draw::*;
 pub(super) use delayed_step::*;
 pub(super) use delayed_step_timing::*;
 pub(super) use delve::*;
+pub(super) use designation::*;
 pub(super) use destroy_collection::*;
 pub(super) use destroy_regeneration::*;
 pub(super) use draw_move::*;
@@ -769,6 +771,21 @@ pub(super) enum NumericComparisonOperator {
     Equal,
     LessThanOrEqual,
     GreaterThanOrEqual,
+    LessThan,
+    GreaterThan,
+}
+
+impl NumericComparisonOperator {
+    /// The runtime `compare` operator.
+    pub(in crate::oracle::canonical) fn ir_operator(self) -> &'static str {
+        match self {
+            Self::Equal => "==",
+            Self::LessThanOrEqual => "<=",
+            Self::GreaterThanOrEqual => ">=",
+            Self::LessThan => "<",
+            Self::GreaterThan => ">",
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -847,6 +864,16 @@ pub(super) enum NumericExpression {
     CountDistinctCardTypes {
         zone: GraveyardScope,
     },
+    /// A quantity an earlier action of the program produced (`the total life
+    /// lost this way`). `reader_effect` is the action that reads it; the
+    /// program lowering binds the nearest earlier producing action.
+    ActionResultQuantity {
+        reader_effect: usize,
+        quantity: ActionResultQuantity,
+    },
+    /// The number of the ability controller's opponents with one fact
+    /// (`for each opponent you attacked with a creature this combat`).
+    OpponentCount(OpponentFact),
     Add {
         left: Box<NumericExpression>,
         right: Box<NumericExpression>,
@@ -913,6 +940,15 @@ pub(super) struct PermanentCountNode {
 pub(super) enum PlayerNumericFact {
     LifeGainedThisTurn,
     LifeTotal,
+}
+
+/// A fact about one opponent of the ability controller that a count reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum OpponentFact {
+    /// The controller attacked that player with a creature during this
+    /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
+    /// is not attacking the player.
+    AttackedByControllerThisCombat,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1040,6 +1076,8 @@ impl NumericExpression {
             | Self::SourceCastX
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
+            | Self::OpponentCount(_)
+            | Self::ActionResultQuantity { .. }
             | Self::PlayerFact { .. }
             | Self::SacrificedCostObjectProperty(_)
             | Self::BoundObjectProperty { .. }
@@ -1510,6 +1548,15 @@ pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
     pub direction: CounterChangeDirection,
 }
 
+/// CR 122.5: moving counters removes them from one object and puts them on
+/// another; counters that could not be removed are not put.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct MoveCountersEffectNode {
+    /// The counter action in the removal direction.
+    pub removal: PutCountersOnObjectEffectNode,
+    pub destination: PermanentOperandNode,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct AmassEffectNode {
     pub player: LocalPlayerReference,
@@ -1916,6 +1963,9 @@ pub(super) enum LocalEffectNode {
     Earthbend(EarthbendActionNode),
     TransformPermanent(TransformPermanentEffectNode),
     PutCounters(PutCountersOnObjectEffectNode),
+    /// `move COUNT KIND counter(s) from OBJECT onto OBJECT` (CR 122.5): the
+    /// removal, then the placement of what was removed.
+    MoveCounters(MoveCountersEffectNode),
     MoveSource(MoveSourceEffectNode),
     MoveCards(MoveCardsEffectNode),
     ZoneBatch(ZoneBatchEffectNode),
@@ -1981,6 +2031,9 @@ pub(super) enum PermanentKeywordAction {
     Endure,
     Adapt,
     Monstrosity,
+    /// `OBJECT becomes DESIGNATION` (CR 701.37b, 702.112b): the designating
+    /// half of monstrosity and renown, read from the shared registry.
+    BecomeDesignated(PermanentDesignation),
 }
 
 impl PermanentKeywordAction {
@@ -2016,9 +2069,12 @@ impl PermanentKeywordAction {
     /// Whether the action carries a numeric argument, and whether it may be omitted.
     pub(super) fn quantity_policy(self) -> KeywordQuantityPolicy {
         match self {
-            Self::Regenerate | Self::Goad | Self::Suspect | Self::Detain | Self::Explore => {
-                KeywordQuantityPolicy::None
-            }
+            Self::Regenerate
+            | Self::Goad
+            | Self::Suspect
+            | Self::Detain
+            | Self::Explore
+            | Self::BecomeDesignated(_) => KeywordQuantityPolicy::None,
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2044,6 +2100,7 @@ impl PermanentKeywordAction {
             Self::Endure => "endure",
             Self::Adapt => "adapt",
             Self::Monstrosity => "monstrosity",
+            Self::BecomeDesignated(designation) => designation.flag(),
         }
     }
 }

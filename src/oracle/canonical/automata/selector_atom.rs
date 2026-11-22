@@ -119,6 +119,9 @@ fn recognize_positive_atom(
     if let Some(status) = super::ObjectStatus::from_adjective(first) {
         return Some((ObjectPredicate::Status(status), 1));
     }
+    if let Some(designation) = super::PermanentDesignation::from_adjective(first) {
+        return Some((ObjectPredicate::Designation(designation), 1));
+    }
     if let Some(color) = lookup_card_color(first) {
         return Some((ObjectPredicate::Color(color), 1));
     }

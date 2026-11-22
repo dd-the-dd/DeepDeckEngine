@@ -122,6 +122,38 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
         };
     }
+    // `SUBJECT becomes DESIGNATION` (CR 701.37b, 702.112b): the registry
+    // names the designation; the subject is the shared permanent operand.
+    if action_offset == 0
+        && !bare
+        && action.eq_ignore_ascii_case("becomes")
+        && let Some(designation) = subject_end
+            .peek_ahead(1)
+            .and_then(|word| super::PermanentDesignation::from_adjective(&word))
+            .filter(|designation| designation.given_by_becomes())
+    {
+        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
+            return PermanentActionAttempt::FailedCommitted(failure);
+        }
+        let mut trial = subject_end.clone();
+        trial.enter("permanent-action.designation");
+        let consumed = trial
+            .consume("becomes")
+            .and_then(|_| trial.consume(designation.flag()));
+        return match consumed {
+            Ok(_) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(LocalEffectNode::PermanentKeywordAction(
+                    PermanentKeywordActionNode {
+                        action: PermanentKeywordAction::BecomeDesignated(designation),
+                        targets: subject,
+                        quantity: None,
+                    },
+                ))
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
+    }
     // A causative subject takes the bare verb (`have target creature get`);
     // the finite frame keeps both numbers (`it gets`, `creatures ... get`).
     let keyword = is_verb_form(&action, VerbLemma::Gain, VerbForm::Base)

@@ -35,6 +35,10 @@ pub(in crate::oracle::canonical) fn sacrificed_cost_object_binding(
 
 /// Compiler-assigned identifier of the objects action `effect_index` of a
 /// program affected. The program lowering installs it as that action's `bind`.
+/// The pending reference to an earlier action's quantity, rewritten into a
+/// `boundValue` by the program lowering that owns the producing action.
+pub(in crate::oracle::canonical) const ACTION_RESULT_QUANTITY: &str = "pendingActionResultQuantity";
+
 pub(in crate::oracle::canonical) fn action_result_binding(effect_index: usize) -> String {
     format!("actionResult:{effect_index}")
 }
@@ -162,6 +166,20 @@ fn lower_numeric_expression_in_context(
         NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity) => (event_binding
             == Some(EventNumericBinding::ReplacementQuantity))
         .then(|| json!({ "kind": "eventQuantity" })),
+        // Resolved and bound by the program lowering (see
+        // `install_action_result_quantities`); left unresolved it is no
+        // runtime expression and is refused.
+        NumericExpression::ActionResultQuantity {
+            reader_effect,
+            quantity,
+        } => Some(json!({
+            "kind": ACTION_RESULT_QUANTITY,
+            "reader": reader_effect,
+            "quantity": quantity.ir_name(),
+        })),
+        NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisCombat) => {
+            Some(json!({ "kind": "countOpponentsAttackedThisCombat", "player": controller() }))
+        }
         NumericExpression::CountDistinctCardTypes { zone } => Some(json!({
             "kind": "countDistinctCardTypes",
             "zone": match zone {
@@ -297,12 +315,11 @@ pub(in crate::oracle::canonical) fn lower_selector_numeric_comparison(
             "object": { "kind": "candidate" },
         }),
     };
-    let operator = match operator {
-        NumericComparisonOperator::Equal => "==",
-        NumericComparisonOperator::LessThanOrEqual => "<=",
-        NumericComparisonOperator::GreaterThanOrEqual => ">=",
-    };
-    Some(compare(operator, left, lower_numeric_expression(right)?))
+    Some(compare(
+        operator.ir_operator(),
+        left,
+        lower_numeric_expression(right)?,
+    ))
 }
 
 #[cfg(test)]

@@ -23,6 +23,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_counters_family
             return false;
         }
     }
+    // `You may have SOURCE enter with ...`: the optional form.
+    let optional = cursor.consume_phrase(&["you", "may", "have"]).is_ok();
     if !matches!(
         recognize_source_reference(&mut cursor, input.name_links, input.name_resolution_failure),
         Ok(LocalObjectReference::SourceSelf)
@@ -30,15 +32,17 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_counters_family
         return false;
     }
     let position = cursor.position();
-    input
+    input.tokens.get(position).is_some_and(|token| {
+        token
+            .raw
+            .eq_ignore_ascii_case(if optional { "enter" } else { "enters" })
+    }) && input
         .tokens
-        .get(position)
-        .is_some_and(|token| token.raw.eq_ignore_ascii_case("enters"))
-        && input
-            .tokens
-            .get(position + 1)
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("with"))
+        .get(position + 1)
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("with"))
 }
+
+const OPTIONAL_ENTRY_DECISION: &str = "optionalEntryCounters";
 
 pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
     input: &AbilityInput<'_>,
@@ -68,8 +72,24 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
             "count": count,
         }],
     });
+    let mut conditions = Vec::new();
+    if node.optional {
+        // CR 614.1c: the controller chooses, as it enters, whether the
+        // optional replacement applies.
+        rule["decisions"] = json!([{ "id": OPTIONAL_ENTRY_DECISION, "kind": "chooseWhether" }]);
+        conditions.push(json!({
+            "kind": "decisionWas",
+            "decisionId": OPTIONAL_ENTRY_DECISION,
+            "value": true,
+        }));
+    }
     if let Some(condition) = &node.condition {
-        rule["condition"] = lower_static_condition(condition);
+        conditions.push(lower_static_condition(condition));
+    }
+    match conditions.len() {
+        0 => {}
+        1 => rule["condition"] = conditions.remove(0),
+        _ => rule["condition"] = and(conditions),
     }
     Ok(draft(
         rule,

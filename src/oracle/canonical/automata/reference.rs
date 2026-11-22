@@ -148,7 +148,32 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_antecedent(
         cursor.enter("reference.source-or-anaphor.complete");
         return Ok(reference);
     }
+    if definite_object_anaphor_starts(cursor) {
+        // `the permanent` (CR 702.32a): a definite description names the
+        // same antecedent a pronoun would, never a new object.
+        cursor.enter("reference.source-or-anaphor.definite");
+        let reference = antecedent
+            .cloned()
+            .ok_or_else(|| cursor.fail("a source binding for the definite description"))?;
+        cursor.advance_to(cursor.position() + 2)?;
+        cursor.enter("reference.source-or-anaphor.complete");
+        return Ok(reference);
+    }
     recognize_source_reference(cursor, name_links, name_failure)
+}
+
+/// `the NOUN` where the noun names an object domain or card type
+/// (`the permanent`, `the creature`): a definite anaphor.
+pub(in crate::oracle::canonical) fn definite_object_anaphor_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            lookup_card_type(&raw, AcceptedForms::SingularOnly).is_some()
+                || lookup_object_domain(&raw, AcceptedForms::SingularOnly).is_some()
+        })
 }
 
 /// Bridge a typed lexical subject into the existing source-only reference grammar.

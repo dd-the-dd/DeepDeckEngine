@@ -100,6 +100,9 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::PutCounters(node) => {
             Local(subject_after_operand(&node.permanent, effect_index))
         }
+        LocalEffectNode::MoveCounters(node) => {
+            Local(subject_after_operand(&node.destination, effect_index))
+        }
         LocalEffectNode::TemporaryKeywordGrant(node) => {
             Local(subject_after_operand(&node.objects, effect_index))
         }

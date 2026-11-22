@@ -108,6 +108,84 @@ pub(in crate::oracle::canonical) fn recognize_action_result_reference(
     })
 }
 
+/// A quantity an earlier action of the same program produced
+/// (`the total life lost this way`, CR 608.2c, 702.101a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ActionResultQuantity {
+    /// The life the players actually lost (prevented loss is not lost).
+    LifeLost,
+}
+
+impl ActionResultQuantity {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::LifeLost => "lifeLost",
+        }
+    }
+
+    /// The runtime action whose `bind` records this quantity.
+    pub(in crate::oracle::canonical) const fn runtime_kind(self) -> &'static str {
+        match self {
+            Self::LifeLost => "loseLife",
+        }
+    }
+}
+
+/// `the [total] [amount of] life lost this way`.
+pub(in crate::oracle::canonical) fn action_result_quantity_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let mut offset = 1;
+    if word(offset, "total") {
+        offset += 1;
+    }
+    if word(offset, "amount") && word(offset + 1, "of") {
+        offset += 2;
+    }
+    word(0, "the") && word(offset, "life") && word(offset + 1, "lost")
+}
+
+/// Reads `the [total] [amount of] life lost this way`. The action being read
+/// is the binding environment's; the program parent resolves the producing
+/// action among the earlier ones when it lowers the program, and fails
+/// explicitly when none produces the quantity.
+pub(in crate::oracle::canonical) fn recognize_action_result_quantity(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::NumericExpression> {
+    cursor.enter("action-result.quantity");
+    cursor.consume("the")?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("total"))
+    {
+        cursor.consume("total")?;
+    }
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("amount"))
+    {
+        cursor.consume_phrase(&["amount", "of"])?;
+    }
+    cursor.consume_phrase(&["life", "lost", "this", "way"])?;
+    cursor.enter("action-result.quantity.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index);
+    let reader = cursor.require_value(
+        reader,
+        "an action of a program whose earlier actions it restates",
+    )?;
+    Ok(super::NumericExpression::ActionResultQuantity {
+        reader_effect: reader,
+        quantity: ActionResultQuantity::LifeLost,
+    })
+}
+
 /// How a restated noun relates to the producing action's own object set.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ActionResultFilter {

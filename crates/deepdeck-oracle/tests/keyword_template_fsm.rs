@@ -529,3 +529,346 @@ fn counter_removal_is_the_counter_action_in_the_removal_direction() {
     );
     assert_eq!(parsed.status, "unsupported");
 }
+
+#[test]
+fn evolve_guard_reads_the_event_object_through_the_trigger_frame() {
+    // Evolve (CR 702.100a): `that creature` in the intervening `if` is the
+    // event's entering creature, as in the effects; `this creature` is the
+    // source; `and/or` is the shared disjunction connector.
+    let rules = expanded(
+        "Cloudfin Raptor",
+        "Creature \u{2014} Bird Mutant",
+        "Evolve (Whenever a creature you control enters, if that creature has greater power or toughness than this creature, put a +1/+1 counter on this creature.)",
+    );
+    let entering = json!({ "kind": "observedEventObject", "event": "permanentEntered" });
+    let compare = |property: &str| {
+        json!({
+            "kind": "compare",
+            "operator": ">",
+            "left": { "kind": property, "object": entering },
+            "right": { "kind": property, "object": { "kind": "self" } },
+        })
+    };
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "or", "operands": [compare("powerOf"), compare("toughnessOf")] })
+    );
+    // Sibling: a printed guard composes another property, another strict
+    // operator and the source's other characteristic, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "Whenever another creature you control enters, if that creature's toughness is less than this creature's power, you gain 2 life.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"],
+        json!({
+            "kind": "compare",
+            "operator": "<",
+            "left": { "kind": "toughnessOf", "object": entering },
+            "right": { "kind": "powerOf", "object": { "kind": "self" } },
+        })
+    );
+    // Near miss: an unknown comparison word stays an explicit failure.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "Whenever a creature you control enters, if that creature's power is bigger than this creature's power, draw a card.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert!(
+        parsed.abilities[0]
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.state.as_deref()
+                == Some("condition.sentence.relation.operator"))
+    );
+}
+
+#[test]
+fn mentor_compares_the_candidate_with_a_source_characteristic() {
+    // Mentor (CR 702.134a): `with power less than this creature's power` is
+    // the selector's numeric comparison with a strict operator and a source
+    // operand.
+    let rules = expanded(
+        "Goblin Banneret",
+        "Creature \u{2014} Goblin Soldier",
+        "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)",
+    );
+    let filter = &rules[0]["declaration"]["decisions"][0]["candidates"]["where"];
+    assert_eq!(
+        filter["operands"][1],
+        json!({
+            "kind": "compare",
+            "operator": "<",
+            "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "powerOf", "object": { "kind": "self" } },
+        })
+    );
+    // Sibling: another property, the other strict operator and another
+    // source characteristic in an activated ability, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "{T}: Destroy target creature with toughness greater than this creature's toughness.",
+    );
+    let rule = single_rule(&parsed);
+    assert_eq!(
+        rule["declaration"]["decisions"][0]["candidates"]["where"]["operands"][1],
+        json!({
+            "kind": "compare",
+            "operator": ">",
+            "left": { "kind": "toughnessOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "toughnessOf", "object": { "kind": "self" } },
+        })
+    );
+    // Near miss: `less than` with no operand is not a comparison.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "{T}: Destroy target creature with power less than.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn designations_come_from_one_registry_for_predicates_conditions_and_actions() {
+    // Renown (CR 702.112a): `if it isn't renowned` is the object predicate
+    // and `it becomes renowned` the designating action of the registry.
+    let rules = expanded(
+        "Topan Freeblade",
+        "Creature \u{2014} Human Soldier",
+        "Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)",
+    );
+    let renowned = json!({ "kind": "hasDesignation", "designation": "renowned" });
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "objectMatchesFilter", "object": { "kind": "self" }, "where": { "kind": "not", "operand": renowned } })
+    );
+    assert_eq!(
+        rules[0]["effects"][1],
+        json!({ "kind": "setPermanentFlag", "object": { "kind": "self" }, "flag": "renowned", "value": true })
+    );
+    // Siblings: the same registry in a target selector and in a static
+    // source-state condition (monstrous), with no new code.
+    let parsed = parse("Sibling", "Sorcery", "Destroy target renowned creature.");
+    assert_eq!(
+        single_rule(&parsed)["declaration"]["decisions"][0]["candidates"]["where"]["operands"][0],
+        renowned
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Hydra",
+        "As long as this creature is monstrous, this creature has trample.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"],
+        json!({ "kind": "sourceFlagSet", "flag": "monstrous" })
+    );
+    // Near miss: a word outside the registry is not a designation.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Human",
+        "When this creature dies, it becomes famous.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn unleash_is_an_optional_entry_replacement_and_a_counter_condition() {
+    // Unleash (CR 702.98a): `You may have ... enter with` is the shared
+    // entry-counter replacement applied by its controller's choice, and
+    // `as long as it has a +1/+1 counter on it` the shared counter qualifier.
+    let rules = expanded(
+        "Gore-House Chainwalker",
+        "Creature \u{2014} Human Warrior",
+        "Unleash (You may have this creature enter with a +1/+1 counter on it. It can't block as long as it has a +1/+1 counter on it.)",
+    );
+    assert_eq!(
+        rules[0]["decisions"],
+        json!([{ "id": "optionalEntryCounters", "kind": "chooseWhether" }])
+    );
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "decisionWas", "decisionId": "optionalEntryCounters", "value": true })
+    );
+    assert_eq!(
+        rules[1]["condition"],
+        json!({ "kind": "objectMatchesFilter", "object": { "kind": "self" }, "where": { "kind": "hasCounter", "counter": "+1/+1" } })
+    );
+    // Sibling: another counter kind and count, and a counter-possession
+    // condition granting a keyword, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "You may have this creature enter with two shield counters on it.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["replacement"][0]["count"],
+        json!({ "kind": "integer", "value": 2 })
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "This creature has flying as long as it has two or more +1/+1 counters on it.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"]["where"],
+        json!({ "kind": "hasCounter", "counter": "+1/+1", "minimum": 2 })
+    );
+    // Near miss: the finite verb after `you may have` is not the causative.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "You may have this creature enters with a +1/+1 counter on it.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn melee_scales_the_shared_stat_delta_by_an_opponent_count() {
+    // Melee (CR 702.121a): `for each opponent you attacked [with a creature]
+    // this combat` is a counted operand; the trailing `for each` scales the
+    // signed P/T delta of the action it follows.
+    let rules = expanded(
+        "Wings of the Cosmos Knight",
+        "Creature \u{2014} Human Knight",
+        "Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)",
+    );
+    let count = json!({
+        "kind": "countOpponentsAttackedThisCombat",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    });
+    assert_eq!(rules[0]["effects"][0]["power"], count);
+    assert_eq!(rules[0]["effects"][0]["toughness"], count);
+    // Siblings: a permanent count scaling a negative, one-sided delta, and
+    // the opponent count scaling another action, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Instant",
+        "Target creature gets -1/-0 until end of turn for each Swamp you control.",
+    );
+    let effect = &single_rule(&parsed)["effects"][0];
+    assert_eq!(effect["power"]["kind"], "multiply");
+    assert_eq!(
+        effect["power"]["left"],
+        json!({ "kind": "integer", "value": -1 })
+    );
+    assert_eq!(
+        effect["toughness"],
+        json!({ "kind": "integer", "value": 0 })
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Human",
+        "Whenever this creature attacks, draw a card for each opponent you attacked this combat.",
+    );
+    assert_eq!(single_rule(&parsed)["effects"][0]["count"], count);
+    // Near miss: a player count without the attack relation is refused.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Human",
+        "Whenever this creature attacks, draw a card for each opponent you control.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn the_life_lost_this_way_binds_the_nearest_earlier_loss() {
+    // Extort (CR 702.101a): the gain reads the bound total of the loss.
+    let rules = expanded(
+        "Syndic of Tithes",
+        "Creature \u{2014} Human Cleric",
+        "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)",
+    );
+    let paid = &rules[0]["effects"][0]["effects"];
+    assert_eq!(paid[0]["bind"], "actionResult:0");
+    assert_eq!(
+        paid[1]["amount"],
+        json!({ "kind": "boundValue", "id": "actionResult:0" })
+    );
+    // Sibling: a sorcery's two sentences and another loss amount.
+    let parsed = parse(
+        "Sibling",
+        "Sorcery",
+        "Each opponent loses 2 life. You gain life equal to the life lost this way.",
+    );
+    let effects = &single_rule(&parsed)["effects"];
+    assert_eq!(effects[0]["bind"], "actionResult:0");
+    assert_eq!(effects[1]["amount"]["kind"], "boundValue");
+    // Near miss: no earlier loss produces the quantity.
+    let parsed = parse(
+        "Near Miss",
+        "Sorcery",
+        "You gain life equal to the life lost this way.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn removal_results_drive_if_you_cant_and_counter_moves() {
+    // Fading (CR 702.32a): `If you can't` reads the bound result of the
+    // removal before it; `the permanent` names the removal's object.
+    let rules = expanded(
+        "Blastoderm",
+        "Creature \u{2014} Beast",
+        "Fading 3 (This creature enters with three fade counters on it. At the beginning of your upkeep, remove a fade counter from it. If you can't, sacrifice it.)",
+    );
+    let effects = &rules[1]["effects"];
+    assert_eq!(effects[0]["bind"], "actionResult:0");
+    assert_eq!(
+        effects[1]["condition"],
+        json!({ "kind": "not", "operand": { "kind": "bindingNotEmpty", "binding": "actionResult:0" } })
+    );
+    assert_eq!(
+        effects[1]["then"],
+        json!([{ "kind": "sacrificePermanent", "permanent": { "kind": "self" } }])
+    );
+    // Graft (CR 702.58a, 122.5): a move is the removal, then the placement
+    // of what was removed.
+    let rules = expanded(
+        "Cytoplast Root-Kin",
+        "Creature \u{2014} Elemental Mutant",
+        "Graft 2 (This creature enters with two +1/+1 counters on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.)",
+    );
+    let moved = &rules[1]["effects"][0]["effects"];
+    assert_eq!(moved[0]["kind"], "removeCounters");
+    assert_eq!(
+        moved[1]["condition"],
+        json!({ "kind": "bindingNotEmpty", "binding": "actionResult:0" })
+    );
+    assert_eq!(moved[1]["then"][0]["kind"], "putCounters");
+    // Sibling: a move onto a declared target in an activated ability.
+    let parsed = parse(
+        "Sibling",
+        "Artifact",
+        "{T}: Move a +1/+1 counter from this artifact onto target creature.",
+    );
+    let rule = single_rule(&parsed);
+    assert_eq!(rule["declaration"]["decisions"][0]["id"], "targetPermanent");
+    assert_eq!(
+        rule["effects"][1]["then"][0]["permanent"],
+        json!({ "kind": "chosenTarget", "id": "targetPermanent" })
+    );
+    // Sibling: `If you can't` after another counter kind, on a different
+    // trigger, with another consequence, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Enchantment",
+        "At the beginning of your end step, remove a charge counter from this enchantment. If you can't, you lose 3 life.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["effects"][1]["then"][0]["kind"],
+        "loseLife"
+    );
+    // Near misses: `If you can't` without a recording action, and a
+    // definite description without an antecedent.
+    let parsed = parse(
+        "Near Miss",
+        "Enchantment",
+        "At the beginning of your upkeep, draw a card. If you can't, you lose 3 life.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    let parsed = parse("Near Miss", "Sorcery", "Sacrifice the creature.");
+    assert_eq!(parsed.status, "unsupported");
+}

@@ -271,6 +271,166 @@ explicite.
   marqueurs), à la publication comme à la résolution, au lieu de la carte
   imprimée.
 
+## Condition intercalée lue dans le cadre du déclencheur (Evolve)
+
+La condition `if …` d'un déclencheur (CR 603.4) est lue avec
+l'environnement de liaison C2 installé : son cadre est celui de l'événement
+(`event_frame` : joueur, objet, carte, sort de l'événement), le même que
+celui des effets du déclencheur. `that creature's power` y devient donc
+`powerOf observedEventObject`, exactement comme dans un effet ; aucun
+résolveur n'est dupliqué.
+
+- Atome de phrase partagé `NumericRelation` : `EXPR is greater than |
+  less than | equal to EXPR`, où les deux côtés sont des expressions
+  numériques ordinaires (propriété d'un objet lié, propriété de la source,
+  nombre). Les opérateurs stricts `<`/`>` rejoignent
+  `NumericComparisonOperator` (`ir_operator` unique).
+- `and/or` est le connecteur de disjonction de la liste contextuelle
+  partagée (CR 702.100a : « greater power and/or … toughness »).
+- Moteur : la condition est évaluée à la publication par l'évaluateur de
+  résolution (`runtime_condition_value`) sur l'objet de pile en attente,
+  avec la capture de départ de la source si elle a quitté le champ de
+  bataille (CR 603.10a), au lieu de l'évaluateur statique qui ne connaît
+  pas l'objet de l'événement.
+
+Combinaisons sans code nouveau débloquées par le même cadre : la condition
+d'un déclencheur de mort (`if it had a -1/-1 counter on it`, `if its
+toughness was less than 1`) nomme maintenant l'objet de l'événement. Comme
+il a quitté le champ de bataille, `objectMatchesFilter` le lit par
+l'information de l'enregistrement de mort (CR 603.10a : marqueurs, état de
+combat, force/endurance capturés), jamais par la carte dans sa nouvelle zone
+(`object_condition.rs`, `LastKnown`). Preuve :
+`death_trigger_guards_read_the_dead_creature_through_the_trigger_frame`.
+
+Preuves : `evolve_guard_reads_the_event_object_through_the_trigger_frame`
+(carte, condition sœur jamais vue `toughness … less than … power`, quasi
+échec `bigger than`) et
+`evolve_checks_the_entering_creature_against_its_source_when_it_triggers`
+(puissance plus grande, égalité sans publication, endurance seule plus
+grande, créature adverse ignorée).
+
+## Comparaison stricte à une caractéristique de la source (Mentor)
+
+La comparaison numérique du sélecteur (`with power …`) accepte les
+opérateurs stricts `less than` / `greater than` (le même
+`NumericComparisonOperator` que les conditions de phrase) et, comme
+opérande droit, une caractéristique de la source (`this creature's power`,
+`NumericExpression::ObjectProperty { SourceSelf }`).
+
+- Moteur (`source_bound_operands.rs`) : un domaine de candidats de cible
+  lie l'opérande de la source à sa valeur courante (sinon sa dernière
+  information connue) quand les cibles sont choisies (déclencheur et
+  capacité activée, CR 601.2c) et revérifiées à la résolution (CR 608.2b) ;
+  chaque comparateur de candidats compare donc toujours à un entier.
+- Ailleurs (statique, comptage), rien ne lie cette valeur : le contrôle de
+  support refuse l'opérande (`contains_source_operand`) au lieu de comparer
+  à une valeur absente ; la carte reste non exécutable, explicitement.
+
+Preuves : `mentor_compares_the_candidate_with_a_source_characteristic`
+(carte, sœur activée `toughness greater than this creature's toughness`,
+quasi échec sans opérande) et
+`mentor_targets_only_attackers_with_less_power_than_its_source` (seule la
+créature attaquante de puissance inférieure est ciblable ; le filtre
+statique équivalent n'est pas exécutable).
+
+## Désignations (registre partagé : Renown, Unleash)
+
+`automata/designation.rs` est le registre unique des désignations de
+permanent (`monstrous` CR 701.37b, `renowned` CR 702.112b, `suspected`
+CR 701.60b). Chaque consommateur le lit, aucun ne liste les mots :
+
+- prédicat d'objet `ObjectPredicate::Designation` (`target renowned
+  creature`, `if it isn't renowned`, `if it was renowned` après une mort) →
+  `{"kind":"hasDesignation","designation":…}` ;
+- condition d'état de la source (`as long as this creature is monstrous`)
+  → `sourceFlagSet` ;
+- action `OBJECT becomes DESIGNATION` (`it becomes renowned`) →
+  `setPermanentFlag`, la moitié désignation de monstruosité (le programme de
+  monstruosité lit maintenant le registre). `suspected` n'est donné que par
+  l'action suspect, qui accorde aussi ses règles.
+- Moteur : `hasDesignation` lit le drapeau du permanent ; l'enregistrement
+  de mort capture les drapeaux (`triggeringPermanentFlags`) pour la vue
+  « dernière information connue ».
+
+Unleash (CR 702.98a) compose deux capacités partagées :
+
+- `You may have SOURCE enter with …` est le remplacement d'entrée avec
+  marqueurs déjà existant, appliqué au choix du contrôleur (décision de
+  remplacement générique `chooseWhether`, condition `decisionWas`) ;
+  `an additional` est le même placement (les marqueurs s'ajoutent).
+- `as long as it has a +1/+1 counter on it` : condition statique de
+  possession de marqueurs par la source, lue par le qualificatif de
+  marqueurs partagé (`objectMatchesFilter` + `hasCounter`).
+
+Preuves : `designations_come_from_one_registry_for_predicates_conditions_and_actions`,
+`unleash_is_an_optional_entry_replacement_and_a_counter_condition` (carte,
+sœurs sans code, quasi-échecs) et les preuves runtime
+`designations_are_given_once_and_read_by_conditions_selectors_and_last_known_deaths`,
+`unleash_lets_its_controller_choose_the_counter_that_stops_it_blocking` ;
+la condition de possession compose sans code avec un effet continu sur
+d'autres créatures et une restriction d'activation
+(`source_counter_possession_gates_statics_and_activations_without_new_code` :
+Beastmaster Ascension, Tablet of Compleation).
+
+## Résultat d'une action et compte d'adversaires (Extort, Melee)
+
+Extort (CR 702.101a) : `the [total] [amount of] life lost this way` est une
+quantité produite par une action antérieure du même programme (CR 608.2c),
+comme `OBJECTS destroyed this way` pour les objets. L'enfant numérique
+(`action_result.rs`) note l'action qui la lit (l'index de l'environnement de
+liaison) ; la descente du programme (`install_action_result_quantities`)
+lie l'action antérieure la plus proche dont la descente est une seule
+action `loseLife` de premier niveau (`bind`) et réécrit la lecture en
+`boundValue`. Sans producteur, l'échec est explicite
+(`lower.action-result.quantity`). Moteur : `loseLife` avec `bind` enregistre
+la vie réellement perdue (la perte prévenue n'est pas perdue).
+
+Melee (CR 702.121a) : `for each opponent you attacked [with a creature]
+this combat` est un opérande compté (`OpponentCount`) →
+`countOpponentsAttackedThisCombat` ; le moteur compte les adversaires
+attaqués par les attaquants déclarés du joueur actif pendant ce combat
+(attaquer un planeswalker ou une bataille n'est pas attaquer le joueur).
+Le `for each` final multiplie désormais aussi le delta signé de
+`gets +N/+M` (chaque composante ; zéro reste zéro ; un négatif est
+`-1 × count`) : capacité générale, pas propre à Melee.
+
+Preuves : `melee_scales_the_shared_stat_delta_by_an_opponent_count`
+(carte, sœurs `-1/-0 … for each Swamp you control` et `draw a card for each
+opponent you attacked this combat`, quasi-échec `for each opponent you
+control`), `melee_counts_the_opponents_attacked_this_combat` (un, deux
+adversaires, planeswalker seul) et
+`the_life_lost_this_way_is_the_total_the_earlier_loss_recorded` (2 et
+3 joueurs).
+
+## Résultat d'un retrait : `If you can't` et déplacer des marqueurs (Fading, Graft)
+
+`removeCounters` enregistre déjà, par `bind`, l'objet dont il a retiré les
+marqueurs (vide s'il n'a pas pu). Deux capacités partagées lisent ce
+résultat :
+
+- `If you can't` (CR 609.3) est un atome de condition de phrase
+  (`PreviousActionImpossible`). La descente du programme lie l'instruction
+  juste avant la condition, qui doit être une seule action de premier
+  niveau enregistrant son résultat (`removeCounters`), et produit
+  `not(bindingNotEmpty)`. Sans telle action, échec explicite
+  (`lower.sentence-condition.previous-action.producer`).
+- `move COUNT KIND counter(s) from OBJECT onto OBJECT` (CR 122.5) : le
+  verbe `move` du lexique lit exactement les enfants de `remove … from`,
+  puis la destination de `put … on` ; il se compose en `removeCounters`
+  (avec `bind`) puis `putCounters` conditionné par `bindingNotEmpty` : un
+  marqueur non retiré n'est pas posé.
+- `the permanent` (CR 702.32a) : une description définie `the NOUN` (domaine
+  d'objet ou type de carte) désigne l'antécédent qu'un pronom désignerait,
+  par le même résolveur (`recognize_source_reference_with_antecedent`) ;
+  sans antécédent, échec explicite. **Changement minimal dans
+  `reference.rs` (fichier C2), signalé.**
+
+Preuves : `removal_results_drive_if_you_cant_and_counter_moves` (Fading,
+Graft, sœur `remove a charge counter … If you can't, you lose 3 life`,
+quasi-échecs `draw a card. If you can't` et `Sacrifice the creature.`),
+`fading_sacrifices_when_it_cannot_remove_a_fade_counter`,
+`graft_moves_a_counter_only_when_it_could_be_removed`.
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -281,14 +441,6 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Evolve | 23 | `reference.source.start` (`that creature's power`, objet d'événement) |
-| Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
-| Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |
-| Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
-| Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
-| Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |
-| Graft | 13 | `effect.unsupported-verb` (`move a +1/+1 counter … onto that creature`) |
-| Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
 | Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
 | Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
 | Dethrone | 9 | `trigger.envelope.separator` (`attacks the player with the most life`) |

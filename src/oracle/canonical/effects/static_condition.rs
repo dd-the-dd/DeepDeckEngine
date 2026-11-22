@@ -33,6 +33,10 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
                 json!({ "kind": "isBlocking", "object": self_ref() })
             }
             SourceStateProposition::Modified => json!({ "kind": "sourceIsModified" }),
+            SourceStateProposition::Designated(designation) => json!({
+                "kind": "sourceFlagSet",
+                "flag": designation.flag(),
+            }),
         },
         StaticConditionAtom::PlayerState(node) => lower_player_state_condition(node),
         StaticConditionAtom::ControllerTurn(proposition) => {
@@ -48,6 +52,13 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
             integer(*threshold),
         ),
+        StaticConditionAtom::SourceCounters(presence) => json!({
+            "kind": "objectMatchesFilter",
+            "object": self_ref(),
+            "where": lower_permanent_object_predicate(&ObjectPredicate::HasCounter(
+                presence.clone()
+            )),
+        }),
         StaticConditionAtom::ControllerAttackedThisTurn => compare(
             ">=",
             json!({

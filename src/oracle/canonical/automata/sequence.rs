@@ -2083,6 +2083,10 @@ fn recognize_effect(
         return super::recognize_double_counters_effect(cursor, name_links, name_failure, context)
             .map(LocalEffectNode::PutCounters);
     }
+    if super::claims_move_counters_effect(cursor) {
+        return super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::MoveCounters);
+    }
     if super::claims_remove_counters_effect(cursor) {
         return super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
             .map(LocalEffectNode::PutCounters);

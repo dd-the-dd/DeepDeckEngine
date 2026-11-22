@@ -42,6 +42,8 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Exert,
     /// `remove` (counters from an object).
     Remove,
+    /// `move` (counters from one object onto another, CR 122.5).
+    Move,
     /// `pay` (CR 118: mana, life or another resource).
     Pay,
     /// `blight` (the keyword action: -1/-1 counters on a creature you control).
@@ -397,6 +399,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past: "removed",
             past_participle: "removed",
             present_participle: "removing",
+        },
+        frames: &[ArgumentFrame::CountersFrom],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Move,
+        forms: VerbForms {
+            base: "move",
+            third_person_singular: "moves",
+            past: "moved",
+            past_participle: "moved",
+            present_participle: "moving",
         },
         frames: &[ArgumentFrame::CountersFrom],
         voices: &[Voice::Active, Voice::Passive],
