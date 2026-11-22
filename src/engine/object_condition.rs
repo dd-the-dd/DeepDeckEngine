@@ -63,14 +63,9 @@ fn last_known_event_object(
     {
         card.controller = controller.to_string();
     }
-    card.flags.insert(
-        "attacking".to_string(),
-        flag("triggeringPermanentWasAttacking")?,
-    );
-    card.flags.insert(
-        "blocking".to_string(),
-        flag("triggeringPermanentWasBlocking")?,
-    );
+    // Combat status and designations (`renowned`, `monstrous`) as it last
+    // existed on the battlefield.
+    card.flags = serde_json::from_value(decisions.get("triggeringPermanentFlags")?.clone()).ok()?;
     Some(LastKnownEventObject {
         card,
         was_creature: flag("triggeringPermanentWasCreature")?,

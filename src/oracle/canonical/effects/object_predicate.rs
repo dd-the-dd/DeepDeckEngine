@@ -90,6 +90,10 @@ fn lower_object_predicate(
             let atom = json!({ "kind": kind });
             Some(if negated { not(atom) } else { atom })
         }
+        ObjectPredicate::Designation(designation) => Some(json!({
+            "kind": "hasDesignation",
+            "designation": designation.flag(),
+        })),
         ObjectPredicate::PermanentCard => Some(json!({ "kind": "isPermanentCard" })),
         ObjectPredicate::HasCounter(presence) => {
             // The established atom is "at least one"; bounds are written only

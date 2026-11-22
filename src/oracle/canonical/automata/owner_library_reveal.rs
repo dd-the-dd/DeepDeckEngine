@@ -70,6 +70,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ExactManaCost(_)
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
+        | ObjectPredicate::Designation(_)
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::NumericComparison { .. } => true,
     }

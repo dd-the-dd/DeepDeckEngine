@@ -162,6 +162,16 @@ fn lower_adapt_program(object: Value, quantity: Value) -> Vec<Value> {
     })]
 }
 
+/// The permanent gets the designation (kept until it leaves, CR 701.37b).
+fn set_designation(object: Value, designation: PermanentDesignation) -> Value {
+    json!({
+        "kind": "setPermanentFlag",
+        "object": object,
+        "flag": designation.flag(),
+        "value": true,
+    })
+}
+
 /// CR 701.37a-b: if this permanent isn't monstrous, put N +1/+1 counters on
 /// it and it becomes monstrous (a designation kept until it leaves).
 fn lower_monstrosity_program(object: Value, quantity: Value) -> Vec<Value> {
@@ -169,11 +179,14 @@ fn lower_monstrosity_program(object: Value, quantity: Value) -> Vec<Value> {
         "kind": "conditional",
         "condition": {
             "kind": "not",
-            "operand": { "kind": "sourceFlagSet", "flag": "monstrous" },
+            "operand": {
+                "kind": "sourceFlagSet",
+                "flag": PermanentDesignation::Monstrous.flag(),
+            },
         },
         "then": [
             plus_one_counters(object.clone(), quantity, None),
-            { "kind": "setPermanentFlag", "object": object, "flag": "monstrous", "value": true },
+            set_designation(object, PermanentDesignation::Monstrous),
         ],
         "else": [],
     })]
@@ -255,6 +268,11 @@ pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
                 return Err("monstrosity of the ability's own source (CR 701.37a)".to_string());
             }
             lower_monstrosity_program(object, required()?)
+        }
+        PermanentKeywordAction::BecomeDesignated(designation) => {
+            for_each_object(object, scope, |object| {
+                vec![set_designation(object, designation)]
+            })
         }
     })
 }

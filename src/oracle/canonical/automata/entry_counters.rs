@@ -8,7 +8,10 @@
 //! `for each` count. An `if CONDITION` (CR 614.1c with a condition checked
 //! as the permanent enters) reuses the shared static condition, written
 //! after the modification or before it (`If CONDITION, SOURCE enters with
-//! ...`, CR 702.54a); one condition slot, never both.
+//! ...`, CR 702.54a); one condition slot, never both. `You may have SOURCE
+//! enter with ...` (CR 614.1c, 702.98a) is the same replacement, applied by
+//! its controller's choice; `an additional` counter is the same placement
+//! (the counters are added to those it would otherwise enter with).
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -26,11 +29,14 @@ pub(in crate::oracle::canonical) struct SourceEntryCountersNode {
     pub count: NumericExpression,
     /// Checked once, as the source enters (CR 614.1c).
     pub condition: Option<StaticConditionNode>,
+    /// `You may have ...`: the controller chooses whether it applies.
+    pub optional: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum State {
     LeadingCondition,
+    Permission,
     Source,
     Event,
     Relation,
@@ -57,6 +63,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
     let mut counter = None;
     let mut count = None;
     let mut condition = None;
+    let mut optional = false;
     loop {
         state = match state {
             State::LeadingCondition => {
@@ -77,6 +84,17 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     cursor.enter("replacement.entry-counters.leading-condition.separator");
                     cursor.consume(",")?;
                 }
+                State::Permission
+            }
+            State::Permission => {
+                cursor.enter("replacement.entry-counters.permission");
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+                {
+                    cursor.consume_phrase(&["you", "may", "have"])?;
+                    optional = true;
+                }
                 State::Source
             }
             State::Source => {
@@ -90,10 +108,17 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
             }
             State::Event => {
                 cursor.enter("replacement.entry-counters.event");
+                // The causative `have SOURCE enter` takes the bare verb.
                 let event = cursor.consume_type("eventWord")?;
                 cursor.require(
-                    event.raw.eq_ignore_ascii_case("enters"),
-                    "the `enters` event",
+                    event
+                        .raw
+                        .eq_ignore_ascii_case(if optional { "enter" } else { "enters" }),
+                    if optional {
+                        "the bare `enter` after `you may have`"
+                    } else {
+                        "the `enters` event"
+                    },
                 )?;
                 State::Relation
             }
@@ -110,6 +135,12 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     "a positive counter quantity",
                 )?;
                 count = Some(NumericExpression::Atom(atom));
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("additional"))
+                {
+                    cursor.consume("additional")?;
+                }
                 State::CounterKind
             }
             State::CounterKind => {
@@ -189,6 +220,7 @@ pub(in crate::oracle::canonical) fn recognize_source_entry_counters(
                     counter: cursor.require_value(counter, "a counter name")?,
                     count: cursor.require_value(count, "a counter quantity")?,
                     condition,
+                    optional,
                 });
             }
         };

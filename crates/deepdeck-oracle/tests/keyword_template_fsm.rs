@@ -630,3 +630,97 @@ fn mentor_compares_the_candidate_with_a_source_characteristic() {
     );
     assert_eq!(parsed.status, "unsupported");
 }
+
+#[test]
+fn designations_come_from_one_registry_for_predicates_conditions_and_actions() {
+    // Renown (CR 702.112a): `if it isn't renowned` is the object predicate
+    // and `it becomes renowned` the designating action of the registry.
+    let rules = expanded(
+        "Topan Freeblade",
+        "Creature \u{2014} Human Soldier",
+        "Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)",
+    );
+    let renowned = json!({ "kind": "hasDesignation", "designation": "renowned" });
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "objectMatchesFilter", "object": { "kind": "self" }, "where": { "kind": "not", "operand": renowned } })
+    );
+    assert_eq!(
+        rules[0]["effects"][1],
+        json!({ "kind": "setPermanentFlag", "object": { "kind": "self" }, "flag": "renowned", "value": true })
+    );
+    // Siblings: the same registry in a target selector and in a static
+    // source-state condition (monstrous), with no new code.
+    let parsed = parse("Sibling", "Sorcery", "Destroy target renowned creature.");
+    assert_eq!(
+        single_rule(&parsed)["declaration"]["decisions"][0]["candidates"]["where"]["operands"][0],
+        renowned
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Hydra",
+        "As long as this creature is monstrous, this creature has trample.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"],
+        json!({ "kind": "sourceFlagSet", "flag": "monstrous" })
+    );
+    // Near miss: a word outside the registry is not a designation.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Human",
+        "When this creature dies, it becomes famous.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn unleash_is_an_optional_entry_replacement_and_a_counter_condition() {
+    // Unleash (CR 702.98a): `You may have ... enter with` is the shared
+    // entry-counter replacement applied by its controller's choice, and
+    // `as long as it has a +1/+1 counter on it` the shared counter qualifier.
+    let rules = expanded(
+        "Gore-House Chainwalker",
+        "Creature \u{2014} Human Warrior",
+        "Unleash (You may have this creature enter with a +1/+1 counter on it. It can't block as long as it has a +1/+1 counter on it.)",
+    );
+    assert_eq!(
+        rules[0]["decisions"],
+        json!([{ "id": "optionalEntryCounters", "kind": "chooseWhether" }])
+    );
+    assert_eq!(
+        rules[0]["condition"],
+        json!({ "kind": "decisionWas", "decisionId": "optionalEntryCounters", "value": true })
+    );
+    assert_eq!(
+        rules[1]["condition"],
+        json!({ "kind": "objectMatchesFilter", "object": { "kind": "self" }, "where": { "kind": "hasCounter", "counter": "+1/+1" } })
+    );
+    // Sibling: another counter kind and count, and a counter-possession
+    // condition granting a keyword, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "You may have this creature enter with two shield counters on it.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["replacement"][0]["count"],
+        json!({ "kind": "integer", "value": 2 })
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Elf",
+        "This creature has flying as long as it has two or more +1/+1 counters on it.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["condition"]["where"],
+        json!({ "kind": "hasCounter", "counter": "+1/+1", "minimum": 2 })
+    );
+    // Near miss: the finite verb after `you may have` is not the causative.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Elf",
+        "You may have this creature enters with a +1/+1 counter on it.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}

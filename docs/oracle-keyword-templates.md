@@ -333,6 +333,45 @@ quasi échec sans opérande) et
 créature attaquante de puissance inférieure est ciblable ; le filtre
 statique équivalent n'est pas exécutable).
 
+## Désignations (registre partagé : Renown, Unleash)
+
+`automata/designation.rs` est le registre unique des désignations de
+permanent (`monstrous` CR 701.37b, `renowned` CR 702.112b, `suspected`
+CR 701.60b). Chaque consommateur le lit, aucun ne liste les mots :
+
+- prédicat d'objet `ObjectPredicate::Designation` (`target renowned
+  creature`, `if it isn't renowned`, `if it was renowned` après une mort) →
+  `{"kind":"hasDesignation","designation":…}` ;
+- condition d'état de la source (`as long as this creature is monstrous`)
+  → `sourceFlagSet` ;
+- action `OBJECT becomes DESIGNATION` (`it becomes renowned`) →
+  `setPermanentFlag`, la moitié désignation de monstruosité (le programme de
+  monstruosité lit maintenant le registre). `suspected` n'est donné que par
+  l'action suspect, qui accorde aussi ses règles.
+- Moteur : `hasDesignation` lit le drapeau du permanent ; l'enregistrement
+  de mort capture les drapeaux (`triggeringPermanentFlags`) pour la vue
+  « dernière information connue ».
+
+Unleash (CR 702.98a) compose deux capacités partagées :
+
+- `You may have SOURCE enter with …` est le remplacement d'entrée avec
+  marqueurs déjà existant, appliqué au choix du contrôleur (décision de
+  remplacement générique `chooseWhether`, condition `decisionWas`) ;
+  `an additional` est le même placement (les marqueurs s'ajoutent).
+- `as long as it has a +1/+1 counter on it` : condition statique de
+  possession de marqueurs par la source, lue par le qualificatif de
+  marqueurs partagé (`objectMatchesFilter` + `hasCounter`).
+
+Preuves : `designations_come_from_one_registry_for_predicates_conditions_and_actions`,
+`unleash_is_an_optional_entry_replacement_and_a_counter_condition` (carte,
+sœurs sans code, quasi-échecs) et les preuves runtime
+`designations_are_given_once_and_read_by_conditions_selectors_and_last_known_deaths`,
+`unleash_lets_its_controller_choose_the_counter_that_stops_it_blocking` ;
+la condition de possession compose sans code avec un effet continu sur
+d'autres créatures et une restriction d'activation
+(`source_counter_possession_gates_statics_and_activations_without_new_code` :
+Beastmaster Ascension, Tablet of Compleation).
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -343,10 +382,8 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
 | Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
 | Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
-| Unleash | 15 | `ability-frame.entry-replacement.modification` (`may have … enter with`) |
 | Graft | 13 | `effect.unsupported-verb` (`move a +1/+1 counter … onto that creature`) |
 | Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
 | Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |

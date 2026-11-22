@@ -2285,6 +2285,7 @@ fn matches_permanent_filter(card: &CardInstance, filter: &Value) -> bool {
         Some("isAttacking") => card.flags.get("attacking").copied().unwrap_or(false),
         Some("isBlocking") => card.flags.get("blocking").copied().unwrap_or(false),
         Some("hasCounter") => counter_presence_matches(&card.counters, filter),
+        Some("hasDesignation") => permanent_has_designation(card, filter),
         Some("enteredThisTurn") => card.flags.get("enteredThisTurn").copied().unwrap_or(false),
         Some("or") => filter["operands"].as_array().is_some_and(|values| {
             values
@@ -2371,8 +2372,20 @@ fn card_filter_supported(filter: &Value) -> bool {
     }
 }
 
+/// CR 701.37b, 702.112b, 701.60b: a designation stays on the permanent
+/// until it leaves the battlefield; it is the permanent's flag of that name.
+fn permanent_has_designation(card: &CardInstance, filter: &Value) -> bool {
+    filter["designation"]
+        .as_str()
+        .is_some_and(|designation| card.flags.get(designation).copied().unwrap_or(false))
+}
+
 fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
+        Some("hasDesignation") => matches!(
+            filter["designation"].as_str(),
+            Some("monstrous" | "renowned" | "suspected")
+        ),
         Some("hasCounter") => {
             filter.get("counter").is_none_or(Value::is_string)
                 && filter
@@ -4267,7 +4280,7 @@ fn replacement_rule_supported(rule: &Value) -> bool {
                                 !options.is_empty() && options.iter().all(Value::is_string)
                             })
                         }
-                        Some("chooseOpponentHand") => true,
+                        Some("chooseOpponentHand" | "chooseWhether") => true,
                         Some("chooseOption") => {
                             decision["options"].as_array().is_some_and(|options| {
                                 options.len() >= 2 && options.iter().all(Value::is_string)
@@ -11375,6 +11388,7 @@ impl GameEngine {
             // CR 122.1: counters are battlefield state, read from the
             // permanent itself (any kind, or the named kind).
             Some("hasCounter") => counter_presence_matches(&permanent.counters, filter),
+            Some("hasDesignation") => permanent_has_designation(permanent, filter),
             Some("isAttacking") => permanent.flags.get("attacking").copied().unwrap_or(false),
             Some("isAttackingAlone") => self.permanent_is_attacking_alone(permanent),
             Some("isLegendary") => {
@@ -23234,6 +23248,11 @@ impl GameEngine {
                 "triggeringPermanentCounters".to_string(),
                 serde_json::to_value(&died.counters).unwrap_or(Value::Null),
             ),
+            // Its status and designations as it last existed (CR 603.10a).
+            (
+                "triggeringPermanentFlags".to_string(),
+                serde_json::to_value(&died.flags).unwrap_or(Value::Null),
+            ),
             (
                 "triggeringPermanentManaValue".to_string(),
                 Value::from(mana_value(&died.definition)),
@@ -29843,6 +29862,50 @@ impl GameEngine {
                             .cloned()
                             .unwrap_or_else(|| Value::Array(Vec::new())),
                     );
+                    continue;
+                }
+                // CR 614.1c `you may have`: whether the optional
+                // replacement applies; the rule's condition reads it.
+                if value_kind(decision) == Some("chooseWhether") {
+                    let options = [true, false]
+                        .into_iter()
+                        .map(|applies| LegalAction {
+                            id: format!("choose:{decision_id}:{applies}"),
+                            kind: ActionKind::ChooseResolution,
+                            player_id: card.controller.clone(),
+                            label: if applies { "Apply" } else { "Decline" }.to_string(),
+                            card_instance_id: Some(card.instance_id.clone()),
+                            payment_sources: Vec::new(),
+                            decisions: BTreeMap::from([(
+                                decision_id.to_string(),
+                                Value::Bool(applies),
+                            )]),
+                            targets: BTreeMap::new(),
+                            target_order: Vec::new(),
+                            attacker_id: None,
+                            blocker_id: None,
+                        })
+                        .collect::<Vec<_>>();
+                    let choice = self.choose_action(
+                        provider,
+                        EngineDecisionRequest {
+                            id: format!("replacement:{}:{decision_id}", card.instance_id),
+                            kind: DecisionKind::ReplacementChoice,
+                            player_id: card.controller.clone(),
+                            source_card: Some(card.clone()),
+                            source_card_instance_id: Some(card.instance_id.clone()),
+                            choice: None,
+                            options,
+                        },
+                    )?;
+                    let applies = choice
+                        .decisions
+                        .get(decision_id)
+                        .and_then(Value::as_bool)
+                        .ok_or_else(|| {
+                            EngineError::new("optional replacement choice is missing")
+                        })?;
+                    decisions.insert(decision_id.to_string(), Value::Bool(applies));
                     continue;
                 }
                 if value_kind(decision) == Some("chooseOption") {

@@ -29,6 +29,8 @@ pub(in crate::oracle::canonical) enum SourceStateProposition {
     Attacking,
     Blocking,
     Modified,
+    /// `this creature is monstrous`: a designation of the source.
+    Designated(super::PermanentDesignation),
 }
 
 /// The quantified player relation of a controlled-permanent count comparison.
@@ -57,6 +59,9 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     /// Controller permanent presence / fixed-count atoms shared with guards.
     Local(LocalConditionNode),
     SourceState(SourceStateProposition),
+    /// `it has a +1/+1 counter on it`: the source's counters, read by the
+    /// shared counter qualifier of object queries (CR 122.1).
+    SourceCounters(super::CounterPresence),
     /// `it's your turn` / `it's not your turn`: the shared turn proposition.
     ControllerTurn(ControllerTurnPropositionNode),
     /// A player-state proposition about the controller (`you have ...`,
@@ -203,7 +208,7 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
             .map(StaticConditionAtom::ControllerTurn);
     }
     let source_subject = contraction_is(cursor, 0, "it", "s")
-        || (word_is(cursor, 0, "it") && word_is(cursor, 1, "is"))
+        || (word_is(cursor, 0, "it") && (word_is(cursor, 1, "is") || word_is(cursor, 1, "has")))
         || source_reference_starts_at(
             cursor.position(),
             cursor.peek(),
@@ -231,7 +236,9 @@ fn recognize_source_state_atom(
             context.source_subject,
             "`it` that denotes the static ability's own source",
         )?;
-        if word_is(cursor, 0, "it") {
+        if word_is(cursor, 0, "it") && word_is(cursor, 1, "has") {
+            cursor.consume("it")?;
+        } else if word_is(cursor, 0, "it") {
             cursor.consume("it")?;
             cursor.consume("is")?;
         } else {
@@ -241,13 +248,33 @@ fn recognize_source_state_atom(
     } else {
         recognize_source_reference(cursor, context.name_links, context.name_failure)?;
         cursor.enter("condition.static.source-state.copula");
-        cursor.consume("is")?;
+        if !word_is(cursor, 0, "has") {
+            cursor.consume("is")?;
+        }
+    }
+    if word_is(cursor, 0, "has") {
+        cursor.enter("condition.static.source-state.counters");
+        cursor.consume("has")?;
+        cursor.require(
+            super::counter_qualifier_starts(cursor, 0),
+            "a counter possession of the source",
+        )?;
+        return match super::recognize_counter_qualifier(cursor)? {
+            super::ObjectPredicate::HasCounter(presence) => {
+                Ok(StaticConditionAtom::SourceCounters(presence))
+            }
+            _ => Err(cursor.fail("a counter possession of the source")),
+        };
     }
     cursor.enter("condition.static.source-state.property");
     let property = cursor.peek().map(str::to_ascii_lowercase).ok_or_else(|| {
         cursor.fail("`tapped`, `untapped`, `attacking`, `blocking` or `modified`")
     })?;
+    let designation = super::PermanentDesignation::from_adjective(&property);
     let proposition = match property.as_str() {
+        _ if designation.is_some() => {
+            SourceStateProposition::Designated(designation.expect("the designation was read"))
+        }
         "tapped" => SourceStateProposition::Tapped,
         "untapped" => SourceStateProposition::Untapped,
         "attacking" => SourceStateProposition::Attacking,

@@ -86,6 +86,7 @@ mod delayed_draw;
 mod delayed_step;
 mod delayed_step_timing;
 mod delve;
+mod designation;
 mod destroy_collection;
 mod destroy_regeneration;
 mod draw_move;
@@ -338,6 +339,7 @@ pub(super) use delayed_draw::*;
 pub(super) use delayed_step::*;
 pub(super) use delayed_step_timing::*;
 pub(super) use delve::*;
+pub(super) use designation::*;
 pub(super) use destroy_collection::*;
 pub(super) use destroy_regeneration::*;
 pub(super) use draw_move::*;
@@ -1996,6 +1998,9 @@ pub(super) enum PermanentKeywordAction {
     Endure,
     Adapt,
     Monstrosity,
+    /// `OBJECT becomes DESIGNATION` (CR 701.37b, 702.112b): the designating
+    /// half of monstrosity and renown, read from the shared registry.
+    BecomeDesignated(PermanentDesignation),
 }
 
 impl PermanentKeywordAction {
@@ -2031,9 +2036,12 @@ impl PermanentKeywordAction {
     /// Whether the action carries a numeric argument, and whether it may be omitted.
     pub(super) fn quantity_policy(self) -> KeywordQuantityPolicy {
         match self {
-            Self::Regenerate | Self::Goad | Self::Suspect | Self::Detain | Self::Explore => {
-                KeywordQuantityPolicy::None
-            }
+            Self::Regenerate
+            | Self::Goad
+            | Self::Suspect
+            | Self::Detain
+            | Self::Explore
+            | Self::BecomeDesignated(_) => KeywordQuantityPolicy::None,
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2059,6 +2067,7 @@ impl PermanentKeywordAction {
             Self::Endure => "endure",
             Self::Adapt => "adapt",
             Self::Monstrosity => "monstrosity",
+            Self::BecomeDesignated(designation) => designation.flag(),
         }
     }
 }

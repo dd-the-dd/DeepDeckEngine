@@ -796,3 +796,192 @@ fn death_trigger_guards_read_the_dead_creature_through_the_trigger_frame() {
         0
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn designations_are_given_once_and_read_by_conditions_selectors_and_last_known_deaths() {
+    // Renown 1 (CR 702.112a-b): the trigger's `if it isn't renowned` and
+    // `it becomes renowned` read and give the registry's designation.
+    let renowned = compiled(
+        "Topan Freeblade",
+        "Creature \u{2014} Human Soldier",
+        ("2", "2"),
+        "Vigilance\nRenown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![test_instance("topan-freeblade", renowned, "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    for _ in 0..2 {
+        engine.enqueue_combat_damage_to_player_triggers("topan-freeblade", "player-1", 2);
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut EmeritusDecisionProvider)
+                .expect("renown resolves");
+        }
+    }
+    // Only the first hit grows it: the second trigger is not put on the
+    // stack because it is already renowned (CR 603.4).
+    assert_eq!(counters(&engine, "topan-freeblade"), 1);
+    let (player, index) = engine.permanent_position("topan-freeblade").expect("alive");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .flags
+            .get("renowned"),
+        Some(&true)
+    );
+
+    // Selector (sibling, no new code): only the renowned creature is a
+    // legal target; a static condition reads the source's designation.
+    let slayer = compiled(
+        "Renown Slayer",
+        "Sorcery",
+        ("0", "0"),
+        "Destroy target renowned creature.",
+    );
+    let candidates = &slayer.rules[0]["declaration"]["decisions"][0]["candidates"];
+    engine.state.players[1]
+        .battlefield
+        .push(creature("plain", "player-1"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert_eq!(
+        engine.target_candidates("player-1", candidates),
+        Some(vec![TargetRef::Permanent {
+            instance_id: "topan-freeblade".to_string()
+        }])
+    );
+
+    // A death trigger reads the designation the creature had when it died.
+    let mourner = compiled(
+        "Mourner",
+        "Creature \u{2014} Elf",
+        ("1", "1"),
+        "Whenever another creature you control dies, if it was renowned, draw a card.",
+    );
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("mourner", mourner, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let killer = StackObject {
+        id: "stack:killer".to_string(),
+        controller: "player-1".to_string(),
+        card: creature("killer", "player-1"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: None,
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .destroy_permanent_from_stack("topan-freeblade", &killer)
+        .expect("the destruction resolves");
+    assert_eq!(engine.state.stack.len(), 1, "the renowned creature died");
+}
+
+/// Answers an optional entry replacement (`you may have ...`).
+struct EntryChoice(bool);
+
+impl DecisionProvider for EntryChoice {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let wanted = format!(":{}", self.0);
+        Ok(request
+            .options
+            .iter()
+            .position(|option| option.id.ends_with(&wanted))
+            .unwrap_or(0))
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn unleash_lets_its_controller_choose_the_counter_that_stops_it_blocking() {
+    // CR 702.98a: an optional entry replacement and a static ability whose
+    // condition is the source's +1/+1 counter possession.
+    let chainwalker = compiled(
+        "Gore-House Chainwalker",
+        "Creature \u{2014} Human Warrior",
+        ("2", "1"),
+        "Unleash (You may have this creature enter with a +1/+1 counter on it. It can't block as long as it has a +1/+1 counter on it.)",
+    );
+    for unleashed in [true, false] {
+        let mut engine = test_engine(2);
+        let mut entering = test_instance("gore-house-chainwalker", chainwalker.clone(), "player-0");
+        engine
+            .apply_enter_replacements(&mut entering, &mut EntryChoice(unleashed))
+            .expect("the creature enters");
+        assert_eq!(
+            entering.counters.get("+1/+1").copied().unwrap_or(0),
+            i32::from(unleashed)
+        );
+        engine.state.players[0].battlefield.push(entering);
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine
+            .permanent_position("gore-house-chainwalker")
+            .expect("entered");
+        let permanent = engine.state.players[player].battlefield[index].clone();
+        assert_eq!(
+            engine.permanent_has_keyword(&permanent, "cantBlock"),
+            unleashed,
+            "unleashed: {unleashed}"
+        );
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn source_counter_possession_gates_statics_and_activations_without_new_code() {
+    // The static condition `this PERMANENT has N or more KIND counters on it`
+    // (Unleash's condition) composes with a continuous effect over other
+    // creatures and with an activation restriction.
+    let ascension = compiled(
+        "Beastmaster Ascension",
+        "Enchantment",
+        ("0", "0"),
+        "Whenever a creature you control attacks, you may put a quest counter on this enchantment.\nAs long as this enchantment has seven or more quest counters on it, creatures you control get +5/+5.",
+    );
+    for (quest, expected) in [(6, (2, 2)), (7, (7, 7))] {
+        let mut engine = test_engine(2);
+        let mut source = test_instance("beastmaster-ascension", ascension.clone(), "player-0");
+        source.counters.insert("quest".to_string(), quest);
+        engine.state.players[0].battlefield = vec![source, creature("bear", "player-0")];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        assert_eq!(power_toughness(&engine, "bear"), expected, "{quest} quest");
+    }
+
+    let tablet = compiled(
+        "Tablet of Compleation",
+        "Artifact",
+        ("0", "0"),
+        "{1}, {T}: Draw a card. Activate only if this artifact has five or more oil counters on it.",
+    );
+    for (oil, allowed) in [(4, false), (5, true)] {
+        let mut engine = mana_engine(&[("forest-a", "{G}")]);
+        let mut source = test_instance("tablet-of-compleation", tablet.clone(), "player-0");
+        source.counters.insert("oil".to_string(), oil);
+        engine.state.players[0].battlefield.push(source);
+        engine.state.players[0].library = vec![creature("drawn", "player-0")];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        assert_eq!(
+            activate(&mut engine, "tablet-of-compleation"),
+            allowed,
+            "{oil} oil"
+        );
+    }
+}
