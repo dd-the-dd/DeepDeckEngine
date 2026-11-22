@@ -467,3 +467,71 @@ fn bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn() {
         assert_eq!(entering.counters.get("+1/+1"), expected, "{recipient:?}");
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn counter_possession_gates_triggers_when_put_on_the_stack_and_after_death() {
+    // CR 603.4: an intervening `if` over the source is checked as the trigger
+    // would be put on the stack (it used to be read as false there).
+    let watcher = compiled(
+        "Counter Watcher",
+        "Creature \u{2014} Plant",
+        ("1", "1"),
+        "Whenever another creature enters, if this creature has two or more +1/+1 counters on it, you gain 1 life.",
+    );
+    for (counters, triggers) in [(2, 1), (1, 0)] {
+        let mut engine = test_engine(2);
+        let mut source = test_instance("counter-watcher", watcher.clone(), "player-0");
+        source.counters.insert("+1/+1".to_string(), counters);
+        engine.state.players[0].battlefield = vec![source];
+        let newcomer = creature("newcomer", "player-0");
+        engine.state.players[0].battlefield.push(newcomer);
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine.permanent_position("newcomer").expect("entered");
+        let live = engine.state.players[player].battlefield[index].clone();
+        engine.enqueue_enter_battlefield_triggers(&live);
+        assert_eq!(engine.state.stack.len(), triggers, "{counters} counters");
+    }
+
+    // CR 603.10a: a dies trigger reads the counters its source had.
+    let mourner = compiled(
+        "Counter Mourner",
+        "Creature \u{2014} Spirit",
+        ("2", "2"),
+        "When this creature dies, if it had no -1/-1 counters on it, you gain 2 life.",
+    );
+    for (counters, gained) in [(0, 2), (1, 0)] {
+        let mut engine = test_engine(2);
+        let mut source = test_instance("counter-mourner", mourner.clone(), "player-0");
+        if counters > 0 {
+            source.counters.insert("-1/-1".to_string(), counters);
+        }
+        engine.state.players[0].battlefield = vec![source];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let life = engine.state.players[0].life;
+        let killer = StackObject {
+            id: "stack:killer".to_string(),
+            controller: "player-1".to_string(),
+            card: creature("killer", "player-1"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("spellAbility".to_string()),
+            ability_rule: None,
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        };
+        engine
+            .destroy_permanent_from_stack("counter-mourner", &killer)
+            .expect("the destruction resolves");
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut EmeritusDecisionProvider)
+                .expect("the dies trigger resolves");
+        }
+        assert_eq!(engine.state.players[0].life, life + gained, "{counters}");
+    }
+}

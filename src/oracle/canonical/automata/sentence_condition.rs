@@ -435,6 +435,12 @@ fn recognize_object_state_predicate(
             "has" | "had" => {
                 consume_current(cursor)?;
                 cursor.enter("condition.sentence.object.possession");
+                // `has a +1/+1 counter on it`, `had no counters on it`,
+                // `has three or more quest counters on it` (CR 122.1): the
+                // shared counter qualifier of object queries.
+                if super::counter_qualifier_starts(cursor, 0) {
+                    return super::recognize_counter_qualifier(cursor);
+                }
                 if let Some(keyword) = cursor
                     .peek()
                     .and_then(parameterless_keyword_from_oracle_word)

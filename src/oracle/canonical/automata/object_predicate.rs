@@ -41,6 +41,27 @@ impl ObjectStatus {
     }
 }
 
+/// How many counters (of one kind, or of any kind) an object has: at least
+/// `minimum` and, when bounded, at most `maximum`. `a counter` is
+/// `minimum: 1`; `no counters` is `minimum: 0, maximum: Some(0)`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CounterPresence {
+    pub counter: Option<CounterName>,
+    pub minimum: i64,
+    pub maximum: Option<i64>,
+}
+
+impl CounterPresence {
+    /// At least one counter (of the kind when named).
+    pub(in crate::oracle::canonical) fn any(counter: Option<CounterName>) -> Self {
+        Self {
+            counter,
+            minimum: 1,
+            maximum: None,
+        }
+    }
+}
+
 /// A property predicate over an object selected by a surrounding query.
 ///
 /// The surrounding grammar still owns the object domain, zone, controller,
@@ -65,9 +86,10 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     /// `permanent card`: a card with a permanent card type (CR 110.4b). The
     /// following `card` noun still supplies the object domain.
     PermanentCard,
-    /// `with a [KIND] counter on it`: the object has at least one counter,
-    /// of the named kind when present (CR 122.1).
-    HasCounter(Option<CounterName>),
+    /// `with a [KIND] counter on it`, `has three or more KIND counters on it`,
+    /// `had no counters on it`: the number of counters on the object, of the
+    /// named kind when present, within bounds (CR 122.1).
+    HasCounter(CounterPresence),
     /// Has the creature type chosen by an earlier `choose a creature type`
     /// instruction of the same effect program (CR 608.2d). The binding is
     /// symbolic; the program lowering proves its producer.

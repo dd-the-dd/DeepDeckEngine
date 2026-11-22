@@ -236,6 +236,28 @@ explicite.
   (dégâts à un joueur adversaire ce tour, toute source, CR 120.3), évalué par
   le moteur sur le journal des dégâts.
 
+## État des marqueurs (capacité partagée)
+
+- **Possession** : un seul lecteur de quantité de marqueurs (`selector.rs`,
+  `recognize_counter_qualifier`) sert les requêtes d'objets (`with three or
+  more +1/+1 counters on it`, `with no counters on it`) et les conditions
+  `has|had … counter(s) on it`. Le prédicat `HasCounter(CounterPresence)`
+  porte le genre de marqueur et des bornes (`a` = au moins 1, `no` = 0, `N or
+  more`, `fewer than N`, `N or fewer`). IR : l'atome `hasCounter` existant,
+  avec `minimum`/`maximum` seulement quand ils diffèrent de « au moins un »
+  (IR existante inchangée). Un compte exact (`three counters`) n'est pas
+  revendiqué.
+- **Condition intercalée à la publication** (CR 603.4) : le moteur évaluait
+  `objectMatchesFilter` comme faux au moment de mettre un déclencheur sur la
+  pile (bras manquant dans `condition_value_with_source`) ; tout déclencheur
+  admis avec une telle condition ne se déclenchait jamais. Il est maintenant
+  évalué par le même évaluateur qu'à la résolution, avec la source et ses
+  décisions.
+- **Source partie** (CR 603.10a) : une condition sur la source d'un
+  déclencheur « regard en arrière » lit la capture de départ (objet avec ses
+  marqueurs), à la publication comme à la résolution, au lieu de la carte
+  imprimée.
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa

@@ -5,7 +5,7 @@
 //! `src/engine/tests/object_state_predicate_runtime.rs`.
 use serde_json::{Value, json};
 
-use super::super::{GrantedKeyword, ObjectStatus};
+use super::super::{CounterPresence, GrantedKeyword, ObjectStatus};
 use super::*;
 use crate::oracle::canonical::{NumericAtom, NumericExpression, ObjectQueryNode};
 use crate::oracle::counter_name::CounterName;
@@ -39,19 +39,21 @@ fn counter_qualifiers_compose_with_any_head_and_relation() {
     for (text, expected) in [
         (
             "creature with a +1/+1 counter on it",
-            SelectorPredicate::HasCounter(counter("+1/+1")),
+            SelectorPredicate::HasCounter(CounterPresence::any(counter("+1/+1"))),
         ),
         (
             "land with a counter on it",
-            SelectorPredicate::HasCounter(None),
+            SelectorPredicate::HasCounter(CounterPresence::any(None)),
         ),
         (
             "creatures with one or more -1/-1 counters on them",
-            SelectorPredicate::HasCounter(counter("-1/-1")),
+            SelectorPredicate::HasCounter(CounterPresence::any(counter("-1/-1"))),
         ),
         (
             "creature without a counter on it",
-            SelectorPredicate::Not(Box::new(SelectorPredicate::HasCounter(None))),
+            SelectorPredicate::Not(Box::new(SelectorPredicate::HasCounter(
+                CounterPresence::any(None),
+            ))),
         ),
         (
             "creature without flying",
@@ -71,7 +73,11 @@ fn counter_qualifiers_compose_with_any_head_and_relation() {
         .expect("independent qualifiers recombine");
     let all = operands(&parsed.predicate);
     assert!(all.contains(&SelectorPredicate::Status(ObjectStatus::Untapped)));
-    assert!(all.contains(&SelectorPredicate::HasCounter(counter("charge"))));
+    assert!(
+        all.contains(&SelectorPredicate::HasCounter(CounterPresence::any(
+            counter("charge")
+        )))
+    );
     assert_eq!(
         parsed.controller,
         Some(ObjectControllerScope::AbilityController)
@@ -212,4 +218,81 @@ fn whole_cards_lower_status_counter_and_source_exclusion() {
         text.contains(r#"{"counter":"+1/+1","kind":"hasCounter"}"#),
         "{text}"
     );
+}
+
+#[test]
+fn counter_quantities_bound_the_number_of_counters() {
+    let presence = |counter, minimum, maximum| {
+        SelectorPredicate::HasCounter(CounterPresence {
+            counter,
+            minimum,
+            maximum,
+        })
+    };
+    for (text, expected) in [
+        (
+            "creature with three or more +1/+1 counters on it",
+            presence(counter("+1/+1"), 3, None),
+        ),
+        (
+            "creature with no counters on it",
+            presence(None, 0, Some(0)),
+        ),
+        (
+            "permanent with fewer than three charge counters on it",
+            presence(counter("charge"), 0, Some(2)),
+        ),
+        (
+            "creature with two or fewer -1/-1 counters on it",
+            presence(counter("-1/-1"), 0, Some(2)),
+        ),
+    ] {
+        let parsed = query(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"));
+        assert!(
+            operands(&parsed.predicate).contains(&expected),
+            "{text}: {parsed:?}"
+        );
+    }
+    // An exact count (`three counters`) has no bound reading: not claimed.
+    assert!(query("creature with three counters on it").is_err());
+}
+
+#[test]
+fn possession_conditions_read_the_same_counter_quantity() {
+    // Real wordings: graft/vanishing definitions, persist-style and quest
+    // counters (Beastmaster Ascension-style), on the referenced object.
+    for (text, where_) in [
+        (
+            "At the beginning of your upkeep, if this permanent has a time counter on it, you gain 1 life.",
+            json!({ "kind": "hasCounter", "counter": "time" }),
+        ),
+        (
+            "When this creature dies, if it had no -1/-1 counters on it, you gain 2 life.",
+            json!({ "kind": "hasCounter", "counter": "-1/-1", "minimum": 0, "maximum": 0 }),
+        ),
+        (
+            "At the beginning of your upkeep, if this enchantment has seven or more quest counters on it, you gain 1 life.",
+            json!({ "kind": "hasCounter", "counter": "quest", "minimum": 7 }),
+        ),
+    ] {
+        let parsed = parse_oracle_card(OracleCardParseRequest {
+            card_name: "Possession Probe".to_string(),
+            type_line: "Enchantment Creature \u{2014} Spirit".to_string(),
+            mana_cost: Some("{2}".to_string()),
+            oracle_text: Some(text.to_string()),
+            layout: None,
+            faces: Vec::new(),
+        });
+        assert_eq!(
+            parsed.status, "canonical",
+            "{text}: {:#?}",
+            parsed.diagnostics
+        );
+        let rule: &Value = parsed.abilities[0].rule.as_ref().unwrap();
+        assert_eq!(
+            rule["condition"],
+            json!({ "kind": "objectMatchesFilter", "object": { "kind": "self" }, "where": where_ }),
+            "{text}"
+        );
+    }
 }
