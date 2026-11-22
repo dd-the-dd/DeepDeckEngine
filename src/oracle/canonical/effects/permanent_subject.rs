@@ -6,29 +6,66 @@ pub(in crate::oracle::canonical) fn lower_bound_permanent_reference(
     reference: PermanentEffectReference,
     bindings: &[(TargetBinding, String)],
 ) -> MachineResult<Value> {
+    bound_permanent_reference_value(reference, bindings).ok_or_else(|| {
+        cursor.fail("the previously declared permanent target slot in this lexical scope")
+    })
+}
+
+/// The IR of an object the binding environment named. A target reference
+/// needs the slot the program declared; without it there is no value.
+pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
+    reference: PermanentEffectReference,
+    bindings: &[(TargetBinding, String)],
+) -> Option<Value> {
     match reference {
-        PermanentEffectReference::Source(LocalObjectReference::SourceSelf) => Ok(self_ref()),
+        PermanentEffectReference::Source(LocalObjectReference::SourceSelf) => Some(self_ref()),
         PermanentEffectReference::Observed(TypedObservedEventObject::EnteringPermanent) => {
-            Ok(json!({"kind":"observedEventObject","event":"permanentEntered"}))
+            Some(json!({"kind":"observedEventObject","event":"permanentEntered"}))
         }
         PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens) => {
-            Ok(json!({"kind":"boundObjects","binding":CREATED_TOKENS_BINDING}))
+            Some(json!({"kind":"boundObjects","binding":CREATED_TOKENS_BINDING}))
         }
         PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield) => {
-            Ok(json!({"kind":"singleBoundObject","binding":MOVED_ONTO_BATTLEFIELD_BINDING}))
+            Some(json!({"kind":"singleBoundObject","binding":MOVED_ONTO_BATTLEFIELD_BINDING}))
         }
         PermanentEffectReference::Observed(TypedObservedEventObject::CombatCounterpart) => {
-            Ok(json!({"kind":"combatCounterpart"}))
+            Some(json!({"kind":"combatCounterpart"}))
+        }
+        PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent) => {
+            Some(json!({"kind":"triggeringPermanent"}))
         }
         PermanentEffectReference::Attached(_) => {
-            Ok(json!({"kind":"attachedPermanent","attachment":self_ref()}))
+            Some(json!({"kind":"attachedPermanent","attachment":self_ref()}))
         }
         PermanentEffectReference::Target(target) => bindings
             .iter()
-            .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id)))
-            .ok_or_else(|| {
-                cursor.fail("the previously declared permanent target slot in this lexical scope")
-            }),
+            .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id))),
+    }
+}
+
+/// The IR of a player the binding environment named: the event's player, a
+/// player declared earlier in the program, or a player related to a bound
+/// object (CR 108.3, 109.4). Never a new declaration.
+pub(in crate::oracle::canonical) fn bound_player_reference_value(
+    reference: BoundPlayerReference,
+    object_bindings: &[(TargetBinding, String)],
+    player_bindings: &[(PlayerTargetBinding, String)],
+) -> Option<Value> {
+    match reference {
+        BoundPlayerReference::EventPlayer => Some(json!({"kind":"triggeringPlayer"})),
+        BoundPlayerReference::Bound(binding) => player_bindings
+            .iter()
+            .find_map(|(key, id)| (key.effect_index == binding.0).then(|| chosen_target(id))),
+        BoundPlayerReference::ObjectRelation { relation, object } => {
+            let object = bound_permanent_reference_value(object, object_bindings)?;
+            Some(json!({
+                "kind": match relation {
+                    ObjectPlayerRelation::Controller => "controllerOf",
+                    ObjectPlayerRelation::Owner => "ownerOf",
+                },
+                "object": object,
+            }))
+        }
     }
 }
 

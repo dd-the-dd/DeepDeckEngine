@@ -211,6 +211,7 @@ fn recognize_draw_action_attempt(
                     | NumericExpression::Multiply { .. }
                     | NumericExpression::PlayerFact { .. }
                     | NumericExpression::SacrificedCostObjectProperty(_)
+                    | NumericExpression::BoundObjectProperty { .. }
                     | NumericExpression::GreatestPropertyAmong { .. }
                     | NumericExpression::CardsInZone { .. }
                     | NumericExpression::Divide { .. } => {

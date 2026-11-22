@@ -139,6 +139,7 @@ use mana_postcost_ordered::{OrderedManaChoice, OrderedManaState};
 mod card_selection;
 mod color_set_query;
 mod entry_observation;
+mod event_object;
 mod granted_mana_program;
 mod mana_activation_actions;
 mod mana_activation_costs;
@@ -2732,6 +2733,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 value_kind(&expression["object"]),
                 Some("self" | "abilitySource" | "candidate")
             ) || target_reference_supported(&expression["object"])
+                || entry_observation::observed_object_reference_supported(&expression["object"])
         }
         Some("counterCountOf") => {
             (matches!(
@@ -2743,6 +2745,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("abilitySourceLastKnownPower") => true,
         Some("manaValueOf") => {
             target_reference_supported(&expression["object"])
+                || entry_observation::observed_object_reference_supported(&expression["object"])
                 || (value_kind(&expression["object"]) == Some("boundObject")
                     && expression["object"]["binding"].is_string())
         }
@@ -3233,17 +3236,13 @@ fn player_reference_supported(reference: &Value) -> bool {
         Some("controllerOfObject") => {
             object_context::object_context_reference_supported(&reference["object"])
         }
-        Some("controllerOf") => {
+        Some("controllerOf" | "ownerOf") => {
             matches!(
                 value_kind(&reference["object"]),
                 Some("self" | "abilitySource")
             ) || target_reference_supported(&reference["object"])
-        }
-        Some("ownerOf") => {
-            matches!(
-                value_kind(&reference["object"]),
-                Some("self" | "abilitySource")
-            ) || target_reference_supported(&reference["object"])
+                // The observed entering object: live, else last known.
+                || entry_observation::observed_object_reference_supported(&reference["object"])
         }
         Some("abilityController") => true,
         Some("eachPlayer") => true,
@@ -21741,6 +21740,9 @@ impl GameEngine {
         if self.check_quantity_failure().is_err() {
             return trigger_multiplicity::TriggerPublicationOutcome::Failed;
         }
+        // The event object's incarnation and relations as the event saw them.
+        let mut decisions = decisions;
+        self.capture_event_object(&mut decisions);
         if rule["minimumClassLevel"].as_i64().is_some_and(|minimum| {
             i64::from(source.counters.get("classLevel").copied().unwrap_or(1)) < minimum
         }) {
@@ -31027,13 +31029,9 @@ impl GameEngine {
                     }),
                     RuntimeBinding::Integer(_) | RuntimeBinding::Objects(_) => None,
                 }),
-            Some("triggeringPermanent") => stack_object
-                .decisions
-                .get("triggeringPermanentId")
-                .and_then(Value::as_str)
-                .map(|instance_id| TargetRef::Permanent {
-                    instance_id: instance_id.to_string(),
-                }),
+            // The record's permanent, while it is the incarnation the event
+            // saw (CR 400.7).
+            Some("triggeringPermanent") => self.event_object_target(stack_object),
             Some("blockingPermanent") => stack_object
                 .decisions
                 .get("blockingPermanentId")
@@ -31044,6 +31042,13 @@ impl GameEngine {
             // The other combatant of the triggering block record, while it is
             // still the same object (CR 400.7).
             Some("combatCounterpart") => self.combat_counterpart_target(stack_object),
+            // The entering permanent, while it is the incarnation the entry
+            // event observed (CR 400.7).
+            Some("observedEventObject") => self
+                .resolve_observed_event_permanent(reference, stack_object)
+                .ok()
+                .flatten()
+                .map(|instance_id| TargetRef::Permanent { instance_id }),
             Some("triggeringStackObject") => stack_object
                 .decisions
                 .get("triggeringStackId")
@@ -31126,6 +31131,16 @@ impl GameEngine {
                 ) {
                     return Some(stack_object.controller.clone());
                 }
+                if matches!(
+                    value_kind(&reference["object"]),
+                    Some("triggeringPermanent" | "observedEventObject")
+                ) {
+                    return self.event_object_player(
+                        object_relation_lki::ObjectPlayerRelation::Controller,
+                        &reference["object"],
+                        stack_object,
+                    );
+                }
                 let departed = || {
                     self.departed_target_player(
                         object_relation_lki::ObjectPlayerRelation::Controller,
@@ -31161,6 +31176,16 @@ impl GameEngine {
                     Some("self" | "abilitySource")
                 ) {
                     return Some(stack_object.card.owner.clone());
+                }
+                if matches!(
+                    value_kind(&reference["object"]),
+                    Some("triggeringPermanent" | "observedEventObject")
+                ) {
+                    return self.event_object_player(
+                        object_relation_lki::ObjectPlayerRelation::Owner,
+                        &reference["object"],
+                        stack_object,
+                    );
                 }
                 let departed = || {
                     self.departed_target_player(
@@ -31372,6 +31397,15 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        // An event object: live while it is the same incarnation, else its
+        // last known characteristics (CR 400.7, 608.2h).
+        if matches!(
+            value_kind(&expression["object"]),
+            Some("triggeringPermanent" | "observedEventObject")
+        ) && let Some(value) = self.event_object_numeric(expression, stack_object)
+        {
+            return value;
         }
         if value_kind(&expression["object"]) == Some("chosenTarget")
             && let Some(target_id) = expression["object"]["id"].as_str()

@@ -303,7 +303,8 @@ pub(super) use trigger_program::*;
 mod permanent_subject;
 pub(in crate::oracle::canonical) use keyword_grant::lower_keyword_grant_to_object;
 pub(in crate::oracle::canonical) use permanent_subject::{
-    lower_bound_permanent_reference, lower_ordinary_permanent_subject, ordinary_action_targets,
+    bound_permanent_reference_value, bound_player_reference_value, lower_bound_permanent_reference,
+    lower_ordinary_permanent_subject, ordinary_action_targets,
 };
 
 #[cfg(test)]

@@ -25,6 +25,7 @@ mod arithmetic_expression;
 mod attach;
 mod attack_tax;
 mod become_types;
+mod binding_environment;
 mod block_restriction;
 mod boolean_condition;
 mod bound_collection_untap;
@@ -278,6 +279,7 @@ pub(super) use arithmetic_expression::{
 pub(super) use attach::*;
 pub(super) use attack_tax::*;
 pub(super) use become_types::*;
+pub(super) use binding_environment::*;
 pub(super) use block_restriction::*;
 pub(super) use bound_collection_untap::*;
 pub(super) use bound_object_condition::*;
@@ -558,6 +560,10 @@ pub(in crate::oracle::canonical) enum TypedObservedEventObject {
     /// a creature` / `becomes blocked by a creature`), bound by the runtime
     /// record with its object identity (CR 400.7).
     CombatCounterpart,
+    /// The permanent the event record binds (the damaged permanent, the
+    /// attacker, the dying permanent, the combat damage source), denoted only
+    /// while it is the incarnation the event saw (CR 400.7).
+    EventPermanent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -635,6 +641,13 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// every branch; `that creature` without a local antecedent denotes it.
     /// Set only by the trigger parent from its typed event.
     pub combat_counterpart: bool,
+    /// The object the triggering event record binds, with the predicate the
+    /// event wrote for it (`that creature` must follow from it). Set only by
+    /// the trigger parent from its typed event.
+    pub event_object: Option<EventObjectSlot>,
+    /// The triggering event is the cast of one spell whose record the
+    /// runtime keeps (`that spell`). Set only by the trigger parent.
+    pub event_spell: bool,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb
@@ -888,6 +901,14 @@ pub(super) enum NumericExpression {
         effect_index: usize,
         filter: ActionResultFilter,
     },
+    /// A characteristic of an object the binding environment names without
+    /// a declaration (`that creature's power` after an event that binds it),
+    /// read live while it is the same object, else as last known information
+    /// (CR 400.7, 608.2h).
+    BoundObjectProperty {
+        object: PermanentEffectReference,
+        property: SelectorNumericProperty,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -916,6 +937,9 @@ pub(super) enum PermanentCountMeasure {
 pub(super) enum EventNumericBinding {
     DamageAmount,
     ReplacementQuantity,
+    /// The mana value of the spell a cast record binds (`that spell's mana
+    /// value`, CR 202.3), as recorded when it was cast.
+    CastSpellManaValue,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1028,6 +1052,7 @@ impl NumericExpression {
             | Self::CountDistinctCardTypes { .. }
             | Self::PlayerFact { .. }
             | Self::SacrificedCostObjectProperty(_)
+            | Self::BoundObjectProperty { .. }
             | Self::ActionResultCount { .. }
             | Self::CardsInZone { .. } => false,
         }
@@ -1379,6 +1404,23 @@ pub(super) enum DamageRecipientNode {
     /// `to each creature and each player`: every group receives the same
     /// amount from the same source (CR 120.2). Members are never nested.
     All(Vec<DamageRecipientNode>),
+    /// `to that player`, `to defending player`, `to that creature's
+    /// controller`: a player the binding environment names.
+    BoundPlayer(BoundPlayerReference),
+    /// `to it`, `to that creature`: an object the binding environment names.
+    BoundObject(PermanentEffectReference),
+}
+
+impl DamageRecipientNode {
+    /// A recipient resolved through the binding environment; its lowering
+    /// needs the program's target bindings.
+    pub(super) fn is_bound(&self) -> bool {
+        match self {
+            Self::BoundPlayer(_) | Self::BoundObject(_) => true,
+            Self::All(groups) => groups.iter().any(Self::is_bound),
+            _ => false,
+        }
+    }
 }
 
 /// `each [other] OBJECTS [CONTROLLER]`: the shared object query of a damage

@@ -58,8 +58,17 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
             SourceAnaphorBinding::EventSubject(source) => {
                 Some(PermanentEffectReference::Source(source))
             }
+            // Without a source subject, `it` names the event's observed
+            // object, else the object that is the event's subject.
             SourceAnaphorBinding::Unproved => context
                 .observed_event_object
+                .or_else(|| {
+                    context
+                        .event_object
+                        .as_ref()
+                        .filter(|slot| slot.subject)
+                        .map(|slot| slot.reference)
+                })
                 .map(PermanentEffectReference::Observed),
         },
     };
@@ -141,6 +150,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             (_, DamageRecipientNode::Targets(targets)) => {
                 singular_permanent_target(targets, effect_index)
             }
+            (_, DamageRecipientNode::BoundObject(reference)) => Some(*reference),
             _ => None,
         }),
         LocalEffectNode::Fight(_) => Local(None),
@@ -301,56 +311,15 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
     }
 }
 
-/// `that creature` / `that permanent`: a nominal anaphor of the singular
-/// target of the previous action. The nominal must follow from the selector
-/// that declared the target; it never reinterprets a differently typed slot.
+/// `that creature` / `that permanent`: a nominal anaphor resolved by the
+/// shared binding environment of this context.
 fn recognize_nominal_permanent_anaphor(
     cursor: &mut OracleTokenCursor<'_>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<PermanentOperandNode> {
-    use crate::oracle::characteristic_vocabulary::{
-        CharacteristicLexeme, lookup_object_selector_lexeme,
-    };
-    cursor.enter("permanent.subject.nominal-anaphor");
-    cursor.consume("that")?;
-    cursor.enter("permanent.subject.nominal-anaphor.nominal");
-    let noun = cursor
-        .peek()
-        .ok_or_else(|| cursor.fail("a registered card type or permanent nominal"))?
-        .to_owned();
-    let nominal = match lookup_object_selector_lexeme(&noun) {
-        Some(CharacteristicLexeme::CardType(value)) => TargetNominal::CardType(value),
-        Some(CharacteristicLexeme::ObjectDomain(value)) => TargetNominal::Domain(value),
-        _ => return Err(cursor.fail("a registered card type or permanent nominal")),
-    };
-    cursor.enter("permanent.subject.nominal-anaphor.antecedent");
-    // Without a local antecedent, a block event's other combatant is the
-    // creature named (every blocker and blocked object is a creature).
-    if context.combat_counterpart
-        && context.permanent_subject_scope == PermanentSubjectScope::AbilityContext
-        && nominal.as_predicate() == ObjectPredicate::CardType(ObjectCardType::Creature)
-    {
-        cursor.consume(&noun)?;
-        return Ok(PermanentOperandNode::BoundReference(
-            PermanentEffectReference::Observed(TypedObservedEventObject::CombatCounterpart),
-        ));
-    }
-    let reference = proven_permanent_antecedent(context).ok_or_else(|| {
-        cursor.fail("a preceding singular permanent subject in this lexical scope")
-    })?;
-    let PermanentEffectReference::Target(_) = reference else {
-        return Err(cursor.fail("a declared target as the nominal anaphor antecedent"));
-    };
-    let selector = context
-        .permanent_subject_selector
-        .as_ref()
-        .ok_or_else(|| cursor.fail("the declared selector of the preceding permanent target"))?;
-    cursor.require(
-        selector_implies_nominal(selector, &nominal.as_predicate()),
-        "a nominal implied by the preceding target's declared selector",
-    )?;
-    cursor.consume(&noun)?;
-    Ok(PermanentOperandNode::BoundReference(reference))
+    let environment = BindingEnvironment::for_permanent_context(context);
+    recognize_nominal_object_reference(cursor, &environment)
+        .map(PermanentOperandNode::BoundReference)
 }
 
 /// The shared subject reader does not declare a target for a reference.
@@ -407,16 +376,8 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         .peek()
         .is_some_and(super::reference::is_source_anaphor)
     {
-        let reference = proven_permanent_antecedent(context).ok_or_else(|| {
-            cursor.fail(
-                "a source binding or preceding singular permanent subject in this lexical scope",
-            )
-        })?;
-        let pronoun = cursor
-            .peek()
-            .expect("checked source/permanent anaphor")
-            .to_owned();
-        cursor.consume(&pronoun)?;
+        let environment = BindingEnvironment::for_permanent_context(context);
+        let reference = recognize_bound_object_reference(cursor, &environment)?;
         return Ok(match reference {
             PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
             _ => PermanentOperandNode::BoundReference(reference),

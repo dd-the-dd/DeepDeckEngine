@@ -4,7 +4,7 @@ use std::fmt;
 use crate::oracle::automata_trace::{self, AutomataTraceEventKind, CursorTraceHandle};
 use crate::oracle::model::RecognizedEntity;
 
-use super::automata::EventNumericBinding;
+use super::automata::{BindingEnvironment, EventNumericBinding};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MachineTransition {
@@ -64,6 +64,10 @@ pub(super) struct OracleTokenCursor<'a> {
     /// Quantity the enclosing triggered ability's event exports to its body
     /// (`that many`/`that much`). The parent installs it; no child infers it.
     event_numeric_binding: Option<EventNumericBinding>,
+    /// The references the enclosing ability frame and program position bind
+    /// (`binding_environment.rs`). The owning parent installs it for the
+    /// child it calls; a child never infers or extends it.
+    binding_environment: Option<std::sync::Arc<BindingEnvironment>>,
     #[cfg(feature = "automata-trace")]
     trace_cursor: Option<CursorTraceHandle>,
 }
@@ -78,6 +82,7 @@ impl Clone for OracleTokenCursor<'_> {
             position: self.position,
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
+            binding_environment: self.binding_environment.clone(),
             trace_cursor: automata_trace::new_cursor(
                 self.trace_cursor,
                 self.automaton,
@@ -103,6 +108,7 @@ impl<'a> OracleTokenCursor<'a> {
                 token_index: 0,
             }],
             event_numeric_binding: None,
+            binding_environment: None,
             #[cfg(feature = "automata-trace")]
             trace_cursor: automata_trace::new_cursor(
                 None,
@@ -151,6 +157,19 @@ impl<'a> OracleTokenCursor<'a> {
 
     pub fn event_numeric_binding(&self) -> Option<EventNumericBinding> {
         self.event_numeric_binding
+    }
+
+    /// Installs the binding environment for the children read next and
+    /// returns the previous one, which the installing parent restores.
+    pub fn replace_binding_environment(
+        &mut self,
+        environment: Option<std::sync::Arc<BindingEnvironment>>,
+    ) -> Option<std::sync::Arc<BindingEnvironment>> {
+        std::mem::replace(&mut self.binding_environment, environment)
+    }
+
+    pub fn binding_environment(&self) -> Option<&BindingEnvironment> {
+        self.binding_environment.as_deref()
     }
 
     pub fn enter(&mut self, state: &'static str) {

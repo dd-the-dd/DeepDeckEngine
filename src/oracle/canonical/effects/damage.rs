@@ -372,7 +372,10 @@ fn lower_local_effect_sequence(
                     // Collections and recipient conjunctions are lowered by
                     // the shared targetless lowerer above; reaching this arm
                     // means that lowerer rejected them.
-                    DamageRecipientNode::EachPermanent(_) | DamageRecipientNode::All(_) => {
+                    DamageRecipientNode::EachPermanent(_)
+                    | DamageRecipientNode::All(_)
+                    | DamageRecipientNode::BoundPlayer(_)
+                    | DamageRecipientNode::BoundObject(_) => {
                         return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
                     }
                 }
@@ -514,7 +517,8 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
             return true;
         }
 
-        if matches!(effect, LocalEffectNode::DealDamage(damage) if damage.fixed_source().is_none())
+        if matches!(effect, LocalEffectNode::DealDamage(damage)
+            if damage.fixed_source().is_none() || damage.recipient.is_bound())
         {
             return true;
         }

@@ -582,7 +582,32 @@ fn recognize_effect_sequence_internal(
     )
 }
 
+/// The sequence owns the binding environment of the actions it reads: it
+/// installs one per action and restores the enclosing one when it ends.
 fn recognize_effect_sequence_attempt_internal(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    stop_before_activation_reduction: bool,
+    stop_before_activation_annotation: bool,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<EffectSequenceNode> {
+    let enclosing = cursor.replace_binding_environment(None);
+    let result = recognize_effect_sequence_attempt_scoped(
+        cursor,
+        name_links,
+        name_failure,
+        context,
+        stop_before_activation_reduction,
+        stop_before_activation_annotation,
+        attempt_frame,
+    );
+    cursor.replace_binding_environment(enclosing);
+    result
+}
+
+fn recognize_effect_sequence_attempt_scoped(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
@@ -685,6 +710,21 @@ fn recognize_effect_sequence_attempt_internal(
                             },
                         }),
                 };
+                // One environment for every reference child of this action:
+                // the frame's event bindings and the lexical antecedents.
+                cursor.replace_binding_environment(Some(std::sync::Arc::new(
+                    super::BindingEnvironment {
+                        frame: super::FrameBindings::from_context(&action_context),
+                        local_object_scope: matches!(
+                            memory.permanent_subject_scope,
+                            super::PermanentSubjectScope::Local(_)
+                        ),
+                        object: object_antecedent.clone(),
+                        player: memory
+                            .last_player_target
+                            .map(|binding| super::PlayerBinding(binding.effect_index)),
+                    },
+                )));
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;

@@ -428,6 +428,17 @@ fn recognize_damage_recipient_group(
             cursor, None,
         )?));
     }
+    // A player or object the enclosing frame and program already bound.
+    if super::bound_player_reference_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_bound_player_reference(cursor, &environment)
+            .map(DamageRecipientNode::BoundPlayer);
+    }
+    if super::bound_object_reference_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_bound_object_reference(cursor, &environment)
+            .map(DamageRecipientNode::BoundObject);
+    }
     if cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("each")
             && cursor.peek_ahead(1).is_some_and(|role| {

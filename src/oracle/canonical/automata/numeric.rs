@@ -228,8 +228,19 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
                 }
             }
             NumericExpressionState::ObjectReference => {
-                object = Some(recognize_numeric_object_reference(cursor, antecedent)?);
-                NumericExpressionState::Property
+                // Without a parent-supplied target, `that NOUN's PROPERTY`
+                // is the genitive the binding environment resolves.
+                if antecedent.is_none() && super::bound_object_property_starts(cursor) {
+                    let environment = super::installed_binding_environment(cursor);
+                    expression = Some(super::recognize_bound_object_property(
+                        cursor,
+                        &environment,
+                    )?);
+                    NumericExpressionState::Complete
+                } else {
+                    object = Some(recognize_numeric_object_reference(cursor, antecedent)?);
+                    NumericExpressionState::Property
+                }
             }
             NumericExpressionState::Property => {
                 cursor.enter("numeric.expression.property");

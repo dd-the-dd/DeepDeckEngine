@@ -111,6 +111,8 @@ impl GameEngine {
         let source = self.state.players[player_index].battlefield[card_index].clone();
         // Every continuous effect applied, while it is still on the battlefield.
         self.capture_departure_characteristics(&source);
+        // Pending abilities whose event bound this incarnation.
+        self.refresh_event_object_lki(&source);
         let power = self.current_power(&source);
         let toughness = self.current_toughness(&source);
         let damage = self.source_damage_departure_capture(&source);

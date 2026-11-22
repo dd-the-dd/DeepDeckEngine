@@ -225,6 +225,11 @@ fn recognize_primary(
     query_context: NumericExpressionReadContext,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.arithmetic.primary");
+    // `that NOUN's PROPERTY`: the genitive of a bound object.
+    if super::bound_object_property_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_bound_object_property(cursor, &environment);
+    }
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))

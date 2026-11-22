@@ -156,6 +156,9 @@ fn lower_numeric_expression_in_context(
         NumericExpression::EventValue(EventNumericBinding::DamageAmount) => {
             Some(decision_result("damageAmount"))
         }
+        NumericExpression::EventValue(EventNumericBinding::CastSpellManaValue) => {
+            Some(json!({ "kind": "triggeringSpellManaValue" }))
+        }
         NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity) => (event_binding
             == Some(EventNumericBinding::ReplacementQuantity))
         .then(|| json!({ "kind": "eventQuantity" })),
@@ -247,6 +250,15 @@ fn lower_numeric_expression_in_context(
             },
             "player": controller(),
             "where": lower_permanent_object_predicate(predicate),
+        })),
+        // Only references that need no declared slot have a value here.
+        NumericExpression::BoundObjectProperty { object, property } => Some(json!({
+            "kind": match property {
+                SelectorNumericProperty::Power => "powerOf",
+                SelectorNumericProperty::Toughness => "toughnessOf",
+                SelectorNumericProperty::ManaValue => "manaValueOf",
+            },
+            "object": bound_permanent_reference_value(*object, &[])?,
         })),
         NumericExpression::PowerOf(binding) => Some(json!({
             "kind":"powerOf", "object":target_binding?(*binding)?,
