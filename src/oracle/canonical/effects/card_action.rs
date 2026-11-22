@@ -188,13 +188,22 @@ impl CardCollectionMemory {
         // `the exiled card(s)` restates this program's exile; without one it
         // names the cards a linked ability exiled (CR 607.2a), proved by the
         // card-composition pass. `cards exiled with this` is always linked.
-        let linked = json!({"kind":"cardsExiledWithSource", "link": "face"});
+        // `exiled with this` reads every exile of the object (`face`); `the
+        // exiled card(s)` names the one exile it is paired with (`pair`).
         match reference {
-            CardCollectionReferenceNode::Linked => return Ok((linked, None)),
+            CardCollectionReferenceNode::Linked => {
+                return Ok((
+                    json!({"kind":"cardsExiledWithSource", "link": "face"}),
+                    None,
+                ));
+            }
             CardCollectionReferenceNode::Exiled
                 if self.view.is_none() || self.view_verb != Some(CardCollectionVerb::Exiled) =>
             {
-                return Ok((linked, None));
+                return Ok((
+                    json!({"kind":"cardsExiledWithSource", "link": "pair"}),
+                    None,
+                ));
             }
             CardCollectionReferenceNode::Exiled => {
                 return self

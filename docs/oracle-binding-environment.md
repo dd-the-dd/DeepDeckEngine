@@ -195,6 +195,20 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   pile), le corps modal d'un déclencheur (Pip-Boy 3000 : le mode ne reçoit
   pas le cadre), `that player may ...` (lecteur facultatif d'un autre joueur).
 
+## Étape 8 réalisée : appariement des capacités liées (CR 607.2a)
+
+- Un lecteur est apparié à l'exil de sa propre capacité, sinon aux autres
+  capacités de la face qui exilent des permanents. `cards exiled with this
+  NOUN|it` (marqueur `link: face`) lit tous les exils de l'objet, comme le
+  prévoit CR 607.2a (Helvault). `the exiled card(s)` (marqueur `link:
+  pair`) désigne l'unique exil apparié : deux capacités candidates rendent
+  l'appariement ambigu et le lecteur échoue en
+  `binding.linked-exile.ambiguous`.
+- Sondes (base de la phase 3, f007360 : ligue 808, corpus 14243) : ligue et
+  corpus inchangés, 0 perdue. IR changée de 8 cartes déjà supportées
+  (Oblivion Ring, Journey to Nowhere, Fiend Hunter, …) : seul le marqueur du
+  lecteur passe de `face` à `pair`, le comportement est identique.
+
 ## Suite
 
 1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur

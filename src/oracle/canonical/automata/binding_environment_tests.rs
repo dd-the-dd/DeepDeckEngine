@@ -504,3 +504,44 @@ fn where_x_reads_the_declared_target_property() {
         "{reads:?}"
     );
 }
+
+#[test]
+fn the_linked_pair_is_one_ability_or_an_explicit_ambiguity() {
+    // Two independent exiles of permanents on the face: the reader's pair is
+    // ambiguous (CR 607.2a) and fails explicitly instead of linking both.
+    let (status, _, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target creature.\n{2}: Exile target artifact.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "binding.linked-exile.ambiguous"),
+        "{states:?}"
+    );
+    // A face without a reader links nothing: both exiles stay unlinked.
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target creature.\n{2}: Exile target artifact.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert!(
+        !serde_json::to_string(&rules)
+            .unwrap()
+            .contains("linkToSource")
+    );
+}
+
+#[test]
+fn cards_exiled_with_this_read_every_exile_of_the_object() {
+    // Helvault: `cards exiled with it` is linked with both exile abilities
+    // (CR 607.2a); unlike `the exiled card`, that is not an ambiguity.
+    let (status, rules, states) = parse(
+        "Legendary Artifact",
+        "{1}, {T}: Exile target creature you control.\n{7}, {T}: Exile target creature you don't control.\nWhen this artifact is put into a graveyard from the battlefield, return all cards exiled with it to the battlefield under their owners' control.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    let text = serde_json::to_string(&rules).unwrap();
+    assert_eq!(text.matches("\"linkToSource\":true").count(), 2, "{text}");
+}
