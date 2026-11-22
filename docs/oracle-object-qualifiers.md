@@ -124,3 +124,25 @@ statique) et `a_controller_relation_to_the_event_player_scopes_the_target_domain
 - `you own` (≈ 47, surtout `Commander creatures you own have …`) et `spells
   you cast` (≈ 39) : relation de propriété hors requêtes à relations
   d'objet, et domaine de sorts.
+
+## Relation de propriété et cibles distribuées (reliquats)
+
+- `you own` / `you don't own` (CR 108.3) dans une requête dont la relation
+  est le contrôle devient le prédicat `OwnedByAbilityController`. Les
+  collections du moteur portent la propriété comme relation (`ownership:
+  owned | notOwned`) : `lower_permanent_collection` la sort du prédicat
+  pour les domaines de cibles et les sélecteurs statiques. Ailleurs (comptes,
+  changements de contrôle d'une collection), l'atome `ownedBy` n'a pas de
+  primitive moteur et la carte reste non exécutable, explicitement.
+- `each of up to two target creatures`, `each of two target creatures` :
+  `each of` distribue l'action sur les cibles déclarées (lecteur
+  d'opérande permanent partagé).
+- Défaut trouvé, non corrigé : `deals N damage to two target creatures`
+  est déjà analysé sur main avec un destinataire `chosenTarget` singulier ;
+  avec deux cibles (`targetPermanent:0`, `:1`), le moteur n'inflige rien.
+  La forme `to each of two target creatures` n'est donc pas ajoutée aux
+  dégâts tant que ce destinataire pluriel n'existe pas.
+
+Preuves : `ownership_relations_and_distributive_target_lists` (analyse) et
+`ownership_relations_and_distributive_targets_reach_every_declared_object`
+(moteur).

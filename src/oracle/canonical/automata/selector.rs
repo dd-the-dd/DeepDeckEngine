@@ -530,6 +530,20 @@ fn recognize_object_query_with_cardinality_policy(
                         scope: PostnominalQualifierScope::LastCoordinatedHead,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(length) = ownership_relation_length(cursor, relation_kind) {
+                    // `creature you own`, `permanents you don't own` (CR
+                    // 108.3): the ownership relation of the collection.
+                    cursor.enter("selector.ownership-relation");
+                    let negated = length == 3;
+                    for _ in 0..length {
+                        let raw = cursor.peek().unwrap_or_default().to_string();
+                        cursor.consume(&raw)?;
+                    }
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::OwnedByAbilityController { negated },
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if cursor.peek().is_some_and(|token| {
                     token.eq_ignore_ascii_case("you")
                         || token.eq_ignore_ascii_case("an")
@@ -1259,6 +1273,33 @@ fn object_controller_scope(scope: QuerySubjectScope) -> ObjectControllerScope {
             ObjectControllerScope::OpponentOfAbilityController
         }
         QuerySubjectScope::EventPlayer => ObjectControllerScope::EventPlayer,
+    }
+}
+
+/// `you own` (2) / `you don't own` (3) in a query whose relation is
+/// control: an ownership qualifier, not the controller subject. Queries
+/// that read player relations themselves keep their own reader.
+fn ownership_relation_length(
+    cursor: &OracleTokenCursor<'_>,
+    relation_kind: QueryRelationKind,
+) -> Option<usize> {
+    if !matches!(relation_kind, QueryRelationKind::Control) {
+        return None;
+    }
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !word(0, "you") {
+        return None;
+    }
+    if word(1, "own") {
+        Some(2)
+    } else if (word(1, "don't") || word(1, "don\u{2019}t")) && word(2, "own") {
+        Some(3)
+    } else {
+        None
     }
 }
 

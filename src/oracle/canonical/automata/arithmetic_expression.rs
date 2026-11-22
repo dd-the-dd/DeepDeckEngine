@@ -102,6 +102,10 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
         || super::greatest_property_among_starts(cursor)
         || super::number_of_count_starts(cursor)
         || super::action_result_quantity_starts(cursor)
+        || devotion_starts(cursor)
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("half"))
         || cursor.peek().is_some_and(|raw| {
             raw.eq_ignore_ascii_case("twice") || raw.eq_ignore_ascii_case("thrice")
         })
@@ -300,14 +304,97 @@ fn recognize_primary(
         {
             return super::recognize_action_result_quantity(cursor);
         }
+        if query_context.kind == NumericReadKind::Definition && devotion_starts(cursor) {
+            return recognize_devotion(cursor);
+        }
         if cursor
             .peek()
             .is_some_and(|word| word.eq_ignore_ascii_case("half"))
         {
-            return super::recognize_half_controller_library_count(cursor);
+            if half_library_count_starts(cursor) {
+                return super::recognize_half_controller_library_count(cursor);
+            }
+            // `half your life, rounded up` (CR 107.1a): half of any operand
+            // of this grammar, with the rounding the text states.
+            cursor.enter("numeric.arithmetic.half");
+            cursor.consume("half")?;
+            let operand = recognize_primary(cursor, antecedent, event_binding, query_context)?;
+            cursor.enter("numeric.arithmetic.half.rounding");
+            let rounding = recognize_stated_rounding(cursor)?;
+            return Ok(NumericExpression::Divide {
+                left: Box::new(operand),
+                right: Box::new(NumericExpression::from(2)),
+                rounding,
+            });
         }
     }
     recognize_numeric_primary_expression(cursor, antecedent)
+}
+
+/// `half the number of cards in your library`: the established form.
+fn half_library_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    [
+        "half", "the", "number", "of", "cards", "in", "your", "library",
+    ]
+    .iter()
+    .enumerate()
+    .all(|(offset, word)| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    })
+}
+
+/// `, rounded up|down` (CR 107.1a): a fraction is rounded as the text
+/// says; without a stated rounding the expression is refused.
+fn recognize_stated_rounding(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericRounding> {
+    if cursor.peek().is_some_and(|raw| raw == ",") {
+        require_separator(cursor, ",")?;
+    }
+    cursor.consume("rounded")?;
+    match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("up") => {
+            cursor.consume("up")?;
+            Ok(NumericRounding::Up)
+        }
+        Some("down") => {
+            cursor.consume("down")?;
+            Ok(NumericRounding::Down)
+        }
+        _ => Err(cursor.fail("`rounded up` or `rounded down`")),
+    }
+}
+
+fn devotion_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["your", "devotion", "to"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `your devotion to COLOR` (CR 700.5). A devotion to several colors counts
+/// each hybrid symbol once (CR 700.5a) and is not read here.
+fn recognize_devotion(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.devotion");
+    cursor.consume_phrase(&["your", "devotion", "to"])?;
+    cursor.enter("numeric.devotion.color");
+    let color = cursor
+        .peek()
+        .and_then(crate::oracle::characteristic_vocabulary::lookup_card_color)
+        .ok_or_else(|| cursor.fail("a color"))?;
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    cursor.require(
+        !cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and")),
+        "a devotion to one color",
+    )?;
+    Ok(NumericExpression::Devotion(color))
 }
 
 fn peek_operator(cursor: &OracleTokenCursor<'_>) -> MachineResult<Option<ArithmeticOperator>> {

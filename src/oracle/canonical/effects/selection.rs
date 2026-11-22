@@ -47,24 +47,17 @@ pub(in crate::oracle::canonical) fn lower_target_selector_candidates(
                 "where": { "kind": "isOpponentOf", "player": controller() },
             }),
         ),
-        TargetSelector::Object(predicate) => (
-            "targetPermanent",
-            json!({
-                "kind": "permanents",
-                "where": lower_permanent_object_predicate(predicate),
-            }),
-        ),
+        TargetSelector::Object(predicate) => {
+            ("targetPermanent", lower_permanent_collection(predicate)?)
+        }
         TargetSelector::ControlledObject {
             predicate,
             controller: controller_scope,
-        } => (
-            "targetPermanent",
-            json!({
-                "kind": "permanents",
-                "controller": lower_object_controller_scope(*controller_scope),
-                "where": lower_permanent_object_predicate(predicate),
-            }),
-        ),
+        } => {
+            let mut candidates = lower_permanent_collection(predicate)?;
+            candidates["controller"] = lower_object_controller_scope(*controller_scope);
+            ("targetPermanent", candidates)
+        }
         TargetSelector::StackItem(_) => return None,
     })
 }

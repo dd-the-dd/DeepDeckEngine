@@ -778,10 +778,10 @@ pub(in crate::oracle::canonical) fn read_static_subject(
             && query.predicate.supports_domain(ObjectKind::Permanent),
         "a collection anchored in the battlefield-permanent domain",
     )?;
-    let mut objects = json!({
-        "kind": "permanents",
-        "where": lower_permanent_object_predicate(&query.predicate),
-    });
+    let mut objects = cursor.require_value(
+        lower_permanent_collection(&query.predicate),
+        "an ownership relation a permanent collection can carry",
+    )?;
     if let Some(scope) = query.controller {
         objects["controller"] = match scope {
             ObjectControllerScope::AbilityController => controller(),

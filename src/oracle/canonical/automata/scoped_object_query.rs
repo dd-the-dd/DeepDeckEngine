@@ -127,6 +127,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::HasKeyword(_)
         | ObjectPredicate::Status(_)
         | ObjectPredicate::Designation(_)
+        | ObjectPredicate::OwnedByAbilityController { .. }
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)

@@ -260,3 +260,80 @@ fn a_controller_relation_to_the_event_player_scopes_the_target_domain() {
         }]
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn ownership_relations_and_distributive_targets_reach_every_declared_object() {
+    // `target permanent you own` (CR 108.3): the collection's ownership.
+    let scepter = compiled(
+        "Owner Probe",
+        "Artifact",
+        ("0", "0"),
+        "{T}: Destroy target permanent you own.",
+    );
+    let mut engine = test_engine(2);
+    let mut borrowed = creature("borrowed", "player-0");
+    borrowed.owner = "player-1".to_string();
+    engine.state.players[0].battlefield = vec![creature("mine", "player-0"), borrowed];
+    engine.state.players[1].battlefield = vec![creature("theirs", "player-1")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let candidates = &scepter.rules[0]["declaration"]["decisions"][0]["candidates"];
+    assert_eq!(
+        engine.target_candidates("player-0", candidates),
+        Some(vec![TargetRef::Permanent {
+            instance_id: "mine".to_string()
+        }])
+    );
+
+    // `each of two target creatures`: the counter action reaches every
+    // target the trigger declared.
+    let herald = compiled(
+        "Distributive Probe",
+        "Creature \u{2014} Human",
+        ("1", "1"),
+        "When this creature enters, put a +1/+1 counter on each of two target creatures.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance("herald", herald, "player-0"),
+        creature("left", "player-0"),
+        creature("right", "player-0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let (player, index) = engine.permanent_position("herald").expect("entered");
+    let live = engine.state.players[player].battlefield[index].clone();
+    engine.enqueue_enter_battlefield_triggers(&live);
+    engine
+        .commit_pending_triggered_targets(&mut EmeritusDecisionProvider)
+        .expect("the targets are chosen");
+    assert_eq!(
+        engine.state.stack[0].targets.len(),
+        2,
+        "two declared targets"
+    );
+    let chosen = engine.state.stack[0]
+        .targets
+        .values()
+        .filter_map(|target| match target {
+            TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the trigger resolves");
+    for id in chosen {
+        let (player, index) = engine.permanent_position(&id).expect("on the battlefield");
+        assert_eq!(
+            engine.state.players[player].battlefield[index]
+                .counters
+                .get("+1/+1"),
+            Some(&1),
+            "{id}"
+        );
+    }
+}

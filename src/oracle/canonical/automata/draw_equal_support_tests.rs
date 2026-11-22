@@ -51,15 +51,17 @@ fn supported_half_library_count_keeps_its_typed_value() {
 #[test]
 fn malformed_supported_half_family_keeps_its_original_committed_diagnostic() {
     for (text, state, found) in [
+        // `half` is now the shared half of any operand (CR 107.1a): its
+        // operand and stated rounding fail at their own states.
         (
             "Draw cards equal to half a library",
-            "numeric.library-count.determiner",
-            "a",
+            "numeric.arithmetic.half.rounding",
+            "library",
         ),
         (
             "Draw cards equal to half the number of cards in your hand, rounded up",
-            "numeric.library-count.zone",
-            "hand",
+            "zone-list.zone",
+            "rounded",
         ),
     ] {
         let tokens = recognize_entities(text);
