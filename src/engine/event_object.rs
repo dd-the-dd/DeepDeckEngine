@@ -9,6 +9,9 @@ const EVENT_OBJECT_ID: &str = "triggeringPermanentId";
 const EVENT_OBJECT_IDENTITY: &str = "triggeringPermanentIdentity";
 const EVENT_OBJECT_CONTROLLER: &str = "triggeringPermanentController";
 const EVENT_OBJECT_OWNER: &str = "triggeringPermanentOwner";
+const EVENT_OBJECT_POWER: &str = "triggeringPermanentPower";
+const EVENT_OBJECT_TOUGHNESS: &str = "triggeringPermanentToughness";
+const EVENT_OBJECT_MANA_VALUE: &str = "triggeringPermanentManaValue";
 
 impl GameEngine {
     /// Captures the event object's incarnation, controller and owner when a
@@ -47,6 +50,25 @@ impl GameEngine {
         decisions
             .entry(EVENT_OBJECT_OWNER.to_string())
             .or_insert_with(|| Value::String(live.owner.clone()));
+        for (key, value) in self.event_object_characteristics(live) {
+            decisions.entry(key.to_string()).or_insert(value);
+        }
+    }
+
+    /// The characteristics a later read of the event object needs once it is
+    /// gone: power, toughness and mana value as they last existed.
+    fn event_object_characteristics(&self, card: &CardInstance) -> [(&'static str, Value); 3] {
+        [
+            (EVENT_OBJECT_POWER, Value::from(self.current_power(card))),
+            (
+                EVENT_OBJECT_TOUGHNESS,
+                Value::from(self.current_toughness(card)),
+            ),
+            (
+                EVENT_OBJECT_MANA_VALUE,
+                Value::from(mana_value(&card.definition)),
+            ),
+        ]
     }
 
     /// Refreshes the last known controller and owner of every pending event
@@ -55,6 +77,7 @@ impl GameEngine {
         let Some(identity) = Self::tracked_zone_identity(departing).map(str::to_string) else {
             return;
         };
+        let characteristics = self.event_object_characteristics(departing);
         for object in &mut self.state.stack {
             if object
                 .decisions
@@ -75,6 +98,9 @@ impl GameEngine {
                     EVENT_OBJECT_OWNER.to_string(),
                     Value::String(departing.owner.clone()),
                 );
+                for (key, value) in &characteristics {
+                    object.decisions.insert(key.to_string(), value.clone());
+                }
             }
         }
     }
@@ -98,16 +124,14 @@ impl GameEngine {
         })
     }
 
-    /// The controller or owner of an event object (the record's permanent or
-    /// the observed entering permanent): live while it is the same
-    /// incarnation, else its last known information.
-    pub(super) fn event_object_player(
+    /// The live event object (the record's permanent or the observed entering
+    /// permanent) while it is the incarnation the event saw.
+    fn event_object_live(
         &self,
-        relation: object_relation_lki::ObjectPlayerRelation,
         reference: &Value,
         stack_object: &StackObject,
-    ) -> Option<String> {
-        let live = match value_kind(reference) {
+    ) -> Option<&CardInstance> {
+        match value_kind(reference) {
             Some("observedEventObject") => self
                 .resolve_observed_event_permanent(reference, stack_object)
                 .ok()
@@ -118,8 +142,48 @@ impl GameEngine {
             },
         }
         .and_then(|instance_id| self.permanent_position(&instance_id))
-        .map(|(player, index)| &self.state.players[player].battlefield[index]);
-        if let Some(card) = live {
+        .map(|(player, index)| &self.state.players[player].battlefield[index])
+    }
+
+    /// `powerOf` / `toughnessOf` / `manaValueOf` an event object: live, else
+    /// its last known value. `None` when the expression is another property.
+    pub(super) fn event_object_numeric(
+        &self,
+        expression: &Value,
+        stack_object: &StackObject,
+    ) -> Option<Option<i32>> {
+        let key = match value_kind(expression)? {
+            "powerOf" => EVENT_OBJECT_POWER,
+            "toughnessOf" => EVENT_OBJECT_TOUGHNESS,
+            "manaValueOf" => EVENT_OBJECT_MANA_VALUE,
+            _ => return None,
+        };
+        if let Some(card) = self.event_object_live(&expression["object"], stack_object) {
+            return Some(Some(match key {
+                EVENT_OBJECT_POWER => self.current_power(card),
+                EVENT_OBJECT_TOUGHNESS => self.current_toughness(card),
+                _ => mana_value(&card.definition),
+            }));
+        }
+        Some(
+            stack_object
+                .decisions
+                .get(key)
+                .and_then(Value::as_i64)
+                .and_then(|value| i32::try_from(value).ok()),
+        )
+    }
+
+    /// The controller or owner of an event object (the record's permanent or
+    /// the observed entering permanent): live while it is the same
+    /// incarnation, else its last known information.
+    pub(super) fn event_object_player(
+        &self,
+        relation: object_relation_lki::ObjectPlayerRelation,
+        reference: &Value,
+        stack_object: &StackObject,
+    ) -> Option<String> {
+        if let Some(card) = self.event_object_live(reference, stack_object) {
             return Some(match relation {
                 object_relation_lki::ObjectPlayerRelation::Controller => card.controller.clone(),
                 object_relation_lki::ObjectPlayerRelation::Owner => card.owner.clone(),

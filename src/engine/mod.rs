@@ -2733,6 +2733,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 value_kind(&expression["object"]),
                 Some("self" | "abilitySource" | "candidate")
             ) || target_reference_supported(&expression["object"])
+                || entry_observation::observed_object_reference_supported(&expression["object"])
         }
         Some("counterCountOf") => {
             (matches!(
@@ -2744,6 +2745,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("abilitySourceLastKnownPower") => true,
         Some("manaValueOf") => {
             target_reference_supported(&expression["object"])
+                || entry_observation::observed_object_reference_supported(&expression["object"])
                 || (value_kind(&expression["object"]) == Some("boundObject")
                     && expression["object"]["binding"].is_string())
         }
@@ -31395,6 +31397,15 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        // An event object: live while it is the same incarnation, else its
+        // last known characteristics (CR 400.7, 608.2h).
+        if matches!(
+            value_kind(&expression["object"]),
+            Some("triggeringPermanent" | "observedEventObject")
+        ) && let Some(value) = self.event_object_numeric(expression, stack_object)
+        {
+            return value;
         }
         if value_kind(&expression["object"]) == Some("chosenTarget")
             && let Some(target_id) = expression["object"]["id"].as_str()

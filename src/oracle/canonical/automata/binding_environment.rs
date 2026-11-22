@@ -9,9 +9,10 @@
 //! Nothing is guessed: an absent slot is a committed diagnostic.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, ObjectPlayerRelation, ObjectPredicate, ObjectSubjectAntecedent,
-    PermanentEffectReference, PermanentSubjectScope, PlayerBinding, PlayerEffectSubject,
-    TargetNominal, TargetSelector, TypedObservedEventObject, selector_implies_nominal,
+    EffectRecognitionContext, NumericExpression, ObjectPlayerRelation, ObjectPredicate,
+    ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope, PlayerBinding,
+    PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
+    TypedObservedEventObject, selector_implies_nominal,
 };
 use crate::oracle::characteristic_vocabulary::{
     CharacteristicLexeme, lookup_object_selector_lexeme,
@@ -51,6 +52,8 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     /// The object the event record binds (`that creature`, `that land's
     /// controller` when no lexical antecedent has that nominal).
     pub event_object: Option<EventObjectSlot>,
+    /// The event is the cast of one spell (`that spell`).
+    pub event_spell: bool,
 }
 
 impl FrameBindings {
@@ -60,6 +63,7 @@ impl FrameBindings {
             defending_player: context.defending_player,
             combat_counterpart: context.combat_counterpart,
             event_object: context.event_object.clone(),
+            event_spell: context.event_spell,
         }
     }
 }
@@ -484,6 +488,89 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
     )?;
     cursor.consume(&noun)?;
     Ok(antecedent.reference)
+}
+
+/// Lexical lookahead for `that NOUN's power|toughness|mana value`.
+pub(in crate::oracle::canonical) fn bound_object_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && cursor
+            .token_slice(cursor.position() + 1, cursor.position() + 2)
+            .first()
+            .is_some_and(|token| token.token_type == "possessiveTypeWord")
+        && cursor.peek_ahead(2).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("power")
+                || raw.eq_ignore_ascii_case("toughness")
+                || raw.eq_ignore_ascii_case("mana")
+        })
+}
+
+/// The genitive `that NOUN's power|toughness|mana value` (CR 208, 202.3):
+/// the property of the object the environment names with that nominal. A
+/// lexical target keeps the declared-slot property (validated against its
+/// selector when lowered); otherwise the event's object when the event wrote
+/// that nominal for it.
+pub(in crate::oracle::canonical) fn recognize_bound_object_property(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.genitive.reference");
+    cursor.consume("that")?;
+    cursor.enter("numeric.genitive.nominal");
+    let possessive = cursor.consume_type("possessiveTypeWord")?;
+    let nominal = possessive_base(&possessive.raw)
+        .and_then(|surface| registered_nominal(&surface))
+        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    cursor.enter("numeric.genitive.property");
+    let property = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("power"))
+    {
+        cursor.consume("power")?;
+        SelectorNumericProperty::Power
+    } else if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("toughness"))
+    {
+        cursor.consume("toughness")?;
+        SelectorNumericProperty::Toughness
+    } else {
+        cursor.consume_phrase(&["mana", "value"])?;
+        SelectorNumericProperty::ManaValue
+    };
+    cursor.enter("numeric.genitive.antecedent");
+    if let Some(antecedent) = environment.object.as_ref()
+        && let PermanentEffectReference::Target(binding) = antecedent.reference
+        && lexical_antecedent_implies(antecedent, nominal)
+    {
+        return Ok(NumericExpression::QualifiedTargetProperty {
+            object: binding,
+            required_nominal: nominal.as_predicate(),
+            property,
+        });
+    }
+    // `that spell's mana value`: the spell the cast record binds.
+    if environment.frame.event_spell
+        && nominal == TargetNominal::Domain(super::ObjectKind::Spell)
+        && property == SelectorNumericProperty::ManaValue
+    {
+        return Ok(NumericExpression::EventValue(
+            super::EventNumericBinding::CastSpellManaValue,
+        ));
+    }
+    let slot = environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| slot.implies(nominal) && relation_supported(slot.reference))
+        .ok_or_else(|| cursor.fail("a preceding target or an event object with this nominal"))?;
+    Ok(NumericExpression::BoundObjectProperty {
+        object: PermanentEffectReference::Observed(slot.reference),
+        property,
+    })
 }
 
 /// The environment the parent installed. A parent that installs none binds

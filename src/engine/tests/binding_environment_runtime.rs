@@ -240,3 +240,31 @@ fn it_is_the_attacking_creature_the_event_records() {
         "the recorded attacker"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn genitive_power_of_a_dead_creature_is_its_last_known_power() {
+    // Kresh-like: the dying creature's power is read as it last existed on
+    // the battlefield (CR 608.2h), with its pump still applied.
+    let rules = parsed_rules(
+        "Enchantment",
+        "Whenever another creature dies, you gain life equal to that creature's power.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(permanent(
+        "watcher",
+        "Enchantment",
+        rules,
+        "player-0",
+    ));
+    let mut bear = permanent("pumped-bear", "Creature - Bear", Vec::new(), "player-1");
+    bear.power_modifier = 3;
+    let expected = 20 + engine.current_power(&bear);
+    engine.state.players[1].battlefield.push(bear);
+    admit(&mut engine);
+    engine
+        .move_permanent_to_graveyard("pumped-bear", "destroyed")
+        .expect("the creature dies");
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[0].life, expected);
+}

@@ -265,3 +265,91 @@ fn it_names_the_object_that_is_the_event_subject() {
     );
     assert_ne!(status, "canonical");
 }
+
+/// Every numeric leaf of the rules whose kind is a property read.
+fn property_reads(type_line: &str, oracle: &str) -> Vec<Value> {
+    fn collect(value: &Value, found: &mut Vec<Value>) {
+        match value {
+            Value::Object(map) => {
+                if matches!(
+                    map.get("kind").and_then(Value::as_str),
+                    Some("powerOf" | "toughnessOf" | "manaValueOf")
+                ) {
+                    found.push(value.clone());
+                }
+                map.values().for_each(|child| collect(child, found));
+            }
+            Value::Array(items) => items.iter().for_each(|child| collect(child, found)),
+            _ => {}
+        }
+    }
+    let (status, rules, states) = parse(type_line, oracle);
+    assert_eq!(status, "canonical", "{oracle}: {states:?}");
+    let mut found = Vec::new();
+    rules.iter().for_each(|rule| collect(rule, &mut found));
+    found
+}
+
+#[test]
+fn genitive_property_reads_the_named_object() {
+    // Real cards: Kresh the Bloodbraided (the dying creature), Hamletback
+    // Goliath (the entering creature).
+    // Unused recombination: a damaged creature's toughness as a life gain.
+    for (type_line, oracle, kind, object) in [
+        (
+            CREATURE,
+            "Whenever another creature dies, you may put X +1/+1 counters on this creature, where X is that creature's power.",
+            "powerOf",
+            "triggeringPermanent",
+        ),
+        (
+            CREATURE,
+            "Whenever another creature enters, you may put X +1/+1 counters on this creature, where X is that creature's power.",
+            "powerOf",
+            "observedEventObject",
+        ),
+        (
+            CREATURE,
+            "Whenever this creature deals combat damage to a creature, you gain life equal to that creature's toughness.",
+            "toughnessOf",
+            "triggeringPermanent",
+        ),
+    ] {
+        let reads = property_reads(type_line, oracle);
+        assert!(
+            reads
+                .iter()
+                .any(|read| read["kind"] == kind && read["object"]["kind"] == object),
+            "{oracle}: {reads:?}"
+        );
+    }
+    // Near miss: the event wrote a land; `that creature` names nothing.
+    let (status, _, _) = parse(
+        CREATURE,
+        "Whenever a land enters, you gain life equal to that creature's power.",
+    );
+    assert_ne!(status, "canonical");
+}
+
+#[test]
+fn spell_genitive_reads_the_cast_record() {
+    // Real card: Manaplasm. Unused recombination: the cast spell's mana
+    // value as a life gain.
+    for oracle in [
+        "Whenever you cast a spell, this creature gets +X/+X until end of turn, where X is that spell's mana value.",
+        "Whenever an opponent casts a spell, you gain life equal to that spell's mana value.",
+    ] {
+        let (status, rules, states) = parse(CREATURE, oracle);
+        assert_eq!(status, "canonical", "{oracle}: {states:?}");
+        assert!(
+            rules[0].to_string().contains("triggeringSpellManaValue"),
+            "{oracle}: {rules:?}"
+        );
+    }
+    // Near miss: a copied spell has no cast record to read.
+    let (status, _, _) = parse(
+        CREATURE,
+        "Whenever you cast or copy an instant or sorcery spell, you gain life equal to that spell's mana value.",
+    );
+    assert_ne!(status, "canonical");
+}

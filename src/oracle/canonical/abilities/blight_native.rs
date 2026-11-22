@@ -125,6 +125,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup
         | NumericExpression::Multiply { .. }
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::BoundObjectProperty { .. }
         | NumericExpression::GreatestPropertyAmong { .. }
         | NumericExpression::CardsInZone { .. }
         | NumericExpression::ActionResultCount { .. }

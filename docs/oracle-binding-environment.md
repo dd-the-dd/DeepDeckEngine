@@ -104,9 +104,31 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   Atarka, Bereavement, Stonehoof Chieftain, …), 0 perdue, 31 IR changées
   dont 0 déjà supportée.
 
+## Étape 4 réalisée : génitif numérique
+
+- `that NOUN's power|toughness|mana value` est une primaire de la grammaire
+  arithmétique partagée et l'objet de `equal to` sans cible fournie par le
+  parent, résolue par l'environnement : une cible lexicale
+  avec ce nominal garde la propriété de cible existante
+  (`QualifiedTargetProperty`, information de dernier état des cibles) ;
+  sinon l'objet d'événement (`NumericExpression::BoundObjectProperty`, IR
+  `powerOf|toughnessOf|manaValueOf` de `triggeringPermanent` ou
+  `observedEventObject`) ; `that spell's mana value` après un lancement lit
+  l'enregistrement de lancement (`triggeringSpellManaValue`).
+- Moteur : la force, l'endurance et la valeur de mana de l'objet
+  d'événement sont lues vivantes tant que l'incarnation est la même, sinon
+  en information de dernier état (capturée à la mise sur la pile,
+  rafraîchie à la sortie du champ de bataille).
+- Sondes (base de l'étape 3) : ligue 801 → 802 (+1 : Erratic Cyclops),
+  0 perdue ; corpus 13965 → 13983 (+18 : Orchard Warden, Kresh the
+  Bloodbraided, Hamletback Goliath, Manaplasm, Kaervek the Merciless, Heal
+  the Scars, …), 0 perdue, 27 IR changées dont 0 déjà supportée.
+- Reste explicite : `where X is that creature's mana value` après une cible
+  détruite (Death Mutation : `lower.where-x.definition` ne représente pas la
+  propriété de cible), `that card's` (cartes révélées), `that spell's` hors
+  valeur de mana.
+
 ## Suite
 
-1. Génitif numérique (`that creature's power`, `the sacrificed creature's
-   toughness`) par le même résolveur, à la place de `numeric.event-anaphor`.
-2. Cartes ayant changé de zone (`return it to its owner's hand` après une
+1. Cartes ayant changé de zone (`return it to its owner's hand` après une
    mort, CR 400.7) et références liées (CR 607, `the exiled card`).

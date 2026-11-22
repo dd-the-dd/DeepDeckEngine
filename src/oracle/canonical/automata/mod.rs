@@ -645,6 +645,9 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// event wrote for it (`that creature` must follow from it). Set only by
     /// the trigger parent from its typed event.
     pub event_object: Option<EventObjectSlot>,
+    /// The triggering event is the cast of one spell whose record the
+    /// runtime keeps (`that spell`). Set only by the trigger parent.
+    pub event_spell: bool,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb
@@ -898,6 +901,14 @@ pub(super) enum NumericExpression {
         effect_index: usize,
         filter: ActionResultFilter,
     },
+    /// A characteristic of an object the binding environment names without
+    /// a declaration (`that creature's power` after an event that binds it),
+    /// read live while it is the same object, else as last known information
+    /// (CR 400.7, 608.2h).
+    BoundObjectProperty {
+        object: PermanentEffectReference,
+        property: SelectorNumericProperty,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -926,6 +937,9 @@ pub(super) enum PermanentCountMeasure {
 pub(super) enum EventNumericBinding {
     DamageAmount,
     ReplacementQuantity,
+    /// The mana value of the spell a cast record binds (`that spell's mana
+    /// value`, CR 202.3), as recorded when it was cast.
+    CastSpellManaValue,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1038,6 +1052,7 @@ impl NumericExpression {
             | Self::CountDistinctCardTypes { .. }
             | Self::PlayerFact { .. }
             | Self::SacrificedCostObjectProperty(_)
+            | Self::BoundObjectProperty { .. }
             | Self::ActionResultCount { .. }
             | Self::CardsInZone { .. } => false,
         }
