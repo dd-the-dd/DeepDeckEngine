@@ -1548,6 +1548,15 @@ pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
     pub direction: CounterChangeDirection,
 }
 
+/// CR 122.5: moving counters removes them from one object and puts them on
+/// another; counters that could not be removed are not put.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct MoveCountersEffectNode {
+    /// The counter action in the removal direction.
+    pub removal: PutCountersOnObjectEffectNode,
+    pub destination: PermanentOperandNode,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct AmassEffectNode {
     pub player: LocalPlayerReference,
@@ -1954,6 +1963,9 @@ pub(super) enum LocalEffectNode {
     Earthbend(EarthbendActionNode),
     TransformPermanent(TransformPermanentEffectNode),
     PutCounters(PutCountersOnObjectEffectNode),
+    /// `move COUNT KIND counter(s) from OBJECT onto OBJECT` (CR 122.5): the
+    /// removal, then the placement of what was removed.
+    MoveCounters(MoveCountersEffectNode),
     MoveSource(MoveSourceEffectNode),
     MoveCards(MoveCardsEffectNode),
     ZoneBatch(ZoneBatchEffectNode),

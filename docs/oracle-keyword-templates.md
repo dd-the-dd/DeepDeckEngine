@@ -402,6 +402,35 @@ adversaires, planeswalker seul) et
 `the_life_lost_this_way_is_the_total_the_earlier_loss_recorded` (2 et
 3 joueurs).
 
+## Résultat d'un retrait : `If you can't` et déplacer des marqueurs (Fading, Graft)
+
+`removeCounters` enregistre déjà, par `bind`, l'objet dont il a retiré les
+marqueurs (vide s'il n'a pas pu). Deux capacités partagées lisent ce
+résultat :
+
+- `If you can't` (CR 609.3) est un atome de condition de phrase
+  (`PreviousActionImpossible`). La descente du programme lie l'instruction
+  juste avant la condition, qui doit être une seule action de premier
+  niveau enregistrant son résultat (`removeCounters`), et produit
+  `not(bindingNotEmpty)`. Sans telle action, échec explicite
+  (`lower.sentence-condition.previous-action.producer`).
+- `move COUNT KIND counter(s) from OBJECT onto OBJECT` (CR 122.5) : le
+  verbe `move` du lexique lit exactement les enfants de `remove … from`,
+  puis la destination de `put … on` ; il se compose en `removeCounters`
+  (avec `bind`) puis `putCounters` conditionné par `bindingNotEmpty` : un
+  marqueur non retiré n'est pas posé.
+- `the permanent` (CR 702.32a) : une description définie `the NOUN` (domaine
+  d'objet ou type de carte) désigne l'antécédent qu'un pronom désignerait,
+  par le même résolveur (`recognize_source_reference_with_antecedent`) ;
+  sans antécédent, échec explicite. **Changement minimal dans
+  `reference.rs` (fichier C2), signalé.**
+
+Preuves : `removal_results_drive_if_you_cant_and_counter_moves` (Fading,
+Graft, sœur `remove a charge counter … If you can't, you lose 3 life`,
+quasi-échecs `draw a card. If you can't` et `Sacrifice the creature.`),
+`fading_sacrifices_when_it_cannot_remove_a_fade_counter`,
+`graft_moves_a_counter_only_when_it_could_be_removed`.
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -412,8 +441,6 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
-| Graft | 13 | `effect.unsupported-verb` (`move a +1/+1 counter … onto that creature`) |
 | Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
 | Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
 | Dethrone | 9 | `trigger.envelope.separator` (`attacks the player with the most life`) |

@@ -289,9 +289,10 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
     declarations: TargetlessDeclarationSupport,
 ) -> Result<Value, TargetlessLoweringError> {
     match effect {
-        LocalEffectNode::CardAction(_) | LocalEffectNode::OptionalSequence(_) => {
-            Err(TargetlessLoweringError::UnsupportedEffect)
-        }
+        // A move needs the program's result binding (CR 122.5).
+        LocalEffectNode::CardAction(_)
+        | LocalEffectNode::OptionalSequence(_)
+        | LocalEffectNode::MoveCounters(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         LocalEffectNode::QuantifiedPlayerAction(node) => {
             lower_quantified_player_action(node, declarations)
         }

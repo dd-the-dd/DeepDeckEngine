@@ -52,6 +52,7 @@ pub(in crate::oracle::canonical) fn lower_casting_cost_reduction(
                         permanent_targets: &[],
                         card_targets: &[],
                         card_focus: None,
+                        previous_action_result: None,
                     },
                 )?;
             }

@@ -69,6 +69,10 @@ pub(in crate::oracle::canonical) enum SentenceConditionAtom {
         operator: NumericComparisonOperator,
         right: NumericExpression,
     },
+    /// `If you can't` (CR 609.3): the instruction just before the condition
+    /// could not be performed. The program lowering reads the result its
+    /// action records; an action recording none fails explicitly.
+    PreviousActionImpossible,
 }
 
 pub(in crate::oracle::canonical) type SentenceConditionNode =
@@ -182,6 +186,14 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<SentenceConditionAtom> {
     cursor.enter("condition.sentence.atom-kind");
+    if word_is(cursor, 0, "you")
+        && (contraction_is(cursor, 1, "can", "t") || word_is(cursor, 1, "cannot"))
+    {
+        cursor.enter("condition.sentence.previous-action");
+        cursor.consume("you")?;
+        consume_current(cursor)?;
+        return Ok(SentenceConditionAtom::PreviousActionImpossible);
+    }
     if word_is(cursor, 0, "you")
         && word_is(cursor, 1, "control")
         && !super::opponent_count_comparison_starts(cursor)

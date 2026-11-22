@@ -90,6 +90,7 @@ fn compile_recognized_trigger_program(
                     permanent_targets: &[],
                     card_targets: &[],
                     card_focus: None,
+                    previous_action_result: None,
                 },
             )
         })

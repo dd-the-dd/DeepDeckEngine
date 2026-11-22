@@ -10,6 +10,24 @@ pub(in crate::oracle::canonical) struct ConditionObjectBindings<'a> {
     pub card_targets: &'a [(TargetBinding, String)],
     /// The singular card result of the current card-collection scope.
     pub card_focus: Option<Value>,
+    /// The binding that records whether the instruction just before the
+    /// condition was performed (`If you can't`), when the program has one.
+    pub previous_action_result: Option<String>,
+}
+
+/// Whether the condition reads the result of the previous instruction.
+pub(in crate::oracle::canonical) fn sentence_condition_reads_previous_action(
+    condition: &SentenceConditionNode,
+) -> bool {
+    match condition {
+        BooleanConditionNode::Atom(atom) => {
+            matches!(atom, SentenceConditionAtom::PreviousActionImpossible)
+        }
+        BooleanConditionNode::And(children) | BooleanConditionNode::Or(children) => children
+            .iter()
+            .any(sentence_condition_reads_previous_action),
+        BooleanConditionNode::Not(child) => sentence_condition_reads_previous_action(child),
+    }
 }
 
 pub(in crate::oracle::canonical) fn lower_sentence_condition(
@@ -82,6 +100,14 @@ fn lower_sentence_condition_atom(
                 left,
                 integer(threshold.value),
             )
+        }
+        SentenceConditionAtom::PreviousActionImpossible => {
+            cursor.enter("lower.sentence-condition.previous-action");
+            let binding = cursor.require_value(
+                bindings.previous_action_result.clone(),
+                "a previous instruction whose action records whether it was performed",
+            )?;
+            not(json!({ "kind": "bindingNotEmpty", "binding": binding }))
         }
         SentenceConditionAtom::NumericRelation {
             left,

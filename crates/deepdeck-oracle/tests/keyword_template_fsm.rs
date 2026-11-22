@@ -804,3 +804,71 @@ fn the_life_lost_this_way_binds_the_nearest_earlier_loss() {
     );
     assert_eq!(parsed.status, "unsupported");
 }
+
+#[test]
+fn removal_results_drive_if_you_cant_and_counter_moves() {
+    // Fading (CR 702.32a): `If you can't` reads the bound result of the
+    // removal before it; `the permanent` names the removal's object.
+    let rules = expanded(
+        "Blastoderm",
+        "Creature \u{2014} Beast",
+        "Fading 3 (This creature enters with three fade counters on it. At the beginning of your upkeep, remove a fade counter from it. If you can't, sacrifice it.)",
+    );
+    let effects = &rules[1]["effects"];
+    assert_eq!(effects[0]["bind"], "actionResult:0");
+    assert_eq!(
+        effects[1]["condition"],
+        json!({ "kind": "not", "operand": { "kind": "bindingNotEmpty", "binding": "actionResult:0" } })
+    );
+    assert_eq!(
+        effects[1]["then"],
+        json!([{ "kind": "sacrificePermanent", "permanent": { "kind": "self" } }])
+    );
+    // Graft (CR 702.58a, 122.5): a move is the removal, then the placement
+    // of what was removed.
+    let rules = expanded(
+        "Cytoplast Root-Kin",
+        "Creature \u{2014} Elemental Mutant",
+        "Graft 2 (This creature enters with two +1/+1 counters on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.)",
+    );
+    let moved = &rules[1]["effects"][0]["effects"];
+    assert_eq!(moved[0]["kind"], "removeCounters");
+    assert_eq!(
+        moved[1]["condition"],
+        json!({ "kind": "bindingNotEmpty", "binding": "actionResult:0" })
+    );
+    assert_eq!(moved[1]["then"][0]["kind"], "putCounters");
+    // Sibling: a move onto a declared target in an activated ability.
+    let parsed = parse(
+        "Sibling",
+        "Artifact",
+        "{T}: Move a +1/+1 counter from this artifact onto target creature.",
+    );
+    let rule = single_rule(&parsed);
+    assert_eq!(rule["declaration"]["decisions"][0]["id"], "targetPermanent");
+    assert_eq!(
+        rule["effects"][1]["then"][0]["permanent"],
+        json!({ "kind": "chosenTarget", "id": "targetPermanent" })
+    );
+    // Sibling: `If you can't` after another counter kind, on a different
+    // trigger, with another consequence, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Enchantment",
+        "At the beginning of your end step, remove a charge counter from this enchantment. If you can't, you lose 3 life.",
+    );
+    assert_eq!(
+        single_rule(&parsed)["effects"][1]["then"][0]["kind"],
+        "loseLife"
+    );
+    // Near misses: `If you can't` without a recording action, and a
+    // definite description without an antecedent.
+    let parsed = parse(
+        "Near Miss",
+        "Enchantment",
+        "At the beginning of your upkeep, draw a card. If you can't, you lose 3 life.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    let parsed = parse("Near Miss", "Sorcery", "Sacrifice the creature.");
+    assert_eq!(parsed.status, "unsupported");
+}

@@ -180,6 +180,7 @@ fn lower_local_effect_sequence_with_collections(
             LocalEffectNode::ModifyStats(_)
             | LocalEffectNode::BecomeTypes(_)
             | LocalEffectNode::PutCounters(_)
+            | LocalEffectNode::MoveCounters(_)
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
@@ -307,6 +308,10 @@ fn lower_local_effect_sequence_with_collections(
             collections,
             &target_bindings,
             &card_target_bindings,
+            PreviousActionResult {
+                action_starts: &action_starts,
+                effects: &mut effects,
+            },
         )?;
         action_starts.push((effects.len(), decisions.len()));
         // A postposed definition supplies X to the actions of its sentence, so
@@ -709,6 +714,69 @@ fn lower_local_effect_sequence_with_collections(
                     })?;
                     effects.push(removal);
                 }
+            }
+            LocalEffectNode::MoveCounters(node) => {
+                // CR 122.5: remove, recording whether it was removed, then
+                // put the same counters on the destination only if so.
+                cursor.enter("lower.move-counters.source");
+                let sources = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.removal.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [source] = sources.as_slice() else {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("one object the counters are moved from"),
+                    ));
+                };
+                let mut removal = lower_counter_removal(source.clone(), &node.removal)
+                    .ok_or_else(|| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                            "a literal counter removal from the ability's own object (the runtime removes counters only from its source)",
+                        ))
+                    })?;
+                let binding = action_result_binding(effect_index);
+                removal["bind"] = json!(binding);
+                cursor.enter("lower.move-counters.destination");
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &node.removal.count,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let destinations = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.destination,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [destination] = destinations.as_slice() else {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("one object the counters are moved onto"),
+                    ));
+                };
+                effects.push(removal);
+                effects.push(json!({
+                    "kind": "conditional",
+                    "condition": { "kind": "bindingNotEmpty", "binding": binding },
+                    "then": [{
+                        "kind": "putCounters",
+                        "permanent": destination,
+                        "counter": node.removal.counter.as_str(),
+                        "count": amount,
+                    }],
+                    "else": [],
+                }));
             }
             LocalEffectNode::PutCounters(node) => {
                 // CR 701.10e: a doubled object's count is read from that same
@@ -1800,6 +1868,10 @@ fn lower_local_effect_sequence_with_collections(
         collections,
         &target_bindings,
         &card_target_bindings,
+        PreviousActionResult {
+            action_starts: &action_starts,
+            effects: &mut effects,
+        },
     )?;
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
@@ -1885,6 +1957,7 @@ impl ConditionalScopes {
         collections: &mut CardCollectionMemory,
         permanent_targets: &[(TargetBinding, String)],
         card_targets: &[(TargetBinding, String)],
+        mut previous: PreviousActionResult<'_>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
             if conditional.end() == effect_index {
@@ -1913,10 +1986,17 @@ impl ConditionalScopes {
         }
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
             if conditional.then_first == effect_index {
+                let previous_action_result =
+                    if sentence_condition_reads_previous_action(&conditional.condition) {
+                        previous.bind(cursor, effect_index)?
+                    } else {
+                        None
+                    };
                 let bindings = ConditionObjectBindings {
                     permanent_targets,
                     card_targets,
                     card_focus: collections.singular_focus_object(),
+                    previous_action_result,
                 };
                 self.conditions[index] = Some(
                     lower_sentence_condition(cursor, &conditional.condition, &bindings)
@@ -2042,6 +2122,57 @@ fn install_action_result_bindings(
         producer["bind"] = json!(action_result_binding(effect_index));
     }
     Ok(())
+}
+
+/// The lowered program so far, for a condition about the instruction just
+/// before it (`If you can't`, CR 609.3).
+struct PreviousActionResult<'a> {
+    action_starts: &'a [(usize, usize)],
+    effects: &'a mut Vec<Value>,
+}
+
+impl PreviousActionResult<'_> {
+    /// Runtime actions whose `bind` records whether they were performed: the
+    /// object they acted on, or nothing when they could not act.
+    const RECORDING_KINDS: [&'static str; 1] = ["removeCounters"];
+
+    /// Binds the result of the instruction before `reader`, which must be
+    /// exactly one top-level recording action. `None` without an earlier
+    /// instruction; the condition then fails explicitly.
+    fn bind(
+        &mut self,
+        cursor: &mut OracleTokenCursor<'_>,
+        reader: usize,
+    ) -> Result<Option<String>, EffectSequenceLoweringFailure> {
+        let Some(previous) = reader.checked_sub(1) else {
+            return Ok(None);
+        };
+        cursor.enter("lower.sentence-condition.previous-action.producer");
+        let Some(&(from, _)) = self.action_starts.get(previous) else {
+            return Ok(None);
+        };
+        let producers = (from..self.effects.len())
+            .filter(|position| {
+                self.effects[*position]["kind"]
+                    .as_str()
+                    .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
+            })
+            .collect::<Vec<_>>();
+        let [position] = producers.as_slice() else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one previous top-level action recording whether it was performed"),
+            ));
+        };
+        let binding = action_result_binding(previous);
+        match self.effects[*position].get("bind").and_then(Value::as_str) {
+            None => self.effects[*position]["bind"] = json!(binding),
+            Some(existing) => cursor.require(
+                existing == binding,
+                "a previous action without another result binding",
+            )?,
+        }
+        Ok(Some(binding))
+    }
 }
 
 /// Every pending action-result quantity `(reader, quantity)` under `value`.
@@ -2542,7 +2673,8 @@ fn sequence_numeric_target_slots(
                 | LocalEffectNode::TapPermanents(_)
                 | LocalEffectNode::PermanentKeywordAction(_)
                 | LocalEffectNode::ControlChange(_)
-                | LocalEffectNode::PutCounters(_) => (
+                | LocalEffectNode::PutCounters(_)
+                | LocalEffectNode::MoveCounters(_) => (
                     ordinary_action_targets(sequence.effects.get(binding.effect_index)?)?,
                     false,
                 ),

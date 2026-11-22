@@ -1091,3 +1091,108 @@ fn the_life_lost_this_way_is_the_total_the_earlier_loss_recorded() {
     );
     assert_eq!(extort.rules[0]["keywordProvenance"]["keyword"], "extort");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn fading_sacrifices_when_it_cannot_remove_a_fade_counter() {
+    // CR 702.32a: each upkeep removes a fade counter; `If you can't` reads
+    // whether that removal happened, and `the permanent` is its source.
+    let fader = compiled(
+        "Blastoderm",
+        "Creature \u{2014} Beast",
+        ("5", "5"),
+        "Shroud\nFading 1 (This creature enters with a fade counter on it. At the beginning of your upkeep, remove a fade counter from it. If you can't, sacrifice it.)",
+    );
+    let mut engine = test_engine(2);
+    engine.state.active_player = 0;
+    let mut entering = test_instance("blastoderm", fader, "player-0");
+    engine
+        .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+        .expect("it enters with its fade counter");
+    assert_eq!(entering.counters.get("fade"), Some(&1));
+    engine.state.players[0].battlefield = vec![entering];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let upkeep = |engine: &mut GameEngine| {
+        engine.enqueue_step_triggers("upkeep");
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut EmeritusDecisionProvider)
+                .expect("the upkeep trigger resolves");
+        }
+    };
+    // The counter is removed: it stays, with none left.
+    upkeep(&mut engine);
+    let (player, index) = engine
+        .permanent_position("blastoderm")
+        .expect("it stays while a counter could be removed");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("fade")
+            .copied()
+            .unwrap_or(0),
+        0
+    );
+    // No counter to remove: it is sacrificed.
+    upkeep(&mut engine);
+    assert!(engine.permanent_position("blastoderm").is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn graft_moves_a_counter_only_when_it_could_be_removed() {
+    // CR 702.58a, 122.5: the removal records whether it happened; only then
+    // is the counter put on the entering creature.
+    let graft = compiled(
+        "Cytoplast Root-Kin",
+        "Creature \u{2014} Elemental Mutant",
+        ("0", "0"),
+        "Graft 2 (This creature enters with two +1/+1 counters on it. Whenever another creature enters, you may move a +1/+1 counter from this creature onto it.)",
+    );
+    for (accept, source_after, entering_after) in [(true, 1, 1), (false, 2, 0)] {
+        let mut engine = test_engine(2);
+        let mut source = test_instance("root-kin", graft.clone(), "player-0");
+        source.counters.insert("+1/+1".to_string(), 2);
+        engine.state.players[0].battlefield = vec![source];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let entering = creature("newcomer", "player-1");
+        engine.state.players[1].battlefield.push(entering.clone());
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine.permanent_position("newcomer").expect("entered");
+        let live = engine.state.players[player].battlefield[index].clone();
+        engine.enqueue_enter_battlefield_triggers(&live);
+        assert_eq!(engine.state.stack.len(), 1, "one graft trigger");
+        engine
+            .resolve_top_stack(&mut Optional(accept))
+            .expect("graft resolves");
+        assert_eq!(
+            counters(&engine, "root-kin"),
+            source_after,
+            "accept {accept}"
+        );
+        assert_eq!(
+            counters(&engine, "newcomer"),
+            entering_after,
+            "accept {accept}"
+        );
+    }
+    // Without a counter left the intervening `if` keeps it off the stack.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![test_instance("root-kin", graft, "player-0")];
+    engine.state.players[1]
+        .battlefield
+        .push(creature("newcomer", "player-1"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let (player, index) = engine.permanent_position("newcomer").expect("entered");
+    let live = engine.state.players[player].battlefield[index].clone();
+    engine.enqueue_enter_battlefield_triggers(&live);
+    assert!(engine.state.stack.is_empty());
+}

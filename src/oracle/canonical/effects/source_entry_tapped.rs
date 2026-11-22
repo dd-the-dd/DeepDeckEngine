@@ -135,6 +135,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_state(
                 permanent_targets: &[],
                 card_targets: &[],
                 card_focus: None,
+                previous_action_result: None,
             },
         )?;
         // `unless P` is `if not P`; a negated proposition folds back to P.
