@@ -433,3 +433,37 @@ fn exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn() {
+    // CR 702.54a: checked as the creature enters; damage to a permanent or to
+    // its own controller does not count.
+    let minotaurs = compiled(
+        "Gorehorn Minotaurs",
+        "Creature \u{2014} Minotaur Warrior",
+        ("3", "3"),
+        "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
+    );
+    for (recipient, expected) in [
+        (None, None),
+        (Some(("player-0", false)), None),
+        (Some(("player-1", true)), None),
+        (Some(("player-1", false)), Some(&2)),
+    ] {
+        let mut engine = test_engine(2);
+        if let Some((player, to_permanent)) = recipient {
+            engine.record_event(
+                "damageDealt",
+                (!to_permanent).then(|| player.to_string()),
+                to_permanent.then(|| "some-permanent".to_string()),
+                json!({ "amount": 2, "combat": true }),
+            );
+        }
+        let mut entering = test_instance("gorehorn-minotaurs", minotaurs.clone(), "player-0");
+        engine
+            .apply_enter_replacements(&mut entering, &mut EmeritusDecisionProvider)
+            .expect("the creature enters");
+        assert_eq!(entering.counters.get("+1/+1"), expected, "{recipient:?}");
+    }
+}

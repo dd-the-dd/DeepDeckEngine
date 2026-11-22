@@ -188,6 +188,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
 | Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
 | Exploit | 702.110a | — (`namedAction: exploit`) | `exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed` |
+| Bloodthirst | 702.54a | N | `bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn` |
 | Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
 
 ## Défauts trouvés par les preuves runtime
@@ -222,6 +223,19 @@ avec Modular est fermé pour toute carte imprimée de même forme. Une sortie
 hors des sorties centrales ne produit pas de capture et garde l'échec
 explicite.
 
+## Corrections de grammaire partagée
+
+- **Condition d'entrée antéposée** (Bloodthirst, CR 702.54a) : le lecteur
+  partagé `SOURCE enters with N COUNTER counters on it` acceptait déjà une
+  condition `if CONDITION` après la modification ; il l'accepte aussi avant
+  (`If CONDITION, SOURCE enters with …`), dans le même emplacement unique.
+  Deux conditions (avant et après) échouent explicitement.
+- **Historique de dégâts d'un adversaire** : `an opponent was dealt damage
+  this turn` est un atome de condition statique (participe passé du lemme
+  `deal` lu dans le lexique des verbes). IR : `countOpponentsDealtDamageThisTurn`
+  (dégâts à un joueur adversaire ce tour, toute source, CR 120.3), évalué par
+  le moteur sur le journal des dégâts.
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -232,7 +246,6 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Bloodthirst | 21 | `ability-frame.conditional.body` (condition antéposée d'un remplacement d'entrée) |
 | Evolve | 23 | `reference.source.start` (`that creature's power`, objet d'événement) |
 | Renown | 20 | `selector.predicate.start` (désignation `renowned`) |
 | Mentor | 20 | `numeric.atom.start` (`power less than this creature's power`) |

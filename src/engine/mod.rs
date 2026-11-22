@@ -2650,9 +2650,11 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 .is_none_or(player_reference_supported)
                 && card_filter_supported(&expression["where"])
         }
-        Some("countOpponents" | "countOpponentsWhoLostLifeThisTurn") => {
-            player_reference_supported(&expression["player"])
-        }
+        Some(
+            "countOpponents"
+            | "countOpponentsWhoLostLifeThisTurn"
+            | "countOpponentsDealtDamageThisTurn",
+        ) => player_reference_supported(&expression["player"]),
         Some("countOpponentsWithPermanent") => {
             player_reference_supported(&expression["player"])
                 && card_filter_supported(&expression["where"])
@@ -9685,6 +9687,24 @@ impl GameEngine {
                         self.state.events.iter().any(|event| {
                             event.turn_number == self.state.turn_number
                                 && event.kind == "lifeLost"
+                                && event.player_id.as_deref() == Some(player.id.as_str())
+                                && integer_value(&event.detail["amount"])
+                                    .is_some_and(|amount| amount > 0)
+                        })
+                    })
+                    .count() as i32,
+            ),
+            // CR 120.3: damage dealt to the player this turn, by any source.
+            Some("countOpponentsDealtDamageThisTurn") => Some(
+                self.state
+                    .players
+                    .iter()
+                    .filter(|player| !player.has_lost && player.id != controller_id)
+                    .filter(|player| {
+                        self.state.events.iter().any(|event| {
+                            event.turn_number == self.state.turn_number
+                                && event.kind == "damageDealt"
+                                && event.card_instance_id.is_none()
                                 && event.player_id.as_deref() == Some(player.id.as_str())
                                 && integer_value(&event.detail["amount"])
                                     .is_some_and(|amount| amount > 0)
@@ -31804,9 +31824,11 @@ impl GameEngine {
             Some("deadPermanentPower") => stack_object.decisions["deadPermanentPower"]
                 .as_i64()
                 .and_then(|value| i32::try_from(value).ok()),
-            Some("countOpponents" | "countOpponentsWhoLostLifeThisTurn") => {
-                self.numeric_expression(expression, &stack_object.controller)
-            }
+            Some(
+                "countOpponents"
+                | "countOpponentsWhoLostLifeThisTurn"
+                | "countOpponentsDealtDamageThisTurn",
+            ) => self.numeric_expression(expression, &stack_object.controller),
             Some("sourceCastXValue") => {
                 self.source_cast_x_value(&stack_object.card.instance_id, decisions)
             }

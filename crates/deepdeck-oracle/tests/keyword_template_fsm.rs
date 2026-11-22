@@ -449,3 +449,43 @@ fn exploit_names_its_action_and_its_trigger_reads_the_keyword_event() {
     );
     assert_eq!(other.status, "unsupported");
 }
+
+#[test]
+fn bloodthirst_compiles_through_the_shared_conditional_entry_replacement() {
+    // Gorehorn Minotaurs (bloodthirst 2), CR 702.54a.
+    const TYPE_LINE: &str = "Creature \u{2014} Minotaur Warrior";
+    let rules = expanded(
+        "Gorehorn Minotaurs",
+        TYPE_LINE,
+        "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
+    );
+    let condition = json!({
+        "kind": "compare",
+        "left": {
+            "kind": "countOpponentsDealtDamageThisTurn",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        },
+        "operator": ">=",
+        "right": { "kind": "integer", "value": 1 },
+    });
+    assert_eq!(rules[0]["kind"], "replacementEffect");
+    assert_eq!(rules[0]["condition"], condition);
+    // The same condition written after the modification is the same rule
+    // (a printed sibling wording); the condition slot is shared.
+    let trailing = printed_rules(
+        TYPE_LINE,
+        "This creature enters with two +1/+1 counters on it if an opponent was dealt damage this turn.",
+    );
+    assert_eq!(rules, trailing);
+    // Near miss: one condition before and another after is refused.
+    let parsed = parse(
+        "Near Miss",
+        TYPE_LINE,
+        "If you control a Swamp, this creature enters with a +1/+1 counter on it if an opponent was dealt damage this turn.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert_eq!(
+        parsed.abilities[0].diagnostics[0].state.as_deref(),
+        Some("replacement.entry-counters.condition")
+    );
+}

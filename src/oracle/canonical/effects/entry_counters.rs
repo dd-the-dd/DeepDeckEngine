@@ -9,6 +9,20 @@ pub(in crate::oracle::canonical) fn claims_promoted_source_entry_counters_family
     input: &AbilityInput<'_>,
 ) -> bool {
     let mut cursor = OracleTokenCursor::new("source-entry-counters-claim", input.tokens);
+    // `If CONDITION, SOURCE enters with ...`: the modification starts after
+    // the condition's comma; the recognizer reads the condition itself.
+    if input
+        .tokens
+        .first()
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("if"))
+    {
+        let Some(comma) = input.tokens.iter().position(|token| token.raw == ",") else {
+            return false;
+        };
+        if cursor.advance_to(comma + 1).is_err() {
+            return false;
+        }
+    }
     if !matches!(
         recognize_source_reference(&mut cursor, input.name_links, input.name_resolution_failure),
         Ok(LocalObjectReference::SourceSelf)

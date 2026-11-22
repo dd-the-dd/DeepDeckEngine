@@ -17,7 +17,7 @@ use super::{
     recognize_quantified_player_condition, recognize_search_card_selector,
     recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
 };
-use super::{ClauseArguments, Voice};
+use super::{ClauseArguments, VerbForm, VerbLemma, Voice, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 /// A state of the ability's own source that a static condition can test.
@@ -72,6 +72,9 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     ControllerLostLifeThisTurn,
     /// `an opponent lost life this turn` (any opponent of the controller).
     OpponentLostLifeThisTurn,
+    /// `an opponent was dealt damage this turn` (CR 120.3: damage dealt to a
+    /// player, any source; any opponent of the controller).
+    OpponentDealtDamageThisTurn,
     /// `an opponent controls more lands than you`, `you control fewer creatures
     /// than an opponent`, `you control more QUERY than each opponent`: the
     /// shared permanent query counted for the controller and for opponents.
@@ -169,6 +172,15 @@ pub(in crate::oracle::canonical) fn recognize_static_condition_atom(
                 || word_is(cursor, 1, "attacked")))
     {
         return recognize_controller_history_atom(cursor);
+    }
+    if word_is(cursor, 0, "an")
+        && word_is(cursor, 1, "opponent")
+        && word_is(cursor, 2, "was")
+        && cursor
+            .peek_ahead(3)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Deal, VerbForm::PastParticiple))
+    {
+        return recognize_opponent_damage_history_atom(cursor);
     }
     if word_is(cursor, 0, "no") || (word_is(cursor, 0, "a") && word_is(cursor, 1, "player")) {
         return recognize_last_turn_spell_atom(cursor);
@@ -551,6 +563,28 @@ fn try_recognize_life_history_atom(
             ));
         }
     }))
+}
+
+/// `an opponent was dealt damage this turn`: the passive of the `deal` lemma
+/// (CR 120.1) with an opponent as recipient, as a this-turn history.
+fn recognize_opponent_damage_history_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticConditionAtom> {
+    cursor.enter("condition.static.damage-history.recipient");
+    cursor.consume_phrase(&["an", "opponent"])?;
+    cursor.enter("condition.static.damage-history.verb");
+    cursor.consume("was")?;
+    let participle = cursor
+        .peek()
+        .filter(|raw| is_verb_form(raw, VerbLemma::Deal, VerbForm::PastParticiple))
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("the passive participle of `deal`"))?;
+    cursor.consume(&participle)?;
+    cursor.enter("condition.static.damage-history.object");
+    cursor.consume("damage")?;
+    cursor.enter("condition.static.damage-history.time");
+    cursor.consume_phrase(&["this", "turn"])?;
+    Ok(StaticConditionAtom::OpponentDealtDamageThisTurn)
 }
 
 /// `a creature died this turn`, `two or more Elves died this turn`: the
