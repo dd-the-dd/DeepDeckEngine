@@ -122,7 +122,7 @@ pub(in crate::oracle::canonical) fn cost_outcome_follows_first_sentence(
     false
 }
 
-fn outcome_at(
+pub(in crate::oracle::canonical) fn outcome_at(
     cursor: &OracleTokenCursor<'_>,
     offset: usize,
 ) -> Option<(CostOutcomeContinuation, usize)> {

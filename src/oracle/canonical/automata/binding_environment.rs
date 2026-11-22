@@ -102,9 +102,10 @@ impl BindingEnvironment {
                 |reference| ObjectSubjectAntecedent {
                     reference,
                     selector: match reference {
-                        PermanentEffectReference::Target(_) => {
-                            context.permanent_subject_selector.clone()
-                        }
+                        PermanentEffectReference::Target(_)
+                        | PermanentEffectReference::Observed(
+                            TypedObservedEventObject::MovedOntoBattlefield,
+                        ) => context.permanent_subject_selector.clone(),
                         _ => None,
                     },
                 },
@@ -499,9 +500,15 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
     let antecedent = environment.object.as_ref().ok_or_else(|| {
         cursor.fail("a preceding singular permanent subject in this lexical scope")
     })?;
-    let PermanentEffectReference::Target(_) = antecedent.reference else {
+    // A declared target, or the card a move put onto the battlefield (its
+    // declared card predicate is the selector the nominal must follow from).
+    if !matches!(
+        antecedent.reference,
+        PermanentEffectReference::Target(_)
+            | PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield)
+    ) {
         return Err(cursor.fail("a declared target as the nominal anaphor antecedent"));
-    };
+    }
     let selector = antecedent
         .selector
         .as_ref()

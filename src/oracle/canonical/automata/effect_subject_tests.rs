@@ -382,3 +382,125 @@ fn a_permanent_subject_does_not_untap_near_misses() {
         assert_ne!(status, "canonical", "{oracle}");
     }
 }
+
+/// CR 400.7: the effect that put one card onto the battlefield finds the
+/// permanent it became; `it` and `that creature` name it.
+#[test]
+fn the_card_a_move_put_onto_the_battlefield_is_the_antecedent() {
+    // Real card: Bond of Revival (`it`). Sibling: the nominal anaphor gives
+    // the same IR. Unused recombination: a counter on the returned card.
+    let pronoun = effects(
+        SORCERY,
+        "Return target creature card from your graveyard to the battlefield. It gains haste until end of turn.",
+    );
+    let nominal = effects(
+        SORCERY,
+        "Return target creature card from your graveyard to the battlefield. That creature gains haste until end of turn.",
+    );
+    assert_eq!(pronoun, nominal);
+    let counters = effects(
+        SORCERY,
+        "Return target creature card from your graveyard to the battlefield. Put a +1/+1 counter on it.",
+    );
+    let moved = counters
+        .iter()
+        .find(|effect| effect["kind"] == "moveCards")
+        .expect("the move");
+    let binding = moved["bind"].clone();
+    assert!(binding.is_string(), "{moved:#}");
+    let placement = counters
+        .iter()
+        .find(|effect| effect["kind"] == "putCounters")
+        .expect("the counters");
+    assert_eq!(placement["permanent"]["binding"], binding, "{placement:#}");
+}
+
+/// Near misses: the nominal must follow from the moved card's predicate, and
+/// a move of several cards is no singular antecedent.
+#[test]
+fn the_moved_card_antecedent_near_misses() {
+    for oracle in [
+        "Return target creature card from your graveyard to the battlefield. That land gains haste until end of turn.",
+        "Return up to two target creature cards from your graveyard to the battlefield. It gains haste until end of turn.",
+    ] {
+        let (status, _, _) = parse(SORCERY, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}
+
+/// CR 603.12: `When you do,` after any sentence of a spell is the reflexive
+/// frame of that sentence's instruction; the spell body is an effect program
+/// exactly as a triggered ability's body is.
+#[test]
+fn a_spell_sentence_opens_a_reflexive_frame() {
+    // Real cards: Faebloom Trick (first sentence), Lithobraking (`Then you
+    // may` permission after a first step). Unused recombination: the spell
+    // and the triggered ability give the same program.
+    let spell = effects(
+        SORCERY,
+        "Sacrifice a creature. When you do, target creature gets -2/-2 until end of turn.",
+    );
+    let triggered = effects(
+        CREATURE,
+        "When this creature enters, sacrifice a creature. When you do, target creature gets -2/-2 until end of turn.",
+    );
+    assert_eq!(spell, triggered);
+    assert_eq!(spell[0]["kind"], "performAction", "{spell:#?}");
+    let faebloom = effects(
+        "Instant",
+        "Create two 1/1 blue Faerie creature tokens with flying. When you do, tap target creature an opponent controls.",
+    );
+    assert_eq!(faebloom[0]["kind"], "performAction", "{faebloom:#?}");
+    let later = effects(
+        SORCERY,
+        "Mill two cards. Then you may sacrifice a creature. When you do, draw a card.",
+    );
+    assert_eq!(later[0]["kind"], "mill", "{later:#?}");
+    assert_eq!(later.len(), 2, "{later:#?}");
+}
+
+/// Near miss: an instruction the runtime cannot measure as one performance
+/// fails at the reflexive lowering instead of being approximated.
+#[test]
+fn a_reflexive_frame_needs_one_measured_instruction() {
+    let (status, _, states) = parse(SORCERY, "Scry 1. When you do, draw a card.");
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "lower.program.reflexive-action.action"),
+        "{states:?}"
+    );
+}
+
+/// `For each opponent, BODY` is the distributive player frame (CR 608.2c),
+/// never a count: a body with targets would declare them per player (CR
+/// 601.2c) and fails as an engine gap; any other body has no player-loop
+/// lowering yet. Both failures are explicit and distinct.
+#[test]
+fn a_player_population_is_a_distributive_frame() {
+    // Real cards: Blatant Thievery (per-player targets), Soul of Eternity's
+    // shape (no target).
+    let (status, _, states) = parse(
+        SORCERY,
+        "For each opponent, gain control of target permanent that player controls.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.for-each-player.per-player-targets"),
+        "{states:?}"
+    );
+    let (status, _, states) = parse(
+        SORCERY,
+        "For each player, create a 1/1 white Soldier creature token.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.for-each-player.body"),
+        "{states:?}"
+    );
+}

@@ -673,6 +673,15 @@ fn recognize_effect_sequence_attempt_scoped(
                             )
                         })
                         .cloned(),
+                    super::PermanentSubjectScope::Local(Some(
+                        super::PermanentEffectReference::Observed(
+                            super::TypedObservedEventObject::MovedOntoBattlefield,
+                        ),
+                    )) => memory
+                        .effects
+                        .last()
+                        .and_then(super::permanent_subject::moved_onto_battlefield_selector)
+                        .flatten(),
                     _ => None,
                 };
                 // `its controller` / `that NOUN's owner`: the singular object
@@ -706,6 +715,17 @@ fn recognize_effect_sequence_attempt_scoped(
                                         )
                                     })
                                     .cloned(),
+                                // The card a move put onto the battlefield: its
+                                // declared card predicate names the permanent.
+                                super::PermanentEffectReference::Observed(
+                                    super::TypedObservedEventObject::MovedOntoBattlefield,
+                                ) => memory
+                                    .effects
+                                    .last()
+                                    .and_then(
+                                        super::permanent_subject::moved_onto_battlefield_selector,
+                                    )
+                                    .flatten(),
                                 _ => None,
                             },
                         }),
@@ -1109,6 +1129,13 @@ fn recognize_effect_sequence_attempt_scoped(
                                 && memory.effects.len() == memory.sentence_start
                                 && for_each_count_starts(cursor)
                             {
+                                // `For each opponent, ...`: a population of
+                                // players is the distributive frame, not a
+                                // countable; its explicit failure names why.
+                                if let Some(width) = player_population_width(cursor) {
+                                    attempt_frame.commit();
+                                    return Err(player_iteration_failure(cursor, width));
+                                }
                                 let mut trial = cursor.clone();
                                 let count = recognize_preposed_for_each(&mut trial)?;
                                 trial.enter("sequence.for-each.preposed-separator");
@@ -2499,6 +2526,52 @@ fn recognize_effect(
             .map(LocalEffectNode::OptionalCardDeployment);
     }
     Err(cursor.fail("a supported effect subject"))
+}
+
+/// Token width of `for each opponent|player|other player ,` at the cursor.
+fn player_population_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let is = |offset: usize, word: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    };
+    if !(is(0, "for") && is(1, "each")) {
+        return None;
+    }
+    let width = if is(2, "opponent") || is(2, "player") {
+        3
+    } else if is(2, "other") && is(3, "player") {
+        4
+    } else {
+        return None;
+    };
+    is(width, ",").then_some(width + 1)
+}
+
+/// CR 608.2c: `For each PLAYER, BODY` repeats the body once per player of
+/// the population. A body that declares targets would declare them per
+/// player while the spell or ability is put on the stack (CR 601.2c), which
+/// the engine's single declaration does not represent; any other body has no
+/// player-iteration lowering yet. Both stay explicit.
+fn player_iteration_failure(cursor: &OracleTokenCursor<'_>, width: usize) -> MachineFailure {
+    let mut body = cursor.clone();
+    let _ = body.advance_to(body.position() + width);
+    let mut targets = false;
+    let mut offset = 0;
+    while let Some(raw) = body.peek_ahead(offset) {
+        if raw == "." {
+            break;
+        }
+        targets |= raw.eq_ignore_ascii_case("target");
+        offset += 1;
+    }
+    if targets {
+        body.enter("sequence.for-each-player.per-player-targets");
+        body.fail("targets declared once per player of the population (CR 601.2c), which the engine does not declare")
+    } else {
+        body.enter("sequence.for-each-player.body");
+        body.fail("a player-iteration body with a lowering")
+    }
 }
 
 /// The count a preposed `for each` names, resolved once its action is read.

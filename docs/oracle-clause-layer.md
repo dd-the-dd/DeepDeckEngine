@@ -309,3 +309,64 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   installé sur la cible engagée).
 - Reste : `Those creatures don't …` après une cible plurielle
   (antécédent pluriel non lié).
+
+## Phase 6, suite (après #56)
+
+Revue de #55 (`reference.rs`) : `the NOUN` (`sacrifice the permanent`,
+CR 702.32a) résout comme un pronom vers l'antécédent source du résolveur
+de liaisons. Conservé tel quel : la description définie ne nomme jamais un
+objet nouveau et ne lit que l'antécédent source déjà prouvé ; elle ne
+couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
+`that NOUN`, validée contre le sélecteur déclaré).
+
+### Étape 18 : la carte qu'un déplacement met sur le champ de bataille
+
+- CR 400.7 : l'effet qui met une carte sur le champ de bataille retrouve le
+  permanent qu'elle devient. Une carte choisie, une cible de carte unique
+  ou la dernière action d'une séquence facultative locale devient
+  l'antécédent `MovedOntoBattlefield` (liaison `moveCards.bind` existante,
+  lue par `singleBoundObject`). Le prédicat de carte déclaré sert de
+  sélecteur pour l'anaphore nominale (`that creature`), comme pour une
+  cible.
+- Sonde : ligue 815 → 816 (+1 : Pre-War Formalwear), corpus 14562 → 14567
+  (+5), 0 perte, aucune IR modifiée hors des cartes gagnées. Preuves : IR
+  identique entre `it` et `that creature`, recombinaison (compteur sur la
+  carte rendue), quasi-échecs (nominal non impliqué, plusieurs cartes),
+  exécution (le compteur va sur le permanent rendu).
+- Restes : la permission de programme `You may put … . That creature …`
+  (deux étapes de programme : l'antécédent ne traverse pas la frontière
+  d'étape) et les retards `Exile it at the beginning of the next end step`.
+
+### Étape 19 : cadre réflexif `When you do,` dans le corps d'un sort
+
+- Le corps d'un sort devient un programme d'effets dès qu'une phrase
+  quelconque est suivie d'un connecteur réflexif ; le connecteur est lu par
+  `outcome_at` partagé (`When you do`, `When they do`, `When that player
+  does`), pas par une suite de mots. Une phrase réflexive postérieure ouvre
+  une étape de programme comme un bloc de coût facultatif
+  (`later_reflexive_action_block`). Un `Then` initial de phrase avant `you
+  may` est lu (CR 608.2c : l'ordre des étapes l'exprime déjà).
+- Abaissement inchangé (`performAction` + capacité réflexive, CR 603.12) ;
+  une instruction que le moteur ne mesure pas comme une seule exécution
+  échoue en `lower.program.reflexive-action.action`.
+- Sonde : ligue 816 → 816, corpus 14567 → 14571 (+4 : Faebloom Trick,
+  Thrilling Discovery, Lithobraking, Invasion of Ergamon), 0 perte, IR des
+  cartes supportées inchangée. Preuves : même programme pour le sort et la
+  capacité déclenchée, permission `Then you may` suivie du cadre,
+  quasi-échec (`Scry 1. When you do,`).
+- Restes : corps des capacités activées (séquence, pas programme),
+  instructions abaissées en plusieurs primitives (scry, sacrifice par un
+  autre joueur), antécédent `it` transporté dans la capacité réflexive.
+
+### Étape 20 : `For each PLAYER, …` cadre distributif explicite
+
+- Une population de joueurs après `For each` est le cadre distributif
+  (CR 608.2c), jamais un dénombrable. Un corps qui déclare des cibles les
+  déclarerait par joueur à la mise sur la pile (CR 601.2c) : le moteur ne
+  déclare qu'une fois, échec `sequence.for-each-player.per-player-targets`
+  (52 capacités, 33 cartes dont c'est le seul bloqueur). Sans cible, le corps
+  n'a pas encore d'abaissement en boucle de joueurs (`forEachPlayer`
+  existe) : `sequence.for-each-player.body` (29 capacités, 20 cartes à
+  bloqueur unique, surtout des copies de jetons attaquant « that player »).
+- Sonde : ligue 816 → 816, corpus 14571 → 14571, 0 perte, aucune IR
+  modifiée ; seuls les diagnostics changent.

@@ -124,7 +124,15 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         let other_player_permission = other_player_permission_starts(cursor);
         // A later sentence may open an optional-cost block. The leading
         // sentences are then an ordinary, separately bounded program step.
-        let block_start = later_optional_outcome_block(cursor);
+        // The earliest later block: an optional-cost block or a sentence
+        // followed by a reflexive connector.
+        let block_start = match (
+            later_optional_outcome_block(cursor),
+            later_reflexive_action_block(cursor),
+        ) {
+            (Some(optional), Some(reflexive)) => Some(optional.min(reflexive)),
+            (optional, reflexive) => optional.or(reflexive),
+        };
         let Some(block_start) = block_start.filter(|_| !other_player_permission) else {
             if other_player_permission {
                 return recognize_other_player_permission(
@@ -167,6 +175,10 @@ fn recognize_permission_program(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
+    if sentence_then_width(cursor) == 1 {
+        cursor.enter("program.optional.then");
+        cursor.consume("then")?;
+    }
     cursor.enter("program.optional.actor");
     // The permission's actor reads the frame the program's parent owns
     // (`that player may ...` names the event's player).
@@ -334,20 +346,52 @@ fn recognize_optional_action_block(
     })
 }
 
-/// True when the current top-level sentence is followed by `When you do,`.
+/// True when the current top-level sentence is followed by a reflexive
+/// connector (`When you do,`, `When they do,`, `When that player does,`):
+/// the shared outcome connector reads it, whoever performs the instruction.
 fn reflexive_outcome_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
     let Some(end) = top_level_sentence_end(cursor) else {
         return false;
     };
-    let offset = end - cursor.position();
-    ["when", "you", "do", ","]
-        .iter()
-        .enumerate()
-        .all(|(index, word)| {
-            cursor
-                .peek_ahead(offset + index)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
-        })
+    super::outcome_at(cursor, end - cursor.position())
+        .is_some_and(|(outcome, _)| outcome == CostOutcomeContinuation::WhenPaid)
+}
+
+/// The absolute start of a later top-level sentence followed by a reflexive
+/// connector: the program reads the sentences before it as an ordinary step
+/// and the reflexive block from there (CR 603.12).
+pub(in crate::oracle::canonical) fn later_reflexive_action_block(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    let mut depth = 0usize;
+    let mut offset = 0;
+    let mut sentence_start = cursor.position();
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => {
+                let reflexive = super::outcome_at(cursor, offset + 1)
+                    .is_some_and(|(outcome, _)| outcome == CostOutcomeContinuation::WhenPaid);
+                if reflexive {
+                    return (sentence_start > cursor.position()).then_some(sentence_start);
+                }
+                sentence_start = cursor.position() + offset + 1;
+            }
+            _ => {}
+        }
+        offset += 1;
+    }
+    None
+}
+
+/// True when any top-level sentence of the body is followed by a reflexive
+/// connector: the body is an effect program, not one sequence.
+pub(in crate::oracle::canonical) fn reflexive_action_block_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    reflexive_outcome_follows_first_sentence(cursor)
+        || later_reflexive_action_block(cursor).is_some()
 }
 
 /// `ACTION. When you do, BODY.` without a permission: the action is the
@@ -494,12 +538,23 @@ fn recognize_other_player_permission(
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let then = sentence_then_width(cursor);
     cursor
-        .peek()
+        .peek_ahead(then)
         .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
         && cursor
-            .peek_ahead(1)
+            .peek_ahead(then + 1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
+}
+
+/// `Then` opening a sentence orders it after the previous one, which the
+/// program's step order already states (CR 608.2c): one token, or none.
+fn sentence_then_width(cursor: &OracleTokenCursor<'_>) -> usize {
+    usize::from(
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("then")),
+    )
 }
 
 fn push_program_steps(steps: &mut Vec<EffectProgramNode>, program: EffectProgramNode) {
@@ -526,7 +581,9 @@ pub(in crate::oracle::canonical) fn later_optional_outcome_block(
                 let mut probe = cursor.clone();
                 if probe.advance_to(start).is_ok() && optional_program_starts(&probe) {
                     let mut head = probe.clone();
-                    if head.advance_to(start + 2).is_ok()
+                    if head
+                        .advance_to(start + sentence_then_width(&probe) + 2)
+                        .is_ok()
                         && cost_outcome_follows_first_sentence(&head)
                     {
                         return Some(start);
