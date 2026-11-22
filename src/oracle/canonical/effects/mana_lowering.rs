@@ -61,7 +61,7 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
                 unreachable!("the land-color-domain automaton currently requires an opponent")
             }
             ManaChoiceDomain::LandColorsControlledBy(
-                ObjectControllerScope::NotAbilityController,
+                ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer,
             ) => {
                 unreachable!(
                     "the land-color-domain automaton does not accept a negative controller scope"

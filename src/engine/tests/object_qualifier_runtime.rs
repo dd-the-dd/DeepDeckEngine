@@ -224,3 +224,39 @@ fn relative_history_clauses_read_this_turns_events_for_the_same_object() {
         }])
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn a_controller_relation_to_the_event_player_scopes_the_target_domain() {
+    // `target artifact that player controls` after a combat-damage event:
+    // the damaged player, resolved by the binding environment (CR 603.2).
+    let raider = compiled(
+        "Raider Probe",
+        "Creature \u{2014} Dinosaur",
+        ("3", "3"),
+        "Whenever this creature deals combat damage to a player, destroy target artifact that player controls.",
+    );
+    let artifact =
+        |id: &str, controller: &str| test_instance(id, test_definition(id, "Artifact"), controller);
+    let mut engine = test_engine(3);
+    engine.state.players[0].battlefield = vec![
+        test_instance("raider", raider, "player-0"),
+        artifact("mine", "player-0"),
+    ];
+    engine.state.players[1].battlefield = vec![artifact("hit", "player-1")];
+    engine.state.players[2].battlefield = vec![artifact("spared", "player-2")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine.enqueue_combat_damage_to_player_triggers("raider", "player-1", 3);
+    assert_eq!(engine.state.stack.len(), 1, "one damage trigger");
+    engine
+        .commit_pending_triggered_targets(&mut EmeritusDecisionProvider)
+        .expect("the target is chosen");
+    assert_eq!(
+        engine.state.stack[0].targets.values().collect::<Vec<_>>(),
+        vec![&TargetRef::Permanent {
+            instance_id: "hit".to_string()
+        }]
+    );
+}

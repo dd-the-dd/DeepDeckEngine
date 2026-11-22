@@ -63,6 +63,8 @@ enum QuerySubjectScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// `defending player` / `that player` bound by the triggering event.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -78,6 +80,8 @@ pub(in crate::oracle::canonical) enum ObjectOwnershipScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// The player the triggering event records.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -109,6 +113,7 @@ pub(in crate::oracle::canonical) fn recognize_related_object_query_before_separa
             QuerySubjectScope::OpponentOfAbilityController => {
                 ObjectOwnershipScope::OpponentOfAbilityController
             }
+            QuerySubjectScope::EventPlayer => ObjectOwnershipScope::EventPlayer,
         }),
     })
 }
@@ -117,6 +122,7 @@ fn object_relation_kind_at(cursor: &OracleTokenCursor<'_>) -> MachineResult<Quer
     let offset = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some("you") => 1,
         Some("an" | "your") => 2,
+        _ if bound_player_relation_starts(cursor) => 2,
         _ => return Err(cursor.fail("an explicit player relation subject")),
     };
     let offset = offset
@@ -528,7 +534,8 @@ fn recognize_object_query_with_cardinality_policy(
                     token.eq_ignore_ascii_case("you")
                         || token.eq_ignore_ascii_case("an")
                         || token.eq_ignore_ascii_case("your")
-                }) {
+                }) || bound_player_relation_starts(cursor)
+                {
                     let role = if matches!(relation_kind, QueryRelationKind::ObjectRelations) {
                         object_relation_kind_at(cursor)?
                     } else {
@@ -1133,7 +1140,21 @@ fn recognize_object_subject_scope(
         state = match state {
             ControllerQualifierState::Subject => {
                 cursor.enter("selector.controller-qualifier.subject");
-                if cursor
+                if bound_player_relation_starts(cursor) {
+                    // `defending player controls`, `that player controls`:
+                    // the player is resolved by the binding environment
+                    // (C2), never guessed by this query.
+                    cursor.enter("selector.controller-qualifier.bound-player");
+                    let environment = super::installed_binding_environment(cursor);
+                    let player = super::recognize_bound_player_reference(cursor, &environment)?;
+                    cursor.require(
+                        player == super::BoundPlayerReference::EventPlayer,
+                        "a player the triggering event records",
+                    )?;
+                    scope = Some(QuerySubjectScope::EventPlayer);
+                    plural_opponents = false;
+                    ControllerQualifierState::RelationOrNegation
+                } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
                 {
@@ -1187,7 +1208,10 @@ fn recognize_object_subject_scope(
                         })?;
                         ControllerQualifierState::Complete
                     }
-                    Some(QuerySubjectScope::OpponentOfAbilityController) => {
+                    Some(
+                        QuerySubjectScope::OpponentOfAbilityController
+                        | QuerySubjectScope::EventPlayer,
+                    ) => {
                         cursor.consume(match (relation_kind, plural_opponents) {
                             (QueryRelationKind::Control, true) => "control",
                             (QueryRelationKind::Control, false) => "controls",
@@ -1234,7 +1258,20 @@ fn object_controller_scope(scope: QuerySubjectScope) -> ObjectControllerScope {
         QuerySubjectScope::OpponentOfAbilityController => {
             ObjectControllerScope::OpponentOfAbilityController
         }
+        QuerySubjectScope::EventPlayer => ObjectControllerScope::EventPlayer,
     }
+}
+
+/// `defending player controls|owns` / `that player controls|owns`.
+fn bound_player_relation_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    (word(0, "defending") || word(0, "that"))
+        && word(1, "player")
+        && (word(2, "controls") || word(2, "owns"))
 }
 
 fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
@@ -1244,6 +1281,7 @@ fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
         QuerySubjectScope::OpponentOfAbilityController => {
             SpellCasterScope::OpponentOfAbilityController
         }
+        QuerySubjectScope::EventPlayer => SpellCasterScope::EventPlayer,
     }
 }
 

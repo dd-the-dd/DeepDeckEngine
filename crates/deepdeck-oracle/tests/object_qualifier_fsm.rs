@@ -155,3 +155,42 @@ Draw two cards.",
         );
     }
 }
+
+#[test]
+fn a_controller_relation_can_name_the_player_the_event_records() {
+    let candidates = |type_line: &str, text: &str| {
+        rule(type_line, text)["declaration"]["decisions"][0]["candidates"].clone()
+    };
+    // `that player controls` after an event that names one player.
+    assert_eq!(
+        candidates(
+            "Creature \u{2014} Dinosaur",
+            "Whenever this creature deals combat damage to a player, destroy target artifact that player controls.",
+        )["controller"],
+        json!({ "kind": "triggeringPlayer" })
+    );
+    // Sibling: `defending player controls` in an attack trigger, with a
+    // qualified attacker, no new code.
+    assert_eq!(
+        candidates(
+            "Creature \u{2014} Lizard",
+            "Whenever a creature you control with a +1/+1 counter on it attacks, tap target creature defending player controls.",
+        )["controller"],
+        json!({ "kind": "triggeringPlayer" })
+    );
+    // Near misses: no event or prior binding names `that player`; a static
+    // ability has no defending player.
+    for (type_line, text) in [
+        ("Sorcery", "Destroy target creature that player controls."),
+        (
+            "Enchantment",
+            "Creatures defending player controls get -1/-0.",
+        ),
+    ] {
+        assert_eq!(
+            parse("Near Miss", type_line, text).status,
+            "unsupported",
+            "{text}"
+        );
+    }
+}

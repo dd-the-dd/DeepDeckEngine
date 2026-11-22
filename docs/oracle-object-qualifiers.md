@@ -82,3 +82,45 @@ Preuves : `relative_clauses_fill_the_shared_object_query_slot` (analyse,
 sœur de compte, quasi-échecs) et
 `relative_history_clauses_read_this_turns_events_for_the_same_object`
 (moteur : compte, `destroy all`, cible).
+
+## Relation de contrôleur avec le joueur de l'événement
+
+L'ensemble des relations de contrôleur et de propriétaire de la requête
+(`you`, `an opponent`, `your opponents`, négation `you don't`) reçoit le
+joueur que l'événement déclencheur enregistre : `that player controls`
+(après un événement qui nomme un joueur) et `defending player controls`
+(événement d'attaque). Le joueur est résolu par l'environnement de liaison
+C2 (`recognize_bound_player_reference`), jamais deviné par la requête ;
+seul `EventPlayer` est accepté ici, les autres liaisons (joueur ciblé plus
+tôt, `its controller`) gardent leur échec explicite.
+
+- IR : `ObjectControllerScope::EventPlayer` → `controller:
+  {"kind":"triggeringPlayer"}`, la même référence qu'un sujet `defending
+  player`. Les consommateurs qui n'ont pas de joueur d'événement (capacités
+  statiques, filtres d'événements eux-mêmes, coûts de sorts) échouent
+  explicitement.
+- Moteur : lors de la déclaration des cibles d'un déclencheur, le contrôleur
+  `triggeringPlayer` est lié au `triggeringPlayerId` de l'objet en attente
+  (`resolvedControllerIds`) ; la revérification à la résolution passe par
+  `resolve_player`.
+
+Preuves : `a_controller_relation_can_name_the_player_the_event_records`
+(analyse, sœur `defending player controls`, quasi-échecs sans liaison et en
+statique) et `a_controller_relation_to_the_event_player_scopes_the_target_domain`
+(moteur, trois joueurs).
+
+## Non traité (mesuré)
+
+- `of your choice` / `of their choice` (≈ 300 cartes à blocage unique
+  contenant la tournure) : l'échec est presque toujours ailleurs
+  (`effect.start`, `keyword-list.item` pour `protection from the color of
+  your choice`, `your choice of A, B or C`). Ce sont des choix, pas des
+  qualificatifs d'objet ; ils demandent un primitive moteur de choix de
+  couleur/type pour la protection.
+- `each of up to two target creatures` (≈ 45) : un quantificateur
+  distributif sur une liste de cibles, pas un qualificatif.
+- `of the chosen type` lié à un choix statique `As this enters, choose a
+  creature type` (≈ 15, `binding.chosen-creature-type.source`).
+- `you own` (≈ 47, surtout `Commander creatures you own have …`) et `spells
+  you cast` (≈ 39) : relation de propriété hors requêtes à relations
+  d'objet, et domaine de sorts.

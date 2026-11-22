@@ -17521,6 +17521,7 @@ impl GameEngine {
         rule: &Value,
         controller_id: &str,
         source: &CardInstance,
+        trigger_decisions: &BTreeMap<String, Value>,
     ) -> Result<Option<Vec<CastingDeclaration>>, EngineError> {
         let mut declaration_rule = json!({
             "kind": "spellAbility",
@@ -17551,6 +17552,17 @@ impl GameEngine {
                     .is_none()
                 {
                     return Ok(None);
+                }
+                // `that player controls` / `defending player controls`: the
+                // player the trigger's event recorded (CR 603.2).
+                if value_kind(&decision["candidates"]["controller"]) == Some("triggeringPlayer") {
+                    let Some(player) = trigger_decisions
+                        .get("triggeringPlayerId")
+                        .and_then(Value::as_str)
+                    else {
+                        return Ok(None);
+                    };
+                    decision["candidates"]["resolvedControllerIds"] = json!([player]);
                 }
             }
         }

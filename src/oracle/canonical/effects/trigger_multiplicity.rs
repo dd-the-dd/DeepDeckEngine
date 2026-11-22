@@ -45,14 +45,18 @@ pub(in crate::oracle::canonical) fn try_parse_trigger_multiplicity(
         }
         if let Some(scope) = node.sources.ownership {
             cursor.require(
-                !matches!(scope, ObjectOwnershipScope::OpponentOfAbilityController),
+                !matches!(
+                    scope,
+                    ObjectOwnershipScope::OpponentOfAbilityController
+                        | ObjectOwnershipScope::EventPlayer
+                ),
                 "ownership relative to the ability controller, not an unsupported owner player-set",
             )?;
             sources["ownership"] = json!(match scope {
                 ObjectOwnershipScope::AbilityController => "owned",
                 ObjectOwnershipScope::NotAbilityController => "notOwned",
-                ObjectOwnershipScope::OpponentOfAbilityController =>
-                    unreachable!("validated owner relation"),
+                ObjectOwnershipScope::OpponentOfAbilityController
+                | ObjectOwnershipScope::EventPlayer => unreachable!("validated owner relation"),
             });
         }
         Ok(draft(

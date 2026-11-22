@@ -1162,6 +1162,10 @@ pub(super) enum ObjectControllerScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// The player the triggering event records (`defending player`,
+    /// `that player` after an event naming one), resolved by the C2
+    /// binding environment.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1179,6 +1183,8 @@ pub(super) enum SpellCasterScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// The player the triggering event records.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

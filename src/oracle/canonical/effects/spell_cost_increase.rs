@@ -32,7 +32,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_spell_cost_increase(
             "kind": "opponentsOf",
             "player": controller(),
         }),
-        Some(SpellCasterScope::NotAbilityController) => {
+        Some(SpellCasterScope::NotAbilityController | SpellCasterScope::EventPlayer) => {
             return Err(
                 cursor.fail("a caster scope representable by the runtime player references")
             );

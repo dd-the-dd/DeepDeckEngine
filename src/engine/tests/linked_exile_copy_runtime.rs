@@ -214,7 +214,7 @@ fn trigger_declaration_excludes_the_permanent_attached_to_the_source() {
     engine.state.players[1].battlefield = vec![other];
 
     let declarations = engine
-        .declarations_for_triggered_rule(&rule, "player-0", &aura)
+        .declarations_for_triggered_rule(&rule, "player-0", &aura, &BTreeMap::new())
         .expect("checked trigger declaration dependencies")
         .expect("trigger declarations are generated");
     assert!(declarations.iter().all(|declaration| {
