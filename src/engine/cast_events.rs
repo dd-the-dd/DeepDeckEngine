@@ -12,6 +12,8 @@ use super::*;
 /// One spell cast.
 pub(super) struct CastEventRecord<'a> {
     pub caster: &'a str,
+    /// The spell's owner (whose zone it was cast from, CR 400.3).
+    pub owner: Option<&'a str>,
     pub spell: &'a CardDefinition,
     pub decisions: &'a BTreeMap<String, Value>,
     pub targets: &'a BTreeMap<String, TargetRef>,
@@ -50,13 +52,22 @@ fn cast_target_alternative_supported(target: &Value) -> bool {
 
 /// Modifiers of a `spellCast` pattern beyond its historical fields.
 pub(super) fn spell_cast_modifiers_supported(event: &Value) -> bool {
-    event.get("targets").is_none_or(|targets| {
-        targets["only"].is_boolean()
-            && targets["anyOf"].as_array().is_some_and(|alternatives| {
-                !alternatives.is_empty()
-                    && alternatives.iter().all(cast_target_alternative_supported)
-            })
-    })
+    event.get("fromOwnZone").is_none_or(Value::is_boolean)
+        && event.get("fromZone").is_none_or(Value::is_string)
+        && event.get("fromZoneNot").is_none_or(Value::is_string)
+        && event
+            .get("duringOpponentTurn")
+            .is_none_or(Value::is_boolean)
+        && event
+            .get("duringControllerTurn")
+            .is_none_or(Value::is_boolean)
+        && event.get("targets").is_none_or(|targets| {
+            targets["only"].is_boolean()
+                && targets["anyOf"].as_array().is_some_and(|alternatives| {
+                    !alternatives.is_empty()
+                        && alternatives.iter().all(cast_target_alternative_supported)
+                })
+        })
 }
 
 impl GameEngine {
@@ -152,11 +163,15 @@ impl GameEngine {
             && event["fromZoneNot"]
                 .as_str()
                 .is_none_or(|from_zone| cast_source_zone != from_zone);
+        // The turn relation is read against the ability controller (CR 500.1):
+        // `during your turn` / `during an opponent's turn`.
         let active_player_id = &self.state.players[self.state.active_player].id;
         let turn_matches = event["duringOpponentTurn"].as_bool() != Some(true)
-            || (source.controller == casting_player_id && active_player_id != casting_player_id);
+            || *active_player_id != source.controller;
         let controller_turn_matches = event["duringControllerTurn"].as_bool() != Some(true)
-            || (source.controller == casting_player_id && active_player_id == casting_player_id);
+            || *active_player_id == source.controller;
+        let own_zone_matches = event["fromOwnZone"].as_bool() != Some(true)
+            || record.owner == Some(source.controller.as_str());
         let ordinal_matches = integer_value(&event["spellCastOrdinal"]).is_none_or(|ordinal| {
             self.cast_turn_ordinal(casting_player_id, &event["where"]) == ordinal.max(0) as usize
         });
@@ -230,6 +245,7 @@ impl GameEngine {
             .get("targets")
             .is_none_or(|targets| self.cast_targets_match(targets, record, source));
         targets_match
+            && own_zone_matches
             && from_zone_matches
             && turn_matches
             && controller_turn_matches

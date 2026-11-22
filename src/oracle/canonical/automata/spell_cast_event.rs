@@ -41,6 +41,25 @@ pub(in crate::oracle::canonical) enum SpellTargetNode {
     Permanent(super::ObjectQueryNode),
 }
 
+/// `from ZONE` / `from anywhere other than your hand`: the zone the spell
+/// was cast from (CR 601.2a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SpellOriginNode {
+    /// Runtime zone name: `hand`, `graveyard`, `exile`, `library`.
+    pub zone: &'static str,
+    /// `anywhere other than ZONE`.
+    pub excluded: bool,
+    /// `your ZONE`: the spell's owner is the ability controller.
+    pub own_zone: bool,
+}
+
+/// `during your turn` / `during an opponent's turn` (CR 500.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SpellTurnNode {
+    ControllerTurn,
+    OpponentTurn,
+}
+
 /// `that targets [only] T [or T]...`: the spell's targets (CR 115.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SpellTargetsNode {
@@ -63,6 +82,8 @@ pub(in crate::oracle::canonical) struct SpellCastEventNode {
     pub also_copy: bool,
     /// `that targets …`: a predicate on the spell's targets.
     pub targets: Option<SpellTargetsNode>,
+    pub origin: Option<SpellOriginNode>,
+    pub turn: Option<SpellTurnNode>,
 }
 
 pub(in crate::oracle::canonical) enum SpellCastEventAttempt {
@@ -90,6 +111,52 @@ struct SpellCastEventFrame {
     source_spell: bool,
     also_copy: bool,
     targets: Option<SpellTargetsNode>,
+    origin: Option<SpellOriginNode>,
+    turn: Option<SpellTurnNode>,
+}
+
+/// Reads `from [your|a] ZONE` or `from anywhere other than your hand`.
+fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellOriginNode> {
+    cursor.enter("event.spell-cast.origin");
+    cursor.consume("from")?;
+    let excluded = peek_word(cursor, 0, "anywhere");
+    if excluded {
+        cursor.consume_phrase(&["anywhere", "other", "than"])?;
+    }
+    cursor.enter("event.spell-cast.origin-owner");
+    let own_zone = peek_word(cursor, 0, "your");
+    if own_zone {
+        cursor.consume("your")?;
+    } else if peek_word(cursor, 0, "a") {
+        cursor.consume("a")?;
+    }
+    cursor.enter("event.spell-cast.origin-zone");
+    let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("hand") => "hand",
+        Some("graveyard") => "graveyard",
+        Some("exile") => "exile",
+        Some("library") => "library",
+        _ => return Err(cursor.fail("hand, graveyard, exile or library")),
+    };
+    let raw = cursor.peek().expect("checked zone").to_string();
+    cursor.consume(&raw)?;
+    Ok(SpellOriginNode {
+        zone,
+        excluded,
+        own_zone,
+    })
+}
+
+/// Reads `during your turn` or `during an opponent's turn`.
+fn recognize_spell_turn(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTurnNode> {
+    cursor.enter("event.spell-cast.turn");
+    cursor.consume("during")?;
+    if peek_word(cursor, 0, "your") {
+        cursor.consume_phrase(&["your", "turn"])?;
+        return Ok(SpellTurnNode::ControllerTurn);
+    }
+    cursor.consume_phrase(&["an", "opponent's", "turn"])?;
+    Ok(SpellTurnNode::OpponentTurn)
 }
 
 fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -306,6 +373,12 @@ fn recognize_optional_spell_cast_event_atom(
                 if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "targets") {
                     frame.targets = Some(recognize_spell_targets(cursor)?);
                 }
+                if peek_word(cursor, 0, "from") {
+                    frame.origin = Some(recognize_spell_origin(cursor)?);
+                }
+                if peek_word(cursor, 0, "during") {
+                    frame.turn = Some(recognize_spell_turn(cursor)?);
+                }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
                 } else {
@@ -327,6 +400,8 @@ fn recognize_optional_spell_cast_event_atom(
                     source_spell: frame.source_spell,
                     also_copy: frame.also_copy,
                     targets: frame.targets,
+                    origin: frame.origin,
+                    turn: frame.turn,
                 }));
             }
         };

@@ -427,6 +427,21 @@ déterministe d'une position de test. Le risque restant de l'instantané est
 le recensement des mots-clés et sous-types candidats (règles imprimées et
 modificateurs actifs).
 
+## Étape 9 réalisée : origine et tour du lancement
+
+- L'enregistrement de lancement porte la zone d'origine (`castSourceZone`,
+  CR 601.2a) et le propriétaire du sort ; le motif lit `fromZone`,
+  `fromZoneNot` (`anywhere other than your hand`), `fromOwnZone` (`your
+  graveyard` : le sort appartient au contrôleur de la capacité, CR 400.3).
+- `during your turn` / `during an opponent's turn` sont relatifs au
+  contrôleur de la capacité (CR 500.1), quel que soit le lanceur
+  (`Whenever an opponent casts a spell during your turn`). Aucun producteur
+  antérieur de ces champs n'existait pour le lancement : pas de changement
+  d'IR supportée.
+- Sondes : ligue 795 → 797 (+2 : Sisterhood of Karn, Vega, the Watcher) ;
+  corpus 13798 → 13814 (+16), 0 perdue, 32 IR changées dont 0 déjà
+  supportée.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

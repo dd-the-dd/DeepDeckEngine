@@ -37,9 +37,21 @@ fn cast_with_targets(
     rules: Vec<Value>,
     targets: BTreeMap<String, TargetRef>,
 ) {
+    cast_from(engine, id, type_line, rules, targets, "hand", "player-0");
+}
+
+fn cast_from(
+    engine: &mut GameEngine,
+    id: &str,
+    type_line: &str,
+    rules: Vec<Value>,
+    targets: BTreeMap<String, TargetRef>,
+    zone: &str,
+    owner: &str,
+) {
     let mut definition = test_definition(id, type_line);
     definition.rules = rules;
-    let card = test_instance(id, definition.clone(), "player-0");
+    let card = test_instance(id, definition.clone(), owner);
     engine.state.stack.push(StackObject {
         id: format!("stack:{id}"),
         controller: "player-0".to_string(),
@@ -57,7 +69,11 @@ fn cast_with_targets(
         Some(id.to_string()),
         json!({"typeLine": type_line, "cardName": id}),
     );
-    engine.enqueue_spell_cast_triggers("player-0", &definition, &BTreeMap::new());
+    engine.enqueue_spell_cast_triggers(
+        "player-0",
+        &definition,
+        &BTreeMap::from([("castSourceZone".to_string(), json!(zone))]),
+    );
 }
 
 fn triggered_sources(engine: &GameEngine) -> Vec<String> {
@@ -227,6 +243,63 @@ fn only_requires_every_target_to_match() {
         "Instant",
         Vec::new(),
         permanent_target("mine"),
+    );
+    assert_eq!(triggered_sources(&engine), ["watcher"]);
+}
+
+#[test]
+fn the_cast_record_carries_its_origin_zone_and_owner() {
+    // `from your graveyard`: the zone and the owner (CR 400.3, 601.2a).
+    let rules = parsed_rules(
+        "Graveyard Watcher",
+        "Enchantment",
+        "Whenever you cast a spell from your graveyard, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![test_instance(
+        "watcher",
+        CardDefinition {
+            rules,
+            ..test_definition("watcher", "Enchantment")
+        },
+        "player-0",
+    )];
+    cast_from(
+        &mut engine,
+        "from-hand",
+        "Instant",
+        Vec::new(),
+        BTreeMap::new(),
+        "hand",
+        "player-0",
+    );
+    cast_from(
+        &mut engine,
+        "from-exile",
+        "Instant",
+        Vec::new(),
+        BTreeMap::new(),
+        "exile",
+        "player-0",
+    );
+    cast_from(
+        &mut engine,
+        "stolen",
+        "Instant",
+        Vec::new(),
+        BTreeMap::new(),
+        "graveyard",
+        "player-1",
+    );
+    assert!(triggered_sources(&engine).is_empty());
+    cast_from(
+        &mut engine,
+        "flashback",
+        "Instant",
+        Vec::new(),
+        BTreeMap::new(),
+        "graveyard",
+        "player-0",
     );
     assert_eq!(triggered_sources(&engine), ["watcher"]);
 }

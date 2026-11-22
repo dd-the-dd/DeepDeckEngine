@@ -680,3 +680,41 @@ fn a_spell_that_targets_reads_the_shared_target_alternatives() {
         "trigger.spell-cast.target-support"
     );
 }
+
+#[test]
+fn the_cast_origin_zone_and_turn_relation_are_pattern_modifiers() {
+    for (text, field, value) in [
+        (
+            "Whenever you cast a spell from exile, draw a card.",
+            "fromZone",
+            json!("exile"),
+        ),
+        (
+            "Whenever you cast a spell from your graveyard, draw a card.",
+            "fromOwnZone",
+            json!(true),
+        ),
+        (
+            "Whenever you cast a spell from anywhere other than your hand, draw a card.",
+            "fromZoneNot",
+            json!("hand"),
+        ),
+        (
+            "Whenever you cast a spell during an opponent's turn, draw a card.",
+            "duringOpponentTurn",
+            json!(true),
+        ),
+        (
+            "Whenever an opponent casts a spell during your turn, draw a card.",
+            "duringControllerTurn",
+            json!(true),
+        ),
+    ] {
+        assert_eq!(event(text, "Creature")[field], value, "{text}");
+    }
+    // Near miss: a zone the cast record does not carry.
+    assert_eq!(
+        committed_state("Whenever you cast a spell from the command zone, draw a card."),
+        "event.spell-cast.origin-zone"
+    );
+}

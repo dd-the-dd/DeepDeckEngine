@@ -27,6 +27,8 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_spell_cast_trigger_progra
     if event.source_spell
         || event.also_copy
         || event.targets.is_some()
+        || event.origin.is_some()
+        || event.turn.is_some()
         || event.ordinal.as_ref().is_some_and(|ordinal| {
             ordinal.basis != SpellCastOrdinalBasis::AllSpellsByCasterThisTurn
         })

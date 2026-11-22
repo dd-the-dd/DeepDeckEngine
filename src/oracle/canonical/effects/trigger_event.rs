@@ -78,6 +78,25 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             if let Some(targets) = &event.targets {
                 lowered["targets"] = lower_spell_targets(cursor, targets)?;
             }
+            // The cast record carries the zone the spell was cast from.
+            if let Some(origin) = event.origin {
+                let field = if origin.excluded {
+                    "fromZoneNot"
+                } else {
+                    "fromZone"
+                };
+                lowered[field] = json!(origin.zone);
+                if origin.own_zone && !origin.excluded {
+                    lowered["fromOwnZone"] = json!(true);
+                }
+            }
+            match event.turn {
+                Some(SpellTurnNode::ControllerTurn) => {
+                    lowered["duringControllerTurn"] = json!(true)
+                }
+                Some(SpellTurnNode::OpponentTurn) => lowered["duringOpponentTurn"] = json!(true),
+                None => {}
+            }
             if event.also_copy {
                 cursor.enter("trigger.spell-cast.copy-support");
                 cursor.require(

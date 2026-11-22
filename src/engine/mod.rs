@@ -24955,8 +24955,18 @@ impl GameEngine {
             })
             .map(|object| object.targets.clone())
             .unwrap_or_default();
+        let spell_owner = self
+            .state
+            .stack
+            .iter()
+            .rev()
+            .find(|object| {
+                object.controller == casting_player_id && object.card.definition.id == spell.id
+            })
+            .map(|object| object.card.owner.clone());
         let cast_record = cast_events::CastEventRecord {
             caster: casting_player_id,
+            owner: spell_owner.as_deref(),
             spell,
             decisions: cast_decisions,
             targets: &cast_targets,
