@@ -471,6 +471,24 @@ modificateurs actifs).
 - Sondes : ligue 798 → 800 (+2 : Sand Scout, The Gitrog Monster) ; corpus
   13833 → 13844 (+11), 0 perdue, 19 IR changées dont 0 déjà supportée.
 
+## Étape 12 réalisée : entrée sur le champ de bataille comme motif de déplacement
+
+- `enterBattlefield` (la source) et `permanentEntered` (un permanent
+  observé) sont lus comme motifs `move` vers le champ de bataille, groupe
+  `Entry`, par le correspondant unique de la famille changements de zone.
+  Leurs attributs deviennent typés : origine (`enteredFrom`), état d'entrée
+  (`entryState`), `nontoken`, type de créature choisi, pendant le combat,
+  exclusion de la source, agrégation. Les tests écrits à la main du site
+  d'entrée et leurs bras de `triggered_event_supported` sont retirés.
+- Correction de règle assumée (CR 603.6a, regard en avant) : le prédicat
+  d'un permanent qui entre est lu sur ses caractéristiques effectives sur le
+  champ de bataille, plus sur sa carte imprimée (un terrain qui entre en
+  étant une créature est une créature qui entre).
+- Analyseur : `enters or dies` / `dies or enters` d'un même sujet est
+  l'union des deux transitions (`oneOf`).
+- Sondes : ligue et corpus inchangés (800, 13844), 0 perdue, 1 IR changée :
+  les cartes `enters or dies` échouent ensuite dans leur corps.
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui

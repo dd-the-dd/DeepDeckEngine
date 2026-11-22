@@ -40,6 +40,9 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
         kind: PermanentTransitionKind,
         subjects: PermanentDiedEventNode,
         entry_state: Option<EntryStatePredicate>,
+        /// `enters or dies`: the other transition of the same subjects, an
+        /// alternative event (one occurrence each, never both at once).
+        union_kind: Option<PermanentTransitionKind>,
     },
     Local(LocalTriggerEventNode),
     /// Shared quantified subject + event verb (`one or more cards leave …`).
@@ -63,6 +66,7 @@ impl GenericTriggerEventNode {
             Self::PermanentTransition {
                 kind: PermanentTransitionKind::Entered,
                 subjects,
+                union_kind: None,
                 ..
             } => !subjects.alternatives.is_empty(),
             Self::Local(LocalTriggerEventNode::SourceEntered { .. }) => true,
@@ -552,6 +556,26 @@ fn finish_permanent_transition(
             }
         }
     }
+    // `enters or dies` / `dies or enters`: the other transition of the same
+    // subjects as an alternative event.
+    let mut union_kind = None;
+    let other = match kind {
+        PermanentTransitionKind::Entered => ("dies", PermanentTransitionKind::Died),
+        PermanentTransitionKind::Died => ("enters", PermanentTransitionKind::Entered),
+    };
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(other.0))
+    {
+        cursor.enter("trigger.envelope.transition-union");
+        if let Err(failure) = cursor.consume_phrase(&["or", other.0]) {
+            return GenericTriggerEnvelopeAttempt::FailedCommitted(failure);
+        }
+        union_kind = Some(other.1);
+    }
     cursor.enter("trigger.envelope.separator");
     match cursor.consume(",") {
         Ok(()) => recognized(
@@ -560,6 +584,7 @@ fn finish_permanent_transition(
                 kind,
                 subjects: subjects.clone(),
                 entry_state,
+                union_kind,
             },
             has_ability_word,
         ),

@@ -762,3 +762,25 @@ fn one_or_more_moves_are_aggregated_move_patterns() {
         "event.object.graveyard-origin"
     );
 }
+
+#[test]
+fn a_transition_union_lowers_both_transitions_of_the_same_subjects() {
+    let union = event(
+        "Whenever another creature you control enters or dies, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(union["kind"], "oneOf");
+    assert_eq!(union["events"][0]["kind"], "permanentEntered");
+    assert_eq!(union["events"][1]["kind"], "permanentDied");
+    assert_eq!(union["events"][0]["where"], union["events"][1]["where"]);
+    let reversed = event(
+        "Whenever a creature you control dies or enters, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(reversed["events"][0]["kind"], "permanentDied");
+    // Near miss: a third verb is not part of the transition union.
+    assert_eq!(
+        committed_state("Whenever a creature you control enters or attacks, draw a card."),
+        "trigger.envelope.separator"
+    );
+}

@@ -143,27 +143,31 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             kind,
             subjects,
             entry_state,
+            union_kind,
         } => {
             cursor.require(
                 !subjects.alternatives.is_empty(),
                 "one or more permanent event subjects",
             )?;
-            let events = subjects
-                .alternatives
-                .iter()
-                .map(|subject| {
-                    let mut lowered = lower_transition_branch(cursor, *kind, subject)?;
-                    if let Some(state) = entry_state {
-                        cursor.require(
-                            *kind == PermanentTransitionKind::Entered,
-                            "an entry observation only on a battlefield-entry event",
-                        )?;
+            let mut events = Vec::new();
+            for transition in std::iter::once(*kind).chain(*union_kind) {
+                for subject in &subjects.alternatives {
+                    let mut lowered = lower_transition_branch(cursor, transition, subject)?;
+                    if let Some(state) = entry_state
+                        && transition == PermanentTransitionKind::Entered
+                    {
                         lowered["entryState"] =
                             json!({"tapped":*state==EntryStatePredicate::Tapped});
                     }
-                    Ok(lowered)
-                })
-                .collect::<MachineResult<Vec<_>>>()?;
+                    events.push(lowered);
+                }
+            }
+            if entry_state.is_some() {
+                cursor.require(
+                    *kind == PermanentTransitionKind::Entered,
+                    "an entry observation only on a battlefield-entry event",
+                )?;
+            }
             if events.len() == 1 {
                 Ok(events.into_iter().next().expect("one validated subject"))
             } else {

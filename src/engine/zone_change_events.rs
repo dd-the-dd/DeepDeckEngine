@@ -70,6 +70,9 @@ pub(super) enum ZoneChangeGroup {
     GraveyardArrival,
     /// A permanent sacrificed, with the observers captured before it.
     Sacrifice,
+    /// A permanent entering the battlefield, read on the entering object
+    /// (look-forward, CR 603.6a).
+    Entry,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -85,6 +88,12 @@ pub(super) struct ZoneChangePattern<'a> {
     had_counter: Option<&'a str>,
     had_any_counters: bool,
     damaged_by_source_this_turn: bool,
+    /// The chosen creature type of the observer (`of the chosen type`).
+    creature_type_decision: Option<&'a str>,
+    /// Entered during a combat step.
+    during_combat: bool,
+    /// Entered tapped or untapped (`enters tapped`).
+    entry_tapped: Option<bool>,
     pub group: ZoneChangeGroup,
 }
 
@@ -101,6 +110,9 @@ impl<'a> ZoneChangePattern<'a> {
             had_counter: None,
             had_any_counters: false,
             damaged_by_source_this_turn: false,
+            creature_type_decision: None,
+            during_combat: false,
+            entry_tapped: None,
             group,
         }
     }
@@ -259,6 +271,10 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
         _ => return None,
     };
     let group = match (from, to, subject) {
+        // An entry is read on the entering object (look-forward, CR 603.6a).
+        (_, Some("battlefield"), SubjectRelation::Source | SubjectRelation::Permanents { .. }) => {
+            ZoneChangeGroup::Entry
+        }
         // Look-back departures, observed by the sources captured before it.
         (Some("battlefield"), _, _) => ZoneChangeGroup::Departure,
         // A card's own ability, wherever it comes from, as it arrives.
@@ -275,12 +291,78 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
     })
 }
 
+fn entry_zone_supported<'a>(event: &'a Value, zones: &[&str]) -> Option<Option<&'a str>> {
+    match event.get("fromZone") {
+        None | Some(Value::Null) => Some(None),
+        Some(zone) => zone.as_str().filter(|zone| zones.contains(zone)).map(Some),
+    }
+}
+
+fn entry_tapped(event: &Value) -> Option<Option<bool>> {
+    match event.get("entryState") {
+        None => Some(None),
+        Some(state) => (state.as_object()?.len() == 1)
+            .then(|| state["tapped"].as_bool())
+            .flatten()
+            .map(Some),
+    }
+}
+
+/// `enterBattlefield` (the source) and `permanentEntered` (an observed
+/// permanent) as entry patterns of the move lemma.
+fn entry_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
+    if value_kind(event) == Some("enterBattlefield") {
+        (value_kind(&event["object"]) == Some("self")).then_some(())?;
+        return Some(ZoneChangePattern {
+            from: entry_zone_supported(
+                event,
+                &["graveyard", "hand", "exile", "library", "commandZone"],
+            )?,
+            to: Some("battlefield"),
+            nontoken: optional_bool(event, "nontoken")?,
+            entry_tapped: entry_tapped(event)?,
+            ..ZoneChangePattern::new(SubjectRelation::Source, ZoneChangeGroup::Entry)
+        });
+    }
+    (event_batch::event_aggregation_supported(event) && card_filter_supported(&event["where"]))
+        .then_some(())?;
+    let controller = if event["anyController"].as_bool() == Some(true) {
+        ControllerRelation::Any
+    } else if player_reference_supported(&event["player"]) {
+        ControllerRelation::Reference(&event["player"])
+    } else {
+        return None;
+    };
+    Some(ZoneChangePattern {
+        // CR 603.6a: the entering permanent's characteristics on the
+        // battlefield (effective), not its printed card.
+        filter: Some((&event["where"], ObjectView::Effective)),
+        from: entry_zone_supported(event, &["graveyard", "hand", "exile", "library"])?,
+        to: Some("battlefield"),
+        nontoken: optional_bool(event, "nontoken")?,
+        creature_type_decision: match event.get("creatureTypeDecisionId") {
+            None => None,
+            Some(value) => Some(value.as_str()?),
+        },
+        during_combat: optional_bool(event, "duringCombat")?,
+        entry_tapped: entry_tapped(event)?,
+        ..ZoneChangePattern::new(
+            SubjectRelation::Permanents {
+                controller,
+                exclude_source: optional_bool(event, "excludeSource")?,
+            },
+            ZoneChangeGroup::Entry,
+        )
+    })
+}
+
 /// Reads a historical zone-change kind or a generic `move` pattern.
 /// `None` for another family; `Some(Err(()))` when an attribute cannot be
 /// evaluated by the matcher (the rule is unsupported, never widened).
 pub(super) fn zone_change_pattern(event: &Value) -> Option<Result<ZoneChangePattern<'_>, ()>> {
     let pattern = match value_kind(event)? {
         "permanentDied" => died_pattern(event),
+        "enterBattlefield" | "permanentEntered" => entry_pattern(event),
         "attachedPermanentDied" => (known_fields(event, &["kind", "object"])
             && event.get("object").is_none_or(self_object))
         .then(|| ZoneChangePattern {
@@ -388,7 +470,37 @@ impl GameEngine {
         observer: &CardInstance,
     ) -> bool {
         let object = record.object;
-        if pattern.from.is_some_and(|from| record.from != Some(from))
+        // An entry's origin zone is recorded on the entering object.
+        let from_matches = |from: &str| {
+            if record.to == "battlefield" {
+                object
+                    .flags
+                    .get(&format!("enteredFrom:{from}"))
+                    .copied()
+                    .unwrap_or(false)
+            } else {
+                record.from == Some(from)
+            }
+        };
+        if pattern.from.is_some_and(|from| !from_matches(from))
+            || pattern
+                .entry_tapped
+                .is_some_and(|tapped| tapped != object.tapped)
+            || (pattern.during_combat
+                && !matches!(
+                    self.state.step,
+                    GameStep::BeginningOfCombat
+                        | GameStep::DeclareAttackers
+                        | GameStep::DeclareBlockers
+                        | GameStep::CombatDamage
+                ))
+            || pattern.creature_type_decision.is_some_and(|decision_id| {
+                !Self::chosen_creature_type_matches(
+                    observer,
+                    &object.definition,
+                    &json!({ "decisionId": decision_id }),
+                )
+            })
             || pattern.to.is_some_and(|to| to != record.to)
             || (pattern.without_dying && record.to == "graveyard")
             || (pattern.nontoken && object.definition.is_token)

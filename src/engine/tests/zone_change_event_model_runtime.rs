@@ -390,3 +390,61 @@ fn one_or_more_departures_trigger_once_per_simultaneous_event() {
         .expect("b");
     assert_eq!(stack_sources(&engine), ["watcher", "watcher"]);
 }
+
+#[test]
+fn an_entry_is_read_on_the_entering_objects_characteristics() {
+    // CR 603.6a (look-forward): a land that is a creature as it enters is an
+    // entering creature, though its card is not one.
+    let rules = parsed_rules(
+        "Entry Watcher",
+        "Enchantment",
+        "Whenever a creature you control enters, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["kind"], "permanentEntered");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        object("watcher", "Enchantment", rules, "player-0"),
+        object("plain-land", "Land — Forest", Vec::new(), "player-0"),
+        object("animated", "Land — Forest", Vec::new(), "player-0"),
+    ];
+    animated_land(&mut engine, "animated");
+    admit(&mut engine);
+    let entered = |engine: &GameEngine, id: &str| {
+        let (player_index, card_index) = engine.permanent_position(id).expect("on battlefield");
+        engine.state.players[player_index].battlefield[card_index].clone()
+    };
+    let plain = entered(&engine, "plain-land");
+    engine.enqueue_enter_battlefield_triggers(&plain);
+    assert!(
+        engine.state.stack.is_empty(),
+        "a land that is not a creature"
+    );
+    let animated = entered(&engine, "animated");
+    engine.enqueue_enter_battlefield_triggers(&animated);
+    assert_eq!(stack_sources(&engine), ["watcher"]);
+}
+
+#[test]
+fn enters_or_dies_is_one_pattern_per_transition_of_the_same_subject() {
+    let rules = parsed_rules(
+        "Union Watcher",
+        "Enchantment",
+        "Whenever another creature you control enters or dies, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["kind"], "oneOf");
+    assert_eq!(rules[0]["event"]["events"][0]["kind"], "permanentEntered");
+    assert_eq!(rules[0]["event"]["events"][1]["kind"], "permanentDied");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        object("watcher", "Enchantment", rules, "player-0"),
+        object("bear", "Creature — Bear", Vec::new(), "player-0"),
+    ];
+    admit(&mut engine);
+    let bear = engine.state.players[0].battlefield[1].clone();
+    engine.enqueue_enter_battlefield_triggers(&bear);
+    assert_eq!(stack_sources(&engine), ["watcher"]);
+    engine
+        .move_permanent_to_graveyard("bear", "destroyed")
+        .expect("the bear dies");
+    assert_eq!(stack_sources(&engine), ["watcher", "watcher"]);
+}

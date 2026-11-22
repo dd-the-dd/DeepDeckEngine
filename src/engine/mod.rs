@@ -4823,7 +4823,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("oneOf") => event["events"].as_array().is_some_and(|events| {
             !events.is_empty() && events.iter().all(triggered_event_supported)
         }),
-        Some("enterBattlefield" | "turnedFaceUp" | "sourceCycled") => {
+        Some("turnedFaceUp" | "sourceCycled") => {
             value_kind(&event["object"]) == Some("self")
                 && event.get("nontoken").is_none_or(Value::is_boolean)
                 && event.get("fromZone").is_none_or(|zone| {
@@ -4852,24 +4852,6 @@ fn triggered_event_supported(event: &Value) -> bool {
         }
         Some("sagaFinalChapterAbilityResolved") => {
             player_reference_supported(&event["player"]) && card_filter_supported(&event["where"])
-        }
-        Some("permanentEntered") => {
-            event_batch::event_aggregation_supported(event)
-                && (event["anyController"].as_bool() == Some(true)
-                    || player_reference_supported(&event["player"]))
-                && card_filter_supported(&event["where"])
-                && (event["excludeSource"].is_null() || event["excludeSource"].is_boolean())
-                && (event["nontoken"].is_null() || event["nontoken"].is_boolean())
-                && (event["duringCombat"].is_null() || event["duringCombat"].is_boolean())
-                && event
-                    .get("creatureTypeDecisionId")
-                    .is_none_or(Value::is_string)
-                && event.get("fromZone").is_none_or(|zone| {
-                    matches!(
-                        zone.as_str(),
-                        Some("graveyard" | "hand" | "exile" | "library")
-                    )
-                })
         }
         Some(
             "permanentTapped"
@@ -22595,14 +22577,10 @@ impl GameEngine {
                         } else {
                             Self::rule_metadata_active_for_source(trigger_source, rule)
                         }
-                        && triggered_event_variants(&rule["event"])
-                            .iter()
-                            .any(|event| {
-                                matches!(
-                                    value_kind(event),
-                                    Some("enterBattlefield" | "permanentEntered")
-                                )
-                            })
+                        && zone_change_events::rule_observes_zone_change(
+                            rule,
+                            zone_change_events::ZoneChangeGroup::Entry,
+                        )
                 })
             })
             .map(|(source, _)| source.clone())
@@ -22659,60 +22637,18 @@ impl GameEngine {
             for rule in trigger_source.definition.rules.iter().filter(|rule| {
                 triggered_rule_supported(rule) && self.rule_active_for_source(&trigger_source, rule)
             }) {
-                let matches_event =
-                    triggered_event_variants(&rule["event"])
-                        .into_iter()
-                        .any(|event| {
-                            let matches_self = value_kind(event) == Some("enterBattlefield")
-                                && trigger_source.instance_id == source.instance_id
-                                && !(event["nontoken"].as_bool().unwrap_or(false)
-                                    && source.definition.is_token)
-                                && event["fromZone"].as_str().is_none_or(|zone| {
-                                    source
-                                        .flags
-                                        .get(&format!("enteredFrom:{zone}"))
-                                        .copied()
-                                        .unwrap_or(false)
-                                });
-                            let matches_filtered = value_kind(event) == Some("permanentEntered")
-                                && (event["anyController"].as_bool() == Some(true)
-                                    || self.event_player_reference_matches(
-                                        &event["player"],
-                                        &trigger_source,
-                                        &source.controller,
-                                    ))
-                                && matches_card_filter(&source.definition, &event["where"])
-                                && event["creatureTypeDecisionId"].as_str().is_none_or(
-                                    |decision_id| {
-                                        Self::chosen_creature_type_matches(
-                                            &trigger_source,
-                                            &source.definition,
-                                            &json!({ "decisionId": decision_id }),
-                                        )
-                                    },
-                                )
-                                && !(event["nontoken"].as_bool().unwrap_or(false)
-                                    && source.definition.is_token)
-                                && event["fromZone"].as_str().is_none_or(|zone| {
-                                    source
-                                        .flags
-                                        .get(&format!("enteredFrom:{zone}"))
-                                        .copied()
-                                        .unwrap_or(false)
-                                })
-                                && (event["duringCombat"].as_bool() != Some(true)
-                                    || matches!(
-                                        self.state.step,
-                                        GameStep::BeginningOfCombat
-                                            | GameStep::DeclareAttackers
-                                            | GameStep::DeclareBlockers
-                                            | GameStep::CombatDamage
-                                    ))
-                                && !(event["excludeSource"].as_bool().unwrap_or(false)
-                                    && trigger_source.instance_id == source.instance_id);
-                            entry_observation.matches_state(event)
-                                && (matches_self || matches_filtered)
-                        });
+                // One move record, read on the entering object (CR 603.6a).
+                let matches_event = self.rule_matches_zone_change(
+                    rule,
+                    zone_change_events::ZoneChangeGroup::Entry,
+                    &zone_change_events::ZoneChangeRecord {
+                        object: source,
+                        from: None,
+                        to: "battlefield",
+                        reason: None,
+                    },
+                    &trigger_source,
+                );
                 if matches_event
                     && rule.get("condition").is_none_or(|condition| {
                         self.condition_value_with_source(
