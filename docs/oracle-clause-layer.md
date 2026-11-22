@@ -210,3 +210,29 @@ thème.
   joueurs, attachés, sorts), les correspondants moteur des modificateurs, et
   les lecteurs par verbe de `trigger_event.rs`, `quantified_event.rs`,
   `player_event.rs`, `spell_cast_event.rs`, `targeting_event.rs`.
+
+## Phase 6 (en cours) : politique de sujet d'effet
+
+Mesure sur la chaîne après #54 : 3 149 cartes échouent au moins une fois en
+`effect.start` « expected a supported effect subject », dont 1 986 n'ont que
+ce bloqueur. Une phrase d'effet est `Sujet + Proposition` ; le sujet est
+l'impératif ou `you`, une référence du résolveur de liaisons, un ensemble
+quantifié (joueurs, objets, cadre distributif `for each X, …`) ou un groupe
+nominal défini lié au cadre. La proposition prend son accord du sujet.
+
+### Étape 13 : `you` sujet explicite
+
+- `you VERB …` est la proposition de l'impératif accomplie par le
+  contrôleur (CR 109.5) : quand aucun lecteur ne prend la phrase, la séquence
+  consomme `you` (`effect.subject.controller`) et relit la même proposition
+  avec le contrôleur comme sujet hérité. Un sujet explicite remplace celui
+  qu'une proposition précédente prêterait (`target player draws …, then you
+  mill …`). `controller_subject_starts` (`clause.rs`) exclut les suites
+  modales, négatives et relatives (`you may`, `you don't`, `you control`).
+- Un verbe qu'aucun lecteur ne prend échoue en `clause.verb.unsupported`
+  (lemme ou mot, sujet « the controller (`you`) ») au lieu de
+  `effect.start`.
+- Sonde : ligue 809 → 809, corpus 14319 → 14329 (+10), 0 perte, IR des
+  cartes supportées inchangée. Preuve : IR identique entre `you VERB` et
+  l'impératif (cartes réelles et recombinaisons inédites), sujet hérité
+  remplacé, quasi-échec `you get an emblem`.

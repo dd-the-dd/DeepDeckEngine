@@ -750,7 +750,10 @@ fn recognize_effect_sequence_attempt_scoped(
                         action_context.subject_verb_agreement =
                             super::SubjectVerbAgreement::BareInfinitive;
                     }
-                    let parsed = cursor.attempt(|attempt| {
+                    let mut read_action = |attempt: &mut OracleTokenCursor<'_>,
+                                           inherited: Option<&super::PlayerEffectSubject>,
+                                           attempt_frame: &mut SequenceAttemptFrame|
+                     -> MachineResult<LocalEffectNode> {
                         if causative {
                             attempt.enter("effect.causative.verb");
                             attempt.consume("have")?;
@@ -806,7 +809,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                 player_antecedent: memory
                                     .last_player_target
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
-                                inherited: memory.current_player_subject.as_ref(),
+                                inherited: inherited,
                                 object_subject: object_antecedent.clone(),
                                 object_antecedent: memory.last_target,
                             },
@@ -858,7 +861,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                 memory
                                     .last_player_target
                                     .map(|binding| super::PlayerBinding(binding.effect_index)),
-                                memory.current_player_subject.as_ref(),
+                                inherited,
                                 object_antecedent.clone(),
                                 &action_context,
                             ) {
@@ -944,7 +947,57 @@ fn recognize_effect_sequence_attempt_scoped(
                             }
                             Err(failure) => Err(failure),
                         }
+                    };
+                    let parsed = cursor.attempt(|attempt| {
+                        read_action(
+                            attempt,
+                            memory.current_player_subject.as_ref(),
+                            attempt_frame,
+                        )
                     });
+                    // `you VERB ...`: the controller named as the explicit
+                    // subject performs the same clause as the imperative
+                    // (CR 109.5); every action reader takes it as the
+                    // subject the verb continues, never a new declaration.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && !attempt_frame.is_committed()
+                                && super::controller_subject_starts(cursor) =>
+                        {
+                            let controller = super::PlayerEffectSubject::Controller;
+                            cursor
+                                .attempt(|attempt| {
+                                    attempt.enter("effect.subject.controller");
+                                    attempt.consume("you")?;
+                                    let verb = attempt.clone();
+                                    read_action(attempt, Some(&controller), attempt_frame).map_err(
+                                        |retry| {
+                                            if retry.state == "effect.start"
+                                                && retry.expected == "a supported effect subject"
+                                            {
+                                                super::clause_verb_unsupported(
+                                                    &verb,
+                                                    "the controller (`you`)",
+                                                )
+                                            } else {
+                                                retry
+                                            }
+                                        },
+                                    )
+                                })
+                                .map_err(|retry| {
+                                    // The original reader's failure stands
+                                    // when the retry claims nothing more.
+                                    if retry.token_index < failure.token_index {
+                                        failure
+                                    } else {
+                                        retry
+                                    }
+                                })
+                        }
+                        parsed => parsed,
+                    };
                     match parsed {
                         Ok(effect) => break effect,
                         Err(failure) => {
