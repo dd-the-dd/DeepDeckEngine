@@ -738,7 +738,10 @@ fn lower_object_event(
                 Some(ObjectControllerScope::OpponentOfAbilityController) => {
                     object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
                 }
-                Some(ObjectControllerScope::NotAbilityController) => {
+                Some(
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer,
+                ) => {
                     return Err(cursor.fail("a positive controller relation for an attacker"));
                 }
             }
@@ -807,7 +810,10 @@ fn lower_object_event(
                 Some(ObjectControllerScope::OpponentOfAbilityController) => {
                     object["controller"] = json!({"kind": "opponentsOf", "player": controller()});
                 }
-                Some(ObjectControllerScope::NotAbilityController) => {
+                Some(
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer,
+                ) => {
                     return Err(cursor.fail("a positive controller relation for a combatant"));
                 }
             }
@@ -927,7 +933,7 @@ fn lower_damage_permanent_query(
         Some(ObjectControllerScope::OpponentOfAbilityController) => {
             target["controller"] = json!({"kind": "opponentsOf", "player": controller()});
         }
-        Some(ObjectControllerScope::NotAbilityController) => {
+        Some(ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer) => {
             return Err(cursor.fail("a positive controller relation for a damage event object"));
         }
     }
@@ -1167,7 +1173,10 @@ fn lower_transition_branch(
                 Some(ObjectControllerScope::OpponentOfAbilityController) => {
                     lowered["player"] = json!({"kind": "opponentsOf", "player": controller()});
                 }
-                Some(ObjectControllerScope::NotAbilityController) => {
+                Some(
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer,
+                ) => {
                     cursor.enter("trigger.program.event-controller-support");
                     return Err(
                         cursor.fail("a supported positive permanent-event controller scope")

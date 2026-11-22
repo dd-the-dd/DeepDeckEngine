@@ -186,6 +186,7 @@ mod quantity_replacement;
 mod rebound;
 mod reference;
 mod regenerate;
+mod relative_clause;
 mod replicate;
 mod resolution_cost;
 mod resource_payment;
@@ -437,6 +438,7 @@ pub(super) use quantity_replacement::*;
 pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
+pub(super) use relative_clause::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
 pub(super) use resource_payment::*;
@@ -1160,6 +1162,10 @@ pub(super) enum ObjectControllerScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// The player the triggering event records (`defending player`,
+    /// `that player` after an event naming one), resolved by the C2
+    /// binding environment.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1177,6 +1183,8 @@ pub(super) enum SpellCasterScope {
     AbilityController,
     NotAbilityController,
     OpponentOfAbilityController,
+    /// The player the triggering event records.
+    EventPlayer,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

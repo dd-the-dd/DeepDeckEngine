@@ -88,7 +88,7 @@ fn sacrifice_context_accepts_subtype_nouns_but_not_bare_adjectives() {
 fn unsupported_suffix_and_variable_restore_the_transaction_checkpoint() {
     for (text, state) in [
         (
-            "As an additional cost to cast this spell, sacrifice a creature that dealt damage this turn.",
+            "As an additional cost to cast this spell, sacrifice a creature that shares a creature type with it.",
             "additional-cost.mandatory-sacrifice.terminator",
         ),
         (

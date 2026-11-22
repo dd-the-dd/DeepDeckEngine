@@ -33,6 +33,10 @@ pub(in crate::oracle::canonical) fn recognize_object_predicate_atom(
                     .ok_or_else(|| cursor.fail("a typed object characteristic"))?;
                 let (negated, surface) = split_negated_surface(first);
                 cursor.require(!surface.is_empty(), "a characteristic after `non-`")?;
+                cursor.require(
+                    !bare_attachment_reference(cursor),
+                    "a qualifier, not the attached-object reference `equipped|enchanted NOUN` (CR 301.5c, 303.4e)",
+                )?;
                 let (recognized, width) =
                     recognize_positive_atom(surface, cursor.peek_ahead(1), forms).ok_or_else(
                         || cursor.fail("a registered card type, subtype, color, or supertype"),
@@ -61,7 +65,53 @@ pub(super) fn object_predicate_atom_starts(
         return false;
     };
     let (_, surface) = split_negated_surface(first);
-    !surface.is_empty() && recognize_positive_atom(surface, cursor.peek_ahead(1), forms).is_some()
+    !surface.is_empty()
+        && !bare_attachment_reference(cursor)
+        && recognize_positive_atom(surface, cursor.peek_ahead(1), forms).is_some()
+}
+
+/// `equipped creature` / `enchanted permanent` with no determiner before it
+/// and a singular noun after it names the object the source is attached to
+/// (CR 301.5c, 303.4e), which the attachment reference owns. After a
+/// determiner (`target enchanted permanent`, `an equipped creature`) or
+/// before a plural noun (`equipped creatures`) it is the status qualifier.
+fn bare_attachment_reference(cursor: &OracleTokenCursor<'_>) -> bool {
+    let attachment_status = cursor.peek().is_some_and(|raw| {
+        matches!(
+            super::ObjectStatus::from_adjective(raw),
+            Some(super::ObjectStatus::Enchanted | super::ObjectStatus::Equipped)
+        )
+    });
+    if !attachment_status {
+        return false;
+    }
+    let singular_noun = cursor.peek_ahead(1).is_some_and(|noun| {
+        recognize_positive_atom(&noun, None, AcceptedForms::SingularOnly).is_some()
+    });
+    let determined = cursor
+        .position()
+        .checked_sub(1)
+        .and_then(|previous| cursor.token_slice(previous, previous + 1).first())
+        .is_some_and(|token| {
+            matches!(
+                token.raw.to_ascii_lowercase().as_str(),
+                "a" | "an"
+                    | "target"
+                    | "each"
+                    | "every"
+                    | "another"
+                    | "other"
+                    | "all"
+                    | "any"
+                    | "of"
+                    | "no"
+                    | "that"
+                    | "two"
+                    | "three"
+                    | "x"
+            )
+        });
+    singular_noun && !determined
 }
 
 /// Compatibility entry point for parents that already own the complete
@@ -116,11 +166,8 @@ fn recognize_positive_atom(
     if let Some(card_type) = lookup_card_type(first, forms) {
         return Some((ObjectPredicate::CardType(card_type), 1));
     }
-    if let Some(status) = super::ObjectStatus::from_adjective(first) {
-        return Some((ObjectPredicate::Status(status), 1));
-    }
-    if let Some(designation) = super::PermanentDesignation::from_adjective(first) {
-        return Some((ObjectPredicate::Designation(designation), 1));
+    if let Some(status) = super::lookup_status_predicate(first) {
+        return Some((status, 1));
     }
     if let Some(color) = lookup_card_color(first) {
         return Some((ObjectPredicate::Color(color), 1));

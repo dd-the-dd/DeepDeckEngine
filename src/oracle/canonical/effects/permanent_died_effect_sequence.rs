@@ -65,8 +65,9 @@ fn lower_event_branch(branch: &PermanentDiedEventBranchNode) -> Value {
                         "kind": "opponentsOf",
                         "player": controller(),
                     }),
-                    ObjectControllerScope::NotAbilityController => unreachable!(
-                        "the permanent-died automaton rejects negative controller scopes"
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer => unreachable!(
+                        "the permanent-died automaton rejects negative and event-bound controller scopes"
                     ),
                 };
             }

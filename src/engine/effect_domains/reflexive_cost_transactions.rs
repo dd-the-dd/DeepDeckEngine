@@ -308,7 +308,12 @@ impl GameEngine {
 
                 let ability = effect["ability"].clone();
                 let declarations = self
-                    .declarations_for_triggered_rule(&ability, &player_id, &stack_object.card)?
+                    .declarations_for_triggered_rule(
+                        &ability,
+                        &player_id,
+                        &stack_object.card,
+                        &stack_object.decisions,
+                    )?
                     .unwrap_or_default();
                 if declarations.is_empty() {
                     return Ok(());

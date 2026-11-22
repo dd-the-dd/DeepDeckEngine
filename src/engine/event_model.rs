@@ -544,7 +544,7 @@ impl GameEngine {
                 filter.predicate.is_null()
                     || self.permanent_matches_effective_filter(object, filter.predicate)
             }
-            ObjectView::PermanentState => matches_permanent_filter(object, filter.predicate),
+            ObjectView::PermanentState => self.permanent_state_matches(object, filter.predicate),
             ObjectView::Printed => matches_card_filter(&object.definition, filter.predicate),
         }
     }

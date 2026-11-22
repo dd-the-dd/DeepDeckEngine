@@ -233,6 +233,7 @@ impl GameEngine {
                         rule,
                         &stack_object.controller,
                         &stack_object.card,
+                        &stack_object.decisions,
                     )?
                     .unwrap_or_default();
                 if declarations.is_empty() {

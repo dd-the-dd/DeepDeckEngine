@@ -17,6 +17,21 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     Untapped,
     Attacking,
     Blocking,
+    /// CR 700.9: it has a counter, an Aura its controller controls or an
+    /// Equipment attached.
+    Modified,
+    /// An Aura is attached to it.
+    Enchanted,
+    /// An Equipment is attached to it (CR 301.5).
+    Equipped,
+    /// This-turn history of the object, read by a past-tense relative
+    /// clause (`that entered this turn`, `that was dealt damage this turn`).
+    /// They have no adjective surface.
+    EnteredThisTurn,
+    AttackedThisTurn,
+    BlockedThisTurn,
+    WasDealtDamageThisTurn,
+    DealtDamageThisTurn,
 }
 
 impl ObjectStatus {
@@ -26,6 +41,9 @@ impl ObjectStatus {
             "untapped" => Some(Self::Untapped),
             "attacking" => Some(Self::Attacking),
             "blocking" => Some(Self::Blocking),
+            "modified" => Some(Self::Modified),
+            "enchanted" => Some(Self::Enchanted),
+            "equipped" => Some(Self::Equipped),
             _ => None,
         }
     }
@@ -37,6 +55,14 @@ impl ObjectStatus {
             Self::Untapped => ("isTapped", true),
             Self::Attacking => ("isAttacking", false),
             Self::Blocking => ("isBlocking", false),
+            Self::Modified => ("isModified", false),
+            Self::Enchanted => ("hasAttachedAura", false),
+            Self::Equipped => ("isEquipped", false),
+            Self::EnteredThisTurn => ("enteredThisTurn", false),
+            Self::AttackedThisTurn => ("attackedThisTurn", false),
+            Self::BlockedThisTurn => ("blockedThisTurn", false),
+            Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
+            Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
         }
     }
 }

@@ -60,7 +60,7 @@ fn sacrifice_domain_controller_and_complete_consumption_are_not_approximated() {
             state
         );
     }
-    assert!(parse("Sacrifice a creature that dealt damage this turn").is_err());
+    assert!(parse("Sacrifice a creature that shares a creature type with it").is_err());
 }
 
 #[test]

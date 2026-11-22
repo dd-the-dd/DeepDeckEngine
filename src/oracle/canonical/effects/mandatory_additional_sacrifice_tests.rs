@@ -164,7 +164,7 @@ fn subtype_and_literal_property_costs_use_shared_object_predicates() {
 #[test]
 fn unsupported_context_is_unpromoted_but_impossible_domain_is_failed() {
     for text in [
-        "As an additional cost to cast this spell, sacrifice a creature that dealt damage this turn.",
+        "As an additional cost to cast this spell, sacrifice a creature that shares a creature type with it.",
         "As an additional cost to cast this spell, sacrifice a creature with mana value X.",
     ] {
         assert!(matches!(
@@ -186,7 +186,7 @@ fn default_preserves_unsupported_cost_context_with_a_diagnostic() {
         type_line: "Sorcery".into(),
         mana_cost: Some("{1}{R}".into()),
         oracle_text: Some(
-            "As an additional cost to cast this spell, sacrifice a creature that dealt damage this turn.".into(),
+            "As an additional cost to cast this spell, sacrifice a creature that shares a creature type with it.".into(),
         ),
         layout: Some("normal".into()),
         faces: vec![],

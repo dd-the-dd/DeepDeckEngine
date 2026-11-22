@@ -38,7 +38,8 @@ pub(in crate::oracle::canonical) fn lower_fixed_controller_permanent_query(
         None => None,
         Some(ObjectControllerScope::AbilityController) => Some(controller()),
         Some(ObjectControllerScope::OpponentOfAbilityController)
-        | Some(ObjectControllerScope::NotAbilityController) => {
+        | Some(ObjectControllerScope::NotAbilityController)
+        | Some(ObjectControllerScope::EventPlayer) => {
             return Err(TargetlessLoweringError::UnsupportedCollectionController);
         }
     };

@@ -2361,7 +2361,9 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "dealtDamageThisTurn"
             | "enteredGraveyardThisTurn"
             | "dealtDamageToControllerThisTurn"
-            | "wasDealtDamageThisTurn",
+            | "wasDealtDamageThisTurn"
+            | "attackedThisTurn"
+            | "blockedThisTurn",
         ) => true,
         Some("or" | "and") => filter["operands"]
             .as_array()
@@ -2384,7 +2386,7 @@ fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
         Some("hasDesignation") => matches!(
             filter["designation"].as_str(),
-            Some("monstrous" | "renowned" | "suspected")
+            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown")
         ),
         Some("hasCounter") => {
             filter.get("counter").is_none_or(Value::is_string)
@@ -5222,12 +5224,33 @@ fn static_card_filter_supported(value: &Value) -> bool {
     }
 }
 
+/// Whether a filter reads this-turn object history from the event log.
+fn filter_reads_object_history(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some(
+            "attackedThisTurn"
+            | "blockedThisTurn"
+            | "dealtDamageThisTurn"
+            | "wasDealtDamageThisTurn"
+            | "dealtDamageToControllerThisTurn",
+        ) => true,
+        Some("and" | "or") => filter["operands"]
+            .as_array()
+            .is_some_and(|operands| operands.iter().any(filter_reads_object_history)),
+        Some("not") => filter_reads_object_history(&filter["operand"]),
+        _ => false,
+    }
+}
+
 fn static_object_selector_supported(objects: &Value) -> bool {
     match value_kind(objects) {
         Some("self") => true,
         Some("attachedPermanent") => value_kind(&objects["attachment"]) == Some("self"),
         Some("permanents") => {
             permanent_filter_supported(&objects["where"])
+                // A static selector is matched without the event log, so it
+                // cannot read this-turn object history.
+                && !filter_reads_object_history(&objects["where"])
                 && objects.get("excludeSource").is_none_or(Value::is_boolean)
                 && objects
                     .get("ownership")
@@ -9049,7 +9072,7 @@ impl GameEngine {
                             && condition["excludeName"]
                                 .as_str()
                                 .is_none_or(|name| !card.definition.name.eq_ignore_ascii_case(name))
-                            && matches_permanent_filter(card, &condition["where"])
+                            && self.permanent_state_matches(card, &condition["where"])
                     })
             }
             Some("playerQuantifier") => {
@@ -9583,7 +9606,7 @@ impl GameEngine {
                             .flat_map(|player| player.battlefield.iter())
                             .filter(|card| {
                                 ownership_matches(card, controller_id)
-                                    && matches_permanent_filter(card, &expression["where"])
+                                    && self.permanent_state_matches(card, &expression["where"])
                             })
                             .count() as i32,
                     );
@@ -9595,7 +9618,7 @@ impl GameEngine {
                         .iter()
                         .filter(|card| {
                             ownership_matches(card, controller_id)
-                                && matches_permanent_filter(card, &expression["where"])
+                                && self.permanent_state_matches(card, &expression["where"])
                         })
                         .count() as i32,
                 )
@@ -10173,7 +10196,7 @@ impl GameEngine {
                     };
                     player_in_scope
                         && ownership_matches
-                        && matches_permanent_filter(current, &expression["where"])
+                        && self.permanent_state_matches(current, &expression["where"])
                 },
             );
         }
@@ -11509,8 +11532,89 @@ impl GameEngine {
                     .all(|operand| self.permanent_matches_effective_filter(permanent, operand))
             }),
             Some("not") => !self.permanent_matches_effective_filter(permanent, &filter["operand"]),
+            // This-turn object history (CR 608.2c): flags and the event log,
+            // read for the same incarnation only.
+            Some("enteredThisTurn") => permanent
+                .flags
+                .get("enteredThisTurn")
+                .copied()
+                .unwrap_or(false),
+            Some(
+                kind @ ("attackedThisTurn"
+                | "blockedThisTurn"
+                | "dealtDamageThisTurn"
+                | "wasDealtDamageThisTurn"),
+            ) => self.permanent_history_this_turn(permanent, kind),
             _ => matches_card_filter(&permanent.definition, filter),
         }
+    }
+
+    /// The permanent-state matcher with the this-turn object history the
+    /// card-level matcher cannot read (it has no event log).
+    pub(super) fn permanent_state_matches(&self, card: &CardInstance, filter: &Value) -> bool {
+        match value_kind(filter) {
+            Some("or") => filter["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .any(|operand| self.permanent_state_matches(card, operand))
+            }),
+            Some("and") => filter["operands"].as_array().is_some_and(|operands| {
+                operands
+                    .iter()
+                    .all(|operand| self.permanent_state_matches(card, operand))
+            }),
+            Some("not") => !self.permanent_state_matches(card, &filter["operand"]),
+            Some(
+                kind @ ("attackedThisTurn"
+                | "blockedThisTurn"
+                | "dealtDamageThisTurn"
+                | "wasDealtDamageThisTurn"),
+            ) => self.permanent_history_this_turn(card, kind),
+            _ => matches_permanent_filter(card, filter),
+        }
+    }
+
+    /// Whether this incarnation of `permanent` has the this-turn fact `kind`.
+    fn permanent_history_this_turn(&self, permanent: &CardInstance, kind: &str) -> bool {
+        let current = self.object_identity_value(&permanent.instance_id);
+        let same_object = |detail: &Value| {
+            detail
+                .get("objectIdentity")
+                .is_none_or(|identity| identity.is_null() || *identity == current)
+        };
+        self.state.events.iter().any(|event| {
+            event.turn_number == self.state.turn_number
+                && match kind {
+                    "attackedThisTurn" => {
+                        matches!(event.kind.as_str(), "attackerDeclared" | "declaredAttacker")
+                            && event.card_instance_id.as_deref()
+                                == Some(permanent.instance_id.as_str())
+                            && same_object(&event.detail)
+                    }
+                    "blockedThisTurn" => {
+                        event.kind == "blockerDeclared"
+                            && event.card_instance_id.as_deref()
+                                == Some(permanent.instance_id.as_str())
+                            && same_object(&event.detail)
+                    }
+                    "dealtDamageThisTurn" => {
+                        event.kind == "damageDealt"
+                            && event.detail["source"].as_str()
+                                == Some(permanent.instance_id.as_str())
+                            && event.detail["amount"]
+                                .as_i64()
+                                .is_some_and(|amount| amount > 0)
+                    }
+                    _ => {
+                        event.kind == "damageDealt"
+                            && event.detail["targetPermanentId"].as_str()
+                                == Some(permanent.instance_id.as_str())
+                            && event.detail["amount"]
+                                .as_i64()
+                                .is_some_and(|amount| amount > 0)
+                    }
+                }
+        })
     }
 
     /// A continuous `addSupertype` modifier (CR 205.4) applying to this permanent.
@@ -11701,7 +11805,7 @@ impl GameEngine {
                         .iter()
                         .filter(|permanent| {
                             expression.get("where").is_none_or(|where_filter| {
-                                matches_permanent_filter(permanent, where_filter)
+                                self.permanent_state_matches(permanent, where_filter)
                             })
                         })
                         .flat_map(|permanent| self.permanent_color_symbols(permanent))
@@ -11717,7 +11821,7 @@ impl GameEngine {
                         .battlefield
                         .iter()
                         .filter(|permanent| {
-                            matches_permanent_filter(permanent, &expression["where"])
+                            self.permanent_state_matches(permanent, &expression["where"])
                         })
                         .filter(|permanent| {
                             !expression["excludeSource"].as_bool().unwrap_or(false)
@@ -11741,7 +11845,9 @@ impl GameEngine {
                         !expression["excludeSource"].as_bool().unwrap_or(false)
                             || permanent.instance_id != source.instance_id
                     })
-                    .filter(|permanent| matches_permanent_filter(permanent, &expression["where"]))
+                    .filter(|permanent| {
+                        self.permanent_state_matches(permanent, &expression["where"])
+                    })
                     .count() as i32
             }
             Some("multiply") => self
@@ -11812,7 +11918,7 @@ impl GameEngine {
                             .battlefield
                             .iter()
                             .filter(|permanent| {
-                                matches_permanent_filter(permanent, &expression["where"])
+                                self.permanent_state_matches(permanent, &expression["where"])
                             })
                             .count() as i32
                     })
@@ -17415,6 +17521,7 @@ impl GameEngine {
         rule: &Value,
         controller_id: &str,
         source: &CardInstance,
+        trigger_decisions: &BTreeMap<String, Value>,
     ) -> Result<Option<Vec<CastingDeclaration>>, EngineError> {
         let mut declaration_rule = json!({
             "kind": "spellAbility",
@@ -17445,6 +17552,17 @@ impl GameEngine {
                     .is_none()
                 {
                     return Ok(None);
+                }
+                // `that player controls` / `defending player controls`: the
+                // player the trigger's event recorded (CR 603.2).
+                if value_kind(&decision["candidates"]["controller"]) == Some("triggeringPlayer") {
+                    let Some(player) = trigger_decisions
+                        .get("triggeringPlayerId")
+                        .and_then(Value::as_str)
+                    else {
+                        return Ok(None);
+                    };
+                    decision["candidates"]["resolvedControllerIds"] = json!([player]);
                 }
             }
         }
@@ -19666,9 +19784,9 @@ impl GameEngine {
                             )
                         })
                         .filter(|candidate| {
-                            ability
-                                .get("where")
-                                .is_none_or(|filter| matches_permanent_filter(candidate, filter))
+                            ability.get("where").is_none_or(|filter| {
+                                self.permanent_state_matches(candidate, filter)
+                            })
                         })
                         .map(|candidate| candidate.instance_id.clone())
                         .collect::<Vec<_>>();
@@ -19680,7 +19798,7 @@ impl GameEngine {
                                 .iter()
                                 .filter(|candidate| candidate.instance_id != *target_id)
                                 .filter(|candidate| {
-                                    matches_permanent_filter(candidate, &cost["where"])
+                                    self.permanent_state_matches(candidate, &cost["where"])
                                 })
                                 .map(|candidate| Some(candidate.instance_id.clone()))
                                 .collect::<Vec<_>>()
@@ -23121,7 +23239,7 @@ impl GameEngine {
                             let permanent_ids = matching_tapped
                                 .iter()
                                 .filter(|permanent| {
-                                    matches_permanent_filter(permanent, &rule["event"]["where"])
+                                    self.permanent_state_matches(permanent, &rule["event"]["where"])
                                 })
                                 .map(|permanent| Value::String(permanent.instance_id.clone()))
                                 .collect::<Vec<_>>();
@@ -23544,7 +23662,7 @@ impl GameEngine {
                                     value_kind(event),
                                     Some("tokenCreated" | "tokenCreatedOrSacrificed")
                                 ) && event.get("where").is_none_or(|where_filter| {
-                                    matches_permanent_filter(token, where_filter)
+                                    self.permanent_state_matches(token, where_filter)
                                 })
                             })
                 })
@@ -27665,7 +27783,7 @@ impl GameEngine {
                         let sacrifice =
                             &self.state.players[sacrifice_player].battlefield[sacrifice_index];
                         if sacrifice.controller != action.player_id
-                            || !matches_permanent_filter(sacrifice, &cost["where"])
+                            || !self.permanent_state_matches(sacrifice, &cost["where"])
                         {
                             return Err(EngineError::new("illegal equip sacrifice"));
                         }
@@ -29758,7 +29876,8 @@ impl GameEngine {
                                 && (value_kind(decision) == Some("chooseBattlefieldCreature")
                                     && self.permanent_is_creature(permanent)
                                     || value_kind(decision) == Some("chooseBattlefieldPermanent")
-                                        && matches_permanent_filter(permanent, &decision["where"]))
+                                        && self
+                                            .permanent_state_matches(permanent, &decision["where"]))
                         })
                         .map(|permanent| permanent.instance_id.clone())
                         .collect::<Vec<_>>();
@@ -31724,7 +31843,7 @@ impl GameEngine {
                             .battlefield
                             .iter()
                             .filter(|permanent| {
-                                matches_permanent_filter(permanent, &expression["where"])
+                                self.permanent_state_matches(permanent, &expression["where"])
                             })
                             .filter(|permanent| {
                                 !expression["excludeSource"].as_bool().unwrap_or(false)
@@ -31740,7 +31859,7 @@ impl GameEngine {
                             .battlefield
                             .iter()
                             .filter(|permanent| {
-                                matches_permanent_filter(permanent, &expression["where"])
+                                self.permanent_state_matches(permanent, &expression["where"])
                             })
                             .filter(|permanent| {
                                 !expression["excludeSource"].as_bool().unwrap_or(false)
@@ -31979,7 +32098,7 @@ impl GameEngine {
                             };
                             player_in_scope
                                 && ownership_matches
-                                && matches_permanent_filter(current, &expression["where"])
+                                && self.permanent_state_matches(current, &expression["where"])
                         },
                     )
                 } else {
@@ -33880,7 +33999,7 @@ impl GameEngine {
                                 !action["excludeSource"].as_bool().unwrap_or(false)
                                     || card.instance_id != stack_object.card.instance_id
                             })
-                            .filter(|card| matches_permanent_filter(card, &action["where"]))
+                            .filter(|card| self.permanent_state_matches(card, &action["where"]))
                             .count()
                             >= count
                     })

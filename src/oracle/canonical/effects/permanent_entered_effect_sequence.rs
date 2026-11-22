@@ -18,8 +18,8 @@ fn lower_event(envelope: &PermanentEnteredEnvelopeNode) -> Value {
         Some(ObjectControllerScope::OpponentOfAbilityController) => {
             event["player"] = json!({ "kind": "opponentsOf", "player": controller() });
         }
-        Some(ObjectControllerScope::NotAbilityController) => {
-            unreachable!("the envelope rejects negative controller scopes")
+        Some(ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer) => {
+            unreachable!("the envelope rejects negative and event-bound controller scopes")
         }
         None => event["anyController"] = Value::Bool(true),
     }
