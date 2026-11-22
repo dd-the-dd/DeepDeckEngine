@@ -309,3 +309,30 @@ nominal défini lié au cadre. La proposition prend son accord du sujet.
   installé sur la cible engagée).
 - Reste : `Those creatures don't …` après une cible plurielle
   (antécédent pluriel non lié).
+
+## Phase 6, suite (après #56)
+
+Revue de #55 (`reference.rs`) : `the NOUN` (`sacrifice the permanent`,
+CR 702.32a) résout comme un pronom vers l'antécédent source du résolveur
+de liaisons. Conservé tel quel : la description définie ne nomme jamais un
+objet nouveau et ne lit que l'antécédent source déjà prouvé ; elle ne
+couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
+`that NOUN`, validée contre le sélecteur déclaré).
+
+### Étape 18 : la carte qu'un déplacement met sur le champ de bataille
+
+- CR 400.7 : l'effet qui met une carte sur le champ de bataille retrouve le
+  permanent qu'elle devient. Une carte choisie, une cible de carte unique
+  ou la dernière action d'une séquence facultative locale devient
+  l'antécédent `MovedOntoBattlefield` (liaison `moveCards.bind` existante,
+  lue par `singleBoundObject`). Le prédicat de carte déclaré sert de
+  sélecteur pour l'anaphore nominale (`that creature`), comme pour une
+  cible.
+- Sonde : ligue 815 → 816 (+1 : Pre-War Formalwear), corpus 14562 → 14567
+  (+5), 0 perte, aucune IR modifiée hors des cartes gagnées. Preuves : IR
+  identique entre `it` et `that creature`, recombinaison (compteur sur la
+  carte rendue), quasi-échecs (nominal non impliqué, plusieurs cartes),
+  exécution (le compteur va sur le permanent rendu).
+- Restes : la permission de programme `You may put … . That creature …`
+  (deux étapes de programme : l'antécédent ne traverse pas la frontière
+  d'étape) et les retards `Exile it at the beginning of the next end step`.

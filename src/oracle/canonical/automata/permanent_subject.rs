@@ -27,6 +27,39 @@ pub(in crate::oracle::canonical) enum PermanentSubjectScope {
     Local(Option<PermanentEffectReference>),
 }
 
+/// The selector of the one card an action put onto the battlefield: a chosen
+/// card, a single card target, or the last action of an optional sequence
+/// (`you may put a creature card ... onto the battlefield`). `Some(None)` is
+/// a chosen card without a predicate.
+pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
+    effect: &LocalEffectNode,
+) -> Option<Option<TargetSelector>> {
+    match effect {
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::Selection(selection),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield
+            && selection.quantity
+                == CardSelectionQuantityNode::Exactly(NumericExpression::from(1)) =>
+        {
+            Some(selection.predicate.clone().map(TargetSelector::Object))
+        }
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::Targets(targets),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield
+            && targets.cardinality == ExpressedTargetCardinality::EXACTLY_ONE =>
+        {
+            Some(Some(TargetSelector::Object(targets.predicate.clone())))
+        }
+        LocalEffectNode::OptionalSequence(body) => body
+            .effects
+            .last()
+            .and_then(moved_onto_battlefield_selector),
+        _ => None,
+    }
+}
+
 pub(in crate::oracle::canonical) fn permanent_antecedent(
     context: &EffectRecognitionContext,
 ) -> Option<PermanentEffectReference> {
@@ -132,17 +165,11 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::CreateExplicitTokens(_) => Local(Some(
             PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
         )),
-        LocalEffectNode::CardAction(CardActionNode::Move {
-            cards: CardOperandNode::Selection(selection),
-            destination,
-        }) if destination.zone == CardZoneName::Battlefield
-            && selection.quantity
-                == CardSelectionQuantityNode::Exactly(NumericExpression::from(1)) =>
-        {
-            Local(Some(PermanentEffectReference::Observed(
-                TypedObservedEventObject::MovedOntoBattlefield,
-            )))
-        }
+        // CR 400.7: the effect that put one card onto the battlefield finds
+        // the permanent it became (`that creature gains haste`).
+        effect if moved_onto_battlefield_selector(effect).is_some() => Local(Some(
+            PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
+        )),
         LocalEffectNode::Choose(node) => match &node.domain {
             ChoiceDomainNode::CreatureType => previous,
             ChoiceDomainNode::PermanentTargets(targets) => {

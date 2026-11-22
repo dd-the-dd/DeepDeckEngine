@@ -673,6 +673,15 @@ fn recognize_effect_sequence_attempt_scoped(
                             )
                         })
                         .cloned(),
+                    super::PermanentSubjectScope::Local(Some(
+                        super::PermanentEffectReference::Observed(
+                            super::TypedObservedEventObject::MovedOntoBattlefield,
+                        ),
+                    )) => memory
+                        .effects
+                        .last()
+                        .and_then(super::permanent_subject::moved_onto_battlefield_selector)
+                        .flatten(),
                     _ => None,
                 };
                 // `its controller` / `that NOUN's owner`: the singular object
@@ -706,6 +715,17 @@ fn recognize_effect_sequence_attempt_scoped(
                                         )
                                     })
                                     .cloned(),
+                                // The card a move put onto the battlefield: its
+                                // declared card predicate names the permanent.
+                                super::PermanentEffectReference::Observed(
+                                    super::TypedObservedEventObject::MovedOntoBattlefield,
+                                ) => memory
+                                    .effects
+                                    .last()
+                                    .and_then(
+                                        super::permanent_subject::moved_onto_battlefield_selector,
+                                    )
+                                    .flatten(),
                                 _ => None,
                             },
                         }),

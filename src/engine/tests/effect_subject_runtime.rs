@@ -146,3 +146,60 @@ fn an_object_subject_that_does_not_untap_skips_its_next_untap_step() {
         engine.state.rule_modifiers
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_returned_card_is_the_permanent_the_next_action_changes() {
+    // CR 400.7: the card returned to the battlefield is a new object the
+    // returning effect finds; the counter goes on that permanent.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Return target creature card from your graveyard to the battlefield. Put a +1/+1 counter on it.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:revival".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("revival", test_definition("revival", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Card {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    let permanent = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.definition.id == "bear")
+        .expect("the returned creature");
+    assert_eq!(
+        permanent.counters.get("+1/+1").copied(),
+        Some(1),
+        "{rule:#}"
+    );
+}
