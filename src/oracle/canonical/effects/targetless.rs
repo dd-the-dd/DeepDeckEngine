@@ -139,6 +139,16 @@ pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
         }
         // A conjunction expands into one atom per group in the plural lowerer.
         DamageRecipientNode::All(_) => Err(TargetlessLoweringError::UnsupportedEffect),
+        // Without the program's target bindings only references to the
+        // event, the source or its attachment have a value.
+        DamageRecipientNode::BoundPlayer(reference) => {
+            bound_player_reference_value(*reference, &[], &[])
+                .ok_or(TargetlessLoweringError::RequiresTarget)
+        }
+        DamageRecipientNode::BoundObject(reference) => {
+            bound_permanent_reference_value(*reference, &[])
+                .ok_or(TargetlessLoweringError::RequiresTarget)
+        }
     }
 }
 

@@ -25,6 +25,7 @@ mod arithmetic_expression;
 mod attach;
 mod attack_tax;
 mod become_types;
+mod binding_environment;
 mod block_restriction;
 mod boolean_condition;
 mod bound_collection_untap;
@@ -278,6 +279,7 @@ pub(super) use arithmetic_expression::{
 pub(super) use attach::*;
 pub(super) use attack_tax::*;
 pub(super) use become_types::*;
+pub(super) use binding_environment::*;
 pub(super) use block_restriction::*;
 pub(super) use bound_collection_untap::*;
 pub(super) use bound_object_condition::*;
@@ -1379,6 +1381,23 @@ pub(super) enum DamageRecipientNode {
     /// `to each creature and each player`: every group receives the same
     /// amount from the same source (CR 120.2). Members are never nested.
     All(Vec<DamageRecipientNode>),
+    /// `to that player`, `to defending player`, `to that creature's
+    /// controller`: a player the binding environment names.
+    BoundPlayer(BoundPlayerReference),
+    /// `to it`, `to that creature`: an object the binding environment names.
+    BoundObject(PermanentEffectReference),
+}
+
+impl DamageRecipientNode {
+    /// A recipient resolved through the binding environment; its lowering
+    /// needs the program's target bindings.
+    pub(super) fn is_bound(&self) -> bool {
+        match self {
+            Self::BoundPlayer(_) | Self::BoundObject(_) => true,
+            Self::All(groups) => groups.iter().any(Self::is_bound),
+            _ => false,
+        }
+    }
 }
 
 /// `each [other] OBJECTS [CONTROLLER]`: the shared object query of a damage

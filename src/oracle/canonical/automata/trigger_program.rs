@@ -160,6 +160,17 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
         }) if actions.iter().all(|action| action.records_acting_player())
     ) || event_damage_complement(event)
         .is_some_and(|complement| matches!(complement.recipient, Some(DamageRecipient::Player(_))))
+        // The drawing player (CR 121.1) and the caster of a cast spell (CR
+        // 601.2): both records bind the triggering player. A copied spell has
+        // no caster and the source spell's caster is its controller.
+        || matches!(
+            event,
+            GenericTriggerEventNode::Local(LocalTriggerEventNode::CardDrawn { .. })
+        )
+        || matches!(
+            event,
+            GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
+        )
 }
 
 /// The dealt-damage complement of a source, attached or object damage event.

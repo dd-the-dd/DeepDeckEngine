@@ -31044,6 +31044,13 @@ impl GameEngine {
             // The other combatant of the triggering block record, while it is
             // still the same object (CR 400.7).
             Some("combatCounterpart") => self.combat_counterpart_target(stack_object),
+            // The entering permanent, while it is the incarnation the entry
+            // event observed (CR 400.7).
+            Some("observedEventObject") => self
+                .resolve_observed_event_permanent(reference, stack_object)
+                .ok()
+                .flatten()
+                .map(|instance_id| TargetRef::Permanent { instance_id }),
             Some("triggeringStackObject") => stack_object
                 .decisions
                 .get("triggeringStackId")

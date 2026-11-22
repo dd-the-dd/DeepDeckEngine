@@ -14,6 +14,11 @@ pub(in super::super) fn damage_effect_supported(effect: &Value) -> Option<bool> 
         Some("dealDamage") => {
             numeric_expression_supported(&effect["amount"])
                 && (target_reference_supported(&effect["recipient"])
+                    // The entering object, resolved only while it is the
+                    // incarnation the entry event observed (CR 400.7).
+                    || super::super::entry_observation::observed_object_reference_supported(
+                        &effect["recipient"],
+                    )
                     || player_reference_supported(&effect["recipient"])
                     || (value_kind(&effect["recipient"]) == Some("eachPermanent")
                         && object_expression_supported(&effect["recipient"])))

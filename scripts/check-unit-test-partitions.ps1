@@ -10,10 +10,10 @@ $partitionCounts = [ordered]@{
 $expectedPartitionCounts = [ordered]@{
     "ci-unit-tests-1" = 255
     "ci-unit-tests-2" = 159
-    "ci-unit-tests-3" = 785
+    "ci-unit-tests-3" = 787
     "ci-unit-tests-4" = 281
 }
-$expectedDedicatedEngineTestFileCount = 212
+$expectedDedicatedEngineTestFileCount = 213
 
 function Get-RelativePath([string]$Root,[string]$Path){return [IO.Path]::GetFullPath($Path).Substring([IO.Path]::GetFullPath($Root).Length).TrimStart([char[]]@('\','/')).Replace('\','/')}
 function Test-IsDedicatedEngineTest([string]$RelativePath){return $RelativePath.StartsWith('src/engine/tests/') -or [IO.Path]::GetFileName($RelativePath) -match '(^tests|_tests)\.rs$'}

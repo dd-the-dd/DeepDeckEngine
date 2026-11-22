@@ -1297,7 +1297,14 @@ fn lower_local_effect_sequence_with_collections(
                     }
                     DamageRecipientNode::All(groups) => groups
                         .iter()
-                        .map(|group| lower_fixed_damage_recipient(group, context))
+                        .map(|group| {
+                            lower_fixed_damage_recipient(
+                                group,
+                                context,
+                                &target_bindings,
+                                &declared_player_targets,
+                            )
+                        })
                         .collect::<Result<Vec<_>, _>>()
                         .map_err(|error| {
                             EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -1306,7 +1313,13 @@ fn lower_local_effect_sequence_with_collections(
                         })?,
                     group => {
                         vec![
-                            lower_fixed_damage_recipient(group, context).map_err(|error| {
+                            lower_fixed_damage_recipient(
+                                group,
+                                context,
+                                &target_bindings,
+                                &declared_player_targets,
+                            )
+                            .map_err(|error| {
                                 EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                                     cursor.fail(error.expectation()),
                                 )
@@ -1369,6 +1382,49 @@ fn lower_local_effect_sequence_with_collections(
                     "first": first,
                     "second": second,
                 }));
+            }
+            LocalEffectNode::DealDamage(damage) if damage.recipient.is_bound() => {
+                // The source is fixed; every recipient group is a fixed
+                // group or a reference the binding environment resolved.
+                cursor.enter("lower.damage.bound-recipient");
+                let source = match damage.fixed_source() {
+                    Some(LocalObjectReference::SourceSelf) => self_ref(),
+                    None => {
+                        return Err(EffectSequenceLoweringFailure::FailedSupport(
+                            cursor.fail("a fixed damage source for a bound recipient"),
+                        ));
+                    }
+                };
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &damage.amount,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let groups = match &damage.recipient {
+                    DamageRecipientNode::All(groups) => groups.iter().collect::<Vec<_>>(),
+                    group => vec![group],
+                };
+                for group in groups {
+                    let recipient = lower_fixed_damage_recipient(
+                        group,
+                        context,
+                        &target_bindings,
+                        &declared_player_targets,
+                    )
+                    .map_err(|error| {
+                        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                            cursor.fail(error.expectation()),
+                        )
+                    })?;
+                    effects.push(json!({
+                        "kind": "dealDamage",
+                        "source": source.clone(),
+                        "amount": amount.clone(),
+                        "recipient": recipient,
+                    }));
+                }
             }
             LocalEffectNode::DealDamage(damage)
                 if matches!(&damage.recipient, DamageRecipientNode::Targets(_)) =>
@@ -2269,7 +2325,22 @@ fn operand_target_base_ids(operand: &PermanentOperandNode) -> Vec<&'static str> 
 fn lower_fixed_damage_recipient(
     recipient: &DamageRecipientNode,
     context: EffectSequenceLoweringContext,
+    object_bindings: &[(TargetBinding, String)],
+    player_bindings: &[(PlayerTargetBinding, String)],
 ) -> Result<Value, TargetlessLoweringError> {
+    // A reference the binding environment resolved reads the program's
+    // declared slots; every other fixed group needs none.
+    match recipient {
+        DamageRecipientNode::BoundPlayer(reference) => {
+            return bound_player_reference_value(*reference, object_bindings, player_bindings)
+                .ok_or(TargetlessLoweringError::RequiresTarget);
+        }
+        DamageRecipientNode::BoundObject(reference) => {
+            return bound_permanent_reference_value(*reference, object_bindings)
+                .ok_or(TargetlessLoweringError::RequiresTarget);
+        }
+        _ => {}
+    }
     let declarations = match context {
         EffectSequenceLoweringContext::NoExternalX => TargetlessDeclarationSupport::None,
         EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
