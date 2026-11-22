@@ -91,10 +91,21 @@ fn lower_object_predicate(
             Some(if negated { not(atom) } else { atom })
         }
         ObjectPredicate::PermanentCard => Some(json!({ "kind": "isPermanentCard" })),
-        ObjectPredicate::HasCounter(counter) => Some(match counter {
-            Some(counter) => json!({ "kind": "hasCounter", "counter": counter.as_str() }),
-            None => json!({ "kind": "hasCounter" }),
-        }),
+        ObjectPredicate::HasCounter(presence) => {
+            // The established atom is "at least one"; bounds are written only
+            // when they differ from it, so the existing IR is unchanged.
+            let mut atom = json!({ "kind": "hasCounter" });
+            if let Some(counter) = &presence.counter {
+                atom["counter"] = json!(counter.as_str());
+            }
+            if presence.minimum != 1 {
+                atom["minimum"] = json!(presence.minimum);
+            }
+            if let Some(maximum) = presence.maximum {
+                atom["maximum"] = json!(maximum);
+            }
+            Some(atom)
+        }
         ObjectPredicate::ChosenCreatureType => Some(json!({
             "kind": "chosenCreatureType",
             "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,

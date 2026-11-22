@@ -22,15 +22,16 @@ fn first_failure(parsed: &OracleCardParseResult) -> (Option<&str>, Option<&str>)
 
 #[test]
 fn an_unsupported_verb_is_not_reported_as_an_unresolved_name() {
-    // Dark Depths, real Oracle text.
+    // `move` has no effect grammar yet (`remove`, the former example, now has
+    // one: Dark Depths compiles).
     let parsed = parse(
-        "Dark Depths",
-        "Legendary Snow Land",
-        "{3}: Remove an ice counter from Dark Depths.",
+        "Counter Mover",
+        "Artifact",
+        "{3}: Move a +1/+1 counter from target creature onto target creature.",
     );
     assert_eq!(
         first_failure(&parsed),
-        (Some("effect.unsupported-verb"), Some("Remove"))
+        (Some("effect.unsupported-verb"), Some("Move"))
     );
 }
 

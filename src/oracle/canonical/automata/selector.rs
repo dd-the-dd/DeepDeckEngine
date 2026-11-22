@@ -805,42 +805,77 @@ fn recognize_keyword_qualifier(
     recognize_keyword_qualifier_after(cursor, "with")
 }
 
+/// The quantity phrase of a counter qualifier, `offset` tokens ahead:
+/// its token length, minimum, maximum and whether the noun is singular.
+fn counter_quantity_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(usize, i64, Option<i64>, bool)> {
+    let raw = |at: usize| cursor.peek_ahead(offset + at).map(str::to_ascii_lowercase);
+    let word = |at: usize, expected: &str| raw(at).as_deref() == Some(expected);
+    let number = |at: usize| raw(at).as_deref().and_then(parse_counter_number);
+    if word(0, "a") || word(0, "an") {
+        return Some((1, 1, None, true));
+    }
+    if word(0, "no") {
+        return Some((1, 0, Some(0), false));
+    }
+    if word(0, "fewer") && word(1, "than") {
+        let value = number(2).filter(|value| *value >= 1)?;
+        return Some((3, 0, Some(value - 1), false));
+    }
+    if let Some(value) = number(0) {
+        if word(1, "or") && word(2, "more") && value >= 1 {
+            return Some((3, value, None, false));
+        }
+        if word(1, "or") && (word(2, "fewer") || word(2, "less")) {
+            return Some((3, 0, Some(value), false));
+        }
+        return None;
+    }
+    // A bare plural (`has counters on it`): one or more.
+    (word(0, "counters") || raw(1).as_deref() == Some("counters")).then_some((0, 1, None, false))
+}
+
+fn parse_counter_number(raw: &str) -> Option<i64> {
+    raw.parse::<i64>()
+        .ok()
+        .or_else(|| super::super::parse_number_word(raw))
+}
+
 /// True when a counter qualifier (`a +1/+1 counter on it`, `one or more
-/// counters on them`) begins `offset` tokens ahead. Lookahead only: the
-/// counter-name child still owns the name and its diagnostics.
-fn counter_qualifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+/// counters on them`, `three or more quest counters on it`, `no counters on
+/// it`) begins `offset` tokens ahead. Lookahead only: the counter-name child
+/// still owns the name and its diagnostics.
+pub(in crate::oracle::canonical) fn counter_qualifier_starts(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> bool {
+    let Some((length, _, _, _)) = counter_quantity_at(cursor, offset) else {
+        return false;
+    };
     let word = |at: usize, expected: &str| {
         cursor
             .peek_ahead(offset + at)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    let after_determiner = if word(0, "a") || word(0, "an") {
-        1
-    } else if word(0, "one") && word(1, "or") && word(2, "more") {
-        3
-    } else {
-        return false;
-    };
-    (after_determiner..after_determiner + 4).any(|at| word(at, "counter") || word(at, "counters"))
+    (length..length + 4).any(|at| word(at, "counter") || word(at, "counters"))
 }
 
-/// `a [KIND] counter on it` / `one or more [KIND] counters on them`
-/// (CR 122.1): the object has at least one counter, of that kind when named.
-/// The relation word (`with`/`without`) belongs to the caller.
-fn recognize_counter_qualifier(
+/// `QUANTITY [KIND] counter(s) on it|them` (CR 122.1): the object has a
+/// number of counters, of that kind when named, within the quantity's
+/// bounds. The relation word (`with`/`without`/`has`) belongs to the caller.
+pub(in crate::oracle::canonical) fn recognize_counter_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SelectorPredicate> {
     cursor.enter("selector.counter-qualifier.determiner");
-    let plural = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("one"))
-    {
-        cursor.consume_phrase(&["one", "or", "more"])?;
-        true
-    } else {
-        consume_optional_selector_article(cursor)?;
-        false
-    };
+    let (length, minimum, maximum, singular) = counter_quantity_at(cursor, 0).ok_or_else(|| {
+        cursor.fail("a counter quantity (`a`, `no`, `N or more`, `fewer than N`)")
+    })?;
+    for _ in 0..length {
+        let raw = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&raw)?;
+    }
     cursor.enter("selector.counter-qualifier.kind");
     let counter = if cursor.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters")
@@ -850,7 +885,7 @@ fn recognize_counter_qualifier(
         Some(super::recognize_counter_name(cursor)?)
     };
     cursor.enter("selector.counter-qualifier.noun");
-    cursor.consume(if plural { "counters" } else { "counter" })?;
+    cursor.consume(if singular { "counter" } else { "counters" })?;
     cursor.enter("selector.counter-qualifier.location");
     cursor.consume("on")?;
     match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
@@ -858,7 +893,11 @@ fn recognize_counter_qualifier(
         Some("them") => cursor.consume("them")?,
         _ => return Err(cursor.fail("`it` or `them` after the counter location")),
     }
-    Ok(SelectorPredicate::HasCounter(counter))
+    Ok(SelectorPredicate::HasCounter(super::CounterPresence {
+        counter,
+        minimum,
+        maximum,
+    }))
 }
 
 /// A word that can begin a keyword qualifier (`flying`, `first strike`).

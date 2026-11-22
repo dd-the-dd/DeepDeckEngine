@@ -62,6 +62,14 @@ impl GameEngine {
                         &self.state.players[player].battlefield[index],
                     )));
                 }
+                // CR 603.10a: a source that left the battlefield is read as it
+                // last existed there (the authenticated departure capture,
+                // with its counters), not as its printed card.
+                if source_lki::source_has_departed(stack_object) {
+                    return Ok(ConditionSubject::View(ObjectFilterView::Permanent(
+                        &stack_object.card,
+                    )));
+                }
                 Ok(ConditionSubject::View(ObjectFilterView::Definition(
                     DefinitionView::new(&stack_object.card.definition),
                 )))

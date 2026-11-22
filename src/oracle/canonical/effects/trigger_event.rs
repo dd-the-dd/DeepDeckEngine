@@ -1227,6 +1227,18 @@ fn lower_local_event(
             apply_damage_event_kind(cursor, &mut lowered, *damage)?;
             Ok(lowered)
         }
+        LocalTriggerEventNode::LastCounterRemoved { source, counter } => {
+            cursor.require(
+                *source == LocalObjectReference::SourceSelf,
+                "the current source as the object losing its last counter",
+            )?;
+            Ok(json!({
+                "kind": "counterRemoved",
+                "object": self_ref(),
+                "counter": counter.as_str(),
+                "last": true,
+            }))
+        }
         LocalTriggerEventNode::SourceCycled { source } => {
             cursor.require(
                 *source == LocalObjectReference::SourceSelf,

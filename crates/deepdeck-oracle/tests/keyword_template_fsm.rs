@@ -489,3 +489,43 @@ fn bloodthirst_compiles_through_the_shared_conditional_entry_replacement() {
         Some("replacement.entry-counters.condition")
     );
 }
+
+#[test]
+fn counter_removal_is_the_counter_action_in_the_removal_direction() {
+    // Dark Depths (printed): the source's own counter, a literal count.
+    let parsed = parse(
+        "Dark Depths",
+        "Legendary Snow Land",
+        "{3}: Remove an ice counter from Dark Depths.",
+    );
+    let rule = single_rule(&parsed);
+    assert_eq!(
+        rule["effects"],
+        json!([{
+            "kind": "removeCounters",
+            "permanent": { "kind": "self" },
+            "counter": "ice",
+            "count": 1,
+        }])
+    );
+    // Vanishing (CR 702.63a): entry counters, the guarded removal whose `it`
+    // is the guard's source, and the last-counter event.
+    let rules = expanded(
+        "Keldon Marauders",
+        "Creature \u{2014} Human Warrior",
+        "Vanishing 2 (This creature enters with two time counters on it. At the beginning of your upkeep, remove a time counter from it. When the last is removed, sacrifice it.)",
+    );
+    assert_eq!(rules.len(), 3);
+    assert_eq!(rules[1]["effects"][0]["kind"], "removeCounters");
+    assert_eq!(
+        rules[2]["event"],
+        json!({ "kind": "counterRemoved", "object": { "kind": "self" }, "counter": "time", "last": true })
+    );
+    // Near miss: removing from another object has no runtime; explicit.
+    let parsed = parse(
+        "Near Miss",
+        "Artifact",
+        "{3}: Remove a +1/+1 counter from target creature.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}

@@ -410,6 +410,7 @@ fn recognize_event_alternatives(
         recognize_source_attacked_event,
         recognize_combat_damage_to_player_event,
         recognize_source_dealt_damage_event,
+        super::recognize_last_counter_removed_event,
         super::recognize_attached_object_event,
     ];
     for reader in local_readers {

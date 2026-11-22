@@ -1493,11 +1493,21 @@ pub(super) struct GainLifeEffectNode {
     pub amount: NumericExpression,
 }
 
+/// Whether a counter action puts counters on its object or removes them
+/// from it (CR 122.1, 122.8): the same operands, the opposite change.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CounterChangeDirection {
+    #[default]
+    Put,
+    Remove,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
     pub permanent: PermanentOperandNode,
     pub counter: crate::oracle::counter_name::CounterName,
     pub count: NumericExpression,
+    pub direction: CounterChangeDirection,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

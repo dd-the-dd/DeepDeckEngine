@@ -96,6 +96,16 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     if let Some(object) = event.value.observed_object() {
         context = context.with_observed_event_object(object);
     }
+    // An intervening `if` whose subject is the source (`if this permanent
+    // has a time counter on it, remove a time counter from it`) makes the
+    // source the antecedent of the body's `it` when the event bound none.
+    if context.source_anaphor_binding == super::SourceAnaphorBinding::Unproved
+        && guard
+            .as_ref()
+            .is_some_and(|guard| guard_subject_is_source(&guard.value))
+    {
+        context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
+    }
     let mut context = context
         .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
         .with_sentence_conditionals()
@@ -365,6 +375,24 @@ fn event_names_combat_counterpart(event: &GenericTriggerEventNode) -> bool {
                 matches!(modifier, super::SourceEventModifier::Counterpart(counterpart) if counterpart.verb == *verb)
             })
         })
+}
+
+/// True when every atom of an intervening `if` is about the ability's own
+/// source permanent.
+fn guard_subject_is_source(guard: &SentenceConditionNode) -> bool {
+    match guard {
+        super::BooleanConditionNode::Atom(super::SentenceConditionAtom::ReferencedObject(node)) => {
+            node.object
+                == super::ConditionObjectReference::Permanent(
+                    super::PermanentEffectReference::Source(LocalObjectReference::SourceSelf),
+                )
+        }
+        super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
+            !operands.is_empty() && operands.iter().all(guard_subject_is_source)
+        }
+        super::BooleanConditionNode::Not(operand) => guard_subject_is_source(operand),
+        super::BooleanConditionNode::Atom(_) => false,
+    }
 }
 
 /// The referents available to a trigger's intervening `if` (CR 603.4): the

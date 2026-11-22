@@ -2260,15 +2260,30 @@ fn spell_cast_event_matches_filter(event: &GameEvent, filter: &Value) -> bool {
     }
 }
 
+/// CR 122.1: the number of counters on an object (of the named kind, or of
+/// every kind) lies within the atom's bounds; at least one by default.
+fn counter_presence_matches(counters: &BTreeMap<String, i32>, filter: &Value) -> bool {
+    let count = filter["counter"].as_str().map_or_else(
+        || {
+            counters
+                .values()
+                .filter(|count| **count > 0)
+                .map(|count| i64::from(*count))
+                .sum()
+        },
+        |counter| i64::from(counters.get(counter).copied().unwrap_or(0).max(0)),
+    );
+    let minimum = integer_value(&filter["minimum"]).map_or(1, i64::from);
+    count >= minimum
+        && integer_value(&filter["maximum"]).is_none_or(|maximum| count <= i64::from(maximum))
+}
+
 fn matches_permanent_filter(card: &CardInstance, filter: &Value) -> bool {
     match value_kind(filter) {
         Some("isTapped") => card.tapped,
         Some("isAttacking") => card.flags.get("attacking").copied().unwrap_or(false),
         Some("isBlocking") => card.flags.get("blocking").copied().unwrap_or(false),
-        Some("hasCounter") => filter["counter"].as_str().map_or_else(
-            || card.counters.values().any(|count| *count > 0),
-            |counter| card.counters.get(counter).copied().unwrap_or(0) > 0,
-        ),
+        Some("hasCounter") => counter_presence_matches(&card.counters, filter),
         Some("enteredThisTurn") => card.flags.get("enteredThisTurn").copied().unwrap_or(false),
         Some("or") => filter["operands"].as_array().is_some_and(|values| {
             values
@@ -2355,7 +2370,15 @@ fn card_filter_supported(filter: &Value) -> bool {
 
 fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
-        Some("hasCounter") => filter.get("counter").is_none_or(Value::is_string),
+        Some("hasCounter") => {
+            filter.get("counter").is_none_or(Value::is_string)
+                && filter
+                    .get("minimum")
+                    .is_none_or(|minimum| integer_value(minimum).is_some_and(|value| value >= 0))
+                && filter
+                    .get("maximum")
+                    .is_none_or(|maximum| integer_value(maximum).is_some_and(|value| value >= 0))
+        }
         Some("or" | "and") => filter["operands"].as_array().is_some_and(|values| {
             !values.is_empty() && values.iter().all(permanent_filter_supported)
         }),
@@ -8673,6 +8696,35 @@ impl GameEngine {
                     && decisions.get("alternativeCostMode").and_then(Value::as_str)
                         == condition["mode"].as_str()
             }
+            // CR 603.4: an intervening `if` over an object is checked when
+            // the trigger would be put on the stack, with the same evaluator
+            // and references as on resolution (the source, its decisions).
+            Some("objectMatchesFilter") => source.is_some_and(|source| {
+                let mut pending = StackObject {
+                    id: "pending-trigger-condition".to_string(),
+                    controller: controller_id.to_string(),
+                    card: source.clone(),
+                    cant_be_countered: false,
+                    exile_on_leave_stack: false,
+                    ability_kind: Some("triggeredAbility".to_string()),
+                    ability_rule: None,
+                    decisions: decisions.clone(),
+                    targets: BTreeMap::new(),
+                };
+                // A look-back trigger of a departed source (CR 603.10a).
+                if let Some(departed) = self.departed_trigger_source(source) {
+                    pending.card = departed.card;
+                    for (key, value) in departed.decisions {
+                        pending.decisions.entry(key).or_insert(value);
+                    }
+                }
+                self.object_condition_matches(
+                    condition,
+                    &pending,
+                    &BTreeMap::new(),
+                    &pending.decisions,
+                )
+            }),
             Some("sourceOnBattlefield") => {
                 source.is_some_and(|source| self.permanent_position(&source.instance_id).is_some())
             }
@@ -11318,10 +11370,7 @@ impl GameEngine {
             Some("isTapped") => permanent.tapped,
             // CR 122.1: counters are battlefield state, read from the
             // permanent itself (any kind, or the named kind).
-            Some("hasCounter") => filter["counter"].as_str().map_or_else(
-                || permanent.counters.values().any(|count| *count > 0),
-                |counter| permanent.counters.get(counter).copied().unwrap_or(0) > 0,
-            ),
+            Some("hasCounter") => counter_presence_matches(&permanent.counters, filter),
             Some("isAttacking") => permanent.flags.get("attacking").copied().unwrap_or(false),
             Some("isAttackingAlone") => self.permanent_is_attacking_alone(permanent),
             Some("isLegendary") => {

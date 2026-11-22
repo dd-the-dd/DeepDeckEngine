@@ -50,6 +50,12 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         ordinal: i64,
         period: DrawPeriod,
     },
+    /// `the last KIND counter is removed from SOURCE` (CR 122.8, 702.63a):
+    /// the removal that leaves the source with no counter of that kind.
+    LastCounterRemoved {
+        source: LocalObjectReference,
+        counter: crate::oracle::counter_name::CounterName,
+    },
     /// `SOURCE is dealt [combat|noncombat] damage` (passive of CR 120.3). The
     /// dealt amount is exported for later `that much` expressions.
     SourceDealtDamage {
@@ -178,6 +184,38 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
     };
     cursor.enter("event.attached-object.complete");
     Ok(LocalTriggerEventNode::AttachedObjectEvent { role, action })
+}
+
+/// Recognizes the event atom `the last KIND counter is removed from SOURCE`:
+/// the passive of the `remove` lemma with the counter as its theme. The
+/// enclosing triggered-ability machine owns `when` and the comma.
+pub(in crate::oracle::canonical) fn recognize_last_counter_removed_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<LocalTriggerEventNode> {
+    cursor.enter("event.last-counter-removed.theme");
+    cursor.consume_phrase(&["the", "last"])?;
+    let counter = super::recognize_counter_name(cursor)?;
+    cursor.consume("counter")?;
+    cursor.enter("event.last-counter-removed.verb");
+    cursor.consume("is")?;
+    let participle = cursor
+        .peek()
+        .filter(|raw| {
+            super::is_verb_form(
+                raw,
+                super::VerbLemma::Remove,
+                super::VerbForm::PastParticiple,
+            )
+        })
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("the passive participle of `remove`"))?;
+    cursor.consume(&participle)?;
+    cursor.enter("event.last-counter-removed.source");
+    cursor.consume("from")?;
+    let source = recognize_source_reference(cursor, name_links, name_failure)?;
+    Ok(LocalTriggerEventNode::LastCounterRemoved { source, counter })
 }
 
 /// Recognizes the event atom `SOURCE is dealt [combat|noncombat] damage`. The
