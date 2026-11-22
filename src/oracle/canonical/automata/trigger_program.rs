@@ -68,28 +68,6 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         cursor.consume(",")?;
     }
     cursor.enter("trigger.program.body");
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
-        && cursor
-            .peek_ahead(1)
-            .and_then(super::super::parse_number_word)
-            .is_some()
-    {
-        // Modes are declared with the trigger's other choices (CR 700.2b);
-        // every bullet body is the shared effect sequence.
-        let start = cursor.position();
-        let modal = recognize_effect_sequence_modal(cursor, name_links, name_failure)?;
-        return Ok(TriggeredProgramNode {
-            event,
-            guard,
-            program: SyntaxNode {
-                tokens: start..cursor.position(),
-                value: TriggerBodyNode::Modal(modal),
-            },
-            once_each_turn: false,
-        });
-    }
     // Ability source and observed object have separate roles. OR branches
     // select an event; they do not multiply objects within its occurrence.
     let mut context = trigger_guard_context(&event.value);
@@ -123,6 +101,40 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         &event.value,
         GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
     );
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
+        && cursor
+            .peek_ahead(1)
+            .and_then(super::super::parse_number_word)
+            .is_some()
+    {
+        // Modes are declared with the trigger's other choices (CR 700.2b);
+        // every bullet body is the shared effect sequence.
+        let start = cursor.position();
+        cursor.set_event_numeric_binding(event.value.numeric_binding());
+        // The modes read the event's bindings; their sentence frames stay
+        // those the shared modal lowering owns.
+        let mut modal_context = trigger_guard_context(&event.value);
+        modal_context.observed_event_object = context.observed_event_object;
+        modal_context.source_attachment = context.source_attachment;
+        modal_context.frame = context.frame.clone();
+        let modal = recognize_effect_sequence_modal_with_context(
+            cursor,
+            name_links,
+            name_failure,
+            &modal_context,
+        )?;
+        return Ok(TriggeredProgramNode {
+            event,
+            guard,
+            program: SyntaxNode {
+                tokens: start..cursor.position(),
+                value: TriggerBodyNode::Modal(modal),
+            },
+            once_each_turn: false,
+        });
+    }
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());

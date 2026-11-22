@@ -545,3 +545,28 @@ fn cards_exiled_with_this_read_every_exile_of_the_object() {
     let text = serde_json::to_string(&rules).unwrap();
     assert_eq!(text.matches("\"linkToSource\":true").count(), 2, "{text}");
 }
+
+#[test]
+fn modal_trigger_bodies_read_the_event_bindings() {
+    // Pip-Boy 3000's shape: a mode names the attacking equipped creature.
+    // Unused recombination: a mode deals damage to the drawing opponent.
+    for (type_line, oracle) in [
+        (
+            "Artifact \u{2014} Equipment",
+            "Whenever equipped creature attacks, choose one \u{2014}\n\u{2022} Draw a card, then discard a card.\n\u{2022} Put a +1/+1 counter on that creature.\nEquip {2}",
+        ),
+        (
+            ENCHANTMENT,
+            "Whenever an opponent draws a card, choose one \u{2014}\n\u{2022} This enchantment deals 1 damage to that player.\n\u{2022} You gain 1 life.",
+        ),
+    ] {
+        let (status, _, states) = parse(type_line, oracle);
+        assert_eq!(status, "canonical", "{oracle}: {states:?}");
+    }
+    // Near miss: a modal spell has no event; `that player` names nothing.
+    let (status, _, _) = parse(
+        INSTANT,
+        "Choose one \u{2014}\n\u{2022} This spell deals 1 damage to that player.\n\u{2022} You gain 1 life.",
+    );
+    assert_ne!(status, "canonical");
+}

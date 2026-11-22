@@ -209,6 +209,16 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   (Oblivion Ring, Journey to Nowhere, Fiend Hunter, …) : seul le marqueur du
   lecteur passe de `face` à `pair`, le comportement est identique.
 
+## Étape 9 réalisée : corps modaux des déclencheurs
+
+- Les modes d'un déclencheur modal lisent le cadre de son événement (objet
+  observé, attachement de la source, `FrameBindings`) et sa quantité
+  d'événement (`that many`) ; leurs cadres de phrase restent ceux de la
+  levée modale partagée (`recognize_effect_sequence_modal_with_context`).
+- Sondes (base de l'étape 8) : ligue inchangée (808) ; corpus 14243 →
+  14250 (+7 : Pip-Boy 3000, Hivespine Wolverine, Tiller Engine, …), 0
+  perdue, 9 IR changées dont 0 déjà supportée.
+
 ## Suite
 
 1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
