@@ -2384,7 +2384,7 @@ fn permanent_filter_supported(filter: &Value) -> bool {
     match value_kind(filter) {
         Some("hasDesignation") => matches!(
             filter["designation"].as_str(),
-            Some("monstrous" | "renowned" | "suspected")
+            Some("monstrous" | "renowned" | "suspected" | "kicked" | "faceDown")
         ),
         Some("hasCounter") => {
             filter.get("counter").is_none_or(Value::is_string)

@@ -52,6 +52,11 @@ fn lower_static_condition_atom(atom: &StaticConditionAtom) -> Value {
             json!({ "kind": "lifeGainedThisTurn", "player": controller() }),
             integer(*threshold),
         ),
+        StaticConditionAtom::SourceStatus(predicate) => json!({
+            "kind": "objectMatchesFilter",
+            "object": self_ref(),
+            "where": lower_permanent_object_predicate(predicate),
+        }),
         StaticConditionAtom::SourceCounters(presence) => json!({
             "kind": "objectMatchesFilter",
             "object": self_ref(),

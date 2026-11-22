@@ -62,6 +62,9 @@ pub(in crate::oracle::canonical) enum StaticConditionAtom {
     /// `it has a +1/+1 counter on it`: the source's counters, read by the
     /// shared counter qualifier of object queries (CR 122.1).
     SourceCounters(super::CounterPresence),
+    /// `this creature is equipped`: a status of the source from the shared
+    /// status registry that has no source-state proposition of its own.
+    SourceStatus(super::ObjectPredicate),
     /// `it's your turn` / `it's not your turn`: the shared turn proposition.
     ControllerTurn(ControllerTurnPropositionNode),
     /// A player-state proposition about the controller (`you have ...`,
@@ -270,7 +273,59 @@ fn recognize_source_state_atom(
     let property = cursor.peek().map(str::to_ascii_lowercase).ok_or_else(|| {
         cursor.fail("`tapped`, `untapped`, `attacking`, `blocking` or `modified`")
     })?;
+    // `enchanted or equipped`: a coordinated list of registered statuses is
+    // one predicate of the source (its union or intersection).
+    let coordinated = |cursor: &OracleTokenCursor<'_>| {
+        (word_is(cursor, 1, "or") || word_is(cursor, 1, "and"))
+            && cursor
+                .peek_ahead(2)
+                .is_some_and(|raw| super::lookup_status_predicate(&raw).is_some())
+    };
+    if super::lookup_status_predicate(&property).is_some() && coordinated(cursor) {
+        let mut members = Vec::new();
+        let mut connector = None;
+        loop {
+            let raw = cursor
+                .peek()
+                .map(str::to_ascii_lowercase)
+                .ok_or_else(|| cursor.fail("a registered status"))?;
+            let predicate = cursor
+                .require_value(super::lookup_status_predicate(&raw), "a registered status")?;
+            cursor.consume(&raw)?;
+            members.push(predicate);
+            if !coordinated_next(cursor) {
+                break;
+            }
+            let word = cursor
+                .peek()
+                .expect("the connector was checked")
+                .to_ascii_lowercase();
+            cursor.require(
+                connector.is_none_or(|previous: &str| previous == word),
+                "one connector in a status list",
+            )?;
+            connector = Some(if word == "or" { "or" } else { "and" });
+            cursor.consume(&word)?;
+        }
+        return Ok(StaticConditionAtom::SourceStatus(
+            if connector == Some("and") {
+                super::ObjectPredicate::Intersection(members)
+            } else {
+                super::ObjectPredicate::Union(members)
+            },
+        ));
+    }
     let designation = super::PermanentDesignation::from_adjective(&property);
+    if designation.is_none()
+        && let Some(predicate) = super::lookup_status_predicate(&property)
+        && !matches!(
+            property.as_str(),
+            "tapped" | "untapped" | "attacking" | "blocking" | "modified"
+        )
+    {
+        cursor.consume(&property)?;
+        return Ok(StaticConditionAtom::SourceStatus(predicate));
+    }
     let proposition = match property.as_str() {
         _ if designation.is_some() => {
             SourceStateProposition::Designated(designation.expect("the designation was read"))
@@ -286,6 +341,14 @@ fn recognize_source_state_atom(
     };
     cursor.consume(&property)?;
     Ok(StaticConditionAtom::SourceState(proposition))
+}
+
+/// The cursor is at `or|and STATUS` inside a status list.
+fn coordinated_next(cursor: &OracleTokenCursor<'_>) -> bool {
+    (word_is(cursor, 0, "or") || word_is(cursor, 0, "and"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| super::lookup_status_predicate(&raw).is_some())
 }
 
 /// `N or more` / `N or fewer` / `a` / `an`: a fixed bounded count comparison.
