@@ -101,6 +101,7 @@ impl GameEngine {
         combat: bool,
         source_snapshot: Option<&super::source_lki::ResolvedDamageSource>,
         initial_events: Vec<DeferredDamageEvent>,
+        replacement_order: &mut super::quantity_replacement::OptionalQuantityProvider<'_>,
     ) -> Result<PreparedDamage, EngineError> {
         let mut events = DamageEventCollector {
             records: initial_events,
@@ -387,6 +388,57 @@ impl GameEngine {
             .checked_add(damage_bonus)
             .and_then(|amount| amount.checked_mul(damage_multiplier))
             .ok_or_else(|| EngineError::new("modified damage amount overflow"))?;
+        // CR 614.1a, 615.1a, 616.1: static damage replacements and preventions
+        // in the affected player's order. The fixed-order amount effects above
+        // and the finite preventions below cannot be interleaved with them.
+        let replaced = self.apply_damage_replacements(
+            &super::damage_replacement::DamageEventView {
+                target: &target,
+                source_id: source,
+                source_card: source_card.as_ref(),
+                source_controller: source_characteristics
+                    .as_ref()
+                    .map(|(controller, _, _, _)| controller.as_str()),
+                source_is_spell: self.permanent_position(source).is_none()
+                    && source_snapshot.is_some_and(|profile| !profile.last_known),
+                combat,
+            },
+            amount,
+            !damage_cannot_be_prevented,
+            replacement_order,
+        )?;
+        if !replaced.applied.is_empty() && (damage_bonus != 0 || damage_multiplier != 1) {
+            return Err(EngineError::new(
+                "damage has competing replacements requiring affected-player ordering choices",
+            ));
+        }
+        for prevention in &replaced.preventions {
+            if prevention.amount > 0 {
+                let (player_id, card_id) = match &target {
+                    TargetRef::Player { player_id } => {
+                        (Some(player_id.clone()), Some(source.to_string()))
+                    }
+                    TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                        (None, Some(instance_id.clone()))
+                    }
+                    TargetRef::StackObject { .. } => (None, None),
+                };
+                events.record_event(
+                    "damagePrevented",
+                    player_id,
+                    card_id,
+                    json!({
+                        "amount": prevention.amount,
+                        "source": source,
+                        "combat": combat,
+                        "reason": "replacementEffect",
+                        "replacementId": prevention.program_id,
+                    }),
+                );
+            }
+        }
+        let replacement_modified = replaced.modified;
+        amount = replaced.amount;
         if !damage_cannot_be_prevented
             && let TargetRef::Player { player_id } = &target
             && source_characteristics
@@ -404,6 +456,11 @@ impl GameEngine {
                 .try_fold(0_i32, |sum, value| sum.checked_add(value))
                 .ok_or_else(|| EngineError::new("damage prevention sum overflow"))?
                 .max(0);
+            if prevented > 0 && replacement_modified && amount > 0 {
+                return Err(EngineError::new(
+                    "damage has competing replacements requiring affected-player ordering choices",
+                ));
+            }
             if prevented > 0 {
                 let prevented = prevented.min(amount.max(0));
                 amount = amount
@@ -426,6 +483,11 @@ impl GameEngine {
             }) {
                 if amount <= 0 {
                     break;
+                }
+                if replacement_modified {
+                    return Err(EngineError::new(
+                        "damage has competing replacements requiring affected-player ordering choices",
+                    ));
                 }
                 let remaining = shield["remaining"].as_i64();
                 let prevented = remaining
