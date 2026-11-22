@@ -98,7 +98,12 @@ fn ring_combat_trigger_uses_generic_life_loss_and_obeys_player_policies() {
     }
 }
 fn run(engine: &mut GameEngine, object: &StackObject, amount: Value) -> Result<bool, EngineError> {
-    engine.execute_direct_life_effect(&loss(amount), object, &BTreeMap::new(), &BTreeMap::new())
+    engine.execute_direct_life_effect(
+        &loss(amount),
+        object,
+        &mut BTreeMap::new(),
+        &BTreeMap::new(),
+    )
 }
 fn watcher(engine: &mut GameEngine, condition: Option<Value>) {
     let mut rule = json!({"kind":"triggeredAbility","source":{"kind":"self"},"event":{"kind":"lifeLost","player":{"kind":"opponentsOf","player":{"kind":"controllerOf","object":{"kind":"self"}}}},"effects":[{"kind":"gainLife","player":{"kind":"abilityController"},"amount":1}]});

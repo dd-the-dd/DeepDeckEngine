@@ -724,3 +724,83 @@ fn unleash_is_an_optional_entry_replacement_and_a_counter_condition() {
     );
     assert_eq!(parsed.status, "unsupported");
 }
+
+#[test]
+fn melee_scales_the_shared_stat_delta_by_an_opponent_count() {
+    // Melee (CR 702.121a): `for each opponent you attacked [with a creature]
+    // this combat` is a counted operand; the trailing `for each` scales the
+    // signed P/T delta of the action it follows.
+    let rules = expanded(
+        "Wings of the Cosmos Knight",
+        "Creature \u{2014} Human Knight",
+        "Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)",
+    );
+    let count = json!({
+        "kind": "countOpponentsAttackedThisCombat",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    });
+    assert_eq!(rules[0]["effects"][0]["power"], count);
+    assert_eq!(rules[0]["effects"][0]["toughness"], count);
+    // Siblings: a permanent count scaling a negative, one-sided delta, and
+    // the opponent count scaling another action, with no new code.
+    let parsed = parse(
+        "Sibling",
+        "Instant",
+        "Target creature gets -1/-0 until end of turn for each Swamp you control.",
+    );
+    let effect = &single_rule(&parsed)["effects"][0];
+    assert_eq!(effect["power"]["kind"], "multiply");
+    assert_eq!(
+        effect["power"]["left"],
+        json!({ "kind": "integer", "value": -1 })
+    );
+    assert_eq!(
+        effect["toughness"],
+        json!({ "kind": "integer", "value": 0 })
+    );
+    let parsed = parse(
+        "Sibling",
+        "Creature \u{2014} Human",
+        "Whenever this creature attacks, draw a card for each opponent you attacked this combat.",
+    );
+    assert_eq!(single_rule(&parsed)["effects"][0]["count"], count);
+    // Near miss: a player count without the attack relation is refused.
+    let parsed = parse(
+        "Near Miss",
+        "Creature \u{2014} Human",
+        "Whenever this creature attacks, draw a card for each opponent you control.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}
+
+#[test]
+fn the_life_lost_this_way_binds_the_nearest_earlier_loss() {
+    // Extort (CR 702.101a): the gain reads the bound total of the loss.
+    let rules = expanded(
+        "Syndic of Tithes",
+        "Creature \u{2014} Human Cleric",
+        "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)",
+    );
+    let paid = &rules[0]["effects"][0]["effects"];
+    assert_eq!(paid[0]["bind"], "actionResult:0");
+    assert_eq!(
+        paid[1]["amount"],
+        json!({ "kind": "boundValue", "id": "actionResult:0" })
+    );
+    // Sibling: a sorcery's two sentences and another loss amount.
+    let parsed = parse(
+        "Sibling",
+        "Sorcery",
+        "Each opponent loses 2 life. You gain life equal to the life lost this way.",
+    );
+    let effects = &single_rule(&parsed)["effects"];
+    assert_eq!(effects[0]["bind"], "actionResult:0");
+    assert_eq!(effects[1]["amount"]["kind"], "boundValue");
+    // Near miss: no earlier loss produces the quantity.
+    let parsed = parse(
+        "Near Miss",
+        "Sorcery",
+        "You gain life equal to the life lost this way.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+}

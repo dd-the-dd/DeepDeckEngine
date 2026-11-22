@@ -864,6 +864,16 @@ pub(super) enum NumericExpression {
     CountDistinctCardTypes {
         zone: GraveyardScope,
     },
+    /// A quantity an earlier action of the program produced (`the total life
+    /// lost this way`). `reader_effect` is the action that reads it; the
+    /// program lowering binds the nearest earlier producing action.
+    ActionResultQuantity {
+        reader_effect: usize,
+        quantity: ActionResultQuantity,
+    },
+    /// The number of the ability controller's opponents with one fact
+    /// (`for each opponent you attacked with a creature this combat`).
+    OpponentCount(OpponentFact),
     Add {
         left: Box<NumericExpression>,
         right: Box<NumericExpression>,
@@ -930,6 +940,15 @@ pub(super) struct PermanentCountNode {
 pub(super) enum PlayerNumericFact {
     LifeGainedThisTurn,
     LifeTotal,
+}
+
+/// A fact about one opponent of the ability controller that a count reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum OpponentFact {
+    /// The controller attacked that player with a creature during this
+    /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
+    /// is not attacking the player.
+    AttackedByControllerThisCombat,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1057,6 +1076,8 @@ impl NumericExpression {
             | Self::SourceCastX
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
+            | Self::OpponentCount(_)
+            | Self::ActionResultQuantity { .. }
             | Self::PlayerFact { .. }
             | Self::SacrificedCostObjectProperty(_)
             | Self::BoundObjectProperty { .. }

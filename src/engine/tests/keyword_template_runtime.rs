@@ -985,3 +985,109 @@ fn source_counter_possession_gates_statics_and_activations_without_new_code() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn melee_counts_the_opponents_attacked_this_combat() {
+    // CR 702.121a: +1/+1 for each opponent the controller attacked with a
+    // creature this combat; attacking a planeswalker is not attacking its
+    // controller. The count scales the shared P/T delta once, on resolution.
+    let melee = compiled(
+        "Wings of the Cosmos Knight",
+        "Creature \u{2014} Human Knight",
+        ("2", "2"),
+        "Melee (Whenever this creature attacks, it gets +1/+1 until end of turn for each opponent you attacked this combat.)",
+    );
+    let attack = |attacker: &str, defender: TargetRef, defending: &str| DeclaredAttacker {
+        attacker_id: attacker.to_string(),
+        defender,
+        defending_player_id: defending.to_string(),
+    };
+    let player = |id: &str| TargetRef::Player {
+        player_id: id.to_string(),
+    };
+    let walker = TargetRef::Permanent {
+        instance_id: "walker".to_string(),
+    };
+    for (attacks, expected) in [
+        (
+            vec![attack("knight", player("player-1"), "player-1")],
+            (3, 3),
+        ),
+        (
+            vec![
+                attack("knight", player("player-1"), "player-1"),
+                attack("bear", player("player-2"), "player-2"),
+            ],
+            (4, 4),
+        ),
+        (vec![attack("knight", walker, "player-2")], (2, 2)),
+    ] {
+        let mut engine = test_engine(3);
+        engine.state.players[0].battlefield = vec![
+            test_instance("knight", melee.clone(), "player-0"),
+            creature("bear", "player-0"),
+        ];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine.state.combat.attackers = attacks;
+        engine.enqueue_declared_attacker_triggers(&["knight".to_string()]);
+        assert_eq!(engine.state.stack.len(), 1, "one melee trigger");
+        engine
+            .resolve_top_stack(&mut EmeritusDecisionProvider)
+            .expect("melee resolves");
+        assert_eq!(power_toughness(&engine, "knight"), expected);
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn the_life_lost_this_way_is_the_total_the_earlier_loss_recorded() {
+    // CR 608.2c, 702.101a: `the total life lost this way` reads the life the
+    // earlier `loses` action actually took from every opponent.
+    let drain = compiled(
+        "Drain Sibling",
+        "Sorcery",
+        ("0", "0"),
+        "Each opponent loses 2 life. You gain life equal to the total life lost this way.",
+    );
+    for (players, gained) in [(2, 2), (3, 4)] {
+        let mut engine = test_engine(players);
+        let rule = drain.rules[0].clone();
+        let spell = StackObject {
+            id: "stack:drain".to_string(),
+            controller: "player-0".to_string(),
+            card: test_instance("drain-sibling", drain.clone(), "player-0"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("spellAbility".to_string()),
+            ability_rule: Some(rule.clone()),
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        };
+        let before = engine.state.players[0].life;
+        engine
+            .execute_effects(
+                &rule["effects"],
+                &spell,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+                &mut EmeritusDecisionProvider,
+            )
+            .expect("the drain resolves");
+        assert_eq!(
+            engine.state.players[0].life,
+            before + gained,
+            "{players} players"
+        );
+    }
+    // Extort (CR 702.101a) compiles to the same bound loss read by the gain.
+    let extort = compiled(
+        "Syndic of Tithes",
+        "Creature \u{2014} Human Cleric",
+        ("2", "2"),
+        "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)",
+    );
+    assert_eq!(extort.rules[0]["keywordProvenance"]["keyword"], "extort");
+}

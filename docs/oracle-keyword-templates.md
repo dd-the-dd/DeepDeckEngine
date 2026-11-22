@@ -372,6 +372,36 @@ d'autres créatures et une restriction d'activation
 (`source_counter_possession_gates_statics_and_activations_without_new_code` :
 Beastmaster Ascension, Tablet of Compleation).
 
+## Résultat d'une action et compte d'adversaires (Extort, Melee)
+
+Extort (CR 702.101a) : `the [total] [amount of] life lost this way` est une
+quantité produite par une action antérieure du même programme (CR 608.2c),
+comme `OBJECTS destroyed this way` pour les objets. L'enfant numérique
+(`action_result.rs`) note l'action qui la lit (l'index de l'environnement de
+liaison) ; la descente du programme (`install_action_result_quantities`)
+lie l'action antérieure la plus proche dont la descente est une seule
+action `loseLife` de premier niveau (`bind`) et réécrit la lecture en
+`boundValue`. Sans producteur, l'échec est explicite
+(`lower.action-result.quantity`). Moteur : `loseLife` avec `bind` enregistre
+la vie réellement perdue (la perte prévenue n'est pas perdue).
+
+Melee (CR 702.121a) : `for each opponent you attacked [with a creature]
+this combat` est un opérande compté (`OpponentCount`) →
+`countOpponentsAttackedThisCombat` ; le moteur compte les adversaires
+attaqués par les attaquants déclarés du joueur actif pendant ce combat
+(attaquer un planeswalker ou une bataille n'est pas attaquer le joueur).
+Le `for each` final multiplie désormais aussi le delta signé de
+`gets +N/+M` (chaque composante ; zéro reste zéro ; un négatif est
+`-1 × count`) : capacité générale, pas propre à Melee.
+
+Preuves : `melee_scales_the_shared_stat_delta_by_an_opponent_count`
+(carte, sœurs `-1/-0 … for each Swamp you control` et `draw a card for each
+opponent you attacked this combat`, quasi-échec `for each opponent you
+control`), `melee_counts_the_opponents_attacked_this_combat` (un, deux
+adversaires, planeswalker seul) et
+`the_life_lost_this_way_is_the_total_the_earlier_loss_recorded` (2 et
+3 joueurs).
+
 ## Mots-clés en attente (raison mesurée)
 
 Ces lignes sont dans le catalogue : la ligne de mot-clé est lue et sa
@@ -382,10 +412,8 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 
 | Mot-clé | Lignes | Arrêt de la définition |
 |---|---|---|
-| Extort | 19 | `numeric.expression.object-reference` (`the total life lost this way`) |
 | Fading | 14 | `condition.sentence.atom-kind` (`If you can't`, lié à l'échec du retrait), puis `the permanent` |
 | Graft | 13 | `effect.unsupported-verb` (`move a +1/+1 counter … onto that creature`) |
-| Melee | 13 | `selector.predicate.start` (`each opponent you attacked`) |
 | Training | 11 | `event.source.verb` (`this creature and at least one other … attack`) |
 | Increment | 10 | `condition.sentence.atom-kind` (mana dépensée pour le sort) |
 | Dethrone | 9 | `trigger.envelope.separator` (`attacks the player with the most life`) |

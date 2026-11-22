@@ -2692,7 +2692,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some(
             "countOpponents"
             | "countOpponentsWhoLostLifeThisTurn"
-            | "countOpponentsDealtDamageThisTurn",
+            | "countOpponentsDealtDamageThisTurn"
+            | "countOpponentsAttackedThisCombat",
         ) => player_reference_supported(&expression["player"]),
         Some("countOpponentsWithPermanent") => {
             player_reference_supported(&expression["player"])
@@ -9762,6 +9763,33 @@ impl GameEngine {
                         })
                     })
                     .count() as i32,
+            ),
+            // CR 506.2, 702.121a: the active player is the attacking player;
+            // the opponents its declared attackers attacked this combat (a
+            // player, not one of that player's planeswalkers or battles).
+            Some("countOpponentsAttackedThisCombat") => Some(
+                if self
+                    .state
+                    .players
+                    .get(self.state.active_player)
+                    .is_some_and(|active| active.id == controller_id)
+                {
+                    self.state
+                        .players
+                        .iter()
+                        .filter(|player| !player.has_lost && player.id != controller_id)
+                        .filter(|player| {
+                            self.state.combat.attackers.iter().any(|attack| {
+                                matches!(
+                                    &attack.defender,
+                                    TargetRef::Player { player_id } if *player_id == player.id
+                                )
+                            })
+                        })
+                        .count() as i32
+                } else {
+                    0
+                },
             ),
             // CR 120.3: damage dealt to the player this turn, by any source.
             Some("countOpponentsDealtDamageThisTurn") => Some(
@@ -31993,7 +32021,8 @@ impl GameEngine {
             Some(
                 "countOpponents"
                 | "countOpponentsWhoLostLifeThisTurn"
-                | "countOpponentsDealtDamageThisTurn",
+                | "countOpponentsDealtDamageThisTurn"
+                | "countOpponentsAttackedThisCombat",
             ) => self.numeric_expression(expression, &stack_object.controller),
             Some("sourceCastXValue") => {
                 self.source_cast_x_value(&stack_object.card.instance_id, decisions)

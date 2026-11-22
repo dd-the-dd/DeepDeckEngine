@@ -90,7 +90,7 @@ fn validates_only_direct_life_total_primitives() {
 fn executes_gain_and_loss_against_resolved_players() {
     let mut engine = engine();
     let stack_object = stack_object();
-    let bindings = BTreeMap::new();
+    let mut bindings = BTreeMap::new();
     let decisions = BTreeMap::new();
 
     assert!(
@@ -102,7 +102,7 @@ fn executes_gain_and_loss_against_resolved_players() {
                     "amount": 3,
                 }),
                 &stack_object,
-                &bindings,
+                &mut bindings,
                 &decisions,
             )
             .expect("gain life executes")
@@ -116,7 +116,7 @@ fn executes_gain_and_loss_against_resolved_players() {
                     "amount": 4,
                 }),
                 &stack_object,
-                &bindings,
+                &mut bindings,
                 &decisions,
             )
             .expect("lose life executes")
@@ -134,7 +134,7 @@ fn executes_gain_and_loss_against_resolved_players() {
             .execute_direct_life_effect(
                 &json!({ "kind": "drawCards" }),
                 &stack_object,
-                &bindings,
+                &mut bindings,
                 &decisions,
             )
             .expect("unowned effects are declined")

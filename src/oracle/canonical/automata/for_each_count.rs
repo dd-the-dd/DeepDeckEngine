@@ -90,6 +90,9 @@ fn recognize_counted_collection(
     if counter_operand_starts(cursor) {
         return recognize_source_counter_operand(cursor);
     }
+    if opponent_count_starts(cursor) {
+        return recognize_opponent_count(cursor);
+    }
     let colors = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case(color_noun))
@@ -185,6 +188,50 @@ fn recognize_counted_collection(
             measure,
         },
     )))
+}
+
+/// `opponent(s) you attacked ...`: the counted players are opponents.
+fn opponent_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("opponent") || raw.eq_ignore_ascii_case("opponents")
+    }) && cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+}
+
+/// `opponent you attacked [with a creature | with one or more creatures]
+/// this combat` (CR 702.121a): the opponents the controller attacked.
+fn recognize_opponent_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.for-each.opponent");
+    let noun = cursor
+        .peek()
+        .expect("the opponent noun was checked")
+        .to_string();
+    cursor.consume(&noun)?;
+    cursor.enter("numeric.for-each.opponent.relation");
+    cursor.consume_phrase(&["you", "attacked"])?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
+    {
+        cursor.enter("numeric.for-each.opponent.attackers");
+        cursor.consume("with")?;
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("one"))
+        {
+            cursor.consume_phrase(&["one", "or", "more", "creatures"])?;
+        } else {
+            cursor.consume_phrase(&["a", "creature"])?;
+        }
+    }
+    cursor.enter("numeric.for-each.opponent.period");
+    cursor.consume_phrase(&["this", "combat"])?;
+    Ok(NumericExpression::OpponentCount(
+        OpponentFact::AttackedByControllerThisCombat,
+    ))
 }
 
 /// Lexical lookahead: the counted collection is followed by `in` before the
@@ -287,6 +334,26 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
     effect: &mut LocalEffectNode,
     count: NumericExpression,
 ) -> bool {
+    // `gets +1/+1 for each ...`: each component of the signed delta is
+    // scaled by the same count; a zero component stays zero (CR 613.4c).
+    if let LocalEffectNode::ModifyStats(node) = effect {
+        let scale = |component: &NumericExpression| match component {
+            NumericExpression::Atom(NumericAtom::Integer(0)) => Some(component.clone()),
+            NumericExpression::Atom(NumericAtom::Integer(amount)) if *amount < 0 => {
+                scale_by_for_each_count(&NumericExpression::from(-*amount), count.clone())
+                    .map(|scaled| NumericExpression::multiply(NumericExpression::from(-1), scaled))
+            }
+            _ => scale_by_for_each_count(component, count.clone()),
+        };
+        let (Some(power), Some(toughness)) =
+            (scale(&node.delta.power), scale(&node.delta.toughness))
+        else {
+            return false;
+        };
+        node.delta.power = power;
+        node.delta.toughness = toughness;
+        return true;
+    }
     let quantity = match effect {
         LocalEffectNode::DrawCards(node) => &mut node.count,
         LocalEffectNode::GainLife(node) => &mut node.amount,

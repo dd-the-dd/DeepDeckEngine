@@ -101,6 +101,7 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
     super::sacrificed_cost_object_property_starts(cursor)
         || super::greatest_property_among_starts(cursor)
         || super::number_of_count_starts(cursor)
+        || super::action_result_quantity_starts(cursor)
         || cursor.peek().is_some_and(|raw| {
             raw.eq_ignore_ascii_case("twice") || raw.eq_ignore_ascii_case("thrice")
         })
@@ -293,6 +294,11 @@ fn recognize_primary(
         }
         if super::source_counter_count_starts(cursor) {
             return super::recognize_source_counter_count(cursor);
+        }
+        if query_context.kind == NumericReadKind::Definition
+            && super::action_result_quantity_starts(cursor)
+        {
+            return super::recognize_action_result_quantity(cursor);
         }
         if cursor
             .peek()

@@ -206,6 +206,8 @@ fn recognize_draw_action_attempt(
                     | NumericExpression::ObjectProperty { .. }
                     | NumericExpression::EventValue(_)
                     | NumericExpression::CountDistinctCardTypes { .. }
+                    | NumericExpression::OpponentCount(_)
+                    | NumericExpression::ActionResultQuantity { .. }
                     | NumericExpression::Add { .. }
                     | NumericExpression::Subtract { .. }
                     | NumericExpression::Multiply { .. }

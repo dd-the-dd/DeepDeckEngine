@@ -1803,6 +1803,7 @@ fn lower_local_effect_sequence_with_collections(
     )?;
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
+    install_action_result_quantities(cursor, &action_starts, &mut effects)?;
     apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
@@ -2039,6 +2040,105 @@ fn install_action_result_bindings(
             "a producing action without another result binding",
         )?;
         producer["bind"] = json!(action_result_binding(effect_index));
+    }
+    Ok(())
+}
+
+/// Every pending action-result quantity `(reader, quantity)` under `value`.
+fn collect_action_result_quantities(value: &Value, found: &mut Vec<(usize, String)>) {
+    match value {
+        Value::Object(map) => {
+            if map.get("kind").and_then(Value::as_str) == Some(ACTION_RESULT_QUANTITY)
+                && let (Some(reader), Some(quantity)) = (
+                    map.get("reader").and_then(Value::as_u64),
+                    map.get("quantity").and_then(Value::as_str),
+                )
+            {
+                let entry = (reader as usize, quantity.to_string());
+                if !found.contains(&entry) {
+                    found.push(entry);
+                }
+            }
+            map.values()
+                .for_each(|child| collect_action_result_quantities(child, found));
+        }
+        Value::Array(items) => items
+            .iter()
+            .for_each(|child| collect_action_result_quantities(child, found)),
+        _ => {}
+    }
+}
+
+/// Rewrites the pending references of one reader into its bound value.
+fn bind_action_result_quantity(value: &mut Value, reader: usize, quantity: &str, binding: &str) {
+    match value {
+        Value::Object(map) => {
+            if map.get("kind").and_then(Value::as_str) == Some(ACTION_RESULT_QUANTITY)
+                && map.get("reader").and_then(Value::as_u64) == Some(reader as u64)
+                && map.get("quantity").and_then(Value::as_str) == Some(quantity)
+            {
+                *value = json!({ "kind": "boundValue", "id": binding });
+                return;
+            }
+            map.values_mut()
+                .for_each(|child| bind_action_result_quantity(child, reader, quantity, binding));
+        }
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| bind_action_result_quantity(child, reader, quantity, binding)),
+        _ => {}
+    }
+}
+
+/// Binds each `the total life lost this way` (CR 608.2c, 702.101a) to the
+/// nearest earlier action of the program whose lowering is one top-level
+/// runtime action producing that quantity; its `bind` records the amount.
+/// A reader without such a producer fails explicitly.
+fn install_action_result_quantities(
+    cursor: &mut OracleTokenCursor<'_>,
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let mut pending = Vec::new();
+    effects
+        .iter()
+        .for_each(|effect| collect_action_result_quantities(effect, &mut pending));
+    for (reader, quantity) in pending {
+        cursor.enter("lower.action-result.quantity");
+        let runtime_kind = [ActionResultQuantity::LifeLost]
+            .into_iter()
+            .find(|candidate| candidate.ir_name() == quantity)
+            .map(ActionResultQuantity::runtime_kind)
+            .ok_or_else(|| cursor.fail("a known action-result quantity"))?;
+        let producer = (0..reader).rev().find_map(|index| {
+            let (from, _) = *action_starts.get(index)?;
+            let (to, _) = *action_starts.get(index + 1)?;
+            let producers = (from..to)
+                .filter(|position| effects[*position]["kind"].as_str() == Some(runtime_kind))
+                .collect::<Vec<_>>();
+            (!producers.is_empty()).then_some((index, producers))
+        });
+        let Some((producer_index, producers)) = producer else {
+            return Err(cursor
+                .fail("an earlier action of this program that produces the restated quantity")
+                .into());
+        };
+        let [position] = producers.as_slice() else {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("one top-level runtime action recording the restated quantity"),
+            ));
+        };
+        let binding = action_result_binding(producer_index);
+        match effects[*position].get("bind").and_then(Value::as_str) {
+            None => effects[*position]["bind"] = json!(binding),
+            Some(existing) => cursor.require(
+                existing == binding,
+                "a producing action without another result binding",
+            )?,
+        }
+        effects
+            .iter_mut()
+            .for_each(|effect| bind_action_result_quantity(effect, reader, &quantity, &binding));
     }
     Ok(())
 }

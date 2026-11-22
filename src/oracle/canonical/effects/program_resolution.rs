@@ -61,6 +61,8 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::SourceCastX
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
+        | NumericExpression::OpponentCount(_)
+        | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::PlayerFact { .. }
         | NumericExpression::SacrificedCostObjectProperty(_)
         | NumericExpression::BoundObjectProperty { .. }
