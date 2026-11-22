@@ -29,6 +29,7 @@ const EXPANSION_FIELDS: &[&str] = &[
     "keyword",
     "parameters",
     "definition",
+    "namedAction",
     "rules",
 ];
 
@@ -132,7 +133,7 @@ pub(crate) fn expand_keyword_template_line(
             }
         }
     }
-    let rule = json!({
+    let mut rule = json!({
         "kind": KEYWORD_EXPANSION_KIND,
         "source": self_ref(),
         "keyword": invocation.template.canonical_id,
@@ -140,6 +141,12 @@ pub(crate) fn expand_keyword_template_line(
         "definition": definition(&invocation),
         "rules": rules,
     });
+    if let Some(action) = &invocation.template.named_action {
+        rule["namedAction"] = json!({
+            "lemma": action.lemma,
+            "performedBy": action.performed_by.as_str(),
+        });
+    }
     let expansion = format!(
         "Instantiate the {} definition (CR {}, template v{}) with its printed parameter",
         invocation.template.canonical_id,
@@ -193,16 +200,17 @@ pub(crate) fn keyword_expansion_rules(rule: &Value) -> Vec<Value> {
                 for (key, value) in &placement {
                     fields.insert(key.clone(), value.clone());
                 }
-                fields.insert(
-                    KEYWORD_PROVENANCE_FIELD.to_string(),
-                    json!({
-                        "keyword": rule["keyword"],
-                        "parameters": rule["parameters"],
-                        "rulesSection": rule["definition"]["rulesSection"],
-                        "templateVersion": rule["definition"]["templateVersion"],
-                        "part": part,
-                    }),
-                );
+                let mut provenance = json!({
+                    "keyword": rule["keyword"],
+                    "parameters": rule["parameters"],
+                    "rulesSection": rule["definition"]["rulesSection"],
+                    "templateVersion": rule["definition"]["templateVersion"],
+                    "part": part,
+                });
+                if let Some(action) = rule.get("namedAction") {
+                    provenance["namedAction"] = action.clone();
+                }
+                fields.insert(KEYWORD_PROVENANCE_FIELD.to_string(), provenance);
             }
             inner
         })

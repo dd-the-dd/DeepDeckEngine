@@ -120,6 +120,7 @@ mod effect_domains;
 mod event_batch;
 mod event_model;
 mod invariants;
+mod keyword_actions;
 mod keyword_programs;
 mod landwalk;
 mod library_shuffle;
@@ -4809,6 +4810,10 @@ fn activation_cost_modifier_supported(modifier: &Value) -> bool {
 fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
+    }
+    // Keyword actions named by a keyword ability (exploit, CR 702.110b).
+    if let Some(supported) = keyword_actions::keyword_action_event_supported(event) {
+        return supported;
     }
     // Combat events are patterns of the generic event model.
     if let Some(supported) = event_model::combat_event_supported(event) {
@@ -30281,9 +30286,21 @@ impl GameEngine {
             .pop_stack_object_with_lki()
             .ok_or_else(|| EngineError::new("resolving stack object disappeared"))?;
         let context = self.target_numeric_context(&stack_object);
+        // A keyword ability that names its action publishes it once it has
+        // resolved (CR 702.110b), from the actions recorded meanwhile.
+        let first_event = self.state.events.len();
+        let resolved = stack_object
+            .ability_rule
+            .as_ref()
+            .is_some_and(keyword_actions::rule_names_keyword_action)
+            .then(|| stack_object.clone());
         self.with_target_numeric_context(context, |engine| {
             engine.resolve_prepared_stack_object_body(stack_object, provider)
-        })
+        })?;
+        if let Some(resolved) = resolved {
+            self.publish_keyword_named_actions(&resolved, first_event);
+        }
+        Ok(())
     }
 
     fn resolve_prepared_stack_object_body<P: DecisionProvider>(

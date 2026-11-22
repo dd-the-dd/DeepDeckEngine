@@ -66,6 +66,8 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Cast,
     /// `draw` (CR 121).
     Draw,
+    /// `exploit` (CR 702.110b: the named action of the exploit keyword).
+    Exploit,
 }
 
 /// One inflected form of a lemma.
@@ -541,6 +543,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "drawing",
         },
         frames: &[ArgumentFrame::CardCount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Exploit,
+        forms: VerbForms {
+            base: "exploit",
+            third_person_singular: "exploits",
+            past: "exploited",
+            past_participle: "exploited",
+            present_participle: "exploiting",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
 ];

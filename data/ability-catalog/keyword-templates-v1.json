@@ -175,6 +175,24 @@
       "reminders": [
         "This creature enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it. When it dies, you may put its +1/+1 counters on target artifact creature."
       ]
+    },
+    {
+      "canonicalId": "exploit",
+      "templateVersion": 1,
+      "lexeme": "exploit",
+      "parameter": "none",
+      "rulesClause": "exploit.cr-702-110a",
+      "rulesSection": "702.110a",
+      "namedAction": {
+        "lemma": "exploit",
+        "performedBy": "sacrifice"
+      },
+      "abilities": [
+        "When this creature enters, you may sacrifice a creature."
+      ],
+      "reminders": [
+        "When this creature enters, you may sacrifice a creature."
+      ]
     }
   ]
 }

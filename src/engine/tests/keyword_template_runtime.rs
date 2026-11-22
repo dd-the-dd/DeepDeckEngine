@@ -369,3 +369,67 @@ fn modular_moves_the_last_known_counters_of_its_dead_source() {
     assert_eq!(counters(&engine, "receiver"), 3);
     assert_eq!(counters(&engine, "plain-creature"), 0);
 }
+
+/// Accepts or declines every optional choice; every other choice is the first.
+struct Optional(bool);
+
+impl DecisionProvider for Optional {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        Ok(match request.kind {
+            DecisionKind::ResolutionChoice if self.0 => request.options.len().saturating_sub(1),
+            _ => 0,
+        })
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed() {
+    // An unused combination: exploit with a life-gain exploit trigger.
+    let oracle = "Exploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, you gain 3 life.";
+    for (accept, exploited) in [(true, true), (false, false)] {
+        let scavenger = compiled(
+            "Exploit Probe",
+            "Creature \u{2014} Zombie",
+            ("2", "2"),
+            oracle,
+        );
+        let mut engine = test_engine(2);
+        engine.state.players[0]
+            .battlefield
+            .push(creature("fodder", "player-0"));
+        let card = test_instance("exploit-probe", scavenger, "player-0");
+        engine.state.players[0].battlefield.push(card.clone());
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let (player, index) = engine.permanent_position("exploit-probe").expect("entered");
+        let live = engine.state.players[player].battlefield[index].clone();
+        engine.enqueue_enter_battlefield_triggers(&live);
+        assert_eq!(engine.state.stack.len(), 1, "the exploit trigger");
+        let life = engine.state.players[0].life;
+        engine
+            .resolve_top_stack(&mut Optional(accept))
+            .expect("exploit resolves");
+        // CR 702.110b: the keyword action triggers "exploits a creature".
+        assert_eq!(
+            engine.state.stack.len(),
+            usize::from(exploited),
+            "accept {accept}"
+        );
+        while !engine.state.stack.is_empty() {
+            engine
+                .resolve_top_stack(&mut Optional(accept))
+                .expect("the exploit trigger resolves");
+        }
+        assert_eq!(
+            engine.state.players[0].life,
+            life + if exploited { 3 } else { 0 },
+            "accept {accept}"
+        );
+    }
+}

@@ -135,6 +135,26 @@ créature », CR 702.110b ; Renown : « devient renommé » ; Evolve : « évolu
 n'est ajouté que lorsque cet événement est publié par le moteur. Une
 définition compilée ne publie pas d'événement du seul fait du mot-clé.
 
+La ligne déclare cette politique (`namedAction`) : le lemme de l'action et
+l'action moteur qui l'accomplit (`performedBy: sacrifice`). L'expansion la
+recopie dans `keywordProvenance.namedAction`. Quand une règle qui la porte a
+fini de se résoudre, `keyword_actions.rs` publie un enregistrement du lemme
+pour chaque action de ce type accomplie par son contrôleur pendant la
+résolution (sacrifices du journal entre le début et la fin) : sujet = la
+source (même si elle s'est sacrifiée elle-même), objet = le permanent
+sacrifié. Un déclencheur le lit par un motif générique :
+
+```json
+{"kind": "eventPattern", "lemma": "exploit",
+ "subject": {"object": {"kind": "self"}},
+ "counterpart": {"where": {"kind": "cardTypeContains", "value": "Creature"}}}
+```
+
+L'analyseur lit `SOURCE exploits QUERY` par le lemme `exploit` du lexique
+des verbes (cadre `ObjectSelection`) et le lecteur de contrepartie partagé.
+Restent explicites : un autre sujet que la source (`a creature you control
+exploits`), une contrepartie avec contrôleur ou caractéristique numérique.
+
 ## Migration des programmes natifs
 
 Une ligne remplace un programme natif seulement si la définition compilée
@@ -167,6 +187,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Outlast | 702.107a | [cost] | `outlast_and_reinforce_activate_from_their_definitions_zones` |
 | Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
 | Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
+| Exploit | 702.110a | — (`namedAction: exploit`) | `exploit_publishes_its_keyword_action_only_when_a_creature_is_sacrificed` |
 | Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
 
 ## Défauts trouvés par les preuves runtime
@@ -215,7 +236,6 @@ explicite.
 | Fading, Vanishing | 10, 9 | « If you can't, sacrifice the permanent » ; « when the last time counter is removed » |
 | Graft | 10 | « move a +1/+1 counter » et condition de possession |
 | Rampage, Provoke, Ingest, Dethrone, Training, Melee, Increment, Decayed | 9, 6, 6, 6, 5, 4, 5, 1 | grammaires de corps diverses (`sequence.for-each.action`, `choose.verb`, `effect.start`, …) |
-| Exploit | 0 | la définition compile, mais l'événement « exploite » (CR 702.110b) n'est pas publié : politique d'événement manquante |
 
 Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
 eux : Crew 74, Unearth 40, Madness 39, Partner 32 (règle de construction),

@@ -399,3 +399,53 @@ fn unsupported_batch_shapes_stay_explicit() {
         Some("keyword-template")
     );
 }
+
+#[test]
+fn exploit_names_its_action_and_its_trigger_reads_the_keyword_event() {
+    // Fell Stinger: exploit (CR 702.110a) and "exploits a creature" (702.110b).
+    let parsed = parse(
+        "Fell Stinger",
+        "Creature \u{2014} Zombie Scorpion",
+        "Deathtouch\nExploit (When this creature enters, you may sacrifice a creature.)\nWhen this creature exploits a creature, target player draws two cards and loses 2 life.",
+    );
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    let expansion = parsed.abilities[1].rule.as_ref().unwrap();
+    assert_eq!(expansion["keyword"], "exploit");
+    assert_eq!(
+        expansion["namedAction"],
+        json!({ "lemma": "exploit", "performedBy": "sacrifice" })
+    );
+    let playable = keyword_expansion_rules(expansion);
+    assert_eq!(
+        playable[0]["keywordProvenance"]["namedAction"]["lemma"],
+        "exploit"
+    );
+    let trigger = parsed.abilities[2].rule.as_ref().unwrap();
+    assert_eq!(
+        trigger["event"],
+        json!({
+            "kind": "eventPattern",
+            "lemma": "exploit",
+            "subject": { "object": { "kind": "self" } },
+            "counterpart": { "where": { "kind": "cardTypeContains", "value": "Creature" } },
+        })
+    );
+    // The named form of the source (Sidisi, Undead Vizier) is the same event.
+    let named = parse(
+        "Sidisi, Undead Vizier",
+        "Legendary Creature \u{2014} Zombie Naga",
+        "When Sidisi exploits a creature, you gain 2 life.",
+    );
+    assert_eq!(named.status, "canonical", "{:#?}", named.diagnostics);
+    assert_eq!(
+        named.abilities[0].rule.as_ref().unwrap()["event"],
+        trigger["event"]
+    );
+    // Another creature exploiting (Skull Skaab) has no matcher: explicit.
+    let other = parse(
+        "Skull Skaab",
+        "Creature \u{2014} Zombie",
+        "Whenever a creature you control exploits a nontoken creature, create a 2/2 black Zombie creature token.",
+    );
+    assert_eq!(other.status, "unsupported");
+}
