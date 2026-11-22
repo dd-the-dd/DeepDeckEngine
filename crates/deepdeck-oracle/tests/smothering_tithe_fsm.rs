@@ -70,18 +70,11 @@ fn payment_cost_and_named_token_are_reusable_children() {
 
 #[test]
 fn malformed_bound_player_and_negative_predicate_fail_at_owned_states() {
-    for (oracle, state, found) in [
-        (
-            "Whenever an opponent draws a card, that player may pay {2}. If the opponent doesn't, you create a Treasure token.",
-            "reference.triggering-player.definite-noun",
-            "opponent",
-        ),
-        (
-            "Whenever an opponent draws a card, that player may pay {2}. If the player does, you create a Treasure token.",
-            "effect.event-bound-payment.negative-predicate",
-            "does",
-        ),
-    ] {
+    for (oracle, state, found) in [(
+        "Whenever an opponent draws a card, that player may pay {2}. If the opponent doesn't, you create a Treasure token.",
+        "reference.triggering-player.definite-noun",
+        "opponent",
+    )] {
         let parsed = parse(oracle);
         let ability = &parsed.abilities[0];
 
@@ -101,6 +94,21 @@ fn malformed_bound_player_and_negative_predicate_fail_at_owned_states() {
             ability.diagnostics
         );
     }
+}
+
+/// The payment family owns only the negative outcome; the positive one is
+/// now the shared permission program of the event's player (`If the player
+/// does` refers to that player's payment, CR 608.2c).
+#[test]
+fn positive_outcome_is_the_shared_permission_of_the_event_player() {
+    let parsed = parse(
+        "Whenever an opponent draws a card, that player may pay {2}. If the player does, you create a Treasure token.",
+    );
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.status, "canonical", "{:#?}", ability.diagnostics);
+    let rule = ability.rule.as_ref().expect("a canonical rule");
+    assert_eq!(rule["effects"][0]["kind"], "optionalPayCostPerformEffects");
+    assert_eq!(rule["effects"][0]["player"]["kind"], "triggeringPlayer");
 }
 
 #[test]

@@ -4,9 +4,11 @@ use crate::oracle::model::{ParsedOracleAbility, ParserDiagnostic};
 
 const OVERLOAD_MODE: &str = "overload";
 
-/// The `link` value of a linked-set reader lowered from `the exiled card(s)`
-/// or `cards exiled with this NOUN`.
+/// The `link` value of `cards exiled with this NOUN`: every exile of the
+/// object (CR 607.2a links each exiling ability with the reader).
 const FACE_LINK: &str = "face";
+/// The `link` value of `the exiled card(s)`: the one exile it is paired with.
+const PAIR_LINK: &str = "pair";
 
 /// Marks every exile of permanents that does not already return them when
 /// the source leaves (that duration records the link itself).
@@ -45,17 +47,22 @@ fn reject(ability: &mut ParsedOracleAbility, state: &str, message: &str, expecte
     });
 }
 
-/// Linked abilities (CR 607.2a): when one ability of a face reads the cards
-/// "exiled with" this object, the face's other exiles must record that
-/// relation. An exile of permanents records it (`linkToSource`); any other
-/// exile has no such primitive and is rejected explicitly. A reader lowered
-/// from `the exiled card(s)` whose face records no link is rejected too, so
-/// it never reads a set that can only be empty.
+/// Linked abilities (CR 607.2a): an ability that exiles and an ability of the
+/// same object that refers to `the exiled card(s)` / cards `exiled with` it.
+/// The reader is paired with the exile of its own ability, else with the one
+/// other ability of its face that exiles permanents; only that exile records
+/// the link (`linkToSource`). Two candidate abilities make the pairing
+/// ambiguous and the reader fails explicitly; a reader lowered from `the
+/// exiled card(s)` without any producer fails too. An exile of another kind
+/// on a reader's face records no source relation and is rejected.
 fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     let mentions = |rule: &Value, needle: &str| rule.to_string().contains(needle);
     let reads_linked = |rule: &Value| mentions(rule, "\"cardsExiledWithSource\"");
     let reads_face_link =
         |rule: &Value| reads_linked(rule) && mentions(rule, &format!("\"link\":\"{FACE_LINK}\""));
+    let reads_pair_link =
+        |rule: &Value| reads_linked(rule) && mentions(rule, &format!("\"link\":\"{PAIR_LINK}\""));
+    let exiles_permanents = |rule: &Value| mentions(rule, "\"kind\":\"exilePermanent\"");
     let other_exiles = |rule: &Value| {
         mentions(rule, "\"exileTargetCards\"") || mentions(rule, "\"kind\":\"exile\"")
     };
@@ -64,37 +71,82 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
         .filter(|ability| ability.rule.as_ref().is_some_and(reads_linked))
         .map(|ability| ability.source.face_id.clone())
         .collect::<Vec<_>>();
-    let mut linked_faces = Vec::new();
     for ability in abilities.iter_mut() {
-        let Some(rule) = ability.rule.as_mut() else {
+        let Some(rule) = ability.rule.as_ref() else {
             continue;
         };
-        if !faces_with_readers.contains(&ability.source.face_id) || reads_linked(rule) {
-            continue;
-        }
-        if other_exiles(rule) {
+        if faces_with_readers.contains(&ability.source.face_id)
+            && !reads_linked(rule)
+            && other_exiles(rule)
+        {
             reject(
                 ability,
                 "composition.linked-exile.relation",
                 "A same-face ability reads cards exiled with this object (CR 607), but this exile records no source relation.",
                 "an exile that records its source relation for the linked reader",
             );
-            continue;
-        }
-        if link_permanent_exiles(rule) > 0 {
-            linked_faces.push(ability.source.face_id.clone());
         }
     }
-    for ability in abilities.iter_mut() {
-        if ability.rule.as_ref().is_some_and(reads_face_link)
-            && !linked_faces.contains(&ability.source.face_id)
+    let readers = (0..abilities.len())
+        .filter(|index| abilities[*index].rule.as_ref().is_some_and(reads_linked))
+        .collect::<Vec<_>>();
+    for reader in readers {
+        // The reader's own exile is its pair.
+        if abilities[reader]
+            .rule
+            .as_ref()
+            .is_some_and(exiles_permanents)
         {
-            reject(
-                ability,
-                "binding.linked-exile.producer",
-                "The ability refers to cards exiled with this object, but no other ability of this face exiles permanents with it (CR 607.2a).",
-                "another ability of this face that exiles permanents with this object",
-            );
+            if let Some(rule) = abilities[reader].rule.as_mut() {
+                link_permanent_exiles(rule);
+            }
+            continue;
+        }
+        let face = abilities[reader].source.face_id.clone();
+        let candidates = (0..abilities.len())
+            .filter(|other| {
+                *other != reader
+                    && abilities[*other].source.face_id == face
+                    && abilities[*other]
+                        .rule
+                        .as_ref()
+                        .is_some_and(|rule| exiles_permanents(rule) && !reads_linked(rule))
+            })
+            .collect::<Vec<_>>();
+        let pair = abilities[reader].rule.as_ref().is_some_and(reads_pair_link);
+        match candidates.as_slice() {
+            // `cards exiled with this` reads every exile of the object.
+            producers if !producers.is_empty() && !pair => {
+                for producer in producers {
+                    if let Some(rule) = abilities[*producer].rule.as_mut() {
+                        link_permanent_exiles(rule);
+                    }
+                }
+            }
+            [producer] => {
+                if let Some(rule) = abilities[*producer].rule.as_mut() {
+                    link_permanent_exiles(rule);
+                }
+            }
+            [] if abilities[reader]
+                .rule
+                .as_ref()
+                .is_some_and(|rule| reads_face_link(rule) || pair) =>
+            {
+                reject(
+                    &mut abilities[reader],
+                    "binding.linked-exile.producer",
+                    "The ability refers to cards exiled with this object, but no ability of this face exiles permanents with it (CR 607.2a).",
+                    "an ability of this face that exiles permanents with this object",
+                )
+            }
+            [] => {}
+            _ => reject(
+                &mut abilities[reader],
+                "binding.linked-exile.ambiguous",
+                "The ability refers to cards exiled with this object, but several abilities of this face exile permanents; the linked pair is ambiguous (CR 607.2a).",
+                "exactly one ability of this face that exiles permanents with this object",
+            ),
         }
     }
 }

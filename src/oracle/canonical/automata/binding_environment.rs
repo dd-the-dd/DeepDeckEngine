@@ -128,16 +128,22 @@ pub(in crate::oracle::canonical) enum BoundPlayerReference {
         relation: ObjectPlayerRelation,
         object: PermanentEffectReference,
     },
+    /// `that spell's controller`: the controller of the spell the cast
+    /// record binds (CR 110.2), while it is on the stack, else its caster.
+    EventSpellController,
 }
 
-impl From<BoundPlayerReference> for PlayerEffectSubject {
-    fn from(reference: BoundPlayerReference) -> Self {
-        match reference {
-            BoundPlayerReference::Bound(binding) => Self::Bound(binding),
-            BoundPlayerReference::EventPlayer => Self::EventPlayer,
-            BoundPlayerReference::ObjectRelation { relation, object } => {
-                Self::ObjectRelation { relation, object }
+impl BoundPlayerReference {
+    /// The effect-subject form of the reference; a spell's controller has no
+    /// effect-subject lowering yet.
+    pub(in crate::oracle::canonical) fn into_effect_subject(self) -> Option<PlayerEffectSubject> {
+        match self {
+            Self::Bound(binding) => Some(PlayerEffectSubject::Bound(binding)),
+            Self::EventPlayer => Some(PlayerEffectSubject::EventPlayer),
+            Self::ObjectRelation { relation, object } => {
+                Some(PlayerEffectSubject::ObjectRelation { relation, object })
             }
+            Self::EventSpellController => None,
         }
     }
 }
@@ -235,6 +241,7 @@ pub(in crate::oracle::canonical) fn recognize_bound_player_reference(
         cursor,
         environment.object.as_ref(),
         environment.frame.event_object.as_ref(),
+        environment.frame.event_spell,
     )
 }
 
@@ -302,6 +309,7 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<&ObjectSubjectAntecedent>,
     event_object: Option<&EventObjectSlot>,
+    event_spell: bool,
 ) -> MachineResult<BoundPlayerReference> {
     cursor.enter("player-subject.object-relation");
     let first = cursor
@@ -329,6 +337,14 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         .ok_or_else(|| cursor.fail("`controller` or `owner`"))?;
     cursor.advance_to(cursor.position() + 1)?;
     cursor.enter("player-subject.object-relation.antecedent");
+    // `that spell's controller`: the spell the cast record binds.
+    if event_spell
+        && nominal == Some(TargetNominal::Domain(super::ObjectKind::Spell))
+        && relation == ObjectPlayerRelation::Controller
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::EventSpellController);
+    }
     // `that NOUN's`: a lexical antecedent with that nominal, else the event's
     // object when the event wrote that nominal for it.
     if let Some(nominal) = nominal

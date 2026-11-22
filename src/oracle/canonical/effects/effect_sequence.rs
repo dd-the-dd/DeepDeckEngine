@@ -560,6 +560,17 @@ fn lower_local_effect_sequence_with_collections(
                     };
                     effect["bind"] = json!(collections.observe_drawn_cards(maximum));
                 }
+                // `mill N cards. Put a card from among them ...`: the milled
+                // cards are the observed collection of the next card action.
+                if let SingularPlayerAction::Mill(count) = &action.action
+                    && milled_cards_are_next_antecedent(sequence, effect_index)
+                {
+                    let maximum = match count {
+                        NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+                        _ => None,
+                    };
+                    effect["bind"] = json!(collections.observe_milled_cards(maximum));
+                }
                 effects.push(effect);
             }
             LocalEffectNode::CardAction(action) => {
@@ -2607,6 +2618,27 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
 
 /// True when the action after a draw names the drawn cards by anaphora
 /// (`... and reveal them`, `you may cast one of them ...`).
+/// The next action reads an observed card collection (`from among them`,
+/// `that card`), directly or as the first action of an optional sequence.
+fn milled_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
+    fn reads(effect: &LocalEffectNode) -> bool {
+        match effect {
+            LocalEffectNode::CardAction(
+                CardActionNode::Move { cards, .. }
+                | CardActionNode::Reveal(cards)
+                | CardActionNode::Permit(CardPermissionNode { cards, .. }),
+            ) => matches!(
+                cards,
+                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+            ),
+            LocalEffectNode::CardAction(CardActionNode::Choose(_)) => true,
+            LocalEffectNode::OptionalSequence(inner) => inner.effects.first().is_some_and(reads),
+            _ => false,
+        }
+    }
+    sequence.effects.get(effect_index + 1).is_some_and(reads)
+}
+
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
     matches!(
         sequence.effects.get(effect_index + 1),

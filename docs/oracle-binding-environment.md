@@ -195,8 +195,89 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   pile), le corps modal d'un déclencheur (Pip-Boy 3000 : le mode ne reçoit
   pas le cadre), `that player may ...` (lecteur facultatif d'un autre joueur).
 
+## Étape 8 réalisée : appariement des capacités liées (CR 607.2a)
+
+- Un lecteur est apparié à l'exil de sa propre capacité, sinon aux autres
+  capacités de la face qui exilent des permanents. `cards exiled with this
+  NOUN|it` (marqueur `link: face`) lit tous les exils de l'objet, comme le
+  prévoit CR 607.2a (Helvault). `the exiled card(s)` (marqueur `link:
+  pair`) désigne l'unique exil apparié : deux capacités candidates rendent
+  l'appariement ambigu et le lecteur échoue en
+  `binding.linked-exile.ambiguous`.
+- Sondes (base de la phase 3, f007360 : ligue 808, corpus 14243) : ligue et
+  corpus inchangés, 0 perdue. IR changée de 8 cartes déjà supportées
+  (Oblivion Ring, Journey to Nowhere, Fiend Hunter, …) : seul le marqueur du
+  lecteur passe de `face` à `pair`, le comportement est identique.
+
+## Étape 9 réalisée : corps modaux des déclencheurs
+
+- Les modes d'un déclencheur modal lisent le cadre de son événement (objet
+  observé, attachement de la source, `FrameBindings`) et sa quantité
+  d'événement (`that many`) ; leurs cadres de phrase restent ceux de la
+  levée modale partagée (`recognize_effect_sequence_modal_with_context`).
+- Sondes (base de l'étape 8) : ligue inchangée (808) ; corpus 14243 →
+  14250 (+7 : Pip-Boy 3000, Hivespine Wolverine, Tiller Engine, …), 0
+  perdue, 9 IR changées dont 0 déjà supportée.
+
+## Étape 10 réalisée : cartes meulées comme collection observée
+
+- Une meule dont l'action suivante lit une collection de cartes (`from
+  among them`, `that card`, directement ou en tête d'une séquence
+  facultative) lie les cartes meulées (`bind`, primitive existante) et les
+  rend collection observée du programme (zone : cimetière).
+- Sondes (base de l'étape 9) : ligue inchangée (808) ; corpus 14250 →
+  14259 (+9 : Something Worth Saving, Midnight Tilling, Vastlands
+  Scavenger, Sludge Titan, …), 0 perdue, 15 IR changées dont 0 déjà
+  supportée.
+- Reste explicite : `reveal … until` dans une branche `If you do` (Foster),
+  le génitif sur une carte observée (`that card's mana value`, 29 cartes :
+  l'abaissement numérique n'a pas accès à la collection observée).
+
+## Étape 11 réalisée : antécédent de la condition, sujets bloqué ou blessé, contrôleur du sort
+
+- Une condition intercalée qui teste un seul permanent (`if this permanent
+  is an enchantment`) en fait l'antécédent lexical du corps (`it becomes`).
+- L'attaquant bloqué (`becomes blocked`) et le permanent blessé (`is dealt
+  damage`) sont des objets d'événement sujets : `it` les désigne.
+- `that spell's controller` après un lancement : le contrôleur du sort que
+  l'enregistrement lie (`controllerOf triggeringStackObject`) ; une fois le
+  sort parti de la pile, son lanceur (CR 110.2). Un changement de
+  contrôle d'un sort sur la pile après le déclenchement n'est pas suivi
+  comme information de dernier état (limite documentée).
+- Sondes (base de l'étape 10) : ligue inchangée (808) ; corpus 14259 →
+  14275 (+16 : Opal Champion et la famille Opal/Hidden, Mana Vault,
+  Tattered Ratter, Somberwald Alpha, …), 0 perdue, 28 IR changées dont 0
+  déjà supportée.
+- Reste explicite : `that player's graveyard` (détenteur de zone lié), `it`
+  désignant une cible de carte mise sur le champ de bataille (`It gains
+  haste`), `it` source de dégâts observée (Wrathful Red Dragon).
+
+## Étape 12 réalisée : permission d'un autre joueur
+
+- `that player may …`, `defending player may …` et `its controller may …`
+  ouvrent le même programme facultatif que `you may` ; l'acteur est lu dans
+  l'environnement du cadre (joueur de l'événement, contrôleur de l'objet
+  observé) et abaissé par `bound_player_reference_value`.
+- Le connecteur de résultat est généralisé : `if/when they do/don't`,
+  `if the player does/doesn't`, `if that player does/doesn't` désignent
+  l'exécutant de la permission (CR 608.2c).
+- Le moteur possédait déjà la primitive : `optionalEffects` et
+  `optionalPayCostPerformEffects` adressent la décision au joueur résolu ;
+  aucun nouveau type d'action. Test d'exécution : la décision est demandée au
+  joueur de l'événement, pas au contrôleur.
+- Sonde : ligue 808 → 808, corpus 14275 → 14275, 0 perte, 1 IR modifiée
+  (non supportée, bloqueur suivant). Les cartes `that player may` atteignent
+  désormais leurs bloqueurs suivants (`they draw`, `the creature`,
+  `choose any number`).
+
 ## Suite
 
-1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
-   d'un sort sur la pile ; `that player may` (permission facultative d'un
-   autre joueur, moteur).
+1. Collections révélées ou regardées (`reveal … until` dans une branche
+   `If you do`) et génitif numérique d'une carte observée
+   (`that card's mana value`, environ 29 cartes) : l'abaissement numérique
+   n'a pas encore accès aux collections.
+2. `that player's graveyard` (détenteur de zone lié dans la requête) et `it`
+   pour la carte déplacée par un changement de zone ciblé.
+3. Source de dégâts observée (`it`), retard avec jeton ou cible
+   (`Sacrifice it at the beginning of the next end step`), changement de
+   contrôle d'un sort (LKI non suivie, limite documentée).

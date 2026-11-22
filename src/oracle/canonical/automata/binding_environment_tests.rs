@@ -504,3 +504,146 @@ fn where_x_reads_the_declared_target_property() {
         "{reads:?}"
     );
 }
+
+#[test]
+fn the_linked_pair_is_one_ability_or_an_explicit_ambiguity() {
+    // Two independent exiles of permanents on the face: the reader's pair is
+    // ambiguous (CR 607.2a) and fails explicitly instead of linking both.
+    let (status, _, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target creature.\n{2}: Exile target artifact.\nWhen this enchantment leaves the battlefield, return the exiled card to the battlefield under its owner's control.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "binding.linked-exile.ambiguous"),
+        "{states:?}"
+    );
+    // A face without a reader links nothing: both exiles stay unlinked.
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "When this enchantment enters, exile target creature.\n{2}: Exile target artifact.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert!(
+        !serde_json::to_string(&rules)
+            .unwrap()
+            .contains("linkToSource")
+    );
+}
+
+#[test]
+fn cards_exiled_with_this_read_every_exile_of_the_object() {
+    // Helvault: `cards exiled with it` is linked with both exile abilities
+    // (CR 607.2a); unlike `the exiled card`, that is not an ambiguity.
+    let (status, rules, states) = parse(
+        "Legendary Artifact",
+        "{1}, {T}: Exile target creature you control.\n{7}, {T}: Exile target creature you don't control.\nWhen this artifact is put into a graveyard from the battlefield, return all cards exiled with it to the battlefield under their owners' control.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    let text = serde_json::to_string(&rules).unwrap();
+    assert_eq!(text.matches("\"linkToSource\":true").count(), 2, "{text}");
+}
+
+#[test]
+fn modal_trigger_bodies_read_the_event_bindings() {
+    // Pip-Boy 3000's shape: a mode names the attacking equipped creature.
+    // Unused recombination: a mode deals damage to the drawing opponent.
+    for (type_line, oracle) in [
+        (
+            "Artifact \u{2014} Equipment",
+            "Whenever equipped creature attacks, choose one \u{2014}\n\u{2022} Draw a card, then discard a card.\n\u{2022} Put a +1/+1 counter on that creature.\nEquip {2}",
+        ),
+        (
+            ENCHANTMENT,
+            "Whenever an opponent draws a card, choose one \u{2014}\n\u{2022} This enchantment deals 1 damage to that player.\n\u{2022} You gain 1 life.",
+        ),
+    ] {
+        let (status, _, states) = parse(type_line, oracle);
+        assert_eq!(status, "canonical", "{oracle}: {states:?}");
+    }
+    // Near miss: a modal spell has no event; `that player` names nothing.
+    let (status, _, _) = parse(
+        INSTANT,
+        "Choose one \u{2014}\n\u{2022} This spell deals 1 damage to that player.\n\u{2022} You gain 1 life.",
+    );
+    assert_ne!(status, "canonical");
+}
+
+#[test]
+fn milled_cards_are_the_next_card_actions_collection() {
+    // Something Worth Saving / Midnight Tilling: `from among them` names the
+    // milled cards, bound by the mill itself.
+    for oracle in [
+        "Mill four cards. You may put a permanent card from among them into your hand. You gain 1 life.",
+        "Mill four cards, then you may return a permanent card from among them to your hand.",
+    ] {
+        let (status, rules, states) = parse(INSTANT, oracle);
+        assert_eq!(status, "canonical", "{oracle}: {states:?}");
+        let text = serde_json::to_string(&rules).unwrap();
+        assert!(text.contains("\"bind\":\"milledCards\""), "{text}");
+    }
+}
+
+#[test]
+fn guard_objects_event_subjects_and_the_cast_spells_controller_are_bound() {
+    // Opal Champion's shape: the intervening `if` names the antecedent of `it`.
+    let (status, _, states) = parse(
+        ENCHANTMENT,
+        "When an opponent casts a creature spell, if this enchantment is an enchantment, it becomes a 3/3 Knight creature with first strike.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Tattered Ratter: the blocked attacker is `it`.
+    let objects = effect_objects(
+        CREATURE,
+        "Whenever a Rat you control becomes blocked, it gets +2/+0 until end of turn.",
+    );
+    assert_eq!(
+        objects.first(),
+        Some(&json!({"kind":"triggeringPermanent"}))
+    );
+    // Unused recombination: damage to the cast spell's controller.
+    let recipients = damage_recipients(
+        ENCHANTMENT,
+        "Whenever an opponent casts a spell, this enchantment deals 1 damage to that spell's controller.",
+    );
+    assert_eq!(
+        recipients[0],
+        json!({"kind":"controllerOf","object":{"kind":"triggeringStackObject"}})
+    );
+    // Near miss: no cast event, no spell to relate.
+    let (status, _, _) = parse(
+        CREATURE,
+        "{T}: This creature deals 1 damage to that spell's controller.",
+    );
+    assert_ne!(status, "canonical");
+}
+
+#[test]
+fn another_players_permission_and_its_outcome_connector() {
+    // Apathy/Umbilicus shape: `that player may` names the event's player and
+    // `If they do` / `If the player does` refer to that permission.
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent draws a card, that player may discard a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(rules[0]["effects"][0]["kind"], "optionalEffects");
+    assert_eq!(
+        rules[0]["effects"][0]["player"],
+        json!({"kind":"triggeringPlayer"})
+    );
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent draws a card, that player may pay 2 life. If the player does, you draw a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(
+        rules[0]["effects"][0]["kind"],
+        "optionalPayCostPerformEffects"
+    );
+    // Near miss: no event records a player.
+    let (status, _, _) = parse(CREATURE, "{T}: That player may draw a card.");
+    assert_ne!(status, "canonical");
+}

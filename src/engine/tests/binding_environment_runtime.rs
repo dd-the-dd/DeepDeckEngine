@@ -424,3 +424,147 @@ fn where_x_reads_the_destroyed_targets_last_known_mana_value() {
         "mana value 4 as last known"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn from_among_them_reads_the_milled_cards() {
+    // Vastlands Scavenger's shape: the milled creature card is put into the
+    // hand; a creature card already in the graveyard is not a candidate.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Mill two cards, then put a creature card from among them into your hand.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard.push(test_instance(
+        "old-bear",
+        test_definition("old-bear", "Creature - Bear"),
+        "player-0",
+    ));
+    engine.state.players[0].library.push(test_instance(
+        "milled-bear",
+        test_definition("milled-bear", "Creature - Bear"),
+        "player-0",
+    ));
+    admit(&mut engine);
+    let stack = StackObject {
+        id: "stack:scavenger".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "scavenger",
+            test_definition("scavenger", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    let in_hand = |id: &str| {
+        engine.state.players[0]
+            .hand
+            .iter()
+            .any(|card| card.instance_id == id)
+    };
+    assert!(in_hand("milled-bear"), "the milled creature card");
+    assert!(!in_hand("old-bear"), "not a card milled by this spell");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_cast_spells_controller_is_its_caster_once_it_left_the_stack() {
+    // The spell already resolved: its controller is the caster the cast
+    // record binds (CR 110.2).
+    let rule = parsed_rules(
+        "Enchantment",
+        "Whenever an opponent casts a spell, this enchantment deals 1 damage to that spell's controller.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let source = permanent("watcher", "Enchantment", vec![rule.clone()], "player-0");
+    engine.state.players[0].battlefield.push(source.clone());
+    admit(&mut engine);
+    engine.put_triggered_ability_on_stack_with_decisions(
+        &source,
+        rule,
+        BTreeMap::from([
+            (
+                "triggeringPlayerId".to_string(),
+                Value::String("player-1".to_string()),
+            ),
+            (
+                "triggeringStackId".to_string(),
+                Value::String("stack:resolved-spell".to_string()),
+            ),
+        ]),
+    );
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[1].life, 19, "the caster");
+    assert_eq!(engine.state.players[0].life, 20);
+}
+
+/// Records the player each decision is addressed to; picks the first option.
+#[derive(Default)]
+struct RecordingProvider {
+    players: Vec<String>,
+}
+
+impl DecisionProvider for RecordingProvider {
+    fn choose(
+        &mut self,
+        _state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        self.players.push(request.player_id.clone());
+        Ok(0)
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn another_players_permission_is_that_players_choice() {
+    // `that player may discard a card`: the drawing opponent, not the
+    // ability's controller, decides (optionalEffects with triggeringPlayer).
+    let rules = parsed_rules(
+        "Enchantment",
+        "Whenever an opponent draws a card, that player may discard a card.",
+    );
+    assert_eq!(
+        rules[0]["effects"][0]["player"],
+        json!({"kind":"triggeringPlayer"}),
+        "{:#}",
+        rules[0]
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(permanent(
+        "watcher",
+        "Enchantment",
+        rules,
+        "player-0",
+    ));
+    admit(&mut engine);
+    engine.draw_cards("player-1", 1).expect("player-1 draws");
+    let mut provider = RecordingProvider::default();
+    while !engine.state.stack.is_empty() {
+        engine
+            .resolve_top_stack(&mut provider)
+            .expect("the trigger resolves");
+    }
+    assert!(!provider.players.is_empty(), "the permission was asked");
+    assert!(
+        provider.players.iter().all(|player| player == "player-1"),
+        "{:?}",
+        provider.players
+    );
+}

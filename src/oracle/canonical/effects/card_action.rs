@@ -144,6 +144,20 @@ impl CardCollectionMemory {
         Ok(value.0)
     }
 
+    /// The cards a mill just put into a graveyard become the observed
+    /// collection (`mill four cards, then put a creature card from among them
+    /// into your hand`). Returns the binding the mill primitive records.
+    pub(in crate::oracle::canonical) fn observe_milled_cards(
+        &mut self,
+        maximum: Option<i64>,
+    ) -> String {
+        let id = fresh("milledCards", &mut self.next_view);
+        self.allocated_ids.insert(id.clone());
+        self.observe(&id, maximum);
+        self.view_zone = Some(CardZoneName::Graveyard);
+        id
+    }
+
     /// The cards a controller draw just put into hand become the observed
     /// collection (`draw three cards and reveal them`). Returns the binding
     /// the draw primitive must record.
@@ -188,13 +202,22 @@ impl CardCollectionMemory {
         // `the exiled card(s)` restates this program's exile; without one it
         // names the cards a linked ability exiled (CR 607.2a), proved by the
         // card-composition pass. `cards exiled with this` is always linked.
-        let linked = json!({"kind":"cardsExiledWithSource", "link": "face"});
+        // `exiled with this` reads every exile of the object (`face`); `the
+        // exiled card(s)` names the one exile it is paired with (`pair`).
         match reference {
-            CardCollectionReferenceNode::Linked => return Ok((linked, None)),
+            CardCollectionReferenceNode::Linked => {
+                return Ok((
+                    json!({"kind":"cardsExiledWithSource", "link": "face"}),
+                    None,
+                ));
+            }
             CardCollectionReferenceNode::Exiled
                 if self.view.is_none() || self.view_verb != Some(CardCollectionVerb::Exiled) =>
             {
-                return Ok((linked, None));
+                return Ok((
+                    json!({"kind":"cardsExiledWithSource", "link": "pair"}),
+                    None,
+                ));
             }
             CardCollectionReferenceNode::Exiled => {
                 return self

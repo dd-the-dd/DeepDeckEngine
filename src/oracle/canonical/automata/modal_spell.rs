@@ -28,6 +28,23 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<EffectSequenceModalNode> {
+    recognize_effect_sequence_modal_with_context(
+        cursor,
+        name_links,
+        name_failure,
+        &EffectRecognitionContext::default(),
+    )
+}
+
+/// The modes of a modal ability whose parent owns a recognition context:
+/// a triggered ability's modes read the bindings its event publishes (the
+/// frame, the observed object, the source attachment), like its program.
+pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_context(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectSequenceModalNode> {
     cursor.enter("modal.effect-sequence.action");
     cursor.consume("choose")?;
     cursor.enter("modal.effect-sequence.cardinality");
@@ -93,13 +110,15 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal(
             "modal-effect-sequence-mode",
             cursor.token_slice(mode_start, mode_end),
         );
+        // The event's `that many` quantity reaches every mode.
+        mode_cursor.set_event_numeric_binding(cursor.event_numeric_binding());
         // Every mode is lowered by the shared modal lowering, which owns
         // its `unless` frames (CR 118.12).
         let mode = recognize_effect_sequence_with_context(
             &mut mode_cursor,
             &mode_links,
             mode_failure.as_ref(),
-            &EffectRecognitionContext::default().with_unless_frames(),
+            &context.clone().with_unless_frames(),
         )
         .map_err(|failure| rebase_machine_failure(failure, mode_start))?;
         modes.push(mode);

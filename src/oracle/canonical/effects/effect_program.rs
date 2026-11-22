@@ -365,9 +365,13 @@ fn lower_optional_program_player(
 ) -> MachineResult<Value> {
     match player {
         LocalPlayerReference::Controller => Ok(controller()),
-        LocalPlayerReference::ControllerOf(_)
-        | LocalPlayerReference::ControllerOfQualified(_)
-        | LocalPlayerReference::Bound(_) => {
+        // Another player the binding environment names chooses (the event's
+        // player, an event object's controller); the runtime asks that player.
+        LocalPlayerReference::Bound(reference) => {
+            bound_player_reference_value(*reference, &[], &[])
+                .ok_or_else(|| cursor.fail("a player named without a declaration of this program"))
+        }
+        LocalPlayerReference::ControllerOf(_) | LocalPlayerReference::ControllerOfQualified(_) => {
             Err(cursor.fail("the ability controller for this optional program"))
         }
     }
