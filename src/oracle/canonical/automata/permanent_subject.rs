@@ -151,6 +151,8 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::UntapRestriction(node) => {
             Local(subject_after_operand(&node.objects, effect_index))
         }
+        // Another player's action ends the local permanent subject.
+        LocalEffectNode::Performed(_) => Local(None),
         LocalEffectNode::PermanentKeywordAction(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }

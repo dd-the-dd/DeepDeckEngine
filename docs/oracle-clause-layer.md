@@ -370,3 +370,32 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   bloqueur unique, surtout des copies de jetons attaquant « that player »).
 - Sonde : ligue 816 → 816, corpus 14571 → 14571, 0 perte, aucune IR
   modifiée ; seuls les diagnostics changent.
+
+## Phase 7 : un emplacement d'exécutant pour toute action
+
+### Étape 21 : l'exécutant (`performer`)
+
+- Le sujet d'une proposition qui nomme un autre joueur que le contrôleur
+  (`that player`, `they`, `its owner|controller`, `that NOUN's owner`,
+  `defending player`, `each player|opponent|other player`) est lu par la
+  proposition (`recognize_performer`), qui vérifie l'accord du verbe par le
+  lexique. Le prédicat est ensuite lu par les lecteurs d'action ordinaires
+  comme l'instruction de cet exécutant, à la deuxième personne : le verbe à
+  la forme de base et les pronoms de l'exécutant de sa phrase (`they`,
+  `their`) en `you`/`your` sur une vue des mêmes jetons (indices et étendues
+  d'origine, diagnostics inchangés). Aucun lecteur par verbe.
+- IR : chaque primitive produite par l'action reçoit `performer` (un joueur
+  singulier) ; une population devient `forEachPlayer` dont le corps porte
+  `performer: boundValue` (CR 101.4). Moteur (`effect_performer.rs`) : la
+  répartition générique résout l'exécutant une fois et exécute la primitive
+  existante comme l'instruction de ce joueur (contrôleur de la résolution
+  remplacé) : ses choix, `you`, `your graveyard` et `they control` sont les
+  siens. Aucune primitive ne connaît l'exécutant.
+- Lexique : `choose`, `shuffle`, `search`.
+- Sonde : ligue 816 → 816, corpus 14749 → 14780 (+31 : Exhume, Ulamog the
+  Ceaseless Hunger, Goblin Spymaster, Mana Breach, Curfew, Empty the
+  Catacombs…), 0 perte, IR des cartes supportées inchangée. Preuves : IR
+  égale à l'instruction impérative plus `performer`, boucle de population,
+  recombinaison inédite (`each opponent creates a Treasure token`),
+  quasi-échecs (accord, possessif sans objet), exécution (le jeton va au
+  joueur de l'événement ; chaque joueur remet sa propre carte).

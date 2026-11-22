@@ -173,6 +173,30 @@ fn lower_local_effect_sequence_with_collections(
     context: EffectSequenceLoweringContext,
     collections: &mut CardCollectionMemory,
 ) -> Result<LoweredEffectSequence, EffectSequenceLoweringFailure> {
+    // An action another player performs is lowered as the ordinary action;
+    // its performer is then put on every primitive it produced.
+    let performed;
+    let (sequence, performers) = if sequence
+        .effects
+        .iter()
+        .any(|effect| matches!(effect, LocalEffectNode::Performed(_)))
+    {
+        let mut unwrapped = sequence.clone();
+        let mut performers = Vec::with_capacity(unwrapped.effects.len());
+        for effect in &mut unwrapped.effects {
+            if let LocalEffectNode::Performed(node) = effect {
+                performers.push(Some(node.performer.clone()));
+                *effect = (*node.effect).clone();
+            } else {
+                performers.push(None);
+            }
+        }
+        performed = unwrapped;
+        (&performed, performers)
+    } else {
+        (sequence, Vec::new())
+    };
+    let mut pending_performer: Option<(usize, usize, PerformerNode)> = None;
     let permanent_target_base_ids = sequence
         .effects
         .iter()
@@ -290,6 +314,16 @@ fn lower_local_effect_sequence_with_collections(
     let mut unbound_creature_type_from = 0_usize;
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        apply_performer(
+            cursor,
+            &mut effects,
+            pending_performer.take(),
+            &target_bindings,
+            &declared_player_targets,
+        )?;
+        if let Some(Some(performer)) = performers.get(effect_index) {
+            pending_performer = Some((effects.len(), effect_index, performer.clone()));
+        }
         if !creature_type_chosen
             && effects[unbound_creature_type_from..]
                 .iter()
@@ -1894,6 +1928,13 @@ fn lower_local_effect_sequence_with_collections(
         }
     }
 
+    apply_performer(
+        cursor,
+        &mut effects,
+        pending_performer.take(),
+        &target_bindings,
+        &declared_player_targets,
+    )?;
     conditional_scopes.at_boundary(
         cursor,
         sequence,
@@ -2903,6 +2944,81 @@ fn milled_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index:
         }
     }
     sequence.effects.get(effect_index + 1).is_some_and(reads)
+}
+
+/// Puts the performer of one action on every primitive the action produced
+/// (`effects[start..]`). A population is a player loop whose body is the
+/// action performed by each player in turn (CR 101.4, 608.2c).
+fn apply_performer(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut Vec<Value>,
+    pending: Option<(usize, usize, PerformerNode)>,
+    target_bindings: &[(TargetBinding, String)],
+    declared_player_targets: &[(PlayerTargetBinding, String)],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let Some((start, effect_index, performer)) = pending else {
+        return Ok(());
+    };
+    cursor.enter("lower.performer");
+    cursor.require(
+        effects.len() > start,
+        "an action that produces at least one primitive for its performer",
+    )?;
+    let player = match &performer {
+        PerformerNode::Player(PlayerEffectSubject::EventPlayer) => {
+            json!({"kind": "triggeringPlayer"})
+        }
+        PerformerNode::Player(PlayerEffectSubject::ObjectRelation { relation, object }) => json!({
+            "kind": match relation {
+                ObjectPlayerRelation::Controller => "controllerOf",
+                ObjectPlayerRelation::Owner => "ownerOf",
+            },
+            "object": lower_bound_permanent_reference(cursor, *object, target_bindings)?,
+        }),
+        PerformerNode::Player(PlayerEffectSubject::Bound(binding)) => {
+            let id = declared_player_targets
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding.0).then_some(id.clone()))
+                .ok_or_else(|| cursor.fail("an earlier declared player for the performer"))?;
+            chosen_target(&id)
+        }
+        PerformerNode::Player(
+            PlayerEffectSubject::Controller | PlayerEffectSubject::DeclaredTarget { .. },
+        ) => {
+            return Err(EffectSequenceLoweringFailure::FailedInvariant(cursor.fail(
+                "a performer other than the controller or a new declaration",
+            )));
+        }
+        PerformerNode::Population {
+            players,
+            excluding_controller,
+        } => {
+            let bind = format!("performer{effect_index}");
+            let players = if *excluding_controller {
+                lower_player_set_reference(PlayerSetReferenceNode::OpponentsOfAbilityController)
+            } else {
+                lower_player_set_reference(*players)
+            };
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = json!({"kind": "boundValue", "id": bind});
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachPlayer",
+                "bind": bind,
+                "players": players,
+                "effects": body,
+            }));
+            return Ok(());
+        }
+    };
+    for effect in &mut effects[start..] {
+        effect["performer"] = player.clone();
+    }
+    Ok(())
 }
 
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {

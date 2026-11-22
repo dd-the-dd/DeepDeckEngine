@@ -504,3 +504,59 @@ fn a_player_population_is_a_distributive_frame() {
         "{states:?}"
     );
 }
+
+/// The performer slot (CR 608.2c): another player's clause is the ordinary
+/// instruction with that player as its performer; a population performs it
+/// in a player loop.
+#[test]
+fn another_player_performs_the_ordinary_instruction() {
+    use serde_json::json;
+    // Real cards: Goblin Spymaster (event player creates), Ulamog, the
+    // Ceaseless Hunger's sibling (its owner shuffles), Exhume (population).
+    let created = effects(
+        "Enchantment",
+        "At the beginning of each opponent's end step, that player creates a 1/1 red Goblin creature token.",
+    );
+    assert_eq!(created.len(), 1, "{created:#?}");
+    assert_eq!(created[0]["performer"], json!({"kind":"triggeringPlayer"}));
+    let imperative = effects(
+        "Enchantment",
+        "At the beginning of each opponent's end step, create a 1/1 red Goblin creature token.",
+    );
+    let mut without_performer = created[0].clone();
+    without_performer
+        .as_object_mut()
+        .expect("an effect object")
+        .remove("performer");
+    assert_eq!(without_performer, imperative[0], "the same instruction");
+    let exhumed = effects(
+        SORCERY,
+        "Each player puts a creature card from their graveyard onto the battlefield.",
+    );
+    assert_eq!(exhumed[0]["kind"], "forEachPlayer", "{exhumed:#?}");
+    let bind = exhumed[0]["bind"].clone();
+    assert!(
+        exhumed[0]["effects"]
+            .as_array()
+            .expect("a loop body")
+            .iter()
+            .all(|effect| effect["performer"] == json!({"kind":"boundValue","id":bind})),
+        "{exhumed:#?}"
+    );
+    // Unused recombination: an opponent population creating tokens.
+    let tokens = effects(SORCERY, "Each opponent creates a Treasure token.");
+    assert_eq!(tokens[0]["kind"], "forEachPlayer", "{tokens:#?}");
+}
+
+/// Near misses: the verb must agree with the performer, and a possessive
+/// performer needs its object.
+#[test]
+fn performer_near_misses() {
+    for oracle in [
+        "Each player create a 1/1 green Saproling creature token.",
+        "Its owner creates a 1/1 white Spirit creature token with flying.",
+    ] {
+        let (status, _, _) = parse(SORCERY, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}

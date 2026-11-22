@@ -73,6 +73,12 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// `get` (CR 122.1: a player gets counters; `{E}` is an energy counter,
     /// CR 107.14).
     Get,
+    /// `choose` (CR 608.2d: a choice made while the instruction resolves).
+    Choose,
+    /// `shuffle` (CR 701.24).
+    Shuffle,
+    /// `search` (CR 701.23).
+    Search,
 }
 
 /// One inflected form of a lemma.
@@ -587,6 +593,42 @@ const VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "getting",
         },
         frames: &[ArgumentFrame::PlayerCounters],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Choose,
+        forms: VerbForms {
+            base: "choose",
+            third_person_singular: "chooses",
+            past: "chose",
+            past_participle: "chosen",
+            present_participle: "choosing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Shuffle,
+        forms: VerbForms {
+            base: "shuffle",
+            third_person_singular: "shuffles",
+            past: "shuffled",
+            past_participle: "shuffled",
+            present_participle: "shuffling",
+        },
+        frames: &[ArgumentFrame::ObjectToZone],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Search,
+        forms: VerbForms {
+            base: "search",
+            third_person_singular: "searches",
+            past: "searched",
+            past_participle: "searched",
+            present_participle: "searching",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
 ];

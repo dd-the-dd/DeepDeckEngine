@@ -153,6 +153,7 @@ mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
+mod effect_performer;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -4598,6 +4599,9 @@ fn permanent_attacks_event_supported(event: &Value) -> bool {
 }
 
 pub fn effect_supported(effect: &Value) -> bool {
+    if let Some(supported) = effect_performer::performer_effect_supported(effect) {
+        return supported;
+    }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
         return supported;
     }
@@ -34278,6 +34282,16 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
         provider: &mut P,
     ) -> Result<(), EngineError> {
+        if self.execute_performed_effect(
+            effect,
+            next_effect,
+            stack_object,
+            bindings,
+            decisions,
+            provider,
+        )? {
+            return Ok(());
+        }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
             return Ok(());
         }

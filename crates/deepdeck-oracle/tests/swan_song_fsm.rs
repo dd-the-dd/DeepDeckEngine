@@ -112,22 +112,23 @@ fn descriptive_token_sibling_reuses_selector_characteristic_and_keyword_automata
     );
 }
 
+/// The countered spell's owner as the performer of the ordinary token
+/// creation (CR 608.2c): no longer a near miss of the descriptive-token
+/// family, read by the shared performer slot instead.
 #[test]
-fn descriptive_token_near_miss_is_committed_and_reports_local_anaphora_failure() {
+fn the_countered_spells_owner_performs_the_token_creation() {
     let parsed = parse(
         "Counter target artifact spell. Its owner creates a 3/3 red Goblin creature token with haste.",
     );
     let ability = &parsed.abilities[0];
-
-    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-    assert_eq!(ability.status, "unsupported");
-    assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("counter-descriptive-token-sequence")
+    assert_eq!(ability.status, "canonical");
+    let effects = &ability.rule.as_ref().expect("a rule")["effects"];
+    assert!(
+        effects
+            .as_array()
+            .expect("effects")
+            .iter()
+            .any(|effect| effect["performer"]["kind"] == "ownerOf"),
+        "{effects:#}"
     );
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("reference.player.controller-of-object")
-    );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("owner"));
 }

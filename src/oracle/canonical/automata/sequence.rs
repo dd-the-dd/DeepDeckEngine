@@ -1021,6 +1021,76 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         parsed => parsed,
                     };
+                    // `PLAYER VERBs ...`: another player performs the clause
+                    // (CR 608.2c). The clause reads the subject and checks the
+                    // verb's agreement; the ordinary readers read the predicate
+                    // as that player's own instruction.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && (!attempt_frame.is_committed()
+                                    || matches!(
+                                        failure.state,
+                                        "effect.quantified-player.action"
+                                            | "clause.verb.unsupported"
+                                    )) =>
+                        {
+                            let furthest = |first: super::super::MachineFailure,
+                                            second: super::super::MachineFailure| {
+                                if second.token_index > first.token_index {
+                                    second
+                                } else {
+                                    first
+                                }
+                            };
+                            let performer_context = super::PerformerContext {
+                                player_antecedent: memory
+                                    .last_player_target
+                                    .map(|binding| super::PlayerBinding(binding.effect_index)),
+                                event_player: base_action_context.frame.event_player,
+                                defending_player: base_action_context.frame.defending_player,
+                                object_antecedent: object_antecedent.clone(),
+                            };
+                            let mut head = cursor.clone();
+                            match super::recognize_performer(&mut head, &performer_context) {
+                                None => Err(failure),
+                                Some(Err(subject)) => Err(furthest(failure, subject)),
+                                Some(Ok((performer, agreement))) => {
+                                    let description = super::performer_description(&performer);
+                                    match super::person_shifted_tokens(
+                                        &head,
+                                        agreement,
+                                        description,
+                                    ) {
+                                        Err(verb) => Err(furthest(failure, verb)),
+                                        Ok(tokens) => {
+                                            let mut shifted = head.with_tokens(&tokens);
+                                            let controller = super::PlayerEffectSubject::Controller;
+                                            match read_action(
+                                                &mut shifted,
+                                                Some(&controller),
+                                                attempt_frame,
+                                            ) {
+                                                Ok(effect) => {
+                                                    let end = shifted.position();
+                                                    cursor.advance_to(end).map(|()| {
+                                                        LocalEffectNode::Performed(
+                                                            super::PerformedEffectNode {
+                                                                performer,
+                                                                effect: Box::new(effect),
+                                                            },
+                                                        )
+                                                    })
+                                                }
+                                                Err(action) => Err(furthest(failure, action)),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        parsed => parsed,
+                    };
                     match parsed {
                         Ok(effect) => break effect,
                         Err(failure) => {

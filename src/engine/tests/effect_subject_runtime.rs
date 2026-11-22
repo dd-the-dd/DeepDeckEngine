@@ -203,3 +203,83 @@ fn the_returned_card_is_the_permanent_the_next_action_changes() {
         "{rule:#}"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_performer_creates_the_token_it_controls() {
+    // Goblin Spymaster's recombination with a draw event: the drawing
+    // opponent performs the creation, so the token is theirs (CR 111.2).
+    let rules = parsed_rules(
+        "Enchantment",
+        "Whenever an opponent draws a card, that player creates a 1/1 red Goblin creature token.",
+    );
+    let mut definition = test_definition("spymaster", "Enchantment");
+    definition.rules = rules;
+    let mut engine = test_engine(3);
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("spymaster", definition, "player-0"));
+    engine.draw_cards("player-2", 1).expect("player-2 draws");
+    resolve_stack(&mut engine);
+    assert_eq!(
+        engine.state.players[2].battlefield.len(),
+        1,
+        "the drawing opponent's token"
+    );
+    assert_eq!(
+        engine.state.players[0].battlefield.len(),
+        1,
+        "only the enchantment"
+    );
+    assert!(engine.state.players[1].battlefield.is_empty());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn each_player_of_a_population_performs_the_action_with_their_own_cards() {
+    // Exhume: each player puts a creature card from their own graveyard onto
+    // the battlefield; the choice and the card are that player's (CR 101.4).
+    let rule = parsed_rules(
+        "Sorcery",
+        "Each player puts a creature card from their graveyard onto the battlefield.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    for (index, id) in [(0, "bear-0"), (1, "bear-1")] {
+        let owner = format!("player-{index}");
+        engine.state.players[index].graveyard.push(test_instance(
+            id,
+            test_definition(id, "Creature - Bear"),
+            &owner,
+        ));
+    }
+    let stack = StackObject {
+        id: "stack:exhume".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("exhume", test_definition("exhume", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    for (index, id) in [(0, "bear-0"), (1, "bear-1")] {
+        assert!(
+            engine.state.players[index]
+                .battlefield
+                .iter()
+                .any(|permanent| permanent.instance_id == id),
+            "{id} on its owner's battlefield: {rule:#}"
+        );
+    }
+}
