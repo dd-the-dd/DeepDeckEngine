@@ -147,7 +147,11 @@ pub(in crate::oracle::canonical) fn recognize_regenerate_reminder(
             }
             ReminderState::Tap => {
                 cursor.enter("effect.regenerate.reminder.tap");
-                cursor.consume("tap")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Tap,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 cursor.consume(pronoun)?;
                 cursor.consume(",")?;
                 ReminderState::RemoveFromCombat

@@ -4,6 +4,7 @@ use super::{
     PlayerZoneKind, PossessivePlayerZoneNode, SelectorPredicate, TargetBinding, TargetSelector,
     recognize_target_list, recognize_target_slot_selector,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ControlledPermanentState {
@@ -208,7 +209,10 @@ pub(in crate::oracle::canonical) fn recognize_player_compound_exile(
             PlayerCompoundExileState::Action => {
                 cursor.enter("compound-exile.action");
                 let action = cursor.consume_type("actionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("exiles"), "`exiles`")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Exile, VerbForm::ThirdPersonSingular),
+                    "`exiles`",
+                )?;
                 PlayerCompoundExileState::Permanent
             }
             PlayerCompoundExileState::Permanent => {

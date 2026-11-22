@@ -197,9 +197,9 @@ fn lower_damage_replacement(
     let event = &node.event;
     let mut lowered_event = json!({
         "damage": match event.kind {
-            DamageKindFilter::Any => "any",
-            DamageKindFilter::Combat => "combat",
-            DamageKindFilter::Noncombat => "noncombat",
+            DamageKind::Any => "any",
+            DamageKind::Combat => "combat",
+            DamageKind::Noncombat => "noncombat",
         },
     });
     if let Some(source) = &event.source {

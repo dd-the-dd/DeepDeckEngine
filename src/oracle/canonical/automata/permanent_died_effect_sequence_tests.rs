@@ -1,7 +1,7 @@
 use crate::oracle::canonical::LocalEffectNode;
 use crate::oracle::syntax::recognize_oracle_entities;
 
-use super::super::life_action::LifeActionNode;
+use super::super::life_clause::LifeActionNode;
 use super::super::player_action::{PlayerActionNode, SingularPlayerAction};
 use super::super::source_sacrifice::atomic_action::player_subject::PlayerEffectSubject;
 use super::super::{TargetPlayerLifeAction, TargetPlayerLifeEffectNode};

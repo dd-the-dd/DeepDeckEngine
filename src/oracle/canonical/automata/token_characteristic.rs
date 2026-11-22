@@ -75,7 +75,11 @@ pub(in crate::oracle::canonical) fn recognize_create_characteristic_token_effect
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CreateCharacteristicTokenEffectNode> {
     cursor.enter("effect.characteristic-token.action");
-    cursor.consume("create")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Create,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
 
     cursor.enter("effect.characteristic-token.quantity");
     let quantity = if cursor

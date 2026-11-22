@@ -359,7 +359,9 @@ fn recognize_event_alternatives(
             match cursor.consume(",") {
                 Ok(()) => {
                     // A lone `attacks` keeps its established event atom.
-                    let event = if event.verbs == [super::SourceEventVerb::Attacked] {
+                    let event = if event.verbs == [super::SourceEventVerb::Attacked]
+                        && event.modifiers.is_empty()
+                    {
                         GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceAttacked {
                             source: event.source,
                         })

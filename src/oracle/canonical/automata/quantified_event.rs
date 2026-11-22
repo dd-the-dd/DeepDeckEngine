@@ -7,8 +7,9 @@
 //!              | NUMBER "or" "more" ["other"] Collection  -- plural, once per event
 //! Verb        := leave(s) ("your graveyard" | "the battlefield") | attack(s)
 //!              | block(s) | become(s) "blocked"
-//!              | deal(s) "combat damage to a player" | enter(s) | die(s)
-//!              | ("is" | "are") "dealt" ["combat" | "noncombat"] "damage"
+//!              | DealClause (active: the event complement; passive:
+//!                `is|are dealt [combat|noncombat] damage`, `clause.rs`)
+//!              | enter(s) | die(s)
 //!              | ("is" | "are") "put into a graveyard from the battlefield"
 //! ```
 //!
@@ -17,8 +18,9 @@
 //! multiplicity; a condition parent would interpret the same bound as a count.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamageEventKind, NumericAtom, ObjectQueryNode, recognize_dealt_damage_complement,
-    recognize_numeric_atom, recognize_object_collection, recognize_object_query,
+    ClauseModality, DamageArguments, DamageClauseArguments, DamageKind, NumericAtom,
+    ObjectQueryNode, VerbAgreement, Voice, recognize_numeric_atom, recognize_object_collection,
+    recognize_object_query, recognize_supplied_damage_clause, supplied_damage_frame,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -55,7 +57,7 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     /// `put into a graveyard from the battlefield`, for any permanent type.
     PutIntoGraveyardFromBattlefield,
     /// Passive of `deal damage`: the subject is the damaged object (CR 120.3).
-    BeDealtDamage(DamageEventKind),
+    BeDealtDamage(DamageKind),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -128,6 +130,39 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
 ) -> MachineResult<ObjectEventNode> {
     let subject = recognize_quantified_event_subject(cursor)?;
     let singular = subject.multiplicity == EventMultiplicity::PerObject;
+    // `deal(s) ...` / `is|are dealt ...`: the shared damage clause in the
+    // subject's number, active with the event complement or passive.
+    cursor.enter("event.object.damage-clause");
+    let agreement = if singular {
+        VerbAgreement::ThirdPersonSingular
+    } else {
+        VerbAgreement::Base
+    };
+    for (voice, arguments) in [
+        (Voice::Active, DamageArguments::EventComplement),
+        (Voice::Passive, DamageArguments::PassiveKind),
+    ] {
+        let frame = supplied_damage_frame(agreement, voice, ClauseModality::Indicative, arguments);
+        let (verb, damage) = match recognize_supplied_damage_clause(cursor, &frame)? {
+            None => continue,
+            Some(DamageClauseArguments::Complement(complement))
+                if complement.is_combat_damage_to_any_player() =>
+            {
+                (ObjectEventVerb::DealCombatDamageToPlayer, None)
+            }
+            Some(DamageClauseArguments::Complement(complement)) => {
+                (ObjectEventVerb::DealDamage, Some(complement))
+            }
+            Some(DamageClauseArguments::Kind(kind)) => (ObjectEventVerb::BeDealtDamage(kind), None),
+            Some(_) => return Err(cursor.fail("a damage event complement")),
+        };
+        cursor.enter("event.object.complete");
+        return Ok(ObjectEventNode {
+            subject,
+            verb,
+            damage,
+        });
+    }
     cursor.enter("event.object.verb");
     let raw = cursor
         .peek()
@@ -144,12 +179,9 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         "attack" | "attacks" => ("attack", ObjectEventVerb::Attack),
         "block" | "blocks" => ("block", ObjectEventVerb::Block),
         "become" | "becomes" => ("become", ObjectEventVerb::BecomeBlocked),
-        "deal" | "deals" => ("deal", ObjectEventVerb::DealCombatDamageToPlayer),
         "enter" | "enters" => ("enter", ObjectEventVerb::Enter),
         "die" | "dies" => ("die", ObjectEventVerb::Die),
         "is" | "are" if next_is("put") => ("is", ObjectEventVerb::PutIntoGraveyardFromBattlefield),
-        // Placeholder kind: the damage complement below fixes the real one.
-        "is" | "are" => ("is", ObjectEventVerb::BeDealtDamage(DamageEventKind::Any)),
         _ => {
             return Err(cursor.fail(
                 "leave, attack, block, become blocked, deal combat damage, enter, die, be put into a graveyard or be dealt damage",
@@ -169,13 +201,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
     )?;
     cursor.consume(&expected)?;
     cursor.enter("event.object.complement");
-    let mut verb = verb;
-    let mut damage = None;
     match verb {
-        ObjectEventVerb::BeDealtDamage(_) => {
-            cursor.consume("dealt")?;
-            verb = ObjectEventVerb::BeDealtDamage(recognize_dealt_damage_complement(cursor)?);
-        }
         ObjectEventVerb::LeaveControllerGraveyard => {
             cursor.consume_phrase(&["your", "graveyard"])?
         }
@@ -190,14 +216,10 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             "the",
             "battlefield",
         ])?,
-        ObjectEventVerb::DealCombatDamageToPlayer => {
-            let complement = super::recognize_damage_dealt_complement(cursor)?;
-            if !complement.is_combat_damage_to_any_player() {
-                verb = ObjectEventVerb::DealDamage;
-                damage = Some(complement);
-            }
-        }
-        ObjectEventVerb::DealDamage => unreachable!("read from the deal verb"),
+        // Damage verbs are the shared damage clause's (above).
+        ObjectEventVerb::DealCombatDamageToPlayer
+        | ObjectEventVerb::DealDamage
+        | ObjectEventVerb::BeDealtDamage(_) => unreachable!("read by the damage clause"),
         ObjectEventVerb::Attack
         | ObjectEventVerb::Block
         | ObjectEventVerb::Enter
@@ -207,7 +229,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
     Ok(ObjectEventNode {
         subject,
         verb,
-        damage,
+        damage: None,
     })
 }
 

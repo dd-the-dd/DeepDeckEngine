@@ -1,6 +1,7 @@
 //! Ordinary action payloads share one subject grammar and lexical binding.
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 pub(in crate::oracle::canonical) enum PermanentActionAttempt {
@@ -61,9 +62,9 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     if let Some(reference) = context.verb_chain_subject
         && (cursor.peek().is_some_and(|raw| {
             if bare {
-                raw.eq_ignore_ascii_case("gain")
+                is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
             } else {
-                raw.eq_ignore_ascii_case("gains")
+                is_verb_form(&raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
             }
         }) || (!bare
             && (super::become_types::characteristic_change_verb_starts(cursor)
@@ -89,9 +90,9 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
         && permanent_operand_is_plural(&subject)
-        && subject_end
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("get") || raw.eq_ignore_ascii_case("gain"))
+        && subject_end.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("get") || is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
+        })
     {
         subject_end.enter("permanent-action.distributive-each");
         if let Err(failure) = subject_end.consume("each") {
@@ -123,15 +124,23 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     }
     // A causative subject takes the bare verb (`have target creature get`);
     // the finite frame keeps both numbers (`it gets`, `creatures ... get`).
-    let keyword =
-        action.eq_ignore_ascii_case("gain") || (!bare && action.eq_ignore_ascii_case("gains"));
+    let keyword = is_verb_form(&action, VerbLemma::Gain, VerbForm::Base)
+        || (!bare && is_verb_form(&action, VerbLemma::Gain, VerbForm::ThirdPersonSingular));
     let stats = action_offset == 0
         && (action.eq_ignore_ascii_case("get") || (!bare && action.eq_ignore_ascii_case("gets")));
     let becomes = action_offset == 0
         && !bare
         && super::become_types::characteristic_change_verb_starts(&subject_end);
+    // `deals AMOUNT damage`: claimed when the shared damage clause starts
+    // after the subject (the clause owns the verb form and its frame).
     let deals = action_offset == 0
-        && action.eq_ignore_ascii_case(if bare { "deal" } else { "deals" })
+        && super::clause_starts(
+            &subject_end,
+            &super::damage_effect_clause_frame(
+                context.subject_verb_agreement,
+                DamageSourceAntecedent::Unavailable,
+            ),
+        )
         && matches!(
             subject,
             PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
@@ -146,7 +155,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     // `those creatures` still names the same bound set.
     if becomes
         && matches!(subject, PermanentOperandNode::Collection { .. })
-        && action.eq_ignore_ascii_case("loses")
+        && is_verb_form(&action, VerbLemma::Lose, VerbForm::ThirdPersonSingular)
     {
         return PermanentActionAttempt::NotClaimed;
     }

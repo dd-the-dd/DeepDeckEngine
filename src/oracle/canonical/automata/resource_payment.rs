@@ -1,8 +1,8 @@
 //! Shared resource syntax; callers supply the payer and capability context.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ManaCostNode, PayLifeCostNode, PayLifeVerbForm, recognize_mana_cost, recognize_pay_life_cost,
-    recognize_pay_life_cost_with_verb,
+    ActingSubject, ArgumentFrame, ManaCostNode, PayLifeCostNode, VerbLemma, recognize_mana_cost,
+    recognize_operand_verb, recognize_pay_life_cost, recognize_pay_life_cost_with_verb,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,7 +42,13 @@ pub(in crate::oracle::canonical) fn recognize_resource_payment_predicate(
 ) -> MachineResult<ResourcePaymentNode> {
     cursor.enter("cost.resource.predicate");
     let checkpoint = cursor.checkpoint();
-    cursor.consume("pays")?;
+    let verb = recognize_operand_verb(
+        cursor,
+        ActingSubject::THIRD_SINGULAR.agreement,
+        &[VerbLemma::Pay],
+        &[ArgumentFrame::ResourcePayment],
+    )?;
+    cursor.require(verb.is_some(), "`pays`")?;
     if cursor
         .peek_token()
         .is_some_and(|token| token.token_type == "manaSymbol")
@@ -50,7 +56,7 @@ pub(in crate::oracle::canonical) fn recognize_resource_payment_predicate(
         recognize_mana_cost(cursor).map(ResourcePaymentNode::Mana)
     } else {
         cursor.rollback(checkpoint);
-        recognize_pay_life_cost_with_verb(cursor, PayLifeVerbForm::ThirdPerson)
+        recognize_pay_life_cost_with_verb(cursor, ActingSubject::THIRD_SINGULAR)
             .map(ResourcePaymentNode::Life)
     }
 }

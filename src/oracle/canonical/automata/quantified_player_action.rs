@@ -4,17 +4,18 @@
 //! action verb, so `and you gain 2 life` stays with the enclosing sequence.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::{
-    DiscardVerbForm,
+    ActingSubject,
     player_discard::{PlayerDiscardEffectNode, recognize_player_discard_action_fragment},
     player_subject::{PlayerBinding, PlayerEffectSubject},
 };
 use super::{
-    EffectRecognitionContext, LifeActionNode, LifeVerbForm, NumericExpression, PlayerHandVerb,
-    PlayerSacrificeActionNode, PlayerSetReferenceNode, player_hand_verb_at,
-    recognize_draw_action_fragment, recognize_life_action, recognize_mill_action_fragment,
+    EffectRecognitionContext, LifeActionNode, NumericExpression, PlayerHandVerb,
+    PlayerSacrificeActionNode, PlayerSetReferenceNode, SubjectVerbAgreement, VerbAgreement,
+    player_hand_verb_at, recognize_draw_action_fragment, recognize_mill_action_fragment,
     recognize_player_hand_action, recognize_player_sacrifice_action,
-    recognize_player_set_reference,
+    recognize_player_set_reference, recognize_supplied_life_action, supplied_life_action_starts,
 };
+use crate::oracle::canonical::automata::VerbLemma;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum QuantifiedPlayerAction {
@@ -38,18 +39,34 @@ pub(in crate::oracle::canonical) struct QuantifiedPlayerActionNode {
     pub actions: Vec<QuantifiedPlayerAction>,
 }
 
-fn is_quantified_action_verb(raw: &str) -> bool {
-    matches!(
-        raw.to_ascii_lowercase().as_str(),
-        "gains" | "loses" | "discards" | "sacrifices" | "draws" | "mills"
-    )
+/// A third-person action verb of the list: a lexicon lemma read by the
+/// shared clause, or `draws` (draw is not yet a lexicon lemma).
+fn quantified_lemma_at(cursor: &OracleTokenCursor<'_>) -> Option<VerbLemma> {
+    [VerbLemma::Discard, VerbLemma::Sacrifice, VerbLemma::Mill]
+        .into_iter()
+        .find(|lemma| {
+            crate::oracle::canonical::automata::lemma_at(
+                cursor,
+                *lemma,
+                VerbAgreement::ThirdPersonSingular,
+            )
+        })
 }
 
-/// A verb that continues the shared subject's list: an ordinary action verb
-/// or a whole-hand verb (`reveals their hand`).
+fn is_quantified_action_verb(cursor: &OracleTokenCursor<'_>) -> bool {
+    quantified_lemma_at(cursor).is_some()
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("draws"))
+}
+
+/// A verb that continues the shared subject's list: an ordinary action verb,
+/// a whole-hand verb (`reveals their hand`) or a life clause. A claimed life
+/// clause starts the item in any agreement; the item reports a mismatch.
 fn quantified_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    cursor.peek().is_some_and(is_quantified_action_verb)
-        || player_hand_verb_at(cursor, LifeVerbForm::ThirdPersonSingular).is_some()
+    is_quantified_action_verb(cursor)
+        || player_hand_verb_at(cursor, VerbAgreement::ThirdPersonSingular).is_some()
+        || supplied_life_action_starts(cursor, VerbAgreement::ThirdPersonSingular)
 }
 
 /// True when the cursor starts `each opponent|player|other player` followed
@@ -140,35 +157,39 @@ fn recognize_quantified_action(
     context: &EffectRecognitionContext,
 ) -> MachineResult<QuantifiedPlayerAction> {
     cursor.enter("effect.quantified-player.action");
-    if player_hand_verb_at(cursor, LifeVerbForm::ThirdPersonSingular).is_some() {
-        return recognize_player_hand_action(cursor, LifeVerbForm::ThirdPersonSingular)
+    if player_hand_verb_at(cursor, VerbAgreement::ThirdPersonSingular).is_some() {
+        return recognize_player_hand_action(cursor, VerbAgreement::ThirdPersonSingular)
             .map(QuantifiedPlayerAction::Hand);
     }
+    // The population is the subject of a life clause; after a causative
+    // `have` it takes the bare verb (`have each opponent lose 1 life`).
+    let life_agreement = match context.subject_verb_agreement {
+        SubjectVerbAgreement::Finite => VerbAgreement::ThirdPersonSingular,
+        SubjectVerbAgreement::BareInfinitive => VerbAgreement::Base,
+    };
+    if let Some(life) = recognize_supplied_life_action(cursor, life_agreement, None)? {
+        return Ok(QuantifiedPlayerAction::Life(life));
+    }
     let verb = cursor.peek().map(str::to_ascii_lowercase);
-    Ok(match verb.as_deref() {
-        Some("gains" | "loses") => QuantifiedPlayerAction::Life(recognize_life_action(
-            cursor,
-            LifeVerbForm::ThirdPersonSingular,
-            None,
-        )?),
-        Some("discards") => {
+    Ok(match (quantified_lemma_at(cursor), verb.as_deref()) {
+        (Some(VerbLemma::Discard), _) => {
             QuantifiedPlayerAction::Discard(recognize_player_discard_action_fragment(
                 cursor,
                 PlayerEffectSubject::Bound(PlayerBinding(0)),
-                DiscardVerbForm::ThirdPersonSingular,
+                ActingSubject::THIRD_SINGULAR,
             )?)
         }
-        Some("sacrifices") => {
+        (Some(VerbLemma::Sacrifice), _) => {
             QuantifiedPlayerAction::Sacrifice(recognize_player_sacrifice_action(cursor)?)
         }
-        Some("draws") => QuantifiedPlayerAction::Draw(recognize_draw_action_fragment(
+        (_, Some("draws")) => QuantifiedPlayerAction::Draw(recognize_draw_action_fragment(
             cursor,
-            LifeVerbForm::ThirdPersonSingular,
+            VerbAgreement::ThirdPersonSingular,
             context,
         )?),
-        Some("mills") => QuantifiedPlayerAction::Mill(recognize_mill_action_fragment(
+        (Some(VerbLemma::Mill), _) => QuantifiedPlayerAction::Mill(recognize_mill_action_fragment(
             cursor,
-            LifeVerbForm::ThirdPersonSingular,
+            VerbAgreement::ThirdPersonSingular,
         )?),
         _ => {
             return Err(cursor.fail(

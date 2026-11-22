@@ -63,32 +63,28 @@ pub(in crate::oracle::canonical) fn recognize_permanent_event_object(
     Ok((object, exclude_source))
 }
 
-fn action_kind(word: &str) -> Option<ActorObjectEventAction> {
-    if word.eq_ignore_ascii_case("create") || word.eq_ignore_ascii_case("creates") {
-        Some(ActorObjectEventAction::CreateToken)
-    } else if word.eq_ignore_ascii_case("sacrifice") || word.eq_ignore_ascii_case("sacrifices") {
-        Some(ActorObjectEventAction::SacrificePermanent)
-    } else {
-        None
-    }
-}
-
+/// One event verb of the lexicon in the actor's agreement (the shared
+/// clause); the object is read once, after the alternatives.
 fn read_action(
     cursor: &mut OracleTokenCursor<'_>,
     actor: EventActorScope,
 ) -> MachineResult<Option<ActorObjectEventAction>> {
-    let Some(kind) = cursor.peek().and_then(action_kind) else {
-        return Ok(None);
-    };
-    let verb = match (kind, actor == EventActorScope::Controller) {
-        (ActorObjectEventAction::CreateToken, true) => "create",
-        (ActorObjectEventAction::CreateToken, false) => "creates",
-        (ActorObjectEventAction::SacrificePermanent, true) => "sacrifice",
-        (ActorObjectEventAction::SacrificePermanent, false) => "sacrifices",
-    };
     cursor.enter("event.actor-object.action");
-    cursor.consume(verb)?;
-    Ok(Some(kind))
+    let agreement = if actor == EventActorScope::Controller {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
+    Ok(recognize_operand_verb(
+        cursor,
+        agreement,
+        &[VerbLemma::Create, VerbLemma::Sacrifice],
+        &[ArgumentFrame::TokenCreation, ArgumentFrame::ObjectSelection],
+    )?
+    .map(|(lemma, _)| match lemma {
+        VerbLemma::Create => ActorObjectEventAction::CreateToken,
+        _ => ActorObjectEventAction::SacrificePermanent,
+    }))
 }
 
 fn recognize(

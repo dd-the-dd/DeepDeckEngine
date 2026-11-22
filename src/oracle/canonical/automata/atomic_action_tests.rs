@@ -1,7 +1,7 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::{
-    DiscardVerbForm, OracleTokenCursor, recognize_discard_action, recognize_sacrifice_action,
+    ActingSubject, OracleTokenCursor, recognize_discard_action, recognize_sacrifice_action,
 };
 
 #[test]
@@ -68,7 +68,7 @@ fn imperative_discard_delegates_the_cost_operand() {
     let tokens = recognize_entities("Discard this card");
     let mut cursor = OracleTokenCursor::new("atomic-action-test", &tokens);
 
-    let action = recognize_discard_action(&mut cursor, DiscardVerbForm::Imperative, |cursor| {
+    let action = recognize_discard_action(&mut cursor, ActingSubject::CONTROLLER, |cursor| {
         cursor.consume("this")?;
         cursor.consume("card")?;
         Ok("source-card")
@@ -84,7 +84,7 @@ fn imperative_discard_accepts_the_one_card_cost_sibling() {
     let tokens = recognize_entities("Discard one card");
     let mut cursor = OracleTokenCursor::new("atomic-action-test", &tokens);
 
-    let action = recognize_discard_action(&mut cursor, DiscardVerbForm::Imperative, |cursor| {
+    let action = recognize_discard_action(&mut cursor, ActingSubject::CONTROLLER, |cursor| {
         cursor.consume("one")?;
         cursor.consume("card")?;
         Ok(1)
@@ -100,15 +100,11 @@ fn third_person_discard_delegates_the_bound_effect_operand() {
     let tokens = recognize_entities("Discards that card");
     let mut cursor = OracleTokenCursor::new("atomic-action-test", &tokens);
 
-    let action = recognize_discard_action(
-        &mut cursor,
-        DiscardVerbForm::ThirdPersonSingular,
-        |cursor| {
-            cursor.consume("that")?;
-            cursor.consume("card")?;
-            Ok("chosen-card")
-        },
-    )
+    let action = recognize_discard_action(&mut cursor, ActingSubject::THIRD_SINGULAR, |cursor| {
+        cursor.consume("that")?;
+        cursor.consume("card")?;
+        Ok("chosen-card")
+    })
     .expect("third-person discard parses");
 
     assert_eq!(action.operand, "chosen-card");
@@ -121,10 +117,11 @@ fn discard_inflection_mismatch_is_a_precise_near_miss() {
     let mut cursor = OracleTokenCursor::new("atomic-action-test", &tokens);
 
     let failure =
-        recognize_discard_action(&mut cursor, DiscardVerbForm::Imperative, |_cursor| Ok(()))
+        recognize_discard_action(&mut cursor, ActingSubject::CONTROLLER, |_cursor| Ok(()))
             .expect_err("third-person syntax must not enter an imperative parent");
 
-    assert_eq!(failure.state, "action.discard.verb");
+    // The shared clause owns the verb's agreement diagnostic.
+    assert_eq!(failure.state, "clause.verb");
     assert_eq!(failure.actual.as_deref(), Some("Discards"));
     assert!(failure.expected.contains("discard"));
 }
@@ -134,7 +131,7 @@ fn missing_discard_operand_remains_visible_to_the_parent() {
     let tokens = recognize_entities("Discard");
     let mut cursor = OracleTokenCursor::new("atomic-action-test", &tokens);
 
-    let failure = recognize_discard_action(&mut cursor, DiscardVerbForm::Imperative, |cursor| {
+    let failure = recognize_discard_action(&mut cursor, ActingSubject::CONTROLLER, |cursor| {
         cursor.consume("a")?;
         Ok(())
     })

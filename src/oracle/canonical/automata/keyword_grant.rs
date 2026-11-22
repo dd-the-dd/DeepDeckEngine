@@ -4,6 +4,7 @@ use super::{
     recognize_controlled_object_set, recognize_target_list,
     recognize_trailing_or_supplied_duration,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::characteristic_vocabulary::lookup_landwalk_word;
 
 mod quoted_ability;
@@ -152,9 +153,11 @@ fn recognize_ward_resource_cost(
     let cost = if cursor.peek() == Some("—") {
         cursor.consume("—")?;
         cursor.require(
-            cursor
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("pay")),
+            crate::oracle::canonical::automata::lemma_at(
+                &cursor,
+                VerbLemma::Pay,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            ),
             "a fixed life payment after the Ward separator",
         )?;
         super::recognize_resource_payment(cursor)?
@@ -553,8 +556,12 @@ pub(in crate::oracle::canonical) fn recognize_temporary_keyword_grant_subject<'t
                 cursor.enter("effect.keyword-grant.action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("gain")
-                        || action.raw.eq_ignore_ascii_case("gains"),
+                    is_verb_form(&action.raw, VerbLemma::Gain, VerbForm::Base)
+                        || is_verb_form(
+                            &action.raw,
+                            VerbLemma::Gain,
+                            VerbForm::ThirdPersonSingular,
+                        ),
                     "`gain` or `gains`",
                 )?;
                 TemporaryKeywordGrantState::Keywords

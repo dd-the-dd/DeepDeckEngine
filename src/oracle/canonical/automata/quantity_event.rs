@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
@@ -138,14 +139,23 @@ fn recognize_quantity_event_inner(
     let origin = if active {
         cursor.consume_phrase(&["an", "effect", "would"])?;
         cursor.enter("quantity-event.action");
-        if cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("create"))
-        {
-            cursor.consume("create")?;
+        if crate::oracle::canonical::automata::lemma_at(
+            &cursor,
+            VerbLemma::Create,
+            crate::oracle::canonical::automata::VerbAgreement::Base,
+        ) {
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Create,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )?;
             domain = QuantityEventDomain::TokenCreation;
         } else {
-            cursor.consume("put")?;
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Put,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )?;
         }
         QuantityEventOrigin::Effect
     } else {

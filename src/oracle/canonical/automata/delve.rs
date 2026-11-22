@@ -86,7 +86,11 @@ pub(in crate::oracle::canonical) fn recognize_delve_keyword(
             }
             DelveState::Action => {
                 cursor.enter("keyword.delve.reminder.action");
-                cursor.consume("exile")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Exile,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 DelveState::Zone
             }
             DelveState::Zone => {

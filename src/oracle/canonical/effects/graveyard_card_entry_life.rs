@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 const TARGET_GRAVEYARD_CARD_ID: &str = "targetGraveyardCard";
@@ -13,7 +14,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_graveyard_card_entry_life_fa
     let tokens = input.tokens;
     tokens
         .first()
-        .is_some_and(|token| token.raw.eq_ignore_ascii_case("put"))
+        .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Put, VerbForm::Base))
         && tokens
             .get(1)
             .is_some_and(|token| token.raw.eq_ignore_ascii_case("target"))
@@ -23,7 +24,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_graveyard_card_entry_life_fa
         && tokens.windows(3).any(|window| {
             window[0].raw == "."
                 && window[1].raw.eq_ignore_ascii_case("you")
-                && window[2].raw.eq_ignore_ascii_case("lose")
+                && is_verb_form(&window[2].raw, VerbLemma::Lose, VerbForm::Base)
         })
 }
 

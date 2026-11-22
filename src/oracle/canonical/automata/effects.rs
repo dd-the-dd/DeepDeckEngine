@@ -1,15 +1,15 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CounterEffectNode, DamageEffectNode, DamageRecipientNode, GainLifeEffectNode, LifeVerbForm,
-    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, NumericExpression, ObjectCardType,
-    ObjectKind, PlayerTargetBinding, SelectorPredicate, TargetBinding, TargetCardinality,
-    TargetPlayerLifeAction, TargetPlayerLifeEffectNode, TargetSelector, ZoneChangeAction,
-    ZoneChangeDestination, ZoneChangeEffectNode, ZoneChangeRegenerationPolicy,
-    recognize_equal_to_amount_expression, recognize_life_action, recognize_numeric_expression,
-    recognize_player_reference, recognize_source_reference_with_typed_antecedent,
-    recognize_target_list, recognize_target_slot_selector,
+    CounterEffectNode, DamageEffectNode, DamageRecipientNode, LocalEffectNode, NumericExpression,
+    ObjectCardType, ObjectKind, SelectorPredicate, TargetBinding, TargetCardinality,
+    TargetSelector, ZoneChangeAction, ZoneChangeDestination, ZoneChangeEffectNode,
+    ZoneChangeRegenerationPolicy, recognize_equal_to_amount_expression,
+    recognize_numeric_expression, recognize_player_reference,
+    recognize_source_reference_with_typed_antecedent, recognize_target_list,
+    recognize_target_slot_selector,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -136,7 +136,6 @@ fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut u
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum DamageState {
-    Action,
     Amount,
     Resource,
     Destination,
@@ -226,27 +225,55 @@ pub(in crate::oracle::canonical) fn recognize_damage_effect_with_agreement(
         name_failure,
         source_antecedent,
     )?;
-    recognize_damage_frame(
+    recognize_damage_predicate(
         cursor,
         super::PermanentOperandNode::Reference(source),
         DamageSourceAntecedent::Reference(source),
-        DamageState::Action,
         agreement,
     )
     .map(LocalEffectNode::DealDamage)
 }
 
-/// `deals AMOUNT damage to RECIPIENTS` after an already recognized source.
-/// The subject reader (ability source or permanent subject) owns the source
-/// and the verb agreement; this frame owns the amount, the resource and the
-/// recipient queries.
+/// `deals AMOUNT damage to RECIPIENTS` after an already recognized source:
+/// the shared clause with the subject's agreement (`deals`, or the bare
+/// `deal` after a causative) and the effect policy of the damage frame. The
+/// subject reader (ability source or permanent subject) owns the source.
 pub(in crate::oracle::canonical) fn recognize_damage_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
     agreement: super::SubjectVerbAgreement,
 ) -> MachineResult<DamageEffectNode> {
-    recognize_damage_frame(cursor, source, antecedent, DamageState::Action, agreement)
+    cursor.enter("effect.damage.action");
+    let frame = super::damage_effect_clause_frame(agreement, antecedent);
+    let clause = super::recognize_clause(cursor, &frame)
+        .into_result()?
+        .ok_or_else(|| cursor.fail("a damage clause (`deals` AMOUNT `damage to` RECIPIENT)"))?;
+    let super::ClauseAction::DealDamage(super::DamageClauseArguments::Effect(arguments)) =
+        clause.action
+    else {
+        return Err(cursor.fail("the effect arguments of the damage frame"));
+    };
+    Ok(DamageEffectNode {
+        source,
+        amount: arguments.amount,
+        recipient: arguments.recipient,
+    })
+}
+
+/// The effect arguments of a damage clause: amount, resource and recipients.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DamageEffectArguments {
+    pub amount: NumericExpression,
+    pub recipient: DamageRecipientNode,
+}
+
+/// `AMOUNT damage to RECIPIENTS` / `damage equal to E to R` after the verb.
+pub(in crate::oracle::canonical) fn recognize_damage_effect_arguments(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: DamageSourceAntecedent,
+) -> MachineResult<DamageEffectArguments> {
+    recognize_damage_frame(cursor, antecedent)
 }
 
 /// `... and AMOUNT damage to RECIPIENT`: a gapped damage predicate whose
@@ -269,34 +296,22 @@ pub(in crate::oracle::canonical) fn recognize_gapped_damage_predicate(
             }),
         "an amount followed by `damage`",
     )?;
-    recognize_damage_frame(
-        cursor,
+    let arguments = recognize_damage_frame(cursor, antecedent)?;
+    Ok(DamageEffectNode {
         source,
-        antecedent,
-        DamageState::Amount,
-        super::SubjectVerbAgreement::Finite,
-    )
+        amount: arguments.amount,
+        recipient: arguments.recipient,
+    })
 }
 
 fn recognize_damage_frame(
     cursor: &mut OracleTokenCursor<'_>,
-    source: super::PermanentOperandNode,
     antecedent: DamageSourceAntecedent,
-    initial: DamageState,
-    agreement: super::SubjectVerbAgreement,
-) -> MachineResult<DamageEffectNode> {
-    let mut state = initial;
+) -> MachineResult<DamageEffectArguments> {
+    let mut state = DamageState::Amount;
     let mut memory = DamageMemory::default();
     loop {
         state = match state {
-            DamageState::Action => {
-                cursor.enter("effect.damage.action");
-                cursor.consume(match agreement {
-                    super::SubjectVerbAgreement::Finite => "deals",
-                    super::SubjectVerbAgreement::BareInfinitive => "deal",
-                })?;
-                DamageState::Amount
-            }
             DamageState::Amount => {
                 cursor.enter("effect.damage.amount");
                 // `deals damage equal to ...` defers the amount to its
@@ -381,8 +396,7 @@ fn recognize_damage_frame(
                         DamageRecipientNode::All(memory.recipients)
                     }
                 };
-                return Ok(DamageEffectNode {
-                    source,
+                return Ok(DamageEffectArguments {
                     amount: cursor.require_value(memory.amount, "a populated damage amount")?,
                     recipient,
                 });
@@ -513,150 +527,6 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifeState {
-    Player,
-    Action,
-    Complete,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifeAction {
-    Gain,
-    Lose,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LifePlayer {
-    Reference(LocalPlayerReference),
-    Target {
-        binding: PlayerTargetBinding,
-        declares_target: bool,
-    },
-}
-
-#[derive(Default)]
-struct LifeMemory {
-    player: Option<LifePlayer>,
-    action: Option<LifeAction>,
-    amount: Option<super::NumericExpression>,
-}
-
-pub(in crate::oracle::canonical) fn recognize_life_effect(
-    cursor: &mut OracleTokenCursor<'_>,
-    object_antecedent: Option<TargetBinding>,
-) -> MachineResult<LocalEffectNode> {
-    recognize_life_effect_with_player_target(cursor, object_antecedent, None, None)
-}
-
-pub(in crate::oracle::canonical) fn recognize_life_effect_with_player_target(
-    cursor: &mut OracleTokenCursor<'_>,
-    object_antecedent: Option<TargetBinding>,
-    current_player_target: Option<PlayerTargetBinding>,
-    player_antecedent: Option<PlayerTargetBinding>,
-) -> MachineResult<LocalEffectNode> {
-    let mut state = LifeState::Player;
-    let mut memory = LifeMemory::default();
-    loop {
-        state = match state {
-            LifeState::Player => {
-                cursor.enter("effect.life.player");
-                memory.player = Some(
-                    if cursor.peek().is_some_and(|token| {
-                        token.eq_ignore_ascii_case("gain") || token.eq_ignore_ascii_case("lose")
-                    }) {
-                        LifePlayer::Reference(LocalPlayerReference::Controller)
-                    } else if cursor
-                        .peek()
-                        .is_some_and(|token| token.eq_ignore_ascii_case("target"))
-                    {
-                        cursor.enter("effect.life.player.target-marker");
-                        cursor.consume("target")?;
-                        cursor.enter("effect.life.player.target-domain");
-                        cursor.consume("player")?;
-                        LifePlayer::Target {
-                            binding: current_player_target.ok_or_else(|| {
-                                cursor
-                                    .fail("a player-target binding supplied by the effect sequence")
-                            })?,
-                            declares_target: true,
-                        }
-                    } else if cursor
-                        .peek()
-                        .is_some_and(|token| token.eq_ignore_ascii_case("that"))
-                        && cursor
-                            .peek_ahead(1)
-                            .is_some_and(|token| token.eq_ignore_ascii_case("player"))
-                    {
-                        cursor.enter("effect.life.player.anaphor");
-                        cursor.consume_phrase(&["that", "player"])?;
-                        LifePlayer::Target {
-                            binding: player_antecedent.ok_or_else(|| {
-                                cursor.fail("a prior player target binding for `that player`")
-                            })?,
-                            declares_target: false,
-                        }
-                    } else {
-                        LifePlayer::Reference(recognize_player_reference(
-                            cursor,
-                            object_antecedent,
-                        )?)
-                    },
-                );
-                LifeState::Action
-            }
-            LifeState::Action => {
-                let form = match memory.player {
-                    Some(LifePlayer::Reference(LocalPlayerReference::Controller)) => {
-                        LifeVerbForm::Base
-                    }
-                    Some(_) => LifeVerbForm::ThirdPersonSingular,
-                    None => return Err(cursor.fail("a resolved life-total player")),
-                };
-                let action = recognize_life_action(cursor, form, object_antecedent)?;
-                memory.action = Some(match action.action {
-                    TargetPlayerLifeAction::Gain => LifeAction::Gain,
-                    TargetPlayerLifeAction::Lose => LifeAction::Lose,
-                });
-                memory.amount = Some(action.amount);
-                LifeState::Complete
-            }
-            LifeState::Complete => {
-                cursor.enter("effect.life.complete");
-                let player = cursor.require_value(memory.player, "a populated life player")?;
-                let amount = cursor.require_value(memory.amount, "a populated life amount")?;
-                let action = cursor.require_value(memory.action, "a populated life action")?;
-                return match player {
-                    LifePlayer::Reference(player) => match action {
-                        LifeAction::Gain => Ok(LocalEffectNode::GainLife(GainLifeEffectNode {
-                            player,
-                            amount,
-                        })),
-                        LifeAction::Lose => Ok(LocalEffectNode::LoseLife(LoseLifeEffectNode {
-                            player,
-                            amount,
-                        })),
-                    },
-                    LifePlayer::Target {
-                        binding,
-                        declares_target,
-                    } => Ok(LocalEffectNode::TargetPlayerLife(
-                        TargetPlayerLifeEffectNode {
-                            player: binding,
-                            declares_target,
-                            action: match action {
-                                LifeAction::Gain => TargetPlayerLifeAction::Gain,
-                                LifeAction::Lose => TargetPlayerLifeAction::Lose,
-                            },
-                            amount,
-                        },
-                    )),
-                };
-            }
-        };
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ZoneChangeState {
     Action,
     Target,
@@ -717,19 +587,43 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             ZoneChangeState::Action => {
                 cursor.enter("effect.zone-change.action");
                 action = Some(match cursor.peek() {
-                    Some(raw) if raw.eq_ignore_ascii_case("exile") => {
-                        cursor.consume("exile")?;
+                    Some(raw) if is_verb_form(&raw, VerbLemma::Exile, VerbForm::Base) => {
+                        cursor.consume(
+                            crate::oracle::canonical::automata::verb_entry(VerbLemma::Exile)
+                                .surface(VerbForm::Base),
+                        )?;
                         ZoneChangeAction::Exile
                     }
                     Some(raw) if raw.eq_ignore_ascii_case("destroy") => {
                         cursor.consume("destroy")?;
                         ZoneChangeAction::Destroy
                     }
-                    Some(raw) if raw.eq_ignore_ascii_case("return") => {
-                        cursor.consume("return")?;
+                    Some(raw) if is_verb_form(&raw, VerbLemma::Return, VerbForm::Base) => {
+                        cursor.consume(
+                            crate::oracle::canonical::automata::verb_entry(VerbLemma::Return)
+                                .surface(VerbForm::Base),
+                        )?;
                         ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)
                     }
-                    _ => return Err(cursor.fail("`exile`, `destroy`, or `return`")),
+                    // `put` in its object-to-zone frame (the clause chooses
+                    // it over the counters frame); the library position is
+                    // read with the destination.
+                    _ if crate::oracle::canonical::automata::lemma_at(
+                        cursor,
+                        VerbLemma::Put,
+                        crate::oracle::canonical::automata::VerbAgreement::Base,
+                    ) =>
+                    {
+                        crate::oracle::canonical::automata::consume_lemma(
+                            cursor,
+                            VerbLemma::Put,
+                            crate::oracle::canonical::automata::VerbAgreement::Base,
+                        )?;
+                        ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(
+                            super::LibraryPosition::Top,
+                        ))
+                    }
+                    _ => return Err(cursor.fail("`exile`, `destroy`, `return`, or `put`")),
                 });
                 ZoneChangeState::Target
             }
@@ -795,13 +689,41 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                     )?;
                 }
                 target = Some(targets);
-                if matches!(
-                    action,
-                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand))
-                ) {
-                    ZoneChangeState::DestinationRelation
-                } else {
-                    ZoneChangeState::Complete
+                match action {
+                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)) => {
+                        ZoneChangeState::DestinationRelation
+                    }
+                    Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(_))) => {
+                        cursor.enter("effect.zone-change.library.scalar");
+                        cursor.require(
+                            !target_collection_is_plural(target.as_ref()),
+                            "one target permanent put into its owner's library",
+                        )?;
+                        cursor.enter("effect.zone-change.library.position");
+                        let position = if cursor.consume_phrase(&["on", "top", "of"]).is_ok() {
+                            super::LibraryPosition::Top
+                        } else {
+                            cursor.consume_phrase(&["on", "the", "bottom", "of"])?;
+                            super::LibraryPosition::Bottom
+                        };
+                        action = Some(ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(
+                            position,
+                        )));
+                        cursor.enter("effect.zone-change.library.owner");
+                        cursor.consume("its")?;
+                        let owner = cursor
+                            .peek()
+                            .filter(|raw| {
+                                raw.eq_ignore_ascii_case("owner's")
+                                    || raw.eq_ignore_ascii_case("owner\u{2019}s")
+                            })
+                            .map(ToOwned::to_owned)
+                            .ok_or_else(|| cursor.fail("`owner's`"))?;
+                        cursor.consume(&owner)?;
+                        cursor.consume("library")?;
+                        ZoneChangeState::Complete
+                    }
+                    _ => ZoneChangeState::Complete,
                 }
             }
             ZoneChangeState::DestinationRelation => {

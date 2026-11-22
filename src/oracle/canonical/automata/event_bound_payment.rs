@@ -5,6 +5,7 @@ use super::{
     recognize_mana_cost, recognize_named_token_creation_reminder,
     recognize_triggering_player_reference,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EventBoundPaymentDeclineNode {
@@ -70,7 +71,7 @@ pub(in crate::oracle::canonical) fn recognize_event_bound_payment_decline(
                 cursor.enter("effect.event-bound-payment.action");
                 let action = cursor.consume_type("costActionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("pay"),
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::Base),
                     "the `pay` cost action",
                 )?;
                 PaymentDeclineState::Cost

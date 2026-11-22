@@ -2,13 +2,16 @@
 //!
 //! ```text
 //! Frame      := "if" Event "," Modification "."
-//! Event      := Source "would" "deal" [Threshold] [Kind] "damage" ["to" Recipients]
-//!             | [Kind] "damage" "would" "be" "dealt" "to" Recipients
+//! Event      := Source DealClause[would, active]:
+//!                 [Threshold] [Kind] "damage" ["to" Recipients]
+//!             | DealClause[would, passive, damage subject]:
+//!                 [Kind] "damage" "would" "be" "dealt" "to" Recipients
+//!               (both are the shared clause, `clause.rs` / `damage_clause.rs`)
 //! Threshold  := N "or" ("more" | "less")
 //! Kind       := "combat" | "noncombat"
 //! Source     := this source | Det ["other"] (Query | Adjectives "source") [Relation]
 //! Recipients := Recipient ("or" Recipient)*
-//! Modification := ["instead"] Anaphor "deals" Amount ["to" Anaphor] ["instead"]
+//! Modification := ["instead"] Anaphor DealClause[event quantity] ["to" Anaphor] ["instead"]
 //!               | "prevent" ("that damage" | Amount "of that damage"
 //!                            | "all" "but" N "of that damage")
 //! ```
@@ -23,20 +26,17 @@
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
+use super::DamageKind;
 use super::{
+    Clause, ClauseAction, ClauseArguments, ClauseFrame, ClauseModality, ClauseRecognition,
+    ClauseSubject, ClauseSubjectPolicy, ClauseTense, DEAL, DamageArguments, DamageClauseArguments,
     EventNumericBinding, NumericExpression, ObjectControllerScope, ObjectKind, ObjectPredicate,
-    event_quantity_scale_starts, recognize_event_quantity_expression, recognize_literal_quantity,
-    recognize_object_query, recognize_object_query_before_condition_connector,
-    recognize_optional_source_exclusion, recognize_source_reference, source_reference_starts_at,
+    VerbAgreement, Voice, event_quantity_scale_starts, recognize_clause,
+    recognize_event_quantity_expression, recognize_literal_quantity, recognize_object_query,
+    recognize_object_query_before_condition_connector, recognize_optional_source_exclusion,
+    recognize_source_reference, recognize_supplied_damage_clause, source_reference_starts_at,
+    supplied_damage_frame,
 };
-
-/// Which damage events the pattern admits (CR 510.2, 120.2).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum DamageKindFilter {
-    Any,
-    Combat,
-    Noncombat,
-}
 
 /// The source of the damage event. A query keeps its shared predicate (absent
 /// for a bare `source`, which admits every object) and its controller.
@@ -77,7 +77,7 @@ pub(in crate::oracle::canonical) enum DamageEventRecipient {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct DamageEventNode {
     pub source: Option<DamageSourceNode>,
-    pub kind: DamageKindFilter,
+    pub kind: DamageKind,
     pub minimum: Option<i64>,
     pub maximum: Option<i64>,
     /// Empty when the event names no recipient (`would deal damage`).
@@ -167,59 +167,72 @@ fn recognize_damage_replacement_inner(
     })
 }
 
-fn recognize_damage_kind(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<DamageKindFilter> {
-    cursor.enter("replacement.damage-event.kind");
-    Ok(if peek_is(cursor, "combat") {
-        cursor.consume("combat")?;
-        DamageKindFilter::Combat
-    } else if peek_is(cursor, "noncombat") {
-        cursor.consume("noncombat")?;
-        DamageKindFilter::Noncombat
-    } else {
-        DamageKindFilter::Any
-    })
-}
-
-fn passive_damage_event_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    let offset = usize::from(peek_is(cursor, "combat") || peek_is(cursor, "noncombat"));
-    ahead_is(cursor, offset, "damage") && ahead_is(cursor, offset + 1, "would")
-}
-
 fn recognize_damage_event(
     cursor: &mut OracleTokenCursor<'_>,
     context: &DamageReplacementContext<'_>,
     committed: &mut bool,
 ) -> MachineResult<DamageEventNode> {
-    if passive_damage_event_starts(cursor) {
-        let kind = recognize_damage_kind(cursor)?;
-        cursor.enter("replacement.damage-event.passive");
-        cursor.consume_phrase(&["damage", "would", "be", "dealt"])?;
-        *committed = true;
-        cursor.consume("to")?;
-        let recipients = recognize_damage_recipients(cursor, context)?;
-        return Ok(DamageEventNode {
-            source: None,
-            kind,
-            minimum: None,
-            maximum: None,
-            recipients,
-        });
+    // `[Kind] damage would be dealt to RECIPIENTS`: the passive whose subject
+    // is the damage. A claimed clause commits this frame.
+    cursor.enter("replacement.damage-event.passive");
+    let passive = ClauseFrame {
+        subject: ClauseSubjectPolicy::DamageTheme,
+        modality: ClauseModality::Would,
+        tense: ClauseTense::Present,
+        voice: Voice::Passive,
+        arguments: vec![ClauseArguments::Damage(
+            DamageArguments::ReplacementRecipients(context),
+        )],
+        lemmas: DEAL,
+    };
+    match recognize_clause(cursor, &passive) {
+        ClauseRecognition::Recognized(Clause {
+            subject: ClauseSubject::DamageTheme(kind),
+            action: ClauseAction::DealDamage(DamageClauseArguments::Recipients(recipients)),
+            ..
+        }) => {
+            *committed = true;
+            return Ok(DamageEventNode {
+                source: None,
+                kind,
+                minimum: None,
+                maximum: None,
+                recipients,
+            });
+        }
+        ClauseRecognition::Recognized(_) => {
+            *committed = true;
+            return Err(cursor.fail("a damage subject and its recipients"));
+        }
+        ClauseRecognition::Failed(failure) => {
+            *committed = true;
+            return Err(failure);
+        }
+        ClauseRecognition::NotClaimed => {}
     }
     let source = recognize_damage_source(cursor, context)?;
+    // `SOURCE would deal ...`: the clause's `would` modality and the
+    // replacement policy of the damage frame. A claimed clause commits.
     cursor.enter("replacement.damage-event.verb");
-    cursor.consume_phrase(&["would", "deal"])?;
-    // `would deal` after a typed source is this frame's event; any later
-    // grammar gap is a committed diagnostic of the damage replacement.
-    *committed = true;
-    let (minimum, maximum) = recognize_damage_threshold(cursor)?;
-    let kind = recognize_damage_kind(cursor)?;
-    cursor.enter("replacement.damage-event.noun");
-    cursor.consume("damage")?;
-    let recipients = if peek_is(cursor, "to") {
-        cursor.consume("to")?;
-        recognize_damage_recipients(cursor, context)?
-    } else {
-        Vec::new()
+    let active = supplied_damage_frame(
+        VerbAgreement::Base,
+        Voice::Active,
+        ClauseModality::Would,
+        DamageArguments::ReplacementEvent(context),
+    );
+    let claim = recognize_clause(cursor, &active);
+    *committed = !matches!(claim, ClauseRecognition::NotClaimed);
+    let Some(clause) = claim.into_result()? else {
+        return Err(cursor.fail("`would deal` and the damage of the replaced event"));
+    };
+    let ClauseAction::DealDamage(DamageClauseArguments::ReplacementEvent {
+        kind,
+        minimum,
+        maximum,
+        recipients,
+    }) = clause.action
+    else {
+        return Err(cursor.fail("the replaced damage event"));
     };
     Ok(DamageEventNode {
         source: Some(source),
@@ -232,7 +245,7 @@ fn recognize_damage_event(
 
 /// `N or more` / `N or less` damage: a guard on the event's amount, checked
 /// each time the replacement is considered (CR 616.1, after other effects).
-fn recognize_damage_threshold(
+pub(in crate::oracle::canonical) fn recognize_damage_threshold(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<(Option<i64>, Option<i64>)> {
     cursor.enter("replacement.damage-event.threshold");
@@ -373,7 +386,7 @@ fn recognize_attachment_reference(
     Ok(true)
 }
 
-fn recognize_damage_recipients(
+pub(in crate::oracle::canonical) fn recognize_damage_replacement_recipients(
     cursor: &mut OracleTokenCursor<'_>,
     context: &DamageReplacementContext<'_>,
 ) -> MachineResult<Vec<DamageEventRecipient>> {
@@ -492,8 +505,17 @@ fn recognize_damage_modification(
         )?;
     }
     cursor.enter("replacement.damage-modification.verb");
-    cursor.consume("deals")?;
-    let amount = recognize_event_quantity_expression(cursor, "damage")?;
+    let frame = supplied_damage_frame(
+        VerbAgreement::ThirdPersonSingular,
+        Voice::Active,
+        ClauseModality::Indicative,
+        DamageArguments::EventQuantity,
+    );
+    let Some(DamageClauseArguments::Amount(amount)) =
+        recognize_supplied_damage_clause(cursor, &frame)?
+    else {
+        return Err(cursor.fail("`deals` and the modified damage"));
+    };
     if peek_is(cursor, "to") {
         cursor.consume("to")?;
         recognize_recipient_anaphor(cursor, event, context)?;

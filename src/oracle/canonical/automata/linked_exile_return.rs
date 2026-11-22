@@ -168,7 +168,11 @@ fn recognize_linked_exile_battlefield_move(
         state = match state {
             MoveState::Action => {
                 cursor.enter("zone-change.linked-return.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 MoveState::Cards
             }
             MoveState::Cards => {

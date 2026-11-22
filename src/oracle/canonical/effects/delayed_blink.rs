@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 const EXILED_BINDING: &str = "delayedExiledPermanent";
@@ -24,7 +25,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_attack_delayed_return_counte
         && tokens.windows(3).any(|window| {
             window[0].raw.eq_ignore_ascii_case("attacks")
                 && window[1].raw == ","
-                && window[2].raw.eq_ignore_ascii_case("exile")
+                && is_verb_form(&window[2].raw, VerbLemma::Exile, VerbForm::Base)
         })
         && tokens.windows(5).any(|window| {
             window[0].raw.eq_ignore_ascii_case("at")
@@ -34,7 +35,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_attack_delayed_return_counte
                 && window[4].raw.eq_ignore_ascii_case("the")
         })
         && tokens.windows(3).any(|window| {
-            window[0].raw.eq_ignore_ascii_case("return")
+            is_verb_form(&window[0].raw, VerbLemma::Return, VerbForm::Base)
                 && window[1].raw.eq_ignore_ascii_case("that")
                 && window[2].raw.eq_ignore_ascii_case("card")
         })

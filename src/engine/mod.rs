@@ -4359,7 +4359,12 @@ fn cost_supported(cost: &Value) -> bool {
                 })
         }
         Some("exileObject") => target_reference_supported(&cost["object"]),
-        Some("returnPermanentToOwnersHand") => target_reference_supported(&cost["permanent"]),
+        // A chosen permanent, or the source itself (`return this PERMANENT
+        // to its owner's hand`), paid after the activation is announced.
+        Some("returnPermanentToOwnersHand") => {
+            target_reference_supported(&cost["permanent"])
+                || value_kind(&cost["permanent"]) == Some("self")
+        }
         Some("payLoyalty") => {
             matches!(value_kind(&cost["object"]), Some("self" | "abilitySource"))
                 && numeric_expression_supported(&cost["amount"])
@@ -15034,17 +15039,24 @@ impl GameEngine {
             .flatten()
             .filter(|cost| value_kind(cost) == Some("returnPermanentToOwnersHand"))
         {
-            let target_id = cost["permanent"]["id"]
-                .as_str()
-                .ok_or_else(|| EngineError::new("return cost has no permanent id"))?;
-            let instance_id = action
-                .targets
-                .get(target_id)
-                .and_then(|target| match target {
-                    TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
-                    _ => None,
-                })
-                .ok_or_else(|| EngineError::new("return cost permanent is missing"))?;
+            let instance_id = if value_kind(&cost["permanent"]) == Some("self") {
+                action
+                    .card_instance_id
+                    .clone()
+                    .ok_or_else(|| EngineError::new("return cost source is missing"))?
+            } else {
+                let target_id = cost["permanent"]["id"]
+                    .as_str()
+                    .ok_or_else(|| EngineError::new("return cost has no permanent id"))?;
+                action
+                    .targets
+                    .get(target_id)
+                    .and_then(|target| match target {
+                        TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+                        _ => None,
+                    })
+                    .ok_or_else(|| EngineError::new("return cost permanent is missing"))?
+            };
             if !selected.insert(instance_id.clone()) {
                 return Err(EngineError::new(
                     "the same permanent cannot pay a return cost twice",

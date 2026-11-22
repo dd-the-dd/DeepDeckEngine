@@ -2,6 +2,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     LocalObjectReference, ObjectCardType, SelectorPredicate, positive_object_selector_atom,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ZoneBatchActionNode {
@@ -108,7 +109,7 @@ pub(in crate::oracle::canonical) fn recognize_exile_graveyard_collection_effect(
                 cursor.enter("effect.zone-batch.action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("exile"),
+                    is_verb_form(&action.raw, VerbLemma::Exile, VerbForm::Base),
                     "the `exile` action",
                 )?;
                 ZoneBatchState::Quantifier
@@ -346,7 +347,7 @@ pub(in crate::oracle::canonical) fn recognize_graveyard_destination_replacement(
                 cursor.enter("replacement.graveyard-destination.move-action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("put"),
+                    is_verb_form(&action.raw, VerbLemma::Put, VerbForm::Base),
                     "the `put` zone move",
                 )?;
                 GraveyardReplacementState::DestinationRelation
@@ -413,7 +414,7 @@ pub(in crate::oracle::canonical) fn recognize_graveyard_destination_replacement(
                 cursor.enter("replacement.graveyard-destination.replacement-action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("exile"),
+                    is_verb_form(&action.raw, VerbLemma::Exile, VerbForm::Base),
                     "the `exile` action",
                 )?;
                 GraveyardReplacementState::ObjectReference

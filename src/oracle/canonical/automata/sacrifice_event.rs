@@ -1,5 +1,8 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
-use super::{EventActorScope, ObjectQueryNode, try_recognize_event_actor_scope};
+use super::{
+    ArgumentFrame, EventActorScope, ObjectQueryNode, VerbAgreement, VerbLemma,
+    recognize_operand_verb, try_recognize_event_actor_scope,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SacrificeEventNode {
@@ -71,17 +74,23 @@ fn recognize_sacrifice_event_attempt(
                 SacrificeEventState::Action
             }
             SacrificeEventState::Action => {
+                // The lexicon verb in the actor's agreement (shared clause).
                 cursor.enter("event.sacrifice.action");
-                if !cursor.peek().is_some_and(|raw| {
-                    raw.eq_ignore_ascii_case("sacrifice") || raw.eq_ignore_ascii_case("sacrifices")
-                }) {
+                let agreement = if frame.actor == Some(EventActorScope::Controller) {
+                    VerbAgreement::Base
+                } else {
+                    VerbAgreement::ThirdPersonSingular
+                };
+                if recognize_operand_verb(
+                    cursor,
+                    agreement,
+                    &[VerbLemma::Sacrifice],
+                    &[ArgumentFrame::ObjectSelection],
+                )?
+                .is_none()
+                {
                     return Ok(None);
                 }
-                cursor.consume(if frame.actor == Some(EventActorScope::Controller) {
-                    "sacrifice"
-                } else {
-                    "sacrifices"
-                })?;
                 SacrificeEventState::Determiner
             }
             SacrificeEventState::Determiner => {

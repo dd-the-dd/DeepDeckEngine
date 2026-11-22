@@ -2,6 +2,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterEffectNode, LocalEffectNode, ManaCostNode, recognize_counter_effect, recognize_mana_cost,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CounterUnlessPaidEffectNode {
@@ -63,7 +64,10 @@ pub(in crate::oracle::canonical) fn recognize_counter_unless_paid_effect(
             CounterUnlessPaidState::PaymentAction => {
                 cursor.enter("effect.counter-unless-paid.payment-action");
                 let action = cursor.consume_type("costActionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("pays"), "`pays`")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::ThirdPersonSingular),
+                    "`pays`",
+                )?;
                 CounterUnlessPaidState::Payment
             }
             CounterUnlessPaidState::Payment => {

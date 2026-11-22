@@ -184,9 +184,8 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
         || (word_is(cursor, 0, "you")
             && (word_is(cursor, 1, "have")
                 || contraction_is(cursor, 1, "haven", "t")
-                || word_is(cursor, 1, "gained")
-                || word_is(cursor, 1, "attacked")
-                || word_is(cursor, 1, "lost")))
+                || word_is(cursor, 1, "attacked")))
+        || super::life_history_condition_starts(cursor)
         || word_is(cursor, 0, "there")
         || contraction_is(cursor, 0, "there", "s")
         || static_condition_event_count_starts(cursor)
@@ -348,7 +347,11 @@ fn recognize_cast_zone(
         cursor.consume_phrase(&["a", "graveyard"])?;
         Ok((SourceCastZone::Graveyard, false))
     } else if word_is(cursor, 0, "exile") {
-        cursor.consume("exile")?;
+        crate::oracle::canonical::automata::consume_lemma(
+            cursor,
+            crate::oracle::canonical::automata::VerbLemma::Exile,
+            crate::oracle::canonical::automata::VerbAgreement::Base,
+        )?;
         Ok((SourceCastZone::Exile, false))
     } else {
         Err(cursor.fail("`your hand`, `a graveyard`, `exile` or `anywhere other than your hand`"))

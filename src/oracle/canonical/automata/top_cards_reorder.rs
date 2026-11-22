@@ -31,7 +31,11 @@ fn recognize_reorder_bound_collection(
             }
             ReorderState::Action => {
                 cursor.enter("effect.reorder-collection.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 ReorderState::Reference
             }
             ReorderState::Reference => {

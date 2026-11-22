@@ -163,6 +163,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         LocalEffectNode::ZoneChange(movement) => match movement.action {
             ZoneChangeAction::Exile | ZoneChangeAction::Destroy => false,
             ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand) => false,
+            ZoneChangeAction::Move(ZoneChangeDestination::OwnerLibrary(_)) => true,
         },
         LocalEffectNode::ZoneBatch(movement) => match movement.collection {
             ZoneCollectionNode::AllGraveyards | ZoneCollectionNode::OpponentGraveyards => false,
@@ -220,7 +221,11 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::SacrificeObject(_)
         | LocalActivationCostNode::RemoveSourceCounters(_)
         | LocalActivationCostNode::RemoveControlledCounters(_)
-        | LocalActivationCostNode::ExileCards(_) => false,
+        | LocalActivationCostNode::ExileCards(_)
+        | LocalActivationCostNode::ReturnSelf
+        | LocalActivationCostNode::ReturnObjects(_)
+        | LocalActivationCostNode::PutSourceCounters(_)
+        | LocalActivationCostNode::PutChosenCounters(_) => false,
     })
 }
 

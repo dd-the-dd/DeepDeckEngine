@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{AbilityInput, has_root_activation_effect_head};
 
 pub(in crate::oracle::canonical) const ACTIVATED_CARD_ZONE_TARGET_ID: &str = "targetGraveyardCard";
@@ -13,9 +14,9 @@ pub(in crate::oracle::canonical) fn claims_promoted_activated_card_zone_change_f
     let supported_cost = tokens.first().is_some_and(|token| {
         token.token_type == "manaSymbol"
             || token.token_type == "tapSymbol"
-            || token.raw.eq_ignore_ascii_case("pay")
-            || token.raw.eq_ignore_ascii_case("sacrifice")
-            || token.raw.eq_ignore_ascii_case("discard")
+            || is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::Base)
+            || is_verb_form(&token.raw, VerbLemma::Sacrifice, VerbForm::Base)
+            || is_verb_form(&token.raw, VerbLemma::Discard, VerbForm::Base)
                 && tokens
                     .get(1)
                     .is_some_and(|token| token.raw.eq_ignore_ascii_case("this"))

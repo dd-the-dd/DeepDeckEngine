@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 #[derive(Debug)]
@@ -14,7 +15,7 @@ fn claims_mandatory_discard(input: &AbilityInput<'_>) -> bool {
     has_mandatory_additional_cost_header(tokens)
         && tokens
             .get(MANDATORY_ADDITIONAL_COST_HEADER.len())
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("discard"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Discard, VerbForm::Base))
         && tokens.last().is_some_and(|token| token.raw == ".")
         && tokens.iter().filter(|token| token.raw == ".").count() == 1
         && !tokens.windows(2).any(|window| {

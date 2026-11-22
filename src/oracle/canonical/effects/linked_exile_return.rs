@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the structural family from token boundaries. Malformed members stay
@@ -11,11 +12,12 @@ pub(in crate::oracle::canonical) fn claims_promoted_linked_exile_return_activati
     let supported_cost = tokens.first().is_some_and(|token| {
         token.token_type == "manaSymbol"
             || token.token_type == "tapSymbol"
-            || token.raw.eq_ignore_ascii_case("sacrifice")
-            || token.raw.eq_ignore_ascii_case("pay")
+            || is_verb_form(&token.raw, VerbLemma::Sacrifice, VerbForm::Base)
+            || is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::Base)
     });
     let linked_return_head = tokens.windows(2).any(|window| {
-        window[0].raw.eq_ignore_ascii_case("put") && window[1].raw.eq_ignore_ascii_case("each")
+        is_verb_form(&window[0].raw, VerbLemma::Put, VerbForm::Base)
+            && window[1].raw.eq_ignore_ascii_case("each")
     });
     let linked_origin = tokens.windows(3).any(|window| {
         window[0].raw.eq_ignore_ascii_case("exiled")

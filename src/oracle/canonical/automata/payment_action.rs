@@ -3,22 +3,24 @@
 //! ```text
 //! CostSequence  := PaymentAction (Connector PaymentAction)*
 //! Connector     := "," | "and"              (the parent chooses the set)
-//! PaymentAction := MANA                      | "pay" (MANA | N "life")
-//!                | "{T}"                     | "tap" Selection
-//!                | "sacrifice" Selection     | "discard" Selection
-//!                | "exile" Selection ["from" "your" ZONE]
-//!                | "blight" N
-//!                | "remove" Quantity [COUNTER_NAME] ("counter" | "counters")
-//!                  "from" CounterHolder
+//! PaymentAction := MANA | "{T}"
+//!                | Clause[supplied payer, operand frame]  (`clause.rs`): a
+//!                  lexicon lemma whose frame the cost reads with its child:
+//!                  ResourcePayment (pay MANA | N life), ObjectSelection
+//!                  (tap, untap, sacrifice, discard, exile, reveal, exert),
+//!                  ObjectToZone (return ... to its owner's hand),
+//!                  CountersOn (put N [KIND] counter(s) on CounterHolder),
+//!                  CountersFrom (remove N [KIND] counter(s) from CounterHolder),
+//!                  CardCount (mill N card(s)), KeywordAmount (blight N)
 //! CounterHolder := "this" SOURCE_NOUN | ("a" | "an") QUERY | "among" QUERY
 //! Selection     := "this" SOURCE_NOUN
 //!                | Quantity ["other"] ["untapped"] QUERY ["at" "random"]
 //! Quantity      := "a" | "an" | NUMBER | "another"
 //! ```
 //!
-//! A parent whose payer is not the ability controller reads the same actions
-//! conjugated in the third person (`pays`, `sacrifices … [of their choice]`,
-//! `discards`, `taps`, `exiles`, `blights`, `removes`).
+//! A parent whose payer is not the ability controller states the payer's
+//! agreement (`ActingSubject`); the lexicon supplies the surface (`pays`,
+//! `sacrifices … [of their choice]`, ...). No verb word is tested here.
 //!
 //! The verb heads, the mana/life payment, the object query and the card
 //! selector are the shared children used by effects. This module only composes
@@ -33,17 +35,16 @@ use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::{
-    DiscardVerbForm, ImperativeActionVerb, recognize_action_with_form, recognize_discard_action,
-    recognize_sacrifice_action_with_form,
+    ActingSubject,
     selection_method::{recognize_acting_player_choice_marker, recognize_postfix_selection_method},
 };
+use super::{ArgumentFrame, VerbLemma, recognize_operand_verb};
 use super::{
     CollectionSelectionMethod, CostConnector, CostSequenceNode, ObjectCardType,
     ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode,
     positive_literal, recognize_counter_name, recognize_mana_cost,
     recognize_object_query_before_cost_separator, recognize_object_query_before_separator,
-    recognize_pay_life_cost, recognize_resource_payment_predicate, recognize_search_card_selector,
-    recognize_tap_self_cost,
+    recognize_pay_life_cost_with_verb, recognize_search_card_selector, recognize_tap_self_cost,
 };
 
 /// One ordinary action read in a cost section.
@@ -66,6 +67,29 @@ pub(in crate::oracle::canonical) enum PaymentActionNode {
     Blight { amount: i64 },
     /// `remove N [KIND] counters from HOLDER`.
     RemoveCounters(RemoveCountersPaymentNode),
+    /// `untap SELECTION`.
+    Untap(PaymentObjectsNode),
+    /// `return SELECTION to its owner's hand` (permanents the payer controls).
+    ReturnToHand(PaymentObjectsNode),
+    /// `put N KIND counter(s) on HOLDER`.
+    PutCounters(PutCountersPaymentNode),
+    /// `reveal SELECTION [from your hand]` (cards).
+    Reveal {
+        objects: PaymentObjectsNode,
+        origin: Option<PaymentOriginZone>,
+    },
+    /// `mill N card(s)`.
+    Mill { count: i64 },
+    /// `exert SELECTION` (CR 701.43).
+    Exert(PaymentObjectsNode),
+}
+
+/// Counters put on a permanent while paying a cost.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PutCountersPaymentNode {
+    pub count: i64,
+    pub counter: CounterName,
+    pub holder: CounterHolderNode,
 }
 
 /// Counters removed while paying a cost. The counter kind and the holder are
@@ -160,42 +184,61 @@ enum OperandDomain {
     Card,
 }
 
-const PAYMENT_VERBS: [&str; 7] = [
-    "pay",
-    "tap",
-    "sacrifice",
-    "discard",
-    "exile",
-    "blight",
-    "remove",
+/// The lemmas a cost reads and the operand frames it interprets. Any lexicon
+/// lemma with one of these frames is a payment action; the cost children
+/// below read its operand.
+const COST_LEMMAS: &[VerbLemma] = &[
+    VerbLemma::Pay,
+    VerbLemma::Tap,
+    VerbLemma::Untap,
+    VerbLemma::Sacrifice,
+    VerbLemma::Discard,
+    VerbLemma::Exile,
+    VerbLemma::Return,
+    VerbLemma::Put,
+    VerbLemma::Reveal,
+    VerbLemma::Mill,
+    VerbLemma::Exert,
+    VerbLemma::Remove,
+    VerbLemma::Blight,
 ];
 
-/// Lexical lookahead only: true when the cursor is at a payment action head.
-pub(in crate::oracle::canonical) fn payment_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    cursor.peek_token().is_some_and(|token| {
-        token.token_type == "manaSymbol"
-            || token.token_type == "tapSymbol"
-            || PAYMENT_VERBS
-                .iter()
-                .any(|verb| token.raw.eq_ignore_ascii_case(verb))
-    })
+const COST_FRAMES: &[ArgumentFrame] = &[
+    ArgumentFrame::ResourcePayment,
+    ArgumentFrame::ObjectSelection,
+    ArgumentFrame::ObjectToZone,
+    ArgumentFrame::CountersOn,
+    ArgumentFrame::CountersFrom,
+    ArgumentFrame::CardCount,
+    ArgumentFrame::KeywordAmount,
+];
+
+fn payment_verb_starts(cursor: &OracleTokenCursor<'_>, subject: ActingSubject) -> bool {
+    let mut trial = cursor.clone();
+    !matches!(
+        recognize_operand_verb(&mut trial, subject.agreement, COST_LEMMAS, COST_FRAMES),
+        Ok(None)
+    )
 }
 
-/// Lexical lookahead only: a payment verb conjugated for the payer
-/// (`pays`, `sacrifices`, `discards`…). Mana and `{T}` heads are imperative.
+/// Lookahead only: true when the cursor is at a payment action head.
+pub(in crate::oracle::canonical) fn payment_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek_token()
+        .is_some_and(|token| token.token_type == "manaSymbol" || token.token_type == "tapSymbol")
+        || payment_verb_starts(cursor, ActingSubject::CONTROLLER)
+}
+
+/// Lookahead only: a payment verb in the payer's agreement (`pays`,
+/// `sacrifices`, `discards`…). Mana and `{T}` heads are imperative.
 pub(in crate::oracle::canonical::automata) fn conjugated_payment_action_starts(
     cursor: &OracleTokenCursor<'_>,
-    form: DiscardVerbForm,
+    form: ActingSubject,
 ) -> bool {
-    match form {
-        DiscardVerbForm::Imperative | DiscardVerbForm::ThirdPersonPlural => {
-            payment_action_starts(cursor)
-        }
-        DiscardVerbForm::ThirdPersonSingular => cursor.peek().is_some_and(|raw| {
-            PAYMENT_VERBS
-                .iter()
-                .any(|verb| raw.eq_ignore_ascii_case(&format!("{verb}s")))
-        }),
+    if form.agreement == super::VerbAgreement::Base {
+        payment_action_starts(cursor)
+    } else {
+        payment_verb_starts(cursor, form)
     }
 }
 
@@ -203,41 +246,55 @@ pub(in crate::oracle::canonical::automata) fn conjugated_payment_action_starts(
 pub(in crate::oracle::canonical) fn recognize_payment_action(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PaymentActionNode> {
-    recognize_conjugated_payment_action(cursor, DiscardVerbForm::Imperative)
+    recognize_conjugated_payment_action(cursor, ActingSubject::CONTROLLER)
 }
 
-/// The same payment actions with the verb conjugated for the payer chosen by
-/// the cost parent (`unless that player sacrifices a creature`). A third-person
-/// object choice may state its chooser (`of their choice`): the payer chooses
-/// while paying either way (CR 601.2h), so the marker adds no semantics.
+/// The same payment actions with the verb in the agreement of the payer
+/// chosen by the cost parent (`unless that player sacrifices a creature`). A
+/// third-person object choice may state its chooser (`of their choice`): the
+/// payer chooses while paying either way (CR 601.2h), so the marker adds no
+/// semantics.
 pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_action(
     cursor: &mut OracleTokenCursor<'_>,
-    form: DiscardVerbForm,
+    form: ActingSubject,
 ) -> MachineResult<PaymentActionNode> {
     cursor.enter("cost.payment.verb");
     let Some(token) = cursor.peek_token() else {
         return Err(cursor.fail("a payment action"));
     };
-    if form == DiscardVerbForm::ThirdPersonSingular {
-        return recognize_third_person_payment_action(cursor);
+    if form.agreement == super::VerbAgreement::Base {
+        if token.token_type == "manaSymbol" {
+            return recognize_mana_cost(cursor)
+                .map(|mana| PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana)));
+        }
+        if token.token_type == "tapSymbol" {
+            recognize_tap_self_cost(cursor)?;
+            return Ok(PaymentActionNode::Tap(PaymentObjectsNode::Source(
+                PaymentSourceNoun::TapSymbol,
+            )));
+        }
     }
-    if token.token_type == "manaSymbol" {
-        return recognize_mana_cost(cursor)
-            .map(|mana| PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana)));
-    }
-    if token.token_type == "tapSymbol" {
-        recognize_tap_self_cost(cursor)?;
-        return Ok(PaymentActionNode::Tap(PaymentObjectsNode::Source(
-            PaymentSourceNoun::TapSymbol,
-        )));
-    }
-    let verb = token.raw.to_ascii_lowercase();
-    // A plural payer shares the imperative surface; only its chooser marker
-    // differs, so the form is kept for the object action.
-    match verb.as_str() {
-        "pay" => {
-            let checkpoint = cursor.checkpoint();
-            cursor.consume("pay")?;
+    let verb_start = cursor.checkpoint();
+    let Some((lemma, frame)) =
+        recognize_operand_verb(cursor, form.agreement, COST_LEMMAS, COST_FRAMES)?
+    else {
+        return Err(cursor.fail(
+            "a payment action: mana, `{T}`, or a lexicon action valid as a cost (pay, tap, untap, sacrifice, discard, exile, return, put, reveal, mill, exert, remove, blight)",
+        ));
+    };
+    let chooser_marker = |cursor: &mut OracleTokenCursor<'_>| {
+        if form.third_person {
+            recognize_acting_player_choice_marker(cursor)?;
+        }
+        Ok(())
+    };
+    let objects = |cursor: &mut OracleTokenCursor<'_>, verb: PaymentVerb| {
+        cursor.enter(verb.operand_state());
+        recognize_payment_objects(cursor, verb, form.third_person && verb.lists_continue())
+    };
+    match (lemma, frame) {
+        (VerbLemma::Pay, ArgumentFrame::ResourcePayment) => {
+            cursor.enter("cost.payment.pay.resource");
             if cursor
                 .peek_token()
                 .is_some_and(|token| token.token_type == "manaSymbol")
@@ -246,118 +303,138 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
                 recognize_mana_cost(cursor)
                     .map(|mana| PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana)))
             } else {
-                cursor.rollback(checkpoint);
+                // The life child reads its own verb in the payer's agreement.
+                cursor.rollback(verb_start);
                 cursor.enter("cost.payment.pay.life");
-                recognize_pay_life_cost(cursor)
+                recognize_pay_life_cost_with_verb(cursor, form)
                     .map(|life| PaymentActionNode::Pay(ResourcePaymentNode::Life(life)))
             }
         }
-        _ => recognize_object_payment_action(cursor, &verb, form).unwrap_or_else(|| {
-            Err(cursor.fail(
-                "a payment action: mana, `pay`, `{T}`, `tap`, `sacrifice`, `discard`, `exile`, `blight` or `remove`",
-            ))
-        }),
-    }
-}
-
-/// `pays MANA | pays N life` or a conjugated object action.
-fn recognize_third_person_payment_action(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<PaymentActionNode> {
-    let raw = cursor
-        .peek()
-        .map(str::to_ascii_lowercase)
-        .unwrap_or_default();
-    if raw == "pays" {
-        return recognize_resource_payment_predicate(cursor).map(PaymentActionNode::Pay);
-    }
-    let base = raw.strip_suffix('s').unwrap_or_default().to_string();
-    recognize_object_payment_action(cursor, &base, DiscardVerbForm::ThirdPersonSingular)
-        .unwrap_or_else(|| {
-            Err(cursor.fail(
-                "a conjugated payment action: `pays`, `taps`, `sacrifices`, `discards`, `exiles`, `blights` or `removes`",
-            ))
-        })
-}
-
-/// One action on objects or counters, its verb conjugated by `form`. `None`
-/// when `verb` names no such payment action.
-fn recognize_object_payment_action(
-    cursor: &mut OracleTokenCursor<'_>,
-    verb: &str,
-    form: DiscardVerbForm,
-) -> Option<MachineResult<PaymentActionNode>> {
-    let chooser_marker = |cursor: &mut OracleTokenCursor<'_>| {
-        if form != DiscardVerbForm::Imperative {
-            recognize_acting_player_choice_marker(cursor)?;
+        (VerbLemma::Tap, _) => objects(cursor, PaymentVerb::Tap).map(PaymentActionNode::Tap),
+        (VerbLemma::Untap, _) => objects(cursor, PaymentVerb::Untap).map(PaymentActionNode::Untap),
+        (VerbLemma::Sacrifice, _) => {
+            let operand = objects(cursor, PaymentVerb::Sacrifice)?;
+            chooser_marker(cursor)?;
+            Ok(PaymentActionNode::Sacrifice(operand))
         }
-        Ok(())
-    };
-    Some(match verb {
-        "tap" => recognize_action_with_form(cursor, ImperativeActionVerb::Tap, form, |cursor| {
-            recognize_payment_objects(cursor, PaymentVerb::Tap, false)
-        })
-        .map(PaymentActionNode::Tap),
-        "sacrifice" => recognize_sacrifice_action_with_form(cursor, form, |cursor| {
-            let objects = recognize_payment_objects(
-                cursor,
-                PaymentVerb::Sacrifice,
-                form != DiscardVerbForm::Imperative,
+        (VerbLemma::Discard, _) => {
+            let operand = objects(cursor, PaymentVerb::Discard)?;
+            chooser_marker(cursor)?;
+            Ok(PaymentActionNode::Discard(operand))
+        }
+        (VerbLemma::Exile, _) => {
+            let objects = objects(cursor, PaymentVerb::Exile)?;
+            cursor.enter("cost.payment.exile.origin");
+            let origin = recognize_optional_origin_zone(cursor)?;
+            cursor.require(
+                origin.is_some() || matches!(objects, PaymentObjectsNode::Source(_)),
+                "`from your hand` or `from your graveyard` after the exiled cards",
             )?;
-            chooser_marker(cursor)?;
-            Ok(objects)
-        })
-        .map(|action| PaymentActionNode::Sacrifice(action.operand)),
-        "discard" => recognize_discard_action(cursor, form, |cursor| {
-            let objects = recognize_payment_objects(cursor, PaymentVerb::Discard, false)?;
-            chooser_marker(cursor)?;
-            Ok(objects)
-        })
-        .map(|action| PaymentActionNode::Discard(action.operand)),
-        "exile" => {
-            recognize_action_with_form(cursor, ImperativeActionVerb::Exile, form, |cursor| {
-                let objects = recognize_payment_objects(cursor, PaymentVerb::Exile, false)?;
-                cursor.enter("cost.payment.exile.origin");
-                let origin = recognize_optional_origin_zone(cursor)?;
-                cursor.require(
-                    origin.is_some() || matches!(objects, PaymentObjectsNode::Source(_)),
-                    "`from your hand` or `from your graveyard` after the exiled cards",
-                )?;
-                Ok(PaymentActionNode::Exile { objects, origin })
-            })
+            Ok(PaymentActionNode::Exile { objects, origin })
         }
-        "blight" => {
-            recognize_action_with_form(cursor, ImperativeActionVerb::Blight, form, |cursor| {
-                cursor.enter("cost.payment.blight.amount");
-                positive_literal(cursor, "a positive literal Blight amount")
-            })
-            .map(|amount| PaymentActionNode::Blight { amount })
+        (VerbLemma::Reveal, _) => {
+            let objects = objects(cursor, PaymentVerb::Reveal)?;
+            cursor.enter("cost.payment.reveal.origin");
+            let origin = recognize_optional_origin_zone(cursor)?;
+            Ok(PaymentActionNode::Reveal { objects, origin })
         }
-        "remove" => recognize_action_with_form(
-            cursor,
-            ImperativeActionVerb::Remove,
-            form,
-            recognize_counter_removal,
-        )
-        .map(PaymentActionNode::RemoveCounters),
-        _ => return None,
-    })
+        (VerbLemma::Exert, _) => objects(cursor, PaymentVerb::Exert).map(PaymentActionNode::Exert),
+        (VerbLemma::Return, ArgumentFrame::ObjectToZone) => {
+            let objects = objects(cursor, PaymentVerb::Return)?;
+            cursor.enter("cost.payment.return.destination");
+            recognize_owners_hand(cursor)?;
+            Ok(PaymentActionNode::ReturnToHand(objects))
+        }
+        (VerbLemma::Put, ArgumentFrame::CountersOn) => {
+            recognize_counter_placement(cursor).map(PaymentActionNode::PutCounters)
+        }
+        (VerbLemma::Remove, ArgumentFrame::CountersFrom) => {
+            cursor.enter("action.remove.operand");
+            recognize_counter_removal(cursor).map(PaymentActionNode::RemoveCounters)
+        }
+        (VerbLemma::Mill, ArgumentFrame::CardCount) => {
+            cursor.enter("cost.payment.mill.count");
+            let count = positive_literal(cursor, "`a` or a positive literal number of cards")?;
+            cursor.enter("cost.payment.mill.noun");
+            cursor.consume(if count == 1 { "card" } else { "cards" })?;
+            Ok(PaymentActionNode::Mill { count })
+        }
+        (VerbLemma::Blight, ArgumentFrame::KeywordAmount) => {
+            cursor.enter("cost.payment.blight.amount");
+            positive_literal(cursor, "a positive literal Blight amount")
+                .map(|amount| PaymentActionNode::Blight { amount })
+        }
+        _ => {
+            cursor.enter("cost.payment.frame");
+            Err(cursor.fail(
+                "a payment reading of this action's frame (putting an object into a zone has no cost reader)",
+            ))
+        }
+    }
+}
+
+/// `to its owner's hand` / `to their owner's hand` / `to their owners' hands`.
+fn recognize_owners_hand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.consume("to")?;
+    let normalized = |cursor: &OracleTokenCursor<'_>, offset: usize| {
+        cursor
+            .peek_ahead(offset)
+            .map(|raw| raw.replace('\u{2019}', "'").to_ascii_lowercase())
+    };
+    cursor.require(
+        matches!(normalized(cursor, 0).as_deref(), Some("its" | "their"))
+            && matches!(
+                normalized(cursor, 1).as_deref(),
+                Some("owner's" | "owners'")
+            )
+            && matches!(normalized(cursor, 2).as_deref(), Some("hand" | "hands")),
+        "`its owner's hand` or `their owner's hand`",
+    )?;
+    cursor.advance_to(cursor.position() + 3)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PaymentVerb {
     Tap,
+    Untap,
     Sacrifice,
     Discard,
     Exile,
+    Reveal,
+    Exert,
+    Return,
     Remove,
 }
 
 impl PaymentVerb {
     fn domain(self) -> OperandDomain {
         match self {
-            Self::Tap | Self::Sacrifice | Self::Remove => OperandDomain::Permanent,
-            Self::Discard | Self::Exile => OperandDomain::Card,
+            Self::Tap
+            | Self::Untap
+            | Self::Sacrifice
+            | Self::Remove
+            | Self::Exert
+            | Self::Return => OperandDomain::Permanent,
+            Self::Discard | Self::Exile | Self::Reveal => OperandDomain::Card,
+        }
+    }
+
+    /// A third-person payer's object list may continue after a comma.
+    fn lists_continue(self) -> bool {
+        matches!(self, Self::Sacrifice)
+    }
+
+    fn operand_state(self) -> &'static str {
+        match self {
+            Self::Tap => "action.tap.operand",
+            Self::Untap => "action.untap.operand",
+            Self::Sacrifice => "action.sacrifice.operand",
+            Self::Discard => "action.discard.operand",
+            Self::Exile => "action.exile.operand",
+            Self::Reveal => "action.reveal.operand",
+            Self::Exert => "action.exert.operand",
+            Self::Return => "action.return.operand",
+            Self::Remove => "action.remove.operand",
         }
     }
 }
@@ -438,6 +515,7 @@ fn recognize_chosen_objects(
     if verb == PaymentVerb::Tap {
         // Only untapped permanents can be tapped (CR 701.26a): the written
         // status is redundant evidence, never a filter to drop elsewhere.
+        // (An untap cost keeps its `tapped` status in the shared query.)
         cursor.enter("cost.payment.tap.status");
         if cursor
             .peek()
@@ -502,14 +580,18 @@ fn recognize_permanent_operand(
         "one source exclusion scoped to the whole object query",
     )?;
     match verb {
-        PaymentVerb::Tap | PaymentVerb::Remove => {
+        PaymentVerb::Tap
+        | PaymentVerb::Untap
+        | PaymentVerb::Remove
+        | PaymentVerb::Return
+        | PaymentVerb::Exert => {
             // A tapped-permanent or counter-holder cost states its
             // payer-controlled scope: without `you control` the text names
             // any permanent, which a payer cannot be assumed to own.
-            cursor.enter(if verb == PaymentVerb::Tap {
-                "cost.payment.tap.domain"
-            } else {
-                "cost.payment.remove.holder-domain"
+            cursor.enter(match verb {
+                PaymentVerb::Tap => "cost.payment.tap.domain",
+                PaymentVerb::Remove => "cost.payment.remove.holder-domain",
+                _ => "cost.payment.controlled.domain",
             });
             cursor.require(
                 object.controller == Some(ObjectControllerScope::AbilityController)
@@ -539,6 +621,31 @@ fn recognize_permanent_operand(
     Ok(object)
 }
 
+/// `N KIND counter(s) on CounterHolder` after `put` (the kind is named).
+fn recognize_counter_placement(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PutCountersPaymentNode> {
+    cursor.enter("cost.payment.put.quantity");
+    let count = positive_literal(cursor, "`a`, `an` or a positive literal counter quantity")?;
+    cursor.enter("cost.payment.put.kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("cost.payment.put.noun");
+    cursor.consume(if count == 1 { "counter" } else { "counters" })?;
+    cursor.enter("cost.payment.put.relation");
+    cursor.consume("on")?;
+    cursor.enter("cost.payment.put.holder");
+    let holder = recognize_counter_holder(cursor)?;
+    cursor.require(
+        !matches!(holder, CounterHolderNode::Among(_)),
+        "`this PERMANENT` or `a PERMANENT you control` receiving the counters",
+    )?;
+    Ok(PutCountersPaymentNode {
+        count,
+        counter,
+        holder,
+    })
+}
+
 /// `Quantity [COUNTER_NAME] counter(s) from CounterHolder` after `remove`.
 fn recognize_counter_removal(
     cursor: &mut OracleTokenCursor<'_>,
@@ -558,6 +665,18 @@ fn recognize_counter_removal(
     cursor.enter("cost.payment.remove.relation");
     cursor.consume("from")?;
     cursor.enter("cost.payment.remove.holder");
+    let holder = recognize_counter_holder(cursor)?;
+    Ok(RemoveCountersPaymentNode {
+        count,
+        counter,
+        holder,
+    })
+}
+
+/// `this PERMANENT` | `a PERMANENT you control` | `among PERMANENTS you control`.
+fn recognize_counter_holder(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CounterHolderNode> {
     let head = cursor
         .peek()
         .map(str::to_ascii_lowercase)
@@ -590,11 +709,7 @@ fn recognize_counter_removal(
             return Err(cursor.fail("`this PERMANENT`, `a PERMANENT` or `among PERMANENTS`"));
         }
     };
-    Ok(RemoveCountersPaymentNode {
-        count,
-        counter,
-        holder,
-    })
+    Ok(holder)
 }
 
 fn recognize_optional_origin_zone(
@@ -639,14 +754,14 @@ pub(in crate::oracle::canonical) fn recognize_cost_sequence(
     cursor: &mut OracleTokenCursor<'_>,
     grammar: CostListGrammar,
 ) -> MachineResult<CostSequenceNode<PaymentActionNode>> {
-    recognize_conjugated_cost_sequence(cursor, grammar, DiscardVerbForm::Imperative)
+    recognize_conjugated_cost_sequence(cursor, grammar, ActingSubject::CONTROLLER)
 }
 
 /// The same list with every verb conjugated for the payer the parent names.
 pub(in crate::oracle::canonical::automata) fn recognize_conjugated_cost_sequence(
     cursor: &mut OracleTokenCursor<'_>,
     grammar: CostListGrammar,
-    form: DiscardVerbForm,
+    form: ActingSubject,
 ) -> MachineResult<CostSequenceNode<PaymentActionNode>> {
     let mut costs = Vec::new();
     let mut connectors = Vec::new();
@@ -676,3 +791,7 @@ mod tests;
 #[cfg(test)]
 #[path = "payment_cost_context_tests.rs"]
 mod cost_context_tests;
+
+#[cfg(test)]
+#[path = "payment_clause_tests.rs"]
+mod clause_tests;

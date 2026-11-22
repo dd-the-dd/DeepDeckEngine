@@ -215,6 +215,25 @@ fn lower_source_event_union(
         event.source == LocalObjectReference::SourceSelf && !event.verbs.is_empty(),
         "the current source as event subject",
     )?;
+    // A typed modifier the runtime has no matcher for is an engine gap,
+    // reported apart from grammar and never dropped.
+    if let Some(modifier) = event.modifiers.first() {
+        cursor.enter("trigger.event.engine-gap");
+        return Err(cursor.fail(match modifier {
+            SourceEventModifier::AttackingAlone => {
+                "an engine event matcher for `attacks alone` on the source"
+            }
+            SourceEventModifier::CounterpartQualifier => {
+                "an engine event matcher for a qualified block counterpart"
+            }
+            SourceEventModifier::NotBlocked => {
+                "an engine event matcher for `attacks and isn't blocked`"
+            }
+            SourceEventModifier::FirstTimeEachTurn => {
+                "an engine event matcher for `for the first time each turn`"
+            }
+        }));
+    }
     cursor.enter("trigger.source-event.verb-support");
     let events = event
         .verbs
@@ -336,14 +355,14 @@ fn lower_object_event(
         || (event.verb == ObjectEventVerb::DealCombatDamageToPlayer && !per_event)
     {
         let established = DamageDealtComplement {
-            kind: DamageEventKind::Combat,
+            kind: DamageKind::Combat,
             recipient: Some(DamageRecipient::Player(EventActorScope::AnyPlayer)),
         };
         let complement = event.damage.as_ref().unwrap_or(&established);
         // `one or more SOURCES deal combat damage to you`: the received-combat
         // observer groups one combat damage step per damaged player.
         if per_event
-            && complement.kind == DamageEventKind::Combat
+            && complement.kind == DamageKind::Combat
             && complement.recipient == Some(DamageRecipient::Player(EventActorScope::Controller))
             && subject.query.controller.is_none()
             && !subject.exclude_source
@@ -540,9 +559,9 @@ fn lower_damage_dealt_event(
 ) -> MachineResult<Value> {
     let mut lowered = json!({"kind": "damageDealtBySource", "source": source});
     match complement.kind {
-        DamageEventKind::Any => {}
-        DamageEventKind::Combat => lowered["combatOnly"] = json!(true),
-        DamageEventKind::Noncombat => lowered["noncombatOnly"] = json!(true),
+        DamageKind::Any => {}
+        DamageKind::Combat => lowered["combatOnly"] = json!(true),
+        DamageKind::Noncombat => lowered["noncombatOnly"] = json!(true),
     }
     cursor.enter("trigger.dealt-damage.recipient-support");
     // Without a recipient one event can damage several objects and players
@@ -570,13 +589,13 @@ fn lower_damage_dealt_event(
 fn apply_damage_event_kind(
     cursor: &mut OracleTokenCursor<'_>,
     lowered: &mut Value,
-    damage: DamageEventKind,
+    damage: DamageKind,
 ) -> MachineResult<()> {
     cursor.enter("trigger.dealt-damage.kind-support");
     match damage {
-        DamageEventKind::Any => {}
-        DamageEventKind::Noncombat => lowered["noncombatOnly"] = json!(true),
-        DamageEventKind::Combat => lowered["combatOnly"] = json!(true),
+        DamageKind::Any => {}
+        DamageKind::Noncombat => lowered["noncombatOnly"] = json!(true),
+        DamageKind::Combat => lowered["combatOnly"] = json!(true),
     }
     Ok(())
 }

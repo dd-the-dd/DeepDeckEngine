@@ -58,7 +58,11 @@ pub(in crate::oracle::canonical) fn recognize_targeted_graveyard_card_entry(
         state = match state {
             CardEntryState::Action => {
                 cursor.enter("effect.graveyard-card-entry.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 CardEntryState::Target
             }
             CardEntryState::Target => {

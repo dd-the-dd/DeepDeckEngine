@@ -186,7 +186,11 @@ pub(in crate::oracle::canonical) fn recognize_card_type_partition_sequence(
             }
             CardTypePartitionState::RevealAction => {
                 cursor.enter("effect.reveal-top.action");
-                cursor.consume("reveal")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Reveal,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 CardTypePartitionState::TopCollection
             }
             CardTypePartitionState::TopCollection => {
@@ -249,7 +253,11 @@ pub(in crate::oracle::canonical) fn recognize_card_type_partition_sequence(
             }
             CardTypePartitionState::PutAction => {
                 cursor.enter("selection.per-card-type.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 CardTypePartitionState::CardArticle
             }
             CardTypePartitionState::CardArticle => {
@@ -284,7 +292,11 @@ pub(in crate::oracle::canonical) fn recognize_card_type_partition_sequence(
             }
             CardTypePartitionState::RemainderAction => {
                 cursor.enter("partition.remainder.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 CardTypePartitionState::RemainderReference
             }
             CardTypePartitionState::RemainderReference => {

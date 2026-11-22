@@ -23,7 +23,11 @@ pub(in crate::oracle::canonical) fn recognize_untap_bound_collection(
         state = match state {
             State::Action => {
                 cursor.enter("effect.untap-bound-collection.action");
-                cursor.consume("untap")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Untap,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 State::Determiner
             }
             State::Determiner => {

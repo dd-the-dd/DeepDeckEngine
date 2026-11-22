@@ -285,6 +285,70 @@ fn causative_sacrifice_is_performed_by_the_targeted_opponent_when_accepted() {
 }
 
 #[test]
+fn causative_player_set_reads_the_shared_life_clause_with_a_bare_verb() {
+    // Unused combination, no dedicated code: causative `have` + a player
+    // set subject + the shared life clause (bare verb from the causative).
+    let rule = compile(
+        "Causative Drain Probe",
+        "Creature — Horror",
+        "When this creature enters, you may have each opponent lose 2 life.",
+    );
+    let (mut engine, stack) = position(3);
+    run(&mut engine, &stack, &rule, None, &mut Accepting::default());
+    let life = |engine: &GameEngine| {
+        engine
+            .state
+            .players
+            .iter()
+            .map(|player| player.life)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(life(&engine), [20, 18, 18]);
+
+    let (mut engine, stack) = position(3);
+    let mut provider = Accepting {
+        decline: true,
+        ..Accepting::default()
+    };
+    run(&mut engine, &stack, &rule, None, &mut provider);
+    assert_eq!(life(&engine), [20, 20, 20]);
+}
+
+#[test]
+fn put_reads_its_zone_frame_and_moves_the_target_to_its_owner_library() {
+    // Grasp of Phantoms / Condemn: `put` in its object-to-zone frame.
+    for (text, top) in [
+        ("Put target creature on top of its owner's library.", true),
+        (
+            "Put target creature on the bottom of its owner's library.",
+            false,
+        ),
+    ] {
+        let rule = compile("Library Put Probe", "Instant", text);
+        let (mut engine, stack) = position(2);
+        let bear = add(&mut engine, 1, "bear", "Creature");
+        let library_len = engine.state.players[1].library.len();
+        run(
+            &mut engine,
+            &stack,
+            &rule,
+            Some(TargetRef::Permanent {
+                instance_id: bear.clone(),
+            }),
+            &mut Accepting::default(),
+        );
+        assert!(engine.permanent_position(&bear).is_none(), "{text}");
+        let library = &engine.state.players[1].library;
+        assert_eq!(library.len(), library_len + 1, "{text}");
+        let placed = if top { library.last() } else { library.first() };
+        assert!(
+            placed.is_some_and(|card| card.definition.name == "bear-1"),
+            "{text}"
+        );
+    }
+}
+
+#[test]
 fn causative_damage_and_stat_change_use_the_ordinary_frames() {
     let rule = compile(
         "Hissing Iguanar",

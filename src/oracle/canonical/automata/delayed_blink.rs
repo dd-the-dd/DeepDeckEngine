@@ -87,7 +87,11 @@ fn recognize_bound_return_to_owner_control(
     step: DelayedTurnStep,
 ) -> MachineResult<BoundDelayedReturnNode> {
     cursor.enter("effect.bound-return.action");
-    cursor.consume("return")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Return,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("effect.bound-return.object");
     cursor.consume_phrase(&["that", "card"])?;
     cursor.enter("effect.bound-return.destination");

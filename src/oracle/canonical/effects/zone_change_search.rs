@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the promoted inter-sentence zone-change/search grammar by its
@@ -12,7 +13,8 @@ pub(in crate::oracle::canonical) fn claims_promoted_zone_change_search_family(
         return false;
     };
     tokens.first().is_some_and(|token| {
-        token.raw.eq_ignore_ascii_case("exile") || token.raw.eq_ignore_ascii_case("destroy")
+        is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base)
+            || token.raw.eq_ignore_ascii_case("destroy")
     }) && tokens.get(boundary + 1..boundary + 7).is_some_and(|head| {
         head[0].raw.eq_ignore_ascii_case("its")
             && head[1].raw.eq_ignore_ascii_case("controller")

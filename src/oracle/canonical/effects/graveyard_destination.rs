@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 pub(in crate::oracle::canonical) fn claims_promoted_entry_zone_batch_family(
@@ -12,7 +13,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_entry_zone_batch_family(
         .any(|token| token.token_type == "eventWord" && token.raw.eq_ignore_ascii_case("enters"))
         && input.tokens.windows(3).any(|window| {
             window[0].token_type == "actionWord"
-                && window[0].raw.eq_ignore_ascii_case("exile")
+                && is_verb_form(&window[0].raw, VerbLemma::Exile, VerbForm::Base)
                 && window[1].token_type == "quantifierWord"
                 && window[1].raw.eq_ignore_ascii_case("all")
                 && window[2].token_type == "zoneWord"

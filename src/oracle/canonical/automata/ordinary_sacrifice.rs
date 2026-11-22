@@ -21,7 +21,11 @@ pub(in crate::oracle::canonical) fn recognize_ordinary_sacrifice_effect(
     // Probe only the operand's typed reference head; the original source
     // reader retains aliases, diagnostics, and its exact semantic node.
     let mut probe = cursor.clone();
-    probe.consume("sacrifice")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        &mut probe,
+        crate::oracle::canonical::automata::VerbLemma::Sacrifice,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     if source_or_anaphor_reference_starts_at(probe.position(), probe.peek(), names, name_failure) {
         return recognize_sacrifice_source_effect(cursor, names, name_failure, antecedent)
             .map(SacrificeEffectNode::Source);

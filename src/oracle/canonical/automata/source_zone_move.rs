@@ -17,7 +17,11 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
     cursor.enter("effect.move-source.action");
     match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some("exile") => {
-            cursor.consume("exile")?;
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Exile,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )?;
             cursor.enter("effect.move-source.exile.source");
             let source = recognize_source_reference(cursor, name_links, name_failure)?;
             cursor.enter("effect.move-source.complete");
@@ -30,7 +34,11 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
             })
         }
         Some("return") => {
-            cursor.consume("return")?;
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Return,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )?;
             cursor.enter("effect.move-source.return.source");
             let source = recognize_source_reference_with_antecedent(
                 cursor,

@@ -125,7 +125,11 @@ fn recognize_library_search(
                 cursor.enter("effect.library-search.post-filter-action");
                 match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
                     Some("reveal") => {
-                        cursor.consume("reveal")?;
+                        crate::oracle::canonical::automata::consume_lemma(
+                            cursor,
+                            crate::oracle::canonical::automata::VerbLemma::Reveal,
+                            crate::oracle::canonical::automata::VerbAgreement::Base,
+                        )?;
                         memory.reveal = true;
                         LibrarySearchState::RevealReference
                     }
@@ -170,7 +174,11 @@ fn recognize_library_search(
             }
             LibrarySearchState::MoveAction => {
                 cursor.enter("effect.library-search.move-action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 LibrarySearchState::ResultReference
             }
             LibrarySearchState::ResultReference => {

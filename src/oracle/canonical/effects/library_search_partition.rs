@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the searched-collection partition family from stable structural
@@ -19,9 +20,10 @@ pub(in crate::oracle::canonical) fn claims_promoted_library_search_partition_fam
 
     let reveal = tokens
         .iter()
-        .position(|token| token.raw.eq_ignore_ascii_case("reveal"));
+        .position(|token| is_verb_form(&token.raw, VerbLemma::Reveal, VerbForm::Base));
     let put_one = tokens.windows(2).position(|window| {
-        window[0].raw.eq_ignore_ascii_case("put") && window[1].raw.eq_ignore_ascii_case("one")
+        is_verb_form(&window[0].raw, VerbLemma::Put, VerbForm::Base)
+            && window[1].raw.eq_ignore_ascii_case("one")
     });
     let and_the = tokens.windows(2).position(|window| {
         window[0].raw.eq_ignore_ascii_case("and") && window[1].raw.eq_ignore_ascii_case("the")

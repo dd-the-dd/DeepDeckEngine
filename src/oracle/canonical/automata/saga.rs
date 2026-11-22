@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -118,7 +119,7 @@ fn recognize_granted_ability(
             )?;
             SagaGrantedAbilityNode::Mana(ability)
         }
-        Some(raw) if raw.eq_ignore_ascii_case("create") => {
+        Some(raw) if is_verb_form(&raw, VerbLemma::Create, VerbForm::Base) => {
             SagaGrantedAbilityNode::CharacteristicToken(recognize_characteristic_token_activation(
                 &mut nested,
             )?)

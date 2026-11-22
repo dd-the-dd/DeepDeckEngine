@@ -16,7 +16,10 @@
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{LocalObjectReference, recognize_source_reference};
+use super::{
+    LocalObjectReference, VerbAgreement, VerbLemma, consume_lemma, lemma_at,
+    recognize_source_reference,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SourceEventVerb {
@@ -43,11 +46,28 @@ impl SourceEventVerb {
     }
 }
 
+/// A generic modifier of an event pattern. Each is a typed attribute that a
+/// runtime matcher must honor; a pattern carrying one the engine has no
+/// matcher for fails in lowering as an engine gap, never widened.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SourceEventModifier {
+    /// `attacks alone` (CR 506.5).
+    AttackingAlone,
+    /// `blocks QUERY` / `becomes blocked by QUERY` other than `a creature`.
+    CounterpartQualifier,
+    /// `and isn't blocked` (CR 509.1h, the declare-blockers step).
+    NotBlocked,
+    /// `for the first time each turn`.
+    FirstTimeEachTurn,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SourceEventUnionNode {
     pub source: LocalObjectReference,
     /// Written order; every verb is distinct.
     pub verbs: Vec<SourceEventVerb>,
+    /// Written order; empty for an unmodified pattern.
+    pub modifiers: Vec<SourceEventModifier>,
 }
 
 fn peek_is(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -56,76 +76,131 @@ fn peek_is(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
         .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
 }
 
-fn recognize_source_event_verb(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<SourceEventVerb> {
-    cursor.enter("event.source.verb");
-    let head = cursor
-        .peek()
-        .map(str::to_ascii_lowercase)
-        .ok_or_else(|| cursor.fail("a source event verb"))?;
-    let verb = match head.as_str() {
-        "enters" => {
-            cursor.consume("enters")?;
-            if peek_is(cursor, 0, "the") && peek_is(cursor, 1, "battlefield") {
-                cursor.consume_phrase(&["the", "battlefield"])?;
-            }
-            SourceEventVerb::Entered
-        }
-        "dies" => {
-            cursor.consume("dies")?;
-            SourceEventVerb::Died
-        }
-        "attacks" => {
-            cursor.consume("attacks")?;
-            SourceEventVerb::Attacked
-        }
-        "blocks" => {
-            cursor.consume("blocks")?;
-            SourceEventVerb::Blocked
-        }
-        "leaves" => {
-            cursor.enter("event.source.leaves");
-            cursor.consume_phrase(&["leaves", "the", "battlefield"])?;
-            SourceEventVerb::LeftBattlefield
-        }
-        "is" => {
-            cursor.enter("event.source.put-into-graveyard");
-            cursor.consume_phrase(&["is", "put", "into"])?;
-            cursor.enter("event.source.put-into-graveyard.zone");
-            // `your graveyard` adds an owner relation without a matcher.
-            cursor.consume_phrase(&["a", "graveyard"])?;
-            cursor.enter("event.source.put-into-graveyard.origin");
-            cursor.consume_phrase(&["from", "the", "battlefield"])?;
-            SourceEventVerb::PutIntoGraveyardFromBattlefield
-        }
-        "becomes" => {
-            cursor.consume("becomes")?;
-            cursor.enter("event.source.becomes");
-            let state = cursor
-                .peek()
-                .map(str::to_ascii_lowercase)
-                .ok_or_else(|| cursor.fail("`tapped`, `untapped` or `blocked`"))?;
-            let verb = match state.as_str() {
-                "tapped" => SourceEventVerb::BecameTapped,
-                "untapped" => SourceEventVerb::BecameUntapped,
-                "blocked" => SourceEventVerb::BecameBlocked,
-                _ => return Err(cursor.fail("`tapped`, `untapped` or `blocked`")),
-            };
-            cursor.consume(&state)?;
-            verb
-        }
-        _ => {
-            return Err(cursor.fail(
-                "enters, dies, attacks, blocks, leaves the battlefield, is put into a graveyard, or becomes STATE",
-            ));
-        }
-    };
-    Ok(verb)
+fn verb_at(cursor: &OracleTokenCursor<'_>, lemma: VerbLemma) -> bool {
+    lemma_at(cursor, lemma, VerbAgreement::ThirdPersonSingular)
 }
 
-/// Reads `SOURCE VERB [or VERB]...` after the trigger word. The enclosing
-/// envelope owns the trigger word, the comma and the body.
+fn consume_verb(cursor: &mut OracleTokenCursor<'_>, lemma: VerbLemma) -> MachineResult<()> {
+    consume_lemma(cursor, lemma, VerbAgreement::ThirdPersonSingular)
+}
+
+/// True when a creature counterpart is exactly `a creature` (every blocker
+/// and every blocked object is a creature, CR 509.1a): the event is the
+/// same as without it. Any other counterpart is a qualifier the runtime has
+/// no matcher for.
+fn read_counterpart(
+    cursor: &mut OracleTokenCursor<'_>,
+    modifiers: &mut Vec<SourceEventModifier>,
+) -> MachineResult<()> {
+    cursor.enter("event.source.counterpart");
+    let boundary = |raw: Option<&str>| {
+        raw.is_none_or(|raw| {
+            matches!(raw, "," | ".")
+                || raw.eq_ignore_ascii_case("or")
+                || raw.eq_ignore_ascii_case("and")
+        })
+    };
+    if (peek_is(cursor, 0, "a") || peek_is(cursor, 0, "an"))
+        && peek_is(cursor, 1, "creature")
+        && boundary(cursor.peek_ahead(2))
+    {
+        cursor.advance_to(cursor.position() + 2)?;
+        return Ok(());
+    }
+    let article = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| matches!(raw.as_str(), "a" | "an" | "one"))
+        .ok_or_else(|| cursor.fail("`a creature` or a creature counterpart"))?;
+    if article == "one" {
+        cursor.consume_phrase(&["one", "or", "more"])?;
+    } else {
+        cursor.consume(&article)?;
+    }
+    super::recognize_object_query_before_separator(cursor)?;
+    modifiers.push(SourceEventModifier::CounterpartQualifier);
+    Ok(())
+}
+
+fn recognize_source_event_verb(
+    cursor: &mut OracleTokenCursor<'_>,
+    modifiers: &mut Vec<SourceEventModifier>,
+) -> MachineResult<SourceEventVerb> {
+    cursor.enter("event.source.verb");
+    // Each verb is a lexicon lemma in the subject's agreement (the shared
+    // clause); the frame after it is read here as event operands.
+    if verb_at(cursor, VerbLemma::Enter) {
+        consume_verb(cursor, VerbLemma::Enter)?;
+        if peek_is(cursor, 0, "the") && peek_is(cursor, 1, "battlefield") {
+            cursor.consume_phrase(&["the", "battlefield"])?;
+        }
+        return Ok(SourceEventVerb::Entered);
+    }
+    if verb_at(cursor, VerbLemma::Die) {
+        consume_verb(cursor, VerbLemma::Die)?;
+        return Ok(SourceEventVerb::Died);
+    }
+    if verb_at(cursor, VerbLemma::Attack) {
+        consume_verb(cursor, VerbLemma::Attack)?;
+        if peek_is(cursor, 0, "alone") {
+            cursor.consume("alone")?;
+            modifiers.push(SourceEventModifier::AttackingAlone);
+        }
+        return Ok(SourceEventVerb::Attacked);
+    }
+    if verb_at(cursor, VerbLemma::Block) {
+        consume_verb(cursor, VerbLemma::Block)?;
+        if peek_is(cursor, 0, "a") || peek_is(cursor, 0, "an") || peek_is(cursor, 0, "one") {
+            read_counterpart(cursor, modifiers)?;
+        }
+        return Ok(SourceEventVerb::Blocked);
+    }
+    if verb_at(cursor, VerbLemma::Leave) {
+        cursor.enter("event.source.leaves");
+        consume_verb(cursor, VerbLemma::Leave)?;
+        cursor.consume_phrase(&["the", "battlefield"])?;
+        return Ok(SourceEventVerb::LeftBattlefield);
+    }
+    if peek_is(cursor, 0, "is") && peek_is(cursor, 1, "put") {
+        // The passive of `put` (`is put into a graveyard from the battlefield`).
+        cursor.enter("event.source.put-into-graveyard");
+        cursor.consume("is")?;
+        consume_lemma(cursor, VerbLemma::Put, VerbAgreement::Base)?;
+        cursor.consume("into")?;
+        cursor.enter("event.source.put-into-graveyard.zone");
+        // `your graveyard` adds an owner relation without a matcher.
+        cursor.consume_phrase(&["a", "graveyard"])?;
+        cursor.enter("event.source.put-into-graveyard.origin");
+        cursor.consume_phrase(&["from", "the", "battlefield"])?;
+        return Ok(SourceEventVerb::PutIntoGraveyardFromBattlefield);
+    }
+    if verb_at(cursor, VerbLemma::Become) {
+        consume_verb(cursor, VerbLemma::Become)?;
+        cursor.enter("event.source.becomes");
+        let state = cursor
+            .peek()
+            .map(str::to_ascii_lowercase)
+            .ok_or_else(|| cursor.fail("`tapped`, `untapped` or `blocked`"))?;
+        let verb = match state.as_str() {
+            "tapped" => SourceEventVerb::BecameTapped,
+            "untapped" => SourceEventVerb::BecameUntapped,
+            "blocked" => SourceEventVerb::BecameBlocked,
+            _ => return Err(cursor.fail("`tapped`, `untapped` or `blocked`")),
+        };
+        cursor.consume(&state)?;
+        if verb == SourceEventVerb::BecameBlocked && peek_is(cursor, 0, "by") {
+            cursor.consume("by")?;
+            read_counterpart(cursor, modifiers)?;
+        }
+        return Ok(verb);
+    }
+    Err(cursor.fail(
+        "enters, dies, attacks, blocks, leaves the battlefield, is put into a graveyard, or becomes STATE",
+    ))
+}
+
+/// Reads `SOURCE VERB [or VERB]... [EVENT MODIFIER]` after the trigger word.
+/// The enclosing envelope owns the trigger word, the comma and the body.
 pub(in crate::oracle::canonical) fn recognize_source_event_union(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -133,17 +208,40 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
 ) -> MachineResult<SourceEventUnionNode> {
     cursor.enter("event.source.subject");
     let source = recognize_source_reference(cursor, name_links, name_failure)?;
-    let mut verbs = vec![recognize_source_event_verb(cursor)?];
+    let mut modifiers = Vec::new();
+    let mut verbs = vec![recognize_source_event_verb(cursor, &mut modifiers)?];
     while peek_is(cursor, 0, "or") {
         cursor.enter("event.source.union");
         cursor.consume("or")?;
-        let verb = recognize_source_event_verb(cursor)?;
+        let verb = recognize_source_event_verb(cursor, &mut modifiers)?;
         cursor.enter("event.source.union-distinct");
         cursor.require(!verbs.contains(&verb), "a distinct event in the union")?;
         verbs.push(verb);
     }
+    // Generic event modifiers: the negated companion event and the
+    // turn-ordinal qualifier. They are typed attributes of the pattern.
+    cursor.enter("event.source.modifier");
+    if peek_is(cursor, 0, "and")
+        && (peek_is(cursor, 1, "isn't") || peek_is(cursor, 1, "isn’t"))
+        && peek_is(cursor, 2, "blocked")
+    {
+        cursor.advance_to(cursor.position() + 3)?;
+        modifiers.push(SourceEventModifier::NotBlocked);
+    }
+    if peek_is(cursor, 0, "for")
+        && peek_is(cursor, 1, "the")
+        && peek_is(cursor, 2, "first")
+        && peek_is(cursor, 3, "time")
+    {
+        cursor.consume_phrase(&["for", "the", "first", "time", "each", "turn"])?;
+        modifiers.push(SourceEventModifier::FirstTimeEachTurn);
+    }
     cursor.enter("event.source.complete");
-    Ok(SourceEventUnionNode { source, verbs })
+    Ok(SourceEventUnionNode {
+        source,
+        verbs,
+        modifiers,
+    })
 }
 
 /// Reads `you cycle SOURCE` (CR 702.29): the controller cycles the ability
@@ -166,3 +264,7 @@ pub(in crate::oracle::canonical) fn recognize_source_cycled_event(
 #[cfg(test)]
 #[path = "source_event_union_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "event_clause_tests.rs"]
+mod event_clause_tests;

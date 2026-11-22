@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 const ENVELOPE: &[&str] = MANDATORY_ADDITIONAL_COST_HEADER;
@@ -21,7 +22,7 @@ fn claims_promoted_mandatory_additional_sacrifice_family(input: &AbilityInput<'_
             .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
     }) && tokens
         .get(ENVELOPE.len())
-        .is_some_and(|token| token.raw.eq_ignore_ascii_case("sacrifice"))
+        .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Sacrifice, VerbForm::Base))
         && tokens.get(ENVELOPE.len() + 1).is_some_and(|token| {
             token.raw.eq_ignore_ascii_case("a") || token.raw.eq_ignore_ascii_case("an")
         })

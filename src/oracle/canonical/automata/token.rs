@@ -5,6 +5,7 @@ use super::{
     TargetListNode, TargetSelector, recognize_activation_cost_sequence, recognize_add_mana_effect,
     recognize_numeric_atom, recognize_target_list,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EmbeddedTokenManaAbilityNode {
@@ -29,8 +30,20 @@ struct CreatureTokenBodyNode {
 fn recognize_create_action(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.enter("effect.create-token.action");
     match cursor.peek() {
-        Some(raw) if raw.eq_ignore_ascii_case("create") => cursor.consume("create"),
-        Some(raw) if raw.eq_ignore_ascii_case("creates") => cursor.consume("creates"),
+        Some(raw) if is_verb_form(&raw, VerbLemma::Create, VerbForm::Base) => {
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Create,
+                crate::oracle::canonical::automata::VerbAgreement::Base,
+            )
+        }
+        Some(raw) if is_verb_form(&raw, VerbLemma::Create, VerbForm::ThirdPersonSingular) => {
+            crate::oracle::canonical::automata::consume_lemma(
+                cursor,
+                crate::oracle::canonical::automata::VerbLemma::Create,
+                crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular,
+            )
+        }
         _ => Err(cursor.fail("`create` or `creates`")),
     }
 }

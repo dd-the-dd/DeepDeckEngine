@@ -316,6 +316,29 @@ fn prevention_reduces_matching_damage_and_respects_unpreventable_damage() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
+fn damage_subject_passive_reads_kind_and_coordinated_recipients_without_new_code() {
+    // Unused combination of the shared damage clause: the damage as passive
+    // subject + the noncombat kind + an `or` recipient list.
+    let shield = parsed_rule(
+        "Noncombat Shield Probe",
+        "Enchantment",
+        "If noncombat damage would be dealt to you or a planeswalker you control, prevent that damage.",
+    );
+    let mut engine = engine_with(vec![shield], "Enchantment");
+    damage(&mut engine, player("player-0"), 3, "red-creature", false).expect("damage");
+    assert_eq!(life_lost(&engine, "player-0"), 0, "noncombat damage to you");
+    damage(&mut engine, player("player-0"), 3, "red-creature", true).expect("damage");
+    assert_eq!(life_lost(&engine, "player-0"), 3, "combat damage is dealt");
+    damage(&mut engine, player("player-1"), 3, "red-creature", false).expect("damage");
+    assert_eq!(
+        life_lost(&engine, "player-1"),
+        3,
+        "another player is not protected"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
 fn amount_guards_and_damage_kinds_select_the_event() {
     let callous = parsed_rule(
         "Callous Giant",

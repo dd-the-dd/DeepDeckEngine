@@ -100,7 +100,11 @@ pub(in crate::oracle::canonical) fn recognize_untap_permanents_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<RecognizedEffectFragment<SelectedPermanentsEffectNode>> {
     cursor.enter("effect.untap-permanents.action");
-    cursor.consume("untap")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Untap,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     let operand = recognize_permanent_selection_operand(cursor)?;
     cursor.enter("effect.untap-permanents.quantity-policy");
     cursor.require(
@@ -126,7 +130,11 @@ pub(in crate::oracle::canonical) fn recognize_return_selected_permanents_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<RecognizedEffectFragment<SelectedPermanentsEffectNode>> {
     cursor.enter("effect.return-selected.action");
-    cursor.consume("return")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Return,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     let operand = recognize_permanent_selection_operand(cursor)?;
     cursor.enter("effect.return-selected.destination");
     let destination = match try_recognize_card_move_destination(cursor) {

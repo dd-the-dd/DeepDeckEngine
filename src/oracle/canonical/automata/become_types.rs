@@ -12,6 +12,7 @@
 //! Oracle order. Retention is carried as data (CR 205.1b), never inferred
 //! again by a lowering parent. The final `It's still a TYPE` sentence belongs
 //! to this effect; the enclosing sequence keeps its own final terminator.
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, lookup_card_color, lookup_creature_subtype_tokens, lookup_permanent_card_type,
 };
@@ -135,10 +136,11 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
             }
             BecomeTypesState::Verb => {
                 cursor.enter("effect.become-types.verb");
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("loses"))
-                {
+                if crate::oracle::canonical::automata::lemma_at(
+                    &cursor,
+                    VerbLemma::Lose,
+                    crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular,
+                ) {
                     cursor.consume_phrase(&["loses", "all", "abilities"])?;
                     characteristics.loses_all_abilities = true;
                     BecomeTypesState::Duration

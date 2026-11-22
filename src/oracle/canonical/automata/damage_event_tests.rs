@@ -12,17 +12,17 @@ fn damage_kind_and_recipient_are_independent() {
     for (text, kind, player) in [
         (
             "damage to an opponent",
-            DamageEventKind::Any,
+            DamageKind::Any,
             EventActorScope::Opponent,
         ),
         (
             "combat damage to a player",
-            DamageEventKind::Combat,
+            DamageKind::Combat,
             EventActorScope::AnyPlayer,
         ),
         (
             "noncombat damage to you",
-            DamageEventKind::Noncombat,
+            DamageKind::Noncombat,
             EventActorScope::Controller,
         ),
     ] {

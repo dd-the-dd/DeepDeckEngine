@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 fn recognize_optional_investigate_reminder(
@@ -10,7 +11,11 @@ fn recognize_optional_investigate_reminder(
     cursor.enter("reminder.investigate.open");
     cursor.consume("(")?;
     cursor.enter("reminder.investigate.create");
-    cursor.consume("create")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Create,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("reminder.investigate.quantity");
     cursor.consume("a")?;
     cursor.enter("reminder.investigate.token-name");
@@ -26,7 +31,11 @@ fn recognize_optional_investigate_reminder(
     cursor.enter("reminder.investigate.activation-cost");
     cursor.consume("{2}")?;
     cursor.consume(",")?;
-    cursor.consume("sacrifice")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Sacrifice,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.consume("this")?;
     cursor.consume("token")?;
     cursor.consume(":")?;
@@ -127,7 +136,7 @@ pub(in crate::oracle::canonical) fn claims_promoted_ordinal_draw_source_transfor
             .any(|token| token.raw.eq_ignore_ascii_case("draw"))
         && input.tokens[separator + 1..]
             .first()
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("exile"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base))
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_ordinal_draw_source_transform(

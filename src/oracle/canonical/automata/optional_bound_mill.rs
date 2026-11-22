@@ -101,7 +101,11 @@ pub(in crate::oracle::canonical) fn recognize_combat_damage_optional_mill_abilit
             }
             State::MillAction => {
                 cursor.enter("effect.optional-mill.action");
-                cursor.consume("mill")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Mill,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 State::MillCount
             }
             State::MillCount => {
@@ -136,7 +140,11 @@ pub(in crate::oracle::canonical) fn recognize_combat_damage_optional_mill_abilit
             }
             State::RecoveryAction => {
                 cursor.enter("effect.optional-recovery.action");
-                cursor.consume("put")?;
+                crate::oracle::canonical::automata::consume_lemma(
+                    cursor,
+                    crate::oracle::canonical::automata::VerbLemma::Put,
+                    crate::oracle::canonical::automata::VerbAgreement::Base,
+                )?;
                 State::RecoveryArticle
             }
             State::RecoveryArticle => {

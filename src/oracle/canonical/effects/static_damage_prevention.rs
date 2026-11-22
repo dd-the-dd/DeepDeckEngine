@@ -75,7 +75,9 @@ fn read_static_damage_prevention(
     }
     cursor.consume("damage")?;
     cursor.enter("static.prevent.frame");
-    cursor.consume_phrase(&["that", "would", "be", "dealt", "to"])?;
+    cursor.consume("that")?;
+    recognize_relative_damage_clause(cursor, Voice::Passive)?;
+    cursor.consume("to")?;
     cursor.enter("static.prevent.recipient");
     cursor.require(
         !cursor

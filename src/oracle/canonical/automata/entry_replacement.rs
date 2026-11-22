@@ -4,6 +4,7 @@ use super::{
     ReplacementObjectBinding, WouldEnterBattlefieldEventNode, ZoneReplacementNode,
     recognize_object_query,
 };
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum WouldEnterState {
@@ -157,7 +158,7 @@ pub(in crate::oracle::canonical) fn recognize_exile_instead_replacement(
                 cursor.enter("replacement.zone.action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("exile"),
+                    is_verb_form(&action.raw, VerbLemma::Exile, VerbForm::Base),
                     "the `exile` action",
                 )?;
                 ExileInsteadState::Object

@@ -165,7 +165,8 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("would"))
     {
-        trial.consume_phrase(&["that", "would", "be", "dealt"])?;
+        trial.consume("that")?;
+        super::recognize_relative_damage_clause(&mut trial, super::Voice::Passive)?;
     } else {
         source = Some(recognize_party(
             &mut trial,
@@ -175,7 +176,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             context,
         )?);
         trial.enter("effect.prevent.frame.would-deal");
-        trial.consume_phrase(&["would", "deal"])?;
+        super::recognize_relative_damage_clause(&mut trial, super::Voice::Active)?;
     }
     // The recipient, the `by SOURCE` phrase and the duration are independent
     // optional slots; each may appear once, in any printed order.

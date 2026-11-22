@@ -41,6 +41,27 @@ fn activation_cost_counter_id(cost: &SourceCounterRemovalCostNode) -> String {
     format!("activationCostCounter{}", cost.cost_index)
 }
 
+fn activation_cost_return_id(cost: &ChosenReturnCostNode) -> String {
+    format!("activationCostReturn{}", cost.cost_index)
+}
+
+fn activation_cost_counter_holder_id(cost: &ChosenCounterPlacementCostNode) -> String {
+    format!("activationCostCounterHolder{}", cost.cost_index)
+}
+
+/// The engine keys a multi-object choice as `id:index`.
+fn chosen_object_ids(id: &str, count: i64) -> Vec<String> {
+    (0..count)
+        .map(|index| {
+            if count == 1 {
+                id.to_string()
+            } else {
+                format!("{id}:{index}")
+            }
+        })
+        .collect()
+}
+
 /// `another`: the engine removes the ability's source from the candidates.
 fn with_source_exclusion(mut candidates: Value, exclude_source: bool) -> Value {
     if exclude_source {
@@ -99,6 +120,27 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                     cost.exclude_source,
                 ),
                 json!({ "kind": "exactly", "value": integer(cost.count) }),
+            )),
+            LocalActivationCostNode::ReturnObjects(cost) => Some(object_choice(
+                &activation_cost_return_id(cost),
+                with_source_exclusion(
+                    json!({
+                        "kind": "permanents",
+                        "controller": controller(),
+                        "where": lower_permanent_object_predicate(&cost.object.predicate),
+                    }),
+                    cost.exclude_source,
+                ),
+                json!({ "kind": "exactly", "value": integer(cost.count) }),
+            )),
+            LocalActivationCostNode::PutChosenCounters(cost) => Some(object_choice(
+                &activation_cost_counter_holder_id(cost),
+                json!({
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": lower_permanent_object_predicate(&cost.object.predicate),
+                }),
+                json!({ "kind": "exactly", "value": integer(1) }),
             )),
             LocalActivationCostNode::DiscardCard(cost) => Some(object_choice(
                 &activation_cost_card_id(cost),
@@ -192,6 +234,18 @@ pub(in crate::oracle::canonical) fn lower_local_activation_costs(
                 })
                 .collect()
         }
+        // One return per chosen permanent, each naming its own choice.
+        LocalActivationCostNode::ReturnObjects(cost) => {
+            chosen_object_ids(&activation_cost_return_id(cost), cost.count)
+                .into_iter()
+                .map(|id| {
+                    json!({
+                        "kind": "returnPermanentToOwnersHand",
+                        "permanent": { "kind": "chosenObject", "id": id },
+                    })
+                })
+                .collect()
+        }
         other => vec![lower_local_activation_cost(other)],
     }
 }
@@ -234,9 +288,24 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             "kind": "discardCard",
             "card": { "kind": "chosenObject", "id": activation_cost_card_id(cost) },
         }),
-        LocalActivationCostNode::TapObjects(_) => {
-            unreachable!("a chosen tap cost lowers through lower_local_activation_costs")
+        LocalActivationCostNode::TapObjects(_) | LocalActivationCostNode::ReturnObjects(_) => {
+            unreachable!("a chosen multi-object cost lowers through lower_local_activation_costs")
         }
+        LocalActivationCostNode::ReturnSelf => json!({
+            "kind": "returnPermanentToOwnersHand",
+            "permanent": self_ref(),
+        }),
+        LocalActivationCostNode::PutSourceCounters(cost) => json!({
+            "kind": "putCountersOnSource",
+            "counter": cost.counter.as_str(),
+            "count": integer(cost.count),
+        }),
+        LocalActivationCostNode::PutChosenCounters(cost) => json!({
+            "kind": "putCounters",
+            "permanent": { "kind": "chosenObject", "id": activation_cost_counter_holder_id(cost) },
+            "counter": cost.counter.as_str(),
+            "count": integer(cost.count),
+        }),
         // An unnamed counter kind is declared while paying: the engine
         // expands the decision from the source's counters (CR 602.2b).
         LocalActivationCostNode::RemoveSourceCounters(cost) => json!({

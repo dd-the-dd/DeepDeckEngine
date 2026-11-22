@@ -1,3 +1,4 @@
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::{
     counter_name::CounterName,
     syntax::{NameResolutionFailure, ResolvedNameLink},
@@ -185,7 +186,10 @@ pub(in crate::oracle::canonical) fn recognize_target_counter_placement(
             CounterPlacementState::Action => {
                 cursor.enter("effect.counter-placement.action");
                 let action = cursor.consume_type("actionWord")?;
-                cursor.require(action.raw.eq_ignore_ascii_case("put"), "the `put` action")?;
+                cursor.require(
+                    is_verb_form(&action.raw, VerbLemma::Put, VerbForm::Base),
+                    "the `put` action",
+                )?;
                 CounterPlacementState::Count
             }
             CounterPlacementState::Count => {
@@ -518,7 +522,7 @@ pub(in crate::oracle::canonical) fn recognize_labeled_controlled_entry_reflexive
                 cursor.enter("trigger.labeled-reflexive-counter.keyword-action");
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
-                    action.raw.eq_ignore_ascii_case("gains"),
+                    is_verb_form(&action.raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular),
                     "the `gains` action",
                 )?;
                 LabeledReflexiveState::Keywords

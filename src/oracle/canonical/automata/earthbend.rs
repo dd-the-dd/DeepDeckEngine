@@ -96,7 +96,11 @@ fn recognize_earthbend_reminder(
     cursor.consume_phrase(&["that's", "still", "a", "land", "."])?;
 
     cursor.enter("earthbend.reminder.counters.action");
-    cursor.consume("put")?;
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
     cursor.enter("earthbend.reminder.counters.count");
     let counter_count = recognize_numeric_atom(cursor)?;
     cursor.enter("earthbend.reminder.counters.kind");

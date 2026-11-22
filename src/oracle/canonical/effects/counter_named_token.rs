@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a counter followed by a linked token-creation sentence. The claim
@@ -18,7 +19,11 @@ pub(in crate::oracle::canonical) fn claims_promoted_counter_named_token_family(
         && tokens.windows(4).any(|window| {
             window[0].raw == "."
                 && window[1].raw.eq_ignore_ascii_case("its")
-                && window[3].raw.eq_ignore_ascii_case("creates")
+                && is_verb_form(
+                    &window[3].raw,
+                    VerbLemma::Create,
+                    VerbForm::ThirdPersonSingular,
+                )
         })
 }
 

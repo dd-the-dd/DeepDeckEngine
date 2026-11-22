@@ -1,4 +1,5 @@
 use super::super::*;
+use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims the structural conditional free-cast envelope without constraining
@@ -97,10 +98,10 @@ pub(in crate::oracle::canonical) fn claims_promoted_compound_alternative_cost_fa
             .is_some_and(|token| token.raw.eq_ignore_ascii_case("may"))
         && (tokens
             .get(subject + 2)
-            .is_some_and(|token| token.raw.eq_ignore_ascii_case("exile"))
+            .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Exile, VerbForm::Base))
             || (tokens
                 .get(subject + 2)
-                .is_some_and(|token| token.raw.eq_ignore_ascii_case("pay"))
+                .is_some_and(|token| is_verb_form(&token.raw, VerbLemma::Pay, VerbForm::Base))
                 && tokens
                     .get(subject + 3)
                     .is_some_and(|token| token.token_type == "quantity")
