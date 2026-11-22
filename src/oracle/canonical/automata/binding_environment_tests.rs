@@ -147,3 +147,87 @@ fn references_without_a_binding_fail_explicitly() {
         );
     }
 }
+
+/// Every effect object reference (`permanent`/`object`) of the card's rules.
+fn effect_objects(type_line: &str, oracle: &str) -> Vec<Value> {
+    let (status, rules, states) = parse(type_line, oracle);
+    assert_eq!(status, "canonical", "{oracle}: {states:?}");
+    rules
+        .iter()
+        .flat_map(|rule| rule["effects"].as_array().cloned().unwrap_or_default())
+        .filter_map(|effect| {
+            effect
+                .get("permanent")
+                .or_else(|| effect.get("object"))
+                .cloned()
+        })
+        .collect()
+}
+
+#[test]
+fn that_noun_names_the_object_the_event_record_binds() {
+    let event_permanent = json!({"kind":"triggeringPermanent"});
+    // Real cards: Stinkweed Imp (the damaged creature), Anointer of Valor's
+    // attacker shape, Serra Redeemer (the entering creature).
+    for (oracle, expected) in [
+        (
+            "Whenever this creature deals combat damage to a creature, destroy that creature.",
+            event_permanent.clone(),
+        ),
+        (
+            "Whenever a creature attacks, put a +1/+1 counter on that creature.",
+            event_permanent.clone(),
+        ),
+        (
+            "Whenever another creature you control with power 2 or less enters, put two +1/+1 counters on that creature.",
+            json!({"kind":"observedEventObject","event":"permanentEntered"}),
+        ),
+    ] {
+        let objects = effect_objects(CREATURE, oracle);
+        assert_eq!(objects.first(), Some(&expected), "{oracle}: {objects:?}");
+    }
+}
+
+#[test]
+fn possessive_relation_reads_the_event_object() {
+    // Real cards: Dingus Staff (the dying creature), Zo-Zu the Punisher (the
+    // entering land). Unused recombination: a damaged creature's owner.
+    for (type_line, oracle, relation, object) in [
+        (
+            "Artifact",
+            "Whenever a creature dies, this artifact deals 2 damage to that creature's controller.",
+            "controllerOf",
+            "triggeringPermanent",
+        ),
+        (
+            CREATURE,
+            "Whenever a land enters, this creature deals 2 damage to that land's controller.",
+            "controllerOf",
+            "observedEventObject",
+        ),
+        (
+            CREATURE,
+            "Whenever this creature deals combat damage to a creature, this creature deals 1 damage to that creature's owner.",
+            "ownerOf",
+            "triggeringPermanent",
+        ),
+    ] {
+        let recipients = damage_recipients(type_line, oracle);
+        let recipient = recipients.last().expect("a damage recipient");
+        assert_eq!(recipient["kind"], relation, "{oracle}: {recipients:?}");
+        assert_eq!(recipient["object"]["kind"], object, "{oracle}");
+    }
+}
+
+#[test]
+fn event_object_nominal_must_follow_from_the_event_predicate() {
+    // Near misses: the event wrote a land, not a creature; the dying object
+    // is a creature, not necessarily an artifact.
+    for oracle in [
+        "Whenever a land enters, destroy that creature.",
+        "Whenever a creature dies, this creature deals 2 damage to that artifact's controller.",
+    ] {
+        let (status, _, _) = parse(CREATURE, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}

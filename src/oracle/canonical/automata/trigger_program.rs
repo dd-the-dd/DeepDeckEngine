@@ -106,6 +106,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     context.source_attachment = source_attachment;
     context.defending_player = event_names_defending_player(&event.value);
     context.combat_counterpart = event_names_combat_counterpart(&event.value);
+    context.event_object = event_object_slot(&event.value);
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
@@ -217,6 +218,80 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
             ..
         }) if subject.multiplicity == super::EventMultiplicity::PerObject
     )
+}
+
+/// The object the event record binds, with the predicate the event wrote for
+/// it. The entering permanent keeps its observed reference; every other
+/// record binds its object as the triggering permanent: the damaged
+/// permanent of a damage event, else the damage source (CR 120.1), the
+/// attacker (CR 508.1), the dying permanent (CR 700.4).
+fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot> {
+    let permanent = |predicate: ObjectPredicate| {
+        Some(EventObjectSlot {
+            reference: TypedObservedEventObject::EventPermanent,
+            predicate,
+        })
+    };
+    let creature = || ObjectPredicate::CardType(ObjectCardType::Creature);
+    match event {
+        GenericTriggerEventNode::PermanentTransition {
+            kind,
+            subjects,
+            union_kind: None,
+            ..
+        } => {
+            let predicates = subjects
+                .alternatives
+                .iter()
+                .map(|branch| match branch {
+                    PermanentDiedEventBranchNode::Filtered { predicate, .. } => {
+                        Some(predicate.clone())
+                    }
+                    PermanentDiedEventBranchNode::Source(_) => None,
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let predicate = match predicates.as_slice() {
+                [] => return None,
+                [single] => single.clone(),
+                _ => ObjectPredicate::Union(predicates),
+            };
+            Some(EventObjectSlot {
+                reference: match kind {
+                    PermanentTransitionKind::Entered => TypedObservedEventObject::EnteringPermanent,
+                    PermanentTransitionKind::Died => TypedObservedEventObject::EventPermanent,
+                },
+                predicate,
+            })
+        }
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            subject,
+            verb,
+            damage,
+        }) if subject.multiplicity == EventMultiplicity::PerObject => match verb {
+            ObjectEventVerb::Attack
+            | ObjectEventVerb::Die
+            | ObjectEventVerb::DealCombatDamageToPlayer => {
+                permanent(subject.query.predicate.clone())
+            }
+            ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
+                DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone()),
+                DamageRecipient::Player(_) => permanent(subject.query.predicate.clone()),
+            },
+            _ => None,
+        },
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+            complement, ..
+        }) => match complement.recipient.as_ref()? {
+            DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone()),
+            DamageRecipient::Player(_) => None,
+        },
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            action:
+                AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,
+            ..
+        }) => permanent(creature()),
+        _ => None,
+    }
 }
 
 /// A source block event whose every branch has a counterpart (`blocks or

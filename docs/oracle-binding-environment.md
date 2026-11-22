@@ -69,12 +69,32 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   meurt), `that player` désignant le contrôleur d'un objet d'événement
   (`Whenever a creature an opponent controls dies, that player ...`).
 
+## Étape 2 réalisée : objet d'événement
+
+- Le cadre publie l'objet que l'enregistrement lie (`EventObjectSlot`) avec
+  le prédicat écrit par l'événement : le permanent qui entre (référence
+  observée existante), et `TypedObservedEventObject::EventPermanent` (IR
+  `triggeringPermanent`) pour le permanent qui meurt, l'attaquant, le
+  permanent qui subit les dégâts, la source qui inflige des dégâts de combat
+  à un joueur. `that NOUN` et `that NOUN's controller|owner` le désignent
+  quand aucun antécédent lexical n'a ce nominal et que le prédicat de
+  l'événement l'implique.
+- Moteur (`engine/event_object.rs`) : à la mise sur la pile, l'incarnation
+  de `triggeringPermanentId` est capturée avec son contrôleur et son
+  propriétaire ; `triggeringPermanent` ne désigne l'objet que s'il est la
+  même incarnation (CR 400.7) ; la sortie centrale du champ de bataille
+  rafraîchit le contrôleur et le propriétaire en information de dernier
+  état (CR 608.2h) ; `controllerOf`/`ownerOf` d'un objet d'événement lit
+  l'objet vivant, sinon cette information.
+- Sondes (base de l'étape 1) : ligue inchangée (800, 0 IR changée) ; corpus
+  13920 → 13949 (+29 : Stinkweed Imp, Serra Redeemer, Dingus Staff, Zo-Zu
+  the Punisher, Anointer of Valor, …), 0 perdue, 38 IR changées dont 0 déjà
+  supportée.
+
 ## Suite
 
-1. Objet d'événement : la contrepartie générique de `EnteringPermanent`
-   pour tout enregistrement qui lie `triggeringPermanentId`, avec identité
-   (CR 400.7) et information de dernier état capturée au départ du champ de
-   bataille ; `that creature` validé contre le prédicat de l'événement.
+1. `it` sujet d'une action désignant l'objet qui est le sujet de
+   l'événement (`Whenever a creature you control attacks, it gets +2/+2`).
 2. Génitif numérique (`that creature's power`, `the sacrificed creature's
    toughness`) par le même résolveur, à la place de `numeric.event-anaphor`.
 3. Cartes ayant changé de zone (`return it to its owner's hand` après une

@@ -61,7 +61,13 @@ pub(in crate::oracle::canonical::automata) fn recognize_object_related_player_su
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<ObjectSubjectAntecedent>,
 ) -> MachineResult<PlayerEffectSubject> {
-    recognize_object_related_player(cursor, antecedent.as_ref()).map(PlayerEffectSubject::from)
+    // The frame's event object is read from the environment the enclosing
+    // sequence installed; the lexical antecedent is the caller's.
+    let event_object = cursor
+        .binding_environment()
+        .and_then(|environment| environment.frame.event_object.clone());
+    recognize_object_related_player(cursor, antecedent.as_ref(), event_object.as_ref())
+        .map(PlayerEffectSubject::from)
 }
 
 /// Recognizes a player acting as the subject of an effect. `that player`

@@ -118,3 +118,79 @@ fn possessive_controller_of_a_destroyed_target_is_its_last_known_controller() {
     assert_eq!(engine.state.players[2].life, 18, "the last controller");
     assert_eq!(engine.state.players[1].life, 20, "not the owner");
 }
+
+fn admit(engine: &mut GameEngine) {
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn event_object_controller_is_its_last_known_controller() {
+    // Dingus Staff: the creature owned by player-1 and controlled by
+    // player-2 dies; its controller as it last existed is dealt the damage.
+    let rules = parsed_rules(
+        "Artifact",
+        "Whenever a creature dies, this artifact deals 2 damage to that creature's controller.",
+    );
+    let mut engine = test_engine(3);
+    engine.state.players[0]
+        .battlefield
+        .push(permanent("staff", "Artifact", rules, "player-0"));
+    let mut bear = permanent("borrowed-bear", "Creature - Bear", Vec::new(), "player-1");
+    bear.controller = "player-2".to_string();
+    engine.state.players[2].battlefield.push(bear);
+    admit(&mut engine);
+    engine
+        .move_permanent_to_graveyard("borrowed-bear", "destroyed")
+        .expect("the creature dies");
+    resolve_stack(&mut engine);
+    assert_eq!(engine.state.players[2].life, 18, "the last controller");
+    assert_eq!(engine.state.players[1].life, 20, "not the owner");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn event_object_is_only_the_incarnation_the_event_saw() {
+    // Stinkweed Imp: `that creature` is the damaged creature, and only while
+    // it is the same object (CR 400.7).
+    let rule = parsed_rules(
+        "Creature - Imp",
+        "Whenever this creature deals combat damage to a creature, destroy that creature.",
+    )
+    .remove(0);
+    for blinked in [false, true] {
+        let mut engine = test_engine(2);
+        let imp = permanent("imp", "Creature - Imp", vec![rule.clone()], "player-0");
+        engine.state.players[0].battlefield.push(imp.clone());
+        engine.state.players[1].battlefield.push(permanent(
+            "victim",
+            "Creature - Bear",
+            Vec::new(),
+            "player-1",
+        ));
+        admit(&mut engine);
+        engine.put_triggered_ability_on_stack_with_decisions(
+            &imp,
+            rule.clone(),
+            BTreeMap::from([(
+                "triggeringPermanentId".to_string(),
+                Value::String("victim".to_string()),
+            )]),
+        );
+        if blinked {
+            let (player, index) = engine.permanent_position("victim").expect("victim");
+            GameEngine::assign_tracked_zone_identity(
+                &mut engine.state.players[player].battlefield[index],
+                "a-new-object",
+            );
+        }
+        resolve_stack(&mut engine);
+        assert_eq!(
+            engine.permanent_position("victim").is_some(),
+            blinked,
+            "blinked: {blinked}"
+        );
+    }
+}

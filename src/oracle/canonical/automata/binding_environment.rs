@@ -9,17 +9,34 @@
 //! Nothing is guessed: an absent slot is a committed diagnostic.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, ObjectPlayerRelation, ObjectSubjectAntecedent,
+    EffectRecognitionContext, ObjectPlayerRelation, ObjectPredicate, ObjectSubjectAntecedent,
     PermanentEffectReference, PermanentSubjectScope, PlayerBinding, PlayerEffectSubject,
-    TargetNominal, TypedObservedEventObject, selector_implies_nominal,
+    TargetNominal, TargetSelector, TypedObservedEventObject, selector_implies_nominal,
 };
 use crate::oracle::characteristic_vocabulary::{
     CharacteristicLexeme, lookup_object_selector_lexeme,
 };
 
+/// The object an event record binds, with the predicate the event wrote for
+/// it. A nominal anaphor (`that creature`) must follow from that predicate.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EventObjectSlot {
+    pub reference: TypedObservedEventObject,
+    pub predicate: ObjectPredicate,
+}
+
+impl EventObjectSlot {
+    fn implies(&self, nominal: TargetNominal) -> bool {
+        selector_implies_nominal(
+            &TargetSelector::Object(self.predicate.clone()),
+            &nominal.as_predicate(),
+        )
+    }
+}
+
 /// The references the ability frame binds from its typed event. Only the
 /// trigger parent sets them; every other frame leaves them unbound.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct FrameBindings {
     /// The event records exactly one player (`that player`, CR 603.2).
     pub event_player: bool,
@@ -27,6 +44,9 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     pub defending_player: bool,
     /// The event is a block whose every branch names the other combatant.
     pub combat_counterpart: bool,
+    /// The object the event record binds (`that creature`, `that land's
+    /// controller` when no lexical antecedent has that nominal).
+    pub event_object: Option<EventObjectSlot>,
 }
 
 impl FrameBindings {
@@ -35,6 +55,7 @@ impl FrameBindings {
             event_player: context.event_player,
             defending_player: context.defending_player,
             combat_counterpart: context.combat_counterpart,
+            event_object: context.event_object.clone(),
         }
     }
 }
@@ -195,7 +216,11 @@ pub(in crate::oracle::canonical) fn recognize_bound_player_reference(
     if that_player_starts(cursor) {
         return recognize_that_player(cursor, environment);
     }
-    recognize_object_related_player(cursor, environment.object.as_ref())
+    recognize_object_related_player(
+        cursor,
+        environment.object.as_ref(),
+        environment.frame.event_object.as_ref(),
+    )
 }
 
 /// `defending player` in an attack trigger (CR 506.2): the attacked player
@@ -261,6 +286,7 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
 pub(in crate::oracle::canonical) fn recognize_object_related_player(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<&ObjectSubjectAntecedent>,
+    event_object: Option<&EventObjectSlot>,
 ) -> MachineResult<BoundPlayerReference> {
     cursor.enter("player-subject.object-relation");
     let first = cursor
@@ -288,6 +314,19 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         .ok_or_else(|| cursor.fail("`controller` or `owner`"))?;
     cursor.advance_to(cursor.position() + 1)?;
     cursor.enter("player-subject.object-relation.antecedent");
+    // `that NOUN's`: a lexical antecedent with that nominal, else the event's
+    // object when the event wrote that nominal for it.
+    if let Some(nominal) = nominal
+        && !antecedent.is_some_and(|antecedent| lexical_antecedent_implies(antecedent, nominal))
+        && let Some(slot) = event_object.filter(|slot| slot.implies(nominal))
+        && relation_supported(slot.reference)
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation {
+            relation,
+            object: PermanentEffectReference::Observed(slot.reference),
+        });
+    }
     let antecedent = antecedent.ok_or_else(|| {
         cursor.fail_with_span(
             "a preceding singular object binding for the possessive",
@@ -297,16 +336,16 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
             first.raw.clone(),
         )
     })?;
-    // Event-observed objects have no runtime player-relation contract yet.
     cursor.require(
-        !matches!(antecedent.reference, PermanentEffectReference::Observed(_)),
-        "a declared target, the source, or its attached permanent as the possessive antecedent",
+        match antecedent.reference {
+            PermanentEffectReference::Observed(observed) => relation_supported(observed),
+            _ => true,
+        },
+        "a declared target, the source, its attached permanent or an event object as the possessive antecedent",
     )?;
     if let Some(nominal) = nominal {
         cursor.require(
-            antecedent.selector.as_ref().is_some_and(|selector| {
-                selector_implies_nominal(selector, &nominal.as_predicate())
-            }),
+            lexical_antecedent_implies(antecedent, nominal),
             "a nominal implied by the declared selector of the preceding target",
         )?;
     }
@@ -315,6 +354,25 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         relation,
         object: antecedent.reference,
     })
+}
+
+/// The event objects whose controller and owner the runtime reads, live or
+/// as last known information: the record's permanent and the entering one.
+fn relation_supported(reference: TypedObservedEventObject) -> bool {
+    matches!(
+        reference,
+        TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
+    )
+}
+
+fn lexical_antecedent_implies(
+    antecedent: &ObjectSubjectAntecedent,
+    nominal: TargetNominal,
+) -> bool {
+    antecedent
+        .selector
+        .as_ref()
+        .is_some_and(|selector| selector_implies_nominal(selector, &nominal.as_predicate()))
 }
 
 /// Lexical lookahead for `it` / `that NOUN` (a registered nominal that is
@@ -389,6 +447,22 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
         return Ok(PermanentEffectReference::Observed(
             TypedObservedEventObject::CombatCounterpart,
         ));
+    }
+    // A lexical target with this nominal wins; otherwise the event's object
+    // when the event wrote this nominal for it.
+    let lexical = environment.object.as_ref().filter(|antecedent| {
+        matches!(antecedent.reference, PermanentEffectReference::Target(_))
+            && lexical_antecedent_implies(antecedent, nominal)
+    });
+    if lexical.is_none()
+        && let Some(slot) = environment
+            .frame
+            .event_object
+            .as_ref()
+            .filter(|slot| slot.implies(nominal))
+    {
+        cursor.consume(&noun)?;
+        return Ok(PermanentEffectReference::Observed(slot.reference));
     }
     let antecedent = environment.object.as_ref().ok_or_else(|| {
         cursor.fail("a preceding singular permanent subject in this lexical scope")

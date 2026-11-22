@@ -560,6 +560,10 @@ pub(in crate::oracle::canonical) enum TypedObservedEventObject {
     /// a creature` / `becomes blocked by a creature`), bound by the runtime
     /// record with its object identity (CR 400.7).
     CombatCounterpart,
+    /// The permanent the event record binds (the damaged permanent, the
+    /// attacker, the dying permanent, the combat damage source), denoted only
+    /// while it is the incarnation the event saw (CR 400.7).
+    EventPermanent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -637,6 +641,10 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// every branch; `that creature` without a local antecedent denotes it.
     /// Set only by the trigger parent from its typed event.
     pub combat_counterpart: bool,
+    /// The object the triggering event record binds, with the predicate the
+    /// event wrote for it (`that creature` must follow from it). Set only by
+    /// the trigger parent from its typed event.
+    pub event_object: Option<EventObjectSlot>,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb

@@ -31,6 +31,9 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
         PermanentEffectReference::Observed(TypedObservedEventObject::CombatCounterpart) => {
             Some(json!({"kind":"combatCounterpart"}))
         }
+        PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent) => {
+            Some(json!({"kind":"triggeringPermanent"}))
+        }
         PermanentEffectReference::Attached(_) => {
             Some(json!({"kind":"attachedPermanent","attachment":self_ref()}))
         }
