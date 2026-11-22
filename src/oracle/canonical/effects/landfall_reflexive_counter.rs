@@ -14,12 +14,11 @@ const REFLEXIVE_TARGET_ID: &str = "targetPermanent";
 pub(in crate::oracle::canonical) fn claims_promoted_labeled_entry_reflexive_counter_family(
     input: &AbilityInput<'_>,
 ) -> bool {
+    // Any ability-word label was stripped at the ability boundary (CR 207.2c).
     let tokens = input.tokens;
-    matches!(tokens, [label, separator, trigger, article, ..]
-        if label.token_type == "abilityWord"
-            && separator.token_type == "separator"
-            && separator.raw == "\u{2014}"
-            && trigger.token_type == "triggerWord"
+    let body = &tokens[ability_word_body_start(tokens).unwrap_or(0)..];
+    matches!(body, [trigger, article, ..]
+        if trigger.token_type == "triggerWord"
             && trigger.raw.eq_ignore_ascii_case("whenever")
             && (article.raw.eq_ignore_ascii_case("a")
                 || article.raw.eq_ignore_ascii_case("an")))

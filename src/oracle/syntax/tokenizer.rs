@@ -1,5 +1,7 @@
 use super::super::model::RecognizedEntity;
-use crate::oracle::ability_catalog::{AbilityCategory, AbilityLexemeMatch, match_longest_exact};
+use crate::oracle::ability_catalog::{
+    AbilityCategory, AbilityLexemeMatch, match_catalog_mechanic, match_longest_exact,
+};
 use crate::oracle::characteristic_vocabulary::{AcceptedForms, lookup_creature_subtype_tokens};
 
 #[path = "token_vocabulary.rs"]
@@ -222,9 +224,9 @@ fn classify_ability_catalog_lexemes(tokens: &mut [RecognizedEntity]) {
 /// CR 207.2c: an italic label before an em dash at the start of an ability is
 /// an ability word or a flavor word, and has no rules meaning. Official
 /// ability words are already classified from the catalogue; a capitalized
-/// label that contains no catalogue lexeme at all (keyword, keyword action,
-/// mechanic such as Exhaust or Power-up) is a flavor word and receives the
-/// same rules-free label class. Anything the catalogue knows is left alone so
+/// label that contains no lexicon lexeme and is not itself the name of a
+/// catalog mechanic (such as Exhaust or Power-up) is a flavor word and
+/// receives the same rules-free label class. Anything the catalogue knows is left alone so
 /// a mechanic with rules is never silently dropped.
 fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
     const MAX_LABEL_WORDS: usize = 6;
@@ -253,8 +255,12 @@ fn classify_flavor_word_label(tokens: &mut [RecognizedEntity]) {
                 ch.is_alphanumeric() || matches!(ch, '\'' | '\u{2019}' | '-' | '.' | '!' | ',')
             })
     });
-    let catalogue_lexeme =
-        (0..dash).any(|position| match_longest_exact(tokens, position).is_some());
+    // A label that is exactly the name of a catalog mechanic (`Exhaust`,
+    // `Max speed`, `Visit`, `Partner`) has rules even when the lexicon has no
+    // grammar for it yet (CR 702); it is never a flavor word.
+    let catalogue_lexeme = (0..dash)
+        .any(|position| match_longest_exact(tokens, position).is_some())
+        || match_catalog_mechanic(tokens, 0).is_some_and(|mechanic| mechanic.end_token == dash);
     let typed_mechanic = tokens[..dash].iter().any(|token| {
         matches!(
             token.token_type.as_str(),

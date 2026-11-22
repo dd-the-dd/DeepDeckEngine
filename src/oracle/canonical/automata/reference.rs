@@ -7,7 +7,10 @@ use crate::oracle::syntax::{
 };
 
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{AttachedObjectRole, LocalObjectReference, LocalPlayerReference, TargetBinding};
+use super::{
+    AttachedObjectRole, LocalObjectReference, LocalPlayerReference, TargetBinding,
+    classify_unsupported_word,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SourceReferenceState {
@@ -40,6 +43,31 @@ pub(in crate::oracle::canonical) fn recognize_source_reference(
                     SourceReferenceState::ThisObject
                 } else if let Some(unresolved) = unresolved_name_at(cursor.position(), name_failure)
                 {
+                    // An unlinked word that names a mechanic or a verb is not
+                    // a card name: report the concept that is actually missing.
+                    if let Some(word) = classify_unsupported_word(
+                        cursor.token_slice(0, usize::MAX),
+                        unresolved.token_start,
+                    ) {
+                        let tokens = cursor.token_slice(unresolved.token_start, word.end_token());
+                        let found = tokens
+                            .iter()
+                            .map(|token| token.raw.as_str())
+                            .collect::<Vec<_>>()
+                            .join(" ");
+                        cursor.enter(word.state());
+                        return Err(cursor.fail_with_span(
+                            word.expected(),
+                            unresolved.token_start,
+                            tokens
+                                .first()
+                                .map_or(unresolved.span_start, |token| token.span_start),
+                            tokens
+                                .last()
+                                .map_or(unresolved.span_end, |token| token.span_end),
+                            found,
+                        ));
+                    }
                     cursor.enter("reference.source.unresolved-name");
                     return Err(cursor.fail_with_span(
                         "a name linked to the current card or current face",
@@ -352,3 +380,7 @@ fn current_source_link(
             )
     })
 }
+
+#[cfg(test)]
+#[path = "unsupported_word_tests.rs"]
+mod unsupported_word_tests;

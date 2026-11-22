@@ -88,7 +88,8 @@ fn parameterized_keyword_inside_a_list_is_a_committed_native_failure() {
 
     // A parameter after a parameterless keyword leaves the list envelope of
     // the atomic list family; the keyword frame rejects it explicitly and it
-    // is never approximated.
+    // is never approximated. The diagnostic names the item that carries the
+    // unsupported parameter, not the first keyword of the line.
     let trailing = parse_keyword_group("Test Malformed Bird", "Flying, vigilance 2");
     assert_eq!(trailing.status, "unsupported");
     assert_eq!(trailing.abilities.len(), 1);
@@ -103,5 +104,5 @@ fn parameterized_keyword_inside_a_list_is_a_committed_native_failure() {
         trailing.diagnostics[0].state.as_deref(),
         Some("ability-frame.keyword.expansion")
     );
-    assert_eq!(trailing.diagnostics[0].found.as_deref(), Some("Flying"));
+    assert_eq!(trailing.diagnostics[0].found.as_deref(), Some("vigilance"));
 }

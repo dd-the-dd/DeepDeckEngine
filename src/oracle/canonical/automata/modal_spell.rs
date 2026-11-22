@@ -1,14 +1,13 @@
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
-use crate::oracle::syntax::{
-    NameResolutionFailure, NameResolverMemory, ResolvedNameLink, UnresolvedName,
-};
+use crate::oracle::canonical::automata::VerbLemma;
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
     DamageEffectNode, EffectRecognitionContext, EffectSequenceNode, LocalEffectNode, NumericAtom,
     SelectorPredicate, TargetBinding, TargetCardZoneChangeEffectNode, TargetPlayerScryThenDrawNode,
     TargetSelector, TargetedCreateCreatureTokensWithManaAbilityNode, TemporaryKeywordGrantNode,
-    ZoneChangeEffectNode, recognize_damage_effect, recognize_effect_sequence_with_context,
+    ZoneChangeEffectNode, rebase_machine_failure, rebase_name_failure, rebase_name_link,
+    recognize_damage_effect, recognize_effect_sequence_with_context,
     recognize_target_card_zone_change_effect, recognize_target_player_scry_then_draw,
     recognize_targeted_create_creature_tokens_with_mana_ability,
     recognize_temporary_keyword_grant_clause, recognize_zone_change_effect,
@@ -19,79 +18,6 @@ use super::{
 pub(in crate::oracle::canonical) struct EffectSequenceModalNode {
     pub cardinality: ModalCardinalityNode,
     pub modes: Vec<EffectSequenceNode>,
-}
-
-fn rebase_name_link(link: &ResolvedNameLink, start: usize, end: usize) -> Option<ResolvedNameLink> {
-    (link.token_start >= start && link.token_end <= end).then(|| ResolvedNameLink {
-        kind: link.kind,
-        canonical_name: link.canonical_name.clone(),
-        raw: link.raw.clone(),
-        token_start: link.token_start - start,
-        token_end: link.token_end - start,
-        span_start: link.span_start,
-        span_end: link.span_end,
-    })
-}
-
-fn rebase_unresolved_name(
-    unresolved: &UnresolvedName,
-    start: usize,
-    end: usize,
-) -> Option<UnresolvedName> {
-    (unresolved.token_start >= start && unresolved.token_end <= end).then(|| UnresolvedName {
-        raw: unresolved.raw.clone(),
-        token_start: unresolved.token_start - start,
-        token_end: unresolved.token_end - start,
-        span_start: unresolved.span_start,
-        span_end: unresolved.span_end,
-    })
-}
-
-fn rebase_name_memory(memory: &mut NameResolverMemory, start: usize, end: usize) {
-    memory.position = memory.position.saturating_sub(start).min(end - start);
-    memory.checkpoint = memory.checkpoint.saturating_sub(start).min(end - start);
-    memory.best_link = memory
-        .best_link
-        .as_ref()
-        .and_then(|link| rebase_name_link(link, start, end));
-}
-
-fn rebase_name_failure(
-    failure: &NameResolutionFailure,
-    start: usize,
-    end: usize,
-) -> Option<NameResolutionFailure> {
-    let unresolved = failure
-        .unresolved
-        .iter()
-        .filter_map(|name| rebase_unresolved_name(name, start, end))
-        .collect::<Vec<_>>();
-    if unresolved.is_empty() {
-        return None;
-    }
-    let mut rebased = failure.clone();
-    rebased.resolved = failure
-        .resolved
-        .iter()
-        .filter_map(|link| rebase_name_link(link, start, end))
-        .collect();
-    rebased.unresolved = unresolved;
-    rebase_name_memory(&mut rebased.memory, start, end);
-    for transition in &mut rebased.trace {
-        rebase_name_memory(&mut transition.memory, start, end);
-    }
-    Some(rebased)
-}
-
-fn rebase_mode_failure(
-    mut failure: super::super::MachineFailure,
-    start: usize,
-) -> super::super::MachineFailure {
-    failure.token_index += start;
-    for transition in &mut failure.trace {
-        transition.token_index += start;
-    }
-    failure
 }
 
 /// Recognizes an exact-cardinality modal envelope while delegating every
@@ -175,7 +101,7 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal(
             mode_failure.as_ref(),
             &EffectRecognitionContext::default().with_unless_frames(),
         )
-        .map_err(|failure| rebase_mode_failure(failure, mode_start))?;
+        .map_err(|failure| rebase_machine_failure(failure, mode_start))?;
         modes.push(mode);
         cursor.advance_to(mode_end)?;
     }

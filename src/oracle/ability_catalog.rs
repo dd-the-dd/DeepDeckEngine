@@ -570,3 +570,120 @@ pub(crate) fn match_longest_exact(
         end_token: start_token + candidate.normalized_tokens.len(),
     })
 }
+
+/// The complete versioned mechanic catalog (CR 701 keyword actions and CR 702
+/// keyword abilities), including mechanics that have no lexicon entry or
+/// grammar yet. It only answers "does this text name a mechanic with rules?";
+/// it never makes a mechanic parseable. A label naming one of these is not a
+/// rules-free ability or flavor word (CR 207.2c-d), and an unknown capitalized
+/// word naming one is an unsupported mechanic, not an unresolved card name.
+const EMBEDDED_MECHANIC_CATALOG: &str =
+    include_str!("../../crates/deepdeck-oracle/generated/ability-catalog-index-v1.json");
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MechanicCatalogEntry {
+    canonical_id: String,
+    category: AbilityCategory,
+    lexemes: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MechanicCatalogDocument {
+    catalog_schema_version: String,
+    entries: Vec<MechanicCatalogEntry>,
+}
+
+struct MechanicCatalogIndex {
+    entries: Vec<MechanicCatalogEntry>,
+    /// Normalized lexeme words, longest first, keyed by their first word.
+    by_first_word: HashMap<String, Vec<(Vec<String>, usize)>>,
+}
+
+/// A catalog mechanic named by a token span.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CatalogMechanicMatch {
+    pub canonical_id: &'static str,
+    pub category: AbilityCategory,
+    pub start_token: usize,
+    pub end_token: usize,
+}
+
+/// Lowercase words of a lexeme or token, split at every character that is
+/// neither alphanumeric nor an apostrophe (`Power-up` and `Power - up` agree).
+fn mechanic_words(text: &str) -> impl Iterator<Item = String> + '_ {
+    text.split(|ch: char| !(ch.is_alphanumeric() || ch == '\'' || ch == '\u{2019}'))
+        .filter(|word| !word.is_empty())
+        .map(|word| word.replace('\u{2019}', "'").to_lowercase())
+}
+
+fn mechanic_catalog() -> &'static MechanicCatalogIndex {
+    static INDEX: OnceLock<MechanicCatalogIndex> = OnceLock::new();
+    INDEX.get_or_init(|| {
+        let document: MechanicCatalogDocument = serde_json::from_str(EMBEDDED_MECHANIC_CATALOG)
+            .expect("embedded ability catalog index must be valid JSON");
+        assert_eq!(
+            document.catalog_schema_version,
+            "deepdeck-ability-catalog/v1"
+        );
+        let mut by_first_word: HashMap<String, Vec<(Vec<String>, usize)>> = HashMap::new();
+        for (index, entry) in document.entries.iter().enumerate() {
+            if !matches!(
+                entry.category,
+                AbilityCategory::KeywordAbility | AbilityCategory::KeywordAction
+            ) {
+                continue;
+            }
+            for lexeme in &entry.lexemes {
+                let words = mechanic_words(lexeme).collect::<Vec<_>>();
+                if let Some(first) = words.first() {
+                    by_first_word
+                        .entry(first.clone())
+                        .or_default()
+                        .push((words, index));
+                }
+            }
+        }
+        for candidates in by_first_word.values_mut() {
+            candidates.sort_by(|left, right| right.0.len().cmp(&left.0.len()));
+        }
+        MechanicCatalogIndex {
+            entries: document.entries,
+            by_first_word,
+        }
+    })
+}
+
+/// The longest catalog keyword ability or keyword action whose name starts at
+/// `start_token` and ends on a token boundary.
+pub(crate) fn match_catalog_mechanic(
+    tokens: &[RecognizedEntity],
+    start_token: usize,
+) -> Option<CatalogMechanicMatch> {
+    let catalog = mechanic_catalog();
+    let first = mechanic_words(&tokens.get(start_token)?.raw).next()?;
+    catalog
+        .by_first_word
+        .get(&first)?
+        .iter()
+        .find_map(|(expected, index)| {
+            let mut words = Vec::new();
+            for (offset, token) in tokens[start_token..].iter().enumerate() {
+                words.extend(mechanic_words(&token.raw));
+                if words.len() >= expected.len() {
+                    return (words == *expected).then_some((start_token + offset + 1, *index));
+                }
+            }
+            None
+        })
+        .map(|(end_token, index)| {
+            let entry = &catalog.entries[index];
+            CatalogMechanicMatch {
+                canonical_id: entry.canonical_id.as_str(),
+                category: entry.category,
+                start_token,
+                end_token,
+            }
+        })
+}

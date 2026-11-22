@@ -113,6 +113,7 @@ mod damage_execution;
 mod damage_preparation;
 mod damage_replacement;
 mod death_trigger_batch;
+mod deck_construction_keywords;
 mod declaration_result;
 mod destruction_batch;
 mod effect_domains;
@@ -3942,6 +3943,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || kicker_ability_supported(&rule["ability"])
                 || escalate_ability_supported(&rule["ability"])
                 || companion_ability_supported(&rule["ability"])
+                || deck_construction_keywords::deck_construction_keyword_supported(&rule["ability"])
                 || splice_ability_supported(&rule["ability"])
                 || impending_ability_supported(&rule["ability"])
                 || offspring_ability_supported(&rule["ability"])

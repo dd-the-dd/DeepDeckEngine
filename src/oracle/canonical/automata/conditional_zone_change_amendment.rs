@@ -22,8 +22,8 @@ enum AmendmentState {
     Complete,
 }
 
-/// Recognizes an ability-word-labeled replacement of an earlier spell effect.
-/// The decorative label is typed but semantically inert; the actual condition
+/// Recognizes a replacement of an earlier spell effect, usually printed after
+/// an ability word. The label has no rules meaning (CR 207.2c); the actual condition
 /// and the inherited target are represented explicitly.
 pub(in crate::oracle::canonical) fn recognize_conditional_zone_change_amendment(
     cursor: &mut OracleTokenCursor<'_>,
@@ -39,9 +39,24 @@ pub(in crate::oracle::canonical) fn recognize_conditional_zone_change_amendment(
     loop {
         state = match state {
             AmendmentState::AbilityWord => {
+                // The ability boundary strips a top-level label (CR 207.2c);
+                // a label is read here only when this reader runs unlabeled
+                // input directly.
                 cursor.enter("zone-change-amendment.ability-word");
-                cursor.consume_type("abilityWord")?;
-                AmendmentState::LabelSeparator
+                if cursor
+                    .peek_token()
+                    .is_some_and(|token| token.token_type == "abilityWord")
+                {
+                    while cursor
+                        .peek_token()
+                        .is_some_and(|token| token.token_type == "abilityWord")
+                    {
+                        cursor.consume_type("abilityWord")?;
+                    }
+                    AmendmentState::LabelSeparator
+                } else {
+                    AmendmentState::Action
+                }
             }
             AmendmentState::LabelSeparator => {
                 cursor.enter("zone-change-amendment.label-separator");
