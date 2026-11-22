@@ -29,6 +29,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect
                     .get("until")
                     .is_none_or(|until| value_kind(until) == Some("sourceLeavesBattlefield"))
+                && effect.get("linkToSource").is_none_or(Value::is_boolean)
                 && (value_kind(effect) != Some("destroyPermanent")
                     || effect.get("cannotRegenerate").is_none_or(Value::is_boolean))
         }
@@ -230,14 +231,17 @@ impl GameEngine {
                     if was_exiled {
                         exiled_ids.push(instance_id.clone());
                     }
+                    // CR 607.2a: a linked ability of this object reads the
+                    // cards exiled with it; CR 610.3 also returns them.
+                    let link_to_source = effect["linkToSource"].as_bool() == Some(true);
                     if was_exiled
-                        && until_source_leaves
+                        && (until_source_leaves || link_to_source)
                         && let Some((_, last_known_definition)) = &battlefield_object
                     {
                         self.register_linked_exiled_permanent(
                             &stack_object.card,
                             &instance_id,
-                            true,
+                            until_source_leaves,
                             last_known_definition,
                         )?;
                     }

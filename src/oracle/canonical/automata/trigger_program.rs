@@ -107,6 +107,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     context.defending_player = event_names_defending_player(&event.value);
     context.combat_counterpart = event_names_combat_counterpart(&event.value);
     context.event_object = event_object_slot(&event.value);
+    context.event_card = event_card_zone(&event.value);
     // A cast record binds its spell; a copy has no cast record.
     context.event_spell = matches!(
         &event.value,
@@ -223,6 +224,45 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
             ..
         }) if subject.multiplicity == super::EventMultiplicity::PerObject
     )
+}
+
+/// The public zone a battlefield departure put the event's object into: a
+/// death puts it into its owner's graveyard (CR 700.4). A departure to an
+/// unwritten zone, or from another zone, binds no card.
+pub(in crate::oracle::canonical) fn event_card_zone(
+    event: &GenericTriggerEventNode,
+) -> Option<CardZoneName> {
+    if let GenericTriggerEventNode::SourceEvent(node) = event {
+        return match node.verbs.as_slice() {
+            [
+                super::SourceEventVerb::Died
+                | super::SourceEventVerb::PutIntoGraveyardFromBattlefield,
+            ] => Some(CardZoneName::Graveyard),
+            [super::SourceEventVerb::PutIntoExileFromBattlefield] => Some(CardZoneName::Exile),
+            _ => None,
+        };
+    }
+    let died = match event {
+        GenericTriggerEventNode::SourceTransition(node) => {
+            node.event == SourceTriggerEventKind::Died && !node.is_union()
+        }
+        GenericTriggerEventNode::PermanentTransition {
+            kind: PermanentTransitionKind::Died,
+            union_kind: None,
+            ..
+        } => true,
+        GenericTriggerEventNode::Object(ObjectEventNode {
+            subject,
+            verb: ObjectEventVerb::Die | ObjectEventVerb::PutIntoGraveyardFromBattlefield,
+            ..
+        }) => subject.multiplicity == EventMultiplicity::PerObject,
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            action: AttachedObjectEventAction::Die,
+            ..
+        }) => true,
+        _ => false,
+    };
+    died.then_some(CardZoneName::Graveyard)
 }
 
 /// The object the event record binds, with the predicate the event wrote for

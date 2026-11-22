@@ -15,8 +15,10 @@ pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
 
 fn destination_uses_each_owner(destination: &Value) -> bool {
     battlefield_entry_batch::destination_uses_each_owner(destination)
-        || (value_kind(destination) == Some("exile")
-            && value_kind(&destination["player"]) == Some("ownerOf")
+        || (matches!(
+            value_kind(destination),
+            Some("exile" | "hand" | "library" | "graveyard")
+        ) && value_kind(&destination["player"]) == Some("ownerOf")
             && value_kind(&destination["player"]["object"]) == Some("candidate"))
 }
 
@@ -36,9 +38,17 @@ fn supports_known_effect(effect: &Value) -> bool {
                     ) && player_reference_supported(&from["player"])
                 })
                 && match value_kind(&effect["to"]) {
-                    Some("hand") => player_reference_supported(&effect["to"]["player"]),
+                    // A hand, library or graveyard is always the card's
+                    // owner's (CR 400.3): each card selects its own.
+                    Some("hand") => {
+                        player_reference_supported(&effect["to"]["player"])
+                            || destination_uses_each_owner(&effect["to"])
+                    }
                     Some("ownersHand") => true,
-                    Some("graveyard") => player_reference_supported(&effect["to"]["player"]),
+                    Some("graveyard") => {
+                        player_reference_supported(&effect["to"]["player"])
+                            || destination_uses_each_owner(&effect["to"])
+                    }
                     Some("battlefield") => {
                         (player_reference_supported(&effect["to"]["player"])
                             || battlefield_entry_batch::destination_uses_each_owner(&effect["to"]))
@@ -79,7 +89,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                                 .is_none_or(Value::is_boolean)
                     }
                     Some("library") => {
-                        player_reference_supported(&effect["to"]["player"])
+                        (player_reference_supported(&effect["to"]["player"])
+                            || destination_uses_each_owner(&effect["to"]))
                             && matches!(effect["to"]["position"].as_str(), Some("top" | "bottom"))
                     }
                     Some("exile") => {

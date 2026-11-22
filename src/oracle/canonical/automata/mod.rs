@@ -648,6 +648,9 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// The triggering event is the cast of one spell whose record the
     /// runtime keeps (`that spell`). Set only by the trigger parent.
     pub event_spell: bool,
+    /// The public zone the triggering zone change put its object into (the
+    /// card it became there). Set only by the trigger parent.
+    pub event_card: Option<CardZoneName>,
     /// Agreement of the verb that follows an explicit subject. The sequence
     /// sets `BareInfinitive` after a causative `have` (`you may have target
     /// player lose 3 life`); every subject-verb frame then reads its own verb

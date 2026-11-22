@@ -9,9 +9,9 @@
 //! Nothing is guessed: an absent slot is a committed diagnostic.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectRecognitionContext, NumericExpression, ObjectPlayerRelation, ObjectPredicate,
-    ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope, PlayerBinding,
-    PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
+    CardZoneName, EffectRecognitionContext, NumericExpression, ObjectPlayerRelation,
+    ObjectPredicate, ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope,
+    PlayerBinding, PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
     TypedObservedEventObject, selector_implies_nominal,
 };
 use crate::oracle::characteristic_vocabulary::{
@@ -54,6 +54,10 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     pub event_object: Option<EventObjectSlot>,
     /// The event is the cast of one spell (`that spell`).
     pub event_spell: bool,
+    /// The event moved its object into this public zone, where the ability
+    /// can still find the card it became (CR 400.7, 603.6c): `it` / `that
+    /// card` in a card action when the program observed no other card.
+    pub event_card: Option<CardZoneName>,
 }
 
 impl FrameBindings {
@@ -64,6 +68,7 @@ impl FrameBindings {
             combat_counterpart: context.combat_counterpart,
             event_object: context.event_object.clone(),
             event_spell: context.event_spell,
+            event_card: context.event_card,
         }
     }
 }

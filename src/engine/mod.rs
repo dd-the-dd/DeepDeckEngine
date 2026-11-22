@@ -2827,7 +2827,7 @@ fn object_expression_supported(expression: &Value) -> bool {
                     .get("exclude")
                     .is_none_or(object_expression_supported)
         }
-        Some("cardsExiledWithSource") => true,
+        Some("cardsExiledWithSource" | "triggeringCard") => true,
         Some("libraryTopCards") => {
             library_zone_supported(&expression["zone"])
                 && numeric_expression_supported(&expression["count"])
@@ -32504,6 +32504,7 @@ impl GameEngine {
                 }
                 Some(drawn)
             }
+            Some("triggeringCard") => Some(self.event_card_ids(stack_object)),
             Some("cardsExiledWithSource") => Some(
                 self.state
                     .rule_modifiers

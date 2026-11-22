@@ -12,6 +12,8 @@ const EVENT_OBJECT_OWNER: &str = "triggeringPermanentOwner";
 const EVENT_OBJECT_POWER: &str = "triggeringPermanentPower";
 const EVENT_OBJECT_TOUGHNESS: &str = "triggeringPermanentToughness";
 const EVENT_OBJECT_MANA_VALUE: &str = "triggeringPermanentManaValue";
+const EVENT_CARD_ZONE: &str = "triggeringCardZone";
+const EVENT_CARD_IDENTITY: &str = "triggeringCardIdentity";
 
 impl GameEngine {
     /// Captures the event object's incarnation, controller and owner when a
@@ -31,6 +33,21 @@ impl GameEngine {
         }
         let Some((player, index)) = self.permanent_position(&instance_id) else {
             decisions.insert(EVENT_OBJECT_IDENTITY.to_string(), Value::Null);
+            // The card the object became in a public zone (CR 400.7): the
+            // ability can find it there while it stays that object.
+            if let Ok(Some(source)) = self.prepare_card_movement_source(&instance_id, None)
+                && matches!(source.zone.name(), "graveyard" | "exile")
+                && !source.identity.zone_identity.is_empty()
+            {
+                decisions.insert(
+                    EVENT_CARD_ZONE.to_string(),
+                    Value::String(source.zone.name().to_string()),
+                );
+                decisions.insert(
+                    EVENT_CARD_IDENTITY.to_string(),
+                    Value::String(source.identity.zone_identity),
+                );
+            }
             return;
         };
         let live = &self.state.players[player].battlefield[index];
@@ -102,6 +119,27 @@ impl GameEngine {
                     object.decisions.insert(key.to_string(), value.clone());
                 }
             }
+        }
+    }
+
+    /// `{"kind":"triggeringCard"}`: the card the event's object became in a
+    /// public zone, while it is still there as that object.
+    pub(super) fn event_card_ids(&self, stack_object: &StackObject) -> Vec<String> {
+        let decisions = &stack_object.decisions;
+        let (Some(instance_id), Some(zone), Some(identity)) = (
+            decisions.get(EVENT_OBJECT_ID).and_then(Value::as_str),
+            decisions.get(EVENT_CARD_ZONE).and_then(Value::as_str),
+            decisions.get(EVENT_CARD_IDENTITY).and_then(Value::as_str),
+        ) else {
+            return Vec::new();
+        };
+        match self.prepare_card_movement_source(instance_id, None) {
+            Ok(Some(source))
+                if source.zone.name() == zone && source.identity.zone_identity == identity =>
+            {
+                vec![instance_id.to_string()]
+            }
+            _ => Vec::new(),
         }
     }
 

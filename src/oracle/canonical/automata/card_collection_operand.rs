@@ -12,6 +12,40 @@ pub(in crate::oracle::canonical) enum CardCollectionReferenceNode {
     /// (`target opponent reveals their hand. You choose a card from it`).
     /// Only the selection operand reads it; the lowerer proves the zone.
     Zone,
+    /// `the exiled card(s)`: the cards this program exiled, else the cards
+    /// exiled by a linked ability of the same object (CR 607.2a).
+    Exiled,
+    /// `[each|all] card(s) exiled with this NOUN|it` (CR 607.2a).
+    Linked,
+}
+
+/// `card(s) exiled with this NOUN` / `with it` after the head the caller read.
+fn recognize_exiled_with_source(trial: &mut OracleTokenCursor<'_>) -> Result<(), MachineFailure> {
+    let noun = trial.peek().map(str::to_ascii_lowercase);
+    if !matches!(noun.as_deref(), Some("card" | "cards")) {
+        return Err(trial.fail("`card` or `cards` before `exiled with`"));
+    }
+    trial.consume(noun.as_deref().unwrap_or("cards"))?;
+    trial.enter("collection.reference.linked-exile");
+    trial.consume_phrase(&["exiled", "with"])?;
+    if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+    {
+        return trial.consume("it");
+    }
+    trial.consume("this")?;
+    let noun = trial
+        .peek()
+        .ok_or_else(|| trial.fail("a source noun after `exiled with this`"))?
+        .to_string();
+    trial.require(
+        crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(&noun).is_some()
+            || crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(&noun)
+                .is_some(),
+        "a registered source noun after `exiled with this`",
+    )?;
+    trial.consume(&noun)
 }
 
 pub(in crate::oracle::canonical) enum CollectionOperandAttempt<T> {
@@ -55,6 +89,34 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
             }
             CardCollectionReferenceNode::Selected
         }
+        Some("each") => {
+            if let Err(f) = trial
+                .consume("each")
+                .and_then(|()| recognize_exiled_with_source(&mut trial))
+            {
+                return CollectionOperandAttempt::RejectedCandidate(f);
+            }
+            CardCollectionReferenceNode::Linked
+        }
+        Some("cards") => {
+            if let Err(f) = recognize_exiled_with_source(&mut trial) {
+                return CollectionOperandAttempt::RejectedCandidate(f);
+            }
+            CardCollectionReferenceNode::Linked
+        }
+        Some("all")
+            if trial
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("cards")) =>
+        {
+            if let Err(f) = trial
+                .consume("all")
+                .and_then(|()| recognize_exiled_with_source(&mut trial))
+            {
+                return CollectionOperandAttempt::RejectedCandidate(f);
+            }
+            CardCollectionReferenceNode::Linked
+        }
         Some("all") => {
             // `all other cards revealed this way` is the remainder role again.
             if let Err(f) = trial.consume_phrase(&["all", "other", "cards"]) {
@@ -91,11 +153,36 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
                     }
                     CardCollectionReferenceNode::Other
                 }
+                Some("cards")
+                    if trial
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("exiled")) =>
+                {
+                    if let Err(f) = recognize_exiled_with_source(&mut trial) {
+                        return CollectionOperandAttempt::RejectedCandidate(f);
+                    }
+                    CardCollectionReferenceNode::Linked
+                }
                 Some("cards") => {
                     if let Err(f) = trial.consume("cards") {
                         return CollectionOperandAttempt::RejectedCandidate(f);
                     }
                     CardCollectionReferenceNode::Antecedent
+                }
+                Some("exiled") => {
+                    let noun = trial.peek_ahead(1).map(str::to_ascii_lowercase);
+                    if !matches!(noun.as_deref(), Some("card" | "cards")) {
+                        return CollectionOperandAttempt::RejectedCandidate(
+                            trial.fail("`card` or `cards` after `the exiled`"),
+                        );
+                    }
+                    if let Err(f) = trial
+                        .consume("exiled")
+                        .and_then(|()| trial.consume(noun.as_deref().unwrap_or("card")))
+                    {
+                        return CollectionOperandAttempt::FailedCommitted(f);
+                    }
+                    CardCollectionReferenceNode::Exiled
                 }
                 _ => {
                     return CollectionOperandAttempt::RejectedCandidate(

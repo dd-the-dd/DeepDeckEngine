@@ -128,7 +128,35 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   propriété de cible), `that card's` (cartes révélées), `that spell's` hors
   valeur de mana.
 
+## Étape 5 réalisée : carte qui a changé de zone, exil lié (CR 607)
+
+- Cadre : `FrameBindings::event_card` est la zone publique où le changement
+  de zone déclencheur a mis son objet (mort, mise au cimetière depuis le
+  champ de bataille, exil depuis le champ de bataille de la source). Le
+  parent de déclencheur l'installe aussi pour l'abaissement ; sans
+  collection observée du programme, `it` / `that card` d'une action sur
+  carte est `{"kind":"triggeringCard"}`.
+- Moteur : à la mise sur la pile, si l'objet n'est plus sur le champ de
+  bataille, sa zone publique et l'identité de la carte qu'il y est devenu
+  sont capturées ; `triggeringCard` ne la trouve que tant qu'elle reste cet
+  objet (CR 400.7). Une main, une bibliothèque ou un cimetière sont toujours
+  ceux du propriétaire (CR 400.3) : `its owner's hand|library|graveyard`
+  est accepté comme destination par propriétaire.
+- Exil lié : `the exiled card(s)` reprend l'exil du programme, sinon, comme
+  `[each|all] card(s) exiled with this NOUN|it`, désigne l'ensemble lié
+  `{"kind":"cardsExiledWithSource","link":"face"}`. La passe de composition
+  existante (`card_composition.rs`) relie désormais au lieu de rejeter :
+  chaque `exilePermanent` des autres capacités de la face reçoit
+  `linkToSource` et le moteur enregistre le lien à la résolution ; un autre
+  exil reste rejeté (`composition.linked-exile.relation`) ; un lecteur sans
+  producteur sur sa face échoue en `binding.linked-exile.producer`.
+- Sondes (base de la phase 2, 207a2e1 : ligue 802, corpus 14096) : ligue
+  802 → 807 (+5 : Rancor, Oblivion Ring, Fake Your Own Death, False Demise,
+  Malakir Rebirth), 0 perdue ; corpus 14096 → 14186 (+90 : Endless
+  Cockroaches, Fiend Hunter, Demonic Vigor, The Cauldron of Eternity,
+  Undying Rage, …), 0 perdue, 128 IR changées dont 0 déjà supportée.
+
 ## Suite
 
-1. Cartes ayant changé de zone (`return it to its owner's hand` après une
-   mort, CR 400.7) et références liées (CR 607, `the exiled card`).
+1. Migration des lecteurs hérités (`LocalPlayerReference`,
+   `DamageSourceAntecedent`) et suppression des drapeaux de contexte.
