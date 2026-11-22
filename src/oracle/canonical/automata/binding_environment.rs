@@ -22,7 +22,7 @@ use crate::oracle::characteristic_vocabulary::{
 /// it. A nominal anaphor (`that creature`) must follow from that predicate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EventObjectSlot {
-    pub reference: TypedObservedEventObject,
+    pub reference: PermanentEffectReference,
     pub predicate: ObjectPredicate,
     /// The object is the grammatical subject of the event (`a creature
     /// attacks`, `a creature dies`), so a bare `it` can name it. A damaged
@@ -339,7 +339,7 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         cursor.enter("player-subject.complete");
         return Ok(BoundPlayerReference::ObjectRelation {
             relation,
-            object: PermanentEffectReference::Observed(slot.reference),
+            object: slot.reference,
         });
     }
     let antecedent = antecedent.ok_or_else(|| {
@@ -352,10 +352,7 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         )
     })?;
     cursor.require(
-        match antecedent.reference {
-            PermanentEffectReference::Observed(observed) => relation_supported(observed),
-            _ => true,
-        },
+        relation_supported(antecedent.reference),
         "a declared target, the source, its attached permanent or an event object as the possessive antecedent",
     )?;
     if let Some(nominal) = nominal {
@@ -371,13 +368,17 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
     })
 }
 
-/// The event objects whose controller and owner the runtime reads, live or
-/// as last known information: the record's permanent and the entering one.
-fn relation_supported(reference: TypedObservedEventObject) -> bool {
-    matches!(
-        reference,
-        TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
-    )
+/// The objects whose controller and owner the runtime reads, live or as
+/// last known information: declared targets, the source, its attached
+/// permanent, the record's permanent and the entering one.
+fn relation_supported(reference: PermanentEffectReference) -> bool {
+    match reference {
+        PermanentEffectReference::Observed(observed) => matches!(
+            observed,
+            TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
+        ),
+        _ => true,
+    }
 }
 
 fn lexical_antecedent_implies(
@@ -477,7 +478,7 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
             .filter(|slot| slot.implies(nominal))
     {
         cursor.consume(&noun)?;
-        return Ok(PermanentEffectReference::Observed(slot.reference));
+        return Ok(slot.reference);
     }
     let antecedent = environment.object.as_ref().ok_or_else(|| {
         cursor.fail("a preceding singular permanent subject in this lexical scope")
@@ -575,7 +576,7 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
         .filter(|slot| slot.implies(nominal) && relation_supported(slot.reference))
         .ok_or_else(|| cursor.fail("a preceding target or an event object with this nominal"))?;
     Ok(NumericExpression::BoundObjectProperty {
-        object: PermanentEffectReference::Observed(slot.reference),
+        object: slot.reference,
         property,
     })
 }

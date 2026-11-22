@@ -175,8 +175,28 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   Les 23 cartes `that player may ...` atteignent désormais leur vrai
   blocage (le lecteur facultatif d'un autre joueur, `effect.library-search.action`).
 
+## Étape 7 réalisée : emplacements élargis
+
+- La cible unique protégée par une prévention est l'antécédent suivant ;
+  piocher, meuler ou défausser ne déplacent aucun permanent et conservent
+  l'antécédent de permanent (une cible choisie avant reste `that creature`).
+- `EventObjectSlot::reference` est une référence de permanent quelconque :
+  `the upkeep of enchanted NOUN's controller` publie le permanent enchanté
+  avec le nominal écrit (`StepPlayerScope::AttachedPermanentController`).
+- `counter that spell` après un lancement contrecarre le sort que
+  l'enregistrement de lancement lie (`triggeringStackObject`).
+- `where X is that NOUN's PROPERTY` lit la propriété de la cible déclarée
+  (information de dernier état une fois détruite).
+- Sondes (base de l'étape 6) : ligue inchangée (807) ; corpus 14186 →
+  14198 (+12 : Death Mutation, Artifact Mutation, Unstable Mutation, Grave
+  Strength, Hoard-Smelter Dragon, …), 0 perdue, 14 IR changées dont 0 déjà
+  supportée.
+- Restent explicites : `that spell's controller` (relation d'un sort sur la
+  pile), le corps modal d'un déclencheur (Pip-Boy 3000 : le mode ne reçoit
+  pas le cadre), `that player may ...` (lecteur facultatif d'un autre joueur).
+
 ## Suite
 
-1. Emplacements restants : cibles des actions de prévention et de choix,
-   créature attachée comme objet d'événement, sort lancé, propriétés de
-   cible dans `where X is`.
+1. Cadre transmis aux corps modaux des déclencheurs ; relation de joueur
+   d'un sort sur la pile ; `that player may` (permission facultative d'un
+   autre joueur, moteur).

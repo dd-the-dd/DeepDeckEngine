@@ -1475,6 +1475,9 @@ pub(super) struct EarlyTurnEntryNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct CounterEffectNode {
     pub target: TargetListNode,
+    /// `counter that spell`: the spell the triggering cast record binds,
+    /// not a declared target (the target list is then empty).
+    pub event_spell: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -440,3 +440,67 @@ fn the_exiled_card_is_linked_to_the_exiling_ability() {
         "{states:?}"
     );
 }
+
+#[test]
+fn widened_slots_bind_prevention_targets_attachments_and_the_cast_spell() {
+    // Samite Alchemist: the protected target is `that creature`.
+    let (status, _, states) = parse(
+        CREATURE,
+        "{W}{W}, {T}: Prevent the next 4 damage that would be dealt this turn to target creature you control. Tap that creature.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Grave Strength's shape: milling moves no permanent, the target stays.
+    let (status, _, states) = parse(
+        "Sorcery",
+        "Choose target creature. Mill three cards, then put a +1/+1 counter on that creature.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    // Unstable Mutation's trigger: `that creature` is the enchanted creature.
+    let objects = effect_objects(
+        "Enchantment \u{2014} Aura",
+        "Enchant creature\nAt the beginning of the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature.",
+    );
+    assert!(
+        objects
+            .iter()
+            .any(|object| object["kind"] == "attachedPermanent"),
+        "{objects:?}"
+    );
+    // `counter that spell` after a cast trigger (Ertai's Familiar shape).
+    let (status, rules, states) = parse(
+        ENCHANTMENT,
+        "Whenever an opponent casts a spell, you may pay {2}. If you do, counter that spell.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert!(
+        rules[0].to_string().contains("triggeringStackObject"),
+        "{rules:?}"
+    );
+    // Near misses: no cast event binds a spell; the enchanted permanent is
+    // a land, not a creature.
+    for (type_line, oracle) in [
+        (CREATURE, "{T}: Counter that spell."),
+        (
+            "Enchantment \u{2014} Aura",
+            "Enchant land\nAt the beginning of the upkeep of enchanted land's controller, put a -1/-1 counter on that creature.",
+        ),
+    ] {
+        let (status, _, _) = parse(type_line, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}
+
+#[test]
+fn where_x_reads_the_declared_target_property() {
+    // Death Mutation: the destroyed target's mana value.
+    let reads = property_reads(
+        "Sorcery",
+        "Destroy target nonblack creature. It can't be regenerated. Create X 1/1 green Saproling creature tokens, where X is that creature's mana value.",
+    );
+    assert!(
+        reads
+            .iter()
+            .any(|read| read["kind"] == "manaValueOf" && read["object"]["kind"] == "chosenTarget"),
+        "{reads:?}"
+    );
+}

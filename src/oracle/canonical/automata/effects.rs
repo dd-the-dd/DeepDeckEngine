@@ -36,6 +36,28 @@ pub(in crate::oracle::canonical) fn recognize_counter_effect(
             }
             CounterState::Target => {
                 cursor.enter("effect.counter.target");
+                // `that spell`: the spell the triggering cast binds.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("spell"))
+                {
+                    cursor.enter("effect.counter.event-spell");
+                    cursor.require(
+                        cursor
+                            .binding_environment()
+                            .is_some_and(|environment| environment.frame.event_spell),
+                        "a cast event that records the spell `that spell` names",
+                    )?;
+                    cursor.consume_phrase(&["that", "spell"])?;
+                    cursor.enter("effect.counter.complete");
+                    return Ok(LocalEffectNode::CounterSpell(CounterEffectNode {
+                        target: super::TargetListNode { slots: Vec::new() },
+                        event_spell: true,
+                    }));
+                }
                 let targets = recognize_target_list(cursor)?;
                 cursor.enter("effect.counter.target-domain");
                 cursor.require(
@@ -58,6 +80,7 @@ pub(in crate::oracle::canonical) fn recognize_counter_effect(
                 cursor.enter("effect.counter.complete");
                 return Ok(LocalEffectNode::CounterSpell(CounterEffectNode {
                     target: cursor.require_value(target, "a populated counter target")?,
+                    event_spell: false,
                 }));
             }
         };

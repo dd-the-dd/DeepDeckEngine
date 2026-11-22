@@ -273,7 +273,7 @@ pub(in crate::oracle::canonical) fn event_card_zone(
 fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot> {
     let permanent = |predicate: ObjectPredicate, subject: bool| {
         Some(EventObjectSlot {
-            reference: TypedObservedEventObject::EventPermanent,
+            reference: PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent),
             predicate,
             subject,
         })
@@ -302,10 +302,10 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 _ => ObjectPredicate::Union(predicates),
             };
             Some(EventObjectSlot {
-                reference: match kind {
+                reference: PermanentEffectReference::Observed(match kind {
                     PermanentTransitionKind::Entered => TypedObservedEventObject::EnteringPermanent,
                     PermanentTransitionKind::Died => TypedObservedEventObject::EventPermanent,
-                },
+                }),
                 predicate,
                 subject: true,
             })
@@ -334,6 +334,16 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             DamageRecipient::Permanent(recipient) => permanent(recipient.predicate.clone(), false),
             DamageRecipient::Player(_) => None,
         },
+        // `the upkeep of enchanted creature's controller`: the event names the
+        // permanent the source enchants with that nominal (CR 303.4).
+        GenericTriggerEventNode::Step(StepEventNode {
+            player: StepPlayerScope::AttachedPermanentController(nominal),
+            ..
+        }) => Some(EventObjectSlot {
+            reference: PermanentEffectReference::Attached(AttachedObjectRole::Enchanted),
+            predicate: nominal.as_predicate(),
+            subject: false,
+        }),
         GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
             action:
                 AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,

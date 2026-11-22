@@ -368,3 +368,59 @@ fn the_exiled_card_returns_through_the_linked_ability() {
         "owner's control"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn where_x_reads_the_destroyed_targets_last_known_mana_value() {
+    // Death Mutation's shape: X is read after the target was destroyed.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Destroy target creature. You gain X life, where X is that creature's mana value.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let mut definition = test_definition("ogre", "Creature - Ogre");
+    definition.mana_cost = "{3}{R}".to_string();
+    engine.state.players[1]
+        .battlefield
+        .push(test_instance("ogre", definition, "player-1"));
+    admit(&mut engine);
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:mutation".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "mutation",
+            test_definition("mutation", "Sorcery"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "ogre".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    assert!(engine.permanent_position("ogre").is_none());
+    assert_eq!(
+        engine.state.players[0].life, 24,
+        "mana value 4 as last known"
+    );
+}

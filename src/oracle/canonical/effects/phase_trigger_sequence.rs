@@ -27,7 +27,7 @@ pub(in crate::oracle::canonical) fn lower_step_event(event: StepEventNode) -> Va
         StepPlayerScope::OpponentsOfAbilityController => {
             json!({ "kind": "opponentsOf", "player": controller() })
         }
-        StepPlayerScope::AttachedPermanentController => {
+        StepPlayerScope::AttachedPermanentController(_) => {
             json!({ "kind": "controllerOfAttachedPermanent", "attachment": self_ref() })
         }
     };
