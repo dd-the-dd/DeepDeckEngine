@@ -155,3 +155,53 @@ donne une IR exécutable équivalente, prouvée par test.
 | Buyback, Evoke, Offspring | natifs | cadres de coût additionnel/alternatif à la permission (`ability-frame.permission.action`, `effect.start`) |
 | Affinity (702.41a) | natif | IR identique pour « artifacts », mais « for each [text] » exige le singulier de la qualité imprimée ; le nœud typé natif l'évite |
 | Cascade (`keyword_programs.rs`) | natif | programme moteur paramétré par la valeur de mana capturée au lancement, pas un texte Oracle |
+
+## Lignes ajoutées
+
+| Mot-clé | CR | Paramètre | Preuve runtime |
+|---|---|---|---|
+| Battle cry | 702.91a | — | `accorder_paladin_battle_cry_pumps_each_other_attacker_once` |
+| Fabricate | 702.123a | N | `entry_keywords_create_and_attach_or_grow_from_their_definitions` |
+| For Mirrodin! | 702.163a | — (`faceSubtype: Equipment`) | idem (jeton Rebel équipé) |
+| Job select | 702.182a | — (`faceSubtype: Equipment`) | même IR que For Mirrodin! (jeton Hero) |
+| Outlast | 702.107a | [cost] | `outlast_and_reinforce_activate_from_their_definitions_zones` |
+| Reinforce | 702.77a | N—[cost] | idem (activation depuis la main seulement) |
+| Frenzy | 702.68a | N | motif `becomeUnblocked` existant (famille d'attaque) |
+
+## Défauts trouvés par les preuves runtime
+
+- `modifyPowerToughness` sur `eachPermanent` lisait son filtre sur la carte
+  imprimée : `each other attacking creature` ne correspondait jamais. Le
+  filtre est lu par `permanent_matches_effective_filter` (état et
+  caractéristiques effectives, CR 608.2h), comme l'exil le faisait déjà. Sans
+  changement d'IR : les cartes imprimées concernées étaient déjà « supportées »
+  mais sans effet.
+- `create … token, then attach this to it` référençait la liaison
+  `createdTokens` sans que la création la déclare : l'attachement était sans
+  effet (y compris pour l'ancien living weapon natif). Un `attach` dont
+  l'objet ou le receveur est le jeton créé fait maintenant lier la création,
+  comme les autres consommateurs (`created_tokens_are_next_antecedent`).
+  Changement d'IR assumé : ajout de `"bind": "createdTokens"`.
+
+## Mots-clés en attente (raison mesurée)
+
+| Mot-clé | Cartes corpus bloquées seulement par lui | Blocage |
+|---|---|---|
+| Modular | 17 | la définition compile, mais le déclencheur de mort lit les marqueurs de la source partie : le moteur exige une capture de départ authentifiée que les déclencheurs « regard en arrière » créés après le départ n'ont pas (`source counter query … without effective LKI`) |
+| Backup | 18 | « gains the non-backup abilities printed below » : référence aux capacités imprimées |
+| Bloodthirst | 15 | remplacement d'entrée conditionnel (`ability-frame.conditional.body`) |
+| Unleash | 14 | entrée facultative avec marqueur, restriction conditionnelle |
+| Renown | 13 | désignation « renowned » |
+| Evolve | 12 | comparaison de caractéristiques de l'objet d'événement (`reference.source.start`) |
+| Devour | 11 | « sacrifice any number … for each creature sacrificed this way » à l'entrée |
+| Mentor, Extort | 11, 11 | comparaison de force à la cible ; « life lost this way » |
+| Fading, Vanishing | 10, 9 | « If you can't, sacrifice the permanent » ; « when the last time counter is removed » |
+| Graft | 10 | « move a +1/+1 counter » et condition de possession |
+| Rampage, Provoke, Ingest, Dethrone, Training, Melee, Increment, Decayed | 9, 6, 6, 6, 5, 4, 5, 1 | grammaires de corps diverses (`sequence.for-each.action`, `choose.verb`, `effect.start`, …) |
+| Exploit | 0 | la définition compile, mais l'événement « exploite » (CR 702.110b) n'est pas publié : politique d'événement manquante |
+
+Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
+eux : Crew 74, Unearth 40, Madness 39, Partner 32 (règle de construction),
+Start your engines! 29, Power-up 28, Visit 25, Exhaust 23, Spree 21,
+Ninjutsu 14, Sneak 14, Encore 13, Myriad 13, Escape 12, Embalm 10, Banding
+10, Blitz 9, Eternalize 9, Phasing 7.

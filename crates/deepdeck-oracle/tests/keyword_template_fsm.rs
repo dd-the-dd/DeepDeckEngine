@@ -146,7 +146,7 @@ fn expanded(name: &str, type_line: &str, text: &str) -> Vec<Value> {
 }
 
 #[test]
-fn migrated_bushido_and_living_weapon_keep_the_former_native_ir() {
+fn migrated_bushido_and_living_weapon_keep_their_executable_ir() {
     // Konda's Hatamoto (bushido 1) and Sensei Golden-Tail-style bushido 2.
     for count in [1, 2] {
         let rules = expanded(
@@ -183,6 +183,9 @@ fn migrated_bushido_and_living_weapon_keep_the_former_native_ir() {
                         "toughness": 0,
                         "abilities": [],
                     },
+                    // The attach reads the created token: the creation binds
+                    // it (the former native program left it unbound).
+                    "bind": "createdTokens",
                 },
                 {
                     "kind": "attachPermanent",
@@ -273,4 +276,115 @@ fn migrated_keywords_keep_their_explicit_failures() {
             "{text}: {diagnostic:?}"
         );
     }
+}
+
+#[test]
+fn batch_keywords_compile_their_cr_definitions_on_real_cards() {
+    for (name, type_line, line, definition) in [
+        (
+            "Peema Outrider",
+            "Creature \u{2014} Elf Knight",
+            "Fabricate 1 (When this creature enters, put a +1/+1 counter on it or create a 1/1 colorless Servo artifact creature token.)",
+            "When this permanent enters, you may put a +1/+1 counter on it. If you don't, create a 1/1 colorless Servo artifact creature token.",
+        ),
+        (
+            "Glint-Sleeve Artisan",
+            "Creature \u{2014} Dwarf Artificer",
+            "Fabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)",
+            "When this permanent enters, you may put two +1/+1 counters on it. If you don't, create two 1/1 colorless Servo artifact creature tokens.",
+        ),
+        (
+            "Mirran Bardiche",
+            "Artifact \u{2014} Equipment",
+            "For Mirrodin! (When this Equipment enters, create a 2/2 red Rebel creature token, then attach this to it.)",
+            "When this Equipment enters, create a 2/2 red Rebel creature token, then attach this Equipment to it.",
+        ),
+        (
+            "Monk's Fist",
+            "Artifact \u{2014} Equipment",
+            "Job select (When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this to it.)",
+            "When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this Equipment to it.",
+        ),
+        (
+            "Ainok Bond-Kin",
+            "Creature \u{2014} Dog Soldier",
+            "Outlast {1}{W} ({1}{W}, {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery.)",
+            "{1}{W}, {T}: Put a +1/+1 counter on this creature. Activate only as a sorcery.",
+        ),
+        (
+            "Hunting Triad",
+            "Tribal Sorcery \u{2014} Elf",
+            "Reinforce 3\u{2014}{3}{G} ({3}{G}, Discard this card: Put three +1/+1 counters on target creature.)",
+            "{3}{G}, Discard this card: Put three +1/+1 counters on target creature.",
+        ),
+        (
+            "Frenzy Probe",
+            "Creature \u{2014} Human Warrior",
+            "Frenzy 2 (Whenever this creature attacks and isn't blocked, it gets +2/+0 until end of turn.)",
+            "Whenever this creature attacks and isn't blocked, it gets +2/+0 until end of turn.",
+        ),
+    ] {
+        let rules = expanded(name, type_line, line);
+        assert_eq!(rules, printed_rules(type_line, definition), "{name}");
+    }
+}
+
+#[test]
+fn two_template_keywords_on_one_face_expand_independently() {
+    // An unused combination: fabricate and frenzy on one artifact creature.
+    let parsed = parse(
+        "Combination Probe",
+        "Artifact Creature \u{2014} Construct",
+        "Fabricate 2\nFrenzy 1",
+    );
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    let playable = parsed
+        .abilities
+        .iter()
+        .flat_map(|ability| keyword_expansion_rules(ability.rule.as_ref().unwrap()))
+        .collect::<Vec<_>>();
+    let keywords = playable
+        .iter()
+        .map(|rule| {
+            (
+                rule["keywordProvenance"]["keyword"]
+                    .as_str()
+                    .unwrap()
+                    .to_string(),
+                rule["keywordProvenance"]["part"].as_u64().unwrap(),
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        keywords,
+        [("fabricate".to_string(), 0), ("frenzy".to_string(), 0)]
+    );
+}
+
+#[test]
+fn unsupported_batch_shapes_stay_explicit() {
+    // Swell of Courage: a variable reinforce count is claimed and refused.
+    let parsed = parse(
+        "Swell of Courage",
+        "Instant",
+        "Reinforce X\u{2014}{X}{W}{W} ({X}{W}{W}, Discard this card: Put X +1/+1 counters on target creature.)",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert_eq!(
+        parsed.abilities[0].diagnostics[0].automaton.as_deref(),
+        Some("keyword-template")
+    );
+    // Arcbound Wanderer: modular is not a template row yet (its death
+    // trigger reads the departed source's counters, an engine LKI gap); the
+    // structural keyword frame still reports the line.
+    let parsed = parse(
+        "Arcbound Wanderer",
+        "Artifact Creature \u{2014} Construct",
+        "Modular\u{2014}Sunburst (This creature enters with a +1/+1 counter on it for each color of mana spent to cast it. When it dies, you may put its +1/+1 counters on target artifact creature.)",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert_ne!(
+        parsed.abilities[0].diagnostics[0].automaton.as_deref(),
+        Some("keyword-template")
+    );
 }

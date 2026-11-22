@@ -150,3 +150,168 @@ fn migrated_afterlife_creates_its_spirits_when_its_creature_is_destroyed() {
             .all(|spirit| engine.permanent_has_keyword(spirit, "flying"))
     );
 }
+
+fn counters(engine: &GameEngine, id: &str) -> i32 {
+    let (player, index) = engine.permanent_position(id).expect("on the battlefield");
+    engine.state.players[player].battlefield[index]
+        .counters
+        .get("+1/+1")
+        .copied()
+        .unwrap_or(0)
+}
+
+fn mana_engine(lands: &[(&str, &str)]) -> GameEngine {
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].battlefield = lands
+        .iter()
+        .map(|(id, symbol)| mana_source(id, "Basic Land - Forest", symbol, None))
+        .collect();
+    engine
+}
+
+fn activate(engine: &mut GameEngine, source_id: &str) -> bool {
+    let Some(action) = engine.legal_priority_actions(0).into_iter().find(|action| {
+        action.kind == ActionKind::ActivateAbility
+            && action.card_instance_id.as_deref() == Some(source_id)
+    }) else {
+        return false;
+    };
+    engine
+        .apply_priority_action(&action, &mut RandomAi::seeded(7))
+        .expect("the activation pays its costs");
+    engine
+        .resolve_top_stack(&mut RandomAi::seeded(7))
+        .expect("the ability resolves");
+    true
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn outlast_and_reinforce_activate_from_their_definitions_zones() {
+    // Outlast {1}{G} (CR 702.107a): tap and pay on the battlefield.
+    let bond_kin = compiled(
+        "Ainok Bond-Kin",
+        "Creature \u{2014} Dog Soldier",
+        ("2", "1"),
+        "Outlast {1}{G} ({1}{G}, {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery.)",
+    );
+    let mut engine = mana_engine(&[("forest-a", "{G}"), ("forest-b", "{G}")]);
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("ainok-bond-kin", bond_kin, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert!(activate(&mut engine, "ainok-bond-kin"));
+    assert_eq!(counters(&engine, "ainok-bond-kin"), 1);
+    // {T} is part of the cost: the tapped creature cannot outlast again.
+    assert!(!activate(&mut engine, "ainok-bond-kin"));
+
+    // Reinforce 2—{1}{G} (CR 702.77a): discard the card from hand.
+    let triad = compiled(
+        "Hunting Triad",
+        "Tribal Sorcery \u{2014} Elf",
+        ("0", "0"),
+        "Reinforce 2\u{2014}{1}{G} ({1}{G}, Discard this card: Put two +1/+1 counters on target creature.)",
+    );
+    let mut engine = mana_engine(&[("forest-a", "{G}"), ("forest-b", "{G}")]);
+    engine.state.players[0]
+        .battlefield
+        .push(creature("bear", "player-0"));
+    engine.state.players[0].hand = vec![test_instance("hunting-triad", triad.clone(), "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert!(activate(&mut engine, "hunting-triad"));
+    assert_eq!(counters(&engine, "bear"), 2);
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "hunting-triad")
+    );
+    // From the battlefield the hand-only ability is not offered.
+    let mut engine = mana_engine(&[("forest-a", "{G}"), ("forest-b", "{G}")]);
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("hunting-triad", triad, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert!(!activate(&mut engine, "hunting-triad"));
+}
+
+/// Puts `card` onto player 0's battlefield and resolves its entry trigger.
+fn enter_and_resolve(engine: &mut GameEngine, card: CardInstance) {
+    engine.state.players[0].battlefield.push(card.clone());
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let (player, index) = engine
+        .permanent_position(&card.instance_id)
+        .expect("entered");
+    let live = engine.state.players[player].battlefield[index].clone();
+    engine.enqueue_enter_battlefield_triggers(&live);
+    assert_eq!(engine.state.stack.len(), 1, "one entry trigger");
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .expect("the entry trigger resolves");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn entry_keywords_create_and_attach_or_grow_from_their_definitions() {
+    // For Mirrodin! (CR 702.163a): a 2/2 red Rebel equipped by the source.
+    let bardiche = compiled(
+        "Mirran Bardiche",
+        "Artifact \u{2014} Equipment",
+        ("0", "0"),
+        "For Mirrodin! (When this Equipment enters, create a 2/2 red Rebel creature token, then attach this to it.)",
+    );
+    let mut engine = test_engine(2);
+    enter_and_resolve(
+        &mut engine,
+        test_instance("mirran-bardiche", bardiche, "player-0"),
+    );
+    let rebel = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|permanent| permanent.definition.is_token)
+        .expect("a Rebel token")
+        .clone();
+    assert!(rebel.definition.type_line.contains("Rebel"));
+    let (player, index) = engine
+        .permanent_position("mirran-bardiche")
+        .expect("the Equipment stays");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .attached_to
+            .as_deref(),
+        Some(rebel.instance_id.as_str())
+    );
+
+    // Fabricate 2 (CR 702.123a), choosing the counters.
+    let artisan = compiled(
+        "Glint-Sleeve Artisan",
+        "Creature \u{2014} Dwarf Artificer",
+        ("2", "2"),
+        "Fabricate 2 (When this creature enters, put two +1/+1 counters on it or create two 1/1 colorless Servo artifact creature tokens.)",
+    );
+    let mut engine = test_engine(2);
+    enter_and_resolve(
+        &mut engine,
+        test_instance("glint-sleeve-artisan", artisan, "player-0"),
+    );
+    let tokens = engine.state.players[0]
+        .battlefield
+        .iter()
+        .filter(|permanent| permanent.definition.is_token)
+        .count();
+    let placed = counters(&engine, "glint-sleeve-artisan");
+    // Exactly one branch of the choice happens (CR 702.123a "If you don't").
+    assert!(
+        (placed, tokens) == (2, 0) || (placed, tokens) == (0, 2),
+        "counters {placed}, Servos {tokens}"
+    );
+}
