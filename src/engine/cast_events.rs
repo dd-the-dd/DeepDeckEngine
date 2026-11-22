@@ -34,7 +34,85 @@ pub(super) fn cast_subject(event: &Value) -> CastSubject {
     }
 }
 
+fn cast_target_alternative_supported(target: &Value) -> bool {
+    match value_kind(target) {
+        Some("self") => true,
+        Some("player") => player_action_events::event_player_reference_supported(&target["player"]),
+        Some("permanents") => {
+            target.get("where").is_none_or(card_filter_supported)
+                && target
+                    .get("controller")
+                    .is_none_or(player_action_events::event_player_reference_supported)
+        }
+        _ => false,
+    }
+}
+
+/// Modifiers of a `spellCast` pattern beyond its historical fields.
+pub(super) fn spell_cast_modifiers_supported(event: &Value) -> bool {
+    event.get("targets").is_none_or(|targets| {
+        targets["only"].is_boolean()
+            && targets["anyOf"].as_array().is_some_and(|alternatives| {
+                !alternatives.is_empty()
+                    && alternatives.iter().all(cast_target_alternative_supported)
+            })
+    })
+}
+
 impl GameEngine {
+    /// Whether one target of the cast spell is one of the alternatives.
+    fn cast_target_matches(
+        &self,
+        alternatives: &[Value],
+        target: &TargetRef,
+        observer: &CardInstance,
+    ) -> bool {
+        alternatives
+            .iter()
+            .any(|alternative| match (value_kind(alternative), target) {
+                (Some("self"), TargetRef::Permanent { instance_id }) => {
+                    *instance_id == observer.instance_id
+                }
+                (Some("player"), TargetRef::Player { player_id }) => {
+                    self.event_player_reference_matches(&alternative["player"], observer, player_id)
+                }
+                (Some("permanents"), TargetRef::Permanent { instance_id }) => self
+                    .permanent_position(instance_id)
+                    .is_some_and(|(player_index, card_index)| {
+                        let permanent = &self.state.players[player_index].battlefield[card_index];
+                        alternative.get("controller").is_none_or(|controller| {
+                            self.event_player_reference_matches(
+                                controller,
+                                observer,
+                                &permanent.controller,
+                            )
+                        }) && alternative.get("where").is_none_or(|filter| {
+                            self.permanent_matches_effective_filter(permanent, filter)
+                        })
+                    }),
+                _ => false,
+            })
+    }
+
+    /// `that targets [only] …` on the cast record's targets (CR 115.1).
+    fn cast_targets_match(
+        &self,
+        pattern: &Value,
+        record: &CastEventRecord<'_>,
+        observer: &CardInstance,
+    ) -> bool {
+        let Some(alternatives) = pattern["anyOf"].as_array() else {
+            return false;
+        };
+        let mut targets = record.targets.values();
+        if pattern["only"].as_bool() == Some(true) {
+            !record.targets.is_empty()
+                && targets.all(|target| self.cast_target_matches(alternatives, target, observer))
+        } else {
+            targets.any(|target| self.cast_target_matches(alternatives, target, observer))
+        }
+    }
+
     /// The caster's per-turn ordinal of this spell among the spells that
     /// satisfy `filter` (the spell itself is already logged).
     fn cast_turn_ordinal(&self, caster: &str, filter: &Value) -> usize {
@@ -148,7 +226,11 @@ impl GameEngine {
             || (event["opponentOfSourceController"].as_bool() != Some(true)
                 && event["anyPlayer"].as_bool() != Some(true)
                 && source.controller == casting_player_id);
-        from_zone_matches
+        let targets_match = event
+            .get("targets")
+            .is_none_or(|targets| self.cast_targets_match(targets, record, source));
+        targets_match
+            && from_zone_matches
             && turn_matches
             && controller_turn_matches
             && ordinal_matches

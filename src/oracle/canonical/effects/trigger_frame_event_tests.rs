@@ -644,3 +644,39 @@ fn one_attacking_permanent_is_the_generic_attack_pattern() {
         "controlledCreaturesAttacked"
     );
 }
+
+#[test]
+fn a_spell_that_targets_reads_the_shared_target_alternatives() {
+    // Heroic, Repartee, and a player-or-permanent sibling.
+    let heroic = event(
+        "Whenever you cast a spell that targets this creature, draw a card.",
+        "Creature",
+    );
+    assert_eq!(
+        heroic["targets"],
+        json!({"only": false, "anyOf": [{"kind": "self"}]})
+    );
+    let repartee = event(
+        "Whenever you cast an instant or sorcery spell that targets a creature, draw a card.",
+        "Creature",
+    );
+    assert_eq!(repartee["targets"]["anyOf"][0]["kind"], "permanents");
+    assert!(repartee["targets"]["anyOf"][0]["where"].is_object());
+    let sibling = event(
+        "Whenever an opponent casts a spell that targets only you or a creature you control, draw a card.",
+        "Creature",
+    );
+    assert_eq!(sibling["targets"]["only"], true);
+    assert_eq!(
+        sibling["targets"]["anyOf"][0],
+        json!({"kind": "player", "player": controller()})
+    );
+    assert_eq!(sibling["targets"]["anyOf"][1]["controller"], controller());
+    // Near miss: a target predicate with a numeric characteristic.
+    assert_eq!(
+        committed_state(
+            "Whenever you cast a spell that targets a creature with power 3 or greater, draw a card."
+        ),
+        "trigger.spell-cast.target-support"
+    );
+}

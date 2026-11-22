@@ -30,6 +30,25 @@ pub(in crate::oracle::canonical) struct SpellCastEventOrdinal {
     pub basis: SpellCastOrdinalBasis,
 }
 
+/// One object or player a cast spell targets (CR 115.1, 601.2c).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SpellTargetNode {
+    /// `this creature`, the ability source.
+    Source,
+    /// A player in a relation to the ability controller.
+    Player(EventActorScope),
+    /// A permanent matching the shared object query.
+    Permanent(super::ObjectQueryNode),
+}
+
+/// `that targets [only] T [or T]...`: the spell's targets (CR 115.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SpellTargetsNode {
+    /// `only`: every target is one of the alternatives.
+    pub only: bool,
+    pub alternatives: Vec<SpellTargetNode>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SpellCastEventNode {
     pub caster: SpellCastEventCaster,
@@ -42,6 +61,8 @@ pub(in crate::oracle::canonical) struct SpellCastEventNode {
     /// `cast or copy`: the same spell predicate also observes a copy of a
     /// spell (CR 707.10), a distinct event of the same lemma family.
     pub also_copy: bool,
+    /// `that targets …`: a predicate on the spell's targets.
+    pub targets: Option<SpellTargetsNode>,
 }
 
 pub(in crate::oracle::canonical) enum SpellCastEventAttempt {
@@ -68,6 +89,48 @@ struct SpellCastEventFrame {
     ordinal: Option<SpellCastEventOrdinal>,
     source_spell: bool,
     also_copy: bool,
+    targets: Option<SpellTargetsNode>,
+}
+
+fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// Reads `that targets [only] T (or T)*` after a spell query: each target is
+/// the source, a player relation, or a permanent through the shared query.
+fn recognize_spell_targets(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTargetsNode> {
+    cursor.enter("event.spell-cast.targets");
+    cursor.consume_phrase(&["that", "targets"])?;
+    let only = peek_word(cursor, 0, "only");
+    if only {
+        cursor.consume("only")?;
+    }
+    let mut alternatives = Vec::new();
+    loop {
+        cursor.enter("event.spell-cast.target");
+        let target = if peek_word(cursor, 0, "this") {
+            super::recognize_source_reference(cursor, &[], None)?;
+            SpellTargetNode::Source
+        } else if let Some(player) = super::try_recognize_event_actor_scope(cursor)? {
+            SpellTargetNode::Player(player)
+        } else {
+            let article = cursor
+                .peek()
+                .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+                .ok_or_else(|| cursor.fail("`this PERMANENT`, a player, or `a PERMANENT`"))?
+                .to_string();
+            cursor.consume(&article)?;
+            SpellTargetNode::Permanent(super::recognize_object_query_before_separator(cursor)?)
+        };
+        alternatives.push(target);
+        if peek_word(cursor, 0, "or") {
+            cursor.consume("or")?;
+            continue;
+        }
+        return Ok(SpellTargetsNode { only, alternatives });
+    }
 }
 
 /// The enclosing ability owns the trigger word and separator. This wrapper
@@ -240,6 +303,9 @@ fn recognize_optional_spell_cast_event_atom(
                     }
                 }
                 frame.query = Some(query);
+                if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "targets") {
+                    frame.targets = Some(recognize_spell_targets(cursor)?);
+                }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
                 } else {
@@ -260,6 +326,7 @@ fn recognize_optional_spell_cast_event_atom(
                     triggering_player: TriggeringPlayerBinding,
                     source_spell: frame.source_spell,
                     also_copy: frame.also_copy,
+                    targets: frame.targets,
                 }));
             }
         };

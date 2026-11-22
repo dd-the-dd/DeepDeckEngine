@@ -4987,6 +4987,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("lifeGained" | "lifeLost" | "ringTempted") => {
             player_reference_supported(&event["player"])
         }
+        Some("spellCast") if !cast_events::spell_cast_modifiers_supported(event) => false,
         Some("spellCast") => {
             event["anyPlayer"].as_bool() == Some(true)
                 || (event["opponentOfSourceController"].as_bool() == Some(true)

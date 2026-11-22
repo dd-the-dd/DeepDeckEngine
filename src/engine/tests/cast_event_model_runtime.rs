@@ -27,6 +27,16 @@ fn parsed_rules(name: &str, type_line: &str, text: &str) -> Vec<Value> {
 /// Puts the spell on the stack, logs the cast and collects its triggers, as
 /// casting does once the spell became cast (CR 601.2i).
 fn cast(engine: &mut GameEngine, id: &str, type_line: &str, rules: Vec<Value>) {
+    cast_with_targets(engine, id, type_line, rules, BTreeMap::new());
+}
+
+fn cast_with_targets(
+    engine: &mut GameEngine,
+    id: &str,
+    type_line: &str,
+    rules: Vec<Value>,
+    targets: BTreeMap<String, TargetRef>,
+) {
     let mut definition = test_definition(id, type_line);
     definition.rules = rules;
     let card = test_instance(id, definition.clone(), "player-0");
@@ -39,7 +49,7 @@ fn cast(engine: &mut GameEngine, id: &str, type_line: &str, rules: Vec<Value>) {
         ability_kind: None,
         ability_rule: None,
         decisions: BTreeMap::new(),
-        targets: BTreeMap::new(),
+        targets,
     });
     engine.record_event(
         "spellCast",
@@ -116,4 +126,107 @@ fn a_matching_spell_ordinal_counts_only_matching_spells_this_turn() {
     engine.state.turn_number += 1;
     cast(&mut engine, "sorcery", "Sorcery", Vec::new());
     assert_eq!(triggered_sources(&engine), ["watcher", "watcher"]);
+}
+
+fn permanent_target(id: &str) -> BTreeMap<String, TargetRef> {
+    BTreeMap::from([(
+        "target".to_string(),
+        TargetRef::Permanent {
+            instance_id: id.to_string(),
+        },
+    )])
+}
+
+#[test]
+fn a_spell_that_targets_matches_the_cast_records_targets() {
+    // Heroic: only a spell targeting the source itself.
+    let rules = parsed_rules(
+        "Heroic Probe",
+        "Creature — Human Warrior",
+        "Whenever you cast a spell that targets this creature, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance(
+            "hero",
+            CardDefinition {
+                rules,
+                ..test_definition("hero", "Creature — Human Warrior")
+            },
+            "player-0",
+        ),
+        test_instance(
+            "other",
+            test_definition("other", "Creature — Bear"),
+            "player-0",
+        ),
+    ];
+    cast_with_targets(
+        &mut engine,
+        "pump-a",
+        "Instant",
+        Vec::new(),
+        permanent_target("other"),
+    );
+    assert!(triggered_sources(&engine).is_empty(), "another target");
+    cast(&mut engine, "untargeted", "Sorcery", Vec::new());
+    assert!(triggered_sources(&engine).is_empty(), "no target");
+    cast_with_targets(
+        &mut engine,
+        "pump-b",
+        "Instant",
+        Vec::new(),
+        permanent_target("hero"),
+    );
+    assert_eq!(triggered_sources(&engine), ["hero"]);
+}
+
+#[test]
+fn only_requires_every_target_to_match() {
+    let rules = parsed_rules(
+        "Only Probe",
+        "Enchantment",
+        "Whenever you cast a spell that targets only a creature you control, draw a card.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance(
+            "watcher",
+            CardDefinition {
+                rules,
+                ..test_definition("watcher", "Enchantment")
+            },
+            "player-0",
+        ),
+        test_instance(
+            "mine",
+            test_definition("mine", "Creature — Bear"),
+            "player-0",
+        ),
+    ];
+    engine.state.players[1].battlefield = vec![test_instance(
+        "theirs",
+        test_definition("theirs", "Creature — Bear"),
+        "player-1",
+    )];
+    let mut both = permanent_target("mine");
+    both.insert(
+        "second".to_string(),
+        TargetRef::Permanent {
+            instance_id: "theirs".to_string(),
+        },
+    );
+    cast_with_targets(&mut engine, "split", "Instant", Vec::new(), both);
+    assert!(
+        triggered_sources(&engine).is_empty(),
+        "one target is an opponent's"
+    );
+    cast_with_targets(
+        &mut engine,
+        "single",
+        "Instant",
+        Vec::new(),
+        permanent_target("mine"),
+    );
+    assert_eq!(triggered_sources(&engine), ["watcher"]);
 }

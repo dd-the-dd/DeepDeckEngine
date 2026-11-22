@@ -75,6 +75,9 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                 // CR 601.2i: the cast spell's own ability, from the stack.
                 lowered["sourceIsSelf"] = json!(true);
             }
+            if let Some(targets) = &event.targets {
+                lowered["targets"] = lower_spell_targets(cursor, targets)?;
+            }
             if event.also_copy {
                 cursor.enter("trigger.spell-cast.copy-support");
                 cursor.require(
@@ -824,6 +827,33 @@ fn apply_damage_event_kind(
         DamageKind::Combat => lowered["combatOnly"] = json!(true),
     }
     Ok(())
+}
+
+/// `that targets [only] T`: each alternative through the shared player and
+/// permanent-query lowering (CR 115.1).
+fn lower_spell_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    targets: &SpellTargetsNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.spell-cast.target-support");
+    let alternatives = targets
+        .alternatives
+        .iter()
+        .map(|target| match target {
+            SpellTargetNode::Source => Ok(json!({"kind": "self"})),
+            SpellTargetNode::Player(actor) => {
+                Ok(json!({"kind": "player", "player": event_actor_player(*actor)}))
+            }
+            SpellTargetNode::Permanent(query) => {
+                let mut lowered = json!({"kind": "permanents"});
+                if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut lowered)? {
+                    lowered["where"] = filter;
+                }
+                Ok(lowered)
+            }
+        })
+        .collect::<MachineResult<Vec<_>>>()?;
+    Ok(json!({"only": targets.only, "anyOf": alternatives}))
 }
 
 /// The characteristics the spell-cast history records for each spell: its

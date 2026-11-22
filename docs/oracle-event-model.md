@@ -396,6 +396,37 @@ combat`, `defending player` hors des lecteurs qui l'acceptent, etc.
   Eternal, Utvara Hellkite, Linden, Sanctum Seeker, Leeching Sliver, …),
   0 perdue, 23 IR changées dont 0 déjà supportée.
 
+## Étape 8 réalisée : cibles du sort lancé
+
+- Le motif `spellCast` reçoit un modificateur `targets` : `{"only": bool,
+  "anyOf": [ALTERNATIVE…]}`, chaque alternative étant la source
+  (`{"kind":"self"}`, Heroic), un joueur dans une relation au contrôleur, ou
+  un permanent par la requête partagée (`where`, relation de contrôleur).
+  Le correspondant le lit sur les cibles de l'enregistrement de lancement
+  (CR 115.1, 601.2c) : au moins une cible, ou toutes avec `only`.
+- Analyseur : `that targets [only] T (or T)*` après la requête du sort,
+  dans le lecteur partagé de lancement ; les cibles réutilisent la
+  référence de source, le lecteur d'acteur et la requête d'objets. Aucun
+  parent de cible : le parent de champ de bataille historique laisse ces
+  formes au programme générique.
+- Sondes : ligue inchangée ; corpus 13745 → 13798 (+53 : Hero of the Games,
+  Akroan Crusader, Phalanx Leader, Arena Athlete, Lecturing Scornmage, …),
+  0 perdue, 56 IR changées dont 0 déjà supportée.
+
+### Audit des sorties du champ de bataille (risque d'instantané)
+
+Toutes les sorties de zone du champ de bataille passent par les sorties
+centrales qui appellent `capture_pending_source_lki` (donc l'instantané des
+caractéristiques effectives) : `battlefield_departure.rs` (cimetière et
+exil, utilisés par destruction, sacrifice, actions d'état), les retours en
+main/bibliothèque de `mod.rs`, et les lots de destruction et de sacrifice.
+Les deux seuls autres retraits d'un permanent de la liste du champ de
+bataille ne sont pas des changements de zone : le changement de contrôleur
+(`change_permanent_controller`, même objet, CR 108.4) et la configuration
+déterministe d'une position de test. Le risque restant de l'instantané est
+le recensement des mots-clés et sous-types candidats (règles imprimées et
+modificateurs actifs).
+
 ## Familles suivantes
 
 1. **Lancement (suite)** : prédicats numériques sur la pile, sorts qui
