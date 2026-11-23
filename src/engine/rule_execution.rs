@@ -65,30 +65,75 @@ pub struct CanonicalLandPlay {
 }
 
 impl GameEngine {
+    /// The card a canonical land play or cast names: the one copy, in any of
+    /// its owner's off-battlefield zones, that the engine currently offers a
+    /// legal action of `kind` for (a hand card, or a card a permission admits
+    /// elsewhere, such as an Adventure's exile under CR 715.4). A lone copy is
+    /// returned even without one, so its caller can report the reason. `None`
+    /// when several copies exist and none has such an action; an error when
+    /// the request is absent or ambiguous.
+    fn canonical_action_source(
+        &self,
+        player_index: usize,
+        definition_id: &str,
+        kind: ActionKind,
+        legal_actions: &[LegalAction],
+    ) -> Result<Option<CardInstance>, EngineError> {
+        let player = &self.state.players[player_index];
+        let copies = player
+            .hand
+            .iter()
+            .chain(player.exile.iter())
+            .chain(player.graveyard.iter())
+            .chain(player.command_zone.iter())
+            .chain(player.library.iter())
+            .filter(|card| card.definition.id == definition_id)
+            .collect::<Vec<_>>();
+        if copies.is_empty() {
+            return Err(EngineError::new(format!(
+                "definition {definition_id} is absent from {}'s card zones",
+                player.id
+            )));
+        }
+        let actionable = copies
+            .iter()
+            .filter(|card| {
+                legal_actions.iter().any(|action| {
+                    action.kind == kind
+                        && action.card_instance_id.as_deref() == Some(card.instance_id.as_str())
+                })
+            })
+            .collect::<Vec<_>>();
+        match (actionable.as_slice(), copies.as_slice()) {
+            ([source], _) => Ok(Some((**source).clone())),
+            // One copy and no legal action: keep it, so the caller reports why
+            // (an unknown declaration decision, or a cast that is not legal).
+            ([], [only]) => Ok(Some((*only).clone())),
+            ([], _) => Ok(None),
+            (many, _) => Err(EngineError::new(format!(
+                "definition {definition_id} is ambiguous in {}'s card zones ({} copies with a legal action)",
+                player.id,
+                many.len()
+            ))),
+        }
+    }
+
     fn canonical_land_play_action(
         &self,
         request: &CanonicalLandPlay,
     ) -> Result<Option<LegalAction>, EngineError> {
         let player_index = self.player_index(&request.player_id)?;
-        let sources = self.state.players[player_index]
-            .hand
-            .iter()
-            .filter(|card| card.definition.id == request.source_definition_id)
-            .collect::<Vec<_>>();
-        let [source] = sources.as_slice() else {
-            return match sources.len() {
-                0 => Err(EngineError::new(format!(
-                    "land definition {} is absent from {}'s hand",
-                    request.source_definition_id, request.player_id
-                ))),
-                count => Err(EngineError::new(format!(
-                    "land definition {} is ambiguous in {}'s hand ({count} matches)",
-                    request.source_definition_id, request.player_id
-                ))),
-            };
+        let legal_actions = self.try_legal_priority_actions(player_index)?;
+        let Some(source) = self.canonical_action_source(
+            player_index,
+            &request.source_definition_id,
+            ActionKind::PlayLand,
+            &legal_actions,
+        )?
+        else {
+            return Ok(None);
         };
-        let mut actions = self
-            .try_legal_priority_actions(player_index)?
+        let mut actions = legal_actions
             .into_iter()
             .filter(|action| {
                 action.kind == ActionKind::PlayLand
@@ -129,40 +174,17 @@ impl GameEngine {
         request: &CanonicalSpellCast,
     ) -> Result<Option<LegalAction>, EngineError> {
         let player_index = self.player_index(&request.controller_id)?;
-        // The hand first; otherwise the one card in another zone a permission
-        // may let its controller cast from (an Adventure's exile, CR 715.4).
-        let player = &self.state.players[player_index];
-        let matching = |cards: &'_ [CardInstance]| {
-            cards
-                .iter()
-                .filter(|card| card.definition.id == request.source_definition_id)
-                .cloned()
-                .collect::<Vec<_>>()
+        let legal_actions = self.try_legal_priority_actions(player_index)?;
+        let Some(source) = self.canonical_action_source(
+            player_index,
+            &request.source_definition_id,
+            ActionKind::CastSpell,
+            &legal_actions,
+        )?
+        else {
+            return Ok(None);
         };
-        let mut sources = matching(&player.hand);
-        if sources.is_empty() {
-            sources = [
-                &player.exile,
-                &player.graveyard,
-                &player.command_zone,
-                &player.library,
-            ]
-            .into_iter()
-            .flat_map(|cards| matching(cards))
-            .collect();
-        }
-        let [source] = sources.as_slice() else {
-            return match sources.len() {
-                0 => Err(EngineError::new(format!(
-                    "spell definition {} is absent from {}'s hand and other card zones",
-                    request.source_definition_id, request.controller_id
-                ))),
-                count => Err(EngineError::new(format!(
-                    "spell definition {} is ambiguous in {}'s card zones ({count} matches)",
-                    request.source_definition_id, request.controller_id
-                ))),
-            };
-        };
+        let source = &source;
         let alternative_exile_instance_id = if let Some(definition_id) =
             request.alternative_exile_definition_id.as_deref()
         {
@@ -187,8 +209,7 @@ impl GameEngine {
             None
         };
 
-        let mut actions = self
-            .try_legal_priority_actions(player_index)?
+        let mut actions = legal_actions
             .into_iter()
             .filter(|action| {
                 action.kind == ActionKind::CastSpell

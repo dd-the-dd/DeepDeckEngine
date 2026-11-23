@@ -60,6 +60,36 @@ A proof of the unconditional path alone does not qualify:
   "whenever you manifest dread" trigger fires after the whole process, even when
   parts of it were impossible (for example, a library with fewer than two cards).
 
+## Adventure layout runtime (CR 715, PR #69)
+
+The Adventure part is linked to its card as an `adventureSpell` rule
+(`src/model.rs`) and cast through `src/engine/adventure.rs`. An Omen part
+still refuses, with its own state (`card-structure.omen-runtime`).
+
+- Admission (CR 715.3a, 601.3e): the Adventure is offered from the hand, or
+  from another zone only under a route that admits a card with the
+  Adventure's characteristics: a static or temporary casting permission, a
+  top-of-library permission, or a permission for that one card. A permission
+  that admitted the creature does not admit its Adventure, and the reverse.
+- Resolution (CR 715.4): the ordinary path exiles the card and grants
+  `adventureCastPermission`. The permission is bound to that exile
+  incarnation (`zoneIdentity`, CR 400.7), so it ends once the card leaves
+  exile. A countered or fizzled Adventure goes to the graveyard.
+- Cohort delta (probe, private target): league 824 -> 828 (+4: Brazen
+  Borrower, Murderous Rider, Stormkeld Vanguard, Midgar), corpus 15,079 ->
+  15,155 (+76), with 0 lost and 0 IR changes. 76 of the 167 Adventure cards
+  are supported. Of the rest, 9 are Omen-refused and the others are blocked
+  by ordinary grammar gaps.
+- Proofs: `crates/deepdeck-runtime-fixture-runner/fixtures/adventure/`
+  (resolution, the end to end path, counter, fizzle, admission in both
+  directions, permission expiry, a sorcery Adventure on an enchantment, and
+  a land adventurer played from its exile).
+  `tests/playable_model.rs` pins Brazen Borrower's compiled rules to the end
+  to end fixture.
+- Not yet proved: a copied Adventure (CR 707.10, no permission), a
+  controller who is not the owner, and an Adventure that leaves the stack by
+  any means other than a counter or fizzle.
+
 ## Historical handoff (superseded status and owners)
 
 Goal ACTIVE and unfinished: every Magic card through generic compositional typed

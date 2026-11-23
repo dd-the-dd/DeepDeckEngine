@@ -1,0 +1,167 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "adventure/sorcery-adventure-on-an-enchantment-adventurer",
+  "seed": 726,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Adventurer",
+        "manaPool": [
+          "U",
+          "U",
+          "U",
+          "U",
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "adventure-shrine",
+            "name": "Adventure Shrine",
+            "typeLine": "Enchantment",
+            "manaCost": "{1}{U}",
+            "rules": [
+              {
+                "kind": "adventureSpell",
+                "spell": {
+                  "id": "quiet-study",
+                  "name": "Quiet Study",
+                  "typeLine": "Sorcery — Adventure",
+                  "manaCost": "{U}",
+                  "rules": [
+                    {
+                      "kind": "spellAbility",
+                      "source": {
+                        "kind": "self"
+                      },
+                      "effects": [
+                        {
+                          "kind": "drawCards",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "count": {
+                            "kind": "integer",
+                            "value": 1
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "library-filler",
+            "name": "Library Filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "adventure-shrine",
+      "declarationDecisions": {
+        "castAsAdventure": true
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "adventure-shrine",
+      "declarationDecisions": {
+        "castAsAdventure": false
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "library-filler",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "adventure-shrine",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "adventure-shrine",
+      "equals": false
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "player-0",
+      "definitionId": "adventure-shrine",
+      "value": "Enchantment",
+      "equals": true
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "player-0",
+      "definitionId": "adventure-shrine",
+      "value": "Sorcery",
+      "equals": false
+    }
+  ]
+}

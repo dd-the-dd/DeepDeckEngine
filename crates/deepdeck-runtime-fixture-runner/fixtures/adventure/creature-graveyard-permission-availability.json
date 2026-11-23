@@ -1,0 +1,272 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "adventure/creature-graveyard-permission-refuses-the-adventure",
+  "seed": 723,
+  "rule": {
+    "declaration": {
+      "decisions": [
+        {
+          "candidates": {
+            "controller": {
+              "kind": "opponentsOf",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            },
+            "kind": "permanents",
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          },
+          "id": "targetPermanent",
+          "kind": "chooseTargets",
+          "maximum": 1,
+          "minimum": 1
+        }
+      ],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "kind": "returnToOwnersHand",
+        "object": {
+          "id": "targetPermanent",
+          "kind": "chosenTarget"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Adventurer",
+        "manaPool": [
+          "U",
+          "U",
+          "U",
+          "U",
+          "U"
+        ],
+        "graveyard": [
+          {
+            "id": "brazen-borrower",
+            "name": "Brazen Borrower",
+            "typeLine": "Creature — Faerie Rogue",
+            "manaCost": "{1}{U}{U}",
+            "power": "3",
+            "toughness": "1",
+            "rules": [
+              {
+                "ability": {
+                  "kind": "flash"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "ability": {
+                  "kind": "flying"
+                },
+                "kind": "keywordAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "kind": "staticAbility",
+                "modifiers": [
+                  {
+                    "attackers": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "hasKeyword",
+                              "value": "flying"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "blockers": {
+                      "kind": "self"
+                    },
+                    "kind": "blockRestriction"
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "adventureSpell",
+                "spell": {
+                  "id": "petty-theft",
+                  "manaCost": "{1}{U}",
+                  "name": "Petty Theft",
+                  "rules": [
+                    {
+                      "declaration": {
+                        "decisions": [
+                          {
+                            "candidates": {
+                              "controller": {
+                                "kind": "opponentsOf",
+                                "player": {
+                                  "kind": "controllerOf",
+                                  "object": {
+                                    "kind": "self"
+                                  }
+                                }
+                              },
+                              "kind": "permanents",
+                              "where": {
+                                "kind": "not",
+                                "operand": {
+                                  "kind": "cardTypeContains",
+                                  "value": "Land"
+                                }
+                              }
+                            },
+                            "id": "targetPermanent",
+                            "kind": "chooseTargets",
+                            "maximum": 1,
+                            "minimum": 1
+                          }
+                        ],
+                        "kind": "castingDeclaration"
+                      },
+                      "effects": [
+                        {
+                          "kind": "returnToOwnersHand",
+                          "object": {
+                            "id": "targetPermanent",
+                            "kind": "chosenTarget"
+                          }
+                        }
+                      ],
+                      "kind": "spellAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    }
+                  ],
+                  "typeLine": "Instant — Adventure"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "creature-graveyard-permission",
+            "name": "Creature Graveyard Permission",
+            "typeLine": "Enchantment",
+            "manaCost": "{0}",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                },
+                "modifiers": [
+                  {
+                    "kind": "castingPermission",
+                    "players": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "sourceZone": "graveyard",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "withoutPayingManaCost": false,
+                    "asThoughFlash": false
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "brazen-borrower",
+      "equals": true,
+      "declarationDecisions": {
+        "castAsAdventure": false
+      }
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "brazen-borrower",
+      "equals": false,
+      "declarationDecisions": {
+        "castAsAdventure": true
+      }
+    }
+  ]
+}

@@ -4767,18 +4767,8 @@ fn spell_rule_supported(rule: &Value) -> bool {
 }
 
 fn prepare_spell_rule_supported(rule: &Value) -> bool {
-    if value_kind(rule) != Some("prepareSpell") {
-        return false;
-    }
-    let Ok(spell) = serde_json::from_value::<CardDefinition>(rule["spell"].clone()) else {
-        return false;
-    };
-    (is_instant(&spell) || is_sorcery(&spell))
-        && spell
-            .rules
-            .iter()
-            .any(|rule| value_kind(rule) == Some("spellAbility"))
-        && spell.rules.iter().all(rule_supported)
+    value_kind(rule) == Some("prepareSpell")
+        && adventure::linked_spell_part_supported(&rule["spell"], None)
 }
 
 /// Activated abilities normally function on the battlefield. Explicit zone
@@ -18041,6 +18031,7 @@ impl GameEngine {
             if permission["whileInZone"]
                 .as_str()
                 .is_some_and(|zone| self.card_zone_owner_id(instance_id, zone).is_none())
+                || !self.permission_incarnation_current(permission, instance_id)
             {
                 continue;
             }
@@ -18201,16 +18192,7 @@ impl GameEngine {
                 let split_faces = split_face_definitions(&card.definition);
                 if split_faces.is_empty() {
                     let casting_card = (*card).clone();
-                    // CR 715.3a: an adventurer card may instead be cast as its Adventure.
-                    let adventure = adventure::adventure_casting_card(
-                        card,
-                        source_zone,
-                        &self.state.permissions,
-                    )
-                    .map(|card| (card, *source_zone, None, false));
-                    return std::iter::once((casting_card, *source_zone, None, false))
-                        .chain(adventure)
-                        .collect();
+                    return vec![(casting_card, *source_zone, None, false)];
                 }
                 let mut sources = split_faces
                     .into_iter()
@@ -18230,6 +18212,12 @@ impl GameEngine {
                 }
                 sources
             })
+            // CR 715.3a, 601.3e: an Adventure is admitted on its own characteristics.
+            .chain(
+                self.adventure_casting_sources(player)
+                    .into_iter()
+                    .map(|(card, source_zone)| (card, source_zone, None, false)),
+            )
             .collect::<Vec<_>>();
 
         for (card, source_zone, split_face_index, fused) in casting_sources
@@ -18267,6 +18255,7 @@ impl GameEngine {
                     && permission["whileInZone"].as_str().is_none_or(|zone| {
                         self.card_zone_owner_id(&card.instance_id, zone).is_some()
                     })
+                    && self.permission_incarnation_current(permission, &card.instance_id)
                     && self.permission_condition_met(permission, &player.id)
             });
             let plotted_permission = permission
@@ -18917,8 +18906,11 @@ impl GameEngine {
                 if *fused {
                     decisions.insert("fused".to_string(), Value::Bool(true));
                 }
-                if adventure::casting_as_adventure(card) {
-                    decisions.insert(adventure::CAST_AS_ADVENTURE.to_string(), Value::Bool(true));
+                if adventure::has_adventure(&card.definition) || adventure::casting_as_adventure(card) {
+                    decisions.insert(
+                        adventure::CAST_AS_ADVENTURE.to_string(),
+                        Value::Bool(adventure::casting_as_adventure(card)),
+                    );
                 }
                 decisions.insert("manaPayment".to_string(), mana_payment_decision(&payment));
                 if !convoke_sources.is_empty() {
@@ -31302,18 +31294,11 @@ impl GameEngine {
                 if rebound {
                     self.install_rebound_upkeep_trigger(&card, &controller);
                 }
+                // CR 715.4: bound to this exile incarnation (CR 400.7).
+                let adventure_permission = adventure_after_resolution
+                    .then(|| adventure::adventure_cast_permission(&card, &controller));
                 self.state.players[owner_index].exile.push(card);
-                if adventure_after_resolution {
-                    self.state.permissions.push(json!({
-                        "kind": "adventureCastPermission",
-                        "action": "play",
-                        "cardInstanceId": card_id,
-                        "playerId": controller,
-                        "whileInZone": "exile",
-                        "normalTimingApplies": true,
-                        "normalCostsApply": true,
-                    }));
-                }
+                self.state.permissions.extend(adventure_permission);
                 "exile"
             } else if shuffle_into_library {
                 let destination_zone =

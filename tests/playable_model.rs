@@ -616,25 +616,17 @@ fn playable_card_compilation_links_the_adventure_spell() {
     assert_eq!(adventure["spell"]["manaCost"], "{1}{U}");
     assert_eq!(adventure["spell"]["rules"][0]["kind"], "spellAbility");
 
-    if let Ok(path) = std::env::var("ARCH_DUMP_BRAZEN_RULES") {
-        std::fs::write(
-            path,
-            serde_json::to_string(&compilation.card.rules).unwrap(),
-        )
-        .unwrap();
-    }
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(
         "crates/deepdeck-runtime-fixture-runner/fixtures/adventure/brazen-borrower-end-to-end.json",
     );
-    if fixture.exists() {
-        let fixture: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(fixture).unwrap()).unwrap();
-        let card = fixture["initialState"]["players"][0]["hand"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|card| card["id"] == "brazen-borrower")
-            .expect("the fixture holds Brazen Borrower in hand");
-        assert_eq!(card["rules"], serde_json::json!(compilation.card.rules));
-    }
+    let fixture: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(fixture).expect("the end-to-end fixture"))
+            .expect("the end-to-end fixture is JSON");
+    let card = fixture["initialState"]["players"][0]["hand"]
+        .as_array()
+        .expect("the pilot has a hand")
+        .iter()
+        .find(|card| card["id"] == "brazen-borrower")
+        .expect("the fixture holds Brazen Borrower in hand");
+    assert_eq!(card["rules"], serde_json::json!(compilation.card.rules));
 }
