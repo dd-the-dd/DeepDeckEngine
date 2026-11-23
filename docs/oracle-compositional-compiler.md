@@ -344,8 +344,10 @@ d'objets partagée, ou deux emplacements « another target » nomment le même
 objet), `uncovered` (non installable, avec sa raison : règle statique ou de
 remplacement, action légale absente sur ce plateau, contexte non fourni,
 montant ou collection vide, programme conditionnel qui n'a rien changé) ou
-`pass`. Un programme conditionnel ou à choix passe si l'une des primitives
-qu'il contient a produit son changement. Un sort non permanent se résout comme
+`pass`. Un programme conditionnel ou à choix est classé à part,
+`contingentPass`, quand l'une des primitives qu'il contient a changé un objet
+ou un joueur autre que sa source ; un déplacement de zone ne compte que pour
+une carte autre que la source. Un sort non permanent se résout comme
 une carte lancée ; ses propres déplacements et ceux de la source ne comptent
 pas comme l'effet. `uncovered` n'est jamais compté comme une réussite. Une
 règle que le runtime refuse à la résolution alors que le validateur l'accepte

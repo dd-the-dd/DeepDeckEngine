@@ -292,26 +292,9 @@ fn a_card_zone_query_reading_battlefield_state_is_refused_before_play() {
     assert_ne!(status, "executable");
 }
 
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[test]
-fn another_target_after_a_target_names_a_different_object() {
-    // Deadshot: the second slot is `another target creature`; the sibling
-    // with a single `another` slot keeps only its source exclusion.
-    let card = compile(
-        "Deadshot",
-        "Sorcery",
-        "{3}{R}",
-        "Tap target creature. It deals damage equal to its power to another target creature.",
-    );
-    let rule = &card.rules[0];
-    let decisions = rule["declaration"]["decisions"]
-        .as_array()
-        .expect("two target slots");
-    let ids = decisions
-        .iter()
-        .filter_map(|decision| decision["id"].as_str())
-        .collect::<Vec<_>>();
-    assert_eq!(rule["distinctTargets"], json!([[ids[0], ids[1]]]));
+/// The legal casts of `card` (for free) on the board, with the target slot
+/// ids of its spell ability.
+fn casts_of(card: &CardDefinition) -> (Vec<LegalAction>, Vec<String>) {
     let mut engine = board();
     let mut free = card.clone();
     free.mana_cost = "{0}".to_string();
@@ -326,35 +309,81 @@ fn another_target_after_a_target_names_a_different_object() {
         .into_iter()
         .filter(|action| action.kind == ActionKind::CastSpell)
         .collect::<Vec<_>>();
-    assert!(!casts.is_empty());
-    for cast in &casts {
-        assert_ne!(cast.targets.get(ids[0]), cast.targets.get(ids[1]));
-    }
-
-    // Sibling: a slot of two `other` targets after a first target
-    // (Betrayal at the Vault) names neither object of the first slot.
-    let betrayal = compile(
-        "Betrayal at the Vault",
-        "Instant",
-        "{4}{G}{G}",
-        "Target creature you control deals damage equal to its power to each of two other target creatures.",
-    );
-    let rule = &betrayal.rules[0];
-    let decisions = rule["declaration"]["decisions"]
+    let slots = card.rules[0]["declaration"]["decisions"]
         .as_array()
-        .expect("two target slots");
-    let (first, others) = (
-        decisions[0]["id"].as_str().expect("first slot"),
-        decisions[1]["id"].as_str().expect("second slot"),
-    );
-    assert_eq!(
-        rule["distinctTargets"],
-        json!([
-            [first, format!("{others}:0")],
-            [first, format!("{others}:1")]
-        ])
-    );
+        .into_iter()
+        .flatten()
+        .filter(|decision| value_kind(decision) == Some("chooseTargets"))
+        .filter_map(|decision| decision["id"].as_str().map(str::to_string))
+        .collect();
+    (casts, slots)
+}
 
+/// The objects a cast names for the slot `slot` (`slot` or `slot:index`).
+fn slot_objects(cast: &LegalAction, slot: &str) -> Vec<TargetRef> {
+    cast.targets
+        .iter()
+        .filter(|(id, _)| id.split(':').next() == Some(slot))
+        .map(|(_, target)| target.clone())
+        .collect()
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn another_target_after_a_target_names_a_different_object() {
+    // Deadshot (`another target creature`), Betrayal at the Vault (`each of
+    // two other target creatures`) and its `up to` sibling, where a single
+    // object chosen for the second slot is checked too.
+    for (name, text) in [
+        (
+            "Deadshot",
+            "Tap target creature. It deals damage equal to its power to another target creature.",
+        ),
+        (
+            "Betrayal at the Vault",
+            "Target creature you control deals damage equal to its power to each of two other target creatures.",
+        ),
+        (
+            "Test Volley",
+            "Target creature you control deals damage equal to its power to each of up to two other target creatures.",
+        ),
+    ] {
+        let card = compile(name, "Instant", "{3}{R}", text);
+        let (casts, slots) = casts_of(&card);
+        let rule = &card.rules[0];
+        assert_eq!(
+            rule["declaration"]["decisions"][1]["distinctFrom"],
+            json!([slots[0]]),
+            "{name}"
+        );
+        assert!(!rule.to_string().contains("otherThanEarlierTargets"));
+        assert!(!casts.is_empty(), "{name}");
+        for cast in &casts {
+            let first = slot_objects(cast, &slots[0]);
+            assert!(
+                slot_objects(cast, &slots[1])
+                    .iter()
+                    .all(|object| !first.contains(object)),
+                "{name}: {cast:?}"
+            );
+        }
+        if name == "Test Volley" {
+            assert!(
+                casts
+                    .iter()
+                    .any(|cast| slot_objects(cast, &slots[1]).len() == 1),
+                "a cast names one object for the `up to` slot"
+            );
+        }
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn another_names_the_source_only_without_an_earlier_target() {
+    // Near misses: a lone `another target creature you control` excludes the
+    // source and relates to no slot; after an earlier slot (Wayta), `another`
+    // relates to that slot and the source may be named.
     let single = compile(
         "Test Rally",
         "Creature \u{2014} Human",
@@ -366,7 +395,64 @@ fn another_target_after_a_target_names_a_different_object() {
         .iter()
         .find(|rule| value_kind(rule) == Some("triggeredAbility"))
         .expect("the enter trigger");
-    assert!(trigger.get("distinctTargets").is_none());
+    let decision = &trigger["declaration"]["decisions"][0];
+    assert_eq!(decision["candidates"]["excludeSource"], true);
+    assert!(decision.get("distinctFrom").is_none());
+    assert!(!trigger.to_string().contains("otherThanEarlierTargets"));
+
+    let wayta = compile(
+        "Wayta, Trainer Prodigy",
+        "Legendary Creature \u{2014} Human Warrior",
+        "{R}{G}{W}",
+        "{2}{G}, {T}: Target creature you control fights another target creature.",
+    );
+    let ability = wayta
+        .rules
+        .iter()
+        .find(|rule| value_kind(rule) == Some("activatedAbility"))
+        .expect("the fight ability");
+    let decisions = ability["declaration"]["decisions"]
+        .as_array()
+        .expect("two target slots");
+    assert_eq!(decisions[1]["distinctFrom"], json!([decisions[0]["id"]]));
+    assert!(decisions[1]["candidates"].get("excludeSource").is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_distinct_relation_judges_only_the_rule_that_declared_the_targets() {
+    // Near miss for a card with several spell rules: a rule whose slots the
+    // declaration does not use does not judge it.
+    let relation = json!({
+        "kind": "spellAbility",
+        "declaration": { "kind": "castingDeclaration", "decisions": [
+            { "kind": "chooseTargets", "id": "first" },
+            { "kind": "chooseTargets", "id": "second", "distinctFrom": ["first"] },
+        ]},
+    });
+    let bear = TargetRef::Permanent {
+        instance_id: "bear".to_string(),
+    };
+    let other_rule = BTreeMap::from([("targetPermanent".to_string(), bear.clone())]);
+    assert!(!target_legality::rule_declares_targets(
+        &relation,
+        &other_rule
+    ));
+    let reused = BTreeMap::from([
+        ("first".to_string(), bear.clone()),
+        ("second:0".to_string(), bear.clone()),
+    ]);
+    assert!(target_legality::rule_declares_targets(&relation, &reused));
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &relation, &reused
+    ));
+    let single = BTreeMap::from([
+        ("first".to_string(), bear.clone()),
+        ("second".to_string(), bear),
+    ]);
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &relation, &single
+    ));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

@@ -529,9 +529,24 @@ fn observe_events(observed: &mut Observed, events: &[GameEvent]) {
             "cardDrawn" => {
                 observed.kinds.insert("hand");
             }
+            // A zone move of a card other than the played source.
             "cardsMoved" | "cardExiled" | "cardsEnteredGraveyard" => {
-                for kind in ["graveyard", "exile", "hand", "library", "battlefield"] {
-                    observed.kinds.insert(kind);
+                let moved = event.detail["cardIds"]
+                    .as_array()
+                    .map(|ids| {
+                        ids.iter()
+                            .filter_map(Value::as_str)
+                            .map(str::to_string)
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_else(|| vec![id.clone()]);
+                if moved
+                    .iter()
+                    .any(|card| !card.is_empty() && card != "smoke-source")
+                {
+                    for kind in ["graveyard", "exile", "hand", "library", "battlefield"] {
+                        observed.kinds.insert(kind);
+                    }
                 }
             }
             "countersPlaced" | "countersRemoved" => {
@@ -596,6 +611,9 @@ fn declared_permanent_targets(targets: &BTreeMap<String, TargetRef>, id: &str) -
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Outcome {
     Pass,
+    /// A contingent program (a choice, a condition) of which some primitive
+    /// changed an object other than its source: weaker than `Pass`.
+    ContingentPass,
     Uncovered(String),
     /// The real triggering event happened; the source's trigger did not.
     NoTrigger(String),
@@ -608,6 +626,7 @@ impl Outcome {
     fn class(&self) -> &'static str {
         match self {
             Self::Pass => "pass",
+            Self::ContingentPass => "contingentPass",
             Self::Uncovered(_) => "uncovered",
             Self::NoTrigger(_) => "noTrigger",
             Self::NoChange(_) => "noChange",
@@ -617,7 +636,7 @@ impl Outcome {
     }
     fn detail(&self) -> &str {
         match self {
-            Self::Pass => "",
+            Self::Pass | Self::ContingentPass => "",
             Self::Uncovered(detail)
             | Self::NoTrigger(detail)
             | Self::NoChange(detail)
@@ -1652,8 +1671,18 @@ fn judge_contingent(rule: &Value, observed: &Observed, path: Path) -> (Outcome, 
             path,
         );
     }
-    if possible.iter().any(|kind| observed.kinds.contains(kind)) {
-        (Outcome::Pass, path)
+    // Only changes to objects other than the source's own fate count: a
+    // permanent kind is kept when its set of reached objects is not empty.
+    let reached = |kind: &str| match kind {
+        "left" => !observed.left.is_empty(),
+        "damage" => !observed.damaged.is_empty(),
+        "counters" => !observed.countered.is_empty(),
+        "tapped" => !observed.tapped.is_empty(),
+        "stats" => !observed.stats.is_empty(),
+        _ => observed.kinds.contains(kind),
+    };
+    if possible.iter().any(|kind| reached(kind)) {
+        (Outcome::ContingentPass, path)
     } else {
         (
             Outcome::Uncovered("contingent program changed nothing".to_string()),

@@ -4685,6 +4685,11 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             Some("chooseTargets") => {
                 decision["id"].is_string()
                     && decision.get("condition").is_none_or(condition_supported)
+                    && decision.get("distinctFrom").is_none_or(|slots| {
+                        slots.as_array().is_some_and(|slots| {
+                            !slots.is_empty() && slots.iter().all(Value::is_string)
+                        })
+                    })
                     && decision
                         .get("selectionConstraint")
                         .is_none_or(target_selection_constraint_supported)
@@ -9960,11 +9965,10 @@ impl GameEngine {
             Some("countEvents" | "countEventsThisTurn") => {
                 // The population is read relative to the source's controller.
                 let players = match expression.get("player") {
-                    Some(player) => Some(
-                        player_query::PlayerQueryContext::source(controller_id, None)
-                            .resolve_population(self, player)
-                            .ok()?,
-                    ),
+                    Some(player) => Some(self.event_count_players(
+                        player_query::PlayerQueryContext::source(controller_id, None),
+                        player,
+                    )?),
                     None => None,
                 };
                 self.count_matching_events(expression, players.as_deref())
@@ -16028,6 +16032,9 @@ impl GameEngine {
                         card.rules
                             .iter()
                             .filter(|rule| value_kind(rule) == Some("spellAbility"))
+                            .filter(|rule| {
+                                target_legality::rule_declares_targets(rule, &declaration.targets)
+                            })
                             .all(|rule| {
                                 target_legality::declaration_respects_distinct_targets(
                                     rule,
@@ -31892,11 +31899,10 @@ impl GameEngine {
             }
             Some("countEvents" | "countEventsThisTurn") => {
                 let players = match expression.get("player") {
-                    Some(player) => Some(
-                        player_query::PlayerQueryContext::runtime(stack_object, bindings)
-                            .resolve_population(self, player)
-                            .ok()?,
-                    ),
+                    Some(player) => Some(self.event_count_players(
+                        player_query::PlayerQueryContext::runtime(stack_object, bindings),
+                        player,
+                    )?),
                     None => None,
                 };
                 self.count_matching_events(expression, players.as_deref())
