@@ -24,12 +24,18 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
     if is_generic_became_target_event(event) {
         return Some(
             event.as_object().is_some_and(|fields| {
-                fields
-                    .keys()
-                    .all(|key| matches!(key.as_str(), "kind" | "object" | "targetingStackObject"))
+                fields.keys().all(|key| {
+                    matches!(
+                        key.as_str(),
+                        "kind" | "object" | "targetingStackObject" | "turnOrdinal"
+                    )
+                })
             }) && (value_kind(&event["object"]) == Some("self")
                 || became_target_object_selector_supported(&event["object"]))
-                && targeting_stack_selector_supported(&event["targetingStackObject"]),
+                && targeting_stack_selector_supported(&event["targetingStackObject"])
+                && event
+                    .get("turnOrdinal")
+                    .is_none_or(|ordinal| targeting_ordinal_supported(event, ordinal)),
         );
     }
     if value_kind(&event["object"]) == Some("self") {
@@ -50,6 +56,47 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
 /// has its own publication path and never carries this selector.
 pub(super) fn is_generic_became_target_event(event: &Value) -> bool {
     value_kind(event) == Some("becameTarget") && event.get("targetingStackObject").is_some()
+}
+
+/// The action log entry of a permanent becoming the target of one stack
+/// object (CR 115.1): the targeting controller, the stack object's kind and
+/// the permanent's incarnation, so later patterns can count matching events.
+const PERMANENT_TARGETED_EVENT: &str = "permanentBecameTarget";
+
+/// `for the first time each turn` on the source as targeted object: the
+/// ordinal counts logged targeting events whose stack object satisfied the
+/// same selector. The log keeps only the stack object's kind and controller,
+/// so the selector's filter must read only kinds.
+fn targeting_ordinal_supported(event: &Value, ordinal: &Value) -> bool {
+    value_kind(&event["object"]) == Some("self")
+        && ordinal.as_u64().is_some_and(|ordinal| ordinal > 0)
+        && stack_kind_filter_supported(&event["targetingStackObject"]["where"])
+}
+
+fn stack_kind_filter_supported(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some("isSpell" | "isActivatedAbility" | "isTriggeredAbility") => true,
+        Some("or") => filter["operands"].as_array().is_some_and(|operands| {
+            !operands.is_empty() && operands.iter().all(stack_kind_filter_supported)
+        }),
+        _ => false,
+    }
+}
+
+/// `stack_kind_filter_supported` filters read on a logged stack object, with
+/// the same meaning as `matches_stack_item_filter` on the live one.
+fn logged_stack_kind_matches(filter: &Value, is_spell: bool, ability_kind: Option<&str>) -> bool {
+    match value_kind(filter) {
+        Some("isSpell") => is_spell,
+        Some("isActivatedAbility") => ability_kind == Some("activatedAbility"),
+        Some("isTriggeredAbility") => ability_kind == Some("triggeredAbility"),
+        Some("or") => filter["operands"].as_array().is_some_and(|operands| {
+            operands
+                .iter()
+                .any(|operand| logged_stack_kind_matches(operand, is_spell, ability_kind))
+        }),
+        _ => false,
+    }
 }
 
 fn controller_reference_supported(reference: &Value) -> bool {
@@ -405,6 +452,56 @@ impl GameEngine {
         }
     }
 
+    /// `for the first time each turn`: the number of logged targeting events
+    /// this turn of the targeted permanent's current incarnation whose stack
+    /// object satisfied the pattern's selector equals the ordinal (the
+    /// current event is logged first). Without an ordinal, any event.
+    fn targeting_turn_ordinal_matches(
+        &self,
+        event: &Value,
+        target: &TargetRef,
+        source: &CardInstance,
+    ) -> bool {
+        let Some(ordinal) = event.get("turnOrdinal") else {
+            return true;
+        };
+        let (Some(ordinal), TargetRef::Permanent { instance_id }) = (ordinal.as_u64(), target)
+        else {
+            return false;
+        };
+        let selector = &event["targetingStackObject"];
+        let identity = self.object_identity_value(instance_id);
+        let count = self
+            .state
+            .events
+            .iter()
+            .filter(|logged| {
+                logged.turn_number == self.state.turn_number
+                    && logged.kind == PERMANENT_TARGETED_EVENT
+                    && logged.card_instance_id.as_deref() == Some(instance_id.as_str())
+                    && logged.detail.get("objectIdentity").unwrap_or(&Value::Null) == &identity
+                    && selector.get("controller").is_none_or(|controller| {
+                        logged
+                            .player_id
+                            .as_deref()
+                            .is_some_and(|targeting_controller| {
+                                controller_reference_matches(
+                                    controller,
+                                    targeting_controller,
+                                    &source.controller,
+                                )
+                            })
+                    })
+                    && logged_stack_kind_matches(
+                        &selector["where"],
+                        logged.detail["stackIsSpell"].as_bool() == Some(true),
+                        logged.detail["stackAbilityKind"].as_str(),
+                    )
+            })
+            .count();
+        u64::try_from(count).is_ok_and(|count| count == ordinal)
+    }
+
     fn target_event_identity(&self, target: &TargetRef) -> Option<(String, String, String)> {
         match target {
             TargetRef::Permanent { instance_id } => {
@@ -465,6 +562,22 @@ impl GameEngine {
             else {
                 continue;
             };
+            // The action log entry precedes trigger collection, so a
+            // per-turn ordinal counts the current event (CR 603.2).
+            if let TargetRef::Permanent { instance_id } = &target {
+                let identity = self.object_identity_value(instance_id);
+                self.record_event(
+                    PERMANENT_TARGETED_EVENT,
+                    Some(targeting_controller_id.clone()),
+                    Some(instance_id.clone()),
+                    serde_json::json!({
+                        "stackId": targeting_stack_id,
+                        "stackIsSpell": stack_object_is_spell(&targeting_stack),
+                        "stackAbilityKind": targeting_stack.ability_kind,
+                        "objectIdentity": identity,
+                    }),
+                );
+            }
             for source in self
                 .state
                 .players
@@ -488,6 +601,7 @@ impl GameEngine {
                                         &targeting_stack,
                                         source,
                                     )
+                                    && self.targeting_turn_ordinal_matches(event, &target, source)
                             })
                 }) {
                     pending.push((

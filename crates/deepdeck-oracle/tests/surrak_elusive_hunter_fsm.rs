@@ -235,12 +235,23 @@ fn the_source_subject_composes_with_the_targeting_frame() {
     }
 }
 
+/// Valiant: the shared turn-ordinal modifier on the source targeting frame.
 #[test]
-fn a_targeting_turn_ordinal_is_an_engine_gap() {
+fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_engine_gap() {
     let parsed = parse(
         "Valiant Probe",
         "Creature — Soldier",
         "Whenever this creature becomes the target of a spell or ability you control for the first time each turn, draw a card.",
+    );
+    assert_eq!(parsed.status, "canonical");
+    let event = &parsed.abilities[0].rule.as_ref().expect("rule")["event"];
+    assert_eq!(event["turnOrdinal"], 1);
+    assert_eq!(event["targetingStackObject"]["controller"], controller());
+
+    let parsed = parse(
+        "Turn Owner Probe",
+        "Creature — Soldier",
+        "Whenever this creature becomes the target of a spell during your turn, draw a card.",
     );
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(

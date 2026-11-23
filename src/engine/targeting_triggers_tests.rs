@@ -867,3 +867,39 @@ fn another_targeted_permanent_is_a_near_miss_for_the_source_observer() {
     target_with(&mut engine, "stack:spell", "player-1", &other_id);
     assert_eq!(triggered_count(&engine), 0);
 }
+
+/// Valiant (`... you control for the first time each turn`): the ordinal
+/// counts only logged targeting events whose stack object satisfied the
+/// selector, so an opponent's earlier spell does not use up the first time.
+#[test]
+fn the_targeting_turn_ordinal_counts_matching_logged_events() {
+    let own = json!({ "kind": "controllerOf", "object": { "kind": "self" } });
+    let mut engine = engine();
+    let mut watcher = definition("valiant-watcher", "Creature - Soldier");
+    let mut rule = source_watcher_rule(Some(own));
+    rule["event"]["turnOrdinal"] = json!(1);
+    assert_eq!(became_target_event_supported(&rule["event"]), Some(true));
+    watcher.rules.push(rule);
+    let permanent = card_instance("player-0", &watcher, 1);
+    let watcher_id = permanent.instance_id.clone();
+    engine.state.players[0].battlefield.push(permanent);
+
+    target_with(&mut engine, "stack:opponent-spell", "player-1", &watcher_id);
+    assert_eq!(
+        triggered_count(&engine),
+        0,
+        "an opponent's spell is not counted"
+    );
+    target_with(&mut engine, "stack:first-own", "player-0", &watcher_id);
+    assert_eq!(triggered_count(&engine), 1);
+    target_with(&mut engine, "stack:second-own", "player-0", &watcher_id);
+    assert_eq!(triggered_count(&engine), 1, "only the first time each turn");
+}
+
+#[test]
+fn a_targeting_ordinal_needs_a_kind_only_selector_on_the_source() {
+    let mut event = source_watcher_rule(None)["event"].clone();
+    event["turnOrdinal"] = json!(1);
+    event["targetingStackObject"]["where"] = json!({ "kind": "isColorless" });
+    assert_eq!(became_target_event_supported(&event), Some(false));
+}

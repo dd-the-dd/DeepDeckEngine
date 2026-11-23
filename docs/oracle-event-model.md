@@ -575,7 +575,12 @@ tests et les sondes se font sur le lot intégré.
   blocked for the first time each turn` est abaissé en motif générique. La
   variante par paire (`becomes blocked by X for the first time…`) reste un
   `engine-gap`.
-- Restent : ordinal du ciblage (Valiant), propriétaire
+- Ordinal du ciblage (Valiant) : chaque permanent ciblé journalise
+  `permanentBecameTarget` (contrôleur et nature de l'objet ciblant,
+  incarnation) ; `for the first time each turn` compte les entrées du tour
+  dont l'objet ciblant satisfait le même sélecteur (filtre de nature
+  seulement).
+- Restent : propriétaire
   du tour hors combat, déclencheurs intégrés (CR 603.7 / 603.12) branchés sur
   `read_event_clause`, `kind` en forme de phrase (`attachedPermanentTapped`,
   `doorUnlocked`, …) vers lemme + relation, familles de programmes

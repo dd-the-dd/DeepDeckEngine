@@ -410,13 +410,19 @@ fn lower_source_event_patterns(
                     _ => None,
                 })
                 .ok_or_else(|| cursor.fail("`becomes the target of` with its stack object"))?;
-            if first_time || turn_owner.is_some() {
+            if turn_owner.is_some() {
                 return Err(engine_gap(
                     cursor,
-                    "an engine event matcher for a targeting event with a turn ordinal or a turn owner",
+                    "an engine event matcher for a targeting event with a turn owner",
                 ));
             }
-            events.push(lower_source_became_target_event(stack));
+            let mut lowered = lower_source_became_target_event(stack);
+            if first_time {
+                // The runtime counts the logged targeting events of the
+                // source whose stack object satisfied the same selector.
+                lowered["turnOrdinal"] = json!(1);
+            }
+            events.push(lowered);
             continue;
         }
         let alone = *verb == SourceEventVerb::Attacked
