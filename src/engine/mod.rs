@@ -31109,6 +31109,7 @@ impl GameEngine {
                 | "countCards"
                 | "countDistinctCardTypes"
                 | "countDistinctPermanentNames"
+                | "domainCount"
                 | "countPlayerCounters"
                 | "greatestPower"
                 | "greatestToughness"

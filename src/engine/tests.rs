@@ -2489,6 +2489,11 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
     })];
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![test_instance("warg-company", company, "player-0")];
+    // The source exclusion authenticates the live source by its zone
+    // incarnation, which a fixture object receives on admission.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let can_attack = |engine: &GameEngine| {
         engine
             .legal_attacker_actions(&BTreeSet::new())
@@ -2507,6 +2512,9 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
             "player-0",
         ));
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(can_attack(&engine));
 }
 
