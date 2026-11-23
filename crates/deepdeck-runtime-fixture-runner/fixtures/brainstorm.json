@@ -3,70 +3,108 @@
   "id": "brainstorm-draw-three-put-two-back-in-order",
   "seed": 1,
   "rule": {
-    "kind": "spellAbility",
-    "source": { "kind": "self" },
     "effects": [
       {
+        "count": {
+          "kind": "integer",
+          "value": 3
+        },
         "kind": "drawCards",
         "player": {
           "kind": "controllerOf",
-          "object": { "kind": "self" }
-        },
-        "count": { "kind": "integer", "value": 3 }
+          "object": {
+            "kind": "self"
+          }
+        }
       },
       {
-        "kind": "chooseCards",
-        "id": "cardsForLibrary",
-        "player": {
-          "kind": "controllerOf",
-          "object": { "kind": "self" }
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 2
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "cardsInZone",
+                "where": null,
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            }
+          ]
         },
-        "minimum": { "kind": "integer", "value": 2 },
-        "maximum": { "kind": "integer", "value": 2 },
-        "candidates": {
-          "kind": "cards",
+        "from": {
+          "kind": "cardsInZone",
+          "where": null,
           "zone": {
             "kind": "hand",
             "player": {
               "kind": "controllerOf",
-              "object": { "kind": "self" }
+              "object": {
+                "kind": "self"
+              }
             }
-          },
-          "where": null
-        }
-      },
-      {
-        "kind": "chooseOrder",
-        "id": "cardsForLibraryOrder",
+          }
+        },
+        "id": "chosenZoneCards",
+        "kind": "chooseCards",
         "player": {
           "kind": "controllerOf",
-          "object": { "kind": "self" }
-        },
-        "objects": {
-          "kind": "decisionResult",
-          "decisionId": "cardsForLibrary"
+          "object": {
+            "kind": "self"
+          }
         }
       },
       {
-        "kind": "moveCards",
+        "id": "remainderOrder",
+        "kind": "chooseOrder",
+        "objects": {
+          "decisionId": "chosenZoneCards",
+          "kind": "decisionResult"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
         "cards": {
-          "kind": "decisionResult",
-          "decisionId": "cardsForLibraryOrder"
+          "decisionId": "remainderOrder",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "order": {
+          "decisionId": "remainderOrder",
+          "kind": "decisionOrder"
         },
         "to": {
           "kind": "library",
           "player": {
             "kind": "controllerOf",
-            "object": { "kind": "self" }
+            "object": {
+              "kind": "self"
+            }
           },
           "position": "top"
-        },
-        "order": {
-          "kind": "decisionOrder",
-          "decisionId": "cardsForLibraryOrder"
         }
       }
-    ]
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
   },
   "initialState": {
     "activePlayerId": "player-0",
@@ -83,11 +121,31 @@
           }
         ],
         "library": [
-          { "id": "library-card-0", "name": "Library Card 0", "typeLine": "Sorcery" },
-          { "id": "library-card-1", "name": "Library Card 1", "typeLine": "Sorcery" },
-          { "id": "library-card-2", "name": "Library Card 2", "typeLine": "Sorcery" },
-          { "id": "library-card-3", "name": "Library Card 3", "typeLine": "Sorcery" },
-          { "id": "library-card-4", "name": "Library Card 4", "typeLine": "Sorcery" }
+          {
+            "id": "library-card-0",
+            "name": "Library Card 0",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-1",
+            "name": "Library Card 1",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-2",
+            "name": "Library Card 2",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-3",
+            "name": "Library Card 3",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-4",
+            "name": "Library Card 4",
+            "typeLine": "Sorcery"
+          }
         ]
       },
       {
@@ -101,12 +159,65 @@
     "sourceDefinitionId": "brainstorm"
   },
   "decisions": [
-    { "kind": "selectCards", "count": 2, "take": "reverse" },
-    { "kind": "orderCards", "order": "reverse" }
+    {
+      "kind": "selectCards",
+      "count": 2,
+      "take": "reverse"
+    },
+    {
+      "kind": "orderCards",
+      "order": "reverse"
+    }
   ],
   "assertions": [
-    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 2 },
-    { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 4 },
-    { "kind": "decisionCount", "equals": 2 }
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 4
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "library-card-4",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "library-card-3",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "library-card-2",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "library-card-3",
+      "equals": true
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "player-0",
+      "definitionId": "library-card-2"
+    }
   ]
 }

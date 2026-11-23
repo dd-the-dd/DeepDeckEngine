@@ -157,23 +157,57 @@ ROOT='src/engine/mod.rs'
 ROOT_EXECUTORS=('execute_effect','execute_effect_in_batch')
 EVENT_BATCH_SCOPE={'begin_event_batch','end_event_batch'}
 # Kind-transparent envelopes: each strips one envelope field and re-enters the root role, so it
-# accepts or executes no kind the census does not already attribute. Verified, never waived.
-TRANSPARENT_VALIDATORS={'effect_performer::performer_effect_supported':('src/engine/effect_performer.rs','performer_effect_supported','effect_supported')}
-TRANSPARENT_EXECUTORS={'execute_performed_effect':('src/engine/effect_performer.rs','execute_performed_effect','execute_effect_in_batch')}
+# accepts or executes no kind the census does not already attribute. The check is lexical, not a
+# semantic proof: a wrapper must not name the "kind" field or call a kind reader, may call only
+# its own allowlisted helpers, and must re-enter the root role. Anything else fails closed and
+# must be registered as a validator/executor role instead.
+IDENT=re.compile('[A-Za-z_][A-Za-z0-9_]*')
+KIND_READERS={'value_kind'}
+# Paths that name the engine root from a child module (`super::effect_supported`).
+ROOT_FUNCTION_PATHS={'','super','crate::engine'}
+ROOT_METHOD_RECEIVERS={'self','Self','GameEngine','super::GameEngine','crate::engine::GameEngine'}
+# Value plumbing shared by both envelopes; none of these dispatches on an effect kind.
+ENVELOPE_VALUE_METHODS={'get','clone','as_object_mut','remove','is_ok_and'}
+TRANSPARENT_VALIDATORS={'effect_performer::performer_effect_supported':{
+    'path':'src/engine/effect_performer.rs','function':'performer_effect_supported','reentry':('function','effect_supported'),
+    'helpers':{('function','singular_player_reference_supported')}}}
+TRANSPARENT_EXECUTORS={'execute_performed_effect':{
+    'path':'src/engine/effect_performer.rs','function':'execute_performed_effect','reentry':('method','execute_effect_in_batch'),
+    'helpers':{('method','resolve_player'),('method','player_index')}}}
+# Non-delegating calls the root executors make (the unsupported-effect error message).
+ROOT_EXECUTOR_HELPERS={('function','value_kind'),('function','EngineError::new'),('value','unwrap_or')}
 
-def calls(tokens,receiver):
-    """Plain `name(` calls (receiver=None) or `self.name(` method calls."""
-    if receiver is None:
-        return {tokens[i].text for i in range(1,len(tokens)-1)
-                if tokens[i+1].text=='(' and tokens[i-1].text not in ('.',':','fn') and re.fullmatch('[a-z_][a-z0-9_]*',tokens[i].text)}
-    return {tokens[i+2].text for i in range(len(tokens)-3)
-            if tokens[i].text==receiver and tokens[i+1].text=='.' and tokens[i+3].text=='('}
+def call_sites(tokens):
+    """Every call in a body as (form, name): `method` for self/Self/GameEngine methods,
+    `function` for free or path-qualified functions (root paths normalised away),
+    `value` for methods on any other receiver. Constructors (Some, Ok) are skipped."""
+    result=set()
+    for i in range(len(tokens)-1):
+        name=tokens[i].text
+        if tokens[i+1].text!='(' or not IDENT.fullmatch(name) or name[0].isupper():continue
+        before=tokens[i-1].text if i else ''
+        if before=='fn':continue
+        if before=='.':
+            result.add(('method' if i>=2 and tokens[i-2].text=='self' else 'value',name));continue
+        segments=[];j=i
+        while j>=2 and tokens[j-1].text==':' and tokens[j-2].text==':' and j>=3 and IDENT.fullmatch(tokens[j-3].text):
+            segments.insert(0,tokens[j-3].text);j-=3
+        prefix='::'.join(segments)
+        if prefix in ROOT_METHOD_RECEIVERS-{'self'}:result.add(('method',name))
+        elif prefix in ROOT_FUNCTION_PATHS:result.add(('function',name))
+        else:result.add(('function',prefix+'::'+name))
+    return result
 
-def transparent_wrapper(sources,path,name,reentry,receiver):
+def transparent_wrapper(sources,name,spec):
+    path=spec['path']
     if path not in sources:raise ValueError(f'kind-transparent wrapper {name}: {path} is missing')
-    body=lex(sources[path].whole_function(name,[],'transparent')['body'])
-    if any(t.text=='value_kind' for t in body):raise ValueError(f'{path}:{name} inspects effect kinds; register it as a validator/executor role instead')
-    if reentry not in calls(body,receiver):raise ValueError(f'{path}:{name} no longer re-enters {reentry}; it is not kind-transparent')
+    body=lex(sources[path].whole_function(spec['function'],[],'transparent')['body'])
+    if any(t.text in KIND_READERS or t.text=='"kind"' for t in body):
+        raise ValueError(f'{path}:{spec["function"]} inspects effect kinds; register it as a validator/executor role instead')
+    found=call_sites(body);reentry=spec['reentry']
+    if reentry not in found:raise ValueError(f'{path}:{spec["function"]} no longer re-enters {reentry[1]}; it is not kind-transparent')
+    extra=sorted(f'{form}:{call}' for form,call in found-{reentry}-spec['helpers'] if not(form=='value' and call in ENVELOPE_VALUE_METHODS))
+    if extra:raise ValueError(f'{path}:{spec["function"]} calls outside its envelope allowlist: {extra}')
 
 def role_conformance(sources):
     """Fail closed when the root adds a delegation the census does not know."""
@@ -188,18 +222,21 @@ def role_conformance(sources):
            'sacrifice::explicit_object_sacrifice_supported','zone_change_triggers::zone_change_effect_supported',
            'subtypes::effect_supported','effect_domains::effect_domain_supported'}
     if qualified-known-TRANSPARENT_VALIDATORS.keys():raise ValueError(f'unregistered root validator delegation: {sorted(qualified-known-TRANSPARENT_VALIDATORS.keys())}')
-    for name in qualified&TRANSPARENT_VALIDATORS.keys():transparent_wrapper(sources,*TRANSPARENT_VALIDATORS[name],None)
+    for name in qualified&TRANSPARENT_VALIDATORS.keys():transparent_wrapper(sources,name,TRANSPARENT_VALIDATORS[name])
     known_runtime={'execute_player_iteration','execute_ability_signal_effect','execute_direct_life_effect',
                    'execute_explicit_object_sacrifice','execute_zone_change_effect','execute_effect_domain'}
-    allowed=known_runtime|TRANSPARENT_EXECUTORS.keys()|EVENT_BATCH_SCOPE|{'execute_effect_in_batch'}
+    allowed={('method',n) for n in known_runtime|TRANSPARENT_EXECUTORS.keys()|EVENT_BATCH_SCOPE|set(ROOT_EXECUTORS)}|ROOT_EXECUTOR_HELPERS
+    # Every call form counts: `self.f(`, `Self::f(`, free and path-qualified functions, other receivers.
     pending=['execute_effect'];seen=set();executor_calls=set()
     while pending:
         name=pending.pop()
         if name in seen:continue
-        seen.add(name);found=calls(lex(root.whole_function(name,[],'executor')['body']),'self');executor_calls|=found
-        pending.extend(n for n in found if n in ROOT_EXECUTORS)
-    if executor_calls-allowed:raise ValueError(f'unregistered root executor delegation: {sorted(executor_calls-allowed)}')
-    for name in executor_calls&TRANSPARENT_EXECUTORS.keys():transparent_wrapper(sources,*TRANSPARENT_EXECUTORS[name],'self')
+        seen.add(name);found=call_sites(lex(root.whole_function(name,[],'executor')['body']));executor_calls|=found
+        pending.extend(n for form,n in found if form=='method' and n in ROOT_EXECUTORS)
+    unregistered=sorted(n if form=='method' else f'{form}:{n}' for form,n in executor_calls-allowed)
+    if unregistered:raise ValueError(f'unregistered root executor delegation: {unregistered}')
+    for form,name in executor_calls:
+        if form=='method' and name in TRANSPARENT_EXECUTORS:transparent_wrapper(sources,name,TRANSPARENT_EXECUTORS[name])
     catalog_path='src/engine/effect_domains/mod.rs'
     if catalog_path in sources:
         routed={k for a in sources[catalog_path].arms('domain','routing-only') for k in a['kinds']}

@@ -173,7 +173,7 @@
     {
       "oracle_id": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
       "name": "Brainstorm",
-      "expected_semantic_ir_digest": "1CCA7A14F4F1361F55F1736F8E1E7060224FCF273FF9A03F7CC663164B48BB37",
+      "expected_semantic_ir_digest": "535EA451876606E64AA7510E40C21EC4DD4E2D86FAE405CB3E1E9307E90580B2",
       "contract": {
         "fixture_id": "brainstorm/draw-select-order-move-is-executable",
         "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brainstorm.json"
