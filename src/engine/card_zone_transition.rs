@@ -442,6 +442,10 @@ impl GameEngine {
             }
         };
         if creates_object {
+            // CR 400.7: the new object keeps no permission confined to the
+            // zone it left (an impulse "you may play that card", an
+            // Adventure's exile).
+            self.end_card_permissions_confined_to(&card.instance_id, source.zone.name());
             let prepared = prepare_object_identities(
                 self.state.battlefield_incarnation_sequence,
                 &[&*card],

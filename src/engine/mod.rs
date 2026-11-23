@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
 mod battlefield_departure;
@@ -4766,18 +4767,8 @@ fn spell_rule_supported(rule: &Value) -> bool {
 }
 
 fn prepare_spell_rule_supported(rule: &Value) -> bool {
-    if value_kind(rule) != Some("prepareSpell") {
-        return false;
-    }
-    let Ok(spell) = serde_json::from_value::<CardDefinition>(rule["spell"].clone()) else {
-        return false;
-    };
-    (is_instant(&spell) || is_sorcery(&spell))
-        && spell
-            .rules
-            .iter()
-            .any(|rule| value_kind(rule) == Some("spellAbility"))
-        && spell.rules.iter().all(rule_supported)
+    value_kind(rule) == Some("prepareSpell")
+        && adventure::linked_spell_part_supported(&rule["spell"], None)
 }
 
 /// Activated abilities normally function on the battlefield. Explicit zone
@@ -5978,6 +5969,7 @@ fn rule_supported(rule: &Value) -> bool {
     match value_kind(rule) {
         Some("spellAbility") => spell_rule_supported(rule),
         Some("prepareSpell") => prepare_spell_rule_supported(rule),
+        Some("adventureSpell") => adventure::adventure_spell_rule_supported(rule),
         Some("manaAbility") => mana_rule_supported(rule),
         Some("replacementEffect") => replacement_rule_supported(rule),
         Some("activatedAbility") => activated_rule_supported(rule),
@@ -17976,19 +17968,7 @@ impl GameEngine {
             }
         }
         let can_play_top_card = player.library.last().is_some_and(|top_card| {
-            self.battlefield_static_modifiers()
-                .iter()
-                .any(|(source, modifier)| {
-                    source.controller == player.id
-                        && value_kind(modifier) == Some("playCardsFromTopLibrary")
-                        && matches_card_filter(&top_card.definition, &modifier["where"])
-                })
-                || self.state.rule_modifiers.iter().any(|modifier| {
-                    value_kind(modifier) == Some("gwenomTopLibraryCasting")
-                        && modifier["playerId"].as_str() == Some(player.id.as_str())
-                        && modifier["expiresAfterTurn"].as_u64()
-                            == Some(u64::from(self.state.turn_number))
-                })
+            self.top_library_cast_admitted(&player.id, &top_card.definition)
         });
         if can_play_top_card
             && let Some(card) = player.library.last()
@@ -17996,52 +17976,15 @@ impl GameEngine {
         {
             card_sources.push((card, "library"));
         }
-        for permission in self.state.permissions.iter().filter(|permission| {
-            let permitted_player = if value_kind(permission) == Some("preparedSpellPermission") {
-                permission["sourceCardInstanceId"]
-                    .as_str()
-                    .and_then(|source_id| self.permanent_position(source_id))
-                    .map(|(source_player, source_index)| {
-                        self.state.players[source_player].battlefield[source_index]
-                            .controller
-                            .as_str()
-                    })
-            } else {
-                permission["playerId"].as_str()
-            };
-            permitted_player == Some(player.id.as_str())
-                && permission["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
-                && self.permission_condition_met(permission, &player.id)
-                && (permission["duringControllerTurnOnly"].as_bool() != Some(true)
-                    || self.state.players[self.state.active_player].id == player.id)
-                && (permission["whileSourceControlled"].as_bool() != Some(true)
-                    || permission["sourceCardInstanceId"]
-                        .as_str()
-                        .and_then(|source_id| self.permanent_position(source_id))
-                        .is_some_and(|(source_player, source_index)| {
-                            self.state.players[source_player].battlefield[source_index].controller
-                                == player.id
-                        }))
-                && (value_kind(permission) != Some("azulaExiledPermission")
-                    || permission["sourceCardInstanceId"]
-                        .as_str()
-                        .and_then(|source_id| self.permanent_position(source_id))
-                        .is_some_and(|(source_player, source_index)| {
-                            self.state.players[source_player].battlefield[source_index].controller
-                                == player.id
-                        }))
-        }) {
+        for permission in self
+            .state
+            .permissions
+            .iter()
+            .filter(|permission| self.card_permission_in_scope(permission, &player.id))
+        {
             let Some(instance_id) = permission["cardInstanceId"].as_str() else {
                 continue;
             };
-            if permission["whileInZone"]
-                .as_str()
-                .is_some_and(|zone| self.card_zone_owner_id(instance_id, zone).is_none())
-            {
-                continue;
-            }
             if !seen_sources.insert(instance_id.to_string()) {
                 continue;
             }
@@ -18219,6 +18162,12 @@ impl GameEngine {
                 }
                 sources
             })
+            // CR 716.3a, 601.3e: an Adventure is admitted on its own characteristics.
+            .chain(
+                self.adventure_casting_sources(player)
+                    .into_iter()
+                    .map(|(card, source_zone)| (card, source_zone, None, false)),
+            )
             .collect::<Vec<_>>();
 
         for (card, source_zone, split_face_index, fused) in casting_sources
@@ -18235,28 +18184,8 @@ impl GameEngine {
                 continue;
             }
             let permission = self.state.permissions.iter().find(|permission| {
-                let permitted_player = if value_kind(permission) == Some("preparedSpellPermission")
-                {
-                    permission["sourceCardInstanceId"]
-                        .as_str()
-                        .and_then(|source_id| self.permanent_position(source_id))
-                        .map(|(source_player, source_index)| {
-                            self.state.players[source_player].battlefield[source_index]
-                                .controller
-                                .as_str()
-                        })
-                } else {
-                    permission["playerId"].as_str()
-                };
-                permitted_player == Some(player.id.as_str())
-                    && permission["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
-                    && permission["expiresAfterTurn"]
-                        .as_u64()
-                        .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
-                    && permission["whileInZone"].as_str().is_none_or(|zone| {
-                        self.card_zone_owner_id(&card.instance_id, zone).is_some()
-                    })
-                    && self.permission_condition_met(permission, &player.id)
+                permission["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
+                    && self.card_permission_in_scope(permission, &player.id)
             });
             let plotted_permission = permission
                 .filter(|permission| value_kind(permission) == Some("plottedCardPermission"));
@@ -18906,6 +18835,14 @@ impl GameEngine {
                 if *fused {
                     decisions.insert("fused".to_string(), Value::Bool(true));
                 }
+                if adventure::has_adventure(&card.definition)
+                    || adventure::casting_as_adventure(card)
+                {
+                    decisions.insert(
+                        adventure::CAST_AS_ADVENTURE.to_string(),
+                        Value::Bool(adventure::casting_as_adventure(card)),
+                    );
+                }
                 decisions.insert("manaPayment".to_string(), mana_payment_decision(&payment));
                 if !convoke_sources.is_empty() {
                     decisions.insert("convokeSources".to_string(), json!(convoke_sources));
@@ -18950,6 +18887,8 @@ impl GameEngine {
                         card.instance_id,
                         if *fused {
                             "fused".to_string()
+                        } else if adventure::casting_as_adventure(card) {
+                            "adventure".to_string()
                         } else {
                             split_face_index.unwrap_or(0).to_string()
                         },
@@ -26219,6 +26158,8 @@ impl GameEngine {
                     .and_then(|instance_id| self.card_outside_battlefield(instance_id))
                     .map(|card| card.definition.clone())
                     .ok_or_else(|| EngineError::new("spell source is no longer available"))?;
+                let source_definition =
+                    adventure::casting_definition(&action.decisions, source_definition)?;
                 let cast_source_zone = action
                     .decisions
                     .get("castSourceZone")
@@ -26449,6 +26390,9 @@ impl GameEngine {
                 {
                     return Err(EngineError::new("split card face is no longer available"));
                 }
+                // CR 716.3b: on the stack, only the Adventure's characteristics.
+                card.definition =
+                    adventure::casting_definition(&action.decisions, card.definition.clone())?;
                 if action
                     .decisions
                     .get("fused")
@@ -31281,18 +31225,11 @@ impl GameEngine {
                 if rebound {
                     self.install_rebound_upkeep_trigger(&card, &controller);
                 }
+                // CR 716.3d: bound to this exile incarnation (CR 400.7).
+                let adventure_permission = adventure_after_resolution
+                    .then(|| adventure::adventure_cast_permission(&card, &controller));
                 self.state.players[owner_index].exile.push(card);
-                if adventure_after_resolution {
-                    self.state.permissions.push(json!({
-                        "kind": "adventureCastPermission",
-                        "action": "play",
-                        "cardInstanceId": card_id,
-                        "playerId": controller,
-                        "whileInZone": "exile",
-                        "normalTimingApplies": true,
-                        "normalCostsApply": true,
-                    }));
-                }
+                self.state.permissions.extend(adventure_permission);
                 "exile"
             } else if shuffle_into_library {
                 let destination_zone =

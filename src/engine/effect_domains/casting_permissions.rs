@@ -189,6 +189,7 @@ impl GameEngine {
                     if let Some(condition) = effect.get("condition") {
                         permission["condition"] = condition.clone();
                     }
+                    self.bind_card_permission_to_incarnation(&mut permission);
                     self.state.permissions.push(permission.clone());
                     self.record_event(
                         "cardPermissionGranted",
@@ -357,6 +358,7 @@ impl GameEngine {
                     if value_kind(&effect["duration"]) == Some("untilNextEndStep") {
                         permission["expiresAtEndStepOf"] = Value::String(player_id.clone());
                     }
+                    self.bind_card_permission_to_incarnation(&mut permission);
                     self.state.permissions.push(permission.clone());
                     self.record_event(
                         "permissionGranted",

@@ -60,6 +60,53 @@ A proof of the unconditional path alone does not qualify:
   "whenever you manifest dread" trigger fires after the whole process, even when
   parts of it were impossible (for example, a library with fewer than two cards).
 
+## Adventure layout runtime (CR 716, PR #69)
+
+The Adventure part is linked to its card as an `adventureSpell` rule
+(`src/model.rs`) and cast through `src/engine/adventure.rs`. An Omen part
+still refuses, with its own state (`card-structure.omen-runtime`).
+
+- Admission (CR 716.3a, 601.3e): the Adventure is offered from the hand, or
+  from another zone only under a route that admits a card with the
+  Adventure's characteristics: a static or temporary casting permission, a
+  top-of-library permission (including the unfiltered top-of-library casting
+  of this turn), or a permission for that one card. A permission
+  that admitted the creature does not admit its Adventure, and the reverse.
+- Resolution (CR 716.3d): the ordinary path exiles the card and grants
+  `adventureCastPermission`. The permission is bound to that exile
+  incarnation (`zoneIdentity`, CR 400.7), so it ends once the card leaves
+  exile. A countered or fizzled Adventure goes to the graveyard.
+- Cohort delta (probe, private target): league 824 -> 828 (+4: Brazen
+  Borrower, Murderous Rider, Stormkeld Vanguard, Midgar), corpus 15,079 ->
+  15,155 (+76), with 0 lost and 0 IR changes. 76 of the 167 Adventure cards
+  are supported. Of the rest, 9 are Omen-refused and the others are blocked
+  by ordinary grammar gaps.
+- Proofs: `crates/deepdeck-runtime-fixture-runner/fixtures/adventure/`
+  (resolution, the end to end path, counter, fizzle, admission in both
+  directions, permission expiry, a sorcery Adventure on an enchantment, and
+  a land adventurer played from its exile).
+  `tests/playable_model.rs` pins Brazen Borrower's compiled rules to the end
+  to end fixture.
+- Permission scope: every admission of a single-card permission, the
+  Adventure's included, goes through one check,
+  `card_permission_in_scope`. It covers the permitted player, expiry,
+  condition, controller-turn timing, `whileSourceControlled`, the
+  `azulaExiledPermission` source, `whileInZone` and the bound incarnation.
+  Impulse grants (`grantCardPermission`, `grantPermission`) are bound to the
+  card's incarnation when granted. A zone change that creates a new object
+  ends every permission confined to the zone the card left (CR 400.7).
+- Known gaps, failing closed: exile is scanned only for the player's own
+  cards, so an Adventure on another player's exiled card is never offered.
+  Not yet proved: a copied Adventure (CR 716.3c, 707.10), a controller who is
+  not the owner, and an Adventure that leaves the stack by any means other
+  than a counter or fizzle.
+- `card-structure.layout-runtime` is now `card-structure.omen-runtime`. The
+  diagnostic code `card_layout_runtime_missing` is unchanged. The only other
+  reference to the old state is the historical count table in
+  `docs/oracle-full-migration-plan.md`.
+- Replay delta for the Adventure parts whose status changed:
+  `docs/migration-baselines/adventure-runtime-2026-11-23.md`.
+
 ## Historical handoff (superseded status and owners)
 
 Goal ACTIVE and unfinished: every Magic card through generic compositional typed

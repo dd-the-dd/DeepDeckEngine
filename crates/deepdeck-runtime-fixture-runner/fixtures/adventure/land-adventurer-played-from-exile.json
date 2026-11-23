@@ -1,0 +1,157 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "adventure/land-adventurer-is-played-from-its-adventure-exile",
+  "seed": 727,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Adventurer",
+        "manaPool": [
+          "B",
+          "B",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "adventure-town",
+            "name": "Adventure Town",
+            "typeLine": "Land — Town",
+            "manaCost": "",
+            "rules": [
+              {
+                "kind": "adventureSpell",
+                "spell": {
+                  "id": "town-raid",
+                  "name": "Town Raid",
+                  "typeLine": "Sorcery — Adventure",
+                  "manaCost": "{2}{B}",
+                  "rules": [
+                    {
+                      "kind": "spellAbility",
+                      "source": {
+                        "kind": "self"
+                      },
+                      "effects": [
+                        {
+                          "kind": "drawCards",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          },
+                          "count": {
+                            "kind": "integer",
+                            "value": 1
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "library": [
+          {
+            "id": "library-filler",
+            "name": "Library Filler",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opponent-artifact",
+            "name": "Opponent Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{2}",
+            "rules": []
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "adventure-town",
+      "declarationDecisions": {
+        "castAsAdventure": true
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "adventure-town"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "library-filler",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "adventure-town",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "adventure-town",
+      "equals": false
+    },
+    {
+      "kind": "permanentTypeLineContains",
+      "playerId": "player-0",
+      "definitionId": "adventure-town",
+      "value": "Land",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "equals": 1
+    }
+  ]
+}

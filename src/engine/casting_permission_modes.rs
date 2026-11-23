@@ -14,6 +14,112 @@ fn ordinary_base(decisions: &BTreeMap<String, Value>) -> bool {
     )
 }
 impl GameEngine {
+    /// The one scope check for a permission that names a card: whether it
+    /// currently lets `player_id` use that card. It resolves the permitted
+    /// player (a prepared spell follows its source's controller), then checks
+    /// expiry, its condition, controller-turn timing, source control, and, for
+    /// its card, the zone it is confined to and the incarnation it was granted
+    /// for (CR 400.7). Every admission of a card permission uses it.
+    pub(super) fn card_permission_in_scope(&self, permission: &Value, player_id: &str) -> bool {
+        let source_controller = || {
+            permission["sourceCardInstanceId"]
+                .as_str()
+                .and_then(|source_id| self.permanent_position(source_id))
+                .map(|(source_player, source_index)| {
+                    self.state.players[source_player].battlefield[source_index]
+                        .controller
+                        .as_str()
+                })
+        };
+        let permitted_player = if value_kind(permission) == Some("preparedSpellPermission") {
+            source_controller()
+        } else {
+            permission["playerId"].as_str()
+        };
+        permitted_player == Some(player_id)
+            && permission["expiresAfterTurn"]
+                .as_u64()
+                .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
+            && self.permission_condition_met(permission, player_id)
+            && (permission["duringControllerTurnOnly"].as_bool() != Some(true)
+                || self.state.players[self.state.active_player].id == player_id)
+            && (permission["whileSourceControlled"].as_bool() != Some(true)
+                || source_controller() == Some(player_id))
+            && (value_kind(permission) != Some("azulaExiledPermission")
+                || source_controller() == Some(player_id))
+            && permission["cardInstanceId"]
+                .as_str()
+                .is_none_or(|instance_id| {
+                    permission["whileInZone"]
+                        .as_str()
+                        .is_none_or(|zone| self.card_zone_owner_id(instance_id, zone).is_some())
+                        && self.permission_incarnation_current(permission, instance_id)
+                })
+    }
+
+    /// Whether a card with `definition` may be played from the top of
+    /// `player_id`'s library: a top-of-library permission whose filter it
+    /// matches, or this turn's unfiltered top-of-library casting.
+    pub(super) fn top_library_cast_admitted(
+        &self,
+        player_id: &str,
+        definition: &CardDefinition,
+    ) -> bool {
+        self.battlefield_static_modifiers()
+            .iter()
+            .any(|(source, modifier)| {
+                source.controller == player_id
+                    && value_kind(modifier) == Some("playCardsFromTopLibrary")
+                    && matches_card_filter(definition, &modifier["where"])
+            })
+            || self.state.rule_modifiers.iter().any(|modifier| {
+                value_kind(modifier) == Some("gwenomTopLibraryCasting")
+                    && modifier["playerId"].as_str() == Some(player_id)
+                    && modifier["expiresAfterTurn"].as_u64()
+                        == Some(u64::from(self.state.turn_number))
+            })
+    }
+
+    /// A permission bound to one incarnation (`zoneIdentity`) ends when its
+    /// card leaves that zone, even if it comes back (CR 400.7). An unbound
+    /// permission is confined by `whileInZone` and ended by
+    /// `end_card_permissions_confined_to` when its card leaves that zone.
+    pub(super) fn permission_incarnation_current(
+        &self,
+        permission: &Value,
+        instance_id: &str,
+    ) -> bool {
+        let Some(bound) = permission["zoneIdentity"].as_str() else {
+            return true;
+        };
+        self.card_outside_battlefield(instance_id)
+            .and_then(Self::tracked_zone_identity)
+            == Some(bound)
+    }
+
+    /// Binds a single-card permission to its card's current incarnation
+    /// (`zoneIdentity`), so the permission ends once that card leaves its zone
+    /// (CR 400.7). A card on the battlefield or without one is left unbound.
+    pub(super) fn bind_card_permission_to_incarnation(&self, permission: &mut Value) {
+        let identity = permission["cardInstanceId"]
+            .as_str()
+            .and_then(|instance_id| self.card_outside_battlefield(instance_id))
+            .and_then(Self::tracked_zone_identity)
+            .map(ToOwned::to_owned);
+        if let Some(identity) = identity {
+            permission["zoneIdentity"] = Value::from(identity);
+        }
+    }
+
+    /// CR 400.7: a card that becomes a new object leaves behind every
+    /// permission confined to the zone it left.
+    pub(super) fn end_card_permissions_confined_to(&mut self, instance_id: &str, zone: &str) {
+        self.state.permissions.retain(|permission| {
+            permission["cardInstanceId"].as_str() != Some(instance_id)
+                || permission["whileInZone"].as_str() != Some(zone)
+        });
+    }
+
     pub(super) fn static_casting_permission_applies(
         &self,
         source: &CardInstance,
