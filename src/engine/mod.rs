@@ -18202,9 +18202,12 @@ impl GameEngine {
                 if split_faces.is_empty() {
                     let casting_card = (*card).clone();
                     // CR 715.3a: an adventurer card may instead be cast as its Adventure.
-                    let adventure =
-                        adventure::adventure_casting_card(card, source_zone, &self.state.permissions)
-                            .map(|card| (card, *source_zone, None, false));
+                    let adventure = adventure::adventure_casting_card(
+                        card,
+                        source_zone,
+                        &self.state.permissions,
+                    )
+                    .map(|card| (card, *source_zone, None, false));
                     return std::iter::once((casting_card, *source_zone, None, false))
                         .chain(adventure)
                         .collect();
