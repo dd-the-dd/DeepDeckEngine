@@ -74,6 +74,19 @@ fn recognize_scry_effect_with_player(
     Ok(ScryEffectNode { player, count })
 }
 
+/// `scries N` after a player subject the parent read: the verb in the
+/// subject's agreement, then the shared count.
+pub(in crate::oracle::canonical) fn recognize_player_scry_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    surface: &'static str,
+) -> MachineResult<NumericExpression> {
+    recognize_scry_action(
+        cursor,
+        surface,
+        "the `scry` verb in its subject's agreement",
+    )
+}
+
 fn recognize_scry_action(
     cursor: &mut OracleTokenCursor<'_>,
     action: &'static str,

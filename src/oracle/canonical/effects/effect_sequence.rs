@@ -389,7 +389,10 @@ fn lower_local_effect_sequence_with_collections(
         if matches!(
             effect,
             LocalEffectNode::PlayerAction(PlayerActionNode {
-                action: SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_),
+                action: SingularPlayerAction::Draw(_)
+                    | SingularPlayerAction::Mill(_)
+                    | SingularPlayerAction::Scry(_)
+                    | SingularPlayerAction::CreateTokens(_),
                 ..
             })
         ) {
@@ -511,6 +514,39 @@ fn lower_local_effect_sequence_with_collections(
                     }
                     SingularPlayerAction::Proliferate => {
                         effects.push(json!({"kind": "proliferate", "player": lowered.player}));
+                        continue;
+                    }
+                    SingularPlayerAction::Scry(count) => {
+                        cursor.enter("lower.player-action.scry");
+                        let amount = lower_sequence_bound_amount(
+                            cursor,
+                            count,
+                            sequence,
+                            &target_bindings,
+                            context,
+                        )?;
+                        effects.extend(
+                            lower_library_partition_effects_for_player(
+                                LibraryPartitionAction::Scry,
+                                count,
+                                amount,
+                                lowered.player,
+                                Some(&format!("effect{effect_index}")),
+                            )
+                            .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
+                        );
+                        continue;
+                    }
+                    SingularPlayerAction::CreateTokens(body) => {
+                        cursor.enter("lower.player-action.create-tokens");
+                        let quantity = lower_sequence_bound_amount(
+                            cursor,
+                            &body.quantity,
+                            sequence,
+                            &target_bindings,
+                            context,
+                        )?;
+                        effects.push(lower_token_creation_body(body, lowered.player, quantity));
                         continue;
                     }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {

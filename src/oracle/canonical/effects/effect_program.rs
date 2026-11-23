@@ -17,12 +17,28 @@ pub(in crate::oracle::canonical) fn lower_effect_program(
     cursor: &mut OracleTokenCursor<'_>,
     program: &EffectProgramNode,
 ) -> MachineResult<LoweredEffectSequence> {
+    lower_effect_program_with_context(cursor, program, EffectSequenceLoweringContext::NoExternalX)
+}
+
+/// The same program lowering under the caller's numeric-binding policy.
+pub(in crate::oracle::canonical) fn lower_effect_program_with_context(
+    cursor: &mut OracleTokenCursor<'_>,
+    program: &EffectProgramNode,
+    context: EffectSequenceLoweringContext,
+) -> MachineResult<LoweredEffectSequence> {
     let mut steps = Vec::new();
     for step in program.steps() {
         steps.push(lower_program_step(
             cursor,
             step,
-            &mut |cursor, sequence| lower_local_effect_sequence(cursor, sequence),
+            &mut |cursor, sequence| match try_lower_local_effect_sequence_with_context(
+                cursor, sequence, context,
+            ) {
+                EffectSequenceLoweringAttempt::Lowered(lowered) => Ok(lowered),
+                EffectSequenceLoweringAttempt::UnsupportedSupportLimit(failure)
+                | EffectSequenceLoweringAttempt::FailedSupport(failure)
+                | EffectSequenceLoweringAttempt::FailedInvariant(failure) => Err(failure),
+            },
             |failure| failure,
         )?);
     }

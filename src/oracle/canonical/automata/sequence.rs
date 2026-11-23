@@ -392,6 +392,8 @@ impl SequenceMemory {
                         super::SingularPlayerAction::Draw(_)
                             | super::SingularPlayerAction::Mill(_)
                             | super::SingularPlayerAction::Hand(_)
+                            | super::SingularPlayerAction::Scry(_)
+                            | super::SingularPlayerAction::CreateTokens(_)
                     ) =>
                 {
                     return false;
@@ -2785,6 +2787,15 @@ fn recognize_declared_subject_clause(
             .slots
             .iter()
             .all(|slot| matches!(slot.selector, super::TargetSelector::Player(_)));
+    // A coordinator the target list stopped at (`target creature or player`)
+    // continues the subject phrase, not a verb: the list owns that refusal.
+    if subject
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("or") || raw.eq_ignore_ascii_case("and"))
+    {
+        subject.enter("target-list.complete");
+        return Err(subject.fail("a complete target list before the subject's verb"));
+    }
     subject.enter("effect.subject.declared.verb");
     let mills = subject
         .peek()

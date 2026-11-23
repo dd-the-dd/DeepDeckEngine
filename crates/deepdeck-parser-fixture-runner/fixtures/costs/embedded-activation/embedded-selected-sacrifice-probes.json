@@ -146,6 +146,10 @@
                         }
                       }
                     ],
+                    "declaration": {
+                      "kind": "castingDeclaration",
+                      "decisions": []
+                    },
                     "effects": [
                       {
                         "controller": {
@@ -507,7 +511,7 @@
                       },
                       "value": "mode4"
                     },
-                    "id": "mode4:targetCards",
+                    "id": "mode4:targetCard",
                     "kind": "chooseTargets",
                     "maximum": {
                       "decisionId": "xValue",
@@ -625,7 +629,7 @@
                   "kind": "conditional",
                   "then": [
                     {
-                      "bind": "mode2:scryLookedCards",
+                      "bind": "effect0:scryLookedCards",
                       "count": {
                         "decisionId": "xValue",
                         "kind": "decisionResult"
@@ -641,15 +645,15 @@
                     },
                     {
                       "from": {
-                        "binding": "mode2:scryLookedCards",
+                        "binding": "effect0:scryLookedCards",
                         "kind": "boundObjects"
                       },
-                      "id": "mode2:scryBottomCards",
+                      "id": "effect0:scryBottomCards",
                       "kind": "chooseCards",
                       "maximum": {
                         "kind": "countObjects",
                         "objects": {
-                          "binding": "mode2:scryLookedCards",
+                          "binding": "effect0:scryLookedCards",
                           "kind": "boundObjects"
                         }
                       },
@@ -663,10 +667,10 @@
                       }
                     },
                     {
-                      "id": "mode2:scryBottomOrder",
+                      "id": "effect0:scryBottomOrder",
                       "kind": "chooseOrder",
                       "objects": {
-                        "decisionId": "mode2:scryBottomCards",
+                        "decisionId": "effect0:scryBottomCards",
                         "kind": "decisionResult"
                       },
                       "player": {
@@ -676,12 +680,12 @@
                     },
                     {
                       "cards": {
-                        "decisionId": "mode2:scryBottomOrder",
+                        "decisionId": "effect0:scryBottomOrder",
                         "kind": "decisionResult"
                       },
                       "kind": "moveCards",
                       "order": {
-                        "decisionId": "mode2:scryBottomOrder",
+                        "decisionId": "effect0:scryBottomOrder",
                         "kind": "decisionOrder"
                       },
                       "to": {
@@ -694,16 +698,16 @@
                       }
                     },
                     {
-                      "id": "mode2:scryTopOrder",
+                      "id": "effect0:scryTopOrder",
                       "kind": "chooseOrder",
                       "objects": {
                         "kind": "setDifference",
                         "left": {
-                          "binding": "mode2:scryLookedCards",
+                          "binding": "effect0:scryLookedCards",
                           "kind": "boundObjects"
                         },
                         "right": {
-                          "decisionId": "mode2:scryBottomCards",
+                          "decisionId": "effect0:scryBottomCards",
                           "kind": "decisionResult"
                         }
                       },
@@ -714,12 +718,12 @@
                     },
                     {
                       "cards": {
-                        "decisionId": "mode2:scryTopOrder",
+                        "decisionId": "effect0:scryTopOrder",
                         "kind": "decisionResult"
                       },
                       "kind": "moveCards",
                       "order": {
-                        "decisionId": "mode2:scryTopOrder",
+                        "decisionId": "effect0:scryTopOrder",
                         "kind": "decisionOrder"
                       },
                       "to": {
@@ -803,7 +807,7 @@
                   "then": [
                     {
                       "cards": {
-                        "id": "mode4:targetCards",
+                        "id": "mode4:targetCard",
                         "kind": "chosenTargets"
                       },
                       "kind": "exileTargetCards"

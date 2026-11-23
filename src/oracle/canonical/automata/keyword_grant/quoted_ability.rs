@@ -135,13 +135,17 @@ pub(in crate::oracle::canonical) fn recognize_quoted_ability(
 pub(in crate::oracle::canonical) fn quoted_sentence_just_closed(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    let position = cursor.position();
-    position >= 2 && {
-        let previous = cursor.token_slice(position - 2, position);
-        previous[0].raw == "."
-            && matches!(
-                previous[1].raw.as_str(),
-                "\"" | "\u{201D}" | "'" | "\u{2019}"
-            )
-    }
+    // Nested quotes close together (`... control.'"`): every closing mark
+    // directly after the period belongs to that one printed terminator.
+    let previous = cursor.token_slice(0, cursor.position());
+    let closing = previous
+        .iter()
+        .rev()
+        .take_while(|token| matches!(token.raw.as_str(), "\"" | "\u{201D}" | "'" | "\u{2019}"))
+        .count();
+    closing > 0
+        && previous
+            .len()
+            .checked_sub(closing + 1)
+            .is_some_and(|index| previous[index].raw == ".")
 }

@@ -30,10 +30,10 @@
       "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 5,
+        "abilityCount": 3,
         "abilities": [
           {
-            "index": 2,
+            "index": 1,
             "status": "canonical",
             "recognizer": "native",
             "abilityType": "staticAbility",
@@ -43,7 +43,7 @@
             ]
           },
           {
-            "index": 3,
+            "index": 2,
             "status": "canonical",
             "recognizer": "native",
             "abilityType": "triggeredAbility",
@@ -57,7 +57,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "code": "oracle_machine_failure"
           }
         ]
       }

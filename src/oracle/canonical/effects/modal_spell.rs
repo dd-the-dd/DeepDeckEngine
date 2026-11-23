@@ -88,7 +88,13 @@ fn lower_mode_occurrence(
     prefix: &str,
     selected: Value,
 ) -> MachineResult<LoweredModeOccurrence> {
-    let mut lowered = lower_effect_program(cursor, mode)?;
+    // A mode reads the spell face's X (CR 107.3a); its producer is checked
+    // once the card is composed, like any other effect program of the face.
+    let mut lowered = lower_effect_program_with_context(
+        cursor,
+        mode,
+        EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+    )?;
     let replacements = lowered
         .decisions
         .iter()
@@ -185,15 +191,31 @@ pub(in crate::oracle::canonical) fn lower_effect_sequence_modal(
             "then": lowered.effects,
         }));
     }
-    // A shared X is declared once, whichever mode reads it.
-    let mut seen_x = false;
+    // A shared X (CR 107.3a) is declared once, right after the modes,
+    // whichever mode declares or reads it.
+    let mut declared_x = false;
     decisions.retain(|decision| {
-        if decision["id"].as_str() != Some("xValue") {
-            return true;
-        }
-        !std::mem::replace(&mut seen_x, true)
+        let is_x = decision["id"].as_str() == Some("xValue");
+        declared_x |= is_x;
+        !is_x
     });
+    if declared_x || decisions.iter().chain(&effects).any(reads_x_value) {
+        decisions.insert(1, x_value());
+    }
     Ok(LoweredEffectSequence { effects, decisions })
+}
+
+/// True when a lowered value reads the `xValue` decision result.
+fn reads_x_value(value: &Value) -> bool {
+    match value {
+        Value::Object(object) => {
+            (object.get("kind").and_then(Value::as_str) == Some("decisionResult")
+                && object.get("decisionId").and_then(Value::as_str) == Some("xValue"))
+                || object.values().any(reads_x_value)
+        }
+        Value::Array(values) => values.iter().any(reads_x_value),
+        _ => false,
+    }
 }
 
 #[cfg(test)]

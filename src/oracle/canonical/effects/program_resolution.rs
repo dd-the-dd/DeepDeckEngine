@@ -120,6 +120,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             // Choice-bearing player actions keep the native lowering boundary.
             // A revealed hand and a referenced discard bind card collections.
             SingularPlayerAction::Counters(node) => independent_number(&node.count),
+            SingularPlayerAction::CreateTokens(_) | SingularPlayerAction::Scry(_) => false,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
@@ -365,7 +366,10 @@ fn resolve_sequence(
                 }
                 if matches!(
                     action.action,
-                    SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_)
+                    SingularPlayerAction::Draw(_)
+                        | SingularPlayerAction::Mill(_)
+                        | SingularPlayerAction::Scry(_)
+                        | SingularPlayerAction::CreateTokens(_)
                 ) {
                     *collections = CollectionScope::default();
                 }

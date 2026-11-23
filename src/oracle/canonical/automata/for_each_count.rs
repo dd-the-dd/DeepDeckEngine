@@ -435,11 +435,13 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         LocalEffectNode::LoseLife(node) => &mut node.amount,
         LocalEffectNode::PutCounters(node) => &mut node.count,
         LocalEffectNode::DealDamage(node) => &mut node.amount,
-        LocalEffectNode::CreateExplicitTokens(node) => &mut node.quantity,
+        LocalEffectNode::CreateExplicitTokens(node) => &mut node.body.quantity,
         LocalEffectNode::PlayerAction(node) => match &mut node.action {
             SingularPlayerAction::Draw(quantity) | SingularPlayerAction::Mill(quantity) => quantity,
             SingularPlayerAction::Counters(node) => &mut node.count,
             SingularPlayerAction::Life(life) => &mut life.amount,
+            SingularPlayerAction::CreateTokens(body) => &mut body.quantity,
+            SingularPlayerAction::Scry(count) => count,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
