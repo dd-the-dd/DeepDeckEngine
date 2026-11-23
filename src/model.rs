@@ -242,7 +242,7 @@ pub fn compile_related_token_definition(token: &Value) -> Result<Option<CardDefi
 
 /// The spell part linked to the selected primary part, with the rule kind that
 /// carries it: a prepare spell (`prepareSpell`) or an Adventure
-/// (`adventureSpell`, CR 715). Other layouts link no spell part.
+/// (`adventureSpell`, CR 716). Other layouts link no spell part.
 fn linked_spell_face_id<'a>(
     parser_result: &'a OracleCardParseResult,
     selected_face_id: Option<&str>,
@@ -470,7 +470,7 @@ pub fn playable_rules_for_face(
             "id": spell_face.id,
             "name": spell_face.name,
             "typeLine": spell_face.type_line,
-            "manaCost": spell_face.mana_cost.as_deref().unwrap_or_default(),
+            "manaCost": spell_face.mana_cost.as_deref(),
             "rules": spell_rules,
         }
     }));

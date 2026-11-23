@@ -100,7 +100,7 @@ fn apply_room_door_index(
 /// it is shuffled into its owner's library instead of going anywhere else. The
 /// playable-card adapter does not link that part to a runtime yet, so a
 /// recognized Omen part is not executable coverage and fails explicitly.
-/// An Adventure part (CR 715) is linked by the adapter (`adventureSpell`) and
+/// An Adventure part (CR 716) is linked by the adapter (`adventureSpell`) and
 /// cast as the card's Adventure, and a prepared spell part (`prepareSpell`) is
 /// cast as a copy, so both stay canonical.
 fn reject_parts_without_layout_runtime(

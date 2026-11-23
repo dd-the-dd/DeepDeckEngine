@@ -1,23 +1,24 @@
-//! Adventure layout runtime (CR 715).
+//! Adventure layout runtime (CR 716).
 //!
 //! An adventurer card carries its Adventure as an `adventureSpell` rule (the
 //! playable-card adapter links the parsed Adventure part, like `prepareSpell`).
 //! Casting it as an Adventure uses only the Adventure's characteristics
-//! (CR 715.3b): name, mana cost, type line and rules. The ordinary stack
+//! (CR 716.3b): name, mana cost, type line and rules. The ordinary stack
 //! resolution then exiles it with an `adventureCastPermission` bound to that
-//! exile incarnation (CR 715.4, 400.7); if it is countered or otherwise leaves
+//! exile incarnation (CR 716.3d, 400.7); if it is countered or otherwise leaves
 //! the stack without resolving, it goes to the graveyard as usual. In every
 //! other zone, and once it leaves the stack, the card has its normal
-//! characteristics again (the stack departure restores the printed definition).
+//! characteristics again (CR 716.4; the stack departure restores the printed
+//! definition).
 //!
-//! The choice to cast the Adventure (CR 715.3a) exists only where the
+//! The choice to cast the Adventure (CR 716.3) exists only where the
 //! Adventure itself may be cast (CR 601.3e): from the hand, or from another
 //! zone under a route that admits a card with the Adventure's
 //! characteristics. A permission that admitted the creature does not, by
 //! itself, admit its Adventure, and the reverse.
 use super::*;
 
-/// The decision that marks a cast as the card's Adventure (CR 715.3a). Every
+/// The decision that marks a cast as the card's Adventure (CR 716.3). Every
 /// cast of an adventurer card carries it, `false` for the creature.
 pub(super) const CAST_AS_ADVENTURE: &str = "castAsAdventure";
 /// Casting-source flag set on the transient card that offers the Adventure.
@@ -39,6 +40,10 @@ pub(super) fn has_adventure(card: &CardDefinition) -> bool {
 /// sorcery, of the required spell subtype if any, with at least one spell
 /// ability, whose every rule the runtime supports.
 pub(super) fn linked_spell_part_supported(spell: &Value, required_subtype: Option<&str>) -> bool {
+    // A missing mana cost is not a free spell.
+    if !spell["manaCost"].is_string() {
+        return false;
+    }
     let Ok(spell) = serde_json::from_value::<CardDefinition>(spell.clone()) else {
         return false;
     };
@@ -56,15 +61,15 @@ pub(super) fn adventure_spell_rule_supported(rule: &Value) -> bool {
         && linked_spell_part_supported(&rule["spell"], Some("Adventure"))
 }
 
-/// The card as its Adventure (CR 715.3b): only the Adventure's name, mana cost,
+/// The card as its Adventure (CR 716.3b): only the Adventure's name, mana cost,
 /// type line and rules, with no power or toughness. Its spell abilities exile
-/// it on resolution with permission to cast the creature later (CR 715.4).
+/// it on resolution with permission to cast the creature later (CR 716.3d).
 pub(super) fn adventure_spell_definition(card: &CardDefinition) -> Option<CardDefinition> {
     let spell = linked_adventure(card)?;
     let mut definition = card.clone();
     definition.name = spell["name"].as_str()?.to_string();
     definition.type_line = spell["typeLine"].as_str()?.to_string();
-    definition.mana_cost = spell["manaCost"].as_str().unwrap_or_default().to_string();
+    definition.mana_cost = spell["manaCost"].as_str()?.to_string();
     definition.power = None;
     definition.toughness = None;
     definition.rules = spell["rules"]
@@ -106,7 +111,7 @@ pub(super) fn casting_definition(
 }
 
 /// The permission an Adventure resolution grants: cast the creature from that
-/// exile incarnation only (CR 715.4). Leaving exile ends it (CR 400.7).
+/// exile incarnation only (CR 716.3d). Leaving exile ends it (CR 400.7).
 pub(super) fn adventure_cast_permission(card: &CardInstance, controller: &str) -> Value {
     let mut permission = json!({
         "kind": ADVENTURE_PERMISSION,
@@ -127,6 +132,11 @@ impl GameEngine {
     /// The Adventure casting sources of `player`: each adventurer card whose
     /// Adventure may be cast from its zone, with the Adventure's
     /// characteristics and the casting-source flag.
+    ///
+    /// Known gap, failing closed: exile is scanned only for cards `player`
+    /// owns, so an Adventure on another player's exiled card (cast under a
+    /// "you may cast that card" permission) is not offered, while the creature
+    /// half still follows the ordinary permission route.
     pub(super) fn adventure_casting_sources(
         &self,
         player: &EnginePlayer,
@@ -162,8 +172,9 @@ impl GameEngine {
     }
 
     /// Whether the Adventure (a card with the Adventure's characteristics) may
-    /// be cast from `zone` (CR 601.3e). Every route re-checks the Adventure
-    /// itself; a route this list does not know never admits it.
+    /// be cast from `zone` (CR 716.3a, 601.3e). Each route is the one the
+    /// creature's casting sources use, evaluated on the Adventure; a route
+    /// this list does not know never admits it.
     fn adventure_admitted(&self, player_id: &str, adventure: &CardInstance, zone: &str) -> bool {
         if zone == "hand" {
             return true;
@@ -174,53 +185,24 @@ impl GameEngine {
         {
             return true;
         }
-        if zone == "library"
-            && self
-                .battlefield_static_modifiers()
-                .iter()
-                .any(|(source, modifier)| {
-                    source.controller == player_id
-                        && value_kind(modifier) == Some("playCardsFromTopLibrary")
-                        && matches_card_filter(&adventure.definition, &modifier["where"])
-                })
-        {
+        if zone == "library" && self.top_library_cast_admitted(player_id, &adventure.definition) {
             return true;
         }
         // A permission for this one card ("you may cast that card") admits
-        // either half unless it filters characteristics the Adventure lacks.
-        // The creature-only Adventure permission never admits the Adventure.
+        // either half (CR 716.3d) under the same scope check as the creature,
+        // unless it filters characteristics the Adventure lacks. The
+        // creature-only Adventure permission never admits the Adventure.
         self.state.permissions.iter().any(|permission| {
             value_kind(permission) != Some(ADVENTURE_PERMISSION)
-                && permission["playerId"].as_str() == Some(player_id)
                 && permission["cardInstanceId"].as_str() == Some(adventure.instance_id.as_str())
                 && matches!(permission["action"].as_str(), Some("play" | "cast"))
                 && permission["whileInZone"]
                     .as_str()
                     .is_none_or(|while_in| while_in == zone)
-                && permission["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
                 && permission
                     .get("where")
                     .is_none_or(|filter| matches_card_filter(&adventure.definition, filter))
-                && self.permission_incarnation_current(permission, &adventure.instance_id)
-                && self.permission_condition_met(permission, player_id)
+                && self.card_permission_in_scope(permission, player_id)
         })
-    }
-
-    /// A permission bound to one incarnation (`zoneIdentity`) ends when its
-    /// card leaves that zone, even if it comes back (CR 400.7). An unbound
-    /// permission keeps its existing scope.
-    pub(super) fn permission_incarnation_current(
-        &self,
-        permission: &Value,
-        instance_id: &str,
-    ) -> bool {
-        let Some(bound) = permission["zoneIdentity"].as_str() else {
-            return true;
-        };
-        self.card_outside_battlefield(instance_id)
-            .and_then(Self::tracked_zone_identity)
-            == Some(bound)
     }
 }

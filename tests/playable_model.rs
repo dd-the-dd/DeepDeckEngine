@@ -579,7 +579,7 @@ fn brazen_borrower_request() -> OracleCardParseRequest {
     }
 }
 
-/// Feature: The playable adapter links an Adventure (CR 715) to the adventurer
+/// Feature: The playable adapter links an Adventure (CR 716) to the adventurer
 /// card instead of merging it into the creature cast, and the runtime
 /// fixture plays exactly these compiled rules.
 #[test]

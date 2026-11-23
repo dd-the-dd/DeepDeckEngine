@@ -68,10 +68,10 @@ impl GameEngine {
     /// The card a canonical land play or cast names: the one copy, in any of
     /// its owner's off-battlefield zones, that the engine currently offers a
     /// legal action of `kind` for (a hand card, or a card a permission admits
-    /// elsewhere, such as an Adventure's exile under CR 715.4). A lone copy is
-    /// returned even without one, so its caller can report the reason. `None`
-    /// when several copies exist and none has such an action; an error when
-    /// the request is absent or ambiguous.
+    /// elsewhere, such as an Adventure's exile under CR 716.3d). Among several
+    /// such copies the hand copy is chosen when it is the only one in hand.
+    /// When no copy has one, the first copy (hand first) is returned so the
+    /// caller reports why. An error when the request is absent or ambiguous.
     fn canonical_action_source(
         &self,
         player_index: usize,
@@ -104,12 +104,22 @@ impl GameEngine {
                 })
             })
             .collect::<Vec<_>>();
-        match (actionable.as_slice(), copies.as_slice()) {
-            ([source], _) => Ok(Some((**source).clone())),
-            // One copy and no legal action: keep it, so the caller reports why
-            // (an unknown declaration decision, or a cast that is not legal).
-            ([], [only]) => Ok(Some((*only).clone())),
-            ([], _) => Ok(None),
+        let actionable_in_hand = actionable
+            .iter()
+            .copied()
+            .filter(|card| {
+                player
+                    .hand
+                    .iter()
+                    .any(|held| held.instance_id == card.instance_id)
+            })
+            .collect::<Vec<_>>();
+        match (actionable.as_slice(), actionable_in_hand.as_slice()) {
+            ([source], _) | (_, [source]) => Ok(Some((**source).clone())),
+            // No copy has a legal action: keep the first (hand first) so the
+            // caller reports why, such as an unknown declaration decision or
+            // a cast that is not currently legal.
+            ([], _) => Ok(copies.first().map(|card| (*card).clone())),
             (many, _) => Err(EngineError::new(format!(
                 "definition {definition_id} is ambiguous in {}'s card zones ({} copies with a legal action)",
                 player.id,

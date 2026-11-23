@@ -84,7 +84,7 @@ fn expected_restriction() -> serde_json::Value {
 fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
     let parsed = parse_adventure(FRONT_ORACLE);
 
-    // CR 715: the Adventure part is linked to the adventurer card and cast as
+    // CR 716: the Adventure part is linked to the adventurer card and cast as
     // its Adventure, so the whole card is native canonical coverage.
     assert_eq!(parsed.status, "canonical", "{parsed:#?}");
     assert_eq!(parsed.abilities.len(), 4);
