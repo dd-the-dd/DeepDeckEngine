@@ -7,8 +7,8 @@ use super::{
     CardSupertype, NumericComparisonOperator, ObjectCardType, ObjectControllerScope, ObjectKind,
     ObjectPredicate, PlayerPredicate, SelectorNumericProperty, SelectorPredicate, SpellCasterScope,
     StackAbilityKind, StackItemPredicate, TargetSelector, object_predicate_atom_starts,
-    parameterless_keyword_from_oracle_word, recognize_mana_cost, recognize_numeric_atom,
-    recognize_object_predicate_atom, recognize_parameterless_keyword,
+    parameterless_keyword_from_oracle_word, recognize_mana_cost, recognize_object_predicate_atom,
+    recognize_parameterless_keyword,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

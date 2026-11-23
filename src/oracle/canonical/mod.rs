@@ -23,13 +23,13 @@ pub(crate) use abilities::keyword_template_expansion::{
 };
 use abilities::*;
 use automata::*;
-pub(crate) use card_composition::{compose_card_rules, compose_card_rules_native};
+pub(crate) use card_composition::compose_card_rules_native;
 
 pub(crate) use context::CanonicalRuleDraft;
 
-pub(crate) use dispatch::{
-    CanonicalParseOutcome, parse_canonical_rule, parse_canonical_rule_native,
-};
+#[cfg(test)]
+pub(crate) use dispatch::parse_canonical_rule;
+pub(crate) use dispatch::{CanonicalParseOutcome, parse_canonical_rule_native};
 use effects::*;
 
 use ir::*;

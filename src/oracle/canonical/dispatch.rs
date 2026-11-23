@@ -40,6 +40,7 @@ impl PartialEq<&str> for AbilityKindConstraint<'_> {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_canonical_rule(
     input: &AbilityInput<'_>,
     ability_kind: &str,

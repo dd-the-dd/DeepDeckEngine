@@ -1,6 +1,6 @@
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::*;
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::canonical::automata::VerbLemma;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ExplicitTokenCreationNode {

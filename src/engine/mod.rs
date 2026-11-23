@@ -142,7 +142,9 @@ mod replacement_pipeline;
 mod trigger_multiplicity;
 mod trigger_observer_presence;
 mod zone_change_events;
-use mana_postcost_ordered::{OrderedManaChoice, OrderedManaState};
+#[cfg(test)]
+use mana_postcost_ordered::OrderedManaChoice;
+use mana_postcost_ordered::OrderedManaState;
 mod card_selection;
 mod color_set_query;
 mod entry_observation;

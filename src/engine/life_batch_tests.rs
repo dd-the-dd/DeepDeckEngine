@@ -1,5 +1,4 @@
 use super::super::*;
-use super::*;
 use rand::RngCore;
 
 fn definition(id: &str, rules: Vec<Value>) -> CardDefinition {

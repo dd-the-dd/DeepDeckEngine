@@ -2357,8 +2357,7 @@ pub(in crate::oracle::canonical) use performer::{
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
-    recognize_destroy_reference_effect, recognize_referenced_permanent_action,
-    recognize_referenced_permanent_zone_action,
+    recognize_destroy_reference_effect, recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
@@ -2371,7 +2370,6 @@ pub(in crate::oracle::canonical) use permanent_action::{
     PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
-    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding, permanent_antecedent,
+    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,
     recognize_contextual_permanent_operand, selector_guarantees_permanent,
-    singular_permanent_target, subject_after_operand,
 };

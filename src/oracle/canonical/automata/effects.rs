@@ -4,12 +4,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterEffectNode, DamageEffectNode, DamageRecipientNode, LocalEffectNode, NumericExpression,
-    ObjectCardType, ObjectKind, SelectorPredicate, TargetBinding, TargetCardinality,
-    TargetSelector, ZoneChangeAction, ZoneChangeDestination, ZoneChangeEffectNode,
-    ZoneChangeRegenerationPolicy, recognize_equal_to_amount_expression,
-    recognize_numeric_expression, recognize_player_reference,
+    ObjectCardType, ObjectKind, SelectorPredicate, TargetCardinality, TargetSelector,
+    ZoneChangeAction, ZoneChangeDestination, ZoneChangeEffectNode, ZoneChangeRegenerationPolicy,
+    recognize_equal_to_amount_expression, recognize_numeric_expression, recognize_player_reference,
     recognize_source_reference_with_typed_antecedent, recognize_target_list,
-    recognize_target_slot_selector,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

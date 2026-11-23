@@ -213,7 +213,6 @@ pub(super) use quantified_player_action::*;
 
 pub(super) use become_types::*;
 pub(super) use continuous_type_change::*;
-pub(super) use keyword_grant::*;
 pub(super) use labeled_activated_zone_change::*;
 pub(super) use land_play_trigger::*;
 pub(super) use landfall_reflexive_counter::*;

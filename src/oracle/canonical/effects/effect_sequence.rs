@@ -934,7 +934,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
-                let mut lowered = lower_optional_card_deployment(
+                let lowered = lower_optional_card_deployment(
                     deployment,
                     declarations,
                     &collections.allocate_selection_id("optionalCardDeployment"),
