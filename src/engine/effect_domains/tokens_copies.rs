@@ -328,7 +328,7 @@ impl GameEngine {
                     .flatten()
                     .or_else(|| {
                         original_definition
-                            .rules
+                            .printed_rules()
                             .iter()
                             .find(|rule| {
                                 value_kind(rule) == Some("activatedAbility")
@@ -346,9 +346,9 @@ impl GameEngine {
                 definition.is_sideboard = original_definition.is_sideboard;
                 definition.is_token = original_definition.is_token;
                 if let Some(rule) = retained_rule
-                    && !definition.rules.contains(&rule)
+                    && !definition.printed_rules().contains(&rule)
                 {
-                    definition.rules.push(rule);
+                    definition.printed_rules_mut().push(rule);
                 }
                 let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
                 if temporary {

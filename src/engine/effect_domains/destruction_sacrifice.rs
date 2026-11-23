@@ -19,6 +19,8 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("destroyPermanent") => {
             (target_reference_supported(&effect["permanent"])
                 || object_expression_supported(&effect["permanent"])
+                // `destroy that creature`: the permanent the entry event observed.
+                || entry_observation::observed_object_reference_supported(&effect["permanent"])
                 || (value_kind(&effect["permanent"]) == Some("chosenTargets")
                     && effect["permanent"]["id"].is_string())
                 || (value_kind(&effect["permanent"]) == Some("eachPermanent")
@@ -235,6 +237,24 @@ impl GameEngine {
                         let was_on_battlefield = self.permanent_position(&instance_id).is_some();
                         self.destroy_permanent_from_stack(&instance_id, stack_object)?;
                         if was_on_battlefield && self.permanent_position(&instance_id).is_none() {
+                            destroyed_ids.push(instance_id);
+                        }
+                    }
+                } else if value_kind(&effect["permanent"]) == Some("observedEventObject") {
+                    // The observed incarnation only: a permanent that left
+                    // the battlefield since the event is not destroyed.
+                    if let Some(instance_id) =
+                        self.resolve_observed_event_permanent(&effect["permanent"], stack_object)?
+                    {
+                        if effect["cannotRegenerate"].as_bool().unwrap_or(false) {
+                            self.state.rule_modifiers.retain(|modifier| {
+                                !(value_kind(modifier) == Some("regenerationShield")
+                                    && modifier["cardInstanceId"].as_str()
+                                        == Some(instance_id.as_str()))
+                            });
+                        }
+                        self.destroy_permanent_from_stack(&instance_id, stack_object)?;
+                        if self.permanent_position(&instance_id).is_none() {
                             destroyed_ids.push(instance_id);
                         }
                     }

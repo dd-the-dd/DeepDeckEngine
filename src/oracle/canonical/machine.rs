@@ -5,6 +5,7 @@ use crate::oracle::automata_trace::{self, AutomataTraceEventKind, CursorTraceHan
 use crate::oracle::model::RecognizedEntity;
 
 use super::automata::{BindingEnvironment, EventNumericBinding};
+use super::engine_gap::EngineGap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MachineTransition {
@@ -29,6 +30,10 @@ pub(crate) struct MachineFailure {
     pub expected: String,
     pub actual: Option<String>,
     pub trace: Vec<MachineTransition>,
+    /// The owner the dispatcher assigns when `state` is a generic sink
+    /// (`failure_owner.rs`): the frame and its deepest component. `None` for
+    /// every other failure, whose state already names its owner.
+    pub owner: Option<&'static str>,
 }
 
 impl fmt::Display for MachineFailure {
@@ -47,7 +52,89 @@ impl fmt::Display for MachineFailure {
     }
 }
 
+impl MachineFailure {
+    /// Reports this failure as an engine gap: the reading was complete and
+    /// the runtime lacks `gap`. The frame state stays in the trace.
+    pub(crate) fn into_engine_gap(mut self, gap: EngineGap) -> Self {
+        self.trace.push(MachineTransition {
+            state: gap.state(),
+            token_index: self.token_index,
+        });
+        self.state = gap.state();
+        self
+    }
+
+    pub(crate) fn is_engine_gap(&self) -> bool {
+        super::engine_gap::is_engine_gap_state(self.state)
+    }
+}
+
 pub(super) type MachineResult<T> = Result<T, MachineFailure>;
+
+/// The transactional outcome of a child reader (roadmap S0).
+///
+/// A child that has not reached its commit point returns `NoMatch`: the parent
+/// may try a sibling, and must not report the child's failure as the owner of
+/// the clause merely because the child read further. A child that committed
+/// (its structural introducer, subject and lemma were read) returns
+/// `Committed`: that failure is the clause's diagnostic. Cursor advancement is
+/// never a commit; only `CommitPoint::commit` is.
+#[derive(Debug)]
+pub(super) enum ChildOutcome<T> {
+    Matched(T),
+    NoMatch(MachineFailure),
+    Committed(MachineFailure),
+}
+
+impl<T> ChildOutcome<T> {
+    /// A parent that has no sibling left turns `NoMatch` into its own frame
+    /// diagnostic; a committed failure is reported unchanged.
+    pub fn or_frame_failure(
+        self,
+        frame_failure: impl FnOnce(MachineFailure) -> MachineFailure,
+    ) -> MachineResult<T> {
+        match self {
+            Self::Matched(value) => Ok(value),
+            Self::Committed(failure) => Err(failure),
+            Self::NoMatch(failure) => Err(frame_failure(failure)),
+        }
+    }
+}
+
+/// The commit point a transactional child marks once it owns its clause.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct CommitPoint {
+    committed: bool,
+}
+
+impl CommitPoint {
+    pub fn commit(&mut self) {
+        self.committed = true;
+    }
+
+    pub fn is_committed(&self) -> bool {
+        self.committed
+    }
+}
+
+/// Interns a composed diagnostic state. Composed states come from bounded
+/// parts (frame states, lexicon lemmas, token classes and sanitized words),
+/// so the table stays small; each distinct state is allocated once.
+pub(crate) fn intern_state(state: String) -> &'static str {
+    use std::collections::HashSet;
+    use std::sync::{Mutex, OnceLock};
+    static TABLE: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let table = TABLE.get_or_init(|| Mutex::new(HashSet::new()));
+    let mut states = table
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(&interned) = states.get(state.as_str()) {
+        return interned;
+    }
+    let interned: &'static str = Box::leak(state.into_boxed_str());
+    states.insert(interned);
+    interned
+}
 
 /// Token-driven cursor shared by the canonical sub-automata.
 ///
@@ -68,6 +155,10 @@ pub(super) struct OracleTokenCursor<'a> {
     /// (`binding_environment.rs`). The owning parent installs it for the
     /// child it calls; a child never infers or extends it.
     binding_environment: Option<std::sync::Arc<BindingEnvironment>>,
+    /// A child's deeper failure at the token it handed back: a list that
+    /// stopped at a comma it could not continue. A parent failing at that
+    /// same token reports the child's reason instead of its own shallower one.
+    deferred_failure: Option<(usize, Box<MachineFailure>)>,
     #[cfg(feature = "automata-trace")]
     trace_cursor: Option<CursorTraceHandle>,
 }
@@ -83,6 +174,7 @@ impl Clone for OracleTokenCursor<'_> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            deferred_failure: self.deferred_failure.clone(),
             trace_cursor: automata_trace::new_cursor(
                 self.trace_cursor,
                 self.automaton,
@@ -109,6 +201,7 @@ impl<'a> OracleTokenCursor<'a> {
             }],
             event_numeric_binding: None,
             binding_environment: None,
+            deferred_failure: None,
             #[cfg(feature = "automata-trace")]
             trace_cursor: automata_trace::new_cursor(
                 None,
@@ -163,9 +256,16 @@ impl<'a> OracleTokenCursor<'a> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            deferred_failure: self.deferred_failure.clone(),
             #[cfg(feature = "automata-trace")]
             trace_cursor: None,
         }
+    }
+
+    /// Records a child's failure for the token at the current position: the
+    /// child stopped there and handed the token back to its parent.
+    pub fn defer_failure(&mut self, failure: MachineFailure) {
+        self.deferred_failure = Some((self.position, Box::new(failure)));
     }
 
     pub fn set_event_numeric_binding(&mut self, binding: Option<EventNumericBinding>) {
@@ -237,6 +337,31 @@ impl<'a> OracleTokenCursor<'a> {
                 Err(failure)
             }
         }
+    }
+
+    /// Runs `child` as a transaction on a trial cursor. Success advances this
+    /// cursor; any failure leaves it unchanged, as `Committed` when the child
+    /// marked its commit point and as `NoMatch` otherwise.
+    pub fn transaction<T>(
+        &mut self,
+        child: impl FnOnce(&mut Self, &mut CommitPoint) -> MachineResult<T>,
+    ) -> ChildOutcome<T> {
+        let mut trial = self.clone();
+        let mut commit = CommitPoint::default();
+        match child(&mut trial, &mut commit) {
+            Ok(value) => {
+                *self = trial;
+                ChildOutcome::Matched(value)
+            }
+            Err(failure) if commit.is_committed() => ChildOutcome::Committed(failure),
+            Err(failure) => ChildOutcome::NoMatch(failure),
+        }
+    }
+
+    /// A complete reading the runtime cannot execute (`engine_gap.rs`). The
+    /// current frame state stays in the trace; the state names the gap.
+    pub fn engine_gap(&self, gap: EngineGap, expected: &str) -> MachineFailure {
+        self.failure(expected).into_engine_gap(gap)
     }
 
     pub fn peek_token(&self) -> Option<&RecognizedEntity> {
@@ -377,10 +502,23 @@ impl<'a> OracleTokenCursor<'a> {
             expected: expected.to_string(),
             actual: Some(found.into()),
             trace: self.transitions.clone(),
+            owner: None,
         }
     }
 
     fn failure(&self, expected: &str) -> MachineFailure {
+        // The handed-back token itself, or the word right after it when the
+        // parent consumed that token as its own separator.
+        if let Some((position, deferred)) = &self.deferred_failure
+            && (*position == self.position
+                || (*position + 1 == self.position
+                    && self
+                        .tokens
+                        .get(*position)
+                        .is_some_and(|token| token.raw == ",")))
+        {
+            return (**deferred).clone();
+        }
         let (span_start, span_end) = self
             .peek_token()
             .map(|token| (token.span_start, token.span_end))
@@ -407,6 +545,7 @@ impl<'a> OracleTokenCursor<'a> {
             expected: expected.to_string(),
             actual: self.peek().map(ToOwned::to_owned),
             trace: self.transitions.clone(),
+            owner: None,
         }
     }
 }

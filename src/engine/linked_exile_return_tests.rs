@@ -380,6 +380,7 @@ fn a_failed_return_choice_restores_the_paid_cast_and_a_returned_watcher_sees_the
     engine.admit_new_card_carrier(&mut spell).unwrap();
     engine.state.players[0].hand.push(spell);
     let cast = CanonicalSpellCast {
+        source_zone: None,
         controller_id: "player-0".into(),
         source_definition_id: "cost-spell".into(),
         use_alternative_cost: false,

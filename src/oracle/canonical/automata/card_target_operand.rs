@@ -67,14 +67,13 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
         };
         trial.consume("target")?;
         trial.enter("card-target.query");
-        let query = recognize_object_query_with_shared_cardinality(
+        let query = recognize_object_noun_query(
             &mut trial,
-            &NumericExpression::Atom(cardinality.maximum),
-        )?;
+            ObjectQueryContext::shared_quota(&NumericExpression::Atom(cardinality.maximum)),
+        )?
+        .into_object_query(&mut trial)?;
         trial.require(
-            query.predicate.has_domain(ObjectKind::Card)
-                && query.predicate.supports_domain(ObjectKind::Card)
-                && query.controller.is_none(),
+            query.predicate.is_in_domain(ObjectKind::Card) && query.controller.is_none(),
             "a card-domain predicate separate from its source zone owner",
         )?;
         trial.require(

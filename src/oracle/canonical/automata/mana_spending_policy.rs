@@ -26,8 +26,7 @@ pub(in crate::oracle::canonical) fn recognize_mana_spending_policy(
     let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none()
-            && query.predicate.has_domain(ObjectKind::Spell)
-            && query.predicate.supports_domain(ObjectKind::Spell)
+            && query.predicate.is_in_domain(ObjectKind::Spell)
             && !object_predicate_uses_x(&query.predicate),
         "a spell-domain spending predicate without external numeric bindings",
     )?;

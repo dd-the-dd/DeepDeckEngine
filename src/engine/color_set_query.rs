@@ -171,7 +171,7 @@ impl GameEngine {
             if source.flags.get("phasedOut").copied().unwrap_or(false) {
                 continue;
             }
-            for rule in &source.definition.rules {
+            for rule in source.definition.printed_rules() {
                 // Select the color domain before ANY condition. Unrelated P/T
                 // modifiers must not call back through current_power here.
                 let Some(modifiers) = rule["modifiers"].as_array() else {
@@ -281,7 +281,7 @@ impl GameEngine {
             }
             return Ok(colors);
         }
-        if has_keyword(&permanent.definition, "devoid") {
+        if permanent_printed_has_keyword(permanent, "devoid") {
             return Ok(colors);
         }
         // Intentionally excludes rulesMarker.colorIdentity. Activated symbols,
@@ -295,7 +295,7 @@ impl GameEngine {
         }
         for indicator in permanent
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .flat_map(|rule| rule["colorIndicator"].as_array().into_iter().flatten())
         {

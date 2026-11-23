@@ -150,16 +150,7 @@ fn compile_recognized_trigger_program(
 }
 
 fn guard_excludes_source(guard: &SentenceConditionNode) -> bool {
-    match guard {
-        BooleanConditionNode::Atom(SentenceConditionAtom::Local(
-            LocalConditionNode::ControlledPermanentCount(count),
-        )) => count.exclude_source,
-        BooleanConditionNode::Atom(_) => false,
-        BooleanConditionNode::And(items) | BooleanConditionNode::Or(items) => {
-            items.iter().any(guard_excludes_source)
-        }
-        BooleanConditionNode::Not(item) => guard_excludes_source(item),
-    }
+    condition_any(guard, &ConditionAtom::excludes_source)
 }
 
 #[cfg(test)]

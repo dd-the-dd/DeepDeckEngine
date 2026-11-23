@@ -64,6 +64,7 @@ mod conditional_entry;
 mod conditional_zone_change;
 mod conditional_zone_change_amendment;
 mod connector;
+mod container_body;
 mod contextual_list;
 mod control_change;
 mod controlled_count_entry;
@@ -94,6 +95,7 @@ mod dungeon_room;
 mod duration;
 mod early_turn_entry;
 mod earthbend;
+mod effect_head;
 mod effect_program;
 mod effects;
 mod emblem;
@@ -105,6 +107,8 @@ pub(in crate::oracle::canonical) mod entry_replacement;
 mod equip;
 mod event_actor;
 mod event_bound_payment;
+mod event_clause;
+mod event_modifiers;
 mod event_quantity_amount;
 mod flashback;
 mod for_each_count;
@@ -141,6 +145,7 @@ mod modal_spell;
 mod named_token_coordination;
 mod numeric;
 mod numeric_object_property;
+mod object_argument;
 mod object_predicate;
 mod object_set;
 mod opening_hand_battlefield;
@@ -232,7 +237,6 @@ mod target_untap;
 mod targeting_event;
 mod temporary_power_toughness;
 mod token;
-mod token_characteristic;
 mod token_creation_action;
 mod token_descriptor;
 mod token_subtype_list;
@@ -319,6 +323,7 @@ pub(super) use conditional_entry::*;
 pub(super) use conditional_zone_change::*;
 pub(super) use conditional_zone_change_amendment::*;
 pub(super) use connector::*;
+pub(super) use container_body::*;
 pub(super) use contextual_list::*;
 pub(super) use control_change::*;
 pub(super) use controlled_count_entry::*;
@@ -348,6 +353,7 @@ pub(super) use dungeon_room::*;
 pub(super) use duration::*;
 pub(super) use early_turn_entry::*;
 pub(super) use earthbend::*;
+pub(super) use effect_head::*;
 pub(super) use effect_program::*;
 pub(super) use effects::*;
 pub(super) use emblem::*;
@@ -358,6 +364,8 @@ pub(super) use entry_or_repeat_trigger::*;
 pub(super) use equip::*;
 pub(super) use event_actor::*;
 pub(super) use event_bound_payment::*;
+pub(super) use event_clause::*;
+pub(super) use event_modifiers::*;
 pub(super) use event_quantity_amount::*;
 pub(super) use flashback::*;
 pub(super) use for_each_count::*;
@@ -394,6 +402,7 @@ pub(super) use modal_spell::*;
 pub(super) use named_token_coordination::*;
 pub(super) use numeric::*;
 pub(super) use numeric_object_property::*;
+pub(super) use object_argument::*;
 pub(super) use object_predicate::*;
 pub(super) use object_set::*;
 pub(super) use opening_hand_battlefield::*;
@@ -485,7 +494,6 @@ pub(super) use target_untap::*;
 pub(super) use targeting_event::*;
 pub(super) use temporary_power_toughness::*;
 pub(super) use token::*;
-pub(super) use token_characteristic::*;
 pub(super) use token_creation_action::*;
 pub(super) use token_descriptor::*;
 pub(super) use top_cards::*;
@@ -830,7 +838,7 @@ pub(in crate::oracle::canonical) struct ConditionalZoneChangeNode {
 pub(in crate::oracle::canonical) struct ConditionalZoneChangeAmendmentNode {
     pub action: ZoneChangeAction,
     pub target_condition: BoundObjectConditionNode,
-    pub amendment_condition: LocalConditionNode,
+    pub amendment_condition: ConditionNode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -911,8 +919,10 @@ pub(super) enum NumericExpression {
     SacrificedCostObjectProperty(NumericObjectProperty),
     /// The greatest power or toughness among the ability controller's
     /// permanents matching the predicate (zero when there are none).
+    /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the
+    /// counted battlefield collection (power, toughness or mana value).
     GreatestPropertyAmong {
-        property: NumericObjectProperty,
+        property: SelectorNumericProperty,
         predicate: ObjectPredicate,
     },
     /// The number of objects an earlier action of the same program affected
@@ -962,6 +972,9 @@ pub(super) enum PermanentCountMeasure {
     DistinctColors,
     /// Distinct names among the counted permanents (`differently named`).
     DistinctNames,
+    /// Distinct basic land types among the counted lands (`basic land types
+    /// among lands you control`, the Domain count, CR 305.6).
+    DistinctBasicLandTypes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1696,7 +1709,7 @@ pub(super) struct CurrentSpellManaCostReferenceNode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct AlternativeManaCostEnvelopeNode {
-    pub condition: Option<LocalConditionNode>,
+    pub condition: Option<ConditionNode>,
     pub costs: CostSequenceNode<CompoundCostNode>,
     pub replaces: CurrentSpellManaCostReferenceNode,
 }
@@ -1933,7 +1946,7 @@ pub(super) struct SetEnteringStateNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ConditionalEnteringStateNode {
-    pub condition: LocalConditionNode,
+    pub condition: ConditionNode,
     pub effect: SetEnteringStateNode,
 }
 
@@ -2344,8 +2357,7 @@ pub(in crate::oracle::canonical) use performer::{
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
-    recognize_destroy_reference_effect, recognize_referenced_permanent_action,
-    recognize_referenced_permanent_zone_action,
+    recognize_destroy_reference_effect, recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
@@ -2358,7 +2370,6 @@ pub(in crate::oracle::canonical) use permanent_action::{
     PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
-    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding, permanent_antecedent,
+    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,
     recognize_contextual_permanent_operand, selector_guarantees_permanent,
-    singular_permanent_target, subject_after_operand,
 };

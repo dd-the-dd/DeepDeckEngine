@@ -211,6 +211,9 @@ mod object_domain_inference_runtime;
 #[path = "tests/saga_chapter_program_runtime.rs"]
 mod saga_chapter_program_runtime;
 
+#[path = "tests/aggregate_numeric_runtime.rs"]
+mod aggregate_numeric_runtime;
+
 #[path = "tests/barrowgoyf_runtime.rs"]
 mod barrowgoyf_runtime;
 
@@ -288,6 +291,8 @@ mod exalted_runtime;
 #[path = "tests/parameterized_keyword_runtime.rs"]
 mod parameterized_keyword_runtime;
 
+#[path = "tests/event_count_runtime.rs"]
+mod event_count_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
@@ -2463,17 +2468,32 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
             "object": { "kind": "self" },
             "zone": { "kind": "battlefield" },
         },
+        // "can't attack unless you control two or more other Wolves" is a
+        // conditional keyword grant over the shared count and comparison.
         "modifiers": [{
-            "kind": "cantAttackUnlessControls",
-            "object": { "kind": "self" },
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "where": { "kind": "subtypeContains", "value": "Wolf" },
-            "minimum": { "kind": "integer", "value": 2 },
-            "excludeSource": true,
+            "kind": "grantKeyword",
+            "objects": { "kind": "self" },
+            "keyword": "cantAttack",
+            "condition": {
+                "kind": "compare",
+                "operator": "<",
+                "left": {
+                    "kind": "countPermanents",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "subtypeContains", "value": "Wolf" },
+                    "excludeSource": true,
+                },
+                "right": { "kind": "integer", "value": 2 },
+            },
         }],
     })];
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![test_instance("warg-company", company, "player-0")];
+    // The source exclusion authenticates the live source by its zone
+    // incarnation, which a fixture object receives on admission.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let can_attack = |engine: &GameEngine| {
         engine
             .legal_attacker_actions(&BTreeSet::new())
@@ -2492,6 +2512,9 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
             "player-0",
         ));
     }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     assert!(can_attack(&engine));
 }
 
@@ -6248,10 +6271,24 @@ fn doomsday_exiles_each_library_except_its_bottom_cards() {
 #[test]
 fn trap_alternative_cost_conditions_use_turn_history() {
     let mut engine = test_engine(2);
+    // One opponent had three or more cards put into their graveyard: the
+    // greatest per-opponent sum of the generic event history.
     let ravenous_condition = json!({
-        "kind": "opponentCardsEnteredGraveyardThisTurn",
-        "minimum": { "kind": "integer", "value": 3 },
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+            "kind": "countEventsThisTurn",
+            "event": "cardsEnteredGraveyard",
+            "player": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "measure": "cards",
+            "aggregate": "greatestPerPlayer",
+        },
+        "right": { "kind": "integer", "value": 3 },
     });
+    assert!(condition_supported(&ravenous_condition));
     engine.record_event(
         "cardsEnteredGraveyard",
         Some("player-1".to_string()),
@@ -6273,10 +6310,27 @@ fn trap_alternative_cost_conditions_use_turn_history() {
         "player-0",
     );
     engine.state.players[0].graveyard.push(countered_creature);
+    // A creature spell of the controller countered by an opponent's object:
+    // the countered spell's record names the counter source's controller.
     let summoning_condition = json!({
-        "kind": "controlledSpellCounteredByOpponentThisTurn",
-        "where": { "kind": "cardTypeContains", "value": "Creature" },
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+            "kind": "countEventsThisTurn",
+            "event": "spellCountered",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+            "detail": { "objectKind": "spell" },
+            "relatedPlayers": {
+                "counterSourceControllerId": {
+                    "kind": "opponentsOf",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                },
+            },
+        },
+        "right": { "kind": "integer", "value": 1 },
     });
+    assert!(condition_supported(&summoning_condition));
     engine.record_event(
         "spellCountered",
         Some("player-0".to_string()),
@@ -8072,7 +8126,21 @@ fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
             },
         )]),
     };
-    let condition = json!({ "kind": "sourceDidNotAddManaThisTurn" });
+    // The source added no mana this turn: no `manaAdded` event of its own.
+    let condition = json!({
+        "kind": "not",
+        "operand": {
+            "kind": "compare",
+            "operator": ">=",
+            "left": {
+                "kind": "countEventsThisTurn",
+                "event": "manaAdded",
+                "object": { "kind": "self" },
+            },
+            "right": { "kind": "integer", "value": 1 },
+        },
+    });
+    assert!(condition_supported(&condition));
     assert!(engine.condition_value_with_source(
         &condition,
         "player-0",
@@ -18305,7 +18373,11 @@ fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
         .iter()
         .find(|permission| permission["cardInstanceId"] == "exiled-spell")
         .expect("the exiled card receives a permission");
-    assert_eq!(permission["alternativeLifeCost"], 3);
+    // The amount is the cast card's mana value, read at cast time (CR 716.3a).
+    assert_eq!(
+        permission["alternativeLifeCost"],
+        json!({ "kind": "manaValueOf", "object": { "kind": "castCard" } })
+    );
     assert_eq!(
         permission["expiresAfterTurn"],
         Value::from(engine.state.turn_number)
@@ -24190,124 +24262,6 @@ fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
-fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    engine.state.active_player = 0;
-
-    let mut story_definition = test_definition("story-smith", "Legendary Creature - Dwarf");
-    story_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "firstActivatedAbilityAlternativeCost",
-            "player": { "kind": "abilityController" },
-            "abilityKind": "equip",
-            "cost": { "kind": "payMana", "manaCost": "{0}" },
-            "condition": {
-                "kind": "hasEnduringStory",
-                "player": { "kind": "abilityController" },
-            },
-        }],
-    })];
-    let mut equipment_definition = test_definition("training-axe", "Artifact - Equipment");
-    equipment_definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": {
-            "kind": "equip",
-            "costs": [{ "kind": "payMana", "manaCost": "{2}" }],
-        },
-    })];
-    engine.state.players[0].battlefield = vec![
-        test_instance("story-smith", story_definition, "player-0"),
-        test_instance("training-axe", equipment_definition, "player-0"),
-        test_instance(
-            "equip-target",
-            test_definition("equip-target", "Creature - Soldier"),
-            "player-0",
-        ),
-    ];
-
-    engine
-        .admit_explicit_test_fixture_objects()
-        .expect("fixture objects are admitted");
-    let equip_actions = |engine: &GameEngine| {
-        engine
-            .legal_priority_actions(0)
-            .into_iter()
-            .filter(|action| {
-                action.kind == ActionKind::ActivateAbility
-                    && action.card_instance_id.as_deref() == Some("training-axe")
-            })
-            .collect::<Vec<_>>()
-    };
-    assert!(equip_actions(&engine).is_empty());
-
-    engine.state.rule_modifiers.push(json!({
-        "kind": "enduringStory",
-        "playerId": "player-0",
-    }));
-    let action = equip_actions(&engine)
-        .into_iter()
-        .find(|action| {
-            action.targets.get("equipTarget")
-                == Some(&TargetRef::Permanent {
-                    instance_id: "equip-target".to_string(),
-                })
-                && action.decisions.get("firstActivatedAbilityAlternativeCost")
-                    == Some(&Value::Bool(true))
-        })
-        .expect("the first equip activation has the free story alternative");
-    assert!(action.payment_sources.is_empty());
-    engine
-        .apply_priority_action(&action, &mut RandomAi::seeded(1))
-        .expect("activate equip for the alternative cost");
-    assert!(engine.state.events.iter().any(|event| {
-        event.turn_number == engine.state.turn_number
-            && event.kind == "equipAbilityPutOnStack"
-            && event.player_id.as_deref() == Some("player-0")
-    }));
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(1))
-        .expect("resolve the first equip activation");
-    let (equipment_player, equipment_index) = engine
-        .permanent_position("training-axe")
-        .expect("equipment remains on the battlefield");
-    assert_eq!(
-        engine.state.players[equipment_player].battlefield[equipment_index]
-            .attached_to
-            .as_deref(),
-        Some("equip-target")
-    );
-
-    engine.state.players[0].mana_pool.extend([
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-    ]);
-    let later_actions = equip_actions(&engine);
-    assert!(!later_actions.is_empty());
-    assert!(later_actions.iter().all(|action| {
-        action
-            .decisions
-            .get("firstActivatedAbilityAlternativeCost")
-            .is_none()
-    }));
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[test]
 fn draw_threshold_combat_trigger_buffs_only_another_controlled_creature() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Test Toymaker".to_string(),
@@ -24987,6 +24941,14 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
         test_definition("drawn-card", "Land"),
         "player-0",
     ));
+    // The opponent's blue spell, now in its owner's graveyard.
+    let mut blue_spell = test_definition("earlier-blue-spell", "Instant");
+    blue_spell.mana_cost = "{U}".to_string();
+    engine.state.players[1].graveyard.push(test_instance(
+        "earlier-blue-spell",
+        blue_spell,
+        "player-1",
+    ));
     engine.record_event(
         "spellCast",
         Some("player-1".to_string()),
@@ -24996,9 +24958,27 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     let effects = json!([
         {
             "kind": "conditionalEffect",
+            // An opponent cast a blue or black spell this turn: the generic
+            // spell-cast history filtered by the shared color predicate.
             "condition": {
-                "kind": "opponentCastSpellWithAnyColor",
-                "colors": ["blue", "black"],
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "spellCast",
+                    "player": {
+                        "kind": "opponentsOf",
+                        "player": { "kind": "abilityController" },
+                    },
+                    "where": {
+                        "kind": "or",
+                        "operands": [
+                            { "kind": "colorContains", "value": "blue" },
+                            { "kind": "colorContains", "value": "black" },
+                        ],
+                    },
+                },
+                "right": { "kind": "integer", "value": 1 },
             },
             "then": [{
                 "kind": "drawCards",
@@ -33176,6 +33156,9 @@ mod event_replacement_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/intervening_if_condition_runtime.rs"]
 mod intervening_if_condition_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/leveler_band_runtime.rs"]
+mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;

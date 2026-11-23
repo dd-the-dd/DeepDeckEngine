@@ -4,8 +4,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterChangeDirection, EffectRecognitionContext, NumericAtom, NumericExpression,
     PutCountersOnObjectEffectNode, recognize_counter_name, recognize_numeric_atom,
-    recognize_permanent_operand, recognize_source_cast_x_numeric_expression,
-    recognize_that_many_event_value,
+    recognize_source_cast_x_numeric_expression, recognize_that_many_event_value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

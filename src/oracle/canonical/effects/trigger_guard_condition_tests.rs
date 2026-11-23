@@ -109,9 +109,13 @@ fn this_turn_events_of_other_players_lower_to_event_counts() {
         guard(
             "At the beginning of your end step, if an opponent lost life this turn, draw a card."
         ),
+        // The life lost by the opponents taken as one player relation: some
+        // opponent lost life iff their summed loss is positive.
         compare_ge(
-            json!({"kind":"countOpponentsWhoLostLifeThisTurn",
-                "player":{"kind":"controllerOf","object":{"kind":"self"}}}),
+            json!({"kind":"countEventsThisTurn","event":"lifeLost",
+                "player":{"kind":"opponentsOf",
+                    "player":{"kind":"controllerOf","object":{"kind":"self"}}},
+                "where":null,"measure":"amount"}),
             1
         )
     );
@@ -160,18 +164,91 @@ fn guard_atoms_that_cannot_be_resolved_stay_explicit_failures() {
         failure_state("Whenever you gain life, if it's tapped, draw a card."),
         "condition.sentence.object.antecedent"
     );
-    // A death count with a controller relation is not a bare type count.
+    // A dead permanent keeps only its recorded type line: another
+    // characteristic of it is not evaluable after it left the battlefield.
     assert_eq!(
         failure_state(
-            "At the beginning of each end step, if a creature you control died this turn, draw a card."
+            "At the beginning of each end step, if a tapped creature died this turn, draw a card."
         ),
         "selector.predicate.complete"
     );
-    // A direction that the count does not support.
+    // A player population's upper bound needs the least per-player count.
     assert_eq!(
         failure_state(
+            "At the beginning of each end step, if an opponent cast two or fewer spells this turn, draw a card."
+        ),
+        "selector.predicate.complete"
+    );
+}
+
+#[test]
+fn object_histories_compose_control_relations_and_bounds() {
+    let controller = json!({"kind":"controllerOf","object":{"kind":"self"}});
+    // The controller relation of the counted permanents is the event's player.
+    assert_eq!(
+        guard(
+            "At the beginning of each end step, if a creature you control died this turn, draw a card."
+        ),
+        compare_ge(
+            json!({"kind":"countEventsThisTurn","event":"permanentDied",
+                "player":controller.clone(),
+                "where":{"kind":"cardTypeContains","value":"Creature"}}),
+            1
+        )
+    );
+    // An upper bound over every player's events is a total.
+    assert_eq!(
+        guard(
             "At the beginning of each end step, if two or fewer creatures died this turn, draw a card."
         ),
-        "condition.static.count.direction"
+        json!({"kind":"compare","operator":"<=",
+            "left":{"kind":"countEventsThisTurn","event":"permanentDied",
+                "where":{"kind":"cardTypeContains","value":"Creature"}},
+            "right":{"kind":"integer","value":2}})
+    );
+    // Unprinted combination: entering permanents under an opponent's control.
+    assert_eq!(
+        guard(
+            "At the beginning of your end step, if a creature entered the battlefield under an opponent's control this turn, draw a card."
+        ),
+        compare_ge(
+            json!({"kind":"countEventsThisTurn","event":"permanentEnteredBattlefield",
+                "player":{"kind":"opponentsOf","player":controller},
+                "where":{"kind":"cardTypeContains","value":"Creature"}}),
+            1
+        )
+    );
+}
+
+#[test]
+fn actor_histories_read_the_event_player_relation() {
+    let controller = json!({"kind":"controllerOf","object":{"kind":"self"}});
+    assert_eq!(
+        guard(
+            "At the beginning of your end step, if an opponent searched their library this turn, draw a card."
+        ),
+        compare_ge(
+            json!({"kind":"countEventsThisTurn","event":"librarySearched",
+                "player":{"kind":"opponentsOf","player":controller.clone()},"where":null}),
+            1
+        )
+    );
+    // Near miss: the library possessive must agree with the actor.
+    assert_eq!(
+        failure_state(
+            "At the beginning of your end step, if an opponent searched your library this turn, draw a card."
+        ),
+        "condition.history.search.zone"
+    );
+    assert_eq!(
+        guard(
+            "At the beginning of your end step, if an opponent was dealt damage this turn, draw a card."
+        ),
+        compare_ge(
+            json!({"kind":"countEventsThisTurn","event":"damageDealt",
+                "player":{"kind":"opponentsOf","player":controller},"where":null,
+                "measure":"amount"}),
+            1
+        )
     );
 }

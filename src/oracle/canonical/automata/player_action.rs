@@ -64,6 +64,12 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `gets N KIND counter(s)` | `gets {E}{E}` (CR 122.1): counters placed
     /// on the acting player.
     Counters(PlayerCountersNode),
+    /// `creates TOKEN_DESCRIPTION` (CR 111.2): the acting player creates the
+    /// tokens and controls them; the description is the shared token body.
+    CreateTokens(Box<super::TokenCreationBodyNode>),
+    /// `scries N` (CR 701.22a): the acting player looks at the top N cards
+    /// of their library and orders them on the top and bottom.
+    Scry(NumericExpression),
 }
 
 /// Counters a player gets: the canonical counter name and the amount.
@@ -366,7 +372,15 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             && referenced_card_operand_follows(cursor);
     let is_proliferate = verb == "proliferate" || (!plural && verb == "proliferates");
     let is_counters = lemma == Some(VerbLemma::Get) && player_counters_follow(cursor);
+    // `target player creates TOKENS` (CR 111.2): the declared player is the
+    // creator. Other creating subjects keep their established readers.
+    let is_create =
+        crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Create, agreement);
+    // `target player scries N`: the imperative `scry` keeps its own reader.
+    let is_scry = crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Scry, agreement);
     let claimed = is_counters
+        || is_create
+        || is_scry
         || is_draw
         || is_mill
         || is_venture
@@ -396,6 +410,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         // the other established parents in charge instead of committing.
         || ((is_third_person_other || is_reveal_hand || is_referenced_exile)
             && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
+        || (is_create && !matches!(&player, Ok(PlayerEffectSubject::DeclaredTarget { .. })))
+        || (is_scry && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
     {
         cursor.rollback(checkpoint);
         return Ok(None);
@@ -416,7 +432,21 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     } else {
         ActingSubject::THIRD_SINGULAR
     };
-    let action = if is_reveal_hand {
+    let action = if is_create {
+        cursor.enter("player-action.create-tokens.verb");
+        cursor.consume(
+            crate::oracle::canonical::automata::verb_entry(VerbLemma::Create).surface(form.form()),
+        )?;
+        SingularPlayerAction::CreateTokens(Box::new(
+            super::recognize_performed_token_creation_body(cursor, None)?,
+        ))
+    } else if is_scry {
+        cursor.enter("player-action.scry.verb");
+        SingularPlayerAction::Scry(super::recognize_player_scry_fragment(
+            cursor,
+            crate::oracle::canonical::automata::verb_entry(VerbLemma::Scry).surface(form.form()),
+        )?)
+    } else if is_reveal_hand {
         SingularPlayerAction::Hand(recognize_player_hand_action(cursor, form)?)
     } else if is_referenced_exile {
         cursor.enter("player-action.referenced-cards.exile");

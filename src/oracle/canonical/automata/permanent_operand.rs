@@ -2,8 +2,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalObjectReference, ObjectQueryNode, recognize_object_collection,
-    recognize_source_reference_with_antecedent,
+    LocalObjectReference, ObjectKind, ObjectNounPhrase, ObjectNounPhraseExpectation,
+    ObjectQueryNode, recognize_object_noun_phrase, recognize_source_reference_with_antecedent,
 };
 
 /// A location in a reusable action is independent of the verb using it.
@@ -33,6 +33,7 @@ enum PermanentOperandState {
 #[derive(Default)]
 struct PermanentOperandFrame {
     reference: Option<LocalObjectReference>,
+    phrase: Option<ObjectNounPhrase>,
     collection: Option<ObjectQueryNode>,
     exclude_source: bool,
 }
@@ -55,8 +56,6 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
                 if cursor.peek().is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("each") || raw.eq_ignore_ascii_case("all")
                 }) {
-                    let quantifier = cursor.peek().expect("checked quantifier").to_string();
-                    cursor.consume(&quantifier)?;
                     PermanentOperandState::Collection
                 } else {
                     PermanentOperandState::Reference
@@ -73,19 +72,32 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
             }
             PermanentOperandState::Collection => {
                 cursor.enter("permanent.operand.collection");
-                let collection = recognize_object_collection(cursor)?;
-                frame.exclude_source = collection.exclude_source;
+                // `each [other] QUERY`, `all QUERY`: the shared object noun
+                // phrase reads the universal determiner, the exclusion, the
+                // coordinated query and its domain; this parent type-checks.
+                let phrase = recognize_object_noun_phrase(
+                    cursor,
+                    ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Permanent]),
+                )?;
+                cursor.require(
+                    phrase.is_universal(),
+                    "a universal permanent collection after `each` or `all`",
+                )?;
+                let mut collection = phrase.query.clone().into_object_query(cursor)?;
+                collection.exclude_source = phrase.exclude_source;
+                frame.exclude_source = phrase.exclude_source;
                 frame.collection = Some(collection);
+                frame.phrase = Some(phrase);
                 PermanentOperandState::Domain
             }
             PermanentOperandState::Domain => {
                 cursor.enter("permanent.operand.collection.domain");
-                let query = frame
-                    .collection
+                let phrase = frame
+                    .phrase
                     .as_ref()
                     .ok_or_else(|| cursor.fail("a populated permanent collection"))?;
                 cursor.require(
-                    query.denotes_battlefield_permanents(),
+                    phrase.domain == Some(ObjectKind::Permanent),
                     "an explicitly battlefield-permanent collection, not players or cards",
                 )?;
                 PermanentOperandState::Complete

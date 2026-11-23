@@ -160,27 +160,23 @@ fn malformed_family_is_native_failure_without_legacy_fallback() {
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
     assert!(parsed.abilities[0].rule.is_none());
-    // Trigger frames claim every triggered ability: the generic trigger
-    // program owns the committed diagnostic and the specialized family keeps
-    // its precise state as explicit candidate evidence.
+    // Trigger frames claim every triggered ability: the one event clause of
+    // the generic trigger program owns the committed diagnostic. The
+    // targeting frame is one of its alternatives, not a separate family.
     let diagnostics = &parsed.abilities[0].diagnostics;
     assert_eq!(
         diagnostics[0].automaton.as_deref(),
         Some("generic-trigger-program")
     );
-    assert_eq!(
+    assert!(matches!(
         diagnostics[0].state.as_deref(),
-        Some("selector.predicate.start")
-    );
+        Some("event.became-target.subject.article" | "selector.predicate.start")
+    ));
     assert_eq!(diagnostics[0].found.as_deref(), Some("becomes"));
-    assert_eq!(diagnostics[1].code, "oracle_candidate_machine_failure");
-    assert_eq!(
-        diagnostics[1].automaton.as_deref(),
-        Some("became-target-trigger")
-    );
-    assert_eq!(
-        diagnostics[1].state.as_deref(),
-        Some("event.became-target.subject.article")
+    assert!(
+        diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.automaton.as_deref() != Some("became-target-trigger"))
     );
 }
 
@@ -201,22 +197,65 @@ fn malformed_counter_prohibition_is_native_failure() {
 }
 
 #[test]
-fn named_and_reflexive_subjects_are_not_stolen_by_the_article_selector_family() {
-    for text in [
-        "Whenever Ruric Thar becomes the target of a spell an opponent controls, draw a card.",
-        "Whenever this creature becomes the target of a spell an opponent controls, draw a card.",
+fn an_unresolved_name_is_not_stolen_by_the_article_selector() {
+    let text =
+        "Whenever Ruric Thar becomes the target of a spell an opponent controls, draw a card.";
+    let parsed = parse("Claim Boundary", "Creature — Warrior", text);
+    let ability = &parsed.abilities[0];
+    assert_eq!(parsed.status, "unsupported", "{text}");
+    assert!(ability.rule.is_none(), "{text}");
+}
+
+/// The source subject composes the shared source reference with the
+/// targeting frame of `become` and the same stack-object selector; a
+/// stack object of any controller is the unqualified form (CR 115.1).
+#[test]
+fn the_source_subject_composes_with_the_targeting_frame() {
+    for (text, controller) in [
+        (
+            "Whenever this creature becomes the target of a spell an opponent controls, draw a card.",
+            Some(json!({ "kind": "opponentsOf", "player": controller() })),
+        ),
+        (
+            "When this creature becomes the target of a spell or ability, sacrifice it.",
+            None,
+        ),
     ] {
-        let parsed = parse("Claim Boundary", "Creature — Warrior", text);
-        let ability = &parsed.abilities[0];
-        assert_eq!(parsed.status, "unsupported", "{text}");
-        assert!(ability.rule.is_none(), "{text}");
-        // A source-subject trigger may be rejected by the shared source
-        // program, but never claimed by the article-selector family.
-        assert!(
-            ability.diagnostics.iter().all(|diagnostic| {
-                diagnostic.automaton.as_deref() != Some("became-target-trigger")
-            }),
-            "the article-selector family must not claim `{text}`"
+        let parsed = parse("Claim Boundary", "Creature — Illusion", text);
+        assert_eq!(parsed.status, "canonical", "{text}");
+        let event = &parsed.abilities[0].rule.as_ref().expect("rule")["event"];
+        assert_eq!(event["kind"], "becameTarget", "{text}");
+        assert_eq!(event["object"], json!({ "kind": "self" }), "{text}");
+        assert_eq!(event["targetingStackObject"]["kind"], "stackItems");
+        assert_eq!(
+            event["targetingStackObject"].get("controller").cloned(),
+            controller,
+            "{text}"
         );
     }
+}
+
+/// Valiant: the shared turn-ordinal modifier on the source targeting frame.
+#[test]
+fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_engine_gap() {
+    let parsed = parse(
+        "Valiant Probe",
+        "Creature — Soldier",
+        "Whenever this creature becomes the target of a spell or ability you control for the first time each turn, draw a card.",
+    );
+    assert_eq!(parsed.status, "canonical");
+    let event = &parsed.abilities[0].rule.as_ref().expect("rule")["event"];
+    assert_eq!(event["turnOrdinal"], 1);
+    assert_eq!(event["targetingStackObject"]["controller"], controller());
+
+    let parsed = parse(
+        "Turn Owner Probe",
+        "Creature — Soldier",
+        "Whenever this creature becomes the target of a spell during your turn, draw a card.",
+    );
+    assert_eq!(parsed.status, "unsupported");
+    assert_eq!(
+        parsed.abilities[0].diagnostics[0].state.as_deref(),
+        Some("engine.gap.event-matcher")
+    );
 }

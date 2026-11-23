@@ -83,7 +83,8 @@ fn opponent_exceeds(filter: Value) -> Value {
         "kind": "compare",
         "operator": ">",
         "left": {"kind": "greatestOpponentPermanentCount", "player": {"kind": "controllerOf", "object": {"kind": "self"}}, "where": filter.clone()},
-        "right": {"kind": "countPermanents", "player": {"kind": "controllerOf", "object": {"kind": "self"}}, "where": filter},
+        // The controller's count is the shared player measure.
+        "right": {"kind": "countPermanents", "player": {"kind": "controllerOf", "object": {"kind": "self"}}, "where": filter, "excludeSource": false},
     })
 }
 

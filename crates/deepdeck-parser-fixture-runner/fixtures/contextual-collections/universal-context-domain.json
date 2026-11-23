@@ -928,19 +928,69 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "unsupported_oracle_ability"
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "ability": {
+                    "costs": [
+                      {
+                        "kind": "tap",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    ],
+                    "effects": [
+                      {
+                        "kind": "addMana",
+                        "mana": "{G}",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    ],
+                    "kind": "manaAbility",
+                    "source": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "grantActivatedAbility",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": null
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -998,7 +1048,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "object-set.complete"
+            "state": "static.continuous.connector",
+            "found": "until"
           }
         ]
       }
@@ -1027,7 +1078,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "object-set.complete"
+            "state": "static.continuous.connector",
+            "found": "Draw"
           }
         ]
       }
@@ -1055,10 +1107,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "automaton": "static-granted-activation",
-            "state": "static.granted-activation.permanent-domain",
-            "expected": "a bound static collection predicate"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }

@@ -1,14 +1,14 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ActivationCostSequenceNode, BoundCollectionUntapEffectNode, LibrarySearchEffectNode,
-    LocalConditionNode, recognize_activation_cost_sequence,
+    ActivationCostSequenceNode, BoundCollectionUntapEffectNode, ConditionNode,
+    LibrarySearchEffectNode, recognize_activation_cost_sequence,
     recognize_controlled_permanent_count_condition, recognize_controller_library_search,
     recognize_untap_bound_collection,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ConditionalSearchResultUntapNode {
-    pub condition: LocalConditionNode,
+    pub condition: ConditionNode,
     pub effect: BoundCollectionUntapEffectNode,
 }
 
@@ -37,7 +37,7 @@ enum ActivatedLibrarySearchState {
 struct ActivatedLibrarySearchFrame {
     costs: Option<ActivationCostSequenceNode>,
     search: Option<LibrarySearchEffectNode>,
-    condition: Option<LocalConditionNode>,
+    condition: Option<ConditionNode>,
     followup: Option<ConditionalSearchResultUntapNode>,
 }
 

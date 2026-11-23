@@ -1,0 +1,282 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "adventure/midgar-city-of-mako-end-to-end",
+  "seed": 903,
+  "rule": {
+    "effects": [
+      {
+        "cost": {
+          "kind": "sacrificePermanent",
+          "where": {
+            "kind": "or",
+            "operands": [
+              {
+                "kind": "cardTypeContains",
+                "value": "Artifact"
+              },
+              {
+                "kind": "cardTypeContains",
+                "value": "Creature"
+              }
+            ]
+          }
+        },
+        "declineEffects": [],
+        "effects": [
+          {
+            "count": {
+              "kind": "integer",
+              "value": 2
+            },
+            "kind": "drawCards",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        ],
+        "kind": "optionalPayCostPerformEffects",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Adventurer",
+        "manaPool": [
+          "B",
+          "B",
+          "B"
+        ],
+        "hand": [
+          {
+            "id": "midgar-city-of-mako",
+            "name": "Midgar, City of Mako",
+            "typeLine": "Land — Town",
+            "manaCost": "",
+            "rules": [
+              {
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{B}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "kind": "adventureSpell",
+                "spell": {
+                  "id": "reactor-raid",
+                  "manaCost": "{2}{B}",
+                  "name": "Reactor Raid",
+                  "rules": [
+                    {
+                      "effects": [
+                        {
+                          "cost": {
+                            "kind": "sacrificePermanent",
+                            "where": {
+                              "kind": "or",
+                              "operands": [
+                                {
+                                  "kind": "cardTypeContains",
+                                  "value": "Artifact"
+                                },
+                                {
+                                  "kind": "cardTypeContains",
+                                  "value": "Creature"
+                                }
+                              ]
+                            }
+                          },
+                          "declineEffects": [],
+                          "effects": [
+                            {
+                              "count": {
+                                "kind": "integer",
+                                "value": 2
+                              },
+                              "kind": "drawCards",
+                              "player": {
+                                "kind": "controllerOf",
+                                "object": {
+                                  "kind": "self"
+                                }
+                              }
+                            }
+                          ],
+                          "kind": "optionalPayCostPerformEffects",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      ],
+                      "kind": "spellAbility",
+                      "source": {
+                        "kind": "self"
+                      }
+                    }
+                  ],
+                  "typeLine": "Sorcery — Adventure"
+                }
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "spare-trinket",
+            "name": "Spare Trinket",
+            "typeLine": "Artifact",
+            "manaCost": "{1}",
+            "rules": []
+          }
+        ],
+        "library": [
+          {
+            "id": "library-card-0",
+            "name": "Library Card 0",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-1",
+            "name": "Library Card 1",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-2",
+            "name": "Library Card 2",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "midgar-city-of-mako",
+      "declarationDecisions": {
+        "castAsAdventure": true
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "playLand",
+      "playerId": "player-0",
+      "sourceDefinitionId": "midgar-city-of-mako",
+      "sourceZone": "exile"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "spare-trinket",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "midgar-city-of-mako",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "midgar-city-of-mako",
+      "equals": false
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "midgar-city-of-mako",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "landPlayed",
+      "equals": 1
+    }
+  ],
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ]
+}

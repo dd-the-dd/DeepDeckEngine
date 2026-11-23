@@ -34,7 +34,3 @@ pub fn compile_named_token_catalog_rules(
 ) -> Option<Vec<serde_json::Value>> {
     canonical::compile_named_token_catalog_rules(token_name, type_line, oracle)
 }
-
-pub fn compile_named_token_native_rule(oracle: &str) -> Option<serde_json::Value> {
-    canonical::compile_named_token_native_rule(oracle)
-}

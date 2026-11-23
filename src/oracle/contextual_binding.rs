@@ -64,6 +64,7 @@ pub(crate) fn validate_native_contextual_bindings(
                         "an explicit xValue declaration".to_string()
                     }),
                     trace: Vec::new(),
+                    owner: None,
                 });
                 continue;
             }
@@ -85,6 +86,7 @@ pub(crate) fn validate_native_contextual_bindings(
                 expected: Some(expected.to_string()),
                 found: Some("a chosen creature type reference".to_string()),
                 trace: Vec::new(),
+                owner: None,
             });
             continue;
         }
@@ -128,6 +130,7 @@ pub(crate) fn validate_native_contextual_bindings(
             ),
             found: Some(found),
             trace: Vec::new(),
+            owner: None,
         });
     }
 }
@@ -271,6 +274,7 @@ fn reject_binding(ability: &mut ParsedOracleAbility, state: &str, expected: &str
         expected: Some(expected.to_string()),
         found: Some("a sacrificed cost object reference".to_string()),
         trace: Vec::new(),
+        owner: None,
     });
 }
 

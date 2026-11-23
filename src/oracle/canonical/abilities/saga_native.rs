@@ -34,96 +34,6 @@ pub(in crate::oracle::canonical) fn claims_promoted_saga_family(input: &AbilityI
     reminder || chapter
 }
 
-fn scaled_count(count: Value, factor: i64) -> Value {
-    match factor {
-        0 => integer(0),
-        1 => count,
-        _ => json!({
-            "kind": "multiply",
-            "left": integer(factor),
-            "right": count,
-        }),
-    }
-}
-
-fn lower_characteristic_token_activation(activation: &CharacteristicTokenActivationNode) -> Value {
-    let token = &activation.effect.token;
-    let counted = json!({
-        "kind": "countPermanents",
-        "player": controller(),
-        "where": lower_permanent_object_predicate(&token.ability.counted),
-    });
-    let characteristic_ability = json!({
-        "kind": "staticAbility",
-        "source": self_ref(),
-        "activeWhile": active_while_battlefield(),
-        "modifiers": [{
-            "kind": "modifyPowerToughness",
-            "objects": self_ref(),
-            "power": scaled_count(counted.clone(), token.ability.delta.power),
-            "toughness": scaled_count(counted, token.ability.delta.toughness),
-        }],
-    });
-    with_activation_object_cost_decisions(
-        json!({
-            "kind": "activatedAbility",
-            "source": self_ref(),
-            "costs": activation
-                .costs
-                .costs
-                .iter()
-                .flat_map(lower_local_activation_costs)
-                .collect::<Vec<_>>(),
-            "effects": [{
-                "kind": "createTokens",
-                "controller": controller(),
-                "quantity": lower_numeric_atom(activation.effect.quantity.clone()),
-                "token": {
-                    "colors": token
-                        .colors
-                        .iter()
-                        .copied()
-                        .map(canonical_color_name)
-                        .collect::<Vec<_>>(),
-                    "power": token.power,
-                    "toughness": token.toughness,
-                    "types": token
-                        .types
-                        .iter()
-                        .copied()
-                        .map(ObjectCardType::ir_name)
-                        .collect::<Vec<_>>(),
-                    "subtypes": token.subtypes.clone(),
-                    "abilities": [characteristic_ability],
-                },
-            }],
-        }),
-        &activation.costs,
-    )
-}
-
-fn lower_granted_ability(
-    cursor: &mut OracleTokenCursor<'_>,
-    ability: SagaGrantedAbilityNode,
-) -> MachineResult<Value> {
-    match ability {
-        SagaGrantedAbilityNode::Mana(ability) => {
-            match lower_recognized_add_led_activation(cursor, ability) {
-                EffectProgramParseAttempt::Parsed(draft) => Ok(draft.rule),
-                EffectProgramParseAttempt::Unpromoted(failure)
-                | EffectProgramParseAttempt::Failed(failure)
-                | EffectProgramParseAttempt::FailedSupport(failure) => Err(failure),
-                EffectProgramParseAttempt::NotApplicable => {
-                    unreachable!("a recognized granted activation has a structural context")
-                }
-            }
-        }
-        SagaGrantedAbilityNode::CharacteristicToken(ability) => {
-            Ok(lower_characteristic_token_activation(&ability))
-        }
-    }
-}
-
 pub(in crate::oracle::canonical) fn parse_promoted_saga(
     input: &AbilityInput<'_>,
 ) -> MachineResult<CanonicalRuleDraft> {
@@ -149,39 +59,18 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
     let mut cursor = OracleTokenCursor::new("saga-chapter", input.tokens);
     let chapter =
         recognize_saga_chapter(&mut cursor, input.name_links, input.name_resolution_failure)?;
-    let mut decisions = Vec::new();
-    let effects = match chapter.body {
-        SagaChapterBodyNode::Grant(ability) => vec![json!({
-            "kind": "grantAbility",
-            "object": self_ref(),
-            "duration": { "kind": "permanent" },
-            "ability": lower_granted_ability(&mut cursor, ability)?,
-        })],
-        SagaChapterBodyNode::LibrarySearch(search) => {
-            cursor.require(
-                search.player == LocalPlayerReference::Controller,
-                "the Saga controller as the searching player",
-            )?;
-            let SearchDestination::Battlefield { .. } = search.destination else {
-                return Err(cursor.fail("a battlefield destination for a Saga library search"));
-            };
-            lower_library_search_effects(&mut cursor, &search, controller())?
-        }
-        SagaChapterBodyNode::Program(body) => {
-            // The chapter body is lowered exactly as a triggered ability's
-            // body; its target declarations and modes belong to the trigger.
-            let lowered = match &body {
-                TriggerBodyNode::Program(program) => lower_effect_program(&mut cursor, program)?,
-                TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(&mut cursor, modal)?,
-            };
-            cursor.require(
-                !lowered.effects.is_empty(),
-                "at least one executable action",
-            )?;
-            decisions = lowered.decisions;
-            lowered.effects
-        }
+    // The chapter body is lowered exactly as a triggered ability's body;
+    // its target declarations and modes belong to the chapter trigger.
+    let lowered = match &chapter.body {
+        TriggerBodyNode::Program(program) => lower_effect_program(&mut cursor, program)?,
+        TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(&mut cursor, modal)?,
     };
+    cursor.require(
+        !lowered.effects.is_empty(),
+        "at least one executable action",
+    )?;
+    let decisions = lowered.decisions;
+    let effects = lowered.effects;
     let trace = cursor
         .transitions()
         .iter()
@@ -205,7 +94,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
         rule,
         &[
             "Recognize one or more Saga chapter numerals from the shared token stream",
-            "Delegate the chapter body to the quoted-ability child or the shared effect program",
+            "Delegate the chapter body to the shared container body slot",
             "Lower the chapter event and body to reusable primitive IR",
             &trace,
         ],

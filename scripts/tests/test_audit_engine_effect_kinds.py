@@ -344,4 +344,30 @@ fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
         with self.assertRaisesRegex(ValueError,r"executor without any accepting validator: \['hiddenKind'\]"):
             MODULE.engine_synthesized_executors(['castParadigmCopy','hiddenKind'])
 
+    def test_turbofish_with_a_function_type_is_balanced(self):
+        source=RustSource('synthetic.rs',b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    self.execute_hidden::<fn(&Value) -> bool>(effect)?;
+    Ok(())
+}
+''')
+        found=MODULE.call_sites(MODULE.lex(source.whole_function('execute_effect_in_batch',[],'x')['body']))
+        self.assertIn(('method','execute_hidden'),found)
+
+    def test_lowering_may_not_emit_an_engine_synthesized_kind(self):
+        clean=RustSource('src/oracle/lowering.rs',b'fn lower() -> Value { json!({"kind": "drawCards"}) }')
+        MODULE.lowering_emits_engine_synthesized({'src/oracle/lowering.rs':clean})
+        leaking=RustSource('src/oracle/lowering.rs',b'fn lower() -> Value { json!({"kind": "castParadigmCopy"}) }')
+        with self.assertRaisesRegex(ValueError,'emits an engine-synthesized kind'):
+            MODULE.lowering_emits_engine_synthesized({'src/oracle/lowering.rs':leaking})
+
+    def test_gameplay_code_may_not_call_a_fixture_seam(self):
+        home=RustSource('src/engine/rule_execution.rs',b'pub fn resolve_canonical_spell(&mut self) {} fn f(&mut self) { self.canonical_spell_sources(); }')
+        MODULE.fixture_seam_callers({'src/engine/rule_execution.rs':home})
+        caller=RustSource('src/game.rs',b'fn play(engine: &mut GameEngine) { engine.resolve_canonical_spell(execution, id, provider); }')
+        with self.assertRaisesRegex(ValueError,'production code calls a fixture seam'):
+            MODULE.fixture_seam_callers({'src/game.rs':caller})
+        mention=RustSource('src/game.rs',b'// resolve_canonical_spell is a fixture seam\nfn play() {}')
+        MODULE.fixture_seam_callers({'src/game.rs':mention})
+
 if __name__=='__main__':unittest.main(verbosity=2)

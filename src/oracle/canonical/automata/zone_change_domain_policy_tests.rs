@@ -1,6 +1,4 @@
-use super::super::{
-    EffectRecognitionContext, recognize_effect_sequence_with_context, recognize_primitive_modal,
-};
+use super::super::{EffectRecognitionContext, recognize_effect_sequence_with_context};
 use super::*;
 use crate::oracle::syntax::recognize_entities;
 
@@ -89,11 +87,6 @@ fn activated_and_primitive_modal_parents_cannot_emit_wrong_permanent_ir() {
             "{rule}"
         );
     }
-    let tokens = recognize_entities(
-        "Choose one — • Exile target spell or creature. • Exile target artifact.",
-    );
-    let mut cursor = OracleTokenCursor::new("legacy-primitive-modal-domain-cap", &tokens);
-    assert!(recognize_primitive_modal(&mut cursor, &[], None).is_err());
 }
 
 #[test]

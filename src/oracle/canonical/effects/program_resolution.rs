@@ -120,6 +120,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             // Choice-bearing player actions keep the native lowering boundary.
             // A revealed hand and a referenced discard bind card collections.
             SingularPlayerAction::Counters(node) => independent_number(&node.count),
+            SingularPlayerAction::CreateTokens(_) | SingularPlayerAction::Scry(_) => false,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
@@ -227,14 +228,15 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
     match program {
         EffectProgramNode::Sequence(sequence) => in_slice(sequence, false),
         EffectProgramNode::Optional { player, body }
-        | EffectProgramNode::OptionalCost { player, body, .. } => {
-            *player == LocalPlayerReference::Controller && program_in_slice(body)
-        }
+        | EffectProgramNode::Outcome {
+            permission: Some(player),
+            producer: OutcomeProducer::Cost(_),
+            body,
+            ..
+        } => *player == LocalPlayerReference::Controller && program_in_slice(body),
         // The checked scope walks one sequence; independent steps and the
-        // two sentences of an optional action keep the native lowering checks.
-        EffectProgramNode::Steps(_)
-        | EffectProgramNode::OptionalAction { .. }
-        | EffectProgramNode::ReflexiveAction { .. } => false,
+        // two sentences of an outcome action keep the native lowering checks.
+        EffectProgramNode::Steps(_) | EffectProgramNode::Outcome { .. } => false,
     }
 }
 
@@ -364,7 +366,10 @@ fn resolve_sequence(
                 }
                 if matches!(
                     action.action,
-                    SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_)
+                    SingularPlayerAction::Draw(_)
+                        | SingularPlayerAction::Mill(_)
+                        | SingularPlayerAction::Scry(_)
+                        | SingularPlayerAction::CreateTokens(_)
                 ) {
                     *collections = CollectionScope::default();
                 }

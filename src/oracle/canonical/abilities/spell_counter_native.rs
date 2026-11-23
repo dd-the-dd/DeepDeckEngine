@@ -49,8 +49,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_counter_prohibition(
                 "a spell set controlled by the ability controller",
             )?;
             cursor.require(
-                subject.predicate.supports_domain(ObjectKind::Spell)
-                    && subject.predicate.has_domain(ObjectKind::Spell),
+                subject.predicate.is_in_domain(ObjectKind::Spell),
                 "a selector in the spell object domain",
             )?;
             let mut objects = json!({

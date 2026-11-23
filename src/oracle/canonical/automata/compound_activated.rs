@@ -415,7 +415,8 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         }
         PaymentActionNode::Blight { .. } => {
             cursor.enter("activation.blight");
-            Err(cursor.fail(
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
                 "an activation cost the engine can pay (blight has no activation cost schema)",
             ))
         }
@@ -484,7 +485,8 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         | PaymentActionNode::Mill { .. }
         | PaymentActionNode::Exert(_) => {
             cursor.enter("activation.unsupported-action");
-            Err(cursor.fail(
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
                 "an activation cost the engine can pay (untap, reveal, mill and exert have no activation cost schema)",
             ))
         }

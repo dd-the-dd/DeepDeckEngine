@@ -141,3 +141,60 @@ fn an_or_closing_members_of_different_number_is_the_parent_clause() {
     );
     assert_eq!(next.as_deref(), Some("get"));
 }
+
+#[test]
+fn invariant_nouns_agree_with_either_number() {
+    // `Equipment`, `Merfolk` and `Plains` have no distinct plural surface in
+    // Oracle lists, so they never make a list's number disagree.
+    for text in [
+        "Auras, Equipment, or Vehicles you control",
+        "Elf, Merfolk, or Goblin you control",
+        "Forests, Plains, or Islands you control",
+    ] {
+        let (predicate, next) = read(text);
+        assert!(
+            matches!(&predicate, SelectorPredicate::Union(branches) if branches.len() == 3),
+            "{text}: {predicate:?}"
+        );
+        assert_eq!(next, None, "{text}");
+    }
+}
+
+#[test]
+fn the_member_after_or_agrees_with_the_run_too() {
+    // `an artifact, creature or planeswalkers you control get`: the plural
+    // member after `or` does not belong to the singular list before it.
+    let (predicate, next) = read("artifact, creature or planeswalkers you control get +1/+1");
+    assert_eq!(predicate, card_type(ObjectCardType::Artifact));
+    assert_eq!(next.as_deref(), Some(","));
+}
+
+#[test]
+fn the_modifier_scope_refusal_precedes_the_number_check() {
+    // `noncreature, nonland permanents or artifacts`: refused explicitly,
+    // never shortened to a bare `noncreature`.
+    let tokens = recognize_entities("noncreature, nonland permanents or artifacts");
+    let mut cursor = OracleTokenCursor::new("transactional-coordinator", &tokens);
+    let failure = recognize_object_query(&mut cursor).expect_err("unproved modifier scope");
+    assert_eq!(
+        failure.expected,
+        "a negative-modifier list whose head is not coordinated with another branch"
+    );
+}
+
+#[test]
+fn a_trailing_domain_noun_takes_the_list_number_not_the_member_number() {
+    // Corpus audit: `creature, land, and/or planeswalker cards` and `Vampire,
+    // Cleric, and/or Demon spells` are lists whose last member carries the
+    // shared plural domain noun.
+    for text in [
+        "creature, land, and/or planeswalker cards",
+        "Vampire, Cleric, and/or Demon spells",
+        "Mutant, Ninja, or Turtle spells",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("transactional-coordinator", &tokens);
+        recognize_object_query(&mut cursor).expect(text);
+        assert_eq!(cursor.peek(), None, "{text}");
+    }
+}

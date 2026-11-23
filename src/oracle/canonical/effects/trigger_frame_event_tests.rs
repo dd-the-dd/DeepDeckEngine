@@ -64,10 +64,19 @@ fn turn_owner_and_step_name_compose_independently() {
             "At the beginning of your opponents' upkeep, draw a card.",
             step("upkeep", opponents.clone()),
         ),
-        // CR 505.1a: the second main phase is the postcombat main phase.
+        (
+            "At the beginning of your postcombat main phase, draw a card.",
+            step("postcombatMain", controller()),
+        ),
+        // CR 505.1a: the second main phase is the postcombat main phase with
+        // main-phase ordinal 2, not every postcombat main phase.
         (
             "At the beginning of your second main phase, draw a card.",
-            step("postcombatMain", controller()),
+            {
+                let mut second = step("postcombatMain", controller());
+                second["mainPhaseOrdinal"] = json!(2);
+                second
+            },
         ),
         (
             "At the beginning of each of your postcombat main phases, draw a card.",
@@ -195,13 +204,13 @@ fn claimed_frames_report_the_furthest_event_failure() {
         // No self matcher observes a source becoming untapped.
         (
             "Whenever this creature becomes untapped, draw a card.",
-            "trigger.source-event.verb-support",
+            "engine.gap.event-matcher",
         ),
         // A counterpart with a numeric characteristic is a typed attribute
         // the runtime matcher cannot evaluate: an engine gap, not grammar.
         (
             "Whenever this creature blocks or becomes blocked by a creature with power 1 or less, draw a card.",
-            "trigger.event.engine-gap",
+            "engine.gap.event-matcher",
         ),
         (
             "When this creature is put into your graveyard from the battlefield, draw a card.",
@@ -277,9 +286,11 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["excludeSource"].as_bool(), exclude_source, "{text}");
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
+    // A controlled object's only `become` frame with a runtime matcher is
+    // `the target of`; `becomes tapped` fails at that relation.
     for (text, state) in [(
         "Whenever a creature an opponent controls becomes tapped, draw a card.",
-        "event.object.complement",
+        "event.became-target.relation",
     )] {
         assert_eq!(committed_state(text), state, "{text}");
     }
@@ -302,6 +313,9 @@ fn combat_modifiers_lower_to_generic_event_patterns() {
     first_block["turnOrdinal"] = json!(1);
     let mut alone_first = alone.clone();
     alone_first["turnOrdinal"] = json!(1);
+    // The blocked attacker's per-turn ordinal is recorded with the block.
+    let mut first_blocked = source_pattern("block", "attacker");
+    first_blocked["turnOrdinal"] = json!(1);
     for (text, expected) in [
         // Rogue Kavu, Eternal of Harsh Truths, Godo's ordinal.
         (
@@ -325,6 +339,10 @@ fn combat_modifiers_lower_to_generic_event_patterns() {
         (
             "Whenever this creature attacks alone for the first time each turn, draw a card.",
             alone_first,
+        ),
+        (
+            "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+            first_blocked,
         ),
         (
             "Whenever this creature attacks alone or blocks, draw a card.",
@@ -387,15 +405,14 @@ fn block_counterparts_are_typed_queries_of_the_other_combatant() {
 #[test]
 fn combat_modifiers_without_a_runtime_matcher_remain_engine_gaps() {
     for text in [
-        // No per-turn ordinal is recorded for a blocked attacker or tapping.
-        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        // No per-turn ordinal is recorded for tapping.
         "Whenever this creature becomes tapped for the first time each turn, draw a card.",
         // `and isn't blocked` completes one attack, not a union.
         "Whenever this creature blocks or attacks and isn't blocked, draw a card.",
         // Arrogant Bloodlord: a numeric counterpart characteristic.
         "Whenever this creature becomes blocked by a creature with power 1 or less, draw a card.",
     ] {
-        assert_eq!(committed_state(text), "trigger.event.engine-gap", "{text}");
+        assert_eq!(committed_state(text), "engine.gap.event-matcher", "{text}");
     }
 }
 

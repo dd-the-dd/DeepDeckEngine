@@ -514,6 +514,27 @@
           }
         ]
       }
+    },
+    {
+      "id": "indefinite-opponent-payer-is-refused-at-the-payer",
+      "request": {
+        "cardName": "Payer Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, sacrifice this enchantment unless an opponent pays {1}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "sequence.unless.payer.indefinite-player"
+          }
+        ]
+      }
     }
   ]
 }

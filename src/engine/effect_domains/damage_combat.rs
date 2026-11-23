@@ -400,7 +400,10 @@ impl GameEngine {
                         excluded_controller
                             .as_ref()
                             .is_none_or(|player_id| permanent.controller != *player_id)
-                            && matches_card_filter(&permanent.definition, &effect["where"])
+                            && matches_card_filter(
+                                object_predicate::DefinitionView::for_permanent(permanent),
+                                &effect["where"],
+                            )
                     })
                     .map(|permanent| permanent.instance_id.clone())
                     .collect::<Vec<_>>();
@@ -494,7 +497,10 @@ impl GameEngine {
                     .filter(|permanent| {
                         (!effect["excludeSource"].as_bool().unwrap_or(false)
                             || permanent.instance_id != stack_object.card.instance_id)
-                            && matches_card_filter(&permanent.definition, &effect["where"])
+                            && matches_card_filter(
+                                object_predicate::DefinitionView::for_permanent(permanent),
+                                &effect["where"],
+                            )
                     })
                     .map(|permanent| permanent.instance_id.clone())
                     .collect::<Vec<_>>();

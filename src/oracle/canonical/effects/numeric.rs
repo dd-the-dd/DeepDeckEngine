@@ -79,15 +79,28 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
     let predicate = lower_permanent_object_predicate(&count.predicate);
     let mut lowered = match count.measure {
         PermanentCountMeasure::Objects => {
-            let mut lowered = json!({ "kind": "countPermanents", "where": predicate });
             match count.controller {
-                None => lowered["allPlayers"] = json!(true),
-                Some(ObjectControllerScope::AbilityController) => {
-                    lowered["player"] = controller();
+                None => {
+                    json!({ "kind": "countPermanents", "where": predicate, "allPlayers": true })
                 }
+                Some(ObjectControllerScope::AbilityController) => {
+                    json!({ "kind": "countPermanents", "where": predicate, "player": controller() })
+                }
+                // `your opponents control`: the engine's opponents-controlled
+                // count, which has no source exclusion.
+                Some(ObjectControllerScope::OpponentOfAbilityController)
+                    if !count.exclude_source =>
+                {
+                    return Some(json!({
+                        "kind": "countPermanentsControlledByOpponents",
+                        "player": controller(),
+                        "where": predicate,
+                    }));
+                }
+                // `you don't control`, `that player controls`: no engine
+                // aggregate counts for that player relation yet.
                 Some(_) => return None,
             }
-            lowered
         }
         PermanentCountMeasure::DistinctColors => {
             if count.controller != Some(ObjectControllerScope::AbilityController) {
@@ -103,6 +116,16 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
                 return None;
             }
             json!({ "kind": "countDistinctPermanentNames", "player": controller(), "where": predicate })
+        }
+        PermanentCountMeasure::DistinctBasicLandTypes => {
+            // The engine's Domain count reads every land its player controls.
+            if count.controller != Some(ObjectControllerScope::AbilityController)
+                || count.exclude_source
+                || count.predicate != ObjectPredicate::CardType(ObjectCardType::Land)
+            {
+                return None;
+            }
+            return Some(json!({ "kind": "domainCount", "player": controller() }));
         }
     };
     if count.exclude_source {
@@ -268,8 +291,9 @@ fn lower_numeric_expression_in_context(
             predicate,
         } => Some(json!({
             "kind": match property {
-                NumericObjectProperty::Power => "greatestPower",
-                NumericObjectProperty::Toughness => "greatestToughness",
+                SelectorNumericProperty::Power => "greatestPower",
+                SelectorNumericProperty::Toughness => "greatestToughness",
+                SelectorNumericProperty::ManaValue => "greatestManaValue",
             },
             "player": controller(),
             "where": lower_permanent_object_predicate(predicate),

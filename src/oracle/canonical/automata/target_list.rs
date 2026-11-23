@@ -210,6 +210,17 @@ fn recognize_target_slot(
     }
 }
 
+/// Lowers `another target X` / `up to N other target X` onto a target slot's
+/// candidate domain: the objects are not the ability's source (`excludeSource`)
+/// and, through the typed `otherThanEarlierTargets` relation the card
+/// composition resolves against the ability's earlier target slots, not
+/// those slots' objects either (CR 115.3; Deadshot: `Tap target creature. It
+/// deals damage ... to another target creature.`).
+pub(in crate::oracle::canonical) fn mark_other_target_slot(candidates: &mut serde_json::Value) {
+    candidates["excludeSource"] = serde_json::Value::Bool(true);
+    candidates["otherThanEarlierTargets"] = serde_json::Value::Bool(true);
+}
+
 /// Recognizes the shared exact or `up to` positive-literal cardinality used by
 /// target collections, independently from the selected object domain.
 pub(in crate::oracle::canonical) fn recognize_target_cardinality(

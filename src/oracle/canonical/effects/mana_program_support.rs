@@ -79,7 +79,9 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
 ) -> bool {
     match effect {
         LocalEffectNode::PlayerAction(node) => match &node.action {
-            SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_) => true,
+            SingularPlayerAction::Draw(_)
+            | SingularPlayerAction::Mill(_)
+            | SingularPlayerAction::Scry(_) => true,
             SingularPlayerAction::Life(_)
             | SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
@@ -87,6 +89,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::CreateTokens(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {

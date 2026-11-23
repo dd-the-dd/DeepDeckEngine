@@ -529,6 +529,65 @@ modificateurs actifs).
 - Sondes : ligue et corpus inchangés (800, 13851), 0 perdue, 1 IR changée
   (non supportée avant ni après : la carte échoue ensuite dans son corps).
 
+## Étape 16 (lot S5) : un seul lecteur de clause d'événement
+
+Écrite sans compilation dans le lot d'architecture ; la compilation, les
+tests et les sondes se font sur le lot intégré.
+
+- `automata/event_clause.rs` : **le** lecteur de clause d'événement. Il lit
+  le mot déclencheur (`at`, `when`, `whenever`, CR 603.1), essaie chaque
+  alternative typée (sujet source, lanceur, acteur et objet, sacrifice,
+  union d'objets ciblés, verbes de la source, transition de permanents,
+  atomes locaux et de joueur, marqueurs, sujet quantifié), lit la queue de
+  modificateurs partagée, puis la **frontière** (la virgule d'une capacité
+  déclenchée, paramètre du lecteur pour les déclencheurs intégrés). Les
+  enfants ne lisent plus ni le mot déclencheur ni la virgule ; l'enveloppe
+  (`trigger_envelope.rs`) ne garde que le mot de capacité et l'étiquette.
+- `automata/event_modifiers.rs` : **une** queue de modificateurs (`and
+  isn't blocked`, `for the first time each turn`, `during your turn` /
+  `during an opponent's turn`) et `alone` après le verbe. Les sujets qui les
+  typent (union de la source, sujet quantifié) les absorbent ; ailleurs un
+  modificateur reconnu est `trigger.event.engine-gap`, jamais ignoré. Le
+  lancement réutilise le même lecteur de propriétaire du tour.
+- Cadre de ciblage de `become` (CR 115.1) : la famille historique
+  `triggered_targeting.rs` (revendication par fenêtre lexicale `becomes the
+  target of`, programme d'effets privé) est retirée ; l'union d'objets
+  ciblés est une alternative de la clause et le corps passe par le
+  programme générique (gardes, modes, références). La source sujet (`this
+  creature becomes the target of a spell or ability [CONTROLLER]`) est un
+  verbe de l'union de la source ; le contrôleur de l'objet ciblant est
+  facultatif (n'importe quel contrôleur).
+- Sujet quantifié : les verbes sont des lemmes du lexique dans l'accord du
+  sujet (plus de liste privée `"attack" | "attacks"`), l'auxiliaire passif
+  `is`/`are` reste lu ici. `a creature you control attacks alone`, `attacks
+  and isn't blocked` (motif `becomeUnblocked`), `for the first time each
+  turn` et le propriétaire du tour sont abaissés en `eventPattern`.
+- Moteur : l'enregistrement de combat porte le joueur du tour
+  (`turn_player`) ; le motif générique lit `duringControllerTurn` /
+  `duringOpponentTurn` (mêmes champs que le motif de lancement). Le motif
+  `becameTarget` générique (avec `targetingStackObject`) accepte la source
+  comme objet ciblé et un objet ciblant sans contrôleur ; l'ancienne forme
+  `self` (protection, `stackObjectKind`) garde son chemin, dont elle est
+  exclue par une seule garde dans `mod.rs`.
+- Ordinal par tour de `becomes blocked` : l'enregistrement de blocage porte,
+  pour l'attaquant, le nombre de combats du tour où son incarnation courante
+  a été bloquée (`blockerDeclared` journalise `attackerIdentity`) ; `becomes
+  blocked for the first time each turn` est abaissé en motif générique. La
+  variante par paire (`becomes blocked by X for the first time…`) reste un
+  `engine-gap`.
+- Ordinal du ciblage (Valiant) : chaque permanent ciblé journalise
+  `permanentBecameTarget` (contrôleur et nature de l'objet ciblant,
+  incarnation) ; `for the first time each turn` compte les entrées du tour
+  dont l'objet ciblant satisfait le même sélecteur (filtre de nature
+  seulement).
+- Restent : propriétaire
+  du tour hors combat, déclencheurs intégrés (CR 603.7 / 603.12) branchés sur
+  `read_event_clause`, `kind` en forme de phrase (`attachedPermanentTapped`,
+  `doorUnlocked`, …) vers lemme + relation, familles de programmes
+  historiques (`source_trigger_program`, `spell_cast_trigger_program`,
+  `sacrifice_trigger_program`, `permanent_entered_effect_sequence`,
+  `phase_trigger_sequence`) qui lisent encore leur propre mot déclencheur.
+
 ## Familles suivantes
 
 1. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`,

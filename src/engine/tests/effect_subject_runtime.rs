@@ -748,3 +748,88 @@ fn an_indefinite_grant_is_lost_when_the_permanent_changes_zones() {
         "a new object"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn each_other_player_performs_and_the_controller_does_not() {
+    // Haunted Angel's `each other player creates ...` with three players.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Each other player creates a 1/1 white Spirit creature token with flying.",
+    )
+    .remove(0);
+    let mut engine = test_engine(3);
+    resolve_spell(&mut engine, &rule, BTreeMap::new());
+    assert!(engine.state.players[0].battlefield.is_empty(), "{rule:#}");
+    assert_eq!(engine.state.players[1].battlefield.len(), 1);
+    assert_eq!(engine.state.players[2].battlefield.len(), 1);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_source_another_player_now_controls_is_not_sacrificed_by_its_trigger() {
+    // CR 701.21a: the upkeep trigger went on the stack under player-0; the
+    // creature changed control before it resolved, so it isn't sacrificed.
+    let rule = parsed_rules(
+        "Creature \u{2014} Spirit",
+        "At the beginning of your upkeep, sacrifice this creature.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    let mut spirit = test_instance(
+        "spirit",
+        test_definition("spirit", "Creature - Spirit"),
+        "player-0",
+    );
+    spirit.controller = "player-1".to_string();
+    engine.state.players[1].battlefield.push(spirit.clone());
+    let stack = StackObject {
+        id: "stack:upkeep".to_string(),
+        controller: "player-0".to_string(),
+        card: spirit,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the trigger resolves");
+    assert!(engine.permanent_position("spirit").is_some(), "{rule:#}");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_controller_after_a_performed_action_is_still_the_controller() {
+    // The performer wrapper changes the instruction's controller only for its
+    // own action: the following `you draw a card` is the controller's.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Each opponent creates a Treasure token, then you draw a card.",
+    )
+    .remove(0);
+    let mut engine = test_engine(3);
+    engine.state.players[0].library.push(test_instance(
+        "card",
+        test_definition("card", "Instant"),
+        "player-0",
+    ));
+    let hand_before = engine.state.players[0].hand.len();
+    resolve_spell(&mut engine, &rule, BTreeMap::new());
+    assert_eq!(
+        engine.state.players[0].hand.len(),
+        hand_before + 1,
+        "{rule:#}"
+    );
+    assert!(engine.state.players[0].battlefield.is_empty());
+    assert_eq!(engine.state.players[1].battlefield.len(), 1);
+    assert_eq!(engine.state.players[2].battlefield.len(), 1);
+}

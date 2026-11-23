@@ -94,7 +94,7 @@ pub(super) fn prepare_entry_creature_type_bindings<'a>(
     initial: &'a std::collections::BTreeMap<String, Value>,
 ) -> Result<std::borrow::Cow<'a, std::collections::BTreeMap<String, Value>>, EngineError> {
     let mut entry_decisions = Vec::new();
-    for rule in definition.rules.iter().filter(|rule| {
+    for rule in definition.printed_rules().iter().filter(|rule| {
         super::value_kind(rule) == Some("replacementEffect")
             && super::value_kind(&rule["event"]) == Some("wouldEnterBattlefield")
     }) {

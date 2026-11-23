@@ -92,6 +92,7 @@ fn optional_program_declares_targets_before_permission_and_preserves_resolution_
         engine
             .cast_canonical_spell(
                 &CanonicalSpellCast {
+                    source_zone: None,
                     controller_id: "player-0".into(),
                     source_definition_id: "sage".into(),
                     use_alternative_cost: false,

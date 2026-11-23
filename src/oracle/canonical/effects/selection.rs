@@ -69,7 +69,7 @@ pub(in crate::oracle::canonical) fn lower_target_slot_candidates(
 ) -> Option<(&'static str, Value)> {
     let (id, mut candidates) = lower_target_selector_candidates(&slot.selector)?;
     if slot.exclude_source {
-        candidates["excludeSource"] = Value::Bool(true);
+        crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
     }
     Some((id, candidates))
 }
@@ -210,7 +210,7 @@ pub(in crate::oracle::canonical) fn lower_zone_change_slot_candidates(
     effect: &ZoneChangeEffectNode,
     slot: &TargetSlot,
 ) -> Option<(&'static str, Value, i64, i64)> {
-    let (id, mut candidates) = if permanent_target_supported(&slot.selector) {
+    let (id, mut candidates) = if slot.selector.is_permanent_target() {
         lower_target_selector_candidates(&slot.selector)?
     } else if effect.action == ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)
         && effect.target.slots.len() == 1
@@ -222,7 +222,7 @@ pub(in crate::oracle::canonical) fn lower_zone_change_slot_candidates(
         return None;
     };
     if slot.exclude_source {
-        candidates["excludeSource"] = Value::Bool(true);
+        crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
     }
     Some((
         id,

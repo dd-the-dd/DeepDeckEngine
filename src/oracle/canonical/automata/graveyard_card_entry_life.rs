@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, NumericExpression, ObjectPredicate,
-    TargetBinding, recognize_card_type_union_selector, recognize_life_effect,
+    LocalEffectNode, LocalPlayerReference, LoseLifeEffectNode, ObjectPredicate, TargetBinding,
+    recognize_card_type_union_selector, recognize_life_effect,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -8,7 +8,17 @@ pub(in crate::oracle::canonical) fn lower_explicit_token_creation(
         LocalPlayerReference::Controller => controller(),
         _ => return Err(TargetlessLoweringError::RequiresTarget),
     };
-    let quantity = lower_targetless_numeric_expression(&node.quantity, declarations)?;
+    let quantity = lower_targetless_numeric_expression(&node.body.quantity, declarations)?;
+    Ok(lower_token_creation_body(&node.body, player, quantity))
+}
+
+/// `createTokens` for the player the parent lowered (the controller of an
+/// imperative, or a player subject's typed reference).
+pub(in crate::oracle::canonical) fn lower_token_creation_body(
+    node: &TokenCreationBodyNode,
+    player: Value,
+    quantity: Value,
+) -> Value {
     let base = &node.template.creature;
     let mut effect = json!({"kind":"createTokens","controller":player,"quantity":quantity,"token":{
         "power":base.power,"toughness":base.toughness,
@@ -27,5 +37,5 @@ pub(in crate::oracle::canonical) fn lower_explicit_token_creation(
     if node.legendary {
         effect["token"]["supertypes"] = json!(["Legendary"]);
     }
-    Ok(effect)
+    effect
 }

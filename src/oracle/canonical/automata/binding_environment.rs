@@ -17,6 +17,7 @@ use super::{
 use crate::oracle::characteristic_vocabulary::{
     CharacteristicLexeme, lookup_object_selector_lexeme,
 };
+use crate::oracle::model::RecognizedEntity;
 
 /// The object an event record binds, with the predicate the event wrote for
 /// it. A nominal anaphor (`that creature`) must follow from that predicate.
@@ -28,6 +29,11 @@ pub(in crate::oracle::canonical) struct EventObjectSlot {
     /// attacks`, `a creature dies`), so a bare `it` can name it. A damaged
     /// recipient is named only with its nominal (`that creature`).
     pub subject: bool,
+    /// The event moved the object off the battlefield (`a creature dies`):
+    /// its last known information still answers property and player reads,
+    /// but it is no longer a permanent an action can operate on (CR 400.7,
+    /// 700.4). The card it became is the frame's `event_card`.
+    pub departed: bool,
 }
 
 impl EventObjectSlot {
@@ -84,6 +90,15 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// The index of the action being read in the enclosing program; a
     /// target declared by this action binds to it.
     pub effect_index: Option<usize>,
+    /// The ActionResult antecedent: the preceding instruction or resolution
+    /// cost whose actual performance an outcome connector (`If you do`,
+    /// `If they don't`, `When you do`) observes. Installed by the program
+    /// parent around the connector only (CR 608.2c, 603.12).
+    pub action_result: Option<ActionResultSlot>,
+    /// A number the enclosing frame already read (`that number` in a later
+    /// clause of the same frame); the arithmetic grammar reads it as a
+    /// primary.
+    pub number: Option<NumericExpression>,
 }
 
 impl BindingEnvironment {
@@ -98,8 +113,8 @@ impl BindingEnvironment {
                 context.permanent_subject_scope,
                 PermanentSubjectScope::Local(_)
             ),
-            object: super::permanent_subject::proven_permanent_antecedent(context).map(
-                |reference| ObjectSubjectAntecedent {
+            object: super::permanent_subject::proven_read_antecedent(context).map(|reference| {
+                ObjectSubjectAntecedent {
                     reference,
                     selector: match reference {
                         PermanentEffectReference::Target(_)
@@ -108,13 +123,202 @@ impl BindingEnvironment {
                         ) => context.permanent_subject_selector.clone(),
                         _ => None,
                     },
-                },
-            ),
+                }
+            }),
             player: None,
             subject: None,
             effect_index: context.current_effect_index,
+            action_result: None,
+            number: None,
         }
     }
+}
+
+/// Reads with `environment` installed on the cursor, then restores the
+/// enclosing environment. Every slot installer of this module uses it.
+fn with_installed_environment<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: BindingEnvironment,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let enclosing = cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+    let result = read(cursor);
+    cursor.replace_binding_environment(enclosing);
+    result
+}
+
+/// What an outcome connector observes about its producer (CR 608.2c,
+/// 603.12): whether the preceding instruction or cost was actually
+/// performed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PerformanceOutcome {
+    /// `If you do, …`: the body resolves only if the producer was performed.
+    Performed,
+    /// `If you don't, …`: the body resolves only if it was not performed.
+    Declined,
+    /// `When you do, …`: performing it creates a reflexive triggered ability
+    /// that chooses its own targets (CR 603.12).
+    Reflexive,
+}
+
+/// Who performs the producer an outcome connector names.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum OutcomePerformer {
+    /// `you may …`: the ability controller (`If you do`).
+    Controller,
+    /// `that player may …`: another player the environment names (`If they
+    /// do`, `If that player does`, `If the player does`).
+    OtherPlayer,
+    /// A mandatory instruction: its performer is the instruction's own
+    /// subject, which the connector's subject does not restate.
+    Instruction,
+}
+
+/// The ActionResult antecedent of an outcome connector.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ActionResultSlot {
+    pub performer: OutcomePerformer,
+}
+
+/// The grammatical subject of an outcome connector.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ConnectorSubject {
+    You,
+    OtherPlayer,
+}
+
+impl ActionResultSlot {
+    fn admits(self, subject: ConnectorSubject) -> bool {
+        match self.performer {
+            OutcomePerformer::Controller => subject == ConnectorSubject::You,
+            OutcomePerformer::OtherPlayer => subject == ConnectorSubject::OtherPlayer,
+            OutcomePerformer::Instruction => true,
+        }
+    }
+}
+
+/// Lexical reading of `if|when SUBJECT do(es)|don't|doesn't ,` at `offset`:
+/// the outcome, its subject and the connector's token width. It proves no
+/// binding; `recognize_outcome_connector` resolves the subject.
+fn outcome_connector_parts(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(PerformanceOutcome, ConnectorSubject, usize)> {
+    let word = |index: usize| {
+        cursor
+            .peek_ahead(offset + index)
+            .map(str::to_ascii_lowercase)
+    };
+    // The connector's subject is the producer's performer: `you`, or another
+    // player named by `they` / `that player` / `the player` (CR 608.2c).
+    let (subject, subject_width, singular) = match (word(1)?.as_str(), word(2).as_deref()) {
+        ("you", _) => (ConnectorSubject::You, 1, false),
+        ("they", _) => (ConnectorSubject::OtherPlayer, 1, false),
+        ("that" | "the", Some("player")) => (ConnectorSubject::OtherPlayer, 2, true),
+        _ => return None,
+    };
+    let verb = word(1 + subject_width)?;
+    let outcome = match (word(0)?.as_str(), verb.as_str(), singular) {
+        ("if", "do", false) | ("if", "does", true) => PerformanceOutcome::Performed,
+        ("if", "don't" | "don’t", false) | ("if", "doesn't" | "doesn’t", true) => {
+            PerformanceOutcome::Declined
+        }
+        ("when", "do", false) | ("when", "does", true) => PerformanceOutcome::Reflexive,
+        _ => return None,
+    };
+    let width = 2 + subject_width;
+    (word(width)?.as_str() == ",").then_some((outcome, subject, width + 1))
+}
+
+/// Lexical lookahead: the outcome and token width of a connector at
+/// `offset`. It commits nothing.
+pub(in crate::oracle::canonical) fn outcome_connector_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(PerformanceOutcome, usize)> {
+    outcome_connector_parts(cursor, offset).map(|(outcome, _, width)| (outcome, width))
+}
+
+/// True when the first sentence after the cursor is followed by an outcome
+/// connector. Lexical lookahead only; it commits nothing.
+pub(in crate::oracle::canonical) fn outcome_connector_follows_first_sentence(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        if raw == "." {
+            return outcome_connector_at(cursor, offset + 1).is_some();
+        }
+        offset += 1;
+    }
+    false
+}
+
+/// Reads `If you do ,` / `If they don't ,` / `When that player does ,` at a
+/// sentence start and resolves it against the environment's ActionResult
+/// antecedent: the connector's subject must name the producer's performer.
+pub(in crate::oracle::canonical) fn recognize_outcome_connector(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PerformanceOutcome> {
+    cursor.enter("cost.outcome.connector");
+    let (outcome, subject, width) = outcome_connector_parts(cursor, 0)
+        .ok_or_else(|| cursor.fail("`If you do,`, `If you don't,` or `When you do,`"))?;
+    cursor.enter("binding.action-result.performer");
+    let slot = installed_binding_environment(cursor)
+        .action_result
+        .ok_or_else(|| cursor.fail("a preceding instruction or cost for the outcome connector"))?;
+    cursor.require(
+        slot.admits(subject),
+        "an outcome connector whose subject names the performer of the preceding instruction",
+    )?;
+    cursor.advance_to(cursor.position() + width)?;
+    Ok(outcome)
+}
+
+/// Reads an outcome connector with `slot` as the ActionResult antecedent.
+pub(in crate::oracle::canonical) fn recognize_outcome_connector_after(
+    cursor: &mut OracleTokenCursor<'_>,
+    slot: ActionResultSlot,
+) -> MachineResult<PerformanceOutcome> {
+    let mut environment = installed_binding_environment(cursor);
+    environment.action_result = Some(slot);
+    with_installed_environment(cursor, environment, recognize_outcome_connector)
+}
+
+/// Lexical lookahead for `that number`.
+pub(in crate::oracle::canonical) fn prior_number_reference_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("number"))
+}
+
+/// `that number`: the number the enclosing frame already read (a power the
+/// toughness reuses). An absent binding fails; it never becomes a literal.
+pub(in crate::oracle::canonical) fn recognize_prior_number_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.prior-number-anaphor.demonstrative");
+    cursor.consume_phrase(&["that", "number"])?;
+    cursor.enter("numeric.prior-number-anaphor.resolve");
+    installed_binding_environment(cursor)
+        .number
+        .ok_or_else(|| cursor.fail("a prior numeric-expression binding for `that number`"))
+}
+
+/// Reads with `number` as the environment's prior number.
+pub(in crate::oracle::canonical) fn with_prior_number<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: NumericExpression,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.number = Some(number);
+    with_installed_environment(cursor, environment, read)
 }
 
 /// A player named through the environment, never a new declaration.
@@ -177,6 +381,12 @@ fn possessive_base(raw: &str) -> Option<String> {
         .map(str::to_string)
 }
 
+/// The registered nominal of a possessive word (`creature's`, `spell’s`):
+/// the one genitive-nominal reader every reference child shares.
+pub(in crate::oracle::canonical) fn possessive_nominal(raw: &str) -> Option<TargetNominal> {
+    possessive_base(raw).and_then(|surface| registered_nominal(&surface))
+}
+
 pub(in crate::oracle::canonical) fn defending_player_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
@@ -197,24 +407,33 @@ fn that_player_starts(cursor: &OracleTokenCursor<'_>) -> bool {
             .is_some_and(|raw| raw.eq_ignore_ascii_case("player"))
 }
 
-/// Bounded lexical head: `its controller|owner` or `that NOUN's
-/// controller|owner`. Returns the token length; it proves no binding.
+/// Bounded lexical head over tokens: `its controller|owner` or `that NOUN's
+/// controller|owner`, with its token length and relation. It proves no
+/// binding; the resolver below does.
+pub(in crate::oracle::canonical) fn object_related_player_head(
+    tokens: &[RecognizedEntity],
+) -> Option<(usize, ObjectPlayerRelation)> {
+    let raw = |index: usize| tokens.get(index).map(|token| token.raw.as_str());
+    let first = raw(0)?;
+    if first.eq_ignore_ascii_case("its") {
+        return player_relation(raw(1)?).map(|relation| (2, relation));
+    }
+    if first.eq_ignore_ascii_case("that")
+        && tokens
+            .get(1)
+            .is_some_and(|token| token.token_type == "possessiveTypeWord")
+    {
+        return player_relation(raw(2)?).map(|relation| (3, relation));
+    }
+    None
+}
+
+/// The token length of an object-related player head at the cursor.
 pub(in crate::oracle::canonical) fn object_related_player_head_length(
     cursor: &OracleTokenCursor<'_>,
 ) -> Option<usize> {
-    let first = cursor.peek()?;
-    if first.eq_ignore_ascii_case("its") {
-        return player_relation(cursor.peek_ahead(1)?).map(|_| 2);
-    }
-    if first.eq_ignore_ascii_case("that")
-        && cursor
-            .token_slice(cursor.position() + 1, cursor.position() + 2)
-            .first()
-            .is_some_and(|token| token.token_type == "possessiveTypeWord")
-    {
-        return player_relation(cursor.peek_ahead(2)?).map(|_| 3);
-    }
-    None
+    object_related_player_head(cursor.token_slice(cursor.position(), cursor.position() + 3))
+        .map(|(length, _)| length)
 }
 
 /// Lexical lookahead for any player reference this resolver owns.
@@ -359,6 +578,20 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
             object: slot.reference,
         });
     }
+    // `its controller` of a departed event subject (`a creature dies`): the
+    // object is no permanent antecedent any more, but its last known
+    // controller and owner still answer the relation (CR 608.2h).
+    if nominal.is_none()
+        && antecedent.is_none()
+        && let Some(slot) = event_object.filter(|slot| slot.subject && slot.departed)
+        && relation_supported(slot.reference)
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation {
+            relation,
+            object: slot.reference,
+        });
+    }
     let antecedent = antecedent.ok_or_else(|| {
         cursor.fail_with_span(
             "a preceding singular object binding for the possessive",
@@ -461,7 +694,17 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<PermanentEffectReference> {
-    recognize_determined_object_reference(cursor, environment, "that")
+    recognize_determined_object_reference(cursor, environment, "that", false)
+}
+
+/// `that creature` read for its last known information (`If that creature
+/// was a Villain`, CR 608.2h): unlike an operand, it may name an event
+/// object that left the battlefield.
+pub(in crate::oracle::canonical) fn recognize_nominal_object_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<PermanentEffectReference> {
+    recognize_determined_object_reference(cursor, environment, "that", true)
 }
 
 /// `the creature` (a definite description, CR 702.32a style): it names the
@@ -471,13 +714,14 @@ pub(in crate::oracle::canonical) fn recognize_definite_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<PermanentEffectReference> {
-    recognize_determined_object_reference(cursor, environment, "the")
+    recognize_determined_object_reference(cursor, environment, "the", false)
 }
 
 fn recognize_determined_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
     determiner: &str,
+    departed_readable: bool,
 ) -> MachineResult<PermanentEffectReference> {
     cursor.enter("permanent.subject.nominal-anaphor");
     cursor.consume(determiner)?;
@@ -512,6 +756,15 @@ fn recognize_determined_object_reference(
             .as_ref()
             .filter(|slot| slot.implies(nominal))
     {
+        // An operand reader acts on the permanent (tap, destroy, deal damage
+        // to). A departed event object (`a creature dies`) is a new object in
+        // another zone (CR 400.7); only a read of its last known information
+        // (a condition, a property, its controller) may name it.
+        if slot.departed && !departed_readable {
+            return Err(cursor.fail(
+                "a permanent for the nominal anaphor; the event's object left the battlefield",
+            ));
+        }
         cursor.consume(&noun)?;
         return Ok(slot.reference);
     }
@@ -570,8 +823,7 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
     cursor.consume("that")?;
     cursor.enter("numeric.genitive.nominal");
     let possessive = cursor.consume_type("possessiveTypeWord")?;
-    let nominal = possessive_base(&possessive.raw)
-        .and_then(|surface| registered_nominal(&surface))
+    let nominal = possessive_nominal(&possessive.raw)
         .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
     cursor.enter("numeric.genitive.property");
     let property = if cursor
@@ -631,10 +883,7 @@ pub(in crate::oracle::canonical) fn with_clause_subject<T>(
 ) -> T {
     let mut environment = installed_binding_environment(cursor);
     environment.subject = subject;
-    let enclosing = cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
-    let result = read(cursor);
-    cursor.replace_binding_environment(enclosing);
-    result
+    with_installed_environment(cursor, environment, read)
 }
 
 /// The clause subject a damage source operand denotes: the ability source,

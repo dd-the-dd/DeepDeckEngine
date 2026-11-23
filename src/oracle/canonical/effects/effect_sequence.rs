@@ -28,6 +28,24 @@ use crate::oracle::contextual_binding::{
     RESOLUTION_CREATURE_TYPE_DECISION, WHERE_X_BINDING_ID, references_resolution_creature_type,
 };
 
+/// Root of every id an effect of a program creates while it resolves (scry
+/// and discard choices, sacrifice decisions, objects it binds). A container
+/// that lowers several programs side by side (the modes of a modal spell)
+/// rescopes the ids recognized by `is_effect_resolution_id`.
+pub(in crate::oracle::canonical) fn effect_resolution_scope(effect_index: usize) -> String {
+    format!("effect{effect_index}")
+}
+
+/// Whether `id` lies in some effect's resolution scope (`effect{N}` or
+/// `effect{N}:...`).
+pub(in crate::oracle::canonical) fn is_effect_resolution_id(id: &str) -> bool {
+    let Some(rest) = id.strip_prefix("effect") else {
+        return false;
+    };
+    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+    digits > 0 && rest[digits..].chars().next().is_none_or(|next| next == ':')
+}
+
 enum EffectSequenceLoweringFailure {
     UnsupportedSupportLimit(MachineFailure),
     FailedSupport(MachineFailure),
@@ -389,7 +407,10 @@ fn lower_local_effect_sequence_with_collections(
         if matches!(
             effect,
             LocalEffectNode::PlayerAction(PlayerActionNode {
-                action: SingularPlayerAction::Draw(_) | SingularPlayerAction::Mill(_),
+                action: SingularPlayerAction::Draw(_)
+                    | SingularPlayerAction::Mill(_)
+                    | SingularPlayerAction::Scry(_)
+                    | SingularPlayerAction::CreateTokens(_),
                 ..
             })
         ) {
@@ -513,6 +534,39 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "proliferate", "player": lowered.player}));
                         continue;
                     }
+                    SingularPlayerAction::Scry(count) => {
+                        cursor.enter("lower.player-action.scry");
+                        let amount = lower_sequence_bound_amount(
+                            cursor,
+                            count,
+                            sequence,
+                            &target_bindings,
+                            context,
+                        )?;
+                        effects.extend(
+                            lower_library_partition_effects_for_player(
+                                LibraryPartitionAction::Scry,
+                                count,
+                                amount,
+                                lowered.player,
+                                Some(&effect_resolution_scope(effect_index)),
+                            )
+                            .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
+                        );
+                        continue;
+                    }
+                    SingularPlayerAction::CreateTokens(body) => {
+                        cursor.enter("lower.player-action.create-tokens");
+                        let quantity = lower_sequence_bound_amount(
+                            cursor,
+                            &body.quantity,
+                            sequence,
+                            &target_bindings,
+                            context,
+                        )?;
+                        effects.push(lower_token_creation_body(body, lowered.player, quantity));
+                        continue;
+                    }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
                         cursor.enter("lower.player-action.discard-hand");
                         effects.push(json!({"kind": "discardHand", "player": lowered.player}));
@@ -574,7 +628,10 @@ fn lower_local_effect_sequence_with_collections(
                             lower_player_sacrifice_effects(
                                 sacrifice,
                                 lowered.player,
-                                &format!("effect{effect_index}:playerSacrifice"),
+                                &format!(
+                                    "{}:playerSacrifice",
+                                    effect_resolution_scope(effect_index)
+                                ),
                                 declarations,
                             )
                             .map_err(|error| {
@@ -723,6 +780,7 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                let on_battlefield = operand_on_battlefield(&grant.objects, sequence);
                 for object in objects {
                     effects.extend(
                         lower_keyword_grant_to_object(
@@ -730,6 +788,7 @@ fn lower_local_effect_sequence_with_collections(
                             &grant.abilities,
                             &grant.duration,
                             &object,
+                            on_battlefield,
                         )
                         .ok_or_else(|| {
                             cursor.fail("a supported keyword-grant duration and granted rule")
@@ -896,7 +955,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
-                let mut lowered = lower_optional_card_deployment(
+                let lowered = lower_optional_card_deployment(
                     deployment,
                     declarations,
                     &collections.allocate_selection_id("optionalCardDeployment"),
@@ -981,21 +1040,9 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::ModifyStats(modifier) => {
-                cursor.enter("lower.modify-stats.another-target-relation");
-                if modifier.exclude_source_from_first_target
-                    && decisions
-                        .iter()
-                        .any(|decision: &Value| decision["kind"].as_str() == Some("chooseTargets"))
-                {
-                    // This local node can represent source exclusion, but the
-                    // sequence result cannot yet carry a relation to earlier
-                    // target declarations. Refuse that distinct-target meaning
-                    // instead of silently substituting excludeSource, even if
-                    // the previous target's domain appears incompatible.
-                    return Err(EffectSequenceLoweringFailure::FailedSupport(
-                        cursor.fail("distinct-target relation support for `another` after a preceding target declaration"),
-                    ));
-                }
+                // `another target creature gets +N/+N` after a preceding target
+                // declaration: the permanent subject marks the typed relation
+                // the card composition resolves (`distinctFrom`).
                 cursor.require(
                     [&modifier.delta.power, &modifier.delta.toughness].into_iter().all(|amount| {
                         !matches!(amount, NumericExpression::Atom(NumericAtom::Integer(value)) if i32::try_from(*value).is_err())
@@ -1050,6 +1097,7 @@ fn lower_local_effect_sequence_with_collections(
                             &modifier.abilities,
                             &modifier.duration,
                             &object,
+                            operand_on_battlefield(&modifier.targets, sequence),
                         )
                         .ok_or_else(|| {
                             cursor.fail("a supported keyword-grant duration and granted rule")
@@ -1252,7 +1300,7 @@ fn lower_local_effect_sequence_with_collections(
                     lower_controller_keyword_action(
                         keyword_action.action,
                         quantity,
-                        &format!("effect{effect_index}"),
+                        &effect_resolution_scope(effect_index),
                     )
                     .map_err(|expected| {
                         EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -1920,7 +1968,7 @@ fn lower_local_effect_sequence_with_collections(
                 let mut lowered = lower_targetless_local_effects(
                     effect,
                     declarations,
-                    Some(&format!("effect{effect_index}")),
+                    Some(&effect_resolution_scope(effect_index)),
                 )
                 .map_err(|error| {
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -2533,7 +2581,7 @@ fn apply_unless_frames(
             }
             UnlessClauseNode::Condition(condition) => vec![json!({
                 "kind": "conditional",
-                "condition": not(lower_trigger_guard(condition)),
+                "condition": not(lower_condition(condition)),
                 "then": guarded,
                 "else": [],
             })],
@@ -3018,20 +3066,17 @@ fn apply_performer(
             )));
         }
         PerformerNode::Population {
-            excluding_controller: true,
-            ..
+            players,
+            excluding_controller,
         } => {
-            // CR 102.3: `each other player` includes a teammate, which the
-            // opponents set does not; no player set names it yet.
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail(
-                    "a player set of every player other than the controller, teammates included",
-                ),
-            ));
-        }
-        PerformerNode::Population { players, .. } => {
             let bind = format!("performer{effect_index}");
-            let players = lower_player_set_reference(*players);
+            // CR 102.3: `each other player` is every player but the
+            // controller, teammates included, not the opponents set.
+            let players = if *excluding_controller {
+                json!({"kind": "playersExcept", "player": controller()})
+            } else {
+                lower_player_set_reference(*players)
+            };
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
@@ -3115,6 +3160,37 @@ fn bind_deployed_card_when_read(
     Ok(())
 }
 
+/// True when a permanent operand denotes objects on the battlefield as the
+/// action resolves (CR 400.7, 603.10a), the condition of an indefinite
+/// grant: declared permanent targets (one or several), collections, the
+/// source, attached permanents, the card a move put onto the battlefield,
+/// created tokens, an entering permanent and the combat counterpart. A
+/// target declared by a card action (a card in a graveyard or exile) and an
+/// event's permanent (which may be last known information in a dies or
+/// leaves frame) are not.
+fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSequenceNode) -> bool {
+    match operand {
+        PermanentOperandNode::Targets(_)
+        | PermanentOperandNode::Collection { .. }
+        | PermanentOperandNode::Reference(_) => true,
+        PermanentOperandNode::BoundReference(reference) => match reference {
+            PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
+            PermanentEffectReference::Target(binding) => sequence
+                .effects
+                .get(binding.effect_index)
+                .and_then(ordinary_action_targets)
+                .is_some_and(|targets| targets.slots.get(binding.slot_index).is_some()),
+            PermanentEffectReference::Observed(
+                TypedObservedEventObject::MovedOntoBattlefield
+                | TypedObservedEventObject::CreatedTokens
+                | TypedObservedEventObject::EnteringPermanent
+                | TypedObservedEventObject::CombatCounterpart,
+            ) => true,
+            PermanentEffectReference::Observed(_) => false,
+        },
+    }
+}
+
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
     matches!(
         sequence.effects.get(effect_index + 1),
@@ -3142,7 +3218,12 @@ pub(in crate::oracle::canonical) fn lower_regeneration_shield(object: Value) -> 
 pub(in crate::oracle::canonical) fn lower_tap_state_change(untap: bool, object: Value) -> Value {
     match (untap, object["kind"].as_str()) {
         (false, _) => json!({"kind": "tapPermanent", "permanent": object}),
-        (true, Some("chosenTargets")) => json!({"kind": "untapPermanents", "objects": object}),
+        // A collection operand untaps each of its objects (`untap each
+        // other Merfolk you control`); the singular primitive takes one.
+        (
+            true,
+            Some("chosenTargets" | "chosenObjects" | "eachPermanent" | "boundObjects" | "union"),
+        ) => json!({"kind": "untapPermanents", "objects": object}),
         (true, _) => json!({"kind": "untapPermanent", "permanent": object}),
     }
 }

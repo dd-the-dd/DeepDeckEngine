@@ -65,7 +65,7 @@ fn chosen_object_ids(id: &str, count: i64) -> Vec<String> {
 /// `another`: the engine removes the ability's source from the candidates.
 fn with_source_exclusion(mut candidates: Value, exclude_source: bool) -> Value {
     if exclude_source {
-        candidates["excludeSource"] = json!(true);
+        crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
     }
     candidates
 }

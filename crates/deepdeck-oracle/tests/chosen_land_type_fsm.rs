@@ -144,7 +144,7 @@ fn claimed_near_misses_fail_at_the_responsible_binding_or_reference_state() {
         (
             "As this land enters, choose a basic land type. Then you may pay 2 life. If they don't, it enters tapped.",
             "chosen-land-type-entry",
-            "condition.cost-not-paid.player",
+            "condition.envelope.atom-kind",
             "they",
         ),
         (

@@ -36,7 +36,8 @@ use super::source_sacrifice::atomic_action::player_subject::{
     recognize_player_effect_subject,
 };
 use super::verb_lexicon::{
-    ArgumentFrame, VerbAgreement, VerbEntry, VerbForm, VerbLemma, Voice, lookup_verb,
+    ArgumentFrame, Auxiliary, VerbAgreement, VerbEntry, VerbForm, VerbLemma, Voice,
+    lookup_auxiliary, lookup_verb,
 };
 use super::{
     ControlledCountDirection, DamageKind, EventActorScope, LocalPlayerReference, NumericExpression,
@@ -90,6 +91,23 @@ pub(in crate::oracle::canonical) enum ClauseModality {
     Indicative,
     /// `PLAYER would VERB` (CR 614.1a replacement events).
     Would,
+    /// `PLAYER may VERB` (CR 608.2d: the performer chooses whether to act).
+    May,
+    /// `SUBJECT can't VERB` (CR 101.2: a prohibition).
+    Cannot,
+}
+
+impl ClauseModality {
+    /// The modal auxiliary that writes this modality, if any. Every modal
+    /// takes the bare verb (and the bare passive auxiliary `be`).
+    pub(in crate::oracle::canonical) fn auxiliary(self) -> Option<Auxiliary> {
+        match self {
+            Self::Indicative => None,
+            Self::Would => Some(Auxiliary::Would),
+            Self::May => Some(Auxiliary::May),
+            Self::Cannot => Some(Auxiliary::Cannot),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -576,8 +594,14 @@ pub(in crate::oracle::canonical) fn recognize_clause(
         })
         .collect::<Vec<_>>();
     cursor.enter("clause.modality");
-    if frame.modality == ClauseModality::Would && cursor.consume("would").is_err() {
-        return not_claimed(cursor);
+    if let Some(expected) = frame.modality.auxiliary() {
+        let written = cursor
+            .peek()
+            .and_then(lookup_auxiliary)
+            .is_some_and(|(auxiliary, _)| auxiliary == expected);
+        if !written || cursor.advance_to(cursor.position() + 1).is_err() {
+            return not_claimed(cursor);
+        }
     }
     // The passive auxiliary: bare `be` after a modal, else `is` / `are`.
     let auxiliary = if frame.voice == Voice::Passive {
@@ -631,7 +655,7 @@ pub(in crate::oracle::canonical) fn recognize_clause(
     let subject = subject.expect("a read subject");
     if let Some((raw, position)) = auxiliary {
         let expected = match (frame.modality, agreement) {
-            (ClauseModality::Would, _) => "be",
+            (ClauseModality::Would | ClauseModality::May | ClauseModality::Cannot, _) => "be",
             (_, VerbAgreement::Base) => "are",
             (_, VerbAgreement::ThirdPersonSingular) => "is",
         };
@@ -646,7 +670,11 @@ pub(in crate::oracle::canonical) fn recognize_clause(
     }
     let expected = match (frame.voice, frame.modality, frame.tense) {
         (Voice::Passive, _, _) => VerbForm::PastParticiple,
-        (Voice::Active, ClauseModality::Would, _) => VerbForm::Base,
+        (
+            Voice::Active,
+            ClauseModality::Would | ClauseModality::May | ClauseModality::Cannot,
+            _,
+        ) => VerbForm::Base,
         (Voice::Active, _, ClauseTense::PastThisTurn) if perfect => VerbForm::PastParticiple,
         (Voice::Active, _, ClauseTense::PastThisTurn) => VerbForm::Past,
         (Voice::Active, ClauseModality::Indicative, ClauseTense::Present) => agreement.form(),
@@ -762,7 +790,7 @@ pub(in crate::oracle::canonical) fn clause_verb_unsupported(
     let mut at = verb.clone();
     at.enter("clause.verb.unsupported");
     let word = verb.peek().unwrap_or("").to_string();
-    let lemma = super::ALL_LEMMAS
+    let lemma = super::EFFECT_LEMMAS
         .iter()
         .find_map(|lemma| {
             let entry = super::verb_entry(*lemma);

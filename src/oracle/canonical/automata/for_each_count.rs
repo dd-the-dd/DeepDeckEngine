@@ -103,6 +103,23 @@ fn recognize_counted_collection(
         cursor.enter("numeric.for-each.colors");
         cursor.consume_phrase(&[color_noun, "among"])?;
     }
+    // `basic land type(s) among`: the distinct basic land types measure.
+    let basic_land_types = ["basic", "land"].iter().enumerate().all(|(i, word)| {
+        cursor
+            .peek_ahead(i)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    }) && cursor
+        .peek_ahead(2)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("type") || raw.eq_ignore_ascii_case("types"))
+        && cursor
+            .peek_ahead(3)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("among"));
+    if basic_land_types {
+        cursor.enter("numeric.for-each.basic-land-types");
+        cursor.require(!colors, "one counting measure, not colors and land types")?;
+        let noun = cursor.peek_ahead(2).unwrap_or_default().to_string();
+        cursor.consume_phrase(&["basic", "land", noun.as_str(), "among"])?;
+    }
     let distinct_names = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("differently"))
@@ -114,7 +131,7 @@ fn recognize_counted_collection(
         cursor.require(!colors, "one counting measure, not colors and names")?;
         cursor.consume_phrase(&["differently", "named"])?;
     }
-    if !colors && !distinct_names && counted_zone_relation_follows(cursor) {
+    if !colors && !distinct_names && !basic_land_types && counted_zone_relation_follows(cursor) {
         // CR 400.1: a collection with an explicit `in ZONE` relation counts
         // cards in that zone. The shared scoped query owns the predicate and
         // the zone holders; this child only names the count.
@@ -170,14 +187,17 @@ fn recognize_counted_collection(
             "a name-counted collection controlled by you",
         )?;
         PermanentCountMeasure::DistinctNames
-    } else {
+    } else if basic_land_types {
+        // The measure is meaningful over lands; which player's lands the
+        // engine can count is the lowering's decision.
         cursor.require(
-            matches!(
-                query.controller,
-                None | Some(ObjectControllerScope::AbilityController)
-            ),
-            "a counted collection controlled by you or by any player",
+            query.predicate.guarantees_card_type(ObjectCardType::Land),
+            "basic land types counted among lands",
         )?;
+        PermanentCountMeasure::DistinctBasicLandTypes
+    } else {
+        // Any control relation of the shared query is a count; the lowering
+        // names the engine aggregate for it or fails explicitly.
         PermanentCountMeasure::Objects
     };
     Ok(NumericExpression::PermanentCount(Box::new(
@@ -306,9 +326,9 @@ pub(in crate::oracle::canonical) fn greatest_property_among_starts(
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("greatest"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("greatest") || raw.eq_ignore_ascii_case("highest")
+        })
 }
 
 /// `the greatest power|toughness among COLLECTION`: a maximum aggregate over
@@ -319,15 +339,16 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.greatest-among.quantifier");
-    cursor.consume_phrase(&["the", "greatest"])?;
+    cursor.consume("the")?;
+    let superlative = cursor.peek().unwrap_or_default().to_string();
+    cursor.require(
+        superlative.eq_ignore_ascii_case("greatest") || superlative.eq_ignore_ascii_case("highest"),
+        "`greatest` or `highest`",
+    )?;
+    cursor.consume(&superlative)?;
     cursor.enter("numeric.greatest-among.property");
-    let property = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("power") => NumericObjectProperty::Power,
-        Some("toughness") => NumericObjectProperty::Toughness,
-        _ => return Err(cursor.fail("`power` or `toughness` after `the greatest`")),
-    };
-    let raw = cursor.peek().unwrap_or_default().to_string();
-    cursor.consume(&raw)?;
+    // The same numeric properties a selector compares (CR 208, 202.3).
+    let property = recognize_selector_numeric_property(cursor)?;
     cursor.enter("numeric.greatest-among.among");
     cursor.consume("among")?;
     cursor.enter("numeric.greatest-among.collection");
@@ -414,11 +435,13 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
         LocalEffectNode::LoseLife(node) => &mut node.amount,
         LocalEffectNode::PutCounters(node) => &mut node.count,
         LocalEffectNode::DealDamage(node) => &mut node.amount,
-        LocalEffectNode::CreateExplicitTokens(node) => &mut node.quantity,
+        LocalEffectNode::CreateExplicitTokens(node) => &mut node.body.quantity,
         LocalEffectNode::PlayerAction(node) => match &mut node.action {
             SingularPlayerAction::Draw(quantity) | SingularPlayerAction::Mill(quantity) => quantity,
             SingularPlayerAction::Counters(node) => &mut node.count,
             SingularPlayerAction::Life(life) => &mut life.amount,
+            SingularPlayerAction::CreateTokens(body) => &mut body.quantity,
+            SingularPlayerAction::Scry(count) => count,
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)

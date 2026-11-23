@@ -10,7 +10,8 @@
 //! TurnOwner  := "your" | "your opponents'" | "each player's" | "each opponent's"
 //! StepName   := "upkeep" | "draw step" | "end step"
 //!             | ("first" | "precombat") "main phase"
-//!             | ("second" | "postcombat") "main phase"
+//!             | "postcombat" "main phase"
+//!             | "second" "main phase"               -- main phase ordinal 2
 //! ```
 //!
 //! The owner names whose turn the step belongs to; the step name is shared by
@@ -24,6 +25,9 @@ pub(in crate::oracle::canonical) enum TurnStep {
     PrecombatMain,
     BeginCombat,
     PostcombatMain,
+    /// `second main phase`: the main phase with ordinal 2 in its turn
+    /// (CR 505.1a), one particular postcombat main phase.
+    SecondMain,
     EndStep,
 }
 
@@ -111,15 +115,23 @@ fn recognize_step_name(
         ("end", true) => (TurnStep::EndStep, &["end", "steps"]),
         ("first" | "precombat", false) => (TurnStep::PrecombatMain, &["main", "phase"]),
         ("first" | "precombat", true) => (TurnStep::PrecombatMain, &["main", "phases"]),
-        ("second" | "postcombat", false) => (TurnStep::PostcombatMain, &["main", "phase"]),
-        ("second" | "postcombat", true) => (TurnStep::PostcombatMain, &["main", "phases"]),
+        ("postcombat", false) => (TurnStep::PostcombatMain, &["main", "phase"]),
+        ("postcombat", true) => (TurnStep::PostcombatMain, &["main", "phases"]),
+        // CR 505.1a: every main phase after the first is a postcombat main
+        // phase; `second main phase` names the one with ordinal 2, a typed
+        // ordinal rather than any postcombat main phase.
+        ("second", false) => (TurnStep::SecondMain, &["main", "phase"]),
+        ("second", true) => (TurnStep::SecondMain, &["main", "phases"]),
         _ => {
             return Err(cursor.fail(
-                "upkeep, draw step, end step, first/precombat or second/postcombat main phase",
+                "upkeep, draw step, end step, first/precombat, second or postcombat main phase",
             ));
         }
     };
-    if matches!(step, TurnStep::PrecombatMain | TurnStep::PostcombatMain) {
+    if matches!(
+        step,
+        TurnStep::PrecombatMain | TurnStep::PostcombatMain | TurnStep::SecondMain
+    ) {
         consume_current(cursor)?;
     }
     cursor.consume_phrase(words)?;

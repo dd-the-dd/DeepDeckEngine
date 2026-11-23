@@ -278,7 +278,7 @@ impl GameEngine {
                     {
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(json!({
                                 "kind": "keywordAbility",
                                 "source": { "kind": "self" },
@@ -346,7 +346,7 @@ impl GameEngine {
                 for keyword in ["menace", "cantBlock"] {
                     self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .push(json!({
                             "kind": "staticAbility",
                             "source": { "kind": "self" },

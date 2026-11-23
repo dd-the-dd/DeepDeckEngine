@@ -1,8 +1,8 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::super::{
-    EffectConnector, LocalConditionNode, ObjectCardType, ObjectPredicate,
-    recognize_effect_sequence, recognize_object_type_union_list,
+    ConditionAtom, EffectConnector, ObjectCardType, ObjectPredicate, recognize_effect_sequence,
+    recognize_object_type_union_list,
 };
 use super::{
     BooleanConditionNode, OracleTokenCursor, recognize_controlled_count_boolean_condition_body,
@@ -30,7 +30,7 @@ fn arbitrary_oxford_conjunction_composes_existing_condition_atoms() {
     for condition in conditions {
         assert!(matches!(
             condition,
-            BooleanConditionNode::Atom(LocalConditionNode::ControlledPermanentCount(_))
+            BooleanConditionNode::Atom(ConditionAtom::Compare(_))
         ));
     }
 }

@@ -60,6 +60,7 @@ fn lower_atomic_effect(effect: &LoyaltyAtomicEffectNode) -> MachineResult<Value>
                 expected: "a target-independent draw count".to_string(),
                 actual: None,
                 trace: Vec::new(),
+                owner: None,
             })?;
             Ok(json!({
                 "kind": "drawCards",

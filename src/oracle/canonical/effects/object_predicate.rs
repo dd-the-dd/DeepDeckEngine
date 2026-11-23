@@ -145,10 +145,13 @@ fn lower_object_predicate(
                 _ => Some(and(lowered)),
             }
         }
-        ObjectPredicate::Union(operands) => Some(or(operands
+        // A branch naming the whole domain (`permanents or artifacts`) makes
+        // the union the whole domain; dropping it would narrow the query.
+        ObjectPredicate::Union(operands) => operands
             .iter()
-            .filter_map(|operand| lower_object_predicate(operand, domain))
-            .collect())),
+            .map(|operand| lower_object_predicate(operand, domain))
+            .collect::<Option<Vec<_>>>()
+            .map(or),
     }
 }
 

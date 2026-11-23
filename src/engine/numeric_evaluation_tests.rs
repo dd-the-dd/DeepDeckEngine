@@ -343,6 +343,7 @@ fn land_play_trigger_captures_prepared_identity_before_etb_publication() {
     engine
         .play_canonical_land(
             &CanonicalLandPlay {
+                source_zone: None,
                 player_id: "player-0".into(),
                 source_definition_id: "land-source".into(),
             },

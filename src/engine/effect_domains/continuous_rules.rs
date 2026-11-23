@@ -115,15 +115,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield")
         }
         Some("installOneShotModifier") => {
-            value_kind(&effect["expires"]) == Some("endOfCurrentTurn")
-                && value_kind(&effect["match"]) == Some("spellCast")
-                && (value_kind(&effect["apply"]) == Some("modifyStackObject")
-                    || effect["apply"].as_array().is_some_and(|operations| {
-                        operations.iter().all(|operation| {
-                            value_kind(operation) == Some("modifyStackObject")
-                                && value_kind(&operation["modifier"]) == Some("cantBeCountered")
-                        })
-                    }))
+            super::super::one_shot_modifier::install_one_shot_modifier_supported(effect)
         }
         _ => false,
     }
@@ -465,19 +457,7 @@ impl GameEngine {
                 }
             }
             Some("installOneShotModifier") => {
-                let modifier = json!({
-                    "expiresAfterTurn": self.state.turn_number,
-                    "kind": "nextSpellCantBeCountered",
-                    "playerId": stack_object.controller,
-                    "sourceCardInstanceId": stack_object.card.instance_id,
-                });
-                self.state.rule_modifiers.push(modifier.clone());
-                self.record_event(
-                    "oneShotModifierInstalled",
-                    Some(stack_object.controller.clone()),
-                    Some(stack_object.card.instance_id.clone()),
-                    modifier,
-                );
+                self.install_one_shot_modifier(effect, stack_object, bindings);
             }
             _ => {
                 return Err(EngineError::new(format!(

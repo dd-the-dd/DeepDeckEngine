@@ -102,7 +102,7 @@ fn malformed_family_members_fail_in_the_responsible_native_state() {
         (
             "If it's not your turn you may exile a blue card from your hand rather than pay this spell's mana cost.",
             "alternative-mana-cost",
-            "condition.not-your-turn.separator",
+            "condition.envelope.separator",
             "you",
         ),
         (

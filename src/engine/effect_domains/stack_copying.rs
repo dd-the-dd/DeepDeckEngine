@@ -154,7 +154,7 @@ impl GameEngine {
                             .find(|object| object.id == copy_id)
                     {
                         for keyword in &granted_keywords {
-                            copy.card.definition.rules.push(json!({
+                            copy.card.definition.printed_rules_mut().push(json!({
                                 "kind": "keywordAbility",
                                 "source": { "kind": "self" },
                                 "ability": { "kind": keyword },

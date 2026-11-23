@@ -121,7 +121,7 @@ pub(in crate::oracle::canonical) fn lower_single_target(
     let (target_id, mut candidates) = lower_target_selector_candidates(&slot.selector)
         .expect("the damage automaton rejects unsupported target selectors");
     if slot.exclude_source {
-        candidates["excludeSource"] = Value::Bool(true);
+        crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
     }
     (
         target_id,
@@ -757,7 +757,7 @@ fn lower_conditional_damage_effect(
     };
     let then_effects = lower_effects(node.then_effects)?;
     let else_effects = lower_effects(node.else_effects)?;
-    let condition = lower_local_condition(&node.condition);
+    let condition = lower_condition(&node.condition);
     let trace = transitions
         .iter()
         .map(|transition| transition.state)

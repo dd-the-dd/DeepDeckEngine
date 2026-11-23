@@ -291,3 +291,302 @@ fn a_card_zone_query_reading_battlefield_state_is_refused_before_play() {
     );
     assert_ne!(status, "executable");
 }
+
+/// The legal casts of `card` (for free) on the board, with the target slot
+/// ids of its spell ability.
+fn casts_of(card: &CardDefinition) -> (Vec<LegalAction>, Vec<String>) {
+    let mut engine = board();
+    let mut free = card.clone();
+    free.mana_cost = "{0}".to_string();
+    engine.state.players[0]
+        .hand
+        .push(test_instance("subject-source", free, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let casts = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| action.kind == ActionKind::CastSpell)
+        .collect::<Vec<_>>();
+    let slots = card.rules[0]["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|decision| value_kind(decision) == Some("chooseTargets"))
+        .filter_map(|decision| decision["id"].as_str().map(str::to_string))
+        .collect();
+    (casts, slots)
+}
+
+/// The objects a cast names for the slot `slot` (`slot` or `slot:index`).
+fn slot_objects(cast: &LegalAction, slot: &str) -> Vec<TargetRef> {
+    cast.targets
+        .iter()
+        .filter(|(id, _)| id.split(':').next() == Some(slot))
+        .map(|(_, target)| target.clone())
+        .collect()
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn another_target_after_a_target_names_a_different_object() {
+    // Deadshot (`another target creature`), Betrayal at the Vault (`each of
+    // two other target creatures`) and its `up to` sibling, where a single
+    // object chosen for the second slot is checked too.
+    for (name, text) in [
+        (
+            "Deadshot",
+            "Tap target creature. It deals damage equal to its power to another target creature.",
+        ),
+        (
+            "Betrayal at the Vault",
+            "Target creature you control deals damage equal to its power to each of two other target creatures.",
+        ),
+        (
+            "Test Volley",
+            "Target creature you control deals damage equal to its power to each of up to two other target creatures.",
+        ),
+    ] {
+        let card = compile(name, "Instant", "{3}{R}", text);
+        let (casts, slots) = casts_of(&card);
+        let rule = &card.rules[0];
+        assert_eq!(
+            rule["declaration"]["decisions"][1]["distinctFrom"],
+            json!([slots[0]]),
+            "{name}"
+        );
+        assert!(!rule.to_string().contains("otherThanEarlierTargets"));
+        assert!(!casts.is_empty(), "{name}");
+        for cast in &casts {
+            let first = slot_objects(cast, &slots[0]);
+            assert!(
+                slot_objects(cast, &slots[1])
+                    .iter()
+                    .all(|object| !first.contains(object)),
+                "{name}: {cast:?}"
+            );
+        }
+        if name == "Test Volley" {
+            assert!(
+                casts
+                    .iter()
+                    .any(|cast| slot_objects(cast, &slots[1]).len() == 1),
+                "a cast names one object for the `up to` slot"
+            );
+        }
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn another_names_the_source_only_without_an_earlier_target() {
+    // Near misses: a lone `another target creature you control` excludes the
+    // source and relates to no slot; after an earlier slot (Wayta), `another`
+    // relates to that slot and the source may be named.
+    let single = compile(
+        "Test Rally",
+        "Creature \u{2014} Human",
+        "{1}{W}",
+        "When this creature enters, put a +1/+1 counter on another target creature you control.",
+    );
+    let trigger = single
+        .rules
+        .iter()
+        .find(|rule| value_kind(rule) == Some("triggeredAbility"))
+        .expect("the enter trigger");
+    let decision = &trigger["declaration"]["decisions"][0];
+    assert_eq!(decision["candidates"]["excludeSource"], true);
+    assert!(decision.get("distinctFrom").is_none());
+    assert!(!trigger.to_string().contains("otherThanEarlierTargets"));
+
+    let wayta = compile(
+        "Wayta, Trainer Prodigy",
+        "Legendary Creature \u{2014} Human Warrior",
+        "{R}{G}{W}",
+        "{2}{G}, {T}: Target creature you control fights another target creature.",
+    );
+    let ability = wayta
+        .rules
+        .iter()
+        .find(|rule| value_kind(rule) == Some("activatedAbility"))
+        .expect("the fight ability");
+    let decisions = ability["declaration"]["decisions"]
+        .as_array()
+        .expect("two target slots");
+    assert_eq!(decisions[1]["distinctFrom"], json!([decisions[0]["id"]]));
+    assert!(decisions[1]["candidates"].get("excludeSource").is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_distinct_relation_judges_only_the_rule_that_declared_the_targets() {
+    // Near miss for a card with several spell rules: a rule whose slots the
+    // declaration does not use does not judge it.
+    let relation = json!({
+        "kind": "spellAbility",
+        "declaration": { "kind": "castingDeclaration", "decisions": [
+            { "kind": "chooseTargets", "id": "first" },
+            { "kind": "chooseTargets", "id": "second", "distinctFrom": ["first"] },
+        ]},
+    });
+    let bear = TargetRef::Permanent {
+        instance_id: "bear".to_string(),
+    };
+    let other_rule = BTreeMap::from([("targetPermanent".to_string(), bear.clone())]);
+    assert!(!target_legality::rule_declares_targets(
+        &relation,
+        &other_rule
+    ));
+    let reused = BTreeMap::from([
+        ("first".to_string(), bear.clone()),
+        ("second:0".to_string(), bear.clone()),
+    ]);
+    assert!(target_legality::rule_declares_targets(&relation, &reused));
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &relation, &reused
+    ));
+    let single = BTreeMap::from([
+        ("first".to_string(), bear.clone()),
+        ("second".to_string(), bear.clone()),
+    ]);
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &relation, &single
+    ));
+    // Modal slot ids contain `:` (`mode1:first`): the owning slot is the
+    // longest declared id, with an optional ordinal.
+    let modal = json!({
+        "kind": "spellAbility",
+        "declaration": { "kind": "castingDeclaration", "decisions": [
+            { "kind": "chooseTargets", "id": "mode1:first" },
+            { "kind": "chooseTargets", "id": "mode1:second", "distinctFrom": ["mode1:first"] },
+        ]},
+    });
+    let reused = BTreeMap::from([
+        ("mode1:first".to_string(), bear.clone()),
+        ("mode1:second:0".to_string(), bear.clone()),
+    ]);
+    assert!(target_legality::rule_declares_targets(&modal, &reused));
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &modal, &reused
+    ));
+    let distinct = BTreeMap::from([
+        ("mode1:first".to_string(), bear),
+        (
+            "mode1:second:0".to_string(),
+            TargetRef::Permanent {
+                instance_id: "giant".to_string(),
+            },
+        ),
+    ]);
+    assert!(target_legality::declaration_respects_distinct_targets(
+        &modal, &distinct
+    ));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn wayta_may_fight_itself_but_not_one_creature_twice() {
+    // Activation-level: the source may be the second target; the same
+    // creature may not be both.
+    let card = compile(
+        "Wayta, Trainer Prodigy",
+        "Legendary Creature \u{2014} Human Warrior",
+        "{R}{G}{W}",
+        "{2}{G}, {T}: Target creature you control fights another target creature.",
+    );
+    let mut engine = board();
+    let mut wayta = test_instance("subject-source", card.clone(), "player-0");
+    wayta.summoning_sick = false;
+    engine.state.players[0].battlefield.push(wayta);
+    for _ in 0..3 {
+        engine.state.players[0].mana_pool.push(FloatingMana {
+            symbol: "G".to_string(),
+            spend_restriction: None,
+        });
+    }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let activations = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("subject-source")
+        })
+        .collect::<Vec<_>>();
+    assert!(!activations.is_empty());
+    let named = |action: &LegalAction, slot: &str| action.targets.get(slot).cloned();
+    assert!(
+        activations.iter().all(|action| {
+            named(action, "targetPermanent1") != named(action, "targetPermanent2")
+        })
+    );
+    let source = Some(TargetRef::Permanent {
+        instance_id: "subject-source".to_string(),
+    });
+    assert!(
+        activations
+            .iter()
+            .any(|action| named(action, "targetPermanent2") == source),
+        "the source may be the other creature"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_tap_cost_beside_the_source_tap_names_another_permanent() {
+    // Munda's Vanguard: `{T}, Tap an untapped Ally you control`. Alone, the
+    // source cannot pay both; another Ally makes the activation legal.
+    let card = compile(
+        "Munda's Vanguard",
+        "Creature \u{2014} Kor Knight Ally",
+        "{4}{W}",
+        "Cohort \u{2014} {T}, Tap an untapped Ally you control: Put a +1/+1 counter on each creature you control.",
+    );
+    let activations = |with_ally: bool| {
+        let mut engine = board();
+        let mut source = test_instance("subject-source", card.clone(), "player-0");
+        source.summoning_sick = false;
+        engine.state.players[0].battlefield.push(source);
+        if with_ally {
+            let mut ally = test_instance(
+                "ally",
+                test_definition("ally", "Creature \u{2014} Kor Ally"),
+                "player-0",
+            );
+            ally.summoning_sick = false;
+            engine.state.players[0].battlefield.push(ally);
+        }
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let actions = engine
+            .legal_priority_actions(0)
+            .into_iter()
+            .filter(|action| {
+                action.kind == ActionKind::ActivateAbility
+                    && action.card_instance_id.as_deref() == Some("subject-source")
+            })
+            .collect::<Vec<_>>();
+        (engine, actions)
+    };
+    let (_, alone) = activations(false);
+    assert!(alone.is_empty(), "{alone:?}");
+    let (mut engine, with_ally) = activations(true);
+    let action = with_ally.first().expect("the activation with another Ally");
+    engine
+        .apply_priority_action(action, &mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the activation is paid: {}", error.message));
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the ability resolves: {}", error.message));
+    let (player, index) = engine.permanent_position("own-giant-a").expect("giant");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("+1/+1"),
+        Some(&1)
+    );
+}

@@ -10,29 +10,18 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         player: LocalPlayerReference,
         body: Box<EffectProgramNode>,
     },
-    /// `you may COST. (If you do | If you don't | When you do), BODY`: the
-    /// cost is paid at resolution and its outcome controls the body.
-    OptionalCost {
-        player: LocalPlayerReference,
-        cost: ResolutionCostNode,
-        outcome: CostOutcomeContinuation,
-        body: Box<EffectProgramNode>,
-    },
-    /// `you may ACTION. (If you do | If you don't | When you do), BODY`: an
-    /// ordinary instruction, not a cost. The outcome observes whether the
-    /// instruction was actually performed (CR 608.2c, 603.12), not merely
-    /// chosen. The action and the body are each bounded to one sentence.
-    OptionalAction {
-        player: LocalPlayerReference,
-        action: Box<EffectProgramNode>,
-        outcome: CostOutcomeContinuation,
-        body: Box<EffectProgramNode>,
-    },
-    /// `ACTION. When you do, BODY.`: a mandatory instruction whose actual
-    /// performance creates a reflexive triggered ability (CR 603.12). Both
-    /// sentences are bounded; the body chooses its own targets.
-    ReflexiveAction {
-        action: Box<EffectProgramNode>,
+    /// `[PLAYER may] PRODUCER. (If you do | If you don't | When you do),
+    /// BODY`: one outcome block for every producer. The producer is a
+    /// resolution cost or an ordinary instruction; the connector resolves
+    /// against its ActionResult antecedent (`binding_environment.rs`) and
+    /// observes whether it was actually performed (CR 608.2c, 603.12), not
+    /// merely chosen. Producer and body are each bounded to one sentence.
+    Outcome {
+        /// `PLAYER may`: the producer is optional. `None`: a mandatory
+        /// instruction whose measured performance gates the body.
+        permission: Option<LocalPlayerReference>,
+        producer: OutcomeProducer,
+        outcome: PerformanceOutcome,
         body: Box<EffectProgramNode>,
     },
     /// Independent sentence groups in written order. An outcome continuation
@@ -41,15 +30,22 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
     Steps(Vec<EffectProgramNode>),
 }
 
+/// What an outcome block's connector observes.
+#[derive(Clone, Debug)]
+pub(in crate::oracle::canonical) enum OutcomeProducer {
+    /// A cost paid at resolution (`you may pay {1}`).
+    Cost(ResolutionCostNode),
+    /// An ordinary instruction sentence (`you may draw a card`, `sacrifice a
+    /// creature`), read by the shared effect sequence.
+    Action(Box<EffectProgramNode>),
+}
+
 impl EffectProgramNode {
     pub(in crate::oracle::canonical) fn inner_sequence(&self) -> &EffectSequenceNode {
         match self {
             Self::Sequence(sequence) => sequence,
             // The outcome sentence is the last written sentence of the block.
-            Self::Optional { body, .. }
-            | Self::OptionalCost { body, .. }
-            | Self::OptionalAction { body, .. }
-            | Self::ReflexiveAction { body, .. } => body.inner_sequence(),
+            Self::Optional { body, .. } | Self::Outcome { body, .. } => body.inner_sequence(),
             // The last written sentence group: trailing reminders and limits
             // read its final action. Lowering visits every step instead.
             Self::Steps(steps) => steps
@@ -68,10 +64,17 @@ impl EffectProgramNode {
     pub(in crate::oracle::canonical) fn action_count(&self) -> usize {
         match self {
             Self::Sequence(sequence) => sequence.effects.len(),
-            Self::Optional { body, .. } | Self::OptionalCost { body, .. } => body.action_count(),
-            Self::OptionalAction { action, body, .. } | Self::ReflexiveAction { action, body } => {
-                action.action_count() + body.action_count()
-            }
+            Self::Optional { body, .. }
+            | Self::Outcome {
+                producer: OutcomeProducer::Cost(_),
+                body,
+                ..
+            } => body.action_count(),
+            Self::Outcome {
+                producer: OutcomeProducer::Action(action),
+                body,
+                ..
+            } => action.action_count() + body.action_count(),
             Self::Steps(steps) => steps.iter().map(Self::action_count).sum(),
         }
     }
@@ -95,11 +98,11 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             Ok(sequence) => return Ok(EffectProgramNode::Sequence(sequence)),
             Err(failure) => failure,
         };
-        // A mandatory first sentence may be the instruction of a reflexive
-        // `When you do,` outcome (CR 603.12).
-        let failure = if reflexive_outcome_follows_first_sentence(cursor) {
+        // A mandatory first sentence may be the producer of an `If you do,`
+        // or reflexive `When you do,` outcome (CR 608.2c, 603.12).
+        let failure = if mandatory_outcome_follows_first_sentence(cursor) {
             match cursor.attempt(|attempt| {
-                recognize_reflexive_action_block(attempt, name_links, name_failure, context)
+                recognize_mandatory_outcome_block(attempt, name_links, name_failure, context)
             }) {
                 Ok(block) => {
                     return complete_outcome_block(
@@ -124,11 +127,11 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         let other_player_permission = other_player_permission_starts(cursor);
         // A later sentence may open an optional-cost block. The leading
         // sentences are then an ordinary, separately bounded program step.
-        // The earliest later block: an optional-cost block or a sentence
-        // followed by a reflexive connector.
+        // The earliest later block: an optional-cost block or a mandatory
+        // sentence followed by its outcome connector.
         let block_start = match (
             later_optional_outcome_block(cursor),
-            later_reflexive_action_block(cursor),
+            later_mandatory_outcome_block(cursor),
         ) {
             (Some(optional), Some(reflexive)) => Some(optional.min(reflexive)),
             (optional, reflexive) => optional.or(reflexive),
@@ -192,7 +195,7 @@ fn recognize_permission_program(
     let player = player?;
     cursor.enter("program.optional.permission");
     cursor.consume("may")?;
-    if cost_outcome_follows_first_sentence(cursor) {
+    if outcome_connector_follows_first_sentence(cursor) {
         // A payment head is first read as a resolution cost. Only when that
         // typed cost child rejects the sentence (for example a target or an
         // anaphor, which a cost cannot name) is it read as an instruction.
@@ -288,6 +291,19 @@ fn recognize_permission_program(
     complete_outcome_block(cursor, optional, name_links, name_failure, context)
 }
 
+/// The ActionResult antecedent a permission's actor opens: `you may` is
+/// performed by the controller, `that player may` by another player.
+fn permission_performer(player: LocalPlayerReference) -> ActionResultSlot {
+    ActionResultSlot {
+        performer: match player {
+            LocalPlayerReference::Controller => OutcomePerformer::Controller,
+            LocalPlayerReference::Bound(_)
+            | LocalPlayerReference::ControllerOf(_)
+            | LocalPlayerReference::ControllerOfQualified(_) => OutcomePerformer::OtherPlayer,
+        },
+    }
+}
+
 /// `COST. OUTCOME, BODY.` after `PLAYER may`.
 fn recognize_optional_cost_block(
     cursor: &mut OracleTokenCursor<'_>,
@@ -298,7 +314,9 @@ fn recognize_optional_cost_block(
 ) -> MachineResult<EffectProgramNode> {
     cursor.enter("program.optional-cost.cost");
     let cost = recognize_resolution_cost(cursor)?;
-    let outcome = recognize_cost_outcome_continuation(cursor)?;
+    cursor.enter("cost.outcome.sentence-end");
+    cursor.consume(".")?;
+    let outcome = recognize_outcome_connector_after(cursor, permission_performer(player))?;
     let body = recognize_outcome_body(
         cursor,
         "program.optional-cost.body",
@@ -306,9 +324,9 @@ fn recognize_optional_cost_block(
         name_failure,
         context,
     )?;
-    Ok(EffectProgramNode::OptionalCost {
-        player,
-        cost,
+    Ok(EffectProgramNode::Outcome {
+        permission: Some(player),
+        producer: OutcomeProducer::Cost(cost),
         outcome,
         body: Box::new(body),
     })
@@ -330,7 +348,7 @@ fn recognize_optional_action_block(
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
     })?;
     cursor.enter("program.optional-action.outcome");
-    let outcome = recognize_outcome_connector(cursor)?;
+    let outcome = recognize_outcome_connector_after(cursor, permission_performer(player))?;
     let body = recognize_outcome_body(
         cursor,
         "program.optional-action.body",
@@ -338,30 +356,42 @@ fn recognize_optional_action_block(
         name_failure,
         context,
     )?;
-    Ok(EffectProgramNode::OptionalAction {
-        player,
-        action: Box::new(EffectProgramNode::Sequence(action)),
+    Ok(EffectProgramNode::Outcome {
+        permission: Some(player),
+        producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
     })
 }
 
-/// True when the current top-level sentence is followed by a reflexive
-/// connector (`When you do,`, `When they do,`, `When that player does,`):
-/// the shared outcome connector reads it, whoever performs the instruction.
-fn reflexive_outcome_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
+/// The outcomes a mandatory instruction can produce: `If you do,` gates the
+/// body on its measured performance, `When you do,` creates a reflexive
+/// ability (CR 608.2c, 603.12). `If you don't` after a mandatory instruction
+/// has no runtime witness yet and stays an explicit failure.
+fn mandatory_outcome(outcome: PerformanceOutcome) -> bool {
+    matches!(
+        outcome,
+        PerformanceOutcome::Performed | PerformanceOutcome::Reflexive
+    )
+}
+
+/// True when the current top-level sentence is followed by an outcome
+/// connector a mandatory instruction can produce; the connector is read by
+/// the shared ActionResult resolver, whoever performs the instruction.
+fn mandatory_outcome_follows_first_sentence(cursor: &OracleTokenCursor<'_>) -> bool {
     let Some(end) = top_level_sentence_end(cursor) else {
         return false;
     };
-    super::outcome_at(cursor, end - cursor.position())
-        .is_some_and(|(outcome, _)| outcome == CostOutcomeContinuation::WhenPaid)
+    outcome_connector_at(cursor, end - cursor.position())
+        .is_some_and(|(outcome, _)| mandatory_outcome(outcome))
 }
 
-/// The absolute start of a later top-level sentence followed by a reflexive
-/// connector: the program reads the sentences before it as an ordinary step
-/// and the reflexive block from there (CR 603.12).
-pub(in crate::oracle::canonical) fn later_reflexive_action_block(
+/// The absolute start of a later top-level sentence followed by a connector
+/// that `accepts`: the program reads the sentences before it as an ordinary
+/// step and the outcome block from there.
+fn later_outcome_block(
     cursor: &OracleTokenCursor<'_>,
+    accepts: impl Fn(PerformanceOutcome) -> bool,
 ) -> Option<usize> {
     let mut depth = 0usize;
     let mut offset = 0;
@@ -371,9 +401,9 @@ pub(in crate::oracle::canonical) fn later_reflexive_action_block(
             "(" => depth += 1,
             ")" => depth = depth.saturating_sub(1),
             "." if depth == 0 => {
-                let reflexive = super::outcome_at(cursor, offset + 1)
-                    .is_some_and(|(outcome, _)| outcome == CostOutcomeContinuation::WhenPaid);
-                if reflexive {
+                if outcome_connector_at(cursor, offset + 1)
+                    .is_some_and(|(outcome, _)| accepts(outcome))
+                {
                     return (sentence_start > cursor.position()).then_some(sentence_start);
                 }
                 sentence_start = cursor.position() + offset + 1;
@@ -385,18 +415,34 @@ pub(in crate::oracle::canonical) fn later_reflexive_action_block(
     None
 }
 
+/// A later mandatory sentence followed by its outcome connector.
+fn later_mandatory_outcome_block(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    later_outcome_block(cursor, mandatory_outcome)
+}
+
+/// The absolute start of a later top-level sentence followed by a reflexive
+/// connector (CR 603.12).
+pub(in crate::oracle::canonical) fn later_reflexive_action_block(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    later_outcome_block(cursor, |outcome| outcome == PerformanceOutcome::Reflexive)
+}
+
 /// True when any top-level sentence of the body is followed by a reflexive
 /// connector: the body is an effect program, not one sequence.
 pub(in crate::oracle::canonical) fn reflexive_action_block_follows(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    reflexive_outcome_follows_first_sentence(cursor)
-        || later_reflexive_action_block(cursor).is_some()
+    top_level_sentence_end(cursor).is_some_and(|end| {
+        outcome_connector_at(cursor, end - cursor.position())
+            .is_some_and(|(outcome, _)| outcome == PerformanceOutcome::Reflexive)
+    }) || later_reflexive_action_block(cursor).is_some()
 }
 
-/// `ACTION. When you do, BODY.` without a permission: the action is the
-/// shared effect sequence bounded to its own sentence.
-fn recognize_reflexive_action_block(
+/// `ACTION. (If you do | When you do), BODY.` without a permission: the
+/// action is the shared effect sequence bounded to its own sentence, and the
+/// connector observes its measured performance.
+fn recognize_mandatory_outcome_block(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
@@ -409,10 +455,15 @@ fn recognize_reflexive_action_block(
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
     })?;
     cursor.enter("program.reflexive-action.outcome");
-    let outcome = recognize_outcome_connector(cursor)?;
+    let outcome = recognize_outcome_connector_after(
+        cursor,
+        ActionResultSlot {
+            performer: OutcomePerformer::Instruction,
+        },
+    )?;
     cursor.require(
-        outcome == CostOutcomeContinuation::WhenPaid,
-        "a reflexive `When you do,` outcome after a mandatory instruction",
+        mandatory_outcome(outcome),
+        "an `If you do,` or reflexive `When you do,` outcome after a mandatory instruction",
     )?;
     let body = recognize_outcome_body(
         cursor,
@@ -421,8 +472,10 @@ fn recognize_reflexive_action_block(
         name_failure,
         context,
     )?;
-    Ok(EffectProgramNode::ReflexiveAction {
-        action: Box::new(EffectProgramNode::Sequence(action)),
+    Ok(EffectProgramNode::Outcome {
+        permission: None,
+        producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
+        outcome,
         body: Box::new(body),
     })
 }
@@ -584,7 +637,7 @@ pub(in crate::oracle::canonical) fn later_optional_outcome_block(
                     if head
                         .advance_to(start + sentence_then_width(&probe) + 2)
                         .is_ok()
-                        && cost_outcome_follows_first_sentence(&head)
+                        && outcome_connector_follows_first_sentence(&head)
                     {
                         return Some(start);
                     }

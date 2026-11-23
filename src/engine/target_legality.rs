@@ -39,7 +39,7 @@ fn declaration_rules(stack: &StackObject) -> Vec<&Value> {
             stack
                 .card
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .filter(|rule| value_kind(rule) == Some("spellAbility"))
                 .collect()
@@ -86,6 +86,100 @@ pub(super) fn target_belongs_to_declaration(
         && declared_slots(stack, target_id)
             .iter()
             .all(|slot| slot.declaration_id == declaration_id)
+}
+
+/// The chooseTargets slot ids a rule declares.
+fn declared_target_slot_ids(rule: &Value) -> Vec<&str> {
+    rule["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|decision| value_kind(decision) == Some("chooseTargets"))
+        .filter_map(|decision| decision["id"].as_str())
+        .collect()
+}
+
+/// The slot of `rule` that owns the target key `target_id`: the longest
+/// declared id the key names, bare or with an ordinal (`mode1:target`,
+/// `mode1:target:0`), as `target_ordinal` reads it.
+pub(super) fn owning_target_slot<'a>(rule: &'a Value, target_id: &str) -> Option<&'a str> {
+    declared_target_slot_ids(rule)
+        .into_iter()
+        .filter(|slot| target_ordinal(slot, target_id).is_some())
+        .max_by_key(|slot| slot.len())
+}
+
+/// The `distinctFrom` relations of a rule: each later slot with the earlier
+/// slots whose objects it must not name.
+pub(super) fn distinct_slot_relations(rule: &Value) -> Vec<(&str, Vec<&str>)> {
+    rule["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|decision| {
+            Some((
+                decision["id"].as_str()?,
+                decision["distinctFrom"]
+                    .as_array()?
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>(),
+            ))
+        })
+        .collect()
+}
+
+/// A rule's distinct target relations (CR 115.3): a slot's `distinctFrom`
+/// names earlier slots whose objects it must not name, compared by owning
+/// slot so that any number of chosen objects is checked. Legacy
+/// `distinctTargets` groups name exact target ids.
+pub(super) fn declaration_respects_distinct_targets(
+    rule: &Value,
+    targets: &BTreeMap<String, TargetRef>,
+) -> bool {
+    let slot_objects = |slot: &str| {
+        targets
+            .iter()
+            .filter(|(target_id, _)| owning_target_slot(rule, target_id) == Some(slot))
+            .map(|(_, target)| target)
+            .collect::<Vec<_>>()
+    };
+    let typed = distinct_slot_relations(rule)
+        .iter()
+        .all(|(later, earlier_slots)| {
+            let later_objects = slot_objects(later);
+            earlier_slots.iter().all(|earlier| {
+                slot_objects(earlier)
+                    .iter()
+                    .all(|object| !later_objects.contains(object))
+            })
+        });
+    let legacy = rule["distinctTargets"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .all(|group| {
+            let values = group
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .filter_map(|id| targets.get(id))
+                .collect::<Vec<_>>();
+            values
+                .iter()
+                .enumerate()
+                .all(|(index, value)| !values[..index].contains(value))
+        });
+    typed && legacy
+}
+
+/// Whether `rule` declared every target `targets` names: the rule that
+/// produced the declaration (a card's other spell rules do not judge it).
+pub(super) fn rule_declares_targets(rule: &Value, targets: &BTreeMap<String, TargetRef>) -> bool {
+    targets
+        .keys()
+        .all(|target_id| owning_target_slot(rule, target_id).is_some())
 }
 
 /// A committed empty selection is not a missing target producer. Reuse the
@@ -312,9 +406,11 @@ impl GameEngine {
                     _ => false,
                 }
             }
-            Some("manaValueParity" | "chosenCreatureType") => {
-                matches_card_filter_with_decisions(&permanent.definition, filter, decisions)
-            }
+            Some("manaValueParity" | "chosenCreatureType") => matches_card_filter_with_decisions(
+                super::object_predicate::DefinitionView::for_permanent(permanent),
+                filter,
+                decisions,
+            ),
             _ => self.permanent_matches_target_filter(permanent, filter, controller_id),
         }
     }
@@ -406,23 +502,8 @@ impl GameEngine {
                 .is_none_or(|constraint| {
                     self.target_selection_satisfies_constraint(&selection, constraint, &assignment)
                 });
-        let distinct_targets_are_valid = slot.rule["distinctTargets"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .all(|group| {
-                let targets = group
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .filter_map(|id| assignment.targets.get(id))
-                    .collect::<Vec<_>>();
-                targets
-                    .iter()
-                    .enumerate()
-                    .all(|(index, target)| !targets[..index].contains(target))
-            });
+        let distinct_targets_are_valid =
+            declaration_respects_distinct_targets(slot.rule, &assignment.targets);
         selection_is_valid && distinct_targets_are_valid
     }
 

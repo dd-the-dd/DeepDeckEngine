@@ -3,6 +3,7 @@
 use super::card_zone_transition::{
     ObjectTransitionReason, ObjectZone, OwnedMovementCard, reset_movement_card,
 };
+use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -43,7 +44,7 @@ pub(super) enum PlannedGraveyardOutcome {
 pub(super) struct PlannedGraveyardDeparture {
     pub(super) outcome: PlannedGraveyardOutcome,
     pub(super) consume_specific_graveyard_replacement: bool,
-    pub(super) target_numeric_snapshot: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+    pub(super) target_numeric_snapshot: Option<super::object_lki::PreparedTargetDeparture>,
 }
 #[derive(Clone, Copy)]
 enum DepartureEvent {
@@ -122,26 +123,16 @@ impl GameEngine {
             .flat_map(|player| &player.battlefield)
             .filter(|source| !source.flags.get("phasedOut").copied().unwrap_or(false))
             .map(|source| {
-                let mut candidates = source.definition.rules.clone();
-                candidates.extend(
-                    modifiers
-                        .iter()
-                        .filter(|(grant_source, modifier)| {
-                            value_kind(modifier) == Some("grantTriggeredAbility")
-                                && Self::static_selector_matches(
-                                    grant_source,
-                                    &modifier["objects"],
-                                    source,
-                                )
-                        })
-                        .map(|(_, modifier)| modifier["ability"].clone()),
-                );
-                let rules = candidates
-                    .into_iter()
+                // Effective layer (CR 613.1f): granted triggered abilities are
+                // captured with the printed ones, before the departure.
+                let rules = self
+                    .effective_rules_with_modifiers(source, &modifiers)
+                    .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
                             && self.battlefield_observer_rule_active(source, rule)
                     })
+                    .cloned()
                     .collect::<Vec<_>>();
                 DepartureTriggerSource {
                     source: source.clone(),
@@ -214,73 +205,30 @@ impl GameEngine {
             },
         )?;
         let owner_id = permanent.owner.clone();
-        let specific_replacement = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| {
-                value_kind(modifier) == Some("exileSpecificCardInsteadOfGraveyard")
-                    && modifier["cardInstanceId"].as_str() == Some(instance_id.as_str())
-            })
-            .map(|modifier| {
+        // Propose -> match -> order -> apply (replacement_pipeline.rs): one
+        // graveyard-destination replacement at most may apply here.
+        let graveyard_replacement = self
+            .select_graveyard_destination_replacement(
+                permanent,
+                &owner_id,
+                static_modifiers,
+                &ReplacementOrder::RequireUnique {
+                    ambiguity: format!(
+                        "{context} has multiple graveyard destination replacements for {instance_id}"
+                    ),
+                },
+            )?
+            .map(|proposal| {
+                let consume_specific = matches!(
+                    proposal.program.origin,
+                    GraveyardReplacementOrigin::SpecificCard { .. }
+                );
                 (
-                    modifier["sourceCardInstanceId"]
-                        .as_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    None,
-                    true,
+                    proposal.source_id,
+                    proposal.program.controller,
+                    consume_specific,
                 )
             });
-        let static_replacements = static_modifiers
-            .iter()
-            .filter(|(source, modifier)| {
-                value_kind(modifier) == Some("replaceGraveyardDestination")
-                    && matches_card_filter(&permanent.definition, &modifier["where"])
-                    && self.event_player_reference_matches(
-                        &modifier["graveyardOwners"],
-                        source,
-                        &owner_id,
-                    )
-            })
-            .map(|(source, _)| {
-                (
-                    source.instance_id.clone(),
-                    Some(source.controller.clone()),
-                    false,
-                )
-            });
-        let temporary_replacements = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| {
-                value_kind(modifier) == Some("temporaryGraveyardDestinationReplacement")
-                    && modifier["playerId"].as_str() == Some(owner_id.as_str())
-                    && modifier["expiresAfterTurn"].as_u64()
-                        == Some(u64::from(self.state.turn_number))
-            })
-            .map(|modifier| {
-                (
-                    modifier["sourceCardInstanceId"]
-                        .as_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    modifier["playerId"].as_str().map(ToOwned::to_owned),
-                    false,
-                )
-            });
-        let graveyard_replacement = exactly_one_or_none(
-            specific_replacement
-                .chain(static_replacements)
-                .chain(temporary_replacements)
-                .collect::<Vec<_>>(),
-            || {
-                EngineError::new(format!(
-                    "{context} has multiple graveyard destination replacements for {instance_id}"
-                ))
-            },
-        )?;
         validate_zone_or_death_replacement_choice(
             &instance_id,
             death_replacement.is_some(),
@@ -342,7 +290,7 @@ impl GameEngine {
         &mut self,
         instance_id: &str,
         destination: FrozenGraveyardDestination,
-        prepared_target_numeric: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+        prepared_target_numeric: Option<super::object_lki::PreparedTargetDeparture>,
     ) -> Result<Option<InstalledBattlefieldDeparture>, EngineError> {
         if self.permanent_position(instance_id).is_none() {
             return Ok(None);
@@ -458,7 +406,7 @@ impl GameEngine {
     pub(super) fn install_permanent_exile_move_with_target_numeric(
         &mut self,
         instance_id: &str,
-        prepared_target_numeric: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+        prepared_target_numeric: Option<super::object_lki::PreparedTargetDeparture>,
     ) -> Result<Option<InstalledBattlefieldDeparture>, EngineError> {
         if self.permanent_position(instance_id).is_none() {
             return Ok(None);
@@ -544,6 +492,10 @@ impl GameEngine {
     ) {
         let source = &movement.permanent;
         let instance_id = &source.instance_id;
+        // Last-known characteristics (CR 603.10a, 608.2h): the effects
+        // that applied to the permanent as it last existed decide whether it
+        // was a creature (an animated land that dies).
+        let was_creature = self.permanent_is_creature(source);
         match movement.event {
             DepartureEvent::GraveyardMove => {
                 self.record_event(
@@ -558,7 +510,7 @@ impl GameEngine {
                 );
                 if movement.destination == "graveyard" {
                     self.record_event("permanentDied", Some(source.controller.clone()), Some(instance_id.clone()),
-                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": is_creature(&source.definition) }));
+                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
                 }
             }
             DepartureEvent::Exile => {
@@ -571,7 +523,7 @@ impl GameEngine {
             }
         }
         self.record_event("permanentLeftBattlefield", Some(source.controller.clone()), Some(instance_id.clone()),
-            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone() }));
+            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
     }
 
     pub(super) fn publish_installed_battlefield_leave_triggers(

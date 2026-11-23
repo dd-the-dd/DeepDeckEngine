@@ -183,15 +183,25 @@ fn near_misses_fail_at_precise_states() {
     // A definition that mentions X is circular.
     let circular = parse("Sorcery", "{2}{U}", "Draw X cards, where X is X.");
     assert_ne!(circular.status, "canonical");
-    // An expression the shared reader cannot represent is never replaced by zero.
+    // An expression the shared reader cannot represent is never replaced by
+    // zero: no engine aggregate counts `you don't control` (roadmap #13
+    // lowers `your opponents control`, so that form is now a positive).
+    let not_controlled = parse(
+        "Sorcery",
+        "{2}{U}",
+        "Draw X cards, where X is the number of lands you don't control.",
+    );
+    assert_ne!(not_controlled.status, "canonical");
+    assert!(failure_state(&not_controlled).is_some());
     let opponents = parse(
         "Sorcery",
         "{2}{U}",
         "Draw X cards, where X is the number of lands your opponents control.",
     );
     assert_eq!(
-        failure_state(&opponents),
-        Some("numeric.for-each.controller")
+        opponents.status, "canonical",
+        "{:#?}",
+        opponents.diagnostics
     );
     let unsupported = parse(
         "Sorcery",

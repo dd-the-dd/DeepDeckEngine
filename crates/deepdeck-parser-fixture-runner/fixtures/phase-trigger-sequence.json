@@ -553,20 +553,38 @@
             "abilityType": "triggeredAbility",
             "rule": {
               "kind": "triggeredAbility",
-              "source": { "kind": "self" },
+              "source": {
+                "kind": "self"
+              },
               "event": {
                 "kind": "stepBegan",
                 "step": "upkeep",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
               },
               "effects": [
                 {
                   "kind": "drawCards",
-                  "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                  "count": { "kind": "integer", "value": 1 }
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
                 }
               ],
-              "triggerLimit": { "kind": "onceEachTurn", "id": "onceEachTurn:0" }
+              "triggerLimit": {
+                "kind": "onceEachTurn",
+                "id": "onceEachTurn:0"
+              }
             }
           }
         ]
@@ -597,7 +615,7 @@
       }
     },
     {
-      "id": "second-main-ordinal-remains-unclaimed",
+      "id": "second-main-phase-carries-its-main-phase-ordinal",
       "request": {
         "cardName": "Second Main Observer",
         "typeLine": "Enchantment",
@@ -607,22 +625,45 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native",
-            "abilityType": "triggeredAbility"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "stepBegan",
+                "mainPhaseOrdinal": 2,
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "step": "postcombatMain"
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

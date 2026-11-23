@@ -161,9 +161,7 @@ impl GameEngine {
         cards: Vec<super::card_zone_transition::OwnedMovementCard>,
         destination: PrivateZoneDestination,
     ) -> Result<Vec<PrivateZoneReceipt>, EngineError> {
-        use super::card_zone_transition::{
-            ObjectTransitionReason, ObjectZone, PreparedGraveyardDestination,
-        };
+        use super::card_zone_transition::{ObjectTransitionReason, ObjectZone};
         for card in &cards {
             self.player_index(&card.card.owner)?;
         }

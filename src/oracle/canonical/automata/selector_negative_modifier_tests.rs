@@ -114,6 +114,15 @@ fn battlefield_domain_caps_still_reject_cards_and_unheaded_negatives() {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("negative-modifier-domain", &tokens);
         let failure = super::super::recognize_zone_change_effect(&mut cursor).expect_err(text);
-        assert_eq!(failure.expected, "a permanent target selector", "{text}");
+        // The list's own reason is reported where it stopped: an unheaded
+        // negative run is not a list, so its comma was handed back.
+        assert!(
+            [
+                "a permanent target selector",
+                "`or`/`and/or` closing the comma-separated object list",
+            ]
+            .contains(&failure.expected.as_str()),
+            "{text}: {failure}"
+        );
     }
 }

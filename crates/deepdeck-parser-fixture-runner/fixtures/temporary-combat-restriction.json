@@ -402,8 +402,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "target-list.complete",
-            "expectedContains": "exactly one target player",
+            "state": "clause.verb.unsupported",
+            "expectedContains": "a declared target object",
             "found": "can't"
           }
         ]

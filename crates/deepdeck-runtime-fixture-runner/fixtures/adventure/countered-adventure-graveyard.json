@@ -306,6 +306,15 @@
       "controllerId": "player-0",
       "sourceDefinitionId": "brazen-borrower",
       "equals": false
+    },
+    {
+      "kind": "zoneCardCharacteristics",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "brazen-borrower",
+      "name": "Brazen Borrower",
+      "typeLine": "Creature — Faerie Rogue",
+      "manaCost": "{1}{U}{U}"
     }
   ]
 }

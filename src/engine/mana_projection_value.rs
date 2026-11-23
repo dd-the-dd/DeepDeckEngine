@@ -322,7 +322,7 @@ impl ManaProjectionContext<'_> {
                 {
                     let identity = commander
                         .definition
-                        .rules
+                        .printed_rules()
                         .iter()
                         .filter(|r| value_kind(r) == Some("rulesMarker"))
                         .find_map(|r| r["colorIdentity"].as_array())

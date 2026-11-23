@@ -3,15 +3,21 @@
 //! ```text
 //! KeywordList   := Atom (("," ["and"] | "and") Atom)*      (shared keyword list)
 //! Atom          := keyword | QuotedAbility
-//! QuotedAbility := '"' <one complete ability of the granted object> '"'
+//! QuotedAbility := Open <one complete ability of the granted object> Close
+//! Open/Close    := '"' '"' | '“' '”' | "'" "'" | '‘' '’'
 //! ```
+//!
+//! A quoted ability may itself grant or create something with a quoted
+//! ability; Oracle prints that inner level with single quotation marks
+//! (`gains "... token with 'This token gets ...'"`). Both levels are the same
+//! slot: the inner quote is compiled by the same recursive pipeline.
 //!
 //! The quoted text is an ability of the object that gains it, so it is compiled
 //! by the ordinary ability pipeline as a face of its own: `this creature` inside
 //! the quote is the granted object, never the granting source. The child is
 //! all-or-nothing; a quote with any non-canonical ability is a failure that
 //! carries the inner diagnostic.
-use super::super::super::{MachineResult, OracleTokenCursor};
+use super::super::super::{ChildOutcome, MachineResult, OracleTokenCursor};
 use super::super::source_text;
 use serde_json::Value;
 
@@ -26,23 +32,97 @@ pub(in crate::oracle::canonical) struct QuotedAbilityNode {
 /// quote still has to agree with it.
 pub(in crate::oracle::canonical) const GRANTED_OBJECT_TYPE_LINE: &str = "Creature";
 
+/// The closing marks accepted for an opening quotation mark, or `None` when
+/// the token does not open a quoted ability.
+fn quote_closers(open: &str) -> Option<&'static [&'static str]> {
+    match open {
+        "\"" => Some(&["\""]),
+        "\u{201C}" => Some(&["\u{201D}", "\""]),
+        "'" => Some(&["'", "\u{2019}"]),
+        "\u{2018}" => Some(&["\u{2019}", "'"]),
+        _ => None,
+    }
+}
+
+/// Whether the cursor stands on the opening mark of a quoted ability.
+pub(in crate::oracle::canonical) fn quoted_ability_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| quote_closers(raw).is_some())
+}
+
+/// Reads a quote that holds exactly one item of the caller's grammar
+/// (`"Ward—Pay 2 life."`): open mark, the item, an optional inner period,
+/// and the matching close mark. Transactional: on any mismatch the cursor is
+/// untouched and `NoMatch` lets the caller compile the quote as an ability.
+/// An item reader that committed (`"Ward—<unsupported cost>"`) owns the
+/// quote: its failure is returned as `Committed`, never swallowed.
+pub(in crate::oracle::canonical) fn recognize_quoted_single_item<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> ChildOutcome<T>,
+) -> ChildOutcome<T> {
+    let mut trial = cursor.clone();
+    trial.enter("quoted-item.open");
+    let Some(open) = trial.peek().map(str::to_string) else {
+        return ChildOutcome::NoMatch(trial.fail("an opening quotation mark"));
+    };
+    let Some(closers) = quote_closers(&open) else {
+        return ChildOutcome::NoMatch(trial.fail("an opening quotation mark"));
+    };
+    if let Err(failure) = trial.consume(&open) {
+        return ChildOutcome::NoMatch(failure);
+    }
+    let item = match read(&mut trial) {
+        ChildOutcome::Matched(item) => item,
+        ChildOutcome::NoMatch(failure) => return ChildOutcome::NoMatch(failure),
+        ChildOutcome::Committed(failure) => return ChildOutcome::Committed(failure),
+    };
+    if trial.peek() == Some(".")
+        && let Err(failure) = trial.consume(".")
+    {
+        return ChildOutcome::NoMatch(failure);
+    }
+    trial.enter("quoted-item.close");
+    let Some(close) = trial
+        .peek()
+        .filter(|word| closers.contains(word))
+        .map(str::to_string)
+    else {
+        return ChildOutcome::NoMatch(trial.fail("the closing quotation mark after one item"));
+    };
+    if let Err(failure) = trial.consume(&close) {
+        return ChildOutcome::NoMatch(failure);
+    }
+    *cursor = trial;
+    ChildOutcome::Matched(item)
+}
+
 /// Compiles the quote opening at the cursor and consumes both quotation marks.
 pub(in crate::oracle::canonical) fn recognize_quoted_ability(
     cursor: &mut OracleTokenCursor<'_>,
     granted_type_line: &str,
 ) -> MachineResult<QuotedAbilityNode> {
     cursor.enter("quoted-ability.open");
-    cursor.consume("\"")?;
+    let open = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("an opening quotation mark"))?
+        .to_string();
+    let closers = quote_closers(&open).ok_or_else(|| cursor.fail("an opening quotation mark"))?;
+    cursor.consume(&open)?;
     let start = cursor.position();
     let mut length = 0;
-    while cursor.peek_ahead(length).is_some_and(|word| word != "\"") {
+    while cursor
+        .peek_ahead(length)
+        .is_some_and(|word| !closers.contains(&word))
+    {
         length += 1;
     }
     cursor.enter("quoted-ability.close");
-    cursor.require(
-        cursor.peek_ahead(length) == Some("\""),
-        "a closing quotation mark after one granted ability",
-    )?;
+    let close = cursor
+        .peek_ahead(length)
+        .filter(|word| closers.contains(word))
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("a closing quotation mark after one granted ability"))?;
     let mut end = start + length;
     // American punctuation places a list comma inside the closing quote.
     let trailing_comma = end > start + 1 && cursor.token_slice(start, end)[length - 1].raw == ",";
@@ -51,8 +131,16 @@ pub(in crate::oracle::canonical) fn recognize_quoted_ability(
     }
     cursor.enter("quoted-ability.body");
     cursor.require(end > start, "a granted ability inside the quotation marks")?;
-    let mut text = source_text(cursor.token_slice(start, end));
-    if !text.ends_with('.') {
+    let body = cursor.token_slice(start, end);
+    let mut text = source_text(body);
+    // The granted ability's last sentence may close inside a nested quote
+    // (`... with 'This token gets ....'`): that period already ends it.
+    let closed_in_nested_quote = matches!(
+        body,
+        [.., period, close]
+            if period.raw == "." && matches!(close.raw.as_str(), "'" | "\u{2019}" | "\u{201D}")
+    );
+    if !text.ends_with('.') && !closed_in_nested_quote {
         text.push('.');
     }
     let result = crate::oracle::parse_oracle_card(crate::oracle::OracleCardParseRequest {
@@ -82,7 +170,7 @@ pub(in crate::oracle::canonical) fn recognize_quoted_ability(
         }
     };
     cursor.advance_to(start + length)?;
-    cursor.consume("\"")?;
+    cursor.consume(&close)?;
     Ok(QuotedAbilityNode { rule })
 }
 
@@ -93,9 +181,17 @@ pub(in crate::oracle::canonical) fn recognize_quoted_ability(
 pub(in crate::oracle::canonical) fn quoted_sentence_just_closed(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    let position = cursor.position();
-    position >= 2 && {
-        let previous = cursor.token_slice(position - 2, position);
-        previous[0].raw == "." && previous[1].raw == "\""
-    }
+    // Nested quotes close together (`... control.'"`): every closing mark
+    // directly after the period belongs to that one printed terminator.
+    let previous = cursor.token_slice(0, cursor.position());
+    let closing = previous
+        .iter()
+        .rev()
+        .take_while(|token| matches!(token.raw.as_str(), "\"" | "\u{201D}" | "'" | "\u{2019}"))
+        .count();
+    closing > 0
+        && previous
+            .len()
+            .checked_sub(closing + 1)
+            .is_some_and(|index| previous[index].raw == ".")
 }

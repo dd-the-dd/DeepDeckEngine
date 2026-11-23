@@ -92,6 +92,7 @@ fn declare_block(engine: &mut GameEngine, attacker_id: &str, blocker_id: &str) {
         Some(blocker_id.to_string()),
         json!({
             "attackerId": attacker_id,
+            "attackerIdentity": engine.object_identity_value(attacker_id),
             "objectIdentity": engine.object_identity_value(blocker_id),
         }),
     );
@@ -490,6 +491,66 @@ fn an_unwritten_combination_composes_without_card_code() {
         engine.state.stack[0].decisions["blockedPermanentId"],
         "flyer"
     );
+}
+
+#[test]
+fn becomes_blocked_for_the_first_time_each_turn_counts_combats_not_blockers() {
+    let rules = parsed_rules(
+        "Blocked Ordinal Probe",
+        "Creature — Samurai",
+        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+    );
+    assert_eq!(rules[0]["event"]["turnOrdinal"], 1, "{:#}", rules[0]);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![creature(
+        "samurai",
+        "Creature — Samurai",
+        "{0}",
+        rules,
+        "player-0",
+    )];
+    engine.state.players[1].battlefield =
+        vec![vanilla("wall", "player-1"), vanilla("guard", "player-1")];
+    admit(&mut engine);
+    declare_attack(&mut engine, &["samurai"]);
+    assert!(
+        engine.state.stack.is_empty(),
+        "attacking is not becoming blocked"
+    );
+    // CR 509.1h: two blockers in one combat block it once; only the first
+    // logged block of this combat is its first time.
+    declare_block(&mut engine, "samurai", "wall");
+    assert_eq!(engine.state.stack.len(), 1);
+    declare_block(&mut engine, "samurai", "guard");
+    assert_eq!(
+        engine.state.stack.len(),
+        1,
+        "second blocker of the same combat"
+    );
+    resolve_stack(&mut engine);
+    // An additional combat of the same turn: its second time.
+    engine.state.combat.attackers.clear();
+    engine.state.combat.blockers.clear();
+    declare_attack(&mut engine, &["samurai"]);
+    declare_block(&mut engine, "samurai", "wall");
+    assert!(
+        engine.state.stack.is_empty(),
+        "second combat it became blocked in"
+    );
+    // A new object (CR 400.7) and a new turn each start their own count.
+    new_incarnation(&mut engine, "samurai");
+    engine.state.combat.attackers.clear();
+    engine.state.combat.blockers.clear();
+    declare_attack(&mut engine, &["samurai"]);
+    declare_block(&mut engine, "samurai", "guard");
+    assert_eq!(engine.state.stack.len(), 1, "a new object's first block");
+    resolve_stack(&mut engine);
+    engine.state.turn_number += 1;
+    engine.state.combat.attackers.clear();
+    engine.state.combat.blockers.clear();
+    declare_attack(&mut engine, &["samurai"]);
+    declare_block(&mut engine, "samurai", "wall");
+    assert_eq!(engine.state.stack.len(), 1, "a new turn");
 }
 
 fn admit(engine: &mut GameEngine) {

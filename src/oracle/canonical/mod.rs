@@ -8,6 +8,8 @@ mod context;
 
 mod dispatch;
 mod effects;
+mod engine_gap;
+mod failure_owner;
 
 mod ir;
 mod machine;
@@ -21,23 +23,19 @@ pub(crate) use abilities::keyword_template_expansion::{
 };
 use abilities::*;
 use automata::*;
-pub(crate) use card_composition::{compose_card_rules, compose_card_rules_native};
+pub(crate) use card_composition::compose_card_rules_native;
 
 pub(crate) use context::CanonicalRuleDraft;
 
-pub(crate) use dispatch::{
-    CanonicalParseOutcome, parse_canonical_rule, parse_canonical_rule_native,
-};
+#[cfg(test)]
+pub(crate) use dispatch::parse_canonical_rule;
+pub(crate) use dispatch::{CanonicalParseOutcome, parse_canonical_rule_native};
 use effects::*;
 
 use ir::*;
 use machine::*;
 use numeric::*;
 use primitive_helpers::*;
-
-pub(crate) fn compile_named_token_native_rule(oracle: &str) -> Option<Value> {
-    automata::compile_named_token_native_rule(oracle)
-}
 
 pub(crate) fn compile_named_token_catalog_rules(
     token_name: &str,

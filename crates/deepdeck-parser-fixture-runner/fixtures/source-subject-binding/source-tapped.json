@@ -490,7 +490,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "event.source.verb",
+            "found": "is"
           }
         ]
       }
@@ -533,7 +534,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "event.object.complement",
+            "found": "tapped"
           }
         ]
       }

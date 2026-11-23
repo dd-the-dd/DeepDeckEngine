@@ -25,13 +25,34 @@
             "recognizer": "native",
             "abilityType": "replacementEffect",
             "ruleAssertions": [
-              { "pointer": "/condition/kind", "equals": "not" },
-              { "pointer": "/condition/operand/operator", "equals": ">=" },
-              { "pointer": "/condition/operand/left/kind", "equals": "countPermanents" },
-              { "pointer": "/condition/operand/left/where/value", "equals": "Land" },
-              { "pointer": "/condition/operand/right/value", "equals": 2 },
-              { "pointer": "/replacement/0/kind", "equals": "setEnteringState" },
-              { "pointer": "/replacement/0/tapped", "equals": true }
+              {
+                "pointer": "/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/condition/operand/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/condition/operand/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/operand/left/where/value",
+                "equals": "Land"
+              },
+              {
+                "pointer": "/condition/operand/right/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/0/tapped",
+                "equals": true
+              }
             ]
           },
           {
@@ -40,11 +61,26 @@
             "recognizer": "native",
             "abilityType": "manaAbility",
             "ruleAssertions": [
-              { "pointer": "/costs/0/kind", "equals": "tap" },
-              { "pointer": "/effects/0/kind", "equals": "addMana" },
-              { "pointer": "/effects/0/mana/kind", "equals": "chooseOne" },
-              { "pointer": "/effects/0/mana/options/0", "equals": "{U}" },
-              { "pointer": "/effects/0/mana/options/1", "equals": "{B}" }
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "tap"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "chooseOne"
+              },
+              {
+                "pointer": "/effects/0/mana/options/0",
+                "equals": "{U}"
+              },
+              {
+                "pointer": "/effects/0/mana/options/1",
+                "equals": "{B}"
+              }
             ]
           }
         ]
@@ -71,9 +107,18 @@
             "recognizer": "native",
             "abilityType": "replacementEffect",
             "ruleAssertions": [
-              { "pointer": "/condition/operand/operator", "equals": ">=" },
-              { "pointer": "/condition/operand/left/where/value", "equals": "Artifact" },
-              { "pointer": "/condition/operand/right/value", "equals": 3 }
+              {
+                "pointer": "/condition/operand/operator",
+                "equals": ">="
+              },
+              {
+                "pointer": "/condition/operand/left/where/value",
+                "equals": "Artifact"
+              },
+              {
+                "pointer": "/condition/operand/right/value",
+                "equals": 3
+              }
             ]
           },
           {
@@ -82,8 +127,14 @@
             "recognizer": "native",
             "abilityType": "manaAbility",
             "ruleAssertions": [
-              { "pointer": "/effects/0/mana/options/0", "equals": "{R}" },
-              { "pointer": "/effects/0/mana/options/1", "equals": "{G}" }
+              {
+                "pointer": "/effects/0/mana/options/0",
+                "equals": "{R}"
+              },
+              {
+                "pointer": "/effects/0/mana/options/1",
+                "equals": "{G}"
+              }
             ]
           }
         ]
@@ -100,21 +151,60 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "controlled-count-entry",
-          "state": "condition.controlled-permanent-count.complete",
-          "found": "."
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "condition": {
+                "kind": "not",
+                "operand": {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "countPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "operator": ">=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "replacementEffect",
+              "replacement": [
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
       }
     }
   ]

@@ -40,7 +40,7 @@ impl GameEngine {
                     Some("doubleDamageFromChosenType") => {
                         multiplicative |= Self::chosen_creature_type_matches(
                             owner,
-                            &source_card.definition,
+                            object_predicate::DefinitionView::for_permanent(&source_card),
                             &json!({"decisionId": modifier["decisionId"]}),
                         );
                     }

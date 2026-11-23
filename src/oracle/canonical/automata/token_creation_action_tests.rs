@@ -34,15 +34,15 @@ fn unrelated_action_is_not_claimed_and_long_descriptor_retains_all_characteristi
         panic!("explicit descriptor must parse")
     };
     assert_eq!(
-        node.template.types,
+        node.body.template.types,
         [ObjectCardType::Artifact, ObjectCardType::Creature]
     );
-    assert_eq!(node.template.creature.colors.len(), 3);
-    assert_eq!(node.template.creature.subtypes.len(), 2);
-    assert_eq!(node.template.creature.power, 2);
-    assert_eq!(node.template.creature.toughness, 3);
+    assert_eq!(node.body.template.creature.colors.len(), 3);
+    assert_eq!(node.body.template.creature.subtypes.len(), 2);
+    assert_eq!(node.body.template.creature.power, 2);
+    assert_eq!(node.body.template.creature.toughness, 3);
     assert_eq!(
-        node.keywords,
+        node.body.keywords,
         [GrantedKeyword::FirstStrike, GrantedKeyword::Vigilance]
     );
     assert_eq!(
@@ -93,8 +93,8 @@ fn kindred_is_a_compatible_additional_type_and_artifact_creature_is_preserved() 
         else {
             panic!("compatible permanent profile must survive")
         };
-        assert!(node.template.types.contains(&ObjectCardType::Artifact));
-        assert!(node.template.types.contains(&ObjectCardType::Creature));
+        assert!(node.body.template.types.contains(&ObjectCardType::Artifact));
+        assert!(node.body.template.types.contains(&ObjectCardType::Creature));
         assert_eq!(cursor.peek(), Some("."));
     }
     let tokens = recognize_oracle_entities("You create a 1/1 red Goblin creature token");

@@ -194,11 +194,11 @@ fn committed_optional_entry_family_rejects_a_different_payment_subject() {
     assert_ne!(ability.status, "canonical");
     let diagnostic = ability.diagnostics.first().expect("native entry failure");
     assert_eq!(diagnostic.automaton.as_deref(), Some("optional-life-entry"));
-    assert!(
-        diagnostic
-            .state
-            .as_deref()
-            .is_some_and(|state| state.contains("player"))
+    // `If they don't` is read by the shared condition language, which has
+    // no `they` performer for the paying player: it fails at the atom.
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("condition.envelope.atom-kind")
     );
     assert_eq!(diagnostic.found.as_deref(), Some("they"));
 }

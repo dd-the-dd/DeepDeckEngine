@@ -238,7 +238,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "effect.zone-change.target.validation"
+            "state": "selector.predicate.union",
+            "found": "."
           }
         ]
       }
@@ -314,21 +315,61 @@
         "oracleText": "Destroy target noncreature or nonland permanent."
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "effect.zone-change.target.validation"
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "or",
+                        "operands": [
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            }
+                          },
+                          {
+                            "kind": "not",
+                            "operand": {
+                              "kind": "cardTypeContains",
+                              "value": "Land"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

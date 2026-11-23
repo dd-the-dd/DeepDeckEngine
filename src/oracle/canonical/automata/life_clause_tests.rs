@@ -112,6 +112,9 @@ fn trigger_replacement_condition_and_fact_interpret_the_same_clause() {
         "At the beginning of your end step, if you've gained life this turn, draw a card.",
         "At the beginning of your end step, if you have gained 2 or more life this turn, draw a card.",
         "At the beginning of your end step, if an opponent lost life this turn, draw a card.",
+        // Any player: the same life-loss history with no player relation.
+        "At the beginning of your end step, if a player lost life this turn, draw a card.",
+        "At the beginning of your end step, if an opponent gained life this turn, draw a card.",
     ] {
         assert_eq!(
             parse("History Probe", "Enchantment", text).status,
@@ -157,15 +160,7 @@ fn life_clause_near_misses_fail_in_the_claiming_frame() {
             "Enchantment",
             "At the beginning of your end step, if you gain life this turn, draw a card.",
         ),
-        // Recognized clauses without a recorded history or replacement.
-        (
-            "Enchantment",
-            "At the beginning of your end step, if a player lost life this turn, draw a card.",
-        ),
-        (
-            "Enchantment",
-            "At the beginning of your end step, if an opponent gained life this turn, draw a card.",
-        ),
+        // Recognized clauses without a recorded replacement.
         (
             "Enchantment",
             "If you would lose life, you lose that much life plus 1 instead.",

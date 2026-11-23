@@ -123,9 +123,26 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
     owner: SacrificeOperandOwner,
 ) -> MachineResult<SacrificeEffectNode> {
     cursor.enter("effect.sacrifice.quantity");
-    let count = recognize_numeric_expression(cursor, None)?;
+    // The shared object determiner reads the count; the parent only admits a
+    // chosen exact count. `another` has no lowered source exclusion here, so
+    // it is refused at the determiner instead of failing inside a number.
+    let count = match recognize_object_determiner(cursor)? {
+        Some(ObjectDeterminer::Chosen {
+            quantity: ChosenObjectQuantity::Exactly(count),
+            another: false,
+        }) => count,
+        Some(ObjectDeterminer::Chosen { another: true, .. }) => {
+            cursor.enter("effect.sacrifice.source-exclusion");
+            return Err(cursor.fail("a sacrifice whose source exclusion this parent lowers"));
+        }
+        _ => {
+            cursor.enter("effect.sacrifice.quantity.determiner");
+            return Err(cursor.fail("a sacrifice count: `a`, `an`, a number or X"));
+        }
+    };
     cursor.enter("effect.sacrifice.object-query");
-    let object = recognize_object_query_with_shared_cardinality(cursor, &count)?;
+    let object = recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count))?
+        .into_object_query(cursor)?;
     cursor.require(
         match owner {
             SacrificeOperandOwner::AbilityController => matches!(

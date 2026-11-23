@@ -96,8 +96,10 @@ pub(super) fn execute_plain<P: DecisionProvider>(
             use_alternative_cost,
             alternative_exile_definition_id,
             declaration_decisions,
+            source_zone,
         } => engine.cast_canonical_spell(
             &CanonicalSpellCast {
+                source_zone: source_zone.clone(),
                 controller_id: controller_id.clone(),
                 source_definition_id: source_definition_id.clone(),
                 use_alternative_cost: *use_alternative_cost,
@@ -109,8 +111,10 @@ pub(super) fn execute_plain<P: DecisionProvider>(
         FixtureAction::PlayLand {
             player_id,
             source_definition_id,
+            source_zone,
         } => engine.play_canonical_land(
             &CanonicalLandPlay {
+                source_zone: source_zone.clone(),
                 player_id: player_id.clone(),
                 source_definition_id: source_definition_id.clone(),
             },
@@ -131,13 +135,8 @@ pub(super) fn execute_plain<P: DecisionProvider>(
             rule: override_rule,
         } => execute_rule(
             engine,
-            CanonicalRuleExecution {
-                controller_id: execution.controller_id.clone(),
-                source_definition_id: execution.source_definition_id.clone(),
-                rule: override_rule.as_ref().unwrap_or(rule).clone(),
-                decisions: execution.decisions.clone(),
-                targets: execution.targets.clone(),
-            },
+            execution,
+            override_rule.as_ref().unwrap_or(rule),
             provider,
         ),
         FixtureAction::ProbeFailure { .. } => Err(EngineError::new(
@@ -146,42 +145,43 @@ pub(super) fn execute_plain<P: DecisionProvider>(
     }
 }
 
-/// A spell rule whose source is an instant or sorcery card outside the
-/// battlefield resolves as that spell: the card is on the stack while it
-/// resolves (CR 601.2a) and then goes where the rules send it (CR 608.2n), so
-/// it can never choose or count itself in its old zone. Any other rule, and a
-/// spell rule hosted by a permanent or a permanent card, executes in place as
-/// an effect harness.
+/// Every spell rule whose source card is outside the battlefield resolves as a
+/// spell through the engine's fixture seam, which alone decides whether the
+/// card can resolve that way (an instant or sorcery card, CR 608.2) and
+/// rejects anything else. A fixture that means to execute such a rule in place
+/// says so with `executeInPlace`. A rule hosted by a permanent, and any
+/// non-spell rule, executes in place: a permanent is never a spell.
 pub(super) fn execute_rule<P: DecisionProvider>(
     engine: &mut GameEngine,
-    execution: CanonicalRuleExecution,
+    execution: &FixtureExecution,
+    rule: &Value,
     provider: &mut P,
 ) -> Result<(), EngineError> {
-    let is_spell_card = engine
-        .state()
-        .players
-        .iter()
-        .filter(|player| player.id == execution.controller_id)
-        .flat_map(|player| {
-            player
-                .library
-                .iter()
-                .chain(&player.hand)
-                .chain(&player.graveyard)
-                .chain(&player.exile)
-                .chain(&player.command_zone)
-        })
-        .any(|card| {
-            card.definition.id == execution.source_definition_id
-                && card
-                    .definition
-                    .type_line
-                    .split(|character: char| !character.is_alphanumeric())
-                    .any(|part| part == "Instant" || part == "Sorcery")
-        });
-    if is_spell_card && execution.rule.get("kind").and_then(Value::as_str) == Some("spellAbility") {
-        engine.resolve_canonical_spell(execution, provider)
-    } else {
-        engine.execute_canonical_rule(execution, provider)
+    let canonical = CanonicalRuleExecution {
+        controller_id: execution.controller_id.clone(),
+        source_definition_id: execution.source_definition_id.clone(),
+        rule: rule.clone(),
+        decisions: execution.decisions.clone(),
+        targets: execution.targets.clone(),
+    };
+    let sources =
+        engine.canonical_spell_sources(&execution.controller_id, &execution.source_definition_id);
+    if rule.get("kind").and_then(Value::as_str) != Some("spellAbility")
+        || execution.execute_in_place
+        || sources.is_empty()
+    {
+        return engine.execute_canonical_rule(canonical, provider);
     }
+    let source_instance_id = match (&execution.source_instance_id, sources.as_slice()) {
+        (Some(chosen), _) => chosen.clone(),
+        (None, [only]) => only.clone(),
+        (None, many) => {
+            return Err(EngineError::new(format!(
+                "spell source {} has {} off-battlefield copies; name one with sourceInstanceId",
+                execution.source_definition_id,
+                many.len()
+            )));
+        }
+    };
+    engine.resolve_canonical_spell(canonical, &source_instance_id, provider)
 }

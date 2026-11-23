@@ -89,7 +89,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_labeled_entry_reflexive_count
     let (_, mut candidates) = lower_target_selector_candidates(&slot.selector)
         .ok_or_else(|| cursor.fail("a permanent target selector"))?;
     if slot.exclude_source {
-        candidates["excludeSource"] = Value::Bool(true);
+        crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
     }
 
     let source_counter_condition = compare(

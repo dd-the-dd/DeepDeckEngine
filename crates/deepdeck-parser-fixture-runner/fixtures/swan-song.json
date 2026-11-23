@@ -18,22 +18,48 @@
         "outcome": "success",
         "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "canonical",
-          "recognizer": "native",
-          "abilityType": "spellAbility",
-          "ruleAssertions": [
-            { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "spells" },
-            { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "or" },
-            { "pointer": "/effects/0/kind", "equals": "bind" },
-            { "pointer": "/effects/1/kind", "equals": "counterSpell" },
-            { "pointer": "/effects/2/kind", "equals": "createTokens" },
-            { "pointer": "/effects/2/controller/id", "equals": "counteredSpellController" },
-            { "pointer": "/effects/2/token/subtypes/0", "equals": "Bird" },
-            { "pointer": "/effects/2/token/abilities/0/kind", "equals": "flying" }
-          ]
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/kind",
+                "equals": "spells"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "or"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "counterSpell"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/2/controller/id",
+                "equals": "counteredSpellController"
+              },
+              {
+                "pointer": "/effects/2/token/subtypes/0",
+                "equals": "Bird"
+              },
+              {
+                "pointer": "/effects/2/token/abilities/0/kind",
+                "equals": "flying"
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -50,19 +76,36 @@
         "outcome": "success",
         "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "canonical",
-          "recognizer": "native",
-          "abilityType": "spellAbility",
-          "ruleAssertions": [
-            { "pointer": "/declaration/decisions/0/candidates/where/value", "equals": "Artifact" },
-            { "pointer": "/effects/2/token/power", "equals": 3 },
-            { "pointer": "/effects/2/token/toughness", "equals": 3 },
-            { "pointer": "/effects/2/token/subtypes/0", "equals": "Goblin" },
-            { "pointer": "/effects/2/token/abilities/0/kind", "equals": "haste" }
-          ]
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/value",
+                "equals": "Artifact"
+              },
+              {
+                "pointer": "/effects/2/token/power",
+                "equals": 3
+              },
+              {
+                "pointer": "/effects/2/token/toughness",
+                "equals": 3
+              },
+              {
+                "pointer": "/effects/2/token/subtypes/0",
+                "equals": "Goblin"
+              },
+              {
+                "pointer": "/effects/2/token/abilities/0/kind",
+                "equals": "haste"
+              }
+            ]
+          }
+        ]
       }
     },
     {
@@ -76,21 +119,86 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "abilities": [{
-          "index": 0,
-          "status": "unsupported",
-          "recognizer": "native"
-        }],
-        "diagnostics": [{
-          "abilityIndex": 0,
-          "code": "oracle_machine_failure",
-          "automaton": "counter-descriptive-token-sequence",
-          "state": "reference.player.controller-of-object",
-          "found": "owner"
-        }]
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "spells",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetSpell",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "counterSpell",
+                  "spell": {
+                    "id": "targetSpell",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "performer": {
+                    "kind": "ownerOf",
+                    "object": {
+                      "id": "targetSpell",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "abilities": [
+                      {
+                        "kind": "haste"
+                      }
+                    ],
+                    "colors": [
+                      "Red"
+                    ],
+                    "power": 3,
+                    "subtypes": [
+                      "Goblin"
+                    ],
+                    "toughness": 3,
+                    "types": [
+                      "Creature"
+                    ]
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          }
+        ]
       }
     }
   ]

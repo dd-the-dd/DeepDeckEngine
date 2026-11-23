@@ -311,6 +311,16 @@ pub(in crate::oracle) fn lookup_creature_subtype(
         })
 }
 
+/// Whether Oracle prints a plural surface distinct from this creature
+/// subtype's singular (`Elves` for `Elf`). An invariant subtype (`Merfolk`,
+/// `Starfish`) has none, so its bare surface has no known number.
+pub(in crate::oracle) fn creature_subtype_has_distinct_plural(ir_name: &str) -> bool {
+    creature_subtype_vocabulary()
+        .aliases_by_surface
+        .values()
+        .any(|subtype| subtype.ir_name() == ir_name)
+}
+
 /// Matches the longest exact one- or two-token creature subtype. Oracle token
 /// grammars use this instead of joining arbitrary capitalized words.
 pub(in crate::oracle) fn lookup_creature_subtype_tokens(
@@ -875,6 +885,47 @@ pub(in crate::oracle) fn noncreature_subtype_implies_permanent(ir_name: &str) ->
         .get(ir_name)
         .copied()
         .unwrap_or(false)
+}
+
+static SUBTYPE_CARD_TYPES: OnceLock<HashMap<String, CardType>> = OnceLock::new();
+
+/// The one card type a noncreature subtype corresponds to (CR 205.3d), by
+/// its IR name: `Forest` is a land subtype, `Equipment` an artifact subtype.
+/// `None` for creature subtypes (Kindred spells carry them too), for spell
+/// subtypes (instants and sorceries share them) and for a subtype of several
+/// families.
+pub(in crate::oracle) fn noncreature_subtype_card_type(ir_name: &str) -> Option<CardType> {
+    SUBTYPE_CARD_TYPES
+        .get_or_init(|| {
+            let snapshot: serde_json::Value =
+                serde_json::from_str(NONCREATURE_SUBTYPE_SNAPSHOT_JSON)
+                    .expect("the versioned CR 205.3 noncreature-subtype snapshot is valid JSON");
+            snapshot["canonical"]
+                .as_array()
+                .expect("canonical noncreature subtypes")
+                .iter()
+                .filter_map(|entry| {
+                    let name = entry["irName"].as_str()?;
+                    let single_family = entry["otherFamilies"]
+                        .as_array()
+                        .is_none_or(|others| others.is_empty());
+                    if !single_family {
+                        return None;
+                    }
+                    let card_type = match entry["family"].as_str()? {
+                        "land" => CardType::Land,
+                        "artifact" => CardType::Artifact,
+                        "enchantment" => CardType::Enchantment,
+                        "planeswalker" => CardType::Planeswalker,
+                        "battle" => CardType::Battle,
+                        _ => return None,
+                    };
+                    Some((name.to_owned(), card_type))
+                })
+                .collect()
+        })
+        .get(ir_name)
+        .copied()
 }
 
 /// Whether a subtype head without `card`, `spell` or `source` names a

@@ -282,3 +282,31 @@ fn a_sorcery_cycling_trigger_resolves_before_the_cycling_draw() {
         "the spell ability itself never resolved"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_second_main_phase_is_the_main_phase_with_ordinal_two() {
+    // Defiant Survivor's frame (CR 505.1a) with an unconditional body: the
+    // precombat main phase is the first; the postcombat one is the second.
+    let card = (
+        "Second Main Probe",
+        "Enchantment",
+        "{1}{G}",
+        "At the beginning of your second main phase, draw a card.",
+    );
+    let rules = parsed_rules(card.0, card.1, card.2, card.3);
+    assert_eq!(rules[0]["event"]["mainPhaseOrdinal"], 2, "{:#}", rules[0]);
+    for (step, triggers) in [("precombatMain", 0), ("postcombatMain", 1)] {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![parsed_instance("observer", "player-0", card)];
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        engine.enqueue_step_triggers(step);
+        assert_eq!(engine.state.stack.len(), triggers, "{step}");
+    }
+    // Near miss: an ordinal no main step of the turn has is not executable.
+    let mut third = rules[0].clone();
+    third["event"]["mainPhaseOrdinal"] = json!(3);
+    assert!(!rule_is_executable(&third), "{third:#}");
+}

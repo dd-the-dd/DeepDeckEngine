@@ -186,10 +186,9 @@ fn tapped_sentence_followed_by_another_replacement_is_not_claimed() {
 
 #[test]
 fn turn_conditioned_entry_composes_the_shared_turn_proposition_and_polarity() {
-    let not_your_turn = serde_json::json!({
-        "kind": "not",
-        "operand": {"kind": "duringControllerTurn", "player": controller()},
-    });
+    // The turn proposition has one primitive per polarity; negation folds
+    // between them, so both introducers yield the same IR.
+    let not_your_turn = serde_json::json!({"kind": "notYourTurn"});
     let your_turn = serde_json::json!({"kind": "duringControllerTurn", "player": controller()});
     for (text, expected) in [
         // Eddymurk Crab (real Oracle text).

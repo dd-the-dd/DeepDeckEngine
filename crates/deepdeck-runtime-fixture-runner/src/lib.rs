@@ -122,6 +122,15 @@ pub struct FixtureExecution {
     pub decisions: BTreeMap<String, Value>,
     #[serde(default)]
     pub targets: BTreeMap<String, TargetRef>,
+    /// Which copy resolves when the controller holds several off-battlefield
+    /// cards of `source_definition_id`.
+    #[serde(default)]
+    pub source_instance_id: Option<String>,
+    /// Explicit effect harness: execute a spell rule in place on a card that
+    /// is not an instant or sorcery spell (for example a creature card that
+    /// moves itself). Without it such a rule is an error, never a fallback.
+    #[serde(default)]
+    pub execute_in_place: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -161,10 +170,14 @@ pub enum FixtureAction {
         alternative_exile_definition_id: Option<String>,
         #[serde(default)]
         declaration_decisions: BTreeMap<String, Value>,
+        #[serde(default)]
+        source_zone: Option<String>,
     },
     PlayLand {
         player_id: String,
         source_definition_id: String,
+        #[serde(default)]
+        source_zone: Option<String>,
     },
     RunMulligans {
         #[serde(default)]
@@ -254,6 +267,17 @@ pub enum FixtureAssertion {
         zone: FixtureZone,
         definition_id: String,
         equals: bool,
+    },
+    /// A card's current characteristics in a zone (for example an adventurer
+    /// card back in the graveyard with only its normal characteristics,
+    /// CR 716.4).
+    ZoneCardCharacteristics {
+        player_id: String,
+        zone: FixtureZone,
+        definition_id: String,
+        name: String,
+        type_line: String,
+        mana_cost: String,
     },
     LibraryTopIs {
         player_id: String,
@@ -587,15 +611,10 @@ pub fn run_fixture(fixture: RuntimeFixture) -> FixtureResult {
         Ok(engine) => engine,
         Err(error) => return failed_result(fixture_id, error.to_string()),
     };
-    if let Some(execution) = fixture.execution {
-        let execution = CanonicalRuleExecution {
-            controller_id: execution.controller_id,
-            source_definition_id: execution.source_definition_id,
-            rule: fixture.rule.clone(),
-            decisions: execution.decisions,
-            targets: execution.targets,
-        };
-        if let Err(error) = action_driver::execute_rule(&mut engine, execution, &mut provider) {
+    if let Some(execution) = &fixture.execution {
+        if let Err(error) =
+            action_driver::execute_rule(&mut engine, execution, &fixture.rule, &mut provider)
+        {
             return failed_result(fixture_id, error.to_string());
         }
     }
@@ -823,6 +842,7 @@ fn validate_fixture(fixture: &RuntimeFixture) -> Result<(), String> {
             FixtureAction::PlayLand {
                 player_id,
                 source_definition_id,
+                ..
             } => (player_id, source_definition_id, false),
             FixtureAction::RunMulligans { .. } => continue,
             FixtureAction::RunPostcombatMain {
@@ -1252,6 +1272,43 @@ fn evaluate_assertion(
                 ),
             )
         }
+        FixtureAssertion::ZoneCardCharacteristics {
+            player_id,
+            zone,
+            definition_id,
+            name,
+            type_line,
+            mana_cost,
+        } => {
+            let actual = state
+                .players
+                .iter()
+                .find(|player| player.id == *player_id)
+                .and_then(|player| {
+                    match zone {
+                        FixtureZone::Library => &player.library,
+                        FixtureZone::Hand => &player.hand,
+                        FixtureZone::Battlefield => &player.battlefield,
+                        FixtureZone::Graveyard => &player.graveyard,
+                        FixtureZone::Exile => &player.exile,
+                    }
+                    .iter()
+                    .find(|card| card.definition.id == *definition_id)
+                })
+                .map(|card| {
+                    (
+                        card.definition.name.clone(),
+                        card.definition.type_line.clone(),
+                        card.definition.mana_cost.clone(),
+                    )
+                });
+            (
+                actual.as_ref() == Some(&(name.clone(), type_line.clone(), mana_cost.clone())),
+                format!(
+                    "{player_id} {zone:?} card {definition_id} characteristics expected ({name}, {type_line}, {mana_cost}), actual {actual:?}"
+                ),
+            )
+        }
         FixtureAssertion::LibraryTopIs {
             player_id,
             definition_id,
@@ -1274,6 +1331,7 @@ fn evaluate_assertion(
         } => {
             let actual = engine
                 .canonical_land_play_available(&CanonicalLandPlay {
+                    source_zone: None,
                     player_id: player_id.clone(),
                     source_definition_id: source_definition_id.clone(),
                 })
@@ -1544,6 +1602,7 @@ fn evaluate_assertion(
         } => {
             let actual = engine
                 .canonical_spell_cast_available(&CanonicalSpellCast {
+                    source_zone: None,
                     controller_id: controller_id.clone(),
                     source_definition_id: source_definition_id.clone(),
                     use_alternative_cost: *use_alternative_cost,

@@ -1,4 +1,4 @@
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::canonical::automata::VerbLemma;
 use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};

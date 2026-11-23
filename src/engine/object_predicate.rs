@@ -1,29 +1,74 @@
 //! Definition-only object-predicate evaluation.
 //!
 //! Shared definition predicates keep changeling restricted to the versioned
-//! creature-subtype domain. Runtime state such as controller, zone, counters,
-//! or effective characteristics does not belong in this immutable view.
+//! creature-subtype domain. Runtime state such as controller, zone, or
+//! effective characteristics does not belong in this immutable view. The one
+//! piece of object state it reads is the rule-metadata gate (level/station
+//! bands, Class levels, Room doors): a permanent's printed abilities inside a
+//! closed band are not its abilities (CR 711.2a, 722.2a), and an object off
+//! the battlefield reads every gate at rest.
 
 use serde_json::Value;
 
 use super::mana::{color_name_to_symbol, parse_mana_symbols};
 use super::{
-    CardDefinition, card_color_symbols, has_card_subtype, has_card_type, has_keyword,
-    integer_value, mana_value, type_line_contains, value_kind,
+    CardDefinition, CardInstance, GameEngine, card_color_symbols, has_card_subtype, has_card_type,
+    integer_value, keyword_rule_supported, mana_value, rule_contains_kind, type_line_contains,
+    value_kind,
 };
 
 #[derive(Clone, Copy, Debug)]
 pub(in crate::engine) struct DefinitionView<'a> {
     definition: &'a CardDefinition,
+    /// The permanent whose printed rules are read; `None` off the battlefield.
+    permanent: Option<&'a CardInstance>,
 }
 
 impl<'a> DefinitionView<'a> {
     pub(in crate::engine) fn new(definition: &'a CardDefinition) -> Self {
-        Self { definition }
+        Self {
+            definition,
+            permanent: None,
+        }
+    }
+
+    /// The printed layer of a battlefield permanent, behind its band gates.
+    pub(in crate::engine) fn for_permanent(permanent: &'a CardInstance) -> Self {
+        Self {
+            definition: &permanent.definition,
+            permanent: Some(permanent),
+        }
     }
 
     pub(super) fn definition(self) -> &'a CardDefinition {
         self.definition
+    }
+
+    /// Whether a printed rule's metadata gate is open for this object.
+    pub(super) fn rule_gate_open(self, rule: &Value) -> bool {
+        match self.permanent {
+            Some(permanent) => GameEngine::rule_metadata_active_for_source(permanent, rule),
+            None => GameEngine::rule_metadata_active_off_battlefield(rule),
+        }
+    }
+
+    /// Supported printed keyword rules whose gate is open.
+    pub(super) fn keyword_rules(self) -> impl Iterator<Item = &'a Value> {
+        self.definition
+            .printed_rules()
+            .iter()
+            .filter(move |rule| keyword_rule_supported(rule) && self.rule_gate_open(rule))
+    }
+
+    pub(super) fn has_keyword(self, keyword: &str) -> bool {
+        self.keyword_rules()
+            .any(|rule| rule_contains_kind(rule, keyword))
+    }
+}
+
+impl<'a> From<&'a CardDefinition> for DefinitionView<'a> {
+    fn from(definition: &'a CardDefinition) -> Self {
+        Self::new(definition)
     }
 }
 
@@ -148,7 +193,7 @@ pub(super) fn matches_object_atom(view: DefinitionView<'_>, predicate: &Value) -
             .as_str()
             .is_some_and(|value| has_card_type(card, value)),
         Some("subtypeContains") => predicate["value"].as_str().is_some_and(|value| {
-            (is_creature_subtype(value) && has_keyword(card, "changeling"))
+            (is_creature_subtype(value) && view.has_keyword("changeling"))
                 || has_card_subtype(card, value)
         }),
         Some("typeLineContains") => predicate["value"].as_str().is_some_and(|value| {
@@ -179,12 +224,12 @@ pub(super) fn matches_object_atom(view: DefinitionView<'_>, predicate: &Value) -
             power.saturating_add(toughness) <= maximum
         }
         Some("hasActivatedAbility") => card
-            .rules
+            .printed_rules()
             .iter()
             .any(|rule| value_kind(rule) == Some("activatedAbility")),
         Some("hasKeyword") => predicate["value"]
             .as_str()
-            .is_some_and(|keyword| has_keyword(card, keyword)),
+            .is_some_and(|keyword| view.has_keyword(keyword)),
         Some("manaCostContainsX") => parse_mana_symbols(&card.mana_cost)
             .iter()
             .any(|symbol| symbol == "X"),
@@ -200,7 +245,7 @@ pub(super) fn matches_object_atom(view: DefinitionView<'_>, predicate: &Value) -
             let Some(symbol) = color_name_to_symbol(color) else {
                 return false;
             };
-            has_keyword(card, "devoid") || !card_color_symbols(card).contains(symbol)
+            view.has_keyword("devoid") || !card_color_symbols(card).contains(symbol)
         }),
         Some("colorContains") => predicate["value"].as_str().is_some_and(|color| {
             color_name_to_symbol(color)

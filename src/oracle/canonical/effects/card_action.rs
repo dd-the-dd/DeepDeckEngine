@@ -839,10 +839,12 @@ impl CardCollectionMemory {
                         return Err(cursor.fail("a bound card collection as the permission object"));
                     }
                 };
-                cursor.require(
-                    !permit.without_paying_mana_cost,
-                    "a free casting permission window the runtime represents",
-                )?;
+                if permit.without_paying_mana_cost {
+                    return Err(cursor.engine_gap(
+                        crate::oracle::canonical::engine_gap::EngineGap::PermissionWindow,
+                        "a free casting permission window the runtime represents",
+                    ));
+                }
                 let duration = match &permit.duration {
                     // CR 611.2a + 400.7: an unbounded permission over cards
                     // this program exiled lasts while they remain in exile.
@@ -861,7 +863,8 @@ impl CardCollectionMemory {
                         player: LocalPlayerReference::Controller,
                     }) => json!({"kind":"untilEndOfNextTurn", "player":controller()}),
                     _ => {
-                        return Err(cursor.fail(
+                        return Err(cursor.engine_gap(
+                            crate::oracle::canonical::engine_gap::EngineGap::PermissionWindow,
                             "a permission window the runtime can end: this turn or the end of your next turn",
                         ));
                     }

@@ -140,20 +140,21 @@ pub(in crate::oracle::canonical) enum TargetCardZoneChangeParseAttempt {
 pub(in crate::oracle::canonical) fn try_recognize_exile_target_card_zone_change_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> TargetCardZoneChangeParseAttempt {
-    try_recognize_target_card_zone_change_effect_with_verb(cursor, "exile")
+    try_recognize_target_card_zone_change_effect_with_verb(cursor, super::VerbLemma::Exile)
 }
 
-/// Transactional claim of a declared card-target move headed by `verb`. The
+/// Transactional claim of a declared card-target move headed by the base
+/// form of `verb` (an imperative instruction). The
 /// card-target operand owns its cardinality (`target`, `N target`, `up to N
 /// target`) and commits only after its source zone relation; any earlier
 /// rejection leaves the cursor for the permanent zone-change families.
 pub(in crate::oracle::canonical) fn try_recognize_target_card_zone_change_effect_with_verb(
     cursor: &mut OracleTokenCursor<'_>,
-    verb: &str,
+    verb: super::VerbLemma,
 ) -> TargetCardZoneChangeParseAttempt {
     if !cursor
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case(verb))
+        .is_some_and(|raw| super::is_verb_form(raw, verb, super::VerbForm::Base))
     {
         return TargetCardZoneChangeParseAttempt::NotClaimed;
     }

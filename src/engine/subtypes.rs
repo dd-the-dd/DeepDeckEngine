@@ -50,7 +50,7 @@ pub(super) fn marker_subtype_membership(
     subtype: &str,
 ) -> Option<bool> {
     let mut membership = None;
-    for rule in &definition.rules {
+    for rule in definition.printed_rules() {
         if value_kind(rule) != Some(MARKER_KIND)
             || rule["subtypeClass"].as_str() != Some(subtype_class)
         {
@@ -76,7 +76,7 @@ pub(super) fn definition_has_all_subtypes(
     definition: &CardDefinition,
     subtype_class: &str,
 ) -> bool {
-    definition.rules.iter().any(|rule| {
+    definition.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some(MARKER_KIND)
             && rule["subtypeClass"].as_str() == Some(subtype_class)
             && rule["mode"].as_str() == Some("all")
@@ -126,7 +126,7 @@ impl GameEngine {
             }
         }
         let definition = &mut self.state.players[player_index].battlefield[card_index].definition;
-        let rules = &mut definition.rules;
+        let rules = definition.printed_rules_mut();
         rules.retain(|rule| {
             !(value_kind(rule) == Some(MARKER_KIND)
                 && rule["subtypeClass"].as_str() == Some(subtype_class)

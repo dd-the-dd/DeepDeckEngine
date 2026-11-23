@@ -1,7 +1,6 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     ActivationCostSequenceNode, TargetCardZoneChangeEffectNode, recognize_activation_cost_sequence,
-    recognize_target_card_zone_change_effect,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]

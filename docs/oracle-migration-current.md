@@ -56,9 +56,11 @@ A proof of the unconditional path alone does not qualify:
 - `manifestDread` (CR 701.62a): look at the top two cards and manifest one. The
   card that was not manifested goes to the graveyard. Needs a runtime test that
   checks both destinations: one face-down 2/2 on the battlefield and the other
-  card in the graveyard, neither left in the library. Per CR 701.62b, an
-  "whenever you manifest dread" trigger fires after the whole process, even when
-  parts of it were impossible (for example, a library with fewer than two cards).
+  card in the graveyard, neither left in the library. Per CR 701.62b
+  (checked against the cached rule text in `data/ability-catalog`), an ability
+  that triggers whenever a player manifests dread triggers after the whole
+  process is complete, even if some or all of its actions were impossible (for
+  example, a library with fewer than two cards).
 
 ## Adventure layout runtime (CR 716, PR #69)
 
@@ -95,11 +97,36 @@ still refuses, with its own state (`card-structure.omen-runtime`).
   Impulse grants (`grantCardPermission`, `grantPermission`) are bound to the
   card's incarnation when granted. A zone change that creates a new object
   ends every permission confined to the zone the card left (CR 400.7).
-- Known gaps, failing closed: exile is scanned only for the player's own
-  cards, so an Adventure on another player's exiled card is never offered.
+- Casting routes: one enumeration, `casting_route`
+  (`casting_permission_modes.rs`), admits every casting source: hand,
+  command zone, the graveyard routes (mayhem, discard-cast, flashback,
+  escape, Arcade Gannon, static permission, graveyard land), exile and
+  top-of-library static permissions, then a permission for that card. The
+  creature and the Adventure both go through it, each with its own
+  characteristics. A card a permission names is admitted from the zone it is
+  actually in. Before #69, a top-of-library card was offered from the
+  graveyard, and its cast then failed.
+- Known gaps, failing closed. The Adventure is never offered, while the
+  creature half keeps its ordinary route, for:
+  - a card in the command zone;
+  - an adventurer in exile that another player owns;
+  - an adventurer in an opponent's hand or graveyard (only the player's own
+    zones are scanned);
+  - free casts during resolution (`cast_without_paying_actions`, for example
+    Paradigm or "cast it without paying its mana cost" effects), which keep
+    their own candidate list;
+  - a Town land adventurer under a "you may cast that card" permission
+    (`action: cast`), which admits the Adventure but never plays the land
+    (CR 305.1, 116: playing a land is a special action, not a cast).
+
   Not yet proved: a copied Adventure (CR 716.3c, 707.10), a controller who is
   not the owner, and an Adventure that leaves the stack by any means other
   than a counter or fizzle.
+- Card-named kinds removed: `azulaExiledPermission` had no producer, and its
+  source check is the typed `whileSourceControlled` attribute.
+  `gwenomTopLibraryCasting` is now `topLibraryCastingWindow`, with typed
+  `whileSourceControlled` and `alternativeLifeCost` (`manaValueOf castCard`,
+  read at cast time) attributes. It has no producer yet either.
 - `card-structure.layout-runtime` is now `card-structure.omen-runtime`. The
   diagnostic code `card_layout_runtime_missing` is unchanged. The only other
   reference to the old state is the historical count table in

@@ -27,16 +27,13 @@
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "selector.predicate.complete",
-            "expected": "a selector that establishes the permanent domain",
-            "found": ",",
-            "tokenIndex": 15
+            "state": "trigger.program.guard-other-binding"
           }
         ]
       }
     },
     {
-      "id": "owned-period-does-not-silently-extend-optionality",
+      "id": "owned-period-ends-optionality-before-the-draw",
       "request": {
         "cardName": "Synthetic Optional Program",
         "typeLine": "Creature — Elf Shaman",
@@ -46,18 +43,82 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "program.optional.scope"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "effects": [
+                    {
+                      "kind": "destroyPermanent",
+                      "permanent": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTarget"
+                      }
+                    }
+                  ],
+                  "kind": "optionalEffects",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
     },
     {
-      "id": "owned-if-you-do-not-implicitly-accepted",
+      "id": "owned-if-you-do-observes-the-optional-destroy",
       "request": {
         "cardName": "Synthetic Optional Program",
         "typeLine": "Creature — Elf Shaman",
@@ -67,12 +128,76 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "program.optional.scope"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "action": {
+                    "kind": "destroyPermanent",
+                    "permanent": {
+                      "id": "targetPermanent",
+                      "kind": "chosenTarget"
+                    }
+                  },
+                  "kind": "optionalAction",
+                  "onPerformed": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  ],
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

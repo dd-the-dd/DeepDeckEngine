@@ -191,7 +191,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "cost.selected-sacrifice.permanent-domain",
+            "state": "cost.payment.sacrifice.permanent-domain",
             "found": ":"
           }
         ]
@@ -222,7 +222,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "cost.selected-sacrifice.controller",
+            "state": "cost.payment.sacrifice.controller",
             "found": ":"
           }
         ]
@@ -239,22 +239,77 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "activation.effect-sequence.separator",
-            "found": "that"
+            "status": "canonical",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "id": "activationCostPermanent0",
+                    "kind": "chosenObject"
+                  }
+                }
+              ],
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "dealtDamageThisTurn"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "activationCostPermanent0",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": "{G}",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -564,6 +619,37 @@
                 }
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-near-miss-unread-relative-clause",
+      "request": {
+        "cardName": "Phyrexian Altar",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Sacrifice a creature that a Wizard blocked this turn: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "activation.effect-sequence.separator",
+            "found": "that"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
           }
         ]
       }

@@ -76,7 +76,7 @@ fn supports_known_effect(effect: &Value) -> bool {
 
 fn latest_marker<'a>(definition: &'a CardDefinition, kind: &str) -> Option<&'a Value> {
     definition
-        .rules
+        .printed_rules()
         .iter()
         .rev()
         .find(|rule| value_kind(rule) == Some(kind))
@@ -222,7 +222,7 @@ impl GameEngine {
             };
             self.state.players[player_index].battlefield[card_index]
                 .definition
-                .rules
+                .printed_rules_mut()
                 .push(marker.clone());
             self.record_event(
                 event,

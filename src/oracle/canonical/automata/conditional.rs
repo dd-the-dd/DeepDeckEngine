@@ -1,6 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamageEffectNode, DamageRecipientNode, LocalConditionNode, LocalEffectNode, NumericExpression,
+    ConditionNode, DamageEffectNode, DamageRecipientNode, LocalEffectNode, NumericExpression,
     PlayerPredicate, SelectorPredicate, TargetListNode, TargetSelector, recognize_kicked_condition,
 };
 use crate::oracle::{
@@ -10,7 +10,7 @@ use crate::oracle::{
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ConditionalEffectNode {
-    pub condition: LocalConditionNode,
+    pub condition: ConditionNode,
     pub then_effects: Vec<LocalEffectNode>,
     pub else_effects: Vec<LocalEffectNode>,
 }
@@ -28,7 +28,7 @@ enum ReplacementState {
 
 #[derive(Default)]
 struct ReplacementMemory {
-    condition: Option<LocalConditionNode>,
+    condition: Option<ConditionNode>,
     source: Option<super::PermanentOperandNode>,
     amount: Option<NumericExpression>,
     target: Option<TargetListNode>,

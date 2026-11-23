@@ -180,6 +180,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
         GenericTriggerEventNode::CounterPlacement(event) => {
             lower_counter_placement_event(cursor, event)
         }
+        GenericTriggerEventNode::BecameTarget(event) => Ok(lower_became_target_event(event)),
     }
 }
 
@@ -315,13 +316,18 @@ fn lower_source_event_union(
                     json!({"kind": "permanentBecameBlocked", "object": object})
                 }
                 SourceEventVerb::BecameUntapped => {
-                    return Err(cursor.fail(
+                    return Err(cursor.engine_gap(
+                        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
                         "a source event with a runtime self matcher (no became-untapped self matcher)",
                     ));
                 }
                 // Read only with its counterpart, as an event pattern.
                 SourceEventVerb::Exploited => {
                     return Err(cursor.fail("`exploits` with the exploited object"));
+                }
+                // Read only with its targeting stack object (a modifier).
+                SourceEventVerb::BecameTarget => {
+                    return Err(cursor.fail("`becomes the target of` with its stack object"));
                 }
             })
         })
@@ -333,9 +339,55 @@ fn lower_source_event_union(
     })
 }
 
+fn predicate_reads_ownership(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::OwnedByAbilityController { .. } => true,
+        ObjectPredicate::Not(operand) => predicate_reads_ownership(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().any(predicate_reads_ownership)
+        }
+        _ => false,
+    }
+}
+
 fn engine_gap(cursor: &mut OracleTokenCursor<'_>, expected: &str) -> MachineFailure {
     cursor.enter("trigger.event.engine-gap");
-    cursor.fail(expected)
+    cursor.engine_gap(
+        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+        expected,
+    )
+}
+
+/// `during your turn` / `during an opponent's turn` on a combat pattern: the
+/// record's turn owner relative to the ability controller (CR 500.1). The
+/// field names are the cast pattern's (`cast_events.rs`).
+fn apply_turn_owner(pattern: &mut Value, owner: Option<EventTurnOwner>) {
+    match owner {
+        Some(EventTurnOwner::ControllerTurn) => pattern["duringControllerTurn"] = json!(true),
+        Some(EventTurnOwner::OpponentTurn) => pattern["duringOpponentTurn"] = json!(true),
+        None => {}
+    }
+}
+
+/// The modifiers of a quantified object event that its lowering does not
+/// evaluate: a recognized modifier is an engine gap, never dropped.
+fn reject_object_event_modifiers(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+) -> MachineResult<()> {
+    if event.alone {
+        return Err(engine_gap(
+            cursor,
+            "an engine event matcher for `alone` on this object event",
+        ));
+    }
+    match event.modifiers.first_modifier_name() {
+        Some(name) => Err(engine_gap(
+            cursor,
+            &format!("an engine event matcher for {name} on this object event"),
+        )),
+        None => Ok(()),
+    }
 }
 
 /// The source as the subject of a combat event pattern, with the typed
@@ -350,6 +402,10 @@ fn lower_source_event_patterns(
         .modifiers
         .contains(&SourceEventModifier::FirstTimeEachTurn);
     let not_blocked = event.modifiers.contains(&SourceEventModifier::NotBlocked);
+    let turn_owner = event.modifiers.iter().find_map(|modifier| match modifier {
+        SourceEventModifier::DuringTurn(owner) => Some(*owner),
+        _ => None,
+    });
     if not_blocked && event.verbs != [SourceEventVerb::Attacked] {
         return Err(engine_gap(
             cursor,
@@ -358,6 +414,32 @@ fn lower_source_event_patterns(
     }
     let mut events = Vec::new();
     for verb in &event.verbs {
+        // CR 115.1: the source as the targeted object, observed by the
+        // generic targeting matcher with the stack-object selector.
+        if *verb == SourceEventVerb::BecameTarget {
+            let stack = event
+                .modifiers
+                .iter()
+                .find_map(|modifier| match modifier {
+                    SourceEventModifier::TargetingStack(stack) => Some(stack),
+                    _ => None,
+                })
+                .ok_or_else(|| cursor.fail("`becomes the target of` with its stack object"))?;
+            if turn_owner.is_some() {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for a targeting event with a turn owner",
+                ));
+            }
+            let mut lowered = lower_source_became_target_event(stack);
+            if first_time {
+                // The runtime counts the logged targeting events of the
+                // source whose stack object satisfied the same selector.
+                lowered["turnOrdinal"] = json!(1);
+            }
+            events.push(lowered);
+            continue;
+        }
         let alone = *verb == SourceEventVerb::Attacked
             && event
                 .modifiers
@@ -372,6 +454,7 @@ fn lower_source_event_patterns(
             let counterpart =
                 counterpart.ok_or_else(|| cursor.fail("`exploits` with the exploited object"))?;
             if first_time
+                || turn_owner.is_some()
                 || counterpart.one_or_more
                 || counterpart.query.controller.is_some()
                 || counterpart.query.predicate.contains_numeric_comparison()
@@ -405,6 +488,12 @@ fn lower_source_event_patterns(
                     "an engine event matcher for `for the first time each turn` on an attack or a block",
                 ));
             }
+            _ if turn_owner.is_some() => {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for a turn owner on an event other than an attack or a block",
+                ));
+            }
             // An unmodified verb of a modified union keeps its own matcher.
             _ => {
                 events.push(lower_source_event_union(
@@ -418,7 +507,7 @@ fn lower_source_event_patterns(
                 continue;
             }
         };
-        if !alone && counterpart.is_none() && !first_time && !not_blocked {
+        if !alone && counterpart.is_none() && !first_time && !not_blocked && turn_owner.is_none() {
             events.push(lower_source_event_union(
                 cursor,
                 &SourceEventUnionNode {
@@ -442,8 +531,10 @@ fn lower_source_event_patterns(
         }
         if first_time {
             // The runtime records the ordinal of the attacker of an attack and
-            // of the blocker of a block.
-            if not_blocked || *verb == SourceEventVerb::BecameBlocked {
+            // of both combatants of a block (the attacker counts the combats
+            // it became blocked in); an unblocked record carries none. Per
+            // pair, `becomes blocked by X` has no first-pair ordinal.
+            if not_blocked || (*verb == SourceEventVerb::BecameBlocked && counterpart.is_some()) {
                 return Err(engine_gap(
                     cursor,
                     "an engine event matcher for `for the first time each turn` on an attack or a block",
@@ -451,6 +542,7 @@ fn lower_source_event_patterns(
             }
             pattern["turnOrdinal"] = json!(1);
         }
+        apply_turn_owner(&mut pattern, turn_owner);
         if let Some(counterpart) = counterpart {
             if counterpart.query.controller.is_some()
                 || counterpart.query.predicate.contains_numeric_comparison()
@@ -597,6 +689,11 @@ fn lower_object_event(
         )?;
     }
     let per_event = matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. });
+    // Only the per-attacker pattern evaluates the clause modifiers (`alone`,
+    // `and isn't blocked`, the turn ordinal and the turn owner).
+    if event.verb != ObjectEventVerb::Attack || per_event {
+        reject_object_event_modifiers(cursor, event)?;
+    }
     if let ObjectEventVerb::Enter | ObjectEventVerb::Die = event.verb {
         // The shared permanent-transition lowering owns subject, controller
         // and `other`; the runtime groups one event per instruction or
@@ -753,11 +850,37 @@ fn lower_object_event(
             if subject.exclude_source {
                 object["excludeSource"] = json!(true);
             }
-            Ok(json!({
+            let modifiers = event.modifiers;
+            // The unblocked record carries no per-turn ordinal.
+            if modifiers.not_blocked && modifiers.first_time_each_turn {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an unblocked attacker",
+                ));
+            }
+            // `attacks and isn't blocked`: the attacker became unblocked
+            // (CR 509.1h); only a declared attacker attacked (CR 508.4).
+            let lemma = if modifiers.not_blocked {
+                "becomeUnblocked"
+            } else {
+                "attack"
+            };
+            let mut pattern = json!({
                 "kind": "eventPattern",
-                "lemma": "attack",
+                "lemma": lemma,
                 "subject": {"role": "attacker", "object": object},
-            }))
+            });
+            if event.alone {
+                pattern["attackingAlone"] = json!(true);
+            }
+            if modifiers.not_blocked {
+                pattern["declaredAttacker"] = json!(true);
+            }
+            if modifiers.first_time_each_turn {
+                pattern["turnOrdinal"] = json!(1);
+            }
+            apply_turn_owner(&mut pattern, modifiers.turn_owner);
+            Ok(pattern)
         }
         ObjectEventVerb::Attack | ObjectEventVerb::DealCombatDamageToPlayer => {
             cursor.require(
@@ -1166,6 +1289,14 @@ fn lower_transition_branch(
             controller: scope,
             exclude_source,
         } => {
+            // The zone-change matcher filters the moved object's
+            // characteristics; it has no owner relation (`you don't own`).
+            if predicate_reads_ownership(predicate) {
+                return Err(engine_gap(
+                    cursor,
+                    "a zone-change object filter without an ownership relation",
+                ));
+            }
             let mut lowered =
                 json!({"kind": kind, "where": lower_permanent_object_predicate(predicate)});
             match scope {

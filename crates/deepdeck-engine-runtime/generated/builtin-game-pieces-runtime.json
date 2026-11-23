@@ -26,8 +26,8 @@
             },
             {
               "card": {
-                "id": "discardCost1",
-                "kind": "chosenTarget"
+                "id": "activationCostCard2",
+                "kind": "chosenObject"
               },
               "kind": "discardCard"
             },
@@ -54,10 +54,15 @@
                     }
                   }
                 },
-                "id": "discardCost1",
-                "kind": "chooseTargets",
-                "maximum": 1,
-                "minimum": 1
+                "id": "activationCostCard2",
+                "kind": "chooseObjects",
+                "quantity": {
+                  "kind": "exactly",
+                  "value": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
               }
             ],
             "kind": "castingDeclaration"
@@ -107,6 +112,10 @@
               }
             }
           ],
+          "declaration": {
+            "decisions": [],
+            "kind": "castingDeclaration"
+          },
           "effects": [
             {
               "count": {
@@ -158,6 +167,10 @@
               }
             }
           ],
+          "declaration": {
+            "decisions": [],
+            "kind": "castingDeclaration"
+          },
           "effects": [
             {
               "amount": {
@@ -411,7 +424,7 @@
           },
           "effects": [
             {
-              "id": "explore:subject",
+              "id": "effect0:explore0:subject",
               "kind": "bind",
               "value": {
                 "id": "targetPermanent",
@@ -419,18 +432,18 @@
               }
             },
             {
-              "id": "explore:controller",
+              "id": "effect0:explore0:controller",
               "kind": "bind",
               "value": {
                 "kind": "controllerOfObject",
                 "object": {
-                  "id": "explore:subject",
+                  "id": "effect0:explore0:subject",
                   "kind": "boundValue"
                 }
               }
             },
             {
-              "bind": "explore:top",
+              "bind": "effect0:explore0:top",
               "count": {
                 "kind": "integer",
                 "value": 1
@@ -439,14 +452,14 @@
               "zone": {
                 "kind": "library",
                 "player": {
-                  "id": "explore:controller",
+                  "id": "effect0:explore0:controller",
                   "kind": "boundValue"
                 }
               }
             },
             {
               "cards": {
-                "binding": "explore:top",
+                "binding": "effect0:explore0:top",
                 "kind": "boundObjects"
               },
               "kind": "revealCards"
@@ -459,7 +472,7 @@
                   "objects": {
                     "kind": "filterObjects",
                     "objects": {
-                      "binding": "explore:top",
+                      "binding": "effect0:explore0:top",
                       "kind": "boundObjects"
                     },
                     "where": {
@@ -479,7 +492,7 @@
                   "condition": {
                     "kind": "objectOnBattlefield",
                     "object": {
-                      "id": "explore:subject",
+                      "id": "effect0:explore0:subject",
                       "kind": "boundValue"
                     }
                   },
@@ -494,11 +507,11 @@
                       "counter": "+1/+1",
                       "kind": "putCounters",
                       "permanent": {
-                        "id": "explore:subject",
+                        "id": "effect0:explore0:subject",
                         "kind": "boundValue"
                       },
                       "placedBy": {
-                        "id": "explore:controller",
+                        "id": "effect0:explore0:controller",
                         "kind": "boundValue"
                       }
                     }
@@ -510,7 +523,7 @@
                     "left": {
                       "kind": "countObjects",
                       "objects": {
-                        "binding": "explore:top",
+                        "binding": "effect0:explore0:top",
                         "kind": "boundObjects"
                       }
                     },
@@ -527,13 +540,13 @@
                       "effects": [
                         {
                           "cards": {
-                            "binding": "explore:top",
+                            "binding": "effect0:explore0:top",
                             "kind": "boundObjects"
                           },
                           "from": {
                             "kind": "library",
                             "player": {
-                              "id": "explore:controller",
+                              "id": "effect0:explore0:controller",
                               "kind": "boundValue"
                             }
                           },
@@ -541,7 +554,7 @@
                           "to": {
                             "kind": "graveyard",
                             "player": {
-                              "id": "explore:controller",
+                              "id": "effect0:explore0:controller",
                               "kind": "boundValue"
                             }
                           }
@@ -549,7 +562,7 @@
                       ],
                       "kind": "optionalEffects",
                       "player": {
-                        "id": "explore:controller",
+                        "id": "effect0:explore0:controller",
                         "kind": "boundValue"
                       }
                     }
@@ -560,13 +573,13 @@
               "then": [
                 {
                   "cards": {
-                    "binding": "explore:top",
+                    "binding": "effect0:explore0:top",
                     "kind": "boundObjects"
                   },
                   "from": {
                     "kind": "library",
                     "player": {
-                      "id": "explore:controller",
+                      "id": "effect0:explore0:controller",
                       "kind": "boundValue"
                     }
                   },
@@ -574,7 +587,7 @@
                   "to": {
                     "kind": "hand",
                     "player": {
-                      "id": "explore:controller",
+                      "id": "effect0:explore0:controller",
                       "kind": "boundValue"
                     }
                   }
@@ -585,11 +598,11 @@
               "abilityId": "explore",
               "kind": "emitAbilitySignal",
               "object": {
-                "id": "explore:subject",
+                "id": "effect0:explore0:subject",
                 "kind": "boundValue"
               },
               "player": {
-                "id": "explore:controller",
+                "id": "effect0:explore0:controller",
                 "kind": "boundValue"
               }
             }
@@ -701,10 +714,7 @@
             {
               "kind": "addMana",
               "mana": {
-                "amount": {
-                  "kind": "integer",
-                  "value": 1
-                },
+                "amount": 1,
                 "kind": "chooseColor"
               },
               "player": {

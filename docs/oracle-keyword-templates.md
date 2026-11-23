@@ -232,10 +232,11 @@ explicite.
   (`If CONDITION, SOURCE enters with …`), dans le même emplacement unique.
   Deux conditions (avant et après) échouent explicitement.
 - **Historique de dégâts d'un adversaire** : `an opponent was dealt damage
-  this turn` est un atome de condition statique (participe passé du lemme
-  `deal` lu dans le lexique des verbes). IR : `countOpponentsDealtDamageThisTurn`
-  (dégâts à un joueur adversaire ce tour, toute source, CR 120.3), évalué par
-  le moteur sur le journal des dégâts.
+  this turn` est un atome `EventHistory` du langage de condition unique
+  (participe passé du lemme `deal` lu dans le lexique des verbes). IR :
+  `countEventsThisTurn` sur `damageDealt`, relation de joueur `opponentsOf`,
+  mesure `amount` (dégâts à un joueur adversaire ce tour, toute source,
+  CR 120.3), évalué par le compteur d'historique générique du moteur.
 
 ## État des marqueurs (capacité partagée)
 

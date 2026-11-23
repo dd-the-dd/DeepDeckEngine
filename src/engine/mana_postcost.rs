@@ -69,7 +69,7 @@ impl GameEngine {
                 .iter()
                 .flat_map(|p| &p.battlefield)
                 .any(|source| {
-                    source.definition.rules.iter().any(|rule| {
+                    source.definition.printed_rules().iter().any(|rule| {
                         value_kind(rule) == Some("staticAbility")
                             && rule["modifiers"]
                                 .as_array()

@@ -58,42 +58,50 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
         let mut quantity = None;
         let predicate = if chosen_cards {
             trial.enter("collection.zone.quantity");
-            let count = if trial
-                .peek()
-                .is_some_and(|v| v.eq_ignore_ascii_case("a") || v.eq_ignore_ascii_case("an"))
-            {
-                let article = trial.peek().unwrap_or("a").to_owned();
-                trial.consume(&article)?;
-                NumericExpression::from(1)
-            } else {
-                recognize_numeric_expression(&mut trial, None)?
+            // `a|N QUERY card(s)`: the shared object noun phrase reads the
+            // count and the card query; this parent type-checks both.
+            let phrase = recognize_object_noun_phrase(
+                &mut trial,
+                ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
+            )?;
+            let count = match phrase.determiner {
+                Some(ObjectDeterminer::Chosen {
+                    quantity: ChosenObjectQuantity::Exactly(count),
+                    another: false,
+                }) if !phrase.exclude_source => count,
+                _ => return Err(trial.fail("`a` or a count of chosen cards")),
             };
-            let query = recognize_object_query(&mut trial)?;
             trial.require(
-                query.controller.is_none()
-                    && query.predicate.has_domain(ObjectKind::Card)
-                    && query.predicate.supports_domain(ObjectKind::Card),
+                phrase.query.relations().is_empty() && phrase.domain == Some(ObjectKind::Card),
                 "a card-domain predicate before a separate zone owner",
             )?;
             trial.consume("from")?;
             quantity = Some(count);
-            Some(query.predicate)
+            Some(phrase.query.predicate().clone())
         } else if explicit_cards {
-            trial.consume("all")?;
-            let query = recognize_object_query(&mut trial)?;
+            let phrase = recognize_object_noun_phrase(
+                &mut trial,
+                ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
+            )?;
             trial.require(
-                query.controller.is_none()
-                    && query.predicate.has_domain(ObjectKind::Card)
-                    && query.predicate.supports_domain(ObjectKind::Card),
+                matches!(
+                    phrase.determiner,
+                    Some(ObjectDeterminer::Universal { each: false })
+                ) && !phrase.exclude_source,
+                "`all` cards of a zone without a source exclusion",
+            )?;
+            trial.require(
+                phrase.query.relations().is_empty() && phrase.domain == Some(ObjectKind::Card),
                 "a card-domain predicate before a separate zone owner",
             )?;
+            let query = phrase.query;
             let relation = trial
                 .peek()
                 .filter(|r| r.eq_ignore_ascii_case("in") || r.eq_ignore_ascii_case("from"))
                 .map(str::to_owned)
                 .ok_or_else(|| trial.fail("in or from before an explicitly owned card zone"))?;
             trial.consume(&relation)?;
-            Some(query.predicate)
+            Some(query.predicate().clone())
         } else {
             None
         };

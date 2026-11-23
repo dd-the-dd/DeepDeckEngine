@@ -40,6 +40,7 @@ impl PartialEq<&str> for AbilityKindConstraint<'_> {
     }
 }
 
+#[cfg(test)]
 pub(crate) fn parse_canonical_rule(
     input: &AbilityInput<'_>,
     ability_kind: &str,
@@ -51,13 +52,42 @@ pub(crate) fn parse_canonical_rule_native(
     input: &AbilityInput<'_>,
     promoted_ability_kind: Option<&str>,
 ) -> CanonicalParseOutcome {
-    parse_native_rule(
+    let outcome = parse_native_rule(
         input,
         promoted_ability_kind.map_or(
             AbilityKindConstraint::AnyNative,
             AbilityKindConstraint::Exact,
         ),
-    )
+    );
+    own_primary_failure(outcome, input.tokens)
+}
+
+/// The dispatcher never reports a sink state (`failure_owner.rs`): the owned
+/// primary failure names the frame and its deepest component. Candidate
+/// evidence keeps the candidate's own state.
+fn own_primary_failure(
+    outcome: CanonicalParseOutcome,
+    tokens: &[crate::oracle::model::RecognizedEntity],
+) -> CanonicalParseOutcome {
+    match outcome {
+        CanonicalParseOutcome::Failed {
+            failure,
+            recognizer,
+        } => CanonicalParseOutcome::Failed {
+            failure: super::failure_owner::assign_failure_owner(failure, tokens),
+            recognizer,
+        },
+        CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure,
+            candidate_failure,
+            recognizer,
+        } => CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure: super::failure_owner::assign_failure_owner(failure, tokens),
+            candidate_failure,
+            recognizer,
+        },
+        outcome => outcome,
+    }
 }
 
 // The common syntax parent runs before specialized native compatibility paths.
@@ -490,8 +520,8 @@ fn parse_existing_native_rule(
         };
     }
 
-    if ability_kind == "triggeredAbility" && claims_promoted_became_target_trigger_family(input) {
-        return match parse_promoted_became_target_trigger(input) {
+    if claims_promoted_spree_family(input) {
+        return match parse_promoted_effect_sequence_modal(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,
@@ -1682,19 +1712,6 @@ fn parse_existing_native_rule(
 
     if ability_kind == "spellAbility" && claims_promoted_color_guarded_modal_family(input) {
         return match parse_promoted_color_guarded_modal(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
-    if ability_kind == "spellAbility" && claims_promoted_primitive_modal_family(input) {
-        return match parse_promoted_primitive_modal(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

@@ -1,6 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CollectionBinding, CollectionOrder, LocalConditionNode, LocalZone, NumericAtom,
+    CollectionBinding, CollectionOrder, ConditionNode, LocalZone, NumericAtom,
     PartitionCollectionNode, TargetListNode, TopCardsEffectNode, TopCardsPartitionSequenceNode,
     recognize_cards_exist_in_controller_graveyard_condition, recognize_numeric_atom,
     recognize_possessive_target_player,
@@ -16,7 +16,7 @@ pub(in crate::oracle::canonical) enum TopCardsLibraryOwnerNode {
 pub(in crate::oracle::canonical) struct ConditionalTopCardsPartitionSequenceNode {
     pub top: TopCardsEffectNode,
     pub default_partition: PartitionCollectionNode,
-    pub replacement_condition: LocalConditionNode,
+    pub replacement_condition: ConditionNode,
     pub replacement_partition: PartitionCollectionNode,
 }
 

@@ -3,7 +3,6 @@ use crate::oracle::{
     syntax::{AbilityInput, recognize_oracle_entities},
 };
 
-use super::*;
 use crate::oracle::canonical::{
     CanonicalParseOutcome, CanonicalRuleDraft, MachineResult, parse_canonical_rule,
 };

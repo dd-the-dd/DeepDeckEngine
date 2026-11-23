@@ -158,7 +158,7 @@ impl GameEngine {
         subtype_candidates
             .extend(["Plains", "Island", "Swamp", "Mountain", "Forest"].map(str::to_string));
         let mut keyword_candidates = BTreeSet::new();
-        for rule in &permanent.definition.rules {
+        for rule in permanent.definition.printed_rules() {
             if let Some(kind) = value_kind(&rule["ability"]) {
                 keyword_candidates.insert(kind.to_string());
             }

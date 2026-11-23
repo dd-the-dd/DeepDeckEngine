@@ -29,34 +29,35 @@ fn an_unsupported_verb_is_not_reported_as_an_unresolved_name() {
         "Artifact",
         "{3}: Switch target creature's power and toughness until end of turn.",
     );
+    // The owner state names the verb itself (S0: one owner per capability).
     assert_eq!(
         first_failure(&parsed),
-        (Some("effect.unsupported-verb"), Some("Switch"))
+        (Some("effect.unsupported-verb.switch"), Some("Switch"))
     );
 }
 
 #[test]
 fn keyword_actions_and_keyword_abilities_are_named_from_the_catalog() {
-    for (name, type_line, text, state, found) in [
+    for (name, type_line, text, state_prefix, found) in [
         (
             "Steel Squirrel",
             "Artifact Creature — Squirrel",
             "{6}: Roll a six-sided die.",
-            "effect.unsupported-verb",
+            "effect.unsupported-verb.",
             "Roll",
         ),
         (
             "Evra, Halcyon Witness",
             "Legendary Creature — Avatar",
             "{4}: Exchange your life total with Evra's power.",
-            "effect.unsupported-verb",
+            "effect.unsupported-verb.",
             "Exchange",
         ),
         (
             "Circular Logic",
             "Instant",
             "Madness {U} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
-            "keyword.unsupported",
+            "keyword.unsupported.madness",
             "Madness",
         ),
     ] {
@@ -65,7 +66,7 @@ fn keyword_actions_and_keyword_abilities_are_named_from_the_catalog() {
         if actual_state == Some("reference.source.unresolved-name") {
             panic!("{text}: still blamed on the name resolver");
         }
-        if actual_state == Some(state) {
+        if actual_state.is_some_and(|state| state.starts_with(state_prefix)) {
             assert_eq!(actual_found, Some(found), "{text}");
         }
     }
@@ -84,4 +85,11 @@ fn a_real_unknown_name_still_blames_the_name_resolver() {
         "{:#?}",
         parsed.diagnostics
     );
+    // The dispatcher owns the reference child's sink: the frame that asked
+    // for a source reference, then the component (an unlinked name).
+    let owner = parsed.diagnostics[0]
+        .owner
+        .as_deref()
+        .expect("an owned sink");
+    assert!(owner.ends_with("/source-name.unlinked-name"), "{owner}");
 }

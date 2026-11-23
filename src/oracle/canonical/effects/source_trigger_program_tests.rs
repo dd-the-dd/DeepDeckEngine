@@ -153,13 +153,15 @@ fn committed_bad_draw_and_relative_target_support_do_not_fall_back() {
         ),
         SourceTriggerProgramParseAttempt::Failed(_)
     ));
-    let SourceTriggerProgramParseAttempt::Failed(failure) = program(
+    // The `another` relation survives the source wrapper as the typed
+    // relation the card composition resolves.
+    let SourceTriggerProgramParseAttempt::Parsed(draft) = program(
         "When this creature enters, target creature gets +1/+1 until end of turn. Another target creature gets -1/-1 until end of turn.",
         "Creature",
     ) else {
-        panic!("accepted hard support boundary must survive the source wrapper")
+        panic!("the typed relation must survive the source wrapper")
     };
-    assert_eq!(failure.state, "lower.modify-stats.another-target-relation");
+    assert!(draft.rule.to_string().contains("otherThanEarlierTargets"));
 }
 
 #[test]

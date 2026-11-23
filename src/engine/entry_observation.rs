@@ -1,7 +1,7 @@
 //! Immutable entry-event observation and non-target object references.
 //! Uses the existing battlefield incarnation marker; never mints an identity,
 //! declares a target, or recaptures an object at ability resolution.
-use super::target_numeric_lki::BattlefieldTargetIdentity;
+use super::object_lki::BattlefieldTargetIdentity;
 use super::*;
 
 const OBSERVED_OBJECT_DECISION: &str = "__deepdeckObservedEventObjectV1";
@@ -136,8 +136,10 @@ pub(super) fn reference_scope_supported(rule: &Value) -> bool {
 }
 
 pub(super) fn node_requires_checkpoint(node: &Value) -> bool {
-    value_kind(node) == Some("untapPermanent")
-        && value_kind(&node["permanent"]) == Some("observedEventObject")
+    matches!(
+        value_kind(node),
+        Some("untapPermanent" | "destroyPermanent")
+    ) && value_kind(&node["permanent"]) == Some("observedEventObject")
 }
 
 impl GameEngine {

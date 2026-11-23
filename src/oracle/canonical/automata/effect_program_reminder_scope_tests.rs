@@ -52,11 +52,24 @@ fn an_if_inside_a_reminder_does_not_reach_the_scope_check() {
 }
 
 #[test]
-fn a_root_conditional_or_second_permission_still_fails_the_scope() {
-    for text in [
-        "When this creature enters, you may draw a card if you control an artifact.",
-        "When this creature enters, you may draw a card and you may gain 2 life. (Reminder.)",
-    ] {
+fn a_postposed_condition_encloses_the_permission() {
+    // The condition is checked on resolution; only then may the player draw.
+    let parsed =
+        parse("When this creature enters, you may draw a card if you control an artifact.");
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
+    let rule = parsed.abilities[0].rule.as_ref().unwrap();
+    let effects = rule["effects"].as_array().unwrap();
+    assert_eq!(effects.len(), 1, "{rule:#}");
+    assert_eq!(effects[0]["kind"], "conditional", "{rule:#}");
+    assert_eq!(effects[0]["then"][0]["kind"], "optionalEffects", "{rule:#}");
+    assert_eq!(effects[0]["else"], serde_json::json!([]), "{rule:#}");
+}
+
+#[test]
+fn a_second_permission_still_fails_the_scope() {
+    for text in
+        ["When this creature enters, you may draw a card and you may gain 2 life. (Reminder.)"]
+    {
         let parsed = parse(text);
         assert_eq!(parsed.status, "unsupported", "{text}");
         assert!(

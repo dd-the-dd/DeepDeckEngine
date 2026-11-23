@@ -2,9 +2,12 @@
 //!
 //! ```text
 //! UnlessClause := "unless" (Payer CostSequence | Condition)
-//! Payer        := "you" | "its" "controller" | "that" "player"
+//! Payer        := "you" | "they" | PERFORMER
+//! PERFORMER    := the shared performer subject (`its controller`, `that
+//!                 NOUN's controller`, `that player`, ...), bound by the
+//!                 guarded actions
 //! CostSequence := payment actions conjugated for the payer, joined by "and"
-//! Condition    := Boolean list of shared `you control …` atoms
+//! Condition    := Boolean list of the one condition language's atoms
 //! ```
 //!
 //! The sequence parent owns the frame: the guarded actions (those of the
@@ -17,11 +20,13 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::ActingSubject;
 use super::{
-    BooleanConditionNode, CostListGrammar, PaymentActionNode, PaymentObjectFilter,
-    PaymentObjectsNode, PlayerTargetBinding, ResolutionCostNode, TargetBinding,
-    conjugated_payment_action_starts, project_resolution_cost_sequence,
-    recognize_anaphoric_target_reference, recognize_boolean_condition_list_before_separator,
-    recognize_conjugated_cost_sequence, recognize_trigger_guard_atom,
+    ConditionContext, ConditionNode, ConditionScope, CostListGrammar, ObjectPlayerRelation,
+    ObjectSubjectAntecedent, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode,
+    PerformerContext, PerformerNode, PermanentEffectReference, PlayerBinding, PlayerEffectSubject,
+    PlayerTargetBinding, ResolutionCostNode, TargetBinding, conjugated_payment_action_starts,
+    object_related_player_head_length, project_resolution_cost_sequence,
+    recognize_boolean_condition_list_before_separator, recognize_condition_atom,
+    recognize_conjugated_cost_sequence, recognize_performer,
 };
 
 /// The player who may pay. Each variant is a binding the guarded actions
@@ -48,7 +53,7 @@ pub(in crate::oracle::canonical) enum UnlessClauseNode {
         cost: ResolutionCostNode,
     },
     /// The guarded actions happen unless the condition holds at resolution.
-    Condition(BooleanConditionNode),
+    Condition(ConditionNode),
 }
 
 /// One `unless` frame over the actions `first_effect..end_effect` of the
@@ -112,31 +117,60 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    let (payer, form) = if word(cursor, 0, "you") && word(cursor, 1, "control") {
+    // `you` pays only when a payment action conjugated for it follows; any
+    // other clause is a state condition of the one condition language.
+    let you_pay = word(cursor, 0, "you") && {
+        let mut trial = cursor.clone();
+        trial.consume("you").is_ok()
+            && conjugated_payment_action_starts(&trial, ActingSubject::CONTROLLER)
+    };
+    // `that NOUN's controller` (S3's shared performer head) pays only when
+    // a payment action conjugated for it follows, like `you`.
+    let related_payer = object_related_player_head_length(cursor).is_some_and(|length| {
+        let mut trial = cursor.clone();
+        trial.advance_to(trial.position() + length).is_ok()
+            && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
+    });
+    // `an opponent` / `a player` / `each opponent` followed by a payment
+    // conjugated for it is a payer clause too, never a state condition.
+    let indefinite_payer = ((word(cursor, 0, "an") && word(cursor, 1, "opponent"))
+        || (word(cursor, 0, "a") && word(cursor, 1, "player"))
+        || (word(cursor, 0, "each") && (word(cursor, 1, "opponent") || word(cursor, 1, "player"))))
+        && {
+            let mut trial = cursor.clone();
+            trial.advance_to(trial.position() + 2).is_ok()
+                && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
+        };
+    let payer_starts = you_pay
+        || indefinite_payer
+        || related_payer
+        || (word(cursor, 0, "its") && word(cursor, 1, "controller"))
+        || (word(cursor, 0, "that") && word(cursor, 1, "player"))
+        || word(cursor, 0, "they")
+        || (word(cursor, 0, "any") && word(cursor, 1, "player"));
+    let (payer, form) = if !payer_starts {
         cursor.enter("sequence.unless.condition");
-        let condition = recognize_boolean_condition_list_before_separator(
-            cursor,
-            recognize_trigger_guard_atom,
-        )?;
+        let context = ConditionContext::standalone(ConditionScope::Unless, &[], None, false);
+        let condition = recognize_boolean_condition_list_before_separator(cursor, |cursor| {
+            recognize_condition_atom(cursor, &context)
+        })?;
         return Ok(UnlessClauseNode::Condition(condition));
     } else if word(cursor, 0, "you") {
         cursor.consume("you")?;
         (UnlessPayerNode::Controller, ActingSubject::CONTROLLER)
-    } else if word(cursor, 0, "its") && word(cursor, 1, "controller") {
-        let binding = recognize_anaphoric_target_reference(cursor, target)?;
-        cursor.enter("sequence.unless.payer.controller");
-        cursor.consume("controller")?;
-        (
-            UnlessPayerNode::ControllerOf(binding),
-            ActingSubject::THIRD_SINGULAR,
-        )
     } else if word(cursor, 0, "that") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.bound-player");
-        let binding =
-            player.ok_or_else(|| cursor.fail("a player target declared by the guarded action"))?;
-        cursor.consume_phrase(&["that", "player"])?;
+        cursor.require(
+            player.is_some(),
+            "a player target declared by the guarded action",
+        )?;
         (
-            UnlessPayerNode::BoundPlayer(binding),
+            recognize_performed_payer(cursor, target, player)?,
+            ActingSubject::THIRD_SINGULAR,
+        )
+    } else if object_related_player_head_length(cursor).is_some() {
+        (
+            recognize_performed_payer(cursor, target, player)?,
             ActingSubject::THIRD_SINGULAR,
         )
     } else if word(cursor, 0, "they") {
@@ -150,6 +184,11 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             UnlessPayerNode::QuantifiedPlayer,
             ActingSubject::THIRD_PLURAL,
         )
+    } else if indefinite_payer {
+        cursor.enter("sequence.unless.payer.indefinite-player");
+        return Err(cursor.fail(
+            "one payer (an indefinite player or opponent payer polls players in APNAP order, CR 101.4; unsupported)",
+        ));
     } else if word(cursor, 0, "any") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.any-player");
         return Err(cursor.fail(
@@ -157,7 +196,7 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         ));
     } else {
         return Err(cursor.fail(
-            "an `unless` payer (`you`, `its controller`, a bound `that player`) or a `you control` condition",
+            "an `unless` payer (`you`, `its controller`, a bound `that player`) or a state condition",
         ));
     };
     cursor.enter("sequence.unless.payment-action");
@@ -183,6 +222,44 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
     let cost = project_resolution_cost_sequence(cursor, sequence)?;
     cursor.enter("sequence.unless.complete");
     Ok(UnlessClauseNode::Payment { payer, cost })
+}
+
+/// A payer named by the shared performer subject (`its controller`, `that
+/// player`; #10 PlayerRef): the binding the guarded actions proved, read by
+/// the same grammar as a performed clause. A performer the frame has no
+/// payer lowering for (an owner, a population, an event player) fails
+/// explicitly instead of approximating.
+fn recognize_performed_payer(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: Option<TargetBinding>,
+    player: Option<PlayerTargetBinding>,
+) -> MachineResult<UnlessPayerNode> {
+    let context = PerformerContext {
+        player_antecedent: player.map(|binding| PlayerBinding(binding.effect_index)),
+        event_player: false,
+        defending_player: false,
+        object_antecedent: target.map(|binding| ObjectSubjectAntecedent {
+            reference: PermanentEffectReference::Target(binding),
+            selector: None,
+        }),
+    };
+    let (performer, _) = recognize_performer(cursor, &context)
+        .ok_or_else(|| cursor.fail("an `unless` payer the performer grammar names"))??;
+    cursor.enter("sequence.unless.payer.binding");
+    match performer {
+        PerformerNode::Player(PlayerEffectSubject::Bound(PlayerBinding(effect_index))) => {
+            Ok(UnlessPayerNode::BoundPlayer(PlayerTargetBinding {
+                effect_index,
+            }))
+        }
+        PerformerNode::Player(PlayerEffectSubject::ObjectRelation {
+            relation: ObjectPlayerRelation::Controller,
+            object: PermanentEffectReference::Target(binding),
+        }) => Ok(UnlessPayerNode::ControllerOf(binding)),
+        _ => Err(cursor.fail(
+            "an `unless` payer with a lowering (the controller of a declared target, or a declared player)",
+        )),
+    }
 }
 
 /// True when the action reads only the payer's own resources: no `you

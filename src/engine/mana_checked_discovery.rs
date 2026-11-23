@@ -113,7 +113,7 @@ impl GameEngine {
             .flat_map(|p| &p.battlefield)
             .any(|attachment| {
                 attachment.attached_to.as_deref() == Some(source.instance_id.as_str())
-                    && attachment.definition.rules.iter().any(|rule| {
+                    && attachment.definition.printed_rules().iter().any(|rule| {
                         triggered_rule_supported(rule)
                             && value_kind(&rule["event"])
                                 == Some("attachedPermanentManaAbilityActivated")

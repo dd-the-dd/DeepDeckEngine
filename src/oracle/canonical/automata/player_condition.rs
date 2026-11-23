@@ -9,12 +9,14 @@
 //! life total, player counters, cards in one of their zones, spells cast or
 //! cards drawn this turn). Every parent that reads a condition program
 //! (`as long as`, sentence `if`, intervening `if`, activation restrictions,
-//! entry exceptions) reaches these atoms through the shared static reader; no
-//! parent recombines a subject with a measure on its own.
+//! entry exceptions) reaches these atoms through the one condition atom
+//! reader, which types each proposition as `Compare(measure, op, value)` of
+//! its player subject; no parent recombines a subject with a measure on its
+//! own.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
     ObjectKind, ObjectPredicate, recognize_counter_name, recognize_object_query,
-    recognize_search_card_selector, recognize_spell_cast_query,
+    recognize_search_card_selector,
 };
 use crate::oracle::counter_name::CounterName;
 
@@ -97,8 +99,12 @@ pub(in crate::oracle::canonical) enum PlayerCardZone {
 /// One measured fact about the subject player, compared with a threshold.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum PlayerStateMeasure {
-    /// Permanents the player controls matching the shared object query.
-    ControlledPermanents(ObjectPredicate),
+    /// Permanents the player controls matching the shared object query;
+    /// `exclude_source` for `another`/`other` (CR 201.5).
+    ControlledPermanents {
+        predicate: ObjectPredicate,
+        exclude_source: bool,
+    },
     /// The player's life total (CR 119.1).
     Life,
     /// Counters of one kind on the player (CR 122.1, e.g. poison).
@@ -347,7 +353,10 @@ fn recognize_controlled_permanents_proposition(
         "a predicate valid for a battlefield permanent",
     )?;
     Ok(PlayerStateProposition {
-        measure: PlayerStateMeasure::ControlledPermanents(query.predicate),
+        measure: PlayerStateMeasure::ControlledPermanents {
+            predicate: query.predicate,
+            exclude_source: false,
+        },
         threshold,
     })
 }
@@ -361,14 +370,14 @@ fn recognize_spells_cast_proposition(
     cursor.enter("condition.player.cast.amount");
     let threshold = recognize_count_threshold(cursor, true)?;
     cursor.enter("condition.player.cast.query");
-    let query = recognize_spell_cast_query(cursor)?;
+    let query = super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
+        .into_spell_cast_query(cursor)?;
     cursor.require(
         query.caster.is_none(),
         "one caster relation, supplied by the condition's player subject",
     )?;
     cursor.require(
-        query.predicate.has_domain(ObjectKind::Spell)
-            && query.predicate.supports_domain(ObjectKind::Spell),
+        query.predicate.is_in_domain(ObjectKind::Spell),
         "an explicit spell-domain query",
     )?;
     let predicate = (query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Spell))

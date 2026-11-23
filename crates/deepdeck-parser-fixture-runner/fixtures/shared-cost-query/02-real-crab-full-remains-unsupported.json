@@ -22,8 +22,6 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "keywordAbility",
             "rule": {
               "ability": {
                 "kind": "flash"
@@ -37,13 +35,7 @@
           {
             "index": 1,
             "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "staticAbility",
             "rule": {
-              "kind": "staticAbility",
-              "source": {
-                "kind": "self"
-              },
               "activeWhile": {
                 "kind": "inZone",
                 "object": {
@@ -53,22 +45,13 @@
                   "kind": "stackOrCast"
                 }
               },
+              "kind": "staticAbility",
               "modifiers": [
                 {
-                  "kind": "reduceOwnGenericCastingCost",
                   "amount": {
                     "kind": "countObjects",
                     "objects": {
                       "kind": "cardsInZone",
-                      "zone": {
-                        "kind": "graveyard",
-                        "player": {
-                          "kind": "controllerOf",
-                          "object": {
-                            "kind": "self"
-                          }
-                        }
-                      },
                       "where": {
                         "kind": "or",
                         "operands": [
@@ -81,63 +64,95 @@
                             "value": "Sorcery"
                           }
                         ]
+                      },
+                      "zone": {
+                        "kind": "graveyard",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
                       }
                     }
-                  }
+                  },
+                  "kind": "reduceOwnGenericCastingCost"
                 }
-              ]
+              ],
+              "source": {
+                "kind": "self"
+              }
             }
           },
           {
             "index": 2,
             "status": "canonical",
-            "recognizer": "native",
             "rule": {
-              "kind": "replacementEffect",
-              "source": { "kind": "self" },
-              "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
               "condition": {
-                "kind": "not",
-                "operand": {
-                  "kind": "duringControllerTurn",
-                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                "kind": "notYourTurn"
+              },
+              "event": {
+                "kind": "wouldEnterBattlefield",
+                "object": {
+                  "kind": "self"
                 }
               },
+              "kind": "replacementEffect",
               "replacement": [
-                { "kind": "setEnteringState", "object": { "kind": "self" }, "tapped": true }
-              ]
+                {
+                  "kind": "setEnteringState",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "tapped": true
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
             }
           },
           {
             "index": 3,
             "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "triggeredAbility",
             "rule": {
-              "kind": "triggeredAbility",
-              "source": { "kind": "self" },
-              "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
               "declaration": {
-                "kind": "castingDeclaration",
                 "decisions": [
                   {
-                    "kind": "chooseTargets",
-                    "id": "targetPermanent",
-                    "minimum": 0,
-                    "maximum": 2,
                     "candidates": {
                       "kind": "permanents",
-                      "where": { "kind": "cardTypeContains", "value": "Creature" }
-                    }
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 2,
+                    "minimum": 0
                   }
-                ]
+                ],
+                "kind": "castingDeclaration"
               },
               "effects": [
                 {
                   "kind": "tapPermanent",
-                  "permanent": { "kind": "chosenTargets", "id": "targetPermanent" }
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTargets"
+                  }
                 }
-              ]
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
             }
           }
         ]

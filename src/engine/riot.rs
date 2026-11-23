@@ -37,7 +37,7 @@ impl GameEngine {
                 Ok(())
             }
             Some(RiotEntryChoice::Haste) => {
-                card.definition.rules.push(json!({
+                card.definition.printed_rules_mut().push(json!({
                     "kind": "keywordAbility",
                     "source": { "kind": "self" },
                     "ability": { "kind": "haste" },

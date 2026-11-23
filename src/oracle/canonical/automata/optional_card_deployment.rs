@@ -113,12 +113,33 @@ pub(in crate::oracle::canonical) fn recognize_optional_card_deployment_effect_wi
             }
             OptionalCardDeploymentState::Filter => {
                 cursor.enter("effect.optional-card-deployment.filter");
-                frame.filter = Some(match cursor.attempt(|trial| recognize_search_card_selector(trial, false)) {
-                    Ok(predicate) => predicate,
-                    Err(_) => super::recognize_resolution_card_query(cursor,
-                        context.activation_source_availability == super::ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
-                    )?.predicate,
-                });
+                frame.filter = Some(
+                    match cursor.attempt(|trial| recognize_search_card_selector(trial, false)) {
+                        Ok(predicate) => predicate,
+                        Err(_) => {
+                            let query = super::recognize_object_noun_query(
+                            cursor,
+                            super::ObjectQueryContext::resolution(
+                                context.activation_source_availability
+                                    == super::ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
+                            ),
+                        )?;
+                            // A resolution-owned card choice: the noun phrase is
+                            // read once; this parent type-checks its domain and
+                            // that no player relation scopes the source zone.
+                            cursor.enter("selector.resolution-card.domain");
+                            cursor.require(
+                                query.predicate().is_in_domain(super::ObjectKind::Card),
+                                "an explicit card-domain query",
+                            )?;
+                            cursor.require(
+                                query.relations().is_empty(),
+                                "an unscoped card predicate in the source zone",
+                            )?;
+                            query.predicate().clone()
+                        }
+                    },
+                );
                 OptionalCardDeploymentState::SourceRelation
             }
             OptionalCardDeploymentState::SourceRelation => {

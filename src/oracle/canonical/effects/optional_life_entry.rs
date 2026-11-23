@@ -37,13 +37,14 @@ pub(in crate::oracle::canonical) fn parse_promoted_optional_life_entry(
     cursor.require(
         matches!(
             &node.unpaid_entry.condition,
-            LocalConditionNode::CostNotPaid { payment }
-                if *payment == node.payment.binding
+            BooleanConditionNode::Atom(ConditionAtom::ActionOutcome(
+                ActionOutcomeNode::CostNotPaid { payment }
+            )) if *payment == node.payment.binding
         ),
         "the unpaid condition linked to the optional life payment",
     )?;
     let payment_id = lower_choice_binding(node.payment.binding);
-    let unpaid_condition = lower_local_condition(&node.unpaid_entry.condition);
+    let unpaid_condition = lower_condition(&node.unpaid_entry.condition);
     let _object_kind = node.object_kind;
     let trace = cursor
         .transitions()

@@ -75,7 +75,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
                 "modifiers": modifiers,
             });
             if let Some(condition) = &condition {
-                rule["condition"] = lower_static_condition(condition);
+                rule["condition"] = lower_condition(condition);
             }
             StaticContinuousParseAttempt::Parsed(draft(
                 rule,
@@ -147,8 +147,8 @@ fn read_static_continuous_effect(
             .peek()
             .map(str::to_ascii_lowercase)
             .ok_or_else(|| cursor.fail("a continuous predicate"))?;
-        match verb.as_str() {
-            _ if combat_clause_starts(cursor) => {
+        match static_predicate_head(cursor) {
+            Some(StaticPredicateHead::Combat) => {
                 // The shared combat clause (CR 508.1c-d, 509.1b-c) lowers on
                 // the same objects as every other predicate of this subject.
                 let mut clauses = Vec::new();
@@ -164,7 +164,7 @@ fn read_static_continuous_effect(
                     modifiers.push(lower_static_combat_clause(cursor, &objects, clause)?);
                 }
             }
-            "get" | "gets" => {
+            Some(StaticPredicateHead::ModifyStats) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 if !cursor
@@ -198,7 +198,7 @@ fn read_static_continuous_effect(
                     }));
                 }
             }
-            "have" | "has" => {
+            Some(StaticPredicateHead::Grant) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.keywords");
@@ -237,12 +237,7 @@ fn read_static_continuous_effect(
                     });
                 }
             }
-            "is" | "are" => {
-                let number = if verb == "is" {
-                    TypeChangeNumber::Singular
-                } else {
-                    TypeChangeNumber::Plural
-                };
+            Some(StaticPredicateHead::Copula(number)) => {
                 cursor.require(
                     number == subject_number,
                     "a copula agreeing in number with the static subject",
@@ -266,25 +261,25 @@ fn read_static_continuous_effect(
                 );
                 changes_types = true;
             }
-            "doesn't" | "doesn\u{2019}t" | "don't" | "don\u{2019}t" => {
+            Some(StaticPredicateHead::NegatedDo) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 read_untap_step_exclusion(cursor)?;
                 modifiers.push(json!({ "kind": "doesNotUntap", "objects": objects.clone() }));
             }
-            "enter" | "enters" => {
+            Some(StaticPredicateHead::Entry) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 modifiers.push(read_collection_entry_modification(cursor, &objects)?);
             }
-            "loses" | "lose" => {
+            Some(StaticPredicateHead::AbilityLoss) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.ability-loss");
                 cursor.consume_phrase(&["all", "abilities"])?;
                 modifiers.push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
             }
-            "can" => {
+            Some(StaticPredicateHead::Ability) => {
                 cursor.consume("can")?;
                 *committed = true;
                 cursor.enter("static.continuous.defender-exception");
@@ -296,7 +291,7 @@ fn read_static_continuous_effect(
                     "kind": "allowAttackWithDefender", "objects": objects.clone(),
                 }));
             }
-            "assigns" | "assign" => {
+            Some(StaticPredicateHead::DamageAssignment) => {
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.combat-damage-assignment");
@@ -311,7 +306,7 @@ fn read_static_continuous_effect(
                     "onlyIfToughnessGreater": false,
                 }));
             }
-            _ => {
+            None => {
                 return Err(cursor.fail(
                     "a continuous predicate: `get(s)`, `have`/`has`, `is`/`are`, a combat clause, `doesn't untap`, `enter(s)`, `loses all abilities`, `can attack as though`, or `assigns combat damage`",
                 ));
@@ -376,7 +371,77 @@ fn read_static_continuous_effect(
     Ok((modifiers, condition))
 }
 
-const PREDICATE_VERBS: [&str; 6] = ["get", "gets", "have", "has", "is", "are"];
+/// The head of one continuous predicate (S3): a lexicon lemma in a present
+/// form, the copula, a modal or negated auxiliary, or the shared combat
+/// clause. The predicate reader matches on it instead of a verb word.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum StaticPredicateHead {
+    /// The shared combat clause (CR 508.1c-d, 509.1b-c).
+    Combat,
+    /// `get(s)` a signed P/T delta.
+    ModifyStats,
+    /// `have`/`has` a keyword list.
+    Grant,
+    /// `is`/`are` a type change, in the copula's number.
+    Copula(TypeChangeNumber),
+    /// `doesn't`/`don't` untap.
+    NegatedDo,
+    /// `enter(s)` with an entry modification.
+    Entry,
+    /// `lose(s)` all abilities.
+    AbilityLoss,
+    /// `can` attack as though it didn't have defender.
+    Ability,
+    /// `assign(s)` combat damage.
+    DamageAssignment,
+}
+
+impl StaticPredicateHead {
+    /// Heads that continue a predicate list after a serial comma.
+    fn continues_serial_list(self) -> bool {
+        matches!(
+            self,
+            Self::Combat | Self::ModifyStats | Self::Grant | Self::Copula(_)
+        )
+    }
+}
+
+/// The predicate head at the cursor, read from the verb lexicon.
+fn static_predicate_head(cursor: &OracleTokenCursor<'_>) -> Option<StaticPredicateHead> {
+    use crate::oracle::canonical::automata::{
+        Auxiliary, VerbAgreement, VerbForm, VerbLemma, copula_agreement, lookup_auxiliary,
+        lookup_effect_verb,
+    };
+    if combat_clause_starts(cursor) {
+        return Some(StaticPredicateHead::Combat);
+    }
+    let raw = cursor.peek()?;
+    if let Some(agreement) = copula_agreement(raw) {
+        return Some(StaticPredicateHead::Copula(match agreement {
+            VerbAgreement::ThirdPersonSingular => TypeChangeNumber::Singular,
+            VerbAgreement::Base => TypeChangeNumber::Plural,
+        }));
+    }
+    if let Some((auxiliary, _)) = lookup_auxiliary(raw) {
+        return match auxiliary {
+            Auxiliary::DoNot => Some(StaticPredicateHead::NegatedDo),
+            Auxiliary::Can => Some(StaticPredicateHead::Ability),
+            Auxiliary::May | Auxiliary::Cannot | Auxiliary::Would | Auxiliary::Must => None,
+        };
+    }
+    let (entry, forms) = lookup_effect_verb(raw)?;
+    if !forms.contains(&VerbForm::Base) && !forms.contains(&VerbForm::ThirdPersonSingular) {
+        return None;
+    }
+    match entry.lemma {
+        VerbLemma::Get => Some(StaticPredicateHead::ModifyStats),
+        VerbLemma::Have => Some(StaticPredicateHead::Grant),
+        VerbLemma::Enter => Some(StaticPredicateHead::Entry),
+        VerbLemma::Lose => Some(StaticPredicateHead::AbilityLoss),
+        VerbLemma::Assign => Some(StaticPredicateHead::DamageAssignment),
+        _ => None,
+    }
+}
 
 /// `you control ATTACHED-PERMANENT.` (CR 613.1b): the control-changing
 /// effect of an Aura over the permanent it enchants. The object is read with
@@ -477,8 +542,11 @@ fn recognize_optional_turn_condition(
         return Ok(None);
     }
     cursor.enter("static.continuous.turn-condition");
-    let not_your_turn =
-        BooleanConditionNode::Atom(StaticConditionAtom::Local(LocalConditionNode::NotYourTurn));
+    let not_your_turn = BooleanConditionNode::Atom(ConditionAtom::TurnOwnership(
+        ControllerTurnPropositionNode {
+            is_controller_turn: false,
+        },
+    ));
     if cursor
         .peek_ahead(1)
         .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
@@ -560,20 +628,12 @@ fn read_negated_have(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.consume("have")
 }
 
-fn predicate_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
-    cursor.peek_ahead(offset).is_some_and(|raw| {
-        PREDICATE_VERBS
-            .iter()
-            .any(|verb| raw.eq_ignore_ascii_case(verb))
-    })
-}
-
-/// A predicate verb, or the start of the shared combat clause, at `offset`.
+/// A predicate that continues a serial list (`get`, `have`, the copula or
+/// the shared combat clause) at `offset`.
 fn predicate_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
-    predicate_verb_at(cursor, offset) || {
-        let mut ahead = cursor.clone();
-        ahead.advance_to(ahead.position() + offset).is_ok() && combat_clause_starts(&ahead)
-    }
+    let mut ahead = cursor.clone();
+    ahead.advance_to(ahead.position() + offset).is_ok()
+        && static_predicate_head(&ahead).is_some_and(StaticPredicateHead::continues_serial_list)
 }
 
 /// `, VERB` or `, and VERB` continues the predicate list of the same subject.
@@ -642,13 +702,15 @@ fn lower_static_quoted_ability(
     ability: QuotedAbilityNode,
 ) -> MachineResult<Value> {
     cursor.enter("static.continuous.quoted-ability");
-    cursor.require(
-        matches!(
-            ability.rule["kind"].as_str(),
-            Some("activatedAbility" | "manaAbility")
-        ),
-        "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
-    )?;
+    if !matches!(
+        ability.rule["kind"].as_str(),
+        Some("activatedAbility" | "manaAbility")
+    ) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
+            "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
+        ));
+    }
     Ok(json!({
         "kind": "grantActivatedAbility",
         "objects": objects.clone(),

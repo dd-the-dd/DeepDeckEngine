@@ -12,7 +12,7 @@
 //! Oracle order. Retention is carried as data (CR 205.1b), never inferred
 //! again by a lowering parent. The final `It's still a TYPE` sentence belongs
 //! to this effect; the enclosing sequence keeps its own final terminator.
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::canonical::automata::VerbLemma;
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, lookup_card_color, lookup_creature_subtype_tokens, lookup_permanent_card_type,
 };

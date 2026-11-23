@@ -85,6 +85,7 @@ fn cast(
 ) -> Result<(), EngineError> {
     engine.cast_canonical_spell(
         &CanonicalSpellCast {
+            source_zone: None,
             controller_id: actor.into(),
             source_definition_id: id.into(),
             use_alternative_cost: false,

@@ -592,6 +592,48 @@
           }
         ]
       }
+    },
+    {
+      "id": "dying-object-is-not-a-nominal-reference",
+      "request": {
+        "cardName": "Amulet of Vigor",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "Whenever a creature you control dies, tap that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "entering-controller-does-not-scope-the-dies-branch",
+      "request": {
+        "cardName": "Union Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature enters under your control or dies, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.transition-union"
+          }
+        ]
+      }
     }
   ]
 }

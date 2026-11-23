@@ -282,6 +282,36 @@ impl GameEngine {
                     }
                 }
             }
+            // `distinctFrom`: a later slot's objects are not an earlier
+            // slot's (CR 115.3), compared by joint identity like the groups.
+            for (later, earlier_slots) in super::distinct_slot_relations(rule) {
+                let owned = |slot: &str| {
+                    stack
+                        .targets
+                        .keys()
+                        .filter(|key| super::owning_target_slot(rule, key) == Some(slot))
+                        .cloned()
+                        .collect::<Vec<_>>()
+                };
+                let later_keys = owned(later);
+                for earlier in earlier_slots {
+                    let earlier_keys = owned(earlier);
+                    let affected = later_keys
+                        .iter()
+                        .chain(&earlier_keys)
+                        .any(|key| replaced.iter().any(|changed| changed == key));
+                    if !affected {
+                        continue;
+                    }
+                    for key in &later_keys {
+                        for prior in &earlier_keys {
+                            if self.same_joint_identity(stack, key, prior)? {
+                                return Ok(false);
+                            }
+                        }
+                    }
+                }
+            }
             for group in rule["distinctTargets"].as_array().into_iter().flatten() {
                 let keys = group
                     .as_array()

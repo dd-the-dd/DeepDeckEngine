@@ -197,3 +197,92 @@ fn attacked_this_turn_counts_the_controllers_declared_attackers() {
     engine.record_event("attackerDeclared", Some("player-0".into()), None, json!({}));
     assert!(holds(&engine));
 }
+
+fn opponents_of_controller() -> Value {
+    json!({"kind":"opponentsOf","player":{"kind":"controllerOf","object":{"kind":"self"}}})
+}
+
+#[test]
+fn event_history_player_relations_are_resolved_not_read_as_the_controller() {
+    // `an opponent searched their library this turn`.
+    let mut engine = engine_with_source(compare(
+        ">=",
+        json!({"kind":"countEventsThisTurn","event":"librarySearched",
+            "player":opponents_of_controller(),"where":null}),
+        1,
+    ));
+    engine.record_event("librarySearched", Some("player-0".into()), None, json!({}));
+    assert!(
+        !holds(&engine),
+        "the controller's own search is not an opponent's"
+    );
+    engine.record_event("librarySearched", Some("player-1".into()), None, json!({}));
+    assert!(holds(&engine));
+}
+
+#[test]
+fn event_history_filters_never_fall_through_to_every_event() {
+    // A filter the recorded type line cannot answer reads the event's card;
+    // with no card, the count is unevaluable and the condition is false.
+    let mut engine = engine_with_source(compare(
+        ">=",
+        json!({"kind":"countEventsThisTurn","event":"permanentDied",
+            "where":{"kind":"isToken"}}),
+        1,
+    ));
+    engine.record_event(
+        "permanentDied",
+        Some("player-1".into()),
+        Some("vanished-object".into()),
+        json!({"typeLine":"Creature - Elf"}),
+    );
+    assert!(!holds(&engine), "an unevaluable filter never matches");
+    // A battlefield-state atom is refused at the executable boundary.
+    assert!(!condition_supported(&compare(
+        ">=",
+        json!({"kind":"countEventsThisTurn","event":"permanentDied",
+            "where":{"kind":"isTapped"}}),
+        1,
+    )));
+    // Unknown measures and aggregates are refused, not defaulted.
+    assert!(!condition_supported(&compare(
+        ">=",
+        json!({"kind":"countEventsThisTurn","event":"lifeLost","measure":"median"}),
+        1,
+    )));
+}
+
+#[test]
+fn event_history_measures_sum_recorded_amounts_per_player_relation() {
+    // `an opponent was dealt damage this turn`: damage to a creature has no
+    // event player and never counts for a player relation.
+    let mut engine = engine_with_source(compare(
+        ">=",
+        json!({"kind":"countEventsThisTurn","event":"damageDealt",
+            "player":opponents_of_controller(),"where":null,"measure":"amount"}),
+        1,
+    ));
+    engine.record_event(
+        "damageDealt",
+        None,
+        Some("some-creature".into()),
+        json!({"amount":3,"combat":true}),
+    );
+    engine.record_event(
+        "damageDealt",
+        Some("player-0".into()),
+        None,
+        json!({"amount":2,"combat":false}),
+    );
+    assert!(
+        !holds(&engine),
+        "creature damage and the controller's damage are not an opponent's"
+    );
+    engine.record_event(
+        "damageDealt",
+        Some("player-1".into()),
+        None,
+        json!({"amount":1,"combat":false}),
+    );
+    assert!(holds(&engine));
+}

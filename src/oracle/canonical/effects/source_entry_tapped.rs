@@ -138,11 +138,11 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_state(
                 previous_action_result: None,
             },
         )?;
-        // `unless P` is `if not P`; a negated proposition folds back to P.
-        rule["condition"] = match (clause.unless, condition["kind"].as_str()) {
-            (true, Some("not")) => condition["operand"].clone(),
-            (true, _) => not(condition),
-            (false, _) => condition,
+        // `unless P` is `if not P` (shared negation folds).
+        rule["condition"] = if clause.unless {
+            negation(condition)
+        } else {
+            condition
         };
     }
     Ok(draft(

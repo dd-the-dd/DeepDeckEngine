@@ -1,6 +1,6 @@
-use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
+use super::super::{ChildOutcome, MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, GrantedKeyword, ObjectControllerScope, ResourcePaymentNode, TargetListNode,
+    EffectDurationNode, GrantedKeyword, ResourcePaymentNode, TargetListNode,
     recognize_controlled_object_set, recognize_target_list,
     recognize_trailing_or_supplied_duration,
 };
@@ -13,8 +13,8 @@ mod reminder;
 use reminder::recognize_optional_keyword_reminder;
 
 pub(in crate::oracle::canonical) use quoted_ability::{
-    GRANTED_OBJECT_TYPE_LINE, QuotedAbilityNode, quoted_sentence_just_closed,
-    recognize_quoted_ability,
+    GRANTED_OBJECT_TYPE_LINE, QuotedAbilityNode, quoted_ability_starts,
+    quoted_sentence_just_closed, recognize_quoted_ability, recognize_quoted_single_item,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,8 +203,30 @@ fn recognize_keyword_atom(
     resource_commitment: &mut KeywordResourceCommitment,
 ) -> MachineResult<KeywordAtomNode> {
     if let Some(type_line) = quoted_type_line
-        && cursor.peek() == Some("\"")
+        && quoted_ability_starts(cursor)
     {
+        // A quote that holds one keyword grants that keyword (CR 702.21a
+        // ward, CR 113.1): it shares the unquoted atom's grant instead of
+        // being compiled as an opaque granted ability.
+        match recognize_quoted_single_item(cursor, |trial| {
+            let mut commitment = KeywordResourceCommitment::None;
+            match recognize_keyword_atom(trial, allow_parameterized, None, &mut commitment) {
+                Ok(atom) => ChildOutcome::Matched(atom),
+                Err(failure) if matches!(commitment, KeywordResourceCommitment::Failed) => {
+                    ChildOutcome::Committed(failure)
+                }
+                Err(failure) => ChildOutcome::NoMatch(failure),
+            }
+        }) {
+            ChildOutcome::Matched(atom) => return Ok(atom),
+            // A parameterized keyword head committed inside the quote: its
+            // diagnostic is the quote's, not the opaque-ability fallback's.
+            ChildOutcome::Committed(failure) => {
+                *resource_commitment = KeywordResourceCommitment::Failed;
+                return Err(failure);
+            }
+            ChildOutcome::NoMatch(_) => {}
+        }
         return recognize_quoted_ability(cursor, type_line).map(KeywordAtomNode::Quoted);
     }
     if allow_parameterized

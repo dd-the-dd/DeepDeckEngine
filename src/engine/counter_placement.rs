@@ -174,9 +174,7 @@ impl GameEngine {
             .iter()
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -204,7 +202,10 @@ impl GameEngine {
                                 })
                             })
                             && rule["event"].get("where").is_none_or(|filter| {
-                                matches_card_filter(&permanent.definition, filter)
+                                matches_card_filter(
+                                    object_predicate::DefinitionView::for_permanent(&permanent),
+                                    filter,
+                                )
                             })
                     })
                     .cloned()

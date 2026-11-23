@@ -85,20 +85,31 @@ pub(in crate::oracle::canonical) fn lower_temporary_keyword_grant(
         }
     };
     let effects =
-        lower_keyword_grant_to_object(&grant.keywords, &grant.abilities, &grant.duration, &object)?;
+        // A declared permanent target is on the battlefield.
+        lower_keyword_grant_to_object(
+            &grant.keywords,
+            &grant.abilities,
+            &grant.duration,
+            &object,
+            true,
+        )?;
     Some(LoweredTemporaryKeywordGrant { decision, effects })
 }
 
 /// A quoted ability is granted as one complete rule of the affected object
 /// (CR 113.1). The engine appends it to the object's rules for the duration,
 /// so only a temporary grant of a triggered, activated or mana rule is
-/// representable; a static rule is accepted only on a single object.
+/// representable; a static rule is accepted only on a single object. An
+/// indefinite grant (`This Saga gains "..."`, CR 611.2a) is recorded on one
+/// object and lost when it changes zones (CR 400.7).
 fn quoted_ability_grantable(rule: &Value, object: &Value, duration: &Value) -> bool {
     let single = matches!(
         object["kind"].as_str(),
         Some("chosenTarget" | "self" | "abilitySource")
     );
-    duration["kind"].as_str() == Some("untilEndOfCurrentTurn")
+    let temporary = duration["kind"].as_str() == Some("untilEndOfCurrentTurn");
+    let indefinite_single = duration["kind"].as_str() == Some("permanent") && single;
+    (temporary || indefinite_single)
         && (single || object["kind"].as_str() == Some("eachPermanent"))
         && match rule["kind"].as_str() {
             Some("triggeredAbility" | "activatedAbility" | "manaAbility") => true,
@@ -107,32 +118,12 @@ fn quoted_ability_grantable(rule: &Value, object: &Value, duration: &Value) -> b
         }
 }
 
-/// The object expressions whose referents are battlefield permanents.
-fn denotes_battlefield_permanent(object: &Value) -> bool {
-    match object["kind"].as_str() {
-        Some(
-            "chosenTarget"
-            | "triggeringPermanent"
-            | "attachedPermanent"
-            | "combatCounterpart"
-            | "eachPermanent"
-            | "self"
-            | "abilitySource",
-        ) => true,
-        Some("observedEventObject") => object["event"].as_str() == Some("permanentEntered"),
-        Some("singleBoundObject" | "boundObject" | "boundObjects") => matches!(
-            object["binding"].as_str(),
-            Some(MOVED_ONTO_BATTLEFIELD_BINDING | CREATED_TOKENS_BINDING)
-        ),
-        _ => false,
-    }
-}
-
 pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
     keywords: &[GrantedKeyword],
     abilities: &[QuotedAbilityNode],
     duration: &EffectDurationNode,
     object: &Value,
+    on_battlefield: bool,
 ) -> Option<Vec<Value>> {
     // An indefinite grant writes to a battlefield permanent (CR 611.2a,
     // 400.7). Only object expressions that denote battlefield permanents
@@ -140,7 +131,7 @@ pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
     // suspend`) stays explicitly unsupported instead of writing nowhere. A
     // spell's own source is refused by the spell program, which knows it is
     // one.
-    if *duration == EffectDurationNode::Indefinite && !denotes_battlefield_permanent(object) {
+    if *duration == EffectDurationNode::Indefinite && !on_battlefield {
         return None;
     }
     let duration = lower_keyword_grant_duration(duration.clone())?;

@@ -416,7 +416,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "selector.predicate.start"
+            "state": "static.combat-restriction.complete",
+            "found": "this"
           }
         ]
       }
@@ -432,11 +433,44 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "unsupported_oracle_ability"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "cantAttack",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "keyword": "cantBlock",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -452,11 +486,52 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "unsupported_oracle_ability"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "attackers": {
+                    "kind": "self"
+                  },
+                  "blockers": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "colorContains",
+                          "value": "Red"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    }
+                  },
+                  "kind": "blockRestriction"
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

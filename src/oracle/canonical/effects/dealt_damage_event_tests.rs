@@ -137,10 +137,11 @@ fn unrepresentable_received_damage_events_fail_at_their_own_state() {
             "Whenever one or more players gain life, draw a card.",
             "trigger.program.player-event-support",
         ),
-        // A trailing qualifier is not swallowed by the damage event.
+        // The turn qualifier is read, not swallowed: the damage matcher
+        // has no turn relation, so the event is an explicit engine gap.
         (
             "Whenever an opponent is dealt combat damage during your turn, draw a card.",
-            "trigger.envelope.separator",
+            "engine.gap.event-matcher",
         ),
     ] {
         assert_eq!(failure_state(text), state, "{text}");

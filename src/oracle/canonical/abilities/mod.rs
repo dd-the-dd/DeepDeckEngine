@@ -35,8 +35,6 @@ mod triggered_entry_surveil;
 mod triggered_front_face;
 mod triggered_library;
 
-mod triggered_targeting;
-
 pub(super) use activated_library_search_native::*;
 pub(super) use activated_native::*;
 pub(super) use additional_cost_native::*;
@@ -72,5 +70,3 @@ pub(super) use triggered_entry_surveil::*;
 
 pub(super) use triggered_front_face::*;
 pub(super) use triggered_library::*;
-
-pub(super) use triggered_targeting::*;

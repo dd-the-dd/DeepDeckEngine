@@ -1,5 +1,8 @@
-//! Proposed identity-bound numeric LKI core. Staging only; not integrated.
-//! Declaration records identity. Only an actual departure records values.
+//! Object last known information (CR 608.2h, 400.7): the identity-bound
+//! snapshot of a declared object (mana value, power, toughness, controller,
+//! owner) that the one binding environment's references read once the
+//! object left its zone. Declaration records identity; only an actual
+//! departure records values. A matching current incarnation always wins.
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Compatibility name for the shared object identity; numeric LKI remains BF-only.
@@ -239,5 +242,5 @@ impl TargetNumericContexts {
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4")
 ))]
-#[path = "target_numeric_lki_tests.rs"]
+#[path = "object_lki_tests.rs"]
 mod tests;

@@ -70,6 +70,40 @@ fn recognize_source_trigger_envelope_attempt(
     if cursor.consume(&trigger).is_err() {
         return SourceTriggerEnvelopeAttempt::NotClaimed;
     }
+    match recognize_source_trigger_event_attempt(cursor, name_links, name_failure) {
+        SourceTriggerEnvelopeAttempt::Recognized(mut node) => {
+            cursor.enter("trigger.source-program.separator");
+            if let Err(failure) = cursor.consume(",") {
+                return SourceTriggerEnvelopeAttempt::Unpromoted(failure);
+            }
+            node.body_start = cursor.position();
+            SourceTriggerEnvelopeAttempt::Recognized(node)
+        }
+        outcome => outcome,
+    }
+}
+
+/// The source transition after the trigger word, for the shared event
+/// clause (`event_clause.rs`), which owns the trigger word and separator.
+/// `body_start` is the position after the event; the clause updates it.
+pub(in crate::oracle::canonical) fn try_recognize_source_trigger_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> SourceTriggerEnvelopeAttempt {
+    let checkpoint = cursor.checkpoint();
+    let outcome = recognize_source_trigger_event_attempt(cursor, name_links, name_failure);
+    if matches!(outcome, SourceTriggerEnvelopeAttempt::NotClaimed) {
+        cursor.rollback(checkpoint);
+    }
+    outcome
+}
+
+fn recognize_source_trigger_event_attempt(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> SourceTriggerEnvelopeAttempt {
     cursor.enter("trigger.source-program.source");
     let source = match recognize_source_reference(cursor, name_links, name_failure) {
         Ok(source @ LocalObjectReference::SourceSelf) => source,
@@ -137,10 +171,6 @@ fn recognize_source_trigger_envelope_attempt(
             return SourceTriggerEnvelopeAttempt::Unpromoted(failure);
         }
         alternative = Some(other);
-    }
-    cursor.enter("trigger.source-program.separator");
-    if let Err(failure) = cursor.consume(",") {
-        return SourceTriggerEnvelopeAttempt::Unpromoted(failure);
     }
     SourceTriggerEnvelopeAttempt::Recognized(SourceTriggerEnvelopeNode {
         source,

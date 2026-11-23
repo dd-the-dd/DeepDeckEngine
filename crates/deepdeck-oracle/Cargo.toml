@@ -2,6 +2,9 @@
 name = "deepdeck-oracle"
 version = "0.1.0"
 edition = "2024"
+# `examples/audit_parser_set_tests.rs` is a test module of the audit example,
+# not an example of its own.
+autoexamples = false
 
 [features]
 default = ["parser-standalone"]
@@ -31,3 +34,15 @@ path = "src/lib.rs"
 name = "audit_parser_set"
 path = "examples/audit_parser_set.rs"
 required-features = ["audit-cli"]
+
+[[example]]
+name = "analyze_local_abilities"
+path = "examples/analyze_local_abilities.rs"
+
+[[example]]
+name = "debug_oracle"
+path = "examples/debug_oracle.rs"
+
+[[example]]
+name = "export_traced_cards"
+path = "examples/export_traced_cards.rs"

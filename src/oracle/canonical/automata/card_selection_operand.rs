@@ -3,8 +3,9 @@ use super::card_collection_operand::{
     CardCollectionReferenceNode, CollectionOperandAttempt, try_recognize_card_collection_reference,
 };
 use super::{
-    NumericExpression, ObjectKind, ObjectPredicate, RecognizedEffectFragment,
-    recognize_numeric_expression, recognize_object_query,
+    ChosenObjectQuantity, NumericExpression, ObjectDeterminer, ObjectKind, ObjectPredicate,
+    ObjectQueryContext, RecognizedEffectFragment, recognize_object_determiner,
+    recognize_object_noun_query,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,26 +62,25 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
     let mut committed = false;
     let result = (|| -> MachineResult<CardSelectionOperandNode> {
         trial.enter("collection.selection.quantity");
-        let quantity = match trial.peek().map(str::to_ascii_lowercase).as_deref() {
-            Some("a" | "an") => {
-                let article = trial.peek().unwrap().to_owned();
-                trial.consume(&article)?;
-                CardSelectionQuantityNode::Exactly(NumericExpression::from(1))
-            }
-            Some("any") => {
-                trial.consume_phrase(&["any", "number"])?;
-                CardSelectionQuantityNode::AnyNumber
-            }
-            Some("all") => {
-                trial.consume("all")?;
+        // The shared object determiner reads the quantity; a phrase without
+        // a selection determiner is not this operand (no numeric misread).
+        let quantity = match recognize_object_determiner(&mut trial)? {
+            Some(ObjectDeterminer::Chosen {
+                quantity,
+                another: false,
+            }) => match quantity {
+                ChosenObjectQuantity::Exactly(count) => CardSelectionQuantityNode::Exactly(count),
+                ChosenObjectQuantity::UpTo(count) => CardSelectionQuantityNode::UpTo(count),
+                ChosenObjectQuantity::AnyNumber => CardSelectionQuantityNode::AnyNumber,
+            },
+            Some(ObjectDeterminer::Universal { each: false }) => {
                 CardSelectionQuantityNode::All { via: None }
             }
-            Some("up") => {
-                trial.consume_phrase(&["up", "to"])?;
-                CardSelectionQuantityNode::UpTo(recognize_numeric_expression(&mut trial, None)?)
-            }
             _ => {
-                CardSelectionQuantityNode::Exactly(recognize_numeric_expression(&mut trial, None)?)
+                trial.enter("collection.selection.quantity.determiner");
+                return Err(trial.fail(
+                    "a selection quantity: `a`, a count, `up to` a count, `any number`, or `all`",
+                ));
             }
         };
         trial.enter("collection.selection.predicate-or-source");
@@ -111,14 +111,13 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
         } else {
             // A comma continues a coordinated type list (`an artifact,
             // instant, or sorcery card`); any other comma is the parent's.
-            let query = recognize_object_query(&mut trial)?;
+            let query = recognize_object_noun_query(&mut trial, ObjectQueryContext::ORDINARY)?;
             trial.require(
-                query.controller.is_none(),
+                query.relations().is_empty(),
                 "an unscoped predicate over the bound card collection",
             )?;
             trial.require(
-                query.predicate.has_domain(ObjectKind::Card)
-                    && query.predicate.supports_domain(ObjectKind::Card),
+                query.predicate().is_in_domain(ObjectKind::Card),
                 "an explicit card-domain predicate",
             )?;
             trial.enter("collection.selection.source-relation");
@@ -146,7 +145,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
                 trial.consume_phrase(&["from", "among"])?;
             }
             committed = true;
-            Some(query.predicate)
+            Some(query.predicate().clone())
         };
         if zone_source {
             return Ok(CardSelectionOperandNode {

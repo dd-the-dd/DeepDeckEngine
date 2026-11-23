@@ -118,10 +118,11 @@ fn characteristic_numeric_anaphor_must_resolve_to_the_prior_count() {
     );
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
-    let diagnostics = serde_json::to_string(&parsed.abilities[0].diagnostics)
-        .expect("structured diagnostics serialize");
-    assert!(diagnostics.contains("numeric"));
-    assert!(diagnostics.contains("that"));
+    // `another number` is no anaphor of the prior count: the numeric child
+    // rejects it at its first token instead of borrowing that count.
+    let diagnostic = &parsed.abilities[0].diagnostics[0];
+    assert_eq!(diagnostic.state.as_deref(), Some("numeric.atom.start"));
+    assert_eq!(diagnostic.found.as_deref(), Some("another"));
 }
 
 #[test]

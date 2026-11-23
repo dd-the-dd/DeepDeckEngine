@@ -167,7 +167,7 @@ impl GameEngine {
                                     .flat_map(|p| &p.battlefield)
                                     .any(|c| {
                                         c.definition
-                                            .rules
+                                            .printed_rules()
                                             .iter()
                                             .any(|rule| rule.get("modifiers").is_some())
                                             || !c.counters.is_empty()

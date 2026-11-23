@@ -142,7 +142,7 @@ fn near_misses_fail_at_a_precise_state() {
         // A collection source is a continuous scope, not one object.
         (
             "Prevent all damage that would be dealt to you this turn by attacking creatures without flying.",
-            "reference.source.start",
+            "effect.prevent.party.reference",
         ),
         // A collection recipient.
         (

@@ -172,7 +172,7 @@ impl GameEngine {
         let mut combined = vec![Vec::new()];
         let mut found_trigger = false;
         for attachment in attachments {
-            for rule in attachment.definition.rules.iter().filter(|rule| {
+            for rule in attachment.definition.printed_rules().iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && value_kind(&rule["event"]) == Some("attachedPermanentManaAbilityActivated")
                     && self.rule_active_for_source(attachment, rule)
@@ -471,7 +471,7 @@ impl GameEngine {
                                 .iter()
                                 .filter(|candidate| {
                                     self.permanent_is_creature(candidate)
-                                        && (has_keyword(&candidate.definition, "changeling")
+                                        && (self.permanent_has_keyword(candidate, "changeling")
                                             || type_line_contains(
                                                 &candidate.definition.type_line,
                                                 chosen_type,
@@ -878,7 +878,7 @@ impl GameEngine {
             .collect::<BTreeSet<_>>();
         for effect in permanent
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("manaAbility"))
             .flat_map(|rule| rule["effects"].as_array().into_iter().flatten())

@@ -87,8 +87,26 @@ pub(in crate::oracle::canonical) fn permanent_antecedent(
 
 /// Resolve only proved lexical/event subjects. The legacy owner fallback above
 /// remains available to existing consumers until each is requalified explicitly.
+/// The antecedent an action may operate on: a departed event subject
+/// (`a creature dies`) is no permanent any more (CR 400.7).
 pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
     context: &EffectRecognitionContext,
+) -> Option<PermanentEffectReference> {
+    proven_antecedent(context, false)
+}
+
+/// The antecedent a condition, a property or a player relation reads: a
+/// departed event subject still answers by last known information (CR
+/// 608.2h), so `if it was enchanted` or `its controller` keep it.
+pub(in crate::oracle::canonical) fn proven_read_antecedent(
+    context: &EffectRecognitionContext,
+) -> Option<PermanentEffectReference> {
+    proven_antecedent(context, true)
+}
+
+fn proven_antecedent(
+    context: &EffectRecognitionContext,
+    include_departed: bool,
 ) -> Option<PermanentEffectReference> {
     let reference = match context.permanent_subject_scope {
         PermanentSubjectScope::Local(reference) => reference,
@@ -97,7 +115,8 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
                 Some(PermanentEffectReference::Source(source))
             }
             // Without a source subject, `it` names the event's observed
-            // object, else the object that is the event's subject.
+            // object, else the object that is the event's subject while it is
+            // still a permanent (a dying object is the event's card instead).
             SourceAnaphorBinding::Unproved => context
                 .observed_event_object
                 .map(PermanentEffectReference::Observed)
@@ -106,7 +125,7 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
                         .frame
                         .event_object
                         .as_ref()
-                        .filter(|slot| slot.subject)
+                        .filter(|slot| slot.subject && (include_departed || !slot.departed))
                         .map(|slot| slot.reference)
                 }),
         },
@@ -216,10 +235,13 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             | super::SingularPlayerAction::Mill(_)
             | super::SingularPlayerAction::Discard(_) => previous,
             // Counters on a player change no permanent.
-            super::SingularPlayerAction::Counters(_) => previous,
+            super::SingularPlayerAction::Counters(_) | super::SingularPlayerAction::Scry(_) => {
+                previous
+            }
             super::SingularPlayerAction::Sacrifice(_)
             | super::SingularPlayerAction::Venture(_)
             | super::SingularPlayerAction::Proliferate
+            | super::SingularPlayerAction::CreateTokens(_)
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
             // A hand action changes no permanent: the subject antecedent stays.
             super::SingularPlayerAction::Hand(_) => previous,
@@ -480,9 +502,11 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         )?;
         return Ok(PermanentOperandNode::Targets(targets));
     }
-    // A bare plural collection (`other creatures you control`): the shared
-    // collection frame reads its optional source exclusion. This lookahead
-    // only decides whether a characteristic head follows.
+    // A bare plural collection (`other creatures you control`, `attacking
+    // creatures`, `tapped creatures`; #18 object-set subject): the shared
+    // collection frame reads its optional source exclusion and its state
+    // adjectives. This lookahead only decides whether a characteristic or
+    // state head follows.
     let head_offset = usize::from(
         cursor
             .peek()
@@ -497,7 +521,12 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         .is_some_and(|token| {
             matches!(
                 token.token_type.as_str(),
-                "typeWord" | "negativeTypeWord" | "supertypeWord" | "colorWord"
+                "typeWord"
+                    | "negativeTypeWord"
+                    | "supertypeWord"
+                    | "colorWord"
+                    | "stateWord"
+                    | "combatStateWord"
             )
         })
     {

@@ -115,13 +115,16 @@ fn read_static_damage_prevention(
             Ok(modifier)
         }
         Some(query) => {
-            cursor.require(
-                !combat_only
-                    && objects == self_ref()
-                    && query.controller.is_none()
-                    && query.predicate == ObjectPredicate::CardType(ObjectCardType::Creature),
-                "damage from creature sources to the ability's own source (the engine evaluates no other source-scoped static prevention)",
-            )?;
+            if !(!combat_only
+                && objects == self_ref()
+                && query.controller.is_none()
+                && query.predicate == ObjectPredicate::CardType(ObjectCardType::Creature))
+            {
+                return Err(cursor.engine_gap(
+                    crate::oracle::canonical::engine_gap::EngineGap::SourceScopedPrevention,
+                    "damage from creature sources to the ability's own source (the engine evaluates no other source-scoped static prevention)",
+                ));
+            }
             Ok(json!({ "kind": "preventCreatureDamageToSelf", "object": objects }))
         }
     }

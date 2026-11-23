@@ -398,7 +398,10 @@ impl GameEngine {
                             &effect["player"],
                             &stack_object.card,
                             &permanent.controller,
-                        ) && matches_card_filter(&permanent.definition, &effect["where"])
+                        ) && matches_card_filter(
+                            object_predicate::DefinitionView::for_permanent(permanent),
+                            &effect["where"],
+                        )
                     })
                     .map(|permanent| permanent.instance_id.clone())
                     .collect::<Vec<_>>();

@@ -74,7 +74,7 @@ impl GameEngine {
         }
         self.state.players.get(player_index).is_some_and(|player| {
             player.battlefield.iter().any(|source| {
-                source.definition.rules.iter().any(|rule| {
+                source.definition.printed_rules().iter().any(|rule| {
                     value_kind(rule) == Some("manaAbility")
                         && self.mana_production_requires_postcost(Some(rule))
                 })

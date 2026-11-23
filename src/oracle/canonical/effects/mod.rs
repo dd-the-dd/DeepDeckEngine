@@ -58,9 +58,7 @@ mod program_resolution;
 mod rebound;
 mod sacrifice;
 mod sentence_condition;
-mod static_condition;
 mod trigger_event;
-mod trigger_guard;
 mod trigger_program;
 mod zone_prohibition;
 
@@ -215,7 +213,6 @@ pub(super) use quantified_player_action::*;
 
 pub(super) use become_types::*;
 pub(super) use continuous_type_change::*;
-pub(super) use keyword_grant::*;
 pub(super) use labeled_activated_zone_change::*;
 pub(super) use land_play_trigger::*;
 pub(super) use landfall_reflexive_counter::*;
@@ -294,10 +291,7 @@ pub(super) use zone_change_search::*;
 pub(super) use zone_change_token::*;
 
 pub(super) use player_condition::*;
-pub(super) use sentence_condition::*;
-pub(super) use static_condition::*;
 pub(super) use trigger_event::*;
-pub(super) use trigger_guard::*;
 pub(super) use trigger_program::*;
 
 mod permanent_subject;

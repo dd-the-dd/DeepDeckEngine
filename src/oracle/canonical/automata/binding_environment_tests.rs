@@ -264,6 +264,28 @@ fn it_names_the_object_that_is_the_event_subject() {
         "Whenever a creature you control deals combat damage to a creature, tap it.",
     );
     assert_ne!(status, "canonical");
+    // Near miss: a bare `it` of a dying creature is no permanent an action
+    // can operate on (CR 400.7); its last known information stays readable.
+    let (status, _, _) = parse(
+        ENCHANTMENT,
+        "Whenever a creature you control dies, untap it.",
+    );
+    assert_ne!(status, "canonical");
+    // The same near miss through the nominal anaphor: `that creature` of a
+    // dying creature names no permanent either, for any operating action.
+    for oracle in [
+        "Whenever a creature you control dies, tap that creature.",
+        "Whenever a creature dies, this enchantment deals 1 damage to that creature.",
+    ] {
+        let (status, _, states) = parse(ENCHANTMENT, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+        assert!(
+            states
+                .iter()
+                .any(|state| state.contains("nominal-anaphor") || state.contains("reference")),
+            "{oracle}: {states:?}"
+        );
+    }
 }
 
 /// Every numeric leaf of the rules whose kind is a property read.
@@ -646,4 +668,64 @@ fn another_players_permission_and_its_outcome_connector() {
     // Near miss: no event records a player.
     let (status, _, _) = parse(CREATURE, "{T}: That player may draw a card.");
     assert_ne!(status, "canonical");
+}
+
+/// The ActionResult antecedent resolves an outcome connector: its subject
+/// must name the producer's performer, and nothing resolves without one.
+#[test]
+fn outcome_connector_subject_agrees_with_the_action_result_performer() {
+    use super::super::super::OracleTokenCursor;
+    use super::{
+        ActionResultSlot, OutcomePerformer, PerformanceOutcome, recognize_outcome_connector,
+        recognize_outcome_connector_after,
+    };
+    use crate::oracle::syntax::recognize_entities;
+
+    let read = |text: &str, performer: Option<OutcomePerformer>| {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("outcome-connector-test", &tokens);
+        match performer {
+            Some(performer) => {
+                recognize_outcome_connector_after(&mut cursor, ActionResultSlot { performer })
+            }
+            None => recognize_outcome_connector(&mut cursor),
+        }
+    };
+    for (text, performer, outcome) in [
+        (
+            "If you do,",
+            OutcomePerformer::Controller,
+            PerformanceOutcome::Performed,
+        ),
+        (
+            "If they don't,",
+            OutcomePerformer::OtherPlayer,
+            PerformanceOutcome::Declined,
+        ),
+        (
+            "When that player does,",
+            OutcomePerformer::OtherPlayer,
+            PerformanceOutcome::Reflexive,
+        ),
+        // A mandatory instruction's performer is its own subject.
+        (
+            "When they do,",
+            OutcomePerformer::Instruction,
+            PerformanceOutcome::Reflexive,
+        ),
+    ] {
+        assert_eq!(read(text, Some(performer)).unwrap(), outcome, "{text}");
+    }
+    // Near misses: a subject naming another performer, or no antecedent.
+    for (text, performer) in [
+        ("If they do,", Some(OutcomePerformer::Controller)),
+        ("If you do,", Some(OutcomePerformer::OtherPlayer)),
+        ("If you do,", None),
+    ] {
+        assert_eq!(
+            read(text, performer).unwrap_err().state,
+            "binding.action-result.performer",
+            "{text}"
+        );
+    }
 }

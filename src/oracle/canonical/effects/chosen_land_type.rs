@@ -72,8 +72,9 @@ pub(in crate::oracle::canonical) fn parse_promoted_chosen_land_type_entry(
     cursor.require(
         matches!(
             &node.unpaid_entry.condition,
-            LocalConditionNode::CostNotPaid { payment }
-                if *payment == node.payment.binding
+            BooleanConditionNode::Atom(ConditionAtom::ActionOutcome(
+                ActionOutcomeNode::CostNotPaid { payment }
+            )) if *payment == node.payment.binding
         ),
         "the unpaid condition linked to the optional life payment",
     )?;
@@ -86,7 +87,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_chosen_land_type_entry(
     let _object_kind = node.object_kind;
     let land_type_id = lower_choice_binding(node.choice.binding);
     let payment_id = lower_choice_binding(node.payment.binding);
-    let unpaid_condition = lower_local_condition(&node.unpaid_entry.condition);
+    let unpaid_condition = lower_condition(&node.unpaid_entry.condition);
     let choice_player = lower_player(&node.choice.player);
     let payment_player = lower_player(&node.payment.player);
     let trace = cursor

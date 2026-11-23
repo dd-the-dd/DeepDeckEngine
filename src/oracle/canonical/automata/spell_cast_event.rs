@@ -1,8 +1,7 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EventActorScope, ObjectKind, ObjectPredicate, SpellCastQueryNode, TriggeringPlayerBinding,
-    object_predicate_uses_x, recognize_ordinal_atom, recognize_spell_cast_query,
-    try_recognize_event_actor_scope,
+    object_predicate_uses_x, recognize_ordinal_atom, try_recognize_event_actor_scope,
 };
 
 /// Compatibility name for existing cast consumers. The subject parser and
@@ -53,12 +52,9 @@ pub(in crate::oracle::canonical) struct SpellOriginNode {
     pub own_zone: bool,
 }
 
-/// `during your turn` / `during an opponent's turn` (CR 500.1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum SpellTurnNode {
-    ControllerTurn,
-    OpponentTurn,
-}
+/// `during your turn` / `during an opponent's turn` (CR 500.1): the shared
+/// event modifier of `event_modifiers.rs`.
+pub(in crate::oracle::canonical) type SpellTurnNode = super::EventTurnOwner;
 
 /// `that targets [only] T [or T]...`: the spell's targets (CR 115.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -145,18 +141,6 @@ fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<S
         excluded,
         own_zone,
     })
-}
-
-/// Reads `during your turn` or `during an opponent's turn`.
-fn recognize_spell_turn(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTurnNode> {
-    cursor.enter("event.spell-cast.turn");
-    cursor.consume("during")?;
-    if peek_word(cursor, 0, "your") {
-        cursor.consume_phrase(&["your", "turn"])?;
-        return Ok(SpellTurnNode::ControllerTurn);
-    }
-    cursor.consume_phrase(&["an", "opponent's", "turn"])?;
-    Ok(SpellTurnNode::OpponentTurn)
 }
 
 fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -250,7 +234,9 @@ pub(in crate::oracle::canonical) fn recognize_spell_cast_event_atom(
         .ok_or_else(|| cursor.fail("a supported spell-cast event atom"))
 }
 
-fn recognize_optional_spell_cast_event_atom(
+/// The cast clause after the trigger word, without the envelope separator.
+/// `Ok(None)` when no actor-cast clause starts at the cursor.
+pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
     cursor: &mut OracleTokenCursor<'_>,
     ordinal_support: SpellCastOrdinalSupport,
 ) -> MachineResult<Option<SpellCastEventNode>> {
@@ -342,7 +328,11 @@ fn recognize_optional_spell_cast_event_atom(
                 SpellCastEventState::Query
             }
             SpellCastEventState::Query => {
-                let query = recognize_spell_cast_query(cursor)?;
+                let query = super::recognize_object_noun_query(
+                    cursor,
+                    super::ObjectQueryContext::ORDINARY,
+                )?
+                .into_spell_cast_query(cursor)?;
                 cursor.enter("event.spell-cast.caster-identity");
                 cursor.require(
                     query.caster.is_none(),
@@ -350,8 +340,7 @@ fn recognize_optional_spell_cast_event_atom(
                 )?;
                 cursor.enter("event.spell-cast.spell-domain");
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Spell)
-                        && query.predicate.supports_domain(ObjectKind::Spell),
+                    query.predicate.is_in_domain(ObjectKind::Spell),
                     "an explicit spell-domain ObjectQuery",
                 )?;
                 cursor.enter("event.spell-cast.predicate-binding");
@@ -370,6 +359,21 @@ fn recognize_optional_spell_cast_event_atom(
                     }
                 }
                 let mut query = query;
+                // `an Equipment spell or a spell that targets ...`: a branch
+                // that is the whole spell domain is meaningful only with its
+                // own trailing relative clause, so that clause is local to
+                // the last branch, not a qualifier of the whole union. The
+                // event has one spell predicate and one target relation in
+                // conjunction; the branch-local scope is refused.
+                if peek_word(cursor, 0, "that")
+                    && matches!(&query.predicate, ObjectPredicate::Union(branches)
+                        if branches.contains(&ObjectPredicate::ObjectKind(ObjectKind::Spell)))
+                {
+                    cursor.enter("event.spell-cast.qualifier-scope");
+                    return Err(cursor.fail(
+                        "a relative clause qualifying the whole spell query, not one coordinated branch",
+                    ));
+                }
                 // `that has KEYWORD`: the shared keyword vocabulary as one more
                 // conjunct of the spell predicate (the card's own keywords).
                 if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "has") {
@@ -389,7 +393,7 @@ fn recognize_optional_spell_cast_event_atom(
                     frame.origin = Some(recognize_spell_origin(cursor)?);
                 }
                 if peek_word(cursor, 0, "during") {
-                    frame.turn = Some(recognize_spell_turn(cursor)?);
+                    frame.turn = Some(super::recognize_turn_owner_modifier(cursor)?);
                 }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period
