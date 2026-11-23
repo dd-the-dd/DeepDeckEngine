@@ -3310,14 +3310,18 @@ fn player_reference_supported(reference: &Value) -> bool {
             value_kind(&reference["attachment"]) == Some("self")
         }
         Some("opponentsOf") => player_reference_supported(&reference["player"]),
+        // CR 102.3: every player but the named one, teammates included.
+        Some("playersExcept") => player_complement_reference_supported(reference),
         Some("chosenTarget" | "chosenObject" | "boundValue") => reference["id"].is_string(),
         _ => false,
     }
 }
 
 fn singular_player_reference_supported(reference: &Value) -> bool {
-    !matches!(value_kind(reference), Some("eachPlayer" | "opponentsOf"))
-        && player_reference_supported(reference)
+    !matches!(
+        value_kind(reference),
+        Some("eachPlayer" | "opponentsOf" | "playersExcept")
+    ) && player_reference_supported(reference)
 }
 
 fn player_complement_reference_supported(reference: &Value) -> bool {

@@ -25,7 +25,10 @@ fn initial_another_modifier_retains_source_exclusion_without_prior_targets() {
 }
 
 #[test]
-fn another_modifier_after_prior_targets_is_a_typed_relation_support_limit() {
+fn another_modifier_after_prior_targets_carries_the_typed_relation() {
+    // The later `another target creature` slot carries the typed relation
+    // the card composition resolves against the earlier slots; it is never
+    // silently a bare source exclusion.
     for text in [
         "Target creature gets +2/+2 until end of turn. Another target creature gets -2/-2 until end of turn.",
         "Destroy target artifact. Another target creature gets +2/+2 until end of turn.",
@@ -36,13 +39,16 @@ fn another_modifier_after_prior_targets_is_a_typed_relation_support_limit() {
         let tokens = recognize_oracle_entities(text);
         let mut cursor = OracleTokenCursor::new("later-another-modifier-test", &tokens);
         let sequence = recognize_effect_sequence(&mut cursor, &[], None).expect(text);
-        let EffectSequenceLoweringAttempt::FailedSupport(failure) =
+        let EffectSequenceLoweringAttempt::Lowered(lowered) =
             try_lower_local_effect_sequence(&mut cursor, &sequence)
         else {
-            panic!("missing relation must not become source exclusion: {text}");
+            panic!("the relation is typed, not refused: {text}");
         };
-        assert_eq!(failure.state, "lower.modify-stats.another-target-relation");
-        assert!(failure.expected.contains("distinct-target relation"));
+        let later = lowered.decisions.last().expect("the later target slot");
+        assert_eq!(
+            later["candidates"]["otherThanEarlierTargets"], true,
+            "{text}"
+        );
     }
 }
 
@@ -307,7 +313,7 @@ fn deferred_card_x_context_lowers_references_without_inventing_a_producer() {
 }
 
 #[test]
-fn unimplemented_distinct_target_relation_is_unsupported_in_full_and_native_modes() {
+fn a_distinct_target_relation_is_composed_in_full_and_native_modes() {
     use crate::oracle::{OracleCardParseRequest, parse_oracle_card, parse_oracle_card_native};
     let request = OracleCardParseRequest {
         card_name: "Synthetic Hard Another Relation".into(), type_line: "Sorcery".into(),
@@ -319,22 +325,17 @@ fn unimplemented_distinct_target_relation_is_unsupported_in_full_and_native_mode
         parse_oracle_card_native(request.clone()),
         parse_oracle_card(request),
     ] {
-        assert_eq!(parsed.status, "unsupported");
-        assert!(
-            parsed
-                .abilities
-                .iter()
-                .all(|ability| ability.rule.is_none())
+        assert_eq!(parsed.status, "canonical");
+        let rule = parsed.abilities[0].rule.as_ref().expect("a composed rule");
+        let decisions = rule["declaration"]["decisions"]
+            .as_array()
+            .expect("two slots");
+        assert_eq!(
+            decisions[1]["distinctFrom"],
+            serde_json::json!([decisions[0]["id"]])
         );
-        assert!(
-            parsed
-                .abilities
-                .iter()
-                .any(|ability| ability.diagnostics.iter().any(|diagnostic| {
-                    diagnostic.state.as_deref()
-                        == Some("lower.modify-stats.another-target-relation")
-                }))
-        );
+        assert!(decisions[1]["candidates"].get("excludeSource").is_none());
+        assert!(!rule.to_string().contains("otherThanEarlierTargets"));
     }
 }
 

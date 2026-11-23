@@ -240,3 +240,18 @@ fn morbid_reads_a_creature_death_this_turn_from_oracle_text() {
         assert_eq!(engine.state.players[0].life, life, "died={a_creature_died}");
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn players_except_is_a_supported_player_set_but_not_a_single_player() {
+    // CR 102.3: every player but the controller, teammates included
+    // (lane A's staged support hunk). Near miss: a complement of an
+    // unsupported anchor.
+    let complement = json!({ "kind": "playersExcept", "player": { "kind": "abilityController" } });
+    assert!(player_reference_supported(&complement));
+    assert!(!singular_player_reference_supported(&complement));
+    assert!(!player_reference_supported(&json!({
+        "kind": "playersExcept",
+        "player": { "kind": "randomPlayer" },
+    })));
+}
