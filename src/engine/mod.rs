@@ -12349,6 +12349,16 @@ impl GameEngine {
                 .players
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
+                // Static abilities come only from the printed layer (rule
+                // grants add triggered and activated rules): a source that
+                // prints no prohibition needs no effective-layer query.
+                .filter(|source| {
+                    source
+                        .definition
+                        .printed_rules()
+                        .iter()
+                        .any(|rule| rule_contains_kind(rule, "prohibitActivation"))
+                })
                 .any(|source| {
                     self.effective_rules(&source).iter().any(|rule| {
                         battlefield_static_rule_supported(rule)

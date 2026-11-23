@@ -109,6 +109,17 @@ impl GameEngine {
     /// another zone keeps its printed rules, whose own zone of function is
     /// checked by the observer that reads them (CR 113.6).
     pub(super) fn effective_rules<'a>(&self, object: &'a CardInstance) -> EffectiveRules<'a> {
+        // An object that prints no rule and receives no grant has no rules,
+        // whether or not it functions: skip the battlefield-wide queries.
+        if object.definition.rules.is_empty()
+            && (self.collecting_rule_grants.get() || !self.any_rule_grant_printed())
+        {
+            return EffectiveRules {
+                object,
+                functioning: true,
+                granted: Vec::new(),
+            };
+        }
         let on_battlefield = self.permanent_position(&object.instance_id).is_some();
         let functioning = !self.object_loses_all_abilities(object, on_battlefield);
         let granted = if functioning
