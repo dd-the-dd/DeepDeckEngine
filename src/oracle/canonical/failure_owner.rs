@@ -4,36 +4,41 @@
 //! `selector.predicate.start`, ...) or at the bare entry of the effect frame
 //! (`effect.start`) names no missing concept: those states are sinks that
 //! collect every unrelated blocker that happened to read furthest. The
-//! dispatcher never reports a sink. It reports the owner instead:
+//! dispatcher never leaves a sink unowned: it assigns `MachineFailure::owner`
+//! (published as the diagnostic's `owner`, which rankings group by):
 //!
 //! - for a clause sink, the deepest clause component reached: the subject
 //!   shape, the modality and the lemma (`effect.clause/subject.you.may.verb.pay`,
 //!   `effect.clause/verb-unknown.look`, `effect.clause/introducer.when`);
 //! - for a child sink, the frame that called the child and the class of the
-//!   word the child met (`effect.discard.count/numeric.object-phrase`).
+//!   word the child met (`effect.discard.count/numeric.object-phrase`);
+//! - after a complete action, the frame that read last and the postposed
+//!   modifier it did not read (`selector.predicate.complete/modifier.that`).
 //!
-//! The original child state stays in the trace and the original expectation
-//! stays the prefix of `expected`. Ownership never changes support: an owned
-//! failure is still a failure. Engine gaps (`engine_gap.rs`) are never sinks.
+//! `state`, `expected` and the trace keep the child's precise evidence; only
+//! the owner is added. Ownership never changes support: an owned failure is
+//! still a failure. Engine gaps (`engine_gap.rs`) are never sinks.
 //!
 //! Composed states are built from bounded parts (frame states, lexicon lemmas,
 //! tokenizer classes and sanitized Oracle words) and interned once.
 use super::automata::{
     ALL_LEMMAS, VerbForm, diagnostic_word_key, is_unsupported_rules_verb, lookup_verb,
 };
-use super::machine::{MachineFailure, MachineTransition, OracleTokenCursor, intern_state};
+use super::machine::{MachineFailure, OracleTokenCursor, intern_state};
 use crate::oracle::ability_catalog::{AbilityCategory, match_catalog_mechanic};
 use crate::oracle::model::RecognizedEntity;
 
-/// The historical sink states (roadmap §1.1). Each one is a child's generic
-/// entry or exit state, not a missing concept; none leaves the dispatcher.
-pub(crate) const SINK_STATES: [&str; 6] = [
+/// The sink states: the six of roadmap §1.1 plus the sequence continuation.
+/// Each one is a child's generic entry or exit state, not a missing concept;
+/// none leaves the dispatcher.
+pub(crate) const SINK_STATES: [&str; 7] = [
     "effect.start",
     "numeric.atom.start",
     "selector.predicate.start",
     "target-list.complete",
     "event.ordinal-card-drawn.action",
     "reference.source.unresolved-name",
+    "sequence.connector-or-end",
 ];
 
 /// The frame prefix of every effect-clause owner state.
@@ -49,40 +54,59 @@ pub(crate) fn is_sink_state(state: &str) -> bool {
     SINK_STATES.contains(&state)
 }
 
-/// Replaces a sink state by its owner. Every other failure, including every
-/// engine gap and every committed frame failure, is returned unchanged.
+/// Assigns the owner of a sink failure. Every other failure, including every
+/// engine gap and every committed frame failure, is returned unchanged: its
+/// state already names its owner.
 pub(super) fn assign_failure_owner(
     failure: MachineFailure,
     tokens: &[RecognizedEntity],
 ) -> MachineFailure {
     let owner = match failure.state {
         "effect.start" => {
-            let head = diagnose_clause_head(tokens, failure.token_index);
-            Owner {
-                state: head.state(EFFECT_CLAUSE_FRAME),
-                component: head.component,
-            }
+            diagnose_clause_head(tokens, failure.token_index).state(EFFECT_CLAUSE_FRAME)
         }
         "event.ordinal-card-drawn.action" => event_verb_owner(tokens, failure.token_index),
         "numeric.atom.start" => child_owner(&failure, tokens, ChildSink::Numeric),
         "selector.predicate.start" => child_owner(&failure, tokens, ChildSink::ObjectPredicate),
         "target-list.complete" => child_owner(&failure, tokens, ChildSink::TargetList),
         "reference.source.unresolved-name" => child_owner(&failure, tokens, ChildSink::SourceName),
+        "sequence.connector-or-end" => continuation_owner(&failure, tokens),
         _ => return failure,
     };
-    reown(failure, owner)
+    MachineFailure {
+        owner: Some(owner),
+        ..failure
+    }
 }
 
 /// The effect-clause diagnostic at `start`, as a failure of `cursor`. A
 /// transactional child that returned `NoMatch` hands its clause to this
 /// function instead of reporting the requirement it did not meet. The failure
 /// points at the deepest component (the verb when one was found).
+///
+/// `subject_end` is where the child's subject reader stopped, when it read
+/// one. A subject that stops before its verb (`target creature or player
+/// gets`) is reported there, as the unread word, never at a later verb.
 pub(in crate::oracle::canonical) fn clause_head_failure(
     cursor: &OracleTokenCursor<'_>,
     start: usize,
+    subject_end: Option<usize>,
 ) -> MachineFailure {
     let tokens = cursor.token_slice(0, usize::MAX);
-    let head = diagnose_clause_head(tokens, start);
+    let mut head = diagnose_clause_head(tokens, start);
+    if let (Some(end), Some(subject)) = (subject_end, tokens.get(start).and_then(subject_class))
+        && end > start
+        && !verb_follows_subject(tokens, end, head.verb_index)
+    {
+        let unread = match tokens.get(end) {
+            None => "end-of-input".to_string(),
+            Some(token) => match diagnostic_word_key(&token.raw).as_str() {
+                "unkeyed" => token_class(Some(token)).to_string(),
+                word => word.to_string(),
+            },
+        };
+        head = ClauseHead::new(format!("subject.{subject}.unread.{unread}"), Some(end));
+    }
     let index = head.verb_index.unwrap_or(start);
     let state = head.state(EFFECT_CLAUSE_FRAME);
     let expected = format!(
@@ -103,23 +127,20 @@ pub(in crate::oracle::canonical) fn clause_head_failure(
     }
 }
 
-struct Owner {
-    state: &'static str,
-    component: String,
-}
-
-fn reown(mut failure: MachineFailure, owner: Owner) -> MachineFailure {
-    let child_state = failure.state;
-    failure.trace.push(MachineTransition {
-        state: owner.state,
-        token_index: failure.token_index,
-    });
-    failure.expected = format!(
-        "{} (owner {}: {} reached from {child_state})",
-        failure.expected, owner.state, owner.component
-    );
-    failure.state = owner.state;
-    failure
+/// True when the finite verb the head reached starts right where the subject
+/// ended, possibly after its modality (`target creature can't block`).
+fn verb_follows_subject(
+    tokens: &[RecognizedEntity],
+    subject_end: usize,
+    verb_index: Option<usize>,
+) -> bool {
+    let Some(verb) = verb_index else {
+        return false;
+    };
+    verb >= subject_end
+        && tokens[subject_end..verb]
+            .iter()
+            .all(|token| modality(&token.raw.to_lowercase()).is_some())
 }
 
 /// The deepest component of an effect clause starting at a token.
@@ -407,7 +428,7 @@ fn unknown_verb_base(lower: &str) -> String {
 
 /// `you commit a crime`, `you tap a land`: the player event reader read its
 /// subject and met a verb it does not observe.
-fn event_verb_owner(tokens: &[RecognizedEntity], index: usize) -> Owner {
+fn event_verb_owner(tokens: &[RecognizedEntity], index: usize) -> &'static str {
     let subject = index
         .checked_sub(1)
         .and_then(|previous| tokens.get(previous))
@@ -422,11 +443,7 @@ fn event_verb_owner(tokens: &[RecognizedEntity], index: usize) -> Owner {
             )
         }),
     };
-    let component = format!("subject.{subject}.{verb}");
-    Owner {
-        state: intern_state(format!("{EVENT_CLAUSE_FRAME}/{component}")),
-        component,
-    }
+    intern_state(format!("{EVENT_CLAUSE_FRAME}/subject.{subject}.{verb}"))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -435,6 +452,8 @@ enum ChildSink {
     ObjectPredicate,
     TargetList,
     SourceName,
+    /// The effect sequence after a complete action: its connector or end.
+    Continuation,
 }
 
 impl ChildSink {
@@ -444,6 +463,7 @@ impl ChildSink {
             Self::ObjectPredicate => "object-predicate",
             Self::TargetList => "target-list",
             Self::SourceName => "source-name",
+            Self::Continuation => "modifier",
         }
     }
 
@@ -453,6 +473,7 @@ impl ChildSink {
             Self::Numeric => &["numeric.", "arithmetic."],
             Self::ObjectPredicate | Self::TargetList => &["selector.", "target-list."],
             Self::SourceName => &["reference."],
+            Self::Continuation => &["sequence."],
         }
     }
 }
@@ -474,17 +495,38 @@ fn calling_frame(failure: &MachineFailure, sink: ChildSink) -> &'static str {
         .unwrap_or(failure.automaton)
 }
 
-fn child_owner(failure: &MachineFailure, tokens: &[RecognizedEntity], sink: ChildSink) -> Owner {
+fn child_owner(
+    failure: &MachineFailure,
+    tokens: &[RecognizedEntity],
+    sink: ChildSink,
+) -> &'static str {
     let frame = calling_frame(failure, sink);
     let class = match (sink, token_class(tokens.get(failure.token_index))) {
         (ChildSink::SourceName, "capitalized-word") => "unlinked-name",
         (_, class) => class,
     };
-    let component = format!("{}.{class}", sink.component());
-    Owner {
-        state: intern_state(format!("{frame}/{component}")),
-        component,
-    }
+    intern_state(format!("{frame}/{}.{class}", sink.component()))
+}
+
+/// `destroy target creature that isn't a Dragon`, `draw a card unless ...`:
+/// the last action read a complete prefix and the sequence met a word that is
+/// neither a connector nor the end. The owner is the frame that read last (the
+/// action, or the child that ended it, such as an object query) and the
+/// postposed modifier it did not read, named by its word. A missing sentence
+/// terminator is its own component.
+fn continuation_owner(failure: &MachineFailure, tokens: &[RecognizedEntity]) -> &'static str {
+    let frame = calling_frame(failure, ChildSink::Continuation);
+    let component = match tokens.get(failure.token_index) {
+        None => "terminator.missing".to_string(),
+        Some(token) => match token_class(Some(token)) {
+            "capitalized-word" => "modifier.capitalized-word".to_string(),
+            class => match diagnostic_word_key(&token.raw).as_str() {
+                "unkeyed" => format!("modifier.{class}"),
+                word => format!("modifier.{word}"),
+            },
+        },
+    };
+    intern_state(format!("{frame}/{component}"))
 }
 
 /// A bounded word class from the tokenizer's lexical type.

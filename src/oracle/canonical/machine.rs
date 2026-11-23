@@ -30,6 +30,10 @@ pub(crate) struct MachineFailure {
     pub expected: String,
     pub actual: Option<String>,
     pub trace: Vec<MachineTransition>,
+    /// The owner the dispatcher assigns when `state` is a generic sink
+    /// (`failure_owner.rs`): the frame and its deepest component. `None` for
+    /// every other failure, whose state already names its owner.
+    pub owner: Option<&'static str>,
 }
 
 impl fmt::Display for MachineFailure {
@@ -497,6 +501,7 @@ impl<'a> OracleTokenCursor<'a> {
             expected: expected.to_string(),
             actual: Some(found.into()),
             trace: self.transitions.clone(),
+            owner: None,
         }
     }
 
@@ -527,6 +532,7 @@ impl<'a> OracleTokenCursor<'a> {
             expected: expected.to_string(),
             actual: self.peek().map(ToOwned::to_owned),
             trace: self.transitions.clone(),
+            owner: None,
         }
     }
 }

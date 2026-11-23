@@ -57,7 +57,7 @@ pub(in crate::oracle::canonical) fn is_unsupported_rules_verb(word: &str) -> boo
 }
 
 /// A word reduced to a bounded diagnostic key: lowercase ASCII letters,
-/// apostrophes and hyphens, at most 24 characters; anything else is `other`.
+/// apostrophes and hyphens, at most 24 characters; anything else is `unkeyed`.
 /// Keys built from Oracle vocabulary keep composed diagnostic states bounded.
 pub(in crate::oracle::canonical) fn diagnostic_word_key(raw: &str) -> String {
     let key = raw
@@ -72,7 +72,7 @@ pub(in crate::oracle::canonical) fn diagnostic_word_key(raw: &str) -> String {
         && key
             .chars()
             .all(|character| character.is_ascii_lowercase() || matches!(character, '\'' | '-'));
-    if valid { key } else { "other".to_string() }
+    if valid { key } else { "unkeyed".to_string() }
 }
 
 /// What an unlinked word at a reference position actually is.

@@ -790,7 +790,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "effect.clause/subject.object.verb-unknown.have",
+            "state": "effect.start",
             "found": "Creatures"
           }
         ]

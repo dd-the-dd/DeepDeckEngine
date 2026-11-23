@@ -1,7 +1,9 @@
 """Rank Oracle-compiler blockers from a support probe run.
 
 Input: the JSONL written by `examples/league_support_probe.rs` (one card per
-line: oracle_id, name, supported, failures[{text, state, code, message}]).
+line: oracle_id, name, supported, failures[{text, state, owner, code, message}]).
+A failure is ranked by its `owner` (the dispatcher's owner of a sink state,
+src/oracle/canonical/failure_owner.rs) and falls back to its `state`.
 Output: a Markdown ranking of parser states (and the token the parser found)
 by the number of complete cards each one blocks alone, plus the structural
 frame of abilities that no automaton claimed. This is a measurement tool for
@@ -19,8 +21,8 @@ import json
 from pathlib import Path
 
 # Mirror of `failure_owner::SINK_STATES` (src/oracle/canonical/failure_owner.rs).
-# The dispatcher owns these; a probe that still reports one is a regression of
-# the S0 sink-share metric (roadmap: 23.7% -> <10%, target 0 after ownership).
+# The dispatcher assigns an owner to each; a probe row still ranked under one of
+# these is a regression of the S0 sink-share metric (roadmap: 23.7% -> <10%).
 SINK_STATES = frozenset((
     'effect.start',
     'numeric.atom.start',
@@ -28,6 +30,7 @@ SINK_STATES = frozenset((
     'target-list.complete',
     'event.ordinal-card-drawn.action',
     'reference.source.unresolved-name',
+    'sequence.connector-or-end',
 ))
 ENGINE_GAP_PREFIX = 'engine.gap.'
 
@@ -43,7 +46,7 @@ def load(path: Path) -> list[dict]:
 
 
 def state_of(failure: dict) -> str:
-    return failure.get('state') or failure.get('code') or '?'
+    return failure.get('owner') or failure.get('state') or failure.get('code') or '?'
 
 
 def found_token(failure: dict) -> str:

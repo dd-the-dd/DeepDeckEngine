@@ -63,7 +63,7 @@ fn keyword_actions_and_keyword_abilities_are_named_from_the_catalog() {
     ] {
         let parsed = parse(name, type_line, text);
         let (actual_state, actual_found) = first_failure(&parsed);
-        if actual_state.is_some_and(|state| state.contains("source-name")) {
+        if actual_state == Some("reference.source.unresolved-name") {
             panic!("{text}: still blamed on the name resolver");
         }
         if actual_state.is_some_and(|state| state.starts_with(state_prefix)) {
@@ -79,12 +79,17 @@ fn a_real_unknown_name_still_blames_the_name_resolver() {
         "Instant",
         "Zarkulon deals 3 damage to any target.",
     );
-    // The dispatcher owns the reference child's sink: the frame that asked
-    // for a source reference, then the component (an unlinked name).
-    let state = first_failure(&parsed).0.expect("a failure state");
-    assert!(
-        state.ends_with("/source-name.unlinked-name"),
-        "{state}: {:#?}",
+    assert_eq!(
+        first_failure(&parsed).0,
+        Some("reference.source.unresolved-name"),
+        "{:#?}",
         parsed.diagnostics
     );
+    // The dispatcher owns the reference child's sink: the frame that asked
+    // for a source reference, then the component (an unlinked name).
+    let owner = parsed.diagnostics[0]
+        .owner
+        .as_deref()
+        .expect("an owned sink");
+    assert!(owner.ends_with("/source-name.unlinked-name"), "{owner}");
 }

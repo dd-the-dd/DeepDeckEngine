@@ -137,6 +137,7 @@ fn reject_parts_without_layout_runtime(
             expected: Some("a runtime for the Omen layout's resolution rule".to_string()),
             found: None,
             trace: Vec::new(),
+            owner: None,
         });
     }
 }
@@ -380,6 +381,7 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
                             expected: None,
                             found: None,
                             trace: Vec::new(),
+                            owner: None,
                         }],
                     });
                 }
@@ -434,6 +436,7 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
                                             token_index: transition.token_index,
                                         })
                                         .collect(),
+                                    owner: failure.owner.map(ToOwned::to_owned),
                                 }
                             })
                             .collect(),

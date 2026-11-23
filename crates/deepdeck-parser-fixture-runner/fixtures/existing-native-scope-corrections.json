@@ -403,8 +403,7 @@
           {
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
-            "traceContainsState": "effect.start",
-            "messageContains": "effect.clause/"
+            "state": "effect.start"
           }
         ]
       }

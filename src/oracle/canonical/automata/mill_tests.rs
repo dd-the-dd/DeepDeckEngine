@@ -75,3 +75,15 @@ fn a_mill_clause_without_a_player_subject_is_committed() {
     assert_eq!(failure.state, "effect.mill-cards.player");
     assert_eq!(cursor.position(), 0);
 }
+
+#[test]
+fn a_target_subject_that_stops_before_its_verb_reports_the_unread_word() {
+    // Sibling near miss: the subject reader stops at `or`; the diagnostic
+    // names that unread word, not the verb found later in the sentence.
+    let tokens = recognize_entities("Target creature or player gets +2/+2 until end of turn.");
+    let mut cursor = OracleTokenCursor::new("test.mill-subject", &tokens);
+
+    let failure = super::recognize_mill_cards_effect(&mut cursor).unwrap_err();
+    assert_eq!(failure.state, "effect.clause/subject.target.unread.or");
+    assert_eq!(failure.actual.as_deref(), Some("or"));
+}

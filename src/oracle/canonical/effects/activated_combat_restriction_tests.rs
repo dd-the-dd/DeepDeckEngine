@@ -85,14 +85,5 @@ fn target_collection_restriction_uses_the_shared_plural_reference() {
 fn unsupported_selector_threshold_is_not_approximated() {
     let failure = parse("{T}: Target creature with power enormous can't be blocked this turn.")
         .expect_err("an unsupported numeric threshold must not parse");
-    // The dispatcher owns the numeric child's sink: the frame that asked for
-    // the threshold, then the class of the word it met (`enormous`).
-    assert!(failure.state.ends_with("/numeric.word"), "{failure}");
-    assert!(
-        failure
-            .trace
-            .iter()
-            .any(|transition| transition.state == "numeric.atom.start"),
-        "{failure}"
-    );
+    assert_eq!(failure.state, "numeric.atom.start");
 }

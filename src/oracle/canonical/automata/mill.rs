@@ -100,13 +100,20 @@ pub(in crate::oracle::canonical) fn try_recognize_mill_cards_effect(
 /// The mill frame for a parent without a sibling reader at a `target` head.
 /// A clause that is not a mill clause is reported by its deepest component
 /// (`failure_owner::clause_head_failure`): the target subject was read and its
-/// verb names the missing lemma, instead of `exactly one target player`.
+/// verb names the missing lemma, or the subject stopped at an unread word,
+/// instead of `exactly one target player`.
 pub(in crate::oracle::canonical) fn recognize_mill_cards_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<MillCardsEffectNode> {
     let start = cursor.position();
-    try_recognize_mill_cards_effect(cursor).or_frame_failure(|_| {
-        crate::oracle::canonical::failure_owner::clause_head_failure(cursor, start)
+    // The rejected transaction stopped where its subject ended (or inside
+    // it): that position bounds the subject the clause diagnostic reports.
+    try_recognize_mill_cards_effect(cursor).or_frame_failure(|rejected| {
+        crate::oracle::canonical::failure_owner::clause_head_failure(
+            cursor,
+            start,
+            Some(rejected.token_index),
+        )
     })
 }
 

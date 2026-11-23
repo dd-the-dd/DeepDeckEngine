@@ -395,8 +395,7 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "traceContainsState": "selector.predicate.start",
-            "messageContains": "/object-predicate."
+            "state": "selector.predicate.start"
           }
         ]
       }
@@ -417,8 +416,7 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "traceContainsState": "selector.predicate.start",
-            "messageContains": "/object-predicate."
+            "state": "selector.predicate.start"
           }
         ]
       }

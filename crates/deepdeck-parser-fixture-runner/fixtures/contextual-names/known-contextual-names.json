@@ -27,9 +27,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "traceContainsState": "numeric.atom.start",
-            "messageContains": "/numeric.",
-            "expectedContains": "integer, number word, or X"
+            "state": "numeric.atom.start",
+            "expected": "integer, number word, or X"
           }
         ]
       }
@@ -458,8 +457,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "messageContains": "verb.deal",
-            "expectedContains": "a supported effect subject"
+            "state": "effect.start",
+            "expected": "a supported effect subject"
           }
         ]
       }

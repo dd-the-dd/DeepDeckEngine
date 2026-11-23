@@ -44,6 +44,7 @@ fn reject(ability: &mut ParsedOracleAbility, state: &str, message: &str, expecte
         expected: Some(expected.to_string()),
         found: None,
         trace: Vec::new(),
+        owner: None,
     });
 }
 
@@ -216,6 +217,7 @@ pub(crate) fn compose_card_rules_native(abilities: &mut [ParsedOracleAbility]) {
                         expected: Some(failure.expected.to_string()),
                         found: failure.found,
                         trace: Vec::new(),
+                        owner: None,
                     });
             }
         }

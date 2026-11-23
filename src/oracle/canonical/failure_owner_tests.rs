@@ -72,7 +72,7 @@ fn a_relative_clause_verb_is_not_the_main_verb() {
 
 #[test]
 fn every_sink_is_owned_and_keeps_its_child_evidence() {
-    let cases: [(&str, &[&str], Option<&'static str>, &'static str, &str); 6] = [
+    let cases: [(&str, &[&str], Option<&'static str>, &'static str, &str); 7] = [
         (
             "Look at the top card of your library.",
             &[],
@@ -115,22 +115,27 @@ fn every_sink_is_owned_and_keeps_its_child_evidence() {
             "reference.source.unresolved-name",
             "effect.test-damage.source/source-name.unlinked-name",
         ),
+        (
+            "destroy target creature unless you pay 1 life",
+            &["destroy", "target", "creature"],
+            Some("effect.test-destroy.complete"),
+            "sequence.connector-or-end",
+            "effect.test-destroy.complete/modifier.unless",
+        ),
     ];
     for (text, consumed, frame, sink, owner) in cases {
         let (tokens, failure) = sink_failure(text, consumed, frame, sink);
-        let owned = assign_failure_owner(failure, &tokens);
-        assert!(!is_sink_state(owned.state), "{text}: {owned}");
-        assert_eq!(owned.state, owner, "{text}");
-        assert!(
-            owned.expected.starts_with("the child's own expectation"),
-            "{text}: the child's expectation stays the prefix"
-        );
-        assert!(
-            owned
-                .trace
-                .iter()
-                .any(|transition| transition.state == sink),
-            "{text}: the child state stays in the trace"
+        let owned = assign_failure_owner(failure.clone(), &tokens);
+        assert_eq!(owned.owner, Some(owner), "{text}");
+        assert!(!is_sink_state(owner), "{text}: an owner is never a sink");
+        // The child's precise evidence is unchanged; only the owner is added.
+        assert_eq!(
+            MachineFailure {
+                owner: None,
+                ..owned
+            },
+            failure,
+            "{text}"
         );
     }
 }
@@ -150,6 +155,7 @@ fn owned_failures_and_engine_gaps_are_never_rewritten() {
         "the frame that found the gap stays in the trace"
     );
     assert_eq!(assign_failure_owner(gap.clone(), &tokens), gap);
+    assert_eq!(gap.owner, None);
 
     cursor.enter("effect.draw-cards.count");
     let grammar = cursor.fail("a count");

@@ -137,7 +137,8 @@ fn promoted_family_reports_near_misses_without_legacy_fallback() {
         ),
         (
             "Target spell gets -2/-2 until end of turn.",
-            "target-list.complete",
+            // The clause's deepest component: target subject, lemma `get`.
+            "effect.clause/subject.target.verb.get",
             Some("gets"),
         ),
     ] {

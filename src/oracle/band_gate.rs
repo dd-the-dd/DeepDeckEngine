@@ -158,6 +158,7 @@ pub(crate) fn reject_ungated_band_bodies(
             expected: Some(format!("a band frame gating this ability on {threshold}")),
             found: None,
             trace: Vec::new(),
+            owner: None,
         });
     }
 }

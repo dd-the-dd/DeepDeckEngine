@@ -112,8 +112,7 @@
           "abilityIndex": 0,
           "code": "oracle_machine_failure",
           "automaton": "contextual-effect-program",
-          "traceContainsState": "numeric.atom.start",
-          "messageContains": "/numeric.object-phrase",
+          "state": "numeric.atom.start",
           "found": "them"
         }]
       }

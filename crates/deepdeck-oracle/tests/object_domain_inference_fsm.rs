@@ -282,7 +282,7 @@ fn coordinators_the_query_returns_are_refused_or_read_by_their_parent() {
     assert_ne!(parsed.status, "canonical");
     assert_eq!(
         parsed.diagnostics[0].state.as_deref(),
-        Some("target-list.complete"),
+        Some("effect.clause/subject.target.unread.or"),
         "{:#?}",
         parsed.diagnostics
     );

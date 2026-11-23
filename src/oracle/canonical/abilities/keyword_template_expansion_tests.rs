@@ -35,6 +35,7 @@ fn inner_failure() -> MachineFailure {
         expected: "a supported event verb".to_string(),
         actual: Some("attacks".to_string()),
         trace: Vec::new(),
+        owner: None,
     }
 }
 

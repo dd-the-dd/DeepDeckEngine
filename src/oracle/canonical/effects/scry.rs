@@ -45,6 +45,7 @@ pub(in crate::oracle::canonical) fn lower_scry_effects_for_player(
         expected: "a target-independent numeric expression".to_string(),
         actual: None,
         trace: Vec::new(),
+        owner: None,
     })?;
     lower_library_partition_effects_for_player(
         LibraryPartitionAction::Scry,
