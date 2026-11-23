@@ -315,7 +315,8 @@ fn lower_source_event_union(
                     json!({"kind": "permanentBecameBlocked", "object": object})
                 }
                 SourceEventVerb::BecameUntapped => {
-                    return Err(cursor.fail(
+                    return Err(cursor.engine_gap(
+                        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
                         "a source event with a runtime self matcher (no became-untapped self matcher)",
                     ));
                 }
@@ -335,7 +336,10 @@ fn lower_source_event_union(
 
 fn engine_gap(cursor: &mut OracleTokenCursor<'_>, expected: &str) -> MachineFailure {
     cursor.enter("trigger.event.engine-gap");
-    cursor.fail(expected)
+    cursor.engine_gap(
+        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+        expected,
+    )
 }
 
 /// The source as the subject of a combat event pattern, with the typed

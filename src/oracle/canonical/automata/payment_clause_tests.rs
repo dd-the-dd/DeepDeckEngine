@@ -171,7 +171,7 @@ fn activation_costs_wire_engine_schemas_or_fail_explicitly() {
             status("Unsupported Cost Probe", type_line, text),
             (
                 "unsupported".to_string(),
-                Some("activation.unsupported-action".to_string())
+                Some("engine.gap.activation-cost-action".to_string())
             ),
             "{text}"
         );

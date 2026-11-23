@@ -47,7 +47,7 @@ fn combat_event_modifiers_compile_and_unsupported_ones_are_engine_gaps() {
     ] {
         assert_eq!(
             parse("Creature — Wall", text).1.as_deref(),
-            Some("trigger.event.engine-gap"),
+            Some("engine.gap.event-matcher"),
             "{text}"
         );
     }
