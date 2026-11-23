@@ -647,3 +647,63 @@ fn another_players_permission_and_its_outcome_connector() {
     let (status, _, _) = parse(CREATURE, "{T}: That player may draw a card.");
     assert_ne!(status, "canonical");
 }
+
+/// The ActionResult antecedent resolves an outcome connector: its subject
+/// must name the producer's performer, and nothing resolves without one.
+#[test]
+fn outcome_connector_subject_agrees_with_the_action_result_performer() {
+    use super::super::super::OracleTokenCursor;
+    use super::{
+        ActionResultSlot, OutcomePerformer, PerformanceOutcome, recognize_outcome_connector,
+        recognize_outcome_connector_after,
+    };
+    use crate::oracle::syntax::recognize_entities;
+
+    let read = |text: &str, performer: Option<OutcomePerformer>| {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("outcome-connector-test", &tokens);
+        match performer {
+            Some(performer) => {
+                recognize_outcome_connector_after(&mut cursor, ActionResultSlot { performer })
+            }
+            None => recognize_outcome_connector(&mut cursor),
+        }
+    };
+    for (text, performer, outcome) in [
+        (
+            "If you do,",
+            OutcomePerformer::Controller,
+            PerformanceOutcome::Performed,
+        ),
+        (
+            "If they don't,",
+            OutcomePerformer::OtherPlayer,
+            PerformanceOutcome::Declined,
+        ),
+        (
+            "When that player does,",
+            OutcomePerformer::OtherPlayer,
+            PerformanceOutcome::Reflexive,
+        ),
+        // A mandatory instruction's performer is its own subject.
+        (
+            "When they do,",
+            OutcomePerformer::Instruction,
+            PerformanceOutcome::Reflexive,
+        ),
+    ] {
+        assert_eq!(read(text, Some(performer)).unwrap(), outcome, "{text}");
+    }
+    // Near misses: a subject naming another performer, or no antecedent.
+    for (text, performer) in [
+        ("If they do,", Some(OutcomePerformer::Controller)),
+        ("If you do,", Some(OutcomePerformer::OtherPlayer)),
+        ("If you do,", None),
+    ] {
+        assert_eq!(
+            read(text, performer).unwrap_err().state,
+            "binding.action-result.performer",
+            "{text}"
+        );
+    }
+}
