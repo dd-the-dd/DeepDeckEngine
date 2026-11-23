@@ -35,8 +35,6 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
     }
 }
 
-/// A recognized subject plus the immediately following action owns the claim.
-/// The payload child receives its typed subject and end cursor, without reparsing.
 /// True when the operand denotes several permanents: a collection, several
 /// target slots, or a slot whose maximum exceeds one.
 fn permanent_operand_is_plural(operand: &PermanentOperandNode) -> bool {
@@ -53,6 +51,9 @@ fn permanent_operand_is_plural(operand: &PermanentOperandNode) -> bool {
     }
 }
 
+/// A recognized subject plus the immediately following action owns the claim
+/// (S3: object subject x lemma). The payload child receives its typed
+/// subject and end cursor, without reparsing.
 pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -92,7 +93,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         .is_some_and(|raw| raw.eq_ignore_ascii_case("each"))
         && permanent_operand_is_plural(&subject)
         && subject_end.peek_ahead(1).is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("get") || is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
+            is_verb_form(raw, VerbLemma::Get, VerbForm::Base)
+                || is_verb_form(raw, VerbLemma::Gain, VerbForm::Base)
         })
     {
         subject_end.enter("permanent-action.distributive-each");
@@ -155,7 +157,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     // names the designation; the subject is the shared permanent operand.
     if action_offset == 0
         && !bare
-        && action.eq_ignore_ascii_case("becomes")
+        && is_verb_form(action, VerbLemma::Become, VerbForm::ThirdPersonSingular)
         && let Some(designation) = subject_end
             .peek_ahead(1)
             .and_then(|word| super::PermanentDesignation::from_adjective(&word))
@@ -183,143 +185,210 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
         };
     }
-    // A causative subject takes the bare verb (`have target creature get`);
-    // the finite frame keeps both numbers (`it gets`, `creatures ... get`).
-    let keyword = is_verb_form(&action, VerbLemma::Gain, VerbForm::Base)
-        || (!bare && is_verb_form(&action, VerbLemma::Gain, VerbForm::ThirdPersonSingular));
-    let stats = action_offset == 0
-        && (action.eq_ignore_ascii_case("get") || (!bare && action.eq_ignore_ascii_case("gets")));
-    let becomes = action_offset == 0
-        && !bare
-        && super::become_types::characteristic_change_verb_starts(&subject_end);
+    let Some(predicate) =
+        classify_permanent_predicate(&subject_end, action, action_offset, bare, &subject, context)
+    else {
+        return PermanentActionAttempt::NotClaimed;
+    };
+    match predicate {
+        PermanentPredicate::Combat => {
+            // The shared combat clause owns everything after the subject; its
+            // markers are granted to the subject for the clause's duration.
+            if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
+            {
+                return PermanentActionAttempt::FailedCommitted(failure);
+            }
+            let mut trial = subject_end.clone();
+            match super::recognize_temporary_combat_clause(
+                &mut trial,
+                context.preposed_duration.as_ref(),
+            ) {
+                Ok((keywords, duration)) => {
+                    *cursor = trial;
+                    PermanentActionAttempt::Parsed(LocalEffectNode::TemporaryKeywordGrant(
+                        TemporaryKeywordGrantNode {
+                            objects: subject,
+                            keywords,
+                            abilities: Vec::new(),
+                            duration,
+                        },
+                    ))
+                }
+                Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+            }
+        }
+        PermanentPredicate::CharacteristicChange => {
+            // `each ... loses all abilities` keeps its set-binding owner, so a
+            // later `those creatures` still names the same bound set.
+            if matches!(subject, PermanentOperandNode::Collection { .. })
+                && is_verb_form(action, VerbLemma::Lose, VerbForm::ThirdPersonSingular)
+            {
+                return PermanentActionAttempt::NotClaimed;
+            }
+            // A type-change frame is only a candidate: other readers own the
+            // `becomes a P/T ...` animation shapes, so a non-matching type list
+            // must not commit this parent.
+            let mut trial = cursor.clone();
+            let fragment = match super::become_types::recognize_become_types_subject(
+                &mut trial,
+                |cursor| {
+                    *cursor = subject_end.clone();
+                    Ok(subject.clone())
+                },
+                context.preposed_duration.as_ref(),
+            ) {
+                Ok(fragment) => fragment,
+                Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
+            };
+            if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
+            {
+                return PermanentActionAttempt::FailedCommitted(failure);
+            }
+            *cursor = trial;
+            PermanentActionAttempt::Parsed(LocalEffectNode::BecomeTypes(fragment.node))
+        }
+        PermanentPredicate::DealDamage | PermanentPredicate::Fight => {
+            if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
+            {
+                return PermanentActionAttempt::FailedCommitted(failure);
+            }
+            let mut trial = subject_end.clone();
+            let result = if predicate == PermanentPredicate::DealDamage {
+                recognize_damage_predicate(
+                    &mut trial,
+                    subject.clone(),
+                    context.subject_verb_agreement,
+                )
+                .map(LocalEffectNode::DealDamage)
+            } else {
+                recognize_fight_predicate(
+                    &mut trial,
+                    subject.clone(),
+                    name_links,
+                    name_failure,
+                    context,
+                )
+                .map(LocalEffectNode::Fight)
+            };
+            match result {
+                Ok(node) => {
+                    *cursor = trial;
+                    PermanentActionAttempt::Parsed(node)
+                }
+                Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+            }
+        }
+        PermanentPredicate::KeywordGrant | PermanentPredicate::ModifyStats => {
+            if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
+            {
+                return PermanentActionAttempt::FailedCommitted(failure);
+            }
+            let mut trial = cursor.clone();
+            let result = if predicate == PermanentPredicate::KeywordGrant {
+                super::keyword_grant::recognize_temporary_keyword_grant_subject(
+                    &mut trial,
+                    |cursor| {
+                        *cursor = subject_end.clone();
+                        Ok(subject.clone())
+                    },
+                    false,
+                    context.preposed_duration.as_ref(),
+                )
+                .map(LocalEffectNode::TemporaryKeywordGrant)
+            } else {
+                super::temporary_power_toughness::recognize_temporary_power_toughness_subject(
+                    &mut trial,
+                    |cursor| {
+                        *cursor = subject_end.clone();
+                        Ok(subject.clone())
+                    },
+                    context.preposed_duration.as_ref(),
+                )
+                .map(|fragment| LocalEffectNode::ModifyStats(fragment.node))
+            };
+            match result {
+                Ok(node) => {
+                    *cursor = trial;
+                    PermanentActionAttempt::Parsed(node)
+                }
+                Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+            }
+        }
+    }
+}
+
+/// The predicate frame a permanent subject's clause opens (S3: the object
+/// subject x the lemma of its verb). One typed choice replaces a set of
+/// independent claims; the frames are tried in this order of precedence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PermanentPredicate {
+    /// The shared combat clause (`can't block`, `attacks each combat`).
+    Combat,
+    /// `becomes TYPES` / `loses all abilities` / `has base P/T` (layers 4-7).
+    CharacteristicChange,
+    /// `deals AMOUNT damage` (CR 120.1).
+    DealDamage,
+    /// `fights OBJECT` (CR 701.14).
+    Fight,
+    /// `gain(s) KEYWORDS` (CR 611.2).
+    KeywordGrant,
+    /// `get(s) +N/+N` (CR 611.2, 613.4c).
+    ModifyStats,
+}
+
+/// The verb form the clause requires after the subject: the bare verb after
+/// a causative (`have target creature get`), else either number of the
+/// finite verb (`it gets`, `creatures ... get`).
+fn finite_or_bare(raw: &str, lemma: VerbLemma, bare: bool) -> bool {
+    is_verb_form(raw, lemma, VerbForm::Base)
+        || (!bare && is_verb_form(raw, lemma, VerbForm::ThirdPersonSingular))
+}
+
+/// Classifies the predicate after a permanent subject from the verb
+/// lexicon and the shared clause starts. `None` makes no claim.
+fn classify_permanent_predicate(
+    subject_end: &OracleTokenCursor<'_>,
+    action: &str,
+    action_offset: usize,
+    bare: bool,
+    subject: &PermanentOperandNode,
+    context: &EffectRecognitionContext,
+) -> Option<PermanentPredicate> {
+    // Only `gain` admits the adverb `also` before it.
+    let adjacent = action_offset == 0;
+    if adjacent && !bare && super::combat_clause_starts(subject_end) {
+        return Some(PermanentPredicate::Combat);
+    }
+    if adjacent && !bare && super::become_types::characteristic_change_verb_starts(subject_end) {
+        return Some(PermanentPredicate::CharacteristicChange);
+    }
     // `deals AMOUNT damage`: claimed when the shared damage clause starts
     // after the subject (the clause owns the verb form and its frame).
-    let deals = action_offset == 0
-        && super::clause_starts(
-            &subject_end,
-            &super::damage_effect_clause_frame(context.subject_verb_agreement),
-        )
+    if adjacent
         && matches!(
             subject,
             PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
-        );
-    let fights = action_offset == 0
-        && (action.eq_ignore_ascii_case("fights") || action.eq_ignore_ascii_case("fight"));
-    let combat = action_offset == 0 && !bare && super::combat_clause_starts(&subject_end);
-    if !keyword && !stats && !becomes && !deals && !fights && !combat {
-        return PermanentActionAttempt::NotClaimed;
-    }
-    // `each ... loses all abilities` keeps its set-binding owner, so a later
-    // `those creatures` still names the same bound set.
-    if becomes
-        && matches!(subject, PermanentOperandNode::Collection { .. })
-        && is_verb_form(&action, VerbLemma::Lose, VerbForm::ThirdPersonSingular)
+        )
+        && super::clause_starts(
+            subject_end,
+            &super::damage_effect_clause_frame(context.subject_verb_agreement),
+        )
     {
-        return PermanentActionAttempt::NotClaimed;
+        return Some(PermanentPredicate::DealDamage);
     }
-    if combat {
-        // The shared combat clause owns everything after the subject; its
-        // markers are granted to the subject for the clause's duration.
-        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
-            return PermanentActionAttempt::FailedCommitted(failure);
-        }
-        let mut trial = subject_end.clone();
-        return match super::recognize_temporary_combat_clause(
-            &mut trial,
-            context.preposed_duration.as_ref(),
-        ) {
-            Ok((keywords, duration)) => {
-                *cursor = trial;
-                PermanentActionAttempt::Parsed(LocalEffectNode::TemporaryKeywordGrant(
-                    TemporaryKeywordGrantNode {
-                        objects: subject,
-                        keywords,
-                        abilities: Vec::new(),
-                        duration,
-                    },
-                ))
-            }
-            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
-        };
+    if adjacent
+        && (is_verb_form(action, VerbLemma::Fight, VerbForm::Base)
+            || is_verb_form(action, VerbLemma::Fight, VerbForm::ThirdPersonSingular))
+    {
+        return Some(PermanentPredicate::Fight);
     }
-    if becomes {
-        // A type-change frame is only a candidate: other readers own the
-        // `becomes a P/T ...` animation shapes, so a non-matching type list
-        // must not commit this parent.
-        let mut trial = cursor.clone();
-        let fragment = match super::become_types::recognize_become_types_subject(
-            &mut trial,
-            |cursor| {
-                *cursor = subject_end.clone();
-                Ok(subject.clone())
-            },
-            context.preposed_duration.as_ref(),
-        ) {
-            Ok(fragment) => fragment,
-            Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
-        };
-        if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
-            return PermanentActionAttempt::FailedCommitted(failure);
-        }
-        *cursor = trial;
-        return PermanentActionAttempt::Parsed(LocalEffectNode::BecomeTypes(fragment.node));
+    if finite_or_bare(action, VerbLemma::Gain, bare) {
+        return Some(PermanentPredicate::KeywordGrant);
     }
-    if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context) {
-        return PermanentActionAttempt::FailedCommitted(failure);
+    if adjacent && finite_or_bare(action, VerbLemma::Get, bare) {
+        return Some(PermanentPredicate::ModifyStats);
     }
-    if deals || fights {
-        let mut trial = subject_end.clone();
-        let result = if deals {
-            recognize_damage_predicate(&mut trial, subject.clone(), context.subject_verb_agreement)
-                .map(LocalEffectNode::DealDamage)
-        } else {
-            recognize_fight_predicate(
-                &mut trial,
-                subject.clone(),
-                name_links,
-                name_failure,
-                context,
-            )
-            .map(LocalEffectNode::Fight)
-        };
-        return match result {
-            Ok(node) => {
-                *cursor = trial;
-                PermanentActionAttempt::Parsed(node)
-            }
-            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
-        };
-    }
-    let mut trial = cursor.clone();
-    let result = if keyword {
-        super::keyword_grant::recognize_temporary_keyword_grant_subject(
-            &mut trial,
-            |cursor| {
-                *cursor = subject_end.clone();
-                Ok(subject.clone())
-            },
-            false,
-            context.preposed_duration.as_ref(),
-        )
-        .map(LocalEffectNode::TemporaryKeywordGrant)
-    } else {
-        super::temporary_power_toughness::recognize_temporary_power_toughness_subject(
-            &mut trial,
-            |cursor| {
-                *cursor = subject_end.clone();
-                Ok(subject.clone())
-            },
-            context.preposed_duration.as_ref(),
-        )
-        .map(|fragment| LocalEffectNode::ModifyStats(fragment.node))
-    };
-    match result {
-        Ok(node) => {
-            *cursor = trial;
-            PermanentActionAttempt::Parsed(node)
-        }
-        Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
-    }
+    None
 }
 
 /// `fights OBJECT` (CR 701.14) after a recognized permanent subject. The
@@ -332,14 +401,16 @@ fn recognize_fight_predicate(
     context: &EffectRecognitionContext,
 ) -> Result<FightEffectNode, MachineFailure> {
     cursor.enter("effect.fight.action");
-    if cursor
+    // Either number of the verb, as the subject wrote it.
+    let agreement = if cursor
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("fight"))
+        .is_some_and(|raw| is_verb_form(raw, VerbLemma::Fight, VerbForm::Base))
     {
-        cursor.consume("fight")?;
+        crate::oracle::canonical::automata::VerbAgreement::Base
     } else {
-        cursor.consume("fights")?;
-    }
+        crate::oracle::canonical::automata::VerbAgreement::ThirdPersonSingular
+    };
+    crate::oracle::canonical::automata::consume_lemma(cursor, VerbLemma::Fight, agreement)?;
     cursor.enter("effect.fight.second");
     let second = recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
     cursor.require(

@@ -79,6 +79,44 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Shuffle,
     /// `search` (CR 701.23).
     Search,
+    /// `support N` (CR 701.32).
+    Support,
+    /// `attach OBJECT to OBJECT` (CR 701.3).
+    Attach,
+    /// `prevent DAMAGE` (CR 615).
+    Prevent,
+    /// `regenerate OBJECT` (CR 701.15).
+    Regenerate,
+    /// `goad OBJECT` (CR 701.38).
+    Goad,
+    /// `add MANA` (CR 106.4).
+    Add,
+    /// `amass [TYPE] N` (CR 701.47).
+    Amass,
+    /// `empower` (a named keyword-action row of the effect lexicon).
+    Empower,
+    /// `investigate` (CR 701.36).
+    Investigate,
+    /// `scry N` (CR 701.18).
+    Scry,
+    /// `surveil N` (CR 701.25).
+    Surveil,
+    /// `earthbend N` (the keyword action of the same name).
+    Earthbend,
+    /// `transform OBJECT` (CR 701.28).
+    Transform,
+    /// `double QUANTITY` (CR 701.10).
+    Double,
+    /// `counter SPELL` (CR 701.5).
+    Counter,
+    /// `destroy OBJECT` (CR 701.7).
+    Destroy,
+    /// `fight OBJECT` (CR 701.14).
+    Fight,
+    /// `have`/`has` (possession of abilities, CR 113.1; also the causative).
+    Have,
+    /// `assign` (combat damage assignment, CR 510.1).
+    Assign,
 }
 
 /// One inflected form of a lemma.
@@ -164,6 +202,12 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     SpellObject,
     /// `N KIND counter(s)` | `{E}...` given to the acting player (CR 122.1).
     PlayerCounters,
+    /// `MANA` produced for the acting player (`add {G}`, CR 106.4).
+    ManaProduction,
+    /// `the next N damage ...` / `all combat damage ...` (CR 615).
+    DamagePrevention,
+    /// `the number of COUNTERS on OBJECT` | `OBJECT's power` (CR 701.10).
+    Doubling,
 }
 
 impl ArgumentFrame {
@@ -186,7 +230,10 @@ impl ArgumentFrame {
             | Self::StateChange
             | Self::ZoneDeparture
             | Self::SpellObject
-            | Self::PlayerCounters => None,
+            | Self::PlayerCounters
+            | Self::ManaProduction
+            | Self::DamagePrevention
+            | Self::Doubling => None,
         }
     }
 }
@@ -633,15 +680,324 @@ const VERB_LEXICON: &[VerbEntry] = &[
     },
 ];
 
-/// Every lemma of the lexicon, in entry order.
+/// Lemmas the effect clause dispatches on (`effect_head.rs`) whose actions
+/// do not yet carry a performer through lowering. They are full lexicon
+/// rows (forms, frames, voices) for every clause reader, but the
+/// performer's person shift (`ALL_LEMMAS`) does not admit them: `each player
+/// scries 2` keeps failing explicitly until the primitive reads a performer.
+const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
+    VerbEntry {
+        lemma: VerbLemma::Support,
+        forms: VerbForms {
+            base: "support",
+            third_person_singular: "supports",
+            past: "supported",
+            past_participle: "supported",
+            present_participle: "supporting",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Attach,
+        forms: VerbForms {
+            base: "attach",
+            third_person_singular: "attaches",
+            past: "attached",
+            past_participle: "attached",
+            present_participle: "attaching",
+        },
+        frames: &[ArgumentFrame::ObjectToZone],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Prevent,
+        forms: VerbForms {
+            base: "prevent",
+            third_person_singular: "prevents",
+            past: "prevented",
+            past_participle: "prevented",
+            present_participle: "preventing",
+        },
+        frames: &[ArgumentFrame::DamagePrevention],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Regenerate,
+        forms: VerbForms {
+            base: "regenerate",
+            third_person_singular: "regenerates",
+            past: "regenerated",
+            past_participle: "regenerated",
+            present_participle: "regenerating",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Goad,
+        forms: VerbForms {
+            base: "goad",
+            third_person_singular: "goads",
+            past: "goaded",
+            past_participle: "goaded",
+            present_participle: "goading",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Add,
+        forms: VerbForms {
+            base: "add",
+            third_person_singular: "adds",
+            past: "added",
+            past_participle: "added",
+            present_participle: "adding",
+        },
+        frames: &[ArgumentFrame::ManaProduction],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Amass,
+        forms: VerbForms {
+            base: "amass",
+            third_person_singular: "amasses",
+            past: "amassed",
+            past_participle: "amassed",
+            present_participle: "amassing",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Empower,
+        forms: VerbForms {
+            base: "empower",
+            third_person_singular: "empowers",
+            past: "empowered",
+            past_participle: "empowered",
+            present_participle: "empowering",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Investigate,
+        forms: VerbForms {
+            base: "investigate",
+            third_person_singular: "investigates",
+            past: "investigated",
+            past_participle: "investigated",
+            present_participle: "investigating",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Scry,
+        forms: VerbForms {
+            base: "scry",
+            third_person_singular: "scries",
+            past: "scried",
+            past_participle: "scried",
+            present_participle: "scrying",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Surveil,
+        forms: VerbForms {
+            base: "surveil",
+            third_person_singular: "surveils",
+            past: "surveilled",
+            past_participle: "surveilled",
+            present_participle: "surveilling",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Earthbend,
+        forms: VerbForms {
+            base: "earthbend",
+            third_person_singular: "earthbends",
+            past: "earthbent",
+            past_participle: "earthbent",
+            present_participle: "earthbending",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Transform,
+        forms: VerbForms {
+            base: "transform",
+            third_person_singular: "transforms",
+            past: "transformed",
+            past_participle: "transformed",
+            present_participle: "transforming",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Double,
+        forms: VerbForms {
+            base: "double",
+            third_person_singular: "doubles",
+            past: "doubled",
+            past_participle: "doubled",
+            present_participle: "doubling",
+        },
+        frames: &[ArgumentFrame::Doubling],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Counter,
+        forms: VerbForms {
+            base: "counter",
+            third_person_singular: "counters",
+            past: "countered",
+            past_participle: "countered",
+            present_participle: "countering",
+        },
+        frames: &[ArgumentFrame::SpellObject],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Destroy,
+        forms: VerbForms {
+            base: "destroy",
+            third_person_singular: "destroys",
+            past: "destroyed",
+            past_participle: "destroyed",
+            present_participle: "destroying",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Fight,
+        forms: VerbForms {
+            base: "fight",
+            third_person_singular: "fights",
+            past: "fought",
+            past_participle: "fought",
+            present_participle: "fighting",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Have,
+        forms: VerbForms {
+            base: "have",
+            third_person_singular: "has",
+            past: "had",
+            past_participle: "had",
+            present_participle: "having",
+        },
+        frames: &[ArgumentFrame::KeywordList],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Assign,
+        forms: VerbForms {
+            base: "assign",
+            third_person_singular: "assigns",
+            past: "assigned",
+            past_participle: "assigned",
+            present_participle: "assigning",
+        },
+        frames: &[ArgumentFrame::DamageDealt],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+];
+
+/// Every lemma a performer may take, in entry order.
 pub(in crate::oracle::canonical) static ALL_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
     std::sync::LazyLock::new(|| VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
+
+/// Every lemma of the lexicon, performed or not: the vocabulary the effect
+/// clause dispatches on.
+pub(in crate::oracle::canonical) static EFFECT_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
+    std::sync::LazyLock::new(|| {
+        VERB_LEXICON
+            .iter()
+            .chain(NON_PERFORMED_LEXICON)
+            .map(|entry| entry.lemma)
+            .collect()
+    });
 
 pub(in crate::oracle::canonical) fn verb_entry(lemma: VerbLemma) -> &'static VerbEntry {
     VERB_LEXICON
         .iter()
+        .chain(NON_PERFORMED_LEXICON)
         .find(|entry| entry.lemma == lemma)
         .expect("every VerbLemma has one lexicon entry")
+}
+
+/// A finite auxiliary before a bare verb: the clause modality (CR 608.2d
+/// `may`, CR 614.1a `would`, prohibitions CR 101.2 `can't`) or the negated
+/// `do` support (`doesn't untap`). The agreement is the subject's when the
+/// auxiliary inflects (`doesn't` / `don't`), else `None`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) enum Auxiliary {
+    May,
+    Can,
+    Cannot,
+    Would,
+    Must,
+    DoNot,
+}
+
+/// The auxiliary `raw` writes and the agreement it shows, if any. The
+/// typographic apostrophe reads as the ASCII one.
+pub(in crate::oracle::canonical) fn lookup_auxiliary(
+    raw: &str,
+) -> Option<(Auxiliary, Option<VerbAgreement>)> {
+    const AUXILIARIES: &[(&str, Auxiliary, Option<VerbAgreement>)] = &[
+        ("may", Auxiliary::May, None),
+        ("can", Auxiliary::Can, None),
+        ("can't", Auxiliary::Cannot, None),
+        ("cannot", Auxiliary::Cannot, None),
+        ("would", Auxiliary::Would, None),
+        ("must", Auxiliary::Must, None),
+        (
+            "doesn't",
+            Auxiliary::DoNot,
+            Some(VerbAgreement::ThirdPersonSingular),
+        ),
+        ("don't", Auxiliary::DoNot, Some(VerbAgreement::Base)),
+    ];
+    let raw = raw.replace('\u{2019}', "'");
+    AUXILIARIES
+        .iter()
+        .find(|(surface, _, _)| surface.eq_ignore_ascii_case(&raw))
+        .map(|(_, auxiliary, agreement)| (*auxiliary, *agreement))
+}
+
+/// The present copula (`is` / `are`) and the agreement it shows. `be` has
+/// no regular paradigm in `VerbForms` (its plural present is not its base),
+/// so it is a closed table of its own.
+pub(in crate::oracle::canonical) fn copula_agreement(raw: &str) -> Option<VerbAgreement> {
+    const COPULA: &[(&str, VerbAgreement)] = &[
+        ("is", VerbAgreement::ThirdPersonSingular),
+        ("are", VerbAgreement::Base),
+    ];
+    COPULA
+        .iter()
+        .find(|(surface, _)| surface.eq_ignore_ascii_case(raw))
+        .map(|(_, agreement)| *agreement)
+}
+
+/// The lemma `raw` inflects among every lexicon lemma, with its forms.
+pub(in crate::oracle::canonical) fn lookup_effect_verb(
+    raw: &str,
+) -> Option<(&'static VerbEntry, Vec<VerbForm>)> {
+    lookup_verb(raw, &EFFECT_LEMMAS)
 }
 
 /// The lemma among `lemmas` that `raw` inflects, with every form it can be.

@@ -1998,6 +1998,31 @@ fn skip_balanced_parenthetical(cursor: &mut OracleTokenCursor<'_>) -> MachineRes
     Ok(())
 }
 
+/// The inputs every effect frame may read, passed once to the dispatcher's
+/// frame readers.
+struct EffectFrameInputs<'a> {
+    name_links: &'a [ResolvedNameLink],
+    name_failure: Option<&'a NameResolutionFailure>,
+    antecedent: Option<TargetBinding>,
+    object_set_binding: ObjectSetBinding,
+    object_set_antecedent: Option<&'a BoundPermanentSetNode>,
+    context: &'a EffectRecognitionContext,
+}
+
+/// The effect dispatcher (S3): `SUBJECT x LEMMA x MODALITY`.
+///
+/// ```text
+/// Effect := ClaimedFrame                 (retarget, control change, stack copy)
+///         | KeywordAction                (the keyword-action lexicon rows)
+///         | Head(Imperative|Controller, LEMMA) LemmaFrame
+///         | SubjectFrame                 (a subject phrase owns its verb)
+/// ```
+///
+/// The head is classified once (`effect_head.rs`); the lemma comes from the
+/// verb lexicon. No branch tests a verb word: a new verb is a lexicon row
+/// plus one lemma arm, and a subject the frames do not read fails at
+/// `effect.start` with `a supported effect subject` only when no subject
+/// frame claims its head.
 fn recognize_effect(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -2031,55 +2056,540 @@ fn recognize_effect(
         return super::recognize_copy_stack_object_effect(cursor)
             .map(LocalEffectNode::CopyStackObject);
     }
-
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Discard,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) || (cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| is_verb_form(&raw, VerbLemma::Discard, VerbForm::Base)))
-    {
-        return super::recognize_ordinary_player_discard(cursor).map(LocalEffectNode::DiscardCards);
+    let inputs = EffectFrameInputs {
+        name_links,
+        name_failure,
+        antecedent,
+        object_set_binding,
+        object_set_antecedent,
+        context,
+    };
+    // Keyword actions (CR 701) are ordinary verbs: the keyword-action
+    // lexicon rows own the claim and the operand comes from the shared
+    // permanent operand or numeric grammar.
+    if let Some(result) = recognize_keyword_action_frame(cursor, &inputs) {
+        return result;
     }
+    let head = super::read_effect_head(cursor);
+    if let Some(result) = recognize_lemma_frame(cursor, &head, &inputs, attempt_frame) {
+        return result;
+    }
+    recognize_subject_frame(cursor, &head, &inputs, attempt_frame)
+}
 
-    // Keyword actions (CR 701) are ordinary verbs: the verb owns the claim and
-    // its operand comes from the shared permanent operand or numeric grammar.
-    if cursor.peek().is_some_and(|raw| {
-        super::PermanentKeywordAction::from_imperative_object_verb(raw).is_some()
-    }) {
-        return super::recognize_imperative_permanent_keyword_action(
+/// The keyword-action rows (CR 701) whose verb names the action.
+fn recognize_keyword_action_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+) -> Option<MachineResult<LocalEffectNode>> {
+    let word = cursor.peek()?.to_string();
+    let word = word.as_str();
+    if super::PermanentKeywordAction::from_imperative_object_verb(word).is_some() {
+        return Some(
+            super::recognize_imperative_permanent_keyword_action(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::PermanentKeywordAction),
+        );
+    }
+    if super::PermanentKeywordAction::from_self_quantity_verb(word).is_some() {
+        return Some(
+            super::recognize_self_quantity_keyword_action(
+                cursor,
+                inputs.antecedent,
+                inputs.context,
+            )
+            .map(LocalEffectNode::PermanentKeywordAction),
+        );
+    }
+    if super::ControllerKeywordAction::from_imperative_verb(word).is_some() {
+        return Some(
+            super::recognize_controller_keyword_action(cursor, inputs.antecedent)
+                .map(LocalEffectNode::ControllerKeywordAction),
+        );
+    }
+    None
+}
+
+/// The frame of a lemma whose subject is the controller: the imperative,
+/// `you VERB`, or a preposed iteration of the mana output. `None` leaves the
+/// head to the subject frames (a lemma without an imperative frame here, or
+/// an operand shape another frame owns).
+fn recognize_lemma_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    head: &super::EffectHead,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> Option<MachineResult<LocalEffectNode>> {
+    use super::EffectSubjectKind as Subject;
+    let lemma = head.lemma?;
+    match (head.subject, head.modality) {
+        (Subject::ColorIteration, _) => {
+            Some(recognize_add_mana_effect(cursor).map(LocalEffectNode::AddMana))
+        }
+        (Subject::Imperative, super::ClauseModality::Indicative) => {
+            recognize_imperative_frame(cursor, lemma, inputs, attempt_frame)
+        }
+        (Subject::Controller, super::ClauseModality::Indicative) => match lemma {
+            VerbLemma::Discard if head.base(VerbLemma::Discard) => Some(
+                super::recognize_ordinary_player_discard(cursor).map(LocalEffectNode::DiscardCards),
+            ),
+            VerbLemma::Draw if head.base(VerbLemma::Draw) => {
+                Some(recognize_draw_frame(cursor, inputs, attempt_frame))
+            }
+            VerbLemma::Create if head.base(VerbLemma::Create) => Some(
+                recognize_token_creation_frame(cursor, inputs, attempt_frame),
+            ),
+            _ => None,
+        },
+        (Subject::ObjectRelatedPlayer, super::ClauseModality::Indicative)
+            if head.is(VerbLemma::Create, VerbForm::ThirdPersonSingular) =>
+        {
+            Some(recognize_token_creation_frame(
+                cursor,
+                inputs,
+                attempt_frame,
+            ))
+        }
+        _ => None,
+    }
+}
+
+/// `draw ...` / `you draw ...`: the shared draw reader.
+fn recognize_draw_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<LocalEffectNode> {
+    match try_recognize_draw_cards_effect_with_context(cursor, inputs.context) {
+        DrawCardsEffectParseAttempt::Parsed(effect) => Ok(LocalEffectNode::DrawCards(effect)),
+        DrawCardsEffectParseAttempt::RejectedCandidate(failure) => Err(failure),
+        DrawCardsEffectParseAttempt::FailedCommitted(failure) => {
+            attempt_frame.commit();
+            Err(failure)
+        }
+    }
+}
+
+/// `[PLAYER] create(s) TOKENS`: the shared token-creation action. A
+/// possessed-object controller (`that creature's controller creates`) is an
+/// owned action head: its binding and nominal failures stay explicit.
+fn recognize_token_creation_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<LocalEffectNode> {
+    if super::operand_determiner(cursor, 0) == super::OperandDeterminer::That {
+        attempt_frame.commit();
+        // Only this ordinary token action receives the caller's explicit
+        // actor-reference capability. Life/damage/duration readers keep
+        // their historical unqualified wrapper.
+        return super::recognize_create_creature_tokens_effect_with_reference_support(
+            cursor,
+            inputs.antecedent,
+            inputs.context.target_reference_support,
+        )
+        .map(LocalEffectNode::CreateTokens);
+    }
+    match super::try_recognize_token_creation_action(cursor, inputs.antecedent) {
+        super::TokenCreationAttempt::Recognized(effect) => Ok(effect),
+        super::TokenCreationAttempt::FailedCommitted(failure) => Err(failure),
+        super::TokenCreationAttempt::NotClaimed => {
+            Err(cursor.fail("a complete token creation action"))
+        }
+    }
+}
+
+/// One arm per imperative lemma. Each arm owns every operand shape of its
+/// lemma, in the order its readers claim them; `None` hands the head to the
+/// subject frames (the lemma has no imperative frame here).
+fn recognize_imperative_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    lemma: VerbLemma,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> Option<MachineResult<LocalEffectNode>> {
+    let EffectFrameInputs {
+        name_links,
+        name_failure,
+        antecedent,
+        object_set_binding: _,
+        object_set_antecedent: _,
+        context,
+    } = *inputs;
+    Some(match lemma {
+        VerbLemma::Discard => {
+            super::recognize_ordinary_player_discard(cursor).map(LocalEffectNode::DiscardCards)
+        }
+        VerbLemma::Support => {
+            super::recognize_support_action(cursor, context).map(LocalEffectNode::PutCounters)
+        }
+        // `choose DOMAIN` owns its verb: every domain either binds or fails
+        // at its own typed state (CR 115.1, 608.2d). The failure stays
+        // tentative so modal parents keep their own claim on mode choices.
+        VerbLemma::Choose => {
+            super::recognize_choose_instruction(cursor).map(LocalEffectNode::Choose)
+        }
+        VerbLemma::Attach => {
+            let mut trial = cursor.clone();
+            super::recognize_attach_effect(&mut trial, name_links, name_failure, context).map(
+                |node| {
+                    *cursor = trial;
+                    LocalEffectNode::Attach(node)
+                },
+            )
+        }
+        VerbLemma::Prevent => {
+            super::recognize_prevent_damage_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PreventDamage)
+        }
+        VerbLemma::Regenerate => {
+            super::recognize_regenerate_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PermanentKeywordAction)
+        }
+        VerbLemma::Goad => super::recognize_goad_effect(cursor, name_links, name_failure, context)
+            .map(LocalEffectNode::PermanentKeywordAction),
+        VerbLemma::Tap => recognize_tap_frame(cursor, inputs),
+        VerbLemma::Untap => recognize_untap_frame(cursor, inputs),
+        VerbLemma::Add => recognize_add_mana_effect(cursor).map(LocalEffectNode::AddMana),
+        VerbLemma::Sacrifice => recognize_ordinary_sacrifice_effect(
             cursor,
             name_links,
             name_failure,
-            context,
+            context.source.as_ref(),
         )
-        .map(LocalEffectNode::PermanentKeywordAction);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|raw| super::PermanentKeywordAction::from_self_quantity_verb(raw).is_some())
-    {
-        return super::recognize_self_quantity_keyword_action(cursor, antecedent, context)
-            .map(LocalEffectNode::PermanentKeywordAction);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|raw| super::ControllerKeywordAction::from_imperative_verb(raw).is_some())
-    {
-        return super::recognize_controller_keyword_action(cursor, antecedent)
-            .map(LocalEffectNode::ControllerKeywordAction);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("support"))
-    {
-        return super::recognize_support_action(cursor, context).map(LocalEffectNode::PutCounters);
-    }
+        .map(LocalEffectNode::Sacrifice),
+        VerbLemma::Draw => recognize_draw_frame(cursor, inputs, attempt_frame),
+        VerbLemma::Amass => recognize_amass_effect(cursor, antecedent).map(LocalEffectNode::Amass),
+        VerbLemma::Empower => {
+            recognize_empower_jace_effect(cursor, antecedent).map(LocalEffectNode::EmpowerJace)
+        }
+        VerbLemma::Investigate => {
+            recognize_investigate_effect(cursor).map(LocalEffectNode::Investigate)
+        }
+        VerbLemma::Scry => recognize_scry_effect(cursor).map(LocalEffectNode::Scry),
+        VerbLemma::Surveil => {
+            recognize_surveil_effect(cursor, antecedent).map(LocalEffectNode::Surveil)
+        }
+        VerbLemma::Earthbend => recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend),
+        VerbLemma::Search => recognize_controller_library_search(cursor)
+            .map(LocalEffectNode::ControllerLibrarySearch),
+        VerbLemma::Transform => recognize_transform_source_effect(cursor, name_links, name_failure)
+            .map(LocalEffectNode::TransformPermanent),
+        // `double strike` is the keyword (CR 702.4), never the doubling action.
+        VerbLemma::Double
+            if !cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("strike")) =>
+        {
+            super::recognize_double_counters_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PutCounters)
+        }
+        VerbLemma::Move if super::claims_move_counters_effect(cursor) => {
+            super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::MoveCounters)
+        }
+        VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
+            super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PutCounters)
+        }
+        VerbLemma::Put => recognize_put_frame(cursor, inputs),
+        VerbLemma::Counter => recognize_counter_effect(cursor),
+        VerbLemma::Destroy => recognize_destroy_frame(cursor, inputs),
+        VerbLemma::Exile => recognize_exile_frame(cursor, inputs, attempt_frame),
+        VerbLemma::Return => recognize_return_frame(cursor, inputs, attempt_frame),
+        VerbLemma::Create => recognize_token_creation_frame(cursor, inputs, attempt_frame),
+        // The lemma has no imperative effect frame here (`gain`, `lose` and
+        // `deal` belong to the clause readers before the dispatcher; a
+        // counter verb without its counter noun is no counter frame); the
+        // subject frames keep their claim.
+        _ => return None,
+    })
+}
 
+/// `tap OBJECTS`: the shared contextual permanent operand.
+fn recognize_tap_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+) -> MachineResult<LocalEffectNode> {
+    cursor.enter("effect.tap.action");
+    let mut trial = cursor.clone();
+    trial.consume(
+        crate::oracle::canonical::automata::verb_entry(VerbLemma::Tap).surface(VerbForm::Base),
+    )?;
+    cursor.enter("effect.tap.object");
+    let targets = super::recognize_contextual_permanent_operand(
+        &mut trial,
+        inputs.name_links,
+        inputs.name_failure,
+        inputs.context,
+    )?;
+    *cursor = trial;
+    Ok(LocalEffectNode::TapPermanents(
+        super::TapPermanentsEffectNode {
+            targets,
+            untap: false,
+        },
+    ))
+}
+
+/// `untap OBJECTS`: a resolution selection, the shared permanent operand of
+/// the tap frame, or `untap it` over the proven permanent antecedent.
+fn recognize_untap_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+) -> MachineResult<LocalEffectNode> {
+    let context = inputs.context;
+    if super::operand_determiner(cursor, 1) != super::OperandDeterminer::It {
+        let mut historical = cursor.clone();
+        match super::recognize_untap_permanents_effect(&mut historical) {
+            Ok(fragment) => {
+                *cursor = historical;
+                cursor.require(
+                    fragment.end_position == cursor.position(),
+                    "the selected untap child boundary",
+                )?;
+                return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
+            }
+            Err(failure) => {
+                // `untap OBJECT` shares the tap verb frame and its
+                // permanent operand (`target creature`, `up to two ...`).
+                let mut trial = cursor.clone();
+                trial.consume(
+                    crate::oracle::canonical::automata::verb_entry(VerbLemma::Untap)
+                        .surface(VerbForm::Base),
+                )?;
+                let Ok(targets) = super::recognize_contextual_permanent_operand(
+                    &mut trial,
+                    inputs.name_links,
+                    inputs.name_failure,
+                    context,
+                ) else {
+                    *cursor = historical;
+                    return Err(failure);
+                };
+                *cursor = trial;
+                return Ok(LocalEffectNode::TapPermanents(
+                    super::TapPermanentsEffectNode {
+                        targets,
+                        untap: true,
+                    },
+                ));
+            }
+        }
+    }
+    let reference =
+        super::permanent_subject::proven_permanent_antecedent(context).map(|reference| {
+            if matches!(reference, super::PermanentEffectReference::Source(_))
+                && context.observed_source_relationship
+                    == super::ObservedSourceRelationship::SameEnteringObject
+            {
+                super::PermanentEffectReference::Observed(
+                    super::TypedObservedEventObject::EnteringPermanent,
+                )
+            } else {
+                reference
+            }
+        });
+    let fragment = recognize_untap_permanent_effect(cursor, reference)?;
+    cursor.require(
+        fragment.end_position == cursor.position(),
+        "the untap child cursor boundary",
+    )?;
+    Ok(LocalEffectNode::UntapTarget(fragment.node))
+}
+
+/// `put ...`: a declared card target to a zone, counters on an object, a
+/// declared permanent to its owner's library, or cards between zones.
+fn recognize_put_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+) -> MachineResult<LocalEffectNode> {
+    if targeted_card_zone_move_starts(cursor) {
+        return recognize_target_card_zone_change_effect(cursor)
+            .map(LocalEffectNode::TargetCardZoneChange);
+    }
+    if claims_put_counters_effect(cursor) {
+        return recognize_put_counters_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::PutCounters);
+    }
+    // The object-to-zone frame of `put` with a declared target permanent:
+    // the shared targeted zone change, to its owner's library.
+    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Target
+        && let Ok(effect) = cursor.attempt(super::recognize_zone_change_effect)
+    {
+        return Ok(effect);
+    }
+    recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
+}
+
+/// `destroy OBJECTS`: a universal collection, a bound set, a bound
+/// reference, or a declared target with its regeneration amendment.
+fn recognize_destroy_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+) -> MachineResult<LocalEffectNode> {
+    match super::operand_determiner(cursor, 1) {
+        super::OperandDeterminer::Universal => {
+            let mut collection = super::recognize_destroy_permanent_collection_effect_with_source(
+                cursor,
+                inputs.context.source_numeric_reads,
+            )?;
+            collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
+            Ok(LocalEffectNode::DestroyCollection(collection))
+        }
+        super::OperandDeterminer::Those => {
+            recognize_destroy_referenced_set_effect(cursor, inputs.object_set_antecedent)
+                .map(LocalEffectNode::DestroyReferencedSet)
+        }
+        // `destroy that creature`: a bound reference, never a declaration.
+        super::OperandDeterminer::That => super::recognize_destroy_reference_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction),
+        super::OperandDeterminer::Absent => recognize_zone_change_effect_with_policy(
+            cursor,
+            ZoneChangeTargetSupport::TargetCollection,
+            inputs.context.zone_change_domains,
+        ),
+        super::OperandDeterminer::It
+        | super::OperandDeterminer::Target
+        | super::OperandDeterminer::Other => {
+            recognize_zone_change_with_regeneration_amendment_with_support(
+                cursor,
+                ZoneChangeTargetSupport::TargetCollection,
+            )
+        }
+    }
+}
+
+/// `exile ...`: a declared card target, a universal graveyard collection,
+/// the source, or the shared zone change.
+fn recognize_exile_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<LocalEffectNode> {
+    match try_recognize_exile_target_card_zone_change_effect(cursor) {
+        TargetCardZoneChangeParseAttempt::Parsed(node) => {
+            return Ok(LocalEffectNode::TargetCardZoneChange(node));
+        }
+        TargetCardZoneChangeParseAttempt::FailedCommitted(failure) => {
+            attempt_frame.commit();
+            return Err(failure);
+        }
+        TargetCardZoneChangeParseAttempt::NotClaimed
+        | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
+    }
+    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal {
+        return recognize_exile_graveyard_collection_effect(cursor).map(LocalEffectNode::ZoneBatch);
+    }
+    if source_reference_starts_at(
+        cursor.position() + 1,
+        cursor.peek_ahead(1),
+        inputs.name_links,
+        inputs.name_failure,
+    ) {
+        return recognize_source_zone_move_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::MoveSource);
+    }
+    recognize_zone_change_effect_with_policy(
+        cursor,
+        ZoneChangeTargetSupport::TargetCollection,
+        inputs.context.zone_change_domains,
+    )
+}
+
+/// `return ...`: a declared card target (counted heads are claimed by the
+/// card-target operand itself), the source or an anaphor, a resolution
+/// selection, or the shared zone change.
+fn recognize_return_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<LocalEffectNode> {
+    if targeted_card_zone_move_starts(cursor) {
+        return recognize_target_card_zone_change_effect(cursor)
+            .map(LocalEffectNode::TargetCardZoneChange);
+    }
+    match try_recognize_target_card_zone_change_effect_with_verb(cursor, "return") {
+        TargetCardZoneChangeParseAttempt::Parsed(node) => {
+            return Ok(LocalEffectNode::TargetCardZoneChange(node));
+        }
+        TargetCardZoneChangeParseAttempt::FailedCommitted(failure) => {
+            attempt_frame.commit();
+            return Err(failure);
+        }
+        TargetCardZoneChangeParseAttempt::NotClaimed
+        | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
+    }
+    if source_or_anaphor_reference_starts_at(
+        cursor.position() + 1,
+        cursor.peek_ahead(1),
+        inputs.name_links,
+        inputs.name_failure,
+    ) {
+        return recognize_source_zone_move_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::MoveSource);
+    }
+    // A resolution choice (`a land you control`) shares the selection
+    // operand with `untap`; a target head stays with the targeted frame.
+    let mut trial = cursor.clone();
+    if let Ok(fragment) = super::recognize_return_selected_permanents_effect(&mut trial) {
+        *cursor = trial;
+        cursor.require(
+            fragment.end_position == cursor.position(),
+            "the selected return child boundary",
+        )?;
+        return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
+    }
+    recognize_zone_change_effect_with_policy(
+        cursor,
+        ZoneChangeTargetSupport::TargetCollection,
+        inputs.context.zone_change_domains,
+    )
+}
+
+/// The frames whose subject phrase owns the verb: a player permission, a
+/// declared or quantified operand, a permanent subject, a source or
+/// anaphor, and the modal `may` heads. The final failure means only that no
+/// subject frame reads this head.
+fn recognize_subject_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    head: &super::EffectHead,
+    inputs: &EffectFrameInputs<'_>,
+    attempt_frame: &mut SequenceAttemptFrame,
+) -> MachineResult<LocalEffectNode> {
+    use super::EffectSubjectKind as Subject;
+    let EffectFrameInputs {
+        name_links,
+        name_failure,
+        antecedent,
+        object_set_binding,
+        object_set_antecedent: _,
+        context,
+    } = *inputs;
     match try_recognize_temporary_player_permission(cursor) {
         TemporaryPlayerPermissionParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TemporaryPlayerPermission(node));
@@ -2091,14 +2601,7 @@ fn recognize_effect(
         TemporaryPlayerPermissionParseAttempt::NotClaimed
         | TemporaryPlayerPermissionParseAttempt::RejectedCandidate(_) => {}
     }
-    let targeted_head = cursor.peek().is_some_and(|token| {
-        token.eq_ignore_ascii_case("target")
-            || token.eq_ignore_ascii_case("another")
-            || token.eq_ignore_ascii_case("up")
-    }) || cursor
-        .peek_token()
-        .is_some_and(|token| token.token_type == "quantity");
-    if targeted_head {
+    if head.subject == Subject::Declared {
         match try_recognize_temporary_combat_restriction(cursor) {
             TemporaryCombatRestrictionParseAttempt::Parsed(restriction) => {
                 return Ok(LocalEffectNode::TemporaryKeywordGrant(
@@ -2121,516 +2624,35 @@ fn recognize_effect(
         super::PermanentActionAttempt::NotClaimed
         | super::PermanentActionAttempt::RejectedCandidate(_) => {}
     }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("choose"))
-    {
-        // `choose DOMAIN` owns its verb: every domain either binds or fails
-        // at its own typed state (CR 115.1, 608.2d). The failure stays
-        // tentative so modal parents keep their own claim on mode choices.
-        return super::recognize_choose_instruction(cursor).map(LocalEffectNode::Choose);
+    if head.subject == Subject::Declared {
+        return recognize_declared_subject_clause(cursor);
     }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("attach"))
-    {
-        let mut trial = cursor.clone();
-        let node = super::recognize_attach_effect(&mut trial, name_links, name_failure, context)?;
-        *cursor = trial;
-        return Ok(LocalEffectNode::Attach(node));
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("prevent"))
-    {
-        return super::recognize_prevent_damage_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::PreventDamage);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("regenerate"))
-    {
-        return super::recognize_regenerate_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::PermanentKeywordAction);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("goad"))
-    {
-        return super::recognize_goad_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::PermanentKeywordAction);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Tap,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) {
-        cursor.enter("effect.tap.action");
-        let mut trial = cursor.clone();
-        trial.consume(
-            crate::oracle::canonical::automata::verb_entry(VerbLemma::Tap).surface(VerbForm::Base),
-        )?;
-        cursor.enter("effect.tap.object");
-        let targets = super::recognize_contextual_permanent_operand(
-            &mut trial,
-            name_links,
-            name_failure,
-            context,
-        )?;
-        *cursor = trial;
-        return Ok(LocalEffectNode::TapPermanents(
-            super::TapPermanentsEffectNode {
-                targets,
-                untap: false,
-            },
-        ));
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Untap,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) {
-        if !cursor
-            .peek_ahead(1)
-            .is_some_and(|word| word.eq_ignore_ascii_case("it"))
-        {
-            let mut historical = cursor.clone();
-            match super::recognize_untap_permanents_effect(&mut historical) {
-                Ok(fragment) => {
-                    *cursor = historical;
-                    cursor.require(
-                        fragment.end_position == cursor.position(),
-                        "the selected untap child boundary",
-                    )?;
-                    return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
-                }
-                Err(failure) => {
-                    // `untap OBJECT` shares the tap verb frame and its
-                    // permanent operand (`target creature`, `up to two ...`).
-                    let mut trial = cursor.clone();
-                    trial.consume(
-                        crate::oracle::canonical::automata::verb_entry(VerbLemma::Untap)
-                            .surface(VerbForm::Base),
-                    )?;
-                    let Ok(targets) = super::recognize_contextual_permanent_operand(
-                        &mut trial,
-                        name_links,
-                        name_failure,
-                        context,
-                    ) else {
-                        *cursor = historical;
-                        return Err(failure);
-                    };
-                    *cursor = trial;
-                    return Ok(LocalEffectNode::TapPermanents(
-                        super::TapPermanentsEffectNode {
-                            targets,
-                            untap: true,
-                        },
-                    ));
-                }
+    if head.subject == Subject::Quantified {
+        if super::quantified_player_action_starts(cursor) {
+            attempt_frame.commit();
+            return recognize_quantified_player_action(cursor, context)
+                .map(LocalEffectNode::QuantifiedPlayerAction);
+        }
+        // `each player|opponent|other player ...` is a player-set subject,
+        // never an object quantifier. When the player-set reader does not
+        // take its verb, the failure names the verb and the subject kind.
+        if let Some(verb_offset) = super::player_set_subject_length(cursor) {
+            let mut verb = cursor.clone();
+            verb.advance_to(verb.position() + verb_offset)?;
+            if verb
+                .peek()
+                .and_then(super::lookup_auxiliary)
+                .is_some_and(|(auxiliary, _)| auxiliary == super::Auxiliary::May)
+            {
+                verb.advance_to(verb.position() + 1)?;
             }
+            return Err(super::clause_verb_unsupported(
+                &verb,
+                "a player set (`each player`)",
+            ));
         }
-        let reference =
-            super::permanent_subject::proven_permanent_antecedent(context).map(|reference| {
-                if matches!(reference, super::PermanentEffectReference::Source(_))
-                    && context.observed_source_relationship
-                        == super::ObservedSourceRelationship::SameEnteringObject
-                {
-                    super::PermanentEffectReference::Observed(
-                        super::TypedObservedEventObject::EnteringPermanent,
-                    )
-                } else {
-                    reference
-                }
-            });
-        let fragment = recognize_untap_permanent_effect(cursor, reference)?;
-        cursor.require(
-            fragment.end_position == cursor.position(),
-            "the untap child cursor boundary",
-        )?;
-        return Ok(LocalEffectNode::UntapTarget(fragment.node));
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("add"))
-        || (cursor
-            .peek()
-            .is_some_and(|token| token.eq_ignore_ascii_case("for"))
-            && cursor
-                .peek_ahead(1)
-                .is_some_and(|token| token.eq_ignore_ascii_case("each"))
-            && cursor
-                .peek_ahead(2)
-                .is_some_and(|token| token.eq_ignore_ascii_case("color")))
-    {
-        return recognize_add_mana_effect(cursor).map(LocalEffectNode::AddMana);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Sacrifice,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) {
-        return recognize_ordinary_sacrifice_effect(
-            cursor,
-            name_links,
-            name_failure,
-            context.source.as_ref(),
-        )
-        .map(LocalEffectNode::Sacrifice);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("target"))
-    {
-        return recognize_mill_cards_effect(cursor).map(LocalEffectNode::MillCards);
-    }
-    if super::quantified_player_action_starts(cursor) {
-        attempt_frame.commit();
-        return recognize_quantified_player_action(cursor, context)
-            .map(LocalEffectNode::QuantifiedPlayerAction);
-    }
-    // `each player|opponent|other player ...` is a player-set subject, never
-    // an object quantifier. When the player-set reader does not take its
-    // verb, the failure names the verb and the subject kind (S5, S2).
-    if let Some(verb_offset) = super::player_set_subject_length(cursor) {
-        let mut verb = cursor.clone();
-        verb.advance_to(verb.position() + verb_offset)?;
-        if verb
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
-        {
-            verb.advance_to(verb.position() + 1)?;
-        }
-        return Err(super::clause_verb_unsupported(
-            &verb,
-            "a player set (`each player`)",
-        ));
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("each"))
-    {
         return recognize_set_ability_loss_effect(cursor, object_set_binding)
             .map(LocalEffectNode::LoseAbilities);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("draw"))
-        || (cursor
-            .peek()
-            .is_some_and(|token| token.eq_ignore_ascii_case("you"))
-            && cursor
-                .peek_ahead(1)
-                .is_some_and(|token| token.eq_ignore_ascii_case("draw")))
-    {
-        return match try_recognize_draw_cards_effect_with_context(cursor, context) {
-            DrawCardsEffectParseAttempt::Parsed(effect) => Ok(LocalEffectNode::DrawCards(effect)),
-            DrawCardsEffectParseAttempt::RejectedCandidate(failure) => Err(failure),
-            DrawCardsEffectParseAttempt::FailedCommitted(failure) => {
-                attempt_frame.commit();
-                Err(failure)
-            }
-        };
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("amass"))
-    {
-        return recognize_amass_effect(cursor, antecedent).map(LocalEffectNode::Amass);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("empower"))
-    {
-        return recognize_empower_jace_effect(cursor, antecedent).map(LocalEffectNode::EmpowerJace);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("investigate"))
-    {
-        return recognize_investigate_effect(cursor).map(LocalEffectNode::Investigate);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("scry"))
-    {
-        return recognize_scry_effect(cursor).map(LocalEffectNode::Scry);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("surveil"))
-    {
-        return recognize_surveil_effect(cursor, antecedent).map(LocalEffectNode::Surveil);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("earthbend"))
-    {
-        return recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("search"))
-    {
-        return recognize_controller_library_search(cursor)
-            .map(LocalEffectNode::ControllerLibrarySearch);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("transform"))
-    {
-        return recognize_transform_source_effect(cursor, name_links, name_failure)
-            .map(LocalEffectNode::TransformPermanent);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("double"))
-        && !cursor
-            .peek_ahead(1)
-            .is_some_and(|token| token.eq_ignore_ascii_case("strike"))
-    {
-        return super::recognize_double_counters_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::PutCounters);
-    }
-    if super::claims_move_counters_effect(cursor) {
-        return super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::MoveCounters);
-    }
-    if super::claims_remove_counters_effect(cursor) {
-        return super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::PutCounters);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Put,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) {
-        if targeted_card_zone_move_starts(cursor) {
-            return recognize_target_card_zone_change_effect(cursor)
-                .map(LocalEffectNode::TargetCardZoneChange);
-        }
-        if claims_put_counters_effect(cursor) {
-            return recognize_put_counters_effect(cursor, name_links, name_failure, context)
-                .map(LocalEffectNode::PutCounters);
-        }
-        // The object-to-zone frame of `put` with a declared target permanent:
-        // the shared targeted zone change, to its owner's library.
-        if cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
-            && let Ok(effect) = cursor.attempt(super::recognize_zone_change_effect)
-        {
-            return Ok(effect);
-        }
-        return recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("counter"))
-    {
-        return recognize_counter_effect(cursor);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
-        && cursor.peek_ahead(1).is_some_and(|token| {
-            token.eq_ignore_ascii_case("all") || token.eq_ignore_ascii_case("each")
-        })
-    {
-        let mut collection = super::recognize_destroy_permanent_collection_effect_with_source(
-            cursor,
-            context.source_numeric_reads,
-        )?;
-        collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
-        return Ok(LocalEffectNode::DestroyCollection(collection));
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|token| token.eq_ignore_ascii_case("those"))
-    {
-        return recognize_destroy_referenced_set_effect(cursor, object_set_antecedent)
-            .map(LocalEffectNode::DestroyReferencedSet);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|token| token.eq_ignore_ascii_case("that"))
-    {
-        // `destroy that creature`: a bound reference, never a declaration.
-        return super::recognize_destroy_reference_effect(
-            cursor,
-            name_links,
-            name_failure,
-            context,
-        )
-        .map(LocalEffectNode::ReferencedPermanentAction);
-    }
-    if cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("destroy"))
-        && cursor.peek_ahead(1).is_some_and(|token| {
-            !token.eq_ignore_ascii_case("all")
-                && !token.eq_ignore_ascii_case("each")
-                && !token.eq_ignore_ascii_case("those")
-        })
-    {
-        return recognize_zone_change_with_regeneration_amendment_with_support(
-            cursor,
-            ZoneChangeTargetSupport::TargetCollection,
-        );
-    }
-    match try_recognize_exile_target_card_zone_change_effect(cursor) {
-        TargetCardZoneChangeParseAttempt::Parsed(node) => {
-            return Ok(LocalEffectNode::TargetCardZoneChange(node));
-        }
-        TargetCardZoneChangeParseAttempt::FailedCommitted(failure) => {
-            attempt_frame.commit();
-            return Err(failure);
-        }
-        TargetCardZoneChangeParseAttempt::NotClaimed
-        | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Exile,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) && cursor.peek_ahead(1).is_some_and(|token| {
-        token.eq_ignore_ascii_case("all") || token.eq_ignore_ascii_case("each")
-    }) {
-        return recognize_exile_graveyard_collection_effect(cursor).map(LocalEffectNode::ZoneBatch);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Exile,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) && source_reference_starts_at(
-        cursor.position() + 1,
-        cursor.peek_ahead(1),
-        name_links,
-        name_failure,
-    ) {
-        return recognize_source_zone_move_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::MoveSource);
-    }
-    // A counted card-target head (`up to two target creature cards from`)
-    // is claimed by the card-target operand itself, not by a lexical probe.
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Return,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) && !targeted_card_zone_move_starts(cursor)
-    {
-        match try_recognize_target_card_zone_change_effect_with_verb(cursor, "return") {
-            TargetCardZoneChangeParseAttempt::Parsed(node) => {
-                return Ok(LocalEffectNode::TargetCardZoneChange(node));
-            }
-            TargetCardZoneChangeParseAttempt::FailedCommitted(failure) => {
-                attempt_frame.commit();
-                return Err(failure);
-            }
-            TargetCardZoneChangeParseAttempt::NotClaimed
-            | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
-        }
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Return,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) && targeted_card_zone_move_starts(cursor)
-    {
-        return recognize_target_card_zone_change_effect(cursor)
-            .map(LocalEffectNode::TargetCardZoneChange);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Return,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) && source_or_anaphor_reference_starts_at(
-        cursor.position() + 1,
-        cursor.peek_ahead(1),
-        name_links,
-        name_failure,
-    ) {
-        return recognize_source_zone_move_effect(cursor, name_links, name_failure, context)
-            .map(LocalEffectNode::MoveSource);
-    }
-    if crate::oracle::canonical::automata::lemma_at(
-        cursor,
-        VerbLemma::Return,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    ) {
-        // A resolution choice (`a land you control`) shares the selection
-        // operand with `untap`; a target head stays with the targeted frame.
-        let mut trial = cursor.clone();
-        if let Ok(fragment) = super::recognize_return_selected_permanents_effect(&mut trial) {
-            *cursor = trial;
-            cursor.require(
-                fragment.end_position == cursor.position(),
-                "the selected return child boundary",
-            )?;
-            return Ok(LocalEffectNode::SelectedPermanents(fragment.node));
-        }
-    }
-    if cursor.peek().is_some_and(|token| {
-        is_verb_form(&token, VerbLemma::Exile, VerbForm::Base)
-            || token.eq_ignore_ascii_case("destroy")
-            || is_verb_form(&token, VerbLemma::Return, VerbForm::Base)
-    }) {
-        return recognize_zone_change_effect_with_policy(
-            cursor,
-            ZoneChangeTargetSupport::TargetCollection,
-            context.zone_change_domains,
-        );
-    }
-    if super::controller_reference_head_length(
-        cursor.token_slice(cursor.position(), cursor.position() + 3),
-    )
-    .is_some_and(|length| {
-        cursor
-            .peek_ahead(length)
-            .is_some_and(|raw| is_verb_form(&raw, VerbLemma::Create, VerbForm::ThirdPersonSingular))
-    }) || (cursor
-        .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("you"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|token| is_verb_form(&token, VerbLemma::Create, VerbForm::Base)))
-        || crate::oracle::canonical::automata::lemma_at(
-            cursor,
-            VerbLemma::Create,
-            crate::oracle::canonical::automata::VerbAgreement::Base,
-        )
-    {
-        if cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
-        {
-            // A registered possessed-object controller followed by creates is
-            // an owned action head; binding/nominal failures remain explicit.
-            attempt_frame.commit();
-            // Only this ordinary token action receives the caller's explicit
-            // actor-reference capability. Life/damage/duration readers keep
-            // their historical unqualified wrapper.
-            return super::recognize_create_creature_tokens_effect_with_reference_support(
-                cursor,
-                antecedent,
-                context.target_reference_support,
-            )
-            .map(LocalEffectNode::CreateTokens);
-        }
-        return match super::try_recognize_token_creation_action(cursor, antecedent) {
-            super::TokenCreationAttempt::Recognized(effect) => Ok(effect),
-            super::TokenCreationAttempt::FailedCommitted(failure) => Err(failure),
-            super::TokenCreationAttempt::NotClaimed => {
-                Err(cursor.fail("a complete token creation action"))
-            }
-        };
     }
     if source_or_anaphor_reference_starts_at(
         cursor.position(),
@@ -2646,65 +2668,77 @@ fn recognize_effect(
             context.subject_verb_agreement,
         );
     }
-    let optional_action_offset = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
-    {
-        Some(2)
-    } else if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("that"))
-        && cursor
-            .peek_ahead(2)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"))
-    {
-        Some(3)
-    } else {
-        None
+    match (head.subject, head.modality, head.lemma) {
+        // `you may draw` / `its controller may draw`: the referenced draw.
+        (Subject::Controller | Subject::Possessed, super::ClauseModality::May, Some(lemma))
+            if lemma == VerbLemma::Draw =>
+        {
+            attempt_frame.commit();
+            recognize_referenced_draw_effect(cursor, antecedent)
+        }
+        (Subject::Controller | Subject::Possessed, super::ClauseModality::May, Some(lemma))
+            if lemma == VerbLemma::Search =>
+        {
+            attempt_frame.commit();
+            recognize_optional_library_search(cursor, antecedent)
+                .map(LocalEffectNode::OptionalLibrarySearch)
+        }
+        // A possessed player's permission is read by the optional search
+        // reader, which owns its explicit failure for other verbs.
+        (Subject::Possessed, super::ClauseModality::May, _) => {
+            recognize_optional_library_search(cursor, antecedent)
+                .map(LocalEffectNode::OptionalLibrarySearch)
+        }
+        (Subject::Controller, super::ClauseModality::May, Some(VerbLemma::Put))
+            if head.base(VerbLemma::Put) =>
+        {
+            recognize_optional_card_deployment_effect_with_context(cursor, context)
+                .map(LocalEffectNode::OptionalCardDeployment)
+        }
+        _ => Err(cursor.fail("a supported effect subject")),
+    }
+}
+
+/// `target PLAYER VERBs ...` / `target OBJECT VERBs ...` not claimed by the
+/// permanent-subject or combat frames (S3, PlayerRef): the declared subject
+/// is read with the shared target list, then its verb is looked up in the
+/// lexicon. A target player who mills is the mill frame; any other verb
+/// fails naming the lemma and the subject kind, never as a missing player.
+fn recognize_declared_subject_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalEffectNode> {
+    let written_target = super::operand_determiner(cursor, 0) == super::OperandDeterminer::Target;
+    let mut subject = cursor.clone();
+    subject.enter("effect.subject.declared");
+    let target = match super::recognize_target_list(&mut subject) {
+        Ok(target) => target,
+        // The subject phrase's own failure is the deepest component.
+        Err(failure) if written_target => return Err(failure),
+        Err(_) => return Err(cursor.fail("a supported effect subject")),
     };
-    if optional_action_offset.is_some_and(|offset| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("draw"))
-    }) {
-        attempt_frame.commit();
-        return recognize_referenced_draw_effect(cursor, antecedent);
-    }
-    if optional_action_offset.is_some_and(|offset| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("search"))
-    }) {
-        attempt_frame.commit();
-        return recognize_optional_library_search(cursor, antecedent)
-            .map(LocalEffectNode::OptionalLibrarySearch);
-    }
-    if cursor.peek().is_some_and(|token| {
-        token.eq_ignore_ascii_case("its") || token.eq_ignore_ascii_case("that")
-    }) && cursor
-        .peek_ahead(2)
-        .is_some_and(|token| token.eq_ignore_ascii_case("may"))
-    {
-        return recognize_optional_library_search(cursor, antecedent)
-            .map(LocalEffectNode::OptionalLibrarySearch);
-    }
-    if cursor
+    let players = !target.slots.is_empty()
+        && target
+            .slots
+            .iter()
+            .all(|slot| matches!(slot.selector, super::TargetSelector::Player(_)));
+    subject.enter("effect.subject.declared.verb");
+    let mills = subject
         .peek()
-        .is_some_and(|token| token.eq_ignore_ascii_case("you"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|token| token.eq_ignore_ascii_case("may"))
-        && cursor
-            .peek_ahead(2)
-            .is_some_and(|token| is_verb_form(&token, VerbLemma::Put, VerbForm::Base))
-    {
-        return recognize_optional_card_deployment_effect_with_context(cursor, context)
-            .map(LocalEffectNode::OptionalCardDeployment);
+        .and_then(super::lookup_effect_verb)
+        .is_some_and(|(entry, forms)| {
+            entry.lemma == VerbLemma::Mill && forms.contains(&VerbForm::ThirdPersonSingular)
+        });
+    if players && mills {
+        return recognize_mill_cards_effect(cursor).map(LocalEffectNode::MillCards);
     }
-    Err(cursor.fail("a supported effect subject"))
+    Err(super::clause_verb_unsupported(
+        &subject,
+        if players {
+            "a declared target player"
+        } else {
+            "a declared target object"
+        },
+    ))
 }
 
 /// The agreement of a performer's continued verb: plural after `they`, else
