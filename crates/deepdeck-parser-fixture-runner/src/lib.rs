@@ -392,7 +392,20 @@ fn evaluate_case(
                     .iter()
                     .any(|actual| diagnostic_matches(diagnostic, actual))
                 {
-                    return Err(format!("no diagnostic matched expectation {diagnostic:?}"));
+                    let actual = diagnostics
+                        .iter()
+                        .map(|actual| {
+                            format!(
+                                "{}@{}: {}",
+                                actual["code"].as_str().unwrap_or("?"),
+                                actual["state"].as_str().unwrap_or("-"),
+                                actual["message"].as_str().unwrap_or("")
+                            )
+                        })
+                        .collect::<Vec<_>>();
+                    return Err(format!(
+                        "no diagnostic matched expectation {diagnostic:?}; actual diagnostics: {actual:?}"
+                    ));
                 }
             }
             Ok(())
