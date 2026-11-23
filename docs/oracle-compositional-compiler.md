@@ -101,6 +101,23 @@ prédicats. Un joueur ne reçoit pas artificiellement les propriétés d'une car
 - Le moteur produit les candidats légaux et le protocole de décision. L'UI et l'IA
   consomment ce protocole ; elles ne réimplémentent pas les filtres de règles.
 
+Autorité unique du groupe nominal objet (implémentation actuelle) :
+
+- `ObjectPredicate` porte la seule inférence de domaine (CR 109.2a) :
+  `has_domain` (lecture inférée), `has_explicit_domain`, `has_positive_domain`,
+  `is_in_domain`, `is_in_domain_when_controlled` et `is_declarable_target_in`.
+  Un parent ne réécrit pas cette marche ; il appelle l'une de ces projections.
+  Un sous-type d'une seule famille garantit son type de carte (CR 205.3d).
+- `recognize_object_noun_query(ObjectQueryContext)` lit le prédicat et toutes
+  les relations de joueur par leur verbe (`control`, `cast`, `own`). Le parent
+  ne choisit pas la relation : il projette (`into_object_query`,
+  `into_spell_cast_query`, `into_related_query`, `into_unscoped_in_domain`) et
+  une relation qu'il ne représente pas échoue sur son verbe.
+- `recognize_object_noun_phrase` (`object_argument.rs`) ajoute le déterminant
+  (cible déclarée, choix à la résolution, universel), l'exclusion de la source
+  et le domaine inféré. Le parent vérifie seulement ce qu'il admet ; un
+  groupe sans déterminant ne consomme rien et n'échoue jamais dans un nombre.
+
 Cette section fixe une cible et une exigence de composition, pas un inventaire de
 couverture. Un nouveau champ nécessite encore sa sémantique et ses preuves. Une fois
 supporté, il doit se recombiner avec les lecteurs et consommateurs compatibles sans
