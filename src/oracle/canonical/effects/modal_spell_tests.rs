@@ -234,3 +234,38 @@ fn spree_modes_carry_their_costs_as_mode_conditioned_additional_costs() {
 fn a_spree_near_miss_without_mode_costs_is_not_claimed() {
     assert!(!claims("Spree (Choose one or more additional costs.)"));
 }
+
+/// Every string of a lowered program that names an id created while an
+/// effect resolves (`effect{N}...`, possibly under a mode prefix).
+fn resolution_ids(value: &serde_json::Value, found: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Array(values) => values.iter().for_each(|v| resolution_ids(v, found)),
+        serde_json::Value::Object(map) => map.values().for_each(|v| resolution_ids(v, found)),
+        serde_json::Value::String(id) if id.contains("effect") && id.contains(':') => {
+            found.push(id.clone())
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn ids_created_while_a_mode_resolves_are_scoped_to_that_mode() {
+    // Two chosen modes that both scry, and a discard mode: each mode's
+    // resolution choices are its own, never one shared `effect0:...` id.
+    let rule = modal_rule(
+        "Choose two \u{2014} \u{2022} Scry 2. \u{2022} Scry 1, then draw a card. \u{2022} Discard a card.",
+    )
+    .expect("three ordinary mode programs");
+    let mut ids = Vec::new();
+    resolution_ids(&rule["effects"], &mut ids);
+    assert!(!ids.is_empty(), "{rule:#}");
+    for id in &ids {
+        assert!(
+            id.starts_with("mode"),
+            "unscoped resolution id {id}: {rule:#}"
+        );
+    }
+    for mode in ["mode1:", "mode2:"] {
+        assert!(ids.iter().any(|id| id.starts_with(mode)), "{mode} {ids:?}");
+    }
+}

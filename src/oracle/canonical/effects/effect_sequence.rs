@@ -28,6 +28,24 @@ use crate::oracle::contextual_binding::{
     RESOLUTION_CREATURE_TYPE_DECISION, WHERE_X_BINDING_ID, references_resolution_creature_type,
 };
 
+/// Root of every id an effect of a program creates while it resolves (scry
+/// and discard choices, sacrifice decisions, objects it binds). A container
+/// that lowers several programs side by side (the modes of a modal spell)
+/// rescopes the ids recognized by `is_effect_resolution_id`.
+pub(in crate::oracle::canonical) fn effect_resolution_scope(effect_index: usize) -> String {
+    format!("effect{effect_index}")
+}
+
+/// Whether `id` lies in some effect's resolution scope (`effect{N}` or
+/// `effect{N}:...`).
+pub(in crate::oracle::canonical) fn is_effect_resolution_id(id: &str) -> bool {
+    let Some(rest) = id.strip_prefix("effect") else {
+        return false;
+    };
+    let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+    digits > 0 && rest[digits..].chars().next().is_none_or(|next| next == ':')
+}
+
 enum EffectSequenceLoweringFailure {
     UnsupportedSupportLimit(MachineFailure),
     FailedSupport(MachineFailure),
@@ -531,7 +549,7 @@ fn lower_local_effect_sequence_with_collections(
                                 count,
                                 amount,
                                 lowered.player,
-                                Some(&format!("effect{effect_index}")),
+                                Some(&effect_resolution_scope(effect_index)),
                             )
                             .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                         );
@@ -610,7 +628,10 @@ fn lower_local_effect_sequence_with_collections(
                             lower_player_sacrifice_effects(
                                 sacrifice,
                                 lowered.player,
-                                &format!("effect{effect_index}:playerSacrifice"),
+                                &format!(
+                                    "{}:playerSacrifice",
+                                    effect_resolution_scope(effect_index)
+                                ),
                                 declarations,
                             )
                             .map_err(|error| {
@@ -1279,7 +1300,7 @@ fn lower_local_effect_sequence_with_collections(
                     lower_controller_keyword_action(
                         keyword_action.action,
                         quantity,
-                        &format!("effect{effect_index}"),
+                        &effect_resolution_scope(effect_index),
                     )
                     .map_err(|expected| {
                         EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -1947,7 +1968,7 @@ fn lower_local_effect_sequence_with_collections(
                 let mut lowered = lower_targetless_local_effects(
                     effect,
                     declarations,
-                    Some(&format!("effect{effect_index}")),
+                    Some(&effect_resolution_scope(effect_index)),
                 )
                 .map_err(|error| {
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(

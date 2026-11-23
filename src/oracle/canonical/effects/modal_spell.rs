@@ -79,9 +79,26 @@ struct LoweredModeOccurrence {
     lowered: LoweredEffectSequence,
 }
 
-/// Lowers one mode program under `prefix`: declarations and resolution-cost
-/// results are local to that occurrence, so two selected modes (or two
-/// occurrences of a repeated mode) never share one id.
+/// Collects every effect-resolution id (`effect{N}:...`) of a lowered program.
+fn collect_effect_resolution_ids(value: &Value, ids: &mut Vec<String>) {
+    match value {
+        Value::Array(values) => values
+            .iter()
+            .for_each(|value| collect_effect_resolution_ids(value, ids)),
+        Value::Object(object) => object
+            .values()
+            .for_each(|value| collect_effect_resolution_ids(value, ids)),
+        Value::String(id) if is_effect_resolution_id(id) && !ids.contains(id) => {
+            ids.push(id.clone());
+        }
+        _ => {}
+    }
+}
+
+/// Lowers one mode program under `prefix`: declarations, resolution-cost
+/// results and the ids its effects create while resolving (scry and discard
+/// choices, bound objects) are local to that occurrence, so two selected
+/// modes (or two occurrences of a repeated mode) never share one id.
 fn lower_mode_occurrence(
     cursor: &mut OracleTokenCursor<'_>,
     mode: &EffectProgramNode,
@@ -95,7 +112,7 @@ fn lower_mode_occurrence(
         mode,
         EffectSequenceLoweringContext::ValidateXAfterCardComposition,
     )?;
-    let replacements = lowered
+    let mut ids = lowered
         .decisions
         .iter()
         .filter_map(|decision| decision["id"].as_str())
@@ -107,7 +124,19 @@ fn lower_mode_occurrence(
                 .filter(|effect| effect["kind"].as_str() == Some("tryPayCost"))
                 .filter_map(|effect| effect["id"].as_str()),
         )
-        .map(|id| (id.to_string(), format!("{prefix}:{id}")))
+        .map(ToString::to_string)
+        .collect::<Vec<String>>();
+    for program in [&lowered.decisions, &lowered.effects] {
+        for value in program {
+            collect_effect_resolution_ids(value, &mut ids);
+        }
+    }
+    let replacements = ids
+        .into_iter()
+        .map(|id| {
+            let scoped = format!("{prefix}:{id}");
+            (id, scoped)
+        })
         .collect::<Vec<_>>();
     for decision in &mut lowered.decisions {
         let is_shared_x = decision["id"].as_str() == Some("xValue");
