@@ -115,16 +115,9 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
                 .map_err(|error| cursor.fail(error.expectation()))?,
         }]);
     };
-    cursor.require(
-        !targets.slots.iter().enumerate().any(|(index, slot)| {
-            slot.exclude_source
-                && (index > 0
-                    || decisions
-                        .iter()
-                        .any(|decision| decision["kind"].as_str() == Some("chooseTargets")))
-        }),
-        "an explicit distinct-target relation for another after an earlier target declaration",
-    )?;
+    // `another target X` after an earlier target slot carries the typed
+    // `otherThanEarlierTargets` relation from the target-list child; the card
+    // composition resolves it against the declaration (`distinctFrom`).
     let mut objects = Vec::new();
     for (slot_index, slot) in targets.slots.iter().enumerate() {
         cursor.enter("lower.permanent-subject.target-slot");
@@ -138,7 +131,7 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
         let (base, mut candidates) = lower_target_slot_candidates(slot)
             .ok_or_else(|| cursor.fail("a supported permanent target candidate query"))?;
         if slot_index == 0 && exclude_first_source {
-            candidates["excludeSource"] = json!(true);
+            crate::oracle::canonical::automata::mark_other_target_slot(&mut candidates);
         }
         let ordinal = used_base_ids
             .iter()

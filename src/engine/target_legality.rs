@@ -77,13 +77,53 @@ fn declared_slots<'a>(stack: &'a StackObject, target_id: &str) -> Vec<TargetSlot
 /// Match a committed member to its owning declaration using the same longest
 /// binding rule as legality/retargeting. Explicit legacy map-only designations
 /// retain their established ordinal semantics; they do not prove an empty set.
-/// `distinctTargets`: each group of target ids of a rule names different
-/// objects (`another target creature` after `target creature`, CR 115.3).
+fn target_slot_id(target_id: &str) -> &str {
+    target_id.split(':').next().unwrap_or(target_id)
+}
+
+/// The objects a declaration chose for the slot `slot_id` (`id` or
+/// `id:index`).
+fn slot_objects<'a>(
+    targets: &'a BTreeMap<String, TargetRef>,
+    slot_id: &'a str,
+) -> impl Iterator<Item = &'a TargetRef> + 'a {
+    targets
+        .iter()
+        .filter(move |(target_id, _)| target_slot_id(target_id) == slot_id)
+        .map(|(_, target)| target)
+}
+
+/// A rule's distinct target relations (CR 115.3): a slot's `distinctFrom`
+/// names earlier slots whose objects it must not name, compared by slot so
+/// that any number of chosen objects is checked; the legacy `distinctTargets`
+/// groups of target ids are compared the same way.
 pub(super) fn declaration_respects_distinct_targets(
     rule: &Value,
     targets: &BTreeMap<String, TargetRef>,
 ) -> bool {
-    rule["distinctTargets"]
+    let relations = rule["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|decision| {
+            Some((
+                decision["id"].as_str()?,
+                decision["distinctFrom"]
+                    .as_array()?
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .collect::<Vec<_>>(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    let typed = relations.iter().all(|(later, earlier_slots)| {
+        slot_objects(targets, later).all(|object| {
+            earlier_slots
+                .iter()
+                .all(|earlier| slot_objects(targets, earlier).all(|other| other != object))
+        })
+    });
+    let legacy = rule["distinctTargets"]
         .as_array()
         .into_iter()
         .flatten()
@@ -93,13 +133,28 @@ pub(super) fn declaration_respects_distinct_targets(
                 .into_iter()
                 .flatten()
                 .filter_map(Value::as_str)
-                .filter_map(|target_id| targets.get(target_id))
+                .flat_map(|slot| slot_objects(targets, target_slot_id(slot)))
                 .collect::<Vec<_>>();
             values
                 .iter()
                 .enumerate()
                 .all(|(index, value)| !values[..index].contains(value))
-        })
+        });
+    typed && legacy
+}
+
+/// Whether `rule` declared every target slot `targets` names: the rule that
+/// produced the declaration (a card's other spell rules do not judge it).
+pub(super) fn rule_declares_targets(rule: &Value, targets: &BTreeMap<String, TargetRef>) -> bool {
+    let declared = rule["declaration"]["decisions"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|decision| decision["id"].as_str())
+        .collect::<Vec<_>>();
+    targets
+        .keys()
+        .all(|target_id| declared.contains(&target_slot_id(target_id)))
 }
 
 pub(super) fn target_belongs_to_declaration(

@@ -151,62 +151,54 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     }
 }
 
-/// `another target X` (or `other target X`, `each of two other target X`)
-/// after an earlier target slot of the same ability names objects other
-/// than that slot's (CR 115.3; Deadshot: `Tap target creature. It deals
-/// damage … to another target creature.`). The slot already excludes its
-/// source; each pair of target ids across the two slots is recorded as a
-/// distinct target group the declaration must respect. A slot of several
-/// objects keys each object `id:index`.
+/// Resolves the target-list child's typed `otherThanEarlierTargets` relation
+/// (`another target X`, `each of two other target X`) against the ability's
+/// declaration: a slot so marked records `distinctFrom`, the ids of the
+/// earlier target slots of the same declaration, whatever their size. The
+/// engine compares objects by slot (`id` or `id:index`), so one object
+/// chosen for an `up to N` slot is checked too. After an earlier slot the
+/// word relates to that slot, not to the source (Wayta: `Target creature you
+/// control fights another target creature` may name Wayta); without one it
+/// names only the source (`another target creature you control`).
+/// The relation is consumed here, in nested programs as well.
 fn mark_distinct_other_targets(rule: &mut Value) {
-    const MAX_DISTINCT_SLOT_SIZE: i64 = 10;
-    let Some(decisions) = rule["declaration"]["decisions"].as_array() else {
-        return;
-    };
-    let slot_ids = |decision: &Value| -> Option<Vec<String>> {
-        let id = decision["id"].as_str()?;
-        match decision["maximum"].as_i64()? {
-            1 => Some(vec![id.to_string()]),
-            maximum @ 2..=MAX_DISTINCT_SLOT_SIZE => {
-                Some((0..maximum).map(|index| format!("{id}:{index}")).collect())
+    // `get_mut`, not indexing: a rule without a declaration stays without one.
+    if let Some(decisions) = rule
+        .get_mut("declaration")
+        .and_then(|declaration| declaration.get_mut("decisions"))
+        .and_then(Value::as_array_mut)
+    {
+        let mut earlier = Vec::new();
+        for decision in decisions.iter_mut() {
+            if decision["kind"].as_str() != Some("chooseTargets") {
+                continue;
             }
-            _ => None,
-        }
-    };
-    let slots = decisions
-        .iter()
-        .filter(|decision| decision["kind"].as_str() == Some("chooseTargets"))
-        .filter_map(|decision| {
-            Some((
-                slot_ids(decision)?,
-                decision["candidates"]["excludeSource"].as_bool() == Some(true),
-            ))
-        })
-        .collect::<Vec<_>>();
-    let mut groups = Vec::new();
-    for (index, (later_ids, other)) in slots.iter().enumerate() {
-        if !other {
-            continue;
-        }
-        for (earlier_ids, _) in &slots[..index] {
-            for earlier in earlier_ids {
-                for later in later_ids {
-                    groups.push(json!([earlier, later]));
+            let other = decision["candidates"]["otherThanEarlierTargets"].as_bool() == Some(true);
+            if other && !earlier.is_empty() {
+                decision["distinctFrom"] = json!(earlier.clone());
+                if let Some(candidates) = decision["candidates"].as_object_mut() {
+                    candidates.remove("excludeSource");
                 }
             }
-        }
-    }
-    if groups.is_empty() {
-        return;
-    }
-    if let Some(existing) = rule["distinctTargets"].as_array() {
-        for group in existing {
-            if !groups.contains(group) {
-                groups.push(group.clone());
+            if let Some(id) = decision["id"].as_str() {
+                earlier.push(id.to_string());
             }
         }
     }
-    rule["distinctTargets"] = Value::Array(groups);
+    strip_other_target_relation(rule);
+}
+
+fn strip_other_target_relation(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove("otherThanEarlierTargets");
+            for child in map.values_mut() {
+                strip_other_target_relation(child);
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(strip_other_target_relation),
+        _ => {}
+    }
 }
 
 pub(crate) fn compose_card_rules_native(abilities: &mut [ParsedOracleAbility]) {

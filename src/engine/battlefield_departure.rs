@@ -544,6 +544,9 @@ impl GameEngine {
     ) {
         let source = &movement.permanent;
         let instance_id = &source.instance_id;
+        // Last-known characteristics (CR 603.10a): an animated land that
+        // dies was a creature.
+        let was_creature = is_creature(&source.definition) || self.permanent_is_creature(source);
         match movement.event {
             DepartureEvent::GraveyardMove => {
                 self.record_event(
@@ -558,7 +561,7 @@ impl GameEngine {
                 );
                 if movement.destination == "graveyard" {
                     self.record_event("permanentDied", Some(source.controller.clone()), Some(instance_id.clone()),
-                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": is_creature(&source.definition) }));
+                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
                 }
             }
             DepartureEvent::Exile => {
@@ -571,7 +574,7 @@ impl GameEngine {
             }
         }
         self.record_event("permanentLeftBattlefield", Some(source.controller.clone()), Some(instance_id.clone()),
-            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone() }));
+            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone(), "owner": source.owner.clone() }));
     }
 
     pub(super) fn publish_installed_battlefield_leave_triggers(
