@@ -274,9 +274,9 @@ impl GameEngine {
                         vec![stack_object.card.instance_id.clone()]
                     } else if value_kind(&effect["object"]) == Some("eachPermanent") {
                         // The affected set is fixed on resolution (CR 611.2c).
-                        let selected_player = effect["object"]
+                        let selected_players = effect["object"]
                             .get("player")
-                            .and_then(|player| self.resolve_player(player, stack_object, bindings));
+                            .map(|player| self.resolve_players(player, stack_object, bindings));
                         self.state
                             .players
                             .iter()
@@ -284,9 +284,9 @@ impl GameEngine {
                             .filter(|permanent| {
                                 (!effect["object"]["excludeSource"].as_bool().unwrap_or(false)
                                     || permanent.instance_id != stack_object.card.instance_id)
-                                    && selected_player
-                                        .as_ref()
-                                        .is_none_or(|player_id| permanent.controller == *player_id)
+                                    && selected_players.as_ref().is_none_or(|players| {
+                                        players.contains(&permanent.controller)
+                                    })
                                     && self.permanent_matches_effective_filter(
                                         permanent,
                                         &effect["object"]["where"],
@@ -470,9 +470,9 @@ impl GameEngine {
                     .extend(granted);
             }
             Some("grantKeyword") => {
-                let selected_player = effect["object"]
+                let selected_players = effect["object"]
                     .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
+                    .map(|player| self.resolve_players(player, stack_object, bindings));
                 let chosen_type = (value_kind(&effect["object"]["where"])
                     == Some("chosenCreatureType"))
                 .then(|| {
@@ -514,8 +514,8 @@ impl GameEngine {
                                 .filter(|permanent| {
                                     (!effect["object"]["excludeSource"].as_bool().unwrap_or(false)
                                         || permanent.instance_id != stack_object.card.instance_id)
-                                        && selected_player.as_ref().is_none_or(|player_id| {
-                                            permanent.controller == *player_id
+                                        && selected_players.as_ref().is_none_or(|players| {
+                                            players.contains(&permanent.controller)
                                         })
                                         && chosen_type.as_ref().map_or_else(
                                             || {

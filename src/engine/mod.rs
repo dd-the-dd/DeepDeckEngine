@@ -8715,8 +8715,15 @@ impl GameEngine {
                 })
                 .unwrap_or(false),
             Some("wasCastWithAlternativeCost") => {
-                stack_object.decisions["useAlternativeCost"].as_bool() == Some(true)
-                    && stack_object.decisions["alternativeCostMode"].as_str()
+                stack_object
+                    .decisions
+                    .get("useAlternativeCost")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+                    && stack_object
+                        .decisions
+                        .get("alternativeCostMode")
+                        .and_then(Value::as_str)
                         == condition["mode"].as_str()
             }
             _ => self.condition_value_with_source(
@@ -17559,6 +17566,11 @@ impl GameEngine {
                     .is_none()
                 {
                     return Ok(None);
+                }
+                // `another`/`other`: the triggered ability's source is not a
+                // candidate (CR 109.4), as for an activated ability.
+                if decision["candidates"]["excludeSource"].as_bool() == Some(true) {
+                    decision["candidates"]["sourceInstanceId"] = json!(source.instance_id);
                 }
                 // `that player controls` / `defending player controls`: the
                 // player the trigger's event recorded (CR 603.2).
@@ -31715,7 +31727,9 @@ impl GameEngine {
                 .filter(|player| !player.has_lost)
                 .map(|player| player.id.clone())
                 .collect(),
-            Some("opponentsOf" | "randomOpponentOf") => {
+            // `players except X` is the same complement as `opponents of X`
+            // in the shared population grammar (player_query).
+            Some("opponentsOf" | "playersExcept" | "randomOpponentOf") => {
                 let Some(reference_player) =
                     self.resolve_player(&reference["player"], stack_object, bindings)
                 else {

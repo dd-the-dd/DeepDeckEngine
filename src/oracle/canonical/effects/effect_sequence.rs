@@ -1488,7 +1488,7 @@ fn lower_local_effect_sequence_with_collections(
                         let target_id = target_id_for_ordinal(base_id, ordinal, target_count);
                         used_target_base_ids.push(base_id);
                         decisions.push(target_decision(&target_id, candidates, minimum, maximum));
-                        vec![chosen_target(&target_id)]
+                        vec![damage_target_recipient(&target_id, maximum)]
                     }
                     DamageRecipientNode::All(groups) => groups
                         .iter()

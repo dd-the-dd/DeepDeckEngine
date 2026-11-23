@@ -289,6 +289,8 @@ mod keyword_template_runtime;
 mod numeric_expression_runtime;
 #[path = "tests/object_qualifier_runtime.rs"]
 mod object_qualifier_runtime;
+#[path = "tests/plural_effect_subject_runtime.rs"]
+mod plural_effect_subject_runtime;
 #[path = "tests/runtime_smoke.rs"]
 mod runtime_smoke;
 #[path = "tests/target_collection_runtime.rs"]

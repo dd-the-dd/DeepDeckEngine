@@ -149,6 +149,20 @@ pub(in crate::oracle::canonical) fn default_damage_target_id(
 /// Lowers one targeted damage atom and its target declaration together.
 /// Triggered, spell, and activated envelopes can therefore share selector and
 /// cardinality lowering without rebuilding target JSON locally.
+/// The recipient of damage to a declared target slot: each chosen target
+/// when the slot can hold several (`two target creatures`, `up to three
+/// targets`), each dealt the full amount (CR 120.1, 601.2c).
+pub(in crate::oracle::canonical) fn damage_target_recipient(
+    decision_id: &str,
+    maximum: i64,
+) -> Value {
+    if maximum > 1 {
+        json!({ "kind": "chosenTargets", "id": decision_id })
+    } else {
+        chosen_target(decision_id)
+    }
+}
+
 pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
     effect: &DamageEffectNode,
     decision_id: &str,
@@ -166,7 +180,7 @@ pub(in crate::oracle::canonical) fn lower_targeted_damage_effect(
             "kind": "dealDamage",
             "source": source,
             "amount": lower_numeric_expression(&effect.amount)?,
-            "recipient": chosen_target(decision_id),
+            "recipient": damage_target_recipient(decision_id, maximum),
         }),
     })
 }

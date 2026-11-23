@@ -97,9 +97,9 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
             Some("modifyPowerToughness") => {
-                let selected_player = effect["object"]
+                let selected_players = effect["object"]
                     .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
+                    .map(|player| self.resolve_players(player, stack_object, bindings));
                 let instance_ids = match self.prepare_permanent_action_subject(
                     effect,
                     stack_object,
@@ -147,9 +147,9 @@ impl GameEngine {
                                             .as_bool()
                                             .unwrap_or(false)
                                             || permanent.controller != stack_object.controller)
-                                        && selected_player.as_ref().is_none_or(|player_id| {
-                                            permanent.controller == *player_id
-                                        })
+                                        && selected_players
+                                .as_ref()
+                                .is_none_or(|players| players.contains(&permanent.controller))
                                         // CR 608.2h, 611.2c: the affected set is the
                                         // permanents matching NOW, read from their
                                         // battlefield state (attacking, tapped, …)
