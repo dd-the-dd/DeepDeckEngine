@@ -138,3 +138,20 @@ fn a_postposed_if_gates_one_action_and_admits_no_otherwise() {
     );
     assert_ne!(status, "canonical");
 }
+
+#[test]
+fn a_state_adjective_heads_an_object_set_subject() {
+    // #18: `attacking creatures` is the shared collection, the subject of the
+    // ordinary `get` predicate, like `creatures you control`.
+    let effects = sequence_effects("Attacking creatures you control get +1/+0 until end of turn.");
+    let [LocalEffectNode::ModifyStats(stats)] = effects.as_slice() else {
+        panic!("one stat modification: {effects:?}");
+    };
+    assert!(
+        matches!(
+            stats.targets,
+            super::super::PermanentOperandNode::Collection { .. }
+        ),
+        "{stats:?}"
+    );
+}
