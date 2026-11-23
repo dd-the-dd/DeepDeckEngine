@@ -64,10 +64,19 @@ fn turn_owner_and_step_name_compose_independently() {
             "At the beginning of your opponents' upkeep, draw a card.",
             step("upkeep", opponents.clone()),
         ),
-        // CR 505.1a: the second main phase is the postcombat main phase.
+        (
+            "At the beginning of your postcombat main phase, draw a card.",
+            step("postcombatMain", controller()),
+        ),
+        // CR 505.1a: the second main phase is the postcombat main phase with
+        // main-phase ordinal 2, not every postcombat main phase.
         (
             "At the beginning of your second main phase, draw a card.",
-            step("postcombatMain", controller()),
+            {
+                let mut second = step("postcombatMain", controller());
+                second["mainPhaseOrdinal"] = json!(2);
+                second
+            },
         ),
         (
             "At the beginning of each of your postcombat main phases, draw a card.",

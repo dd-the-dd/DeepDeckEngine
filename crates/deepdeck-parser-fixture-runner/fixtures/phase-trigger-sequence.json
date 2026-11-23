@@ -615,7 +615,7 @@
       }
     },
     {
-      "id": "second-main-ordinal-remains-unclaimed",
+      "id": "second-main-phase-carries-its-main-phase-ordinal",
       "request": {
         "cardName": "Second Main Observer",
         "typeLine": "Enchantment",
@@ -650,6 +650,7 @@
               ],
               "event": {
                 "kind": "stepBegan",
+                "mainPhaseOrdinal": 2,
                 "player": {
                   "kind": "controllerOf",
                   "object": {

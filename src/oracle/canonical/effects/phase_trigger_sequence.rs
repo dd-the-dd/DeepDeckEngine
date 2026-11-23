@@ -14,7 +14,7 @@ fn lower_step(step: TurnStep) -> &'static str {
         TurnStep::Draw => "draw",
         TurnStep::PrecombatMain => "precombatMain",
         TurnStep::BeginCombat => "beginCombat",
-        TurnStep::PostcombatMain => "postcombatMain",
+        TurnStep::PostcombatMain | TurnStep::SecondMain => "postcombatMain",
         TurnStep::EndStep => "endStep",
     }
 }
@@ -31,11 +31,17 @@ pub(in crate::oracle::canonical) fn lower_step_event(event: StepEventNode) -> Va
             json!({ "kind": "controllerOfAttachedPermanent", "attachment": self_ref() })
         }
     };
-    json!({
+    let mut lowered = json!({
         "kind": "stepBegan",
         "step": lower_step(event.step),
         "player": player,
-    })
+    });
+    // CR 505.1a: the second main phase is the postcombat main phase whose
+    // main-phase ordinal in the turn is 2; the runtime checks that ordinal.
+    if event.step == TurnStep::SecondMain {
+        lowered["mainPhaseOrdinal"] = json!(2);
+    }
+    lowered
 }
 
 fn has_unsupported_trigger_limit_suffix(tokens: &[crate::oracle::model::RecognizedEntity]) -> bool {

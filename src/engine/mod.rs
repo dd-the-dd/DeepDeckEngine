@@ -2049,6 +2049,18 @@ fn count_rule_kind(value: &Value, expected: &str) -> usize {
         }
 }
 
+/// The ordinal in its turn of the main phase a main step begins (CR 505.1a).
+/// The turn loop runs one precombat main phase, every combat phase, then one
+/// postcombat main phase: an additional combat (`addCombatPhase`) adds no main
+/// phase, and no effect adds one, so the postcombat main phase is the second.
+fn main_phase_ordinal_of_step(step: &str) -> Option<u64> {
+    match step {
+        "precombatMain" => Some(1),
+        "postcombatMain" => Some(2),
+        _ => None,
+    }
+}
+
 /// Printed keyword count of an object off the battlefield (a spell).
 fn keyword_count(card: &CardDefinition, keyword: &str) -> usize {
     object_predicate::DefinitionView::new(card)
@@ -4924,6 +4936,9 @@ fn triggered_event_supported(event: &Value) -> bool {
                     )
                 )
                 && event.get("firstOnly").is_none_or(Value::is_boolean)
+                && event.get("mainPhaseOrdinal").is_none_or(|ordinal| {
+                    event["step"].as_str().and_then(main_phase_ordinal_of_step) == ordinal.as_u64()
+                })
         }
         Some("cardDrawn" | "controlledCreaturesAttacked") => {
             (event["anyPlayer"].as_bool() == Some(true)
@@ -25078,6 +25093,9 @@ impl GameEngine {
                                     && event["step"].as_str() == Some(step)
                                     && (event["firstOnly"].as_bool() != Some(true)
                                         || self.state.turn_number == 1)
+                                    && event["mainPhaseOrdinal"].as_u64().is_none_or(|ordinal| {
+                                        main_phase_ordinal_of_step(step) == Some(ordinal)
+                                    })
                                     && match value_kind(&event["player"]) {
                                         Some("eachPlayer") => true,
                                         Some("opponentsOf") => {
