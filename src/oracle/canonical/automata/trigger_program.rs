@@ -22,7 +22,7 @@ impl TriggerBodyNode {
     pub(in crate::oracle::canonical) fn action_count(&self) -> usize {
         match self {
             Self::Program(program) => program.action_count(),
-            Self::Modal(modal) => modal.modes.iter().map(|mode| mode.effects.len()).sum(),
+            Self::Modal(modal) => modal.action_count(),
         }
     }
 }
@@ -95,31 +95,6 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     }
     let mut context = triggered_body_context(context, source_attachment);
     context.frame = event_frame(&event.value);
-    if modal_trigger_body_starts(cursor) {
-        // Modes are declared with the trigger's other choices (CR 700.2b);
-        // every bullet body is the shared effect sequence.
-        let start = cursor.position();
-        cursor.set_event_numeric_binding(event.value.numeric_binding());
-        // The modes read the event's bindings; their sentence frames stay
-        // those the shared modal lowering owns.
-        let modal_context =
-            triggered_modal_body_context(trigger_guard_context(&event.value), &context);
-        let modal = recognize_effect_sequence_modal_with_context(
-            cursor,
-            name_links,
-            name_failure,
-            &modal_context,
-        )?;
-        return Ok(TriggeredProgramNode {
-            event,
-            guard,
-            program: SyntaxNode {
-                tokens: start..cursor.position(),
-                value: TriggerBodyNode::Modal(modal),
-            },
-            once_each_turn: false,
-        });
-    }
     // An intervening `if` about one permanent (`if this permanent is an
     // enchantment`) makes it the body's lexical antecedent (`it becomes`).
     if let Some(SyntaxNode {
@@ -138,7 +113,26 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     let start = cursor.position();
     // The event owns the `that many`/`that much` quantity; the body only reads it.
     cursor.set_event_numeric_binding(event.value.numeric_binding());
-    let value = recognize_effect_program_with_context(cursor, name_links, name_failure, &context)?;
+    // Modes are declared with the trigger's other choices (CR 700.2b); they
+    // read the event's bindings, while their sentence frames stay those the
+    // shared modal lowering owns.
+    let modal_context = triggered_modal_body_context(trigger_guard_context(&event.value), &context);
+    let value =
+        match recognize_container_body(cursor, name_links, name_failure, &context, &modal_context)?
+        {
+            TriggerBodyNode::Modal(modal) => {
+                return Ok(TriggeredProgramNode {
+                    event,
+                    guard,
+                    program: SyntaxNode {
+                        tokens: start..cursor.position(),
+                        value: TriggerBodyNode::Modal(modal),
+                    },
+                    once_each_turn: false,
+                });
+            }
+            TriggerBodyNode::Program(value) => value,
+        };
     let program_end = cursor.position();
     let once_each_turn = recognize_optional_trigger_limit(cursor)?;
     // A token reminder may follow the limit sentence; it still belongs to the
@@ -194,20 +188,6 @@ pub(in crate::oracle::canonical) fn triggered_modal_body_context(
     base.source_attachment = program.source_attachment;
     base.frame = program.frame.clone();
     base
-}
-
-/// `Choose one —` / `Choose two —` opens printed modes chosen as the trigger
-/// is put on the stack (CR 700.2b); any other body is one effect program.
-pub(in crate::oracle::canonical) fn modal_trigger_body_starts(
-    cursor: &OracleTokenCursor<'_>,
-) -> bool {
-    cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
-        && cursor
-            .peek_ahead(1)
-            .and_then(super::super::parse_number_word)
-            .is_some()
 }
 
 /// Events whose occurrence names exactly one player that the runtime records

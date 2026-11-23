@@ -94,6 +94,7 @@ fn positive_integer_compositions(
 mod ability_signals;
 mod activated_rule_execution;
 mod adventure;
+mod band_gate;
 mod attack_defender_restriction;
 mod attack_tax;
 mod battlefield_departure;
@@ -5963,7 +5964,8 @@ fn eminence_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn rule_supported(rule: &Value) -> bool {
-    if !entry_observation::reference_scope_supported(rule) {
+    if !entry_observation::reference_scope_supported(rule) || !band_gate::band_gate_supported(rule)
+    {
         return false;
     }
     match value_kind(rule) {
@@ -10756,6 +10758,9 @@ impl GameEngine {
     }
 
     fn rule_metadata_active_for_source(source: &CardInstance, rule: &Value) -> bool {
+        if !band_gate::band_gate_open(source, rule) {
+            return false;
+        }
         if rule["minimumClassLevel"].as_i64().is_some_and(|minimum| {
             i64::from(source.counters.get("classLevel").copied().unwrap_or(1)) < minimum
         }) {

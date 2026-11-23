@@ -1693,19 +1693,6 @@ fn parse_existing_native_rule(
         };
     }
 
-    if ability_kind == "spellAbility" && claims_promoted_primitive_modal_family(input) {
-        return match parse_promoted_primitive_modal(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     if ability_kind == "spellAbility" && claims_promoted_effect_sequence_modal_family(input) {
         return match parse_promoted_effect_sequence_modal(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
