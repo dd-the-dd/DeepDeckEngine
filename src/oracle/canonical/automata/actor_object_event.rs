@@ -48,7 +48,7 @@ pub(in crate::oracle::canonical) fn recognize_permanent_event_object(
         cursor.consume(&article)?;
         false
     };
-    let object = recognize_object_query_before_separator(cursor)?;
+    let object = recognize_object_query(cursor)?;
     cursor.enter(domain_state);
     cursor.require(
         object.predicate.supports_domain(ObjectKind::Permanent)

@@ -171,7 +171,8 @@ fn read_static_continuous_effect(
                     .peek_token()
                     .is_some_and(|token| token.token_type == "counterValue")
                 {
-                    let (power, toughness) = read_where_x_power_toughness_delta(cursor)?;
+                    let (power, toughness) =
+                        read_where_x_power_toughness_delta(cursor, source_subject)?;
                     modifiers.push(json!({
                         "kind": "modifyPowerToughness",
                         "objects": objects.clone(),
@@ -662,6 +663,7 @@ fn lower_static_quoted_ability(
 /// numeric projection, and a component it cannot represent fails.
 fn read_where_x_power_toughness_delta(
     cursor: &mut OracleTokenCursor<'_>,
+    source_subject: bool,
 ) -> MachineResult<(Value, Value)> {
     cursor.enter("static.continuous.numeric-delta");
     let delta = recognize_signed_numeric_power_toughness_delta(cursor)?;
@@ -671,6 +673,12 @@ fn read_where_x_power_toughness_delta(
         "a postposed `where X is` definition of the X in the stat delta",
     )?;
     let definition = recognize_where_x_definition(cursor)?;
+    // The same `other` antecedent rule as a `for each` count.
+    cursor.enter("static.continuous.where-x.other-antecedent");
+    cursor.require(
+        source_subject || !count_excludes_source(&definition),
+        "an `other` count whose antecedent is the source, not each modified object",
+    )?;
     cursor.enter("static.continuous.where-x.lowering");
     let mut lowered = [&delta.power, &delta.toughness]
         .into_iter()

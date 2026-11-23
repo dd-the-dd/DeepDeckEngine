@@ -1,4 +1,4 @@
-//! Saga chapters (roadmap #2, CR 714.2b): the chapter header owns the Roman
+//! Saga chapters (roadmap #2, CR 715.2b): the chapter header owns the Roman
 //! numeral list and the dash; the body is the shared effect program every
 //! triggered ability reads, lowered under the `sagaChapterReached` event.
 use deepdeck_oracle::oracle::{OracleCardParseRequest, OracleCardParseResult, parse_oracle_card};
@@ -109,5 +109,21 @@ fn malformed_headers_and_unknown_bodies_keep_explicit_failures() {
             .all(|diagnostic| !diagnostic.message.contains("a native Saga chapter body")),
         "{:#?}",
         parsed.diagnostics
+    );
+}
+
+#[test]
+fn a_modal_chapter_reads_its_modes_like_a_modal_trigger() {
+    // The shared triggered-body helper: `Choose one —` modes are chosen as
+    // the chapter ability is put on the stack (CR 700.2b).
+    let rules = chapter_rules(
+        "I \u{2014} Choose one \u{2014}\n\u{2022} You gain 3 life.\n\u{2022} Draw a card.\nII, III \u{2014} Draw a card.",
+    );
+    assert_eq!(rules.len(), 2, "{rules:#?}");
+    assert_eq!(rules[0]["event"]["kind"], "sagaChapterReached");
+    assert!(
+        rules[0].to_string().contains("\"gainLife\""),
+        "{:#}",
+        rules[0]
     );
 }

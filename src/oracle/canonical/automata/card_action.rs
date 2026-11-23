@@ -248,7 +248,7 @@ fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<C
         cursor.require(*value > 0, "a positive reveal-until quantity")?;
     }
     cursor.enter("card-action.reveal-until.predicate");
-    let query = recognize_object_query_before_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none()
             && query.predicate.has_domain(ObjectKind::Card)

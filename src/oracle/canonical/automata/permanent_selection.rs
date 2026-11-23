@@ -2,7 +2,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CardMoveOwnerNode, CardZoneName, CollectionOperandAttempt, ExpressedTargetCardinality,
     ObjectQueryNode, RecognizedEffectFragment, recognize_expressed_target_cardinality,
-    recognize_object_query_before_effect_separator, try_recognize_card_move_destination,
+    recognize_object_query, try_recognize_card_move_destination,
 };
 
 /// A resolution choice is not a target declaration. Its bounds and query are
@@ -69,7 +69,7 @@ pub(in crate::oracle::canonical) fn recognize_permanent_selection_operand(
             }
             State::Query => {
                 cursor.enter("permanent.selection.query");
-                frame.query = Some(recognize_object_query_before_effect_separator(cursor)?);
+                frame.query = Some(recognize_object_query(cursor)?);
                 State::Domain
             }
             State::Domain => {

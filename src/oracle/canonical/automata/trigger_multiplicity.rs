@@ -1,7 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    NumericAtom, RelatedObjectQueryNode, recognize_numeric_atom,
-    recognize_related_object_query_before_separator,
+    NumericAtom, RelatedObjectQueryNode, recognize_numeric_atom, recognize_related_object_query,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,7 +20,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_multiplicity(
         .ok_or_else(|| cursor.fail("an indefinite object-query article"))?
         .to_string();
     cursor.consume(&article)?;
-    let sources = recognize_related_object_query_before_separator(cursor)?;
+    let sources = recognize_related_object_query(cursor)?;
     cursor.enter("trigger-multiplicity.occurrence");
     cursor.consume_phrase(&["triggers", ",", "that", "ability", "triggers"])?;
     let additional = recognize_numeric_atom(cursor)?;

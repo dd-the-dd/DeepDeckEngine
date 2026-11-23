@@ -125,7 +125,7 @@ fn read_counterpart(
     } else {
         cursor.consume(&article)?;
     }
-    let query = super::recognize_object_query_before_separator(cursor)?;
+    let query = super::recognize_object_query(cursor)?;
     modifiers.push(SourceEventModifier::Counterpart(EventCounterpartNode {
         verb,
         query,

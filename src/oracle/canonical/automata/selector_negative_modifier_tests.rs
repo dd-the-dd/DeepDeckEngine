@@ -59,19 +59,22 @@ fn explicit_union_and_positive_head_lists_are_not_negative_conjunctions() {
             "{text}"
         );
     }
+    // An unclosed list of positive heads is not a union: its comma is
+    // returned to the parent (roadmap #12).
+    let tokens = recognize_entities("artifact, creature");
+    let mut cursor = OracleTokenCursor::new("negative-modifier-query", &tokens);
+    let first = recognize_object_query(&mut cursor).expect("first selector");
     assert_eq!(
-        query("artifact, creature"),
-        SelectorPredicate::Union(vec![
-            SelectorPredicate::CardType(ObjectCardType::Artifact),
-            SelectorPredicate::CardType(ObjectCardType::Creature),
-        ])
+        first.predicate,
+        SelectorPredicate::CardType(ObjectCardType::Artifact)
     );
+    assert_eq!(cursor.peek(), Some(","));
 }
 
 #[test]
 fn positive_separately_headed_negative_branches_remain_a_union() {
     assert_eq!(
-        query("noncreature permanent, nonland permanent"),
+        query("noncreature permanent, or nonland permanent"),
         SelectorPredicate::Union(vec![
             SelectorPredicate::Intersection(vec![
                 not_type(ObjectCardType::Creature),
@@ -87,10 +90,17 @@ fn positive_separately_headed_negative_branches_remain_a_union() {
 
 #[test]
 fn parent_comma_boundary_is_preserved() {
-    let tokens = recognize_entities("noncreature, nonland permanent");
+    // A comma that does not continue the list belongs to the parent.
+    let tokens = recognize_entities("noncreature permanent, draw a card");
     let mut cursor = OracleTokenCursor::new("negative-modifier-boundary", &tokens);
-    let first = recognize_object_query_before_separator(&mut cursor).expect("first selector");
-    assert_eq!(first.predicate, not_type(ObjectCardType::Creature));
+    let first = recognize_object_query(&mut cursor).expect("first selector");
+    assert_eq!(
+        first.predicate,
+        SelectorPredicate::Intersection(vec![
+            not_type(ObjectCardType::Creature),
+            SelectorPredicate::ObjectKind(ObjectKind::Permanent),
+        ])
+    );
     assert_eq!(cursor.peek(), Some(","));
 }
 

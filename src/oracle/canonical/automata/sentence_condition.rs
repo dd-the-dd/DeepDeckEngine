@@ -531,7 +531,7 @@ fn recognize_object_state_predicate(
     if word_is(cursor, 0, "a") || word_is(cursor, 0, "an") {
         consume_current(cursor)?;
     }
-    let query = recognize_object_query_before_condition_connector(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.enter("condition.sentence.object.relation");
     cursor.require(
         query.controller.is_none(),

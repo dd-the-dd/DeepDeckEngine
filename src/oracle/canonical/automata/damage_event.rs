@@ -11,7 +11,7 @@
 //! are independent attributes shared by every subject.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EventActorScope, ObjectKind, ObjectQueryNode, recognize_object_query_before_separator,
+    EventActorScope, ObjectKind, ObjectQueryNode, recognize_object_query,
     try_recognize_event_actor_scope,
 };
 
@@ -100,7 +100,7 @@ pub(in crate::oracle::canonical) fn recognize_damage_dealt_complement(
         .ok_or_else(|| cursor.fail("a player, an opponent, you, or `a`/`an` permanent"))?;
     cursor.consume(&article)?;
     cursor.enter("event.dealt-damage.recipient-query");
-    let query = recognize_object_query_before_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.enter("event.dealt-damage.recipient-domain");
     cursor.require(
         query.predicate.supports_domain(ObjectKind::Permanent)

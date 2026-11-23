@@ -74,16 +74,19 @@ fn academy_wall_draws_then_discards_only_if_it_drew() {
 
 #[test]
 fn if_you_dont_runs_only_when_the_instruction_was_not_performed() {
-    // Devouring Sugarmaw: a payment head the cost child rejects is an instruction.
+    // Devouring Sugarmaw: the coordinated sacrifice operand is one closed
+    // object list (roadmap #12), so it is the same optional cost a single
+    // operand is; declining it runs the `If you don't` effects.
     let rule = trigger(
         "At the beginning of your upkeep, you may sacrifice an artifact, enchantment, or \
          token. If you don't, tap this creature.",
     );
     let block = &rule["effects"][0];
-    assert_eq!(block["kind"], "optionalAction");
-    assert_eq!(block["action"]["kind"], "sacrificePermanents");
-    assert_eq!(block["onPerformed"], json!([]));
-    assert_eq!(kinds(&block["onDeclined"]), ["tapPermanent"]);
+    assert_eq!(block["kind"], "optionalPayCostPerformEffects");
+    assert_eq!(block["cost"]["kind"], "sacrificePermanent");
+    assert_eq!(block["cost"]["where"]["kind"], "or");
+    assert_eq!(block["effects"], json!([]));
+    assert_eq!(kinds(&block["declineEffects"]), ["tapPermanent"]);
 }
 
 #[test]

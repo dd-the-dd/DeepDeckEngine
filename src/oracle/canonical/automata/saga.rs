@@ -3,10 +3,11 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    AbilityRestrictionOwner, ActivatedManaAbilityNode, CharacteristicTokenActivationNode,
-    EffectProgramNode, EffectRecognitionContext, LibrarySearchEffectNode, LocalObjectReference,
-    ZoneChangeDomains, recognize_activated_mana_ability, recognize_characteristic_token_activation,
+    ActivatedManaAbilityNode, CharacteristicTokenActivationNode, EffectRecognitionContext,
+    LibrarySearchEffectNode, LocalObjectReference, TriggerBodyNode, modal_trigger_body_starts,
+    recognize_activated_mana_ability, recognize_characteristic_token_activation,
     recognize_controller_library_search, recognize_effect_program_with_context,
+    recognize_effect_sequence_modal_with_context, triggered_body_context,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,9 +25,9 @@ pub(in crate::oracle::canonical) enum SagaGrantedAbilityNode {
 pub(in crate::oracle::canonical) enum SagaChapterBodyNode {
     Grant(SagaGrantedAbilityNode),
     LibrarySearch(LibrarySearchEffectNode),
-    /// CR 714.2b: any other chapter ability is an ordinary triggered
-    /// ability whose effect is the shared effect program.
-    Program(EffectProgramNode),
+    /// CR 715.2b: any other chapter ability is an ordinary triggered
+    /// ability whose body is the shared effect program or printed modes.
+    Program(TriggerBodyNode),
 }
 
 #[derive(Clone, Debug)]
@@ -200,29 +201,26 @@ pub(in crate::oracle::canonical) fn recognize_saga_chapter(
         SagaChapterBodyNode::LibrarySearch(search)
     } else {
         cursor.enter("saga.chapter.program");
-        SagaChapterBodyNode::Program(recognize_effect_program_with_context(
-            cursor,
-            name_links,
-            name_failure,
-            &saga_chapter_body_context(),
-        )?)
+        let source = EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf);
+        SagaChapterBodyNode::Program(if modal_trigger_body_starts(cursor) {
+            TriggerBodyNode::Modal(recognize_effect_sequence_modal_with_context(
+                cursor,
+                name_links,
+                name_failure,
+                &source,
+            )?)
+        } else {
+            TriggerBodyNode::Program(recognize_effect_program_with_context(
+                cursor,
+                name_links,
+                name_failure,
+                &triggered_body_context(source, None),
+            )?)
+        })
     };
     cursor.enter("saga.chapter.complete");
     cursor.finish()?;
     Ok(SagaChapterNode { chapters, body })
-}
-
-/// A chapter ability triggers on its Saga permanent (CR 714.2b): the body
-/// reads the same context as any other battlefield-source triggered ability
-/// whose event names no other object. `this Saga` is the source; no event
-/// subject is bound, so `it` keeps its explicit failure.
-fn saga_chapter_body_context() -> EffectRecognitionContext {
-    let mut context = EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
-        .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
-        .with_sentence_conditionals()
-        .with_unless_frames();
-    context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
-    context
 }
 
 #[cfg(test)]

@@ -5,7 +5,7 @@ use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EventNumericBinding, NumericAtom, ObjectControllerScope, ObjectPredicate,
     ReplacementObjectBinding, object_predicate_uses_x, recognize_counter_name,
-    recognize_numeric_atom, recognize_object_query_before_separator,
+    recognize_numeric_atom, recognize_object_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,7 +82,7 @@ fn recognize_counter_recipient(
         "`a` or `an` before a permanent query",
     )?;
     cursor.consume(&article)?;
-    let query = recognize_object_query_before_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.enter("quantity-event.counter-recipient.domain");
     cursor.require(
         query.denotes_battlefield_permanents(),

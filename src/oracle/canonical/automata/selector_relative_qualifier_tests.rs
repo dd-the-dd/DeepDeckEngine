@@ -7,8 +7,8 @@ use crate::oracle::syntax::recognize_entities;
 fn relative_characteristic_composes_with_the_base_query() {
     let tokens = recognize_entities("spell you cast that's red or green costs");
     let mut cursor = OracleTokenCursor::new("selector-relative-test", &tokens);
-    let query = recognize_spell_cast_query_before_separator(&mut cursor)
-        .expect("relative spell-caster query parses");
+    let query =
+        recognize_spell_cast_query(&mut cursor).expect("relative spell-caster query parses");
 
     assert_eq!(query.caster, Some(SpellCasterScope::AbilityController));
     assert!(matches!(
@@ -26,8 +26,8 @@ fn relative_characteristic_composes_with_the_base_query() {
 fn relative_query_preserves_a_parent_separator() {
     let tokens = recognize_entities("creature that's red or green, draw");
     let mut cursor = OracleTokenCursor::new("selector-relative-separator-test", &tokens);
-    let query = recognize_object_query_before_separator(&mut cursor)
-        .expect("relative query before separator parses");
+    let query =
+        recognize_object_query(&mut cursor).expect("relative query before separator parses");
 
     assert!(matches!(query.predicate, ObjectPredicate::Intersection(_)));
     assert_eq!(cursor.peek(), Some(","));
@@ -35,18 +35,20 @@ fn relative_query_preserves_a_parent_separator() {
 
 #[test]
 fn empty_relative_and_second_controller_are_rejected() {
-    for text in [
-        "creature that's enters",
-        "creature, that's red or green enters",
-    ] {
-        let tokens = recognize_entities(text);
-        let mut cursor = OracleTokenCursor::new("selector-relative-negative-test", &tokens);
-        assert!(recognize_object_query(&mut cursor).is_err(), "{text}");
-    }
+    let tokens = recognize_entities("creature that's enters");
+    let mut cursor = OracleTokenCursor::new("selector-relative-negative-test", &tokens);
+    assert!(recognize_object_query(&mut cursor).is_err());
+    // A comma before `that's` is not a list connector: it is left to the
+    // parent, which has no relative clause to attach.
+    let tokens = recognize_entities("creature, that's red or green enters");
+    let mut cursor = OracleTokenCursor::new("selector-relative-negative-test", &tokens);
+    let query = recognize_object_query(&mut cursor).expect("the head alone");
+    assert!(matches!(query.predicate, ObjectPredicate::CardType(_)));
+    assert_eq!(cursor.peek(), Some(","));
 
     let tokens = recognize_entities("spell you cast that's red you control costs");
     let mut cursor = OracleTokenCursor::new("selector-relative-caster-negative-test", &tokens);
-    assert!(recognize_spell_cast_query_before_separator(&mut cursor).is_err());
+    assert!(recognize_spell_cast_query(&mut cursor).is_err());
 }
 
 #[test]

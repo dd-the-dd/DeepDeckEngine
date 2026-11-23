@@ -19,8 +19,8 @@ use crate::oracle::{
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     EventActorScope, LocalObjectReference, ObjectKind, ObjectQueryNode, recognize_counter_name,
-    recognize_object_query_before_separator, recognize_source_reference,
-    source_reference_starts_at, try_recognize_event_actor_scope,
+    recognize_object_query, recognize_source_reference, source_reference_starts_at,
+    try_recognize_event_actor_scope,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,7 +83,7 @@ fn recognize_recipient(
         .ok_or_else(|| cursor.fail("the source or `a`/`an`/`another` permanent"))?;
     cursor.consume(&head)?;
     cursor.enter("event.counters.recipient-query");
-    let query = recognize_object_query_before_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.enter("event.counters.recipient-domain");
     cursor.require(
         query.predicate.supports_domain(ObjectKind::Permanent)

@@ -24,9 +24,8 @@ use super::{
     ClauseSubjectPolicy, ClauseTense, DamageArguments, DamageClauseArguments, DamageKind,
     EventActorScope, LIFE_LEMMAS, LocalTriggerEventNode, ObjectKind, ObjectQueryNode,
     TargetPlayerLifeAction, VerbAgreement, VerbLemma, Voice, recognize_clause,
-    recognize_object_query_before_separator, recognize_operand_verb,
-    recognize_supplied_damage_clause, supplied_damage_frame, try_recognize_event_actor_scope,
-    try_recognize_plural_event_actor_scope,
+    recognize_object_query, recognize_operand_verb, recognize_supplied_damage_clause,
+    supplied_damage_frame, try_recognize_event_actor_scope, try_recognize_plural_event_actor_scope,
 };
 
 /// Player-event verbs. Each is a vocabulary atom; the actor, the object and
@@ -173,7 +172,7 @@ fn recognize_card_object(
         .ok_or_else(|| cursor.fail("`a`, `an` or `another` before the card"))?;
     cursor.consume(&head)?;
     cursor.enter("event.player.card-query");
-    let query = recognize_object_query_before_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.enter("event.player.card-domain");
     cursor.require(
         query.predicate.supports_domain(ObjectKind::Card)

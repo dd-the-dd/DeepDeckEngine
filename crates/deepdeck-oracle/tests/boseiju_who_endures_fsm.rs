@@ -136,7 +136,7 @@ fn otawara_reuses_label_cost_union_return_and_reduction_without_search() {
 }
 
 #[test]
-fn dangling_oxford_target_is_a_committed_selector_failure() {
+fn dangling_oxford_target_is_an_explicit_failure() {
     let parsed = parse(
         "Channel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or an opponent controls. This ability costs {1} less to activate for each legendary creature you control.",
     );
@@ -145,11 +145,18 @@ fn dangling_oxford_target_is_a_committed_selector_failure() {
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
-    assert_eq!(
+    // `, or an opponent controls` does not continue the object list, so the
+    // selector returns the comma (roadmap #12) and the effect parent fails
+    // on it explicitly instead of the selector committing to a dangling `or`.
+    assert_ne!(
         ability.diagnostics[0].state.as_deref(),
         Some("selector.predicate.after-comma")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("an"));
+    assert!(
+        !ability.diagnostics[0].message.is_empty(),
+        "{:#?}",
+        ability.diagnostics
+    );
 }
 
 #[test]

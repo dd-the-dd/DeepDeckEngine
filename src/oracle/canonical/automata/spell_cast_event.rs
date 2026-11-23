@@ -1,7 +1,7 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EventActorScope, ObjectKind, ObjectPredicate, SpellCastQueryNode, TriggeringPlayerBinding,
-    object_predicate_uses_x, recognize_ordinal_atom, recognize_spell_cast_query_before_separator,
+    object_predicate_uses_x, recognize_ordinal_atom, recognize_spell_cast_query,
     try_recognize_event_actor_scope,
 };
 
@@ -189,7 +189,7 @@ fn recognize_spell_targets(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
                 .ok_or_else(|| cursor.fail("`this PERMANENT`, a player, or `a PERMANENT`"))?
                 .to_string();
             cursor.consume(&article)?;
-            SpellTargetNode::Permanent(super::recognize_object_query_before_separator(cursor)?)
+            SpellTargetNode::Permanent(super::recognize_object_query(cursor)?)
         };
         alternatives.push(target);
         if peek_word(cursor, 0, "or") {
@@ -342,7 +342,7 @@ fn recognize_optional_spell_cast_event_atom(
                 SpellCastEventState::Query
             }
             SpellCastEventState::Query => {
-                let query = recognize_spell_cast_query_before_separator(cursor)?;
+                let query = recognize_spell_cast_query(cursor)?;
                 cursor.enter("event.spell-cast.caster-identity");
                 cursor.require(
                     query.caster.is_none(),

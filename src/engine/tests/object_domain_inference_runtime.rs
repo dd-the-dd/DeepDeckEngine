@@ -263,3 +263,37 @@ fn bare_subtype_sweeps_reach_exactly_the_permanents_with_that_subtype() {
     assert_eq!(power_toughness(&engine, "own-bear"), (2, 2));
     assert_eq!(power_toughness(&engine, "their-vampire"), (2, 2));
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_token_count_condition_reads_is_token_and_its_controller() {
+    // `you control three or more tokens`: only the controller's tokens count.
+    let spell = compiled(
+        "Token Count Probe",
+        "Sorcery",
+        "If you control three or more tokens, draw a card.",
+    );
+    let token = |id: &str, controller: &str| {
+        let mut definition = test_definition(id, "Creature \u{2014} Soldier");
+        definition.is_token = true;
+        test_instance(id, definition, controller)
+    };
+    for (own_tokens, draws) in [(2, 0), (3, 1)] {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = (0..own_tokens)
+            .map(|index| token(&format!("own-token-{index}"), "player-0"))
+            .chain([creature("own-bear", "Creature \u{2014} Bear", "player-0")])
+            .collect();
+        engine.state.players[1].battlefield = (0..3)
+            .map(|index| token(&format!("their-token-{index}"), "player-1"))
+            .collect();
+        engine.state.players[0].library =
+            vec![creature("drawn", "Creature \u{2014} Bear", "player-0")];
+        cast_and_resolve(&mut engine, "token-count", spell.clone());
+        assert_eq!(
+            engine.state.players[0].library.len(),
+            1 - draws,
+            "{own_tokens} own tokens"
+        );
+    }
+}

@@ -248,8 +248,38 @@ fn counted_zone_relation_follows(cursor: &OracleTokenCursor<'_>) -> bool {
 
 /// `for each other X`: whether the count excludes the ability source. Only
 /// a count whose `other` antecedent is the source lowers to `excludeSource`.
+/// It visits the whole expression, so a count nested in arithmetic (`X is
+/// twice the number of other Elves`) is seen too.
 pub(in crate::oracle::canonical) fn count_excludes_source(count: &NumericExpression) -> bool {
-    matches!(count, NumericExpression::PermanentCount(node) if node.exclude_source)
+    match count {
+        NumericExpression::PermanentCount(node) => node.exclude_source,
+        NumericExpression::Add { left, right }
+        | NumericExpression::Subtract { left, right }
+        | NumericExpression::Multiply { left, right }
+        | NumericExpression::Divide { left, right, .. } => {
+            count_excludes_source(left) || count_excludes_source(right)
+        }
+        NumericExpression::Atom(_)
+        | NumericExpression::ObjectProperty { .. }
+        | NumericExpression::PowerOf(_)
+        | NumericExpression::ManaValueOf(_)
+        | NumericExpression::QualifiedTargetProperty { .. }
+        | NumericExpression::CountQuery(_)
+        | NumericExpression::CountCounters { .. }
+        | NumericExpression::CountersOnRecipient { .. }
+        | NumericExpression::SourceCastX
+        | NumericExpression::EventValue(_)
+        | NumericExpression::CountDistinctCardTypes { .. }
+        | NumericExpression::OpponentCount(_)
+        | NumericExpression::Devotion(_)
+        | NumericExpression::ActionResultQuantity { .. }
+        | NumericExpression::PlayerFact { .. }
+        | NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::BoundObjectProperty { .. }
+        | NumericExpression::ActionResultCount { .. }
+        | NumericExpression::CardsInZone { .. }
+        | NumericExpression::GreatestPropertyAmong { .. } => false,
+    }
 }
 
 /// Whether an action's affected object is the ability source itself, the
