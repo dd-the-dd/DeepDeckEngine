@@ -1,4 +1,3 @@
-use super::super::ManaAbilityQualificationFacts;
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterEffectNode, LocalEffectNode, LocalPlayerReference, NamedTokenCreationPattern,
@@ -8,7 +7,6 @@ use super::{
 use crate::card_catalog::named_token_printing;
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::model::RecognizedEntity;
-use crate::oracle::syntax::recognize_entities;
 use std::cell::RefCell;
 use std::collections::BTreeSet;
 
@@ -139,293 +137,10 @@ impl Drop for ReminderCompilationGuard {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum NamedTokenActivationCost {
-    Mana(String),
-    Tap,
-    SacrificeSelf,
-    DiscardCard,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum NamedTokenEffect {
-    ExploreControlledTarget { object_type: String },
-    AddManaAnyColor { amount: i64 },
-    DrawCards { amount: i64 },
-    GainLife { amount: i64 },
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct NamedTokenSemanticSpec {
-    costs: Vec<NamedTokenActivationCost>,
-    effect: NamedTokenEffect,
-    sorcery_timing: bool,
-}
-
-impl NamedTokenSemanticSpec {
-    fn mana_qualification(&self) -> ManaAbilityQualificationFacts {
-        let (could_add_mana, has_targets, effects_cross_library) = match &self.effect {
-            NamedTokenEffect::ExploreControlledTarget { .. } => (false, true, true),
-            NamedTokenEffect::AddManaAnyColor { .. } => (true, false, false),
-            NamedTokenEffect::DrawCards { .. } => (false, false, true),
-            NamedTokenEffect::GainLife { .. } => (false, false, false),
-        };
-        let costs_cross_library = self.costs.iter().any(|cost| match cost {
-            NamedTokenActivationCost::Mana(_)
-            | NamedTokenActivationCost::Tap
-            | NamedTokenActivationCost::SacrificeSelf
-            | NamedTokenActivationCost::DiscardCard => false,
-        });
-        ManaAbilityQualificationFacts {
-            could_add_mana,
-            has_targets,
-            // This typed cost vocabulary contains no loyalty cost.
-            is_loyalty: false,
-            effects_cross_library,
-            costs_cross_library,
-        }
-    }
-}
-
-fn words(tokens: &[RecognizedEntity]) -> Vec<String> {
-    tokens
-        .iter()
-        .map(|token| token.raw.to_ascii_lowercase())
-        .collect()
-}
-
-fn numeric_word(raw: &str) -> Option<i64> {
-    raw.parse().ok().or_else(|| {
-        Some(match raw.to_ascii_lowercase().as_str() {
-            "a" | "an" | "one" => 1,
-            "two" => 2,
-            "three" => 3,
-            "four" => 4,
-            "five" => 5,
-            _ => return None,
-        })
-    })
-}
-
-fn parse_named_token_cost(tokens: &[RecognizedEntity]) -> Option<NamedTokenActivationCost> {
-    let raw = words(tokens);
-    if tokens.len() == 1 && tokens[0].token_type == "manaSymbol" {
-        return Some(NamedTokenActivationCost::Mana(
-            tokens[0].raw.to_ascii_uppercase(),
-        ));
-    }
-    if raw.as_slice() == ["{t}"] {
-        return Some(NamedTokenActivationCost::Tap);
-    }
-    if raw.as_slice() == ["sacrifice", "this", "token"] {
-        return Some(NamedTokenActivationCost::SacrificeSelf);
-    }
-    if raw.as_slice() == ["discard", "a", "card"] {
-        return Some(NamedTokenActivationCost::DiscardCard);
-    }
-    None
-}
-
-fn parse_named_token_effect(tokens: &[RecognizedEntity]) -> Option<NamedTokenEffect> {
-    let raw = words(tokens);
-    let raw = raw.strip_suffix(&[".".to_string()]).unwrap_or(&raw);
-    match raw {
-        [target, object_type, you, control, explores]
-            if target == "target"
-                && you == "you"
-                && control == "control"
-                && explores == "explores" =>
-        {
-            Some(NamedTokenEffect::ExploreControlledTarget {
-                object_type: object_type.clone(),
-            })
-        }
-        [add, amount, mana, of, any, color]
-            if add == "add" && mana == "mana" && of == "of" && any == "any" && color == "color" =>
-        {
-            Some(NamedTokenEffect::AddManaAnyColor {
-                amount: numeric_word(amount)?,
-            })
-        }
-        [draw, article, card]
-            if draw == "draw" && matches!(article.as_str(), "a" | "one") && card == "card" =>
-        {
-            Some(NamedTokenEffect::DrawCards { amount: 1 })
-        }
-        [you, gain, amount, life]
-            if you == "you"
-                && super::is_verb_form(gain, super::VerbLemma::Gain, super::VerbForm::Base)
-                && life == "life" =>
-        {
-            Some(NamedTokenEffect::GainLife {
-                amount: numeric_word(amount)?,
-            })
-        }
-        _ => None,
-    }
-}
-
-fn parse_named_token_semantics(oracle: &str) -> Option<NamedTokenSemanticSpec> {
-    let tokens = recognize_entities(oracle);
-    parse_named_token_semantics_from_tokens(&tokens)
-}
-
-/// Borrows the original token stream for embedded Oracle. All offsets below
-/// are local slice positions; entity indices and source spans remain those of
-/// the containing ability and must never be used as slice offsets.
-fn parse_named_token_semantics_from_tokens(
-    tokens: &[RecognizedEntity],
-) -> Option<NamedTokenSemanticSpec> {
-    let colon = tokens.iter().position(|token| token.raw == ":")?;
-    let mut costs = Vec::new();
-    let mut start = 0;
-    for end in (0..=colon).filter(|index| *index == colon || tokens[*index].raw == ",") {
-        costs.push(parse_named_token_cost(&tokens[start..end])?);
-        start = end + 1;
-    }
-    let mut effect_end = tokens.len();
-    let mut sorcery_timing = false;
-    if let Some(sentence) = tokens[colon + 1..]
-        .iter()
-        .position(|token| token.raw == ".")
-        .map(|offset| colon + 1 + offset + 1)
-        && sentence < tokens.len()
-    {
-        let timing = words(&tokens[sentence..]);
-        if timing.as_slice() == ["activate", "only", "as", "a", "sorcery", "."] {
-            sorcery_timing = true;
-            effect_end = sentence;
-        } else {
-            return None;
-        }
-    }
-    Some(NamedTokenSemanticSpec {
-        costs,
-        effect: parse_named_token_effect(&tokens[colon + 1..effect_end])?,
-        sorcery_timing,
-    })
-}
-
-pub(in crate::oracle::canonical) fn compile_named_token_native_rule(
-    oracle: &str,
-) -> Option<serde_json::Value> {
-    let spec = parse_named_token_semantics(oracle)?;
-    let is_mana_ability = spec.mana_qualification().qualifies();
-    let mut decisions = Vec::new();
-    let mut costs = Vec::new();
-    for cost in spec.costs {
-        costs.push(match cost {
-            NamedTokenActivationCost::Mana(mana_cost) => serde_json::json!({
-                "kind": "payMana",
-                "manaCost": mana_cost,
-            }),
-            NamedTokenActivationCost::Tap => serde_json::json!({
-                "kind": "tap",
-                "object": { "kind": "self" },
-            }),
-            NamedTokenActivationCost::SacrificeSelf => serde_json::json!({
-                "kind": "sacrificePermanent",
-                "permanent": { "kind": "self" },
-            }),
-            NamedTokenActivationCost::DiscardCard => {
-                decisions.push(serde_json::json!({
-                    "id": "discardCost1",
-                    "kind": "chooseTargets",
-                    "minimum": 1,
-                    "maximum": 1,
-                    "candidates": {
-                        "kind": "cards",
-                        "zone": {
-                            "kind": "hand",
-                            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                        },
-                        "where": null,
-                    },
-                }));
-                serde_json::json!({
-                    "kind": "discardCard",
-                    "card": { "kind": "chosenTarget", "id": "discardCost1" },
-                })
-            }
-        });
-    }
-    let (effects, effect_decision) = match spec.effect {
-        NamedTokenEffect::ExploreControlledTarget { object_type } => (
-            super::super::lower_explore_program(
-                serde_json::json!({ "kind": "chosenTarget", "id": "targetPermanent" }),
-                "explore",
-            )
-            .ok()?,
-            Some(serde_json::json!({
-                "id": "targetPermanent",
-                "kind": "chooseTargets",
-                "minimum": 1,
-                "maximum": 1,
-                "candidates": {
-                    "kind": "permanents",
-                    "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
-                    "where": { "kind": "cardTypeContains", "value": title_case(&object_type) },
-                },
-            })),
-        ),
-        NamedTokenEffect::AddManaAnyColor { amount } => (
-            vec![serde_json::json!({
-                "kind": "addMana",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "mana": {
-                    "kind": "chooseColor",
-                    "amount": { "kind": "integer", "value": amount },
-                },
-            })],
-            None,
-        ),
-        NamedTokenEffect::DrawCards { amount } => (
-            vec![serde_json::json!({
-                "kind": "drawCards",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "count": { "kind": "integer", "value": amount },
-            })],
-            None,
-        ),
-        NamedTokenEffect::GainLife { amount } => (
-            vec![serde_json::json!({
-                "kind": "gainLife",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-                "amount": { "kind": "integer", "value": amount },
-            })],
-            None,
-        ),
-    };
-    decisions.extend(effect_decision);
-    let mut rule = serde_json::json!({
-        "kind": if is_mana_ability { "manaAbility" } else { "activatedAbility" },
-        "source": { "kind": "self" },
-        "costs": costs,
-        "effects": effects,
-    });
-    if !decisions.is_empty() {
-        rule["declaration"] = serde_json::json!({
-            "kind": "castingDeclaration",
-            "decisions": decisions,
-        });
-    }
-    if spec.sorcery_timing {
-        rule["activationCondition"] = serde_json::json!({ "kind": "sorceryTiming" });
-    }
-    Some(rule)
-}
-
-fn title_case(raw: &str) -> String {
-    let mut characters = raw.chars();
-    characters
-        .next()
-        .map(|first| first.to_uppercase().collect::<String>() + characters.as_str())
-        .unwrap_or_default()
-}
-
 /// Validates a named-token reminder as a semantic projection of the catalog
 /// definition. Both the embedded Oracle and the catalog Oracle are compiled by
-/// the same parser, so equivalent grammar can compare equal without sentence
+/// the shared ability grammar (the token spec's quoted-ability slot), so
+/// equivalent grammar compares equal as primitive IR without sentence
 /// matching. The card effect still stores only the token identity.
 pub(in crate::oracle::canonical) fn recognize_named_token_reminder(
     cursor: &mut OracleTokenCursor<'_>,
@@ -537,22 +252,14 @@ fn recognize_named_token_reminder_body(
         .as_deref()
         .ok_or_else(|| cursor.fail("catalog token Oracle"))?;
     let embedded_tokens = cursor.token_slice(oracle_start, oracle_end);
-    let embedded_rules = parse_named_token_semantics_from_tokens(embedded_tokens);
-    let catalog_rules = parse_named_token_semantics(catalog_oracle);
-    let matches = if embedded_rules.is_some() || catalog_rules.is_some() {
-        embedded_rules.is_some() && embedded_rules == catalog_rules
-    } else {
-        // Outside the closed cost/effect vocabulary both sides are compiled
-        // by the shared ability grammar and compared as primitive IR.
-        let embedded_rules = compile_token_rules_with_shared_grammar(
-            token_name,
-            type_line,
-            &source_text(embedded_tokens),
-        );
-        embedded_rules.is_some()
-            && embedded_rules
-                == compile_token_rules_with_shared_grammar(token_name, type_line, catalog_oracle)
-    };
+    let embedded_rules = compile_token_rules_with_shared_grammar(
+        token_name,
+        type_line,
+        &source_text(embedded_tokens),
+    );
+    let matches = embedded_rules.is_some()
+        && embedded_rules
+            == compile_token_rules_with_shared_grammar(token_name, type_line, catalog_oracle);
     cursor.require(matches, "the catalog token type line and canonical rules")
 }
 
@@ -597,17 +304,15 @@ fn compile_token_rules_with_shared_grammar(
     (!rules.is_empty()).then_some(rules)
 }
 
-/// Executable rules of a built-in catalog token. The closed native vocabulary
-/// keeps its established single-rule form; every other token is compiled by
-/// the shared ability grammar, so no per-token compiler exists.
+/// Executable rules of a built-in catalog token: its Oracle text compiled by
+/// the shared ability grammar, so no per-token compiler or closed token
+/// vocabulary exists.
 pub(in crate::oracle::canonical) fn compile_named_token_catalog_rules(
     token_name: &str,
     type_line: &str,
     oracle: &str,
 ) -> Option<Vec<serde_json::Value>> {
-    compile_named_token_native_rule(oracle)
-        .map(|rule| vec![rule])
-        .or_else(|| compile_token_rules_with_shared_grammar(token_name, type_line, oracle))
+    compile_token_rules_with_shared_grammar(token_name, type_line, oracle)
 }
 
 pub(in crate::oracle::canonical) fn recognize_named_token_creation_reminder(
