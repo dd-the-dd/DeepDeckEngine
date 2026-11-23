@@ -417,11 +417,6 @@
                     ]
                   },
                   {
-                    "id": "xValue",
-                    "kind": "chooseNumber",
-                    "minimum": 0
-                  },
-                  {
                     "candidates": {
                       "kind": "players"
                     },

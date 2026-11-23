@@ -198,31 +198,17 @@ pub(in crate::oracle::canonical) fn lower_effect_sequence_modal(
             "then": lowered.effects,
         }));
     }
-    // A shared X (CR 107.3a) is declared once, right after the modes,
-    // whichever mode declares or reads it.
-    let mut declared_x = false;
+    // A shared X is declared once, whichever mode reads it. A mode that only
+    // reads X declares nothing: the face's producer is checked after card
+    // composition (an explicit declaration here would manufacture one).
+    let mut seen_x = false;
     decisions.retain(|decision| {
-        let is_x = decision["id"].as_str() == Some("xValue");
-        declared_x |= is_x;
-        !is_x
-    });
-    if declared_x || decisions.iter().chain(&effects).any(reads_x_value) {
-        decisions.insert(1, x_value());
-    }
-    Ok(LoweredEffectSequence { effects, decisions })
-}
-
-/// True when a lowered value reads the `xValue` decision result.
-fn reads_x_value(value: &Value) -> bool {
-    match value {
-        Value::Object(object) => {
-            (object.get("kind").and_then(Value::as_str) == Some("decisionResult")
-                && object.get("decisionId").and_then(Value::as_str) == Some("xValue"))
-                || object.values().any(reads_x_value)
+        if decision["id"].as_str() != Some("xValue") {
+            return true;
         }
-        Value::Array(values) => values.iter().any(reads_x_value),
-        _ => false,
-    }
+        !std::mem::replace(&mut seen_x, true)
+    });
+    Ok(LoweredEffectSequence { effects, decisions })
 }
 
 #[cfg(test)]
