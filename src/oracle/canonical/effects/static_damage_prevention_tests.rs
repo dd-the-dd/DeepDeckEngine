@@ -86,7 +86,7 @@ fn unsupported_static_prevention_scopes_fail_inside_the_frame() {
         ),
         (
             "Prevent all damage that would be dealt to this creature by artifacts.",
-            "static.prevent.lowering",
+            "engine.gap.source-scoped-prevention",
         ),
         (
             "Prevent all damage that would be dealt to this creature this turn.",

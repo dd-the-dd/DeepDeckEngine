@@ -51,13 +51,42 @@ pub(crate) fn parse_canonical_rule_native(
     input: &AbilityInput<'_>,
     promoted_ability_kind: Option<&str>,
 ) -> CanonicalParseOutcome {
-    parse_native_rule(
+    let outcome = parse_native_rule(
         input,
         promoted_ability_kind.map_or(
             AbilityKindConstraint::AnyNative,
             AbilityKindConstraint::Exact,
         ),
-    )
+    );
+    own_primary_failure(outcome, input.tokens)
+}
+
+/// The dispatcher never reports a sink state (`failure_owner.rs`): the owned
+/// primary failure names the frame and its deepest component. Candidate
+/// evidence keeps the candidate's own state.
+fn own_primary_failure(
+    outcome: CanonicalParseOutcome,
+    tokens: &[crate::oracle::model::RecognizedEntity],
+) -> CanonicalParseOutcome {
+    match outcome {
+        CanonicalParseOutcome::Failed {
+            failure,
+            recognizer,
+        } => CanonicalParseOutcome::Failed {
+            failure: super::failure_owner::assign_failure_owner(failure, tokens),
+            recognizer,
+        },
+        CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure,
+            candidate_failure,
+            recognizer,
+        } => CanonicalParseOutcome::FailedWithCandidateEvidence {
+            failure: super::failure_owner::assign_failure_owner(failure, tokens),
+            candidate_failure,
+            recognizer,
+        },
+        outcome => outcome,
+    }
 }
 
 // The common syntax parent runs before specialized native compatibility paths.

@@ -93,6 +93,12 @@ pub struct ParserDiagnostic {
     pub found: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub trace: Vec<ParserTransitionDiagnostic>,
+    /// The owner of a failure whose `state` is a generic sink: the frame and
+    /// the deepest component it reached (`effect.clause/subject.you.verb.pay`,
+    /// `effect.discard.count/numeric.object-phrase`). Rankings group by
+    /// `owner`, falling back to `state`; `state` keeps the child's own state.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
 }
 
 /// Identifies which recognition boundary produced (or committed to) an

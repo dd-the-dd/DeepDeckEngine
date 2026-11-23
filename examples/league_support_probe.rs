@@ -43,7 +43,8 @@ fn evaluate(row: Row) -> Value {
                 .cloned()
                 .unwrap_or(Value::Null);
             failures.push(json!({"status":a["status"],"text":a["source"]["text"],
-                "code":d["code"],"state":d["state"],"automaton":d["automaton"],"message":d["message"]}));
+                "code":d["code"],"state":d["state"],"owner":d["owner"],
+                "automaton":d["automaton"],"message":d["message"]}));
         }
     }
     let unexec_kinds: Vec<Value> = v["ruleCoverage"]

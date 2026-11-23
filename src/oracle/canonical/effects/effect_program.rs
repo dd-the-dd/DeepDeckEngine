@@ -73,10 +73,12 @@ fn lower_reflexive_action(
     let [instruction] = action.effects.as_slice() else {
         return Err(cursor.fail("exactly one reflexive-trigger instruction"));
     };
-    cursor.require(
-        optional_action_measured(instruction),
-        "an instruction whose performance the runtime measures",
-    )?;
+    if !optional_action_measured(instruction) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::MeasuredPerformance,
+            "an instruction whose performance the runtime measures",
+        ));
+    }
     cursor.enter("lower.program.reflexive-action.effects");
     cursor.require(
         !body.effects.is_empty(),
@@ -150,10 +152,12 @@ fn lower_optional_action(
     let [instruction] = action.effects.as_slice() else {
         return Err(cursor.fail("exactly one optional instruction"));
     };
-    cursor.require(
-        optional_action_measured(instruction),
-        "an optional instruction whose performance the runtime measures",
-    )?;
+    if !optional_action_measured(instruction) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::MeasuredPerformance,
+            "an optional instruction whose performance the runtime measures",
+        ));
+    }
     cursor.enter("lower.program.optional-action.effects");
     cursor.require(
         !body.effects.is_empty(),

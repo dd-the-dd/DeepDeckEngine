@@ -642,13 +642,15 @@ fn lower_static_quoted_ability(
     ability: QuotedAbilityNode,
 ) -> MachineResult<Value> {
     cursor.enter("static.continuous.quoted-ability");
-    cursor.require(
-        matches!(
-            ability.rule["kind"].as_str(),
-            Some("activatedAbility" | "manaAbility")
-        ),
-        "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
-    )?;
+    if !matches!(
+        ability.rule["kind"].as_str(),
+        Some("activatedAbility" | "manaAbility")
+    ) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
+            "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
+        ));
+    }
     Ok(json!({
         "kind": "grantActivatedAbility",
         "objects": objects.clone(),

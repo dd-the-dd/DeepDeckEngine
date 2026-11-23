@@ -1,7 +1,9 @@
 """Rank Oracle-compiler blockers from a support probe run.
 
 Input: the JSONL written by `examples/league_support_probe.rs` (one card per
-line: oracle_id, name, supported, failures[{text, state, code, message}]).
+line: oracle_id, name, supported, failures[{text, state, owner, code, message}]).
+A failure is ranked by its `owner` (the dispatcher's owner of a sink state,
+src/oracle/canonical/failure_owner.rs) and falls back to its `state`.
 Output: a Markdown ranking of parser states (and the token the parser found)
 by the number of complete cards each one blocks alone, plus the structural
 frame of abilities that no automaton claimed. This is a measurement tool for
@@ -18,6 +20,20 @@ import collections
 import json
 from pathlib import Path
 
+# Mirror of `failure_owner::SINK_STATES` (src/oracle/canonical/failure_owner.rs).
+# The dispatcher assigns an owner to each; a probe row still ranked under one of
+# these is a regression of the S0 sink-share metric (roadmap: 23.7% -> <10%).
+SINK_STATES = frozenset((
+    'effect.start',
+    'numeric.atom.start',
+    'selector.predicate.start',
+    'target-list.complete',
+    'event.ordinal-card-drawn.action',
+    'reference.source.unresolved-name',
+    'sequence.connector-or-end',
+))
+ENGINE_GAP_PREFIX = 'engine.gap.'
+
 FRAME_PREFIXES = (
     ('trigger', ('when ', 'whenever ', 'at the beginning', 'at end of')),
     ('replacement or static', ('if ', 'as long as', 'as an additional', 'as ', 'you may ',
@@ -30,7 +46,7 @@ def load(path: Path) -> list[dict]:
 
 
 def state_of(failure: dict) -> str:
-    return failure.get('state') or failure.get('code') or '?'
+    return failure.get('owner') or failure.get('state') or failure.get('code') or '?'
 
 
 def found_token(failure: dict) -> str:
@@ -62,6 +78,8 @@ def rank(cards: list[dict]) -> dict:
     failing = [card for card in cards if not card['supported']]
     single = [card for card in failing if len(card.get('failures', [])) == 1]
     by_state, by_token, unclaimed = collections.Counter(), collections.Counter(), collections.Counter()
+    by_owner_frame = collections.Counter()
+    sink = engine_gap = 0
     touching, examples = collections.Counter(), {}
     for card in failing:
         for state in {state_of(f) for f in card.get('failures', [])}:
@@ -70,13 +88,18 @@ def rank(cards: list[dict]) -> dict:
         failure = card['failures'][0]
         state = state_of(failure)
         by_state[state] += 1
+        sink += state in SINK_STATES
+        engine_gap += state.startswith(ENGINE_GAP_PREFIX)
+        # An owned state is `FRAME/COMPONENT`; group owners by their frame.
+        by_owner_frame[state.split('/', 1)[0] if '/' in state else '(unowned)'] += 1
         key = (state, found_token(failure))
         by_token[key] += 1
         examples.setdefault(key, f"{card['name']}: {failure['text'][:120]}")
         if state == 'unsupported_oracle_ability':
             unclaimed[frame(failure['text'])] += 1
     return dict(total=len(cards), supported=len(cards) - len(failing), failing=len(failing),
-                singleBlocker=len(single), byState=by_state, byToken=by_token,
+                singleBlocker=len(single), sinkStates=sink, engineGaps=engine_gap,
+                byOwnerFrame=by_owner_frame, byState=by_state, byToken=by_token,
                 touching=touching, unclaimed=unclaimed, examples=examples)
 
 
@@ -84,9 +107,15 @@ def markdown(result: dict, label: str, limit: int) -> str:
     lines = [f'# Oracle blocker ranking — {label}', '',
              f"Supported {result['supported']} / {result['total']}; failing {result['failing']}, "
              f"of which {result['singleBlocker']} fail on exactly one ability.", '',
+             f"Sink-state share (S0): {result['sinkStates']} / {result['singleBlocker']} "
+             f"({100.0 * result['sinkStates'] / max(result['singleBlocker'], 1):.1f}%); "
+             f"engine gaps: {result['engineGaps']}.", '',
              '| Parser state | Cards blocked alone | Cards touched |', '|---|---:|---:|']
     for state, count in result['byState'].most_common(limit):
         lines.append(f"| `{state}` | {count} | {result['touching'][state]} |")
+    lines += ['', '## Owned failures by frame', '', '| Owner frame | Cards blocked alone |', '|---|---:|']
+    for name, count in result['byOwnerFrame'].most_common(limit):
+        lines.append(f'| `{name}` | {count} |')
     lines += ['', '## Unclaimed abilities by structural frame', '', '| Frame | Cards |', '|---|---:|']
     for name, count in result['unclaimed'].most_common():
         lines.append(f'| {name} | {count} |')

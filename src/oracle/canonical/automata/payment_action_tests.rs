@@ -314,7 +314,7 @@ fn resolution_gains_lower_to_the_engine_cost_program_schema() {
 #[test]
 fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
     for (text, state) in [
-        ("{1}, Blight 1", "activation.blight"),
+        ("{1}, Blight 1", "engine.gap.activation-cost-action"),
         (
             "{1}, Sacrifice two creatures",
             "activation.selected-sacrifice.quantity",
@@ -330,7 +330,7 @@ fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
     for (text, state) in [
         (
             "you may exile this card from your graveyard. If you do, draw a card.",
-            "cost.resolution.exile.source",
+            "engine.gap.resolution-cost-action",
         ),
         (
             "you may sacrifice two creatures. If you do, draw a card.",

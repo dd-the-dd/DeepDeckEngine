@@ -212,7 +212,8 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         | PaymentActionNode::Mill { .. }
         | PaymentActionNode::Exert(_) => {
             cursor.enter("cost.resolution.unsupported-action");
-            Err(cursor.fail(
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ResolutionCostAction,
                 "a resolution cost the engine can pay (pay, sacrifice, discard, tap, exile, remove counters, blight)",
             ))
         }
@@ -300,7 +301,8 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
             ..
         } => {
             cursor.enter("cost.resolution.exile.source");
-            Err(cursor.fail(
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::ResolutionCostAction,
                 "a resolution cost the engine can pay (exiling the source has no resolution cost program)",
             ))
         }

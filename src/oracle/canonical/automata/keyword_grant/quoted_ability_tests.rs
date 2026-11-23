@@ -232,7 +232,7 @@ fn a_static_grant_of_a_triggered_ability_fails_because_the_engine_does_not_publi
     assert!(
         parsed
             .diagnostic
-            .contains("static.continuous.quoted-ability"),
+            .contains("engine.gap.granted-nonactivated-ability"),
         "{}",
         parsed.diagnostic
     );

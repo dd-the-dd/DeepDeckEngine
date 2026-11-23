@@ -13,6 +13,7 @@ fn failure(expected: &str) -> MachineFailure {
         expected: expected.to_string(),
         actual: None,
         trace: Vec::new(),
+        owner: None,
     }
 }
 

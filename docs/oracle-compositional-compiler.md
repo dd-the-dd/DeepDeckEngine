@@ -217,6 +217,39 @@ Les échecs sont regroupés par domaine sémantique manquant et contrat d'enfant
 avec les diagnostics comme indices. Deux états de parseurs spécialisés différents
 peuvent révéler la même absence de requête ou de liaison.
 
+### Propriétaire d'un échec (S0)
+
+- Un enfant renvoie un résultat transactionnel (`ChildOutcome` dans
+  `canonical/machine.rs`) : `Matched`, `NoMatch` tant que son point d'engagement
+  n'est pas atteint, `Committed` après (`CommitPoint::commit`, typiquement sujet
+  et lemme lus). L'avancement du curseur n'est jamais un engagement ; un parent
+  ne garde pas l'échec d'un enfant parce qu'il a « lu plus loin ».
+- Le dispatcher ne laisse aucun état puits sans propriétaire
+  (`failure_owner::SINK_STATES` : `effect.start`, `numeric.atom.start`,
+  `selector.predicate.start`, `target-list.complete`,
+  `event.ordinal-card-drawn.action`, `reference.source.unresolved-name`,
+  `sequence.connector-or-end`). Il ajoute `owner` à l'échec (et au diagnostic
+  publié) : pour une clause, la composante la plus profonde atteinte
+  (`effect.clause/subject.you.may.verb.pay`, `effect.clause/verb-unknown.look`,
+  `effect.clause/introducer.when`, `event.clause/subject.you.verb-unknown.commit`) ;
+  pour un enfant générique, le cadre appelant et la classe du mot rencontré
+  (`effect.discard.count/numeric.object-phrase`) ; après une action complète, le
+  cadre qui a lu en dernier et le modificateur postposé non lu
+  (`selector.predicate.complete/modifier.that`, `…/terminator.missing`).
+  `state`, `expected` et la trace gardent la preuve précise de l'enfant. Les
+  classements (`scripts/rank-oracle-blockers.py`) regroupent par `owner`, à défaut
+  par `state` ; la part d'états puits y est publiée.
+- Un enfant transactionnel rejeté rend sa clause à `clause_head_failure` : l'état
+  publié est alors directement le propriétaire (`effect.clause/subject.target.verb.reveal`,
+  ou `effect.clause/subject.target.unread.or` quand le sujet s'arrête avant son verbe).
+- `verb.L` signifie lemme du lexique connu mais non lu dans ce cadre ;
+  `verb-unknown.W` signifie lemme absent du lexique. Un mot non lié nomme le mot-clé
+  ou le verbe manquant (`keyword.unsupported.madness`, `effect.unsupported-verb.roll`).
+- Une lecture complète que le moteur ne sait pas exécuter échoue avec
+  `cursor.engine_gap(EngineGap::…)` : l'état publié est `engine.gap.<kind>`
+  (`canonical/engine_gap.rs`), jamais un état de grammaire ; l'état du cadre qui a
+  trouvé la lacune reste dans la trace.
+
 Exemples de décisions attendues, pas un état de couverture du code actuel :
 
 | Nouvelle difficulté | Décision de l'agent |

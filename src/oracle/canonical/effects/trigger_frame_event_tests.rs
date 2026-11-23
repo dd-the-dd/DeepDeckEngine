@@ -195,13 +195,13 @@ fn claimed_frames_report_the_furthest_event_failure() {
         // No self matcher observes a source becoming untapped.
         (
             "Whenever this creature becomes untapped, draw a card.",
-            "trigger.source-event.verb-support",
+            "engine.gap.event-matcher",
         ),
         // A counterpart with a numeric characteristic is a typed attribute
         // the runtime matcher cannot evaluate: an engine gap, not grammar.
         (
             "Whenever this creature blocks or becomes blocked by a creature with power 1 or less, draw a card.",
-            "trigger.event.engine-gap",
+            "engine.gap.event-matcher",
         ),
         (
             "When this creature is put into your graveyard from the battlefield, draw a card.",
@@ -395,7 +395,7 @@ fn combat_modifiers_without_a_runtime_matcher_remain_engine_gaps() {
         // Arrogant Bloodlord: a numeric counterpart characteristic.
         "Whenever this creature becomes blocked by a creature with power 1 or less, draw a card.",
     ] {
-        assert_eq!(committed_state(text), "trigger.event.engine-gap", "{text}");
+        assert_eq!(committed_state(text), "engine.gap.event-matcher", "{text}");
     }
 }
 

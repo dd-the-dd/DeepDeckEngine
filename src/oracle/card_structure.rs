@@ -79,6 +79,7 @@ impl CardStructureFailure {
             expected: Some(self.expected),
             found: Some(self.found),
             trace: Vec::new(),
+            owner: None,
         }
     }
 }
