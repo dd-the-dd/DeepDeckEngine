@@ -100,3 +100,20 @@ fn an_embedded_clause_reads_its_event_with_the_same_reader() {
     assert!(matches!(attempt, EventClauseAttempt::Recognized(_)));
     assert_eq!(next.as_deref(), Some("return"));
 }
+
+#[test]
+fn an_entering_controller_scope_does_not_leak_into_a_transition_union() {
+    // `under your control` is the entering branch's post-event controller;
+    // the union would apply it to `or dies` as a pre-event relation.
+    let (attempt, _) =
+        clause("Whenever a creature enters under your control or dies, draw a card.");
+    let (EventClauseAttempt::Committed(failure) | EventClauseAttempt::Rejected(failure)) = attempt
+    else {
+        panic!("an entering controller with a union is never recognized")
+    };
+    assert_eq!(failure.state, "trigger.envelope.transition-union");
+    // Near miss: a pre-event controller on the subject binds both branches.
+    let (attempt, next) = clause("Whenever a creature you control enters or dies, draw a card.");
+    assert!(matches!(attempt, EventClauseAttempt::Recognized(_)));
+    assert_eq!(next.as_deref(), Some("draw"));
+}

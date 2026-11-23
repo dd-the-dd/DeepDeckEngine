@@ -494,6 +494,7 @@ fn read_permanent_transition(
     };
     cursor.consume(action)?;
     let mut entry_state = None;
+    let mut entering_controller = false;
     if kind == PermanentTransitionKind::Entered {
         cursor.enter("trigger.envelope.permanent-subject");
         if subjects.alternatives.iter().any(|branch| {
@@ -523,6 +524,7 @@ fn read_permanent_transition(
                 }
                 *controller = Some(scope);
             }
+            entering_controller = true;
         }
         entry_state = match cursor.peek() {
             Some(word) if word.eq_ignore_ascii_case("tapped") => Some(EntryStatePredicate::Tapped),
@@ -551,6 +553,13 @@ fn read_permanent_transition(
             .is_some_and(|raw| raw.eq_ignore_ascii_case(other.0))
     {
         cursor.enter("trigger.envelope.transition-union");
+        // `under your control` is the entering branch's post-event
+        // controller; the subjects carry one pre-event controller relation
+        // shared by both branches, so the union would leak it into `or dies`.
+        cursor.require(
+            !entering_controller,
+            "an entering-controller scope without a transition union (it binds only the entering branch)",
+        )?;
         cursor.consume_phrase(&["or", other.0])?;
         union_kind = Some(other.1);
     }
