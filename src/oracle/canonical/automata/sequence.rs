@@ -985,13 +985,11 @@ fn recognize_effect_sequence_attempt_scoped(
                         match legacy {
                             Ok(effect) => Ok(effect),
                             Err(failure)
-                                if !memory.effects.is_empty()
-                                    && attempt
-                                        .peek()
-                                        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
-                                    && attempt
-                                        .peek_ahead(1)
-                                        .is_some_and(|raw| raw.eq_ignore_ascii_case("may")) =>
+                                if !memory.effects.is_empty() && {
+                                    let head = super::read_effect_head(attempt);
+                                    head.subject == super::EffectSubjectKind::Controller
+                                        && head.modality == super::ClauseModality::May
+                                } =>
                             {
                                 // CR 118.12: the payer decides before the
                                 // permission is exercised; a `you may` body
@@ -1120,7 +1118,10 @@ fn recognize_effect_sequence_attempt_scoped(
                                 Some(Ok(_))
                                     if head
                                         .peek()
-                                        .is_some_and(|raw| raw.eq_ignore_ascii_case("may")) =>
+                                        .and_then(super::lookup_auxiliary)
+                                        .is_some_and(|(auxiliary, _)| {
+                                            auxiliary == super::Auxiliary::May
+                                        }) =>
                                 {
                                     Err(failure)
                                 }
