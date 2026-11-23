@@ -1101,6 +1101,15 @@ fn recognize_effect_sequence_attempt_scoped(
                             match performer {
                                 None => Err(failure),
                                 Some(Err(subject)) => Err(furthest(failure, subject)),
+                                // A single player's permission (`that player may`)
+                                // is the program-level permission (one owner).
+                                Some(Ok((super::PerformerNode::Player(_), _)))
+                                    if head
+                                        .peek()
+                                        .is_some_and(|raw| raw.eq_ignore_ascii_case("may")) =>
+                                {
+                                    Err(failure)
+                                }
                                 Some(Ok((performer, agreement))) => {
                                     let description = super::performer_description(&performer);
                                     match super::person_shifted_tokens(
@@ -1138,14 +1147,21 @@ fn recognize_effect_sequence_attempt_scoped(
                                             match read {
                                                 Ok(effect) => {
                                                     let end = shifted.position();
-                                                    cursor.advance_to(end).map(|()| {
-                                                        LocalEffectNode::Performed(
-                                                            super::PerformedEffectNode {
-                                                                performer,
-                                                                effect: Box::new(effect),
-                                                            },
-                                                        )
-                                                    })
+                                                    match super::controller_reference_failure(
+                                                        &head,
+                                                        head.position(),
+                                                        end,
+                                                    ) {
+                                                        Some(ambiguous) => Err(ambiguous),
+                                                        None => cursor.advance_to(end).map(|()| {
+                                                            LocalEffectNode::Performed(
+                                                                super::PerformedEffectNode {
+                                                                    performer,
+                                                                    effect: Box::new(effect),
+                                                                },
+                                                            )
+                                                        }),
+                                                    }
                                                 }
                                                 Err(action) => Err(furthest(failure, action)),
                                             }

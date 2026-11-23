@@ -2338,8 +2338,8 @@ mod performer;
 mod permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
-    PerformedEffectNode, PerformerContext, PerformerNode, performer_description,
-    person_shifted_tokens, recognize_performer,
+    PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
+    performer_description, person_shifted_tokens, recognize_performer,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,

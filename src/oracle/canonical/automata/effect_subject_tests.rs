@@ -699,7 +699,7 @@ fn the_deployed_card_is_the_antecedent_across_sentences() {
 fn a_controller_reference_inside_a_performed_clause_fails_explicitly() {
     for oracle in [
         "Each opponent returns a creature you control to its owner's hand.",
-        "Each player creates a token that's a copy of a creature you control.",
+        "Each opponent puts a creature card from your graveyard onto the battlefield.",
     ] {
         let (status, _, states) = parse(SORCERY, oracle);
         assert_ne!(status, "canonical", "{oracle}");
@@ -743,4 +743,15 @@ fn a_population_permission_is_each_players_optional_program() {
     // Near miss: a modal verb that agrees with the subject is not `may`.
     let (status, _, _) = parse(SORCERY, "Each player mays draw a card.");
     assert_ne!(status, "canonical");
+}
+
+/// The guard reads only the performed action's tokens: a later `you`
+/// clause of the same sentence is the controller's own action.
+#[test]
+fn a_later_controller_clause_is_not_inside_the_performed_action() {
+    let (status, _, states) = parse(
+        SORCERY,
+        "Each opponent creates a Treasure token, then you draw a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
 }

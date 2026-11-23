@@ -63,11 +63,11 @@ fn a_player_set_names_the_verb_it_does_not_read() {
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
     let expected = expected.unwrap_or_default();
     assert!(expected.contains("a player set"), "{expected}");
-    // A lexicon lemma is named by its base form.
-    let (_, state, expected) = parse(
+    // A population's permission is each player's own optional program
+    // (the performer slot), no longer an unread verb.
+    let (status, _, _) = parse(
         "Sorcery",
         "Each player may put a card from their hand onto the battlefield.",
     );
-    assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
-    assert!(expected.unwrap_or_default().contains("lemma `put`"));
+    assert_eq!(status, "canonical");
 }

@@ -451,3 +451,90 @@ fn the_deployed_creature_has_haste_and_is_sacrificed_at_the_end_step() {
     resolve_stack(&mut engine);
     assert!(engine.permanent_position("giant").is_none(), "sacrificed");
 }
+
+/// The permanent leaves and returns as a new object (CR 400.7).
+fn new_incarnation(engine: &mut GameEngine, id: &str) {
+    let (player_index, card_index) = engine.permanent_position(id).expect("permanent");
+    let mut card = engine.state.players[player_index].battlefield[card_index].clone();
+    engine
+        .assign_new_object_incarnation(&mut card)
+        .expect("a new incarnation");
+    engine.state.players[player_index].battlefield[card_index] = card;
+}
+
+fn returned_to_battlefield(oracle: &str, id: &str) -> (GameEngine, Value) {
+    let rule = parsed_rules("Instant", oracle).remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard.push(test_instance(
+        id,
+        test_definition(id, "Legendary Creature - Eldrazi"),
+        "player-0",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:return".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("spell", test_definition("spell", "Instant"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Card {
+                instance_id: id.to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    (engine, rule)
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_flickered_creature_is_a_new_object_the_delayed_exile_does_not_find() {
+    // Goryo's Vengeance + a flicker before the end step: the delayed trigger
+    // captured the old object; the new one stays (CR 400.7, 603.7c).
+    let (mut engine, _) = returned_to_battlefield(
+        "Return target legendary creature card from your graveyard to the battlefield. That creature gains haste. Exile it at the beginning of the next end step.",
+        "emrakul",
+    );
+    new_incarnation(&mut engine, "emrakul");
+    engine.enqueue_step_triggers("endStep");
+    resolve_stack(&mut engine);
+    assert!(
+        engine.permanent_position("emrakul").is_some(),
+        "a new object"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_returned_creature_another_player_controls_is_not_sacrificed() {
+    // CR 701.21a: only its controller sacrifices a permanent; after a control
+    // change the delayed sacrifice of the returned creature does nothing.
+    let (mut engine, _) = returned_to_battlefield(
+        "Return target creature card from your graveyard to the battlefield. Sacrifice it at the beginning of the next end step.",
+        "bear",
+    );
+    let (player, index) = engine.permanent_position("bear").expect("returned");
+    engine.state.players[player].battlefield[index].controller = "player-1".to_string();
+    engine.enqueue_step_triggers("endStep");
+    resolve_stack(&mut engine);
+    assert!(
+        engine.permanent_position("bear").is_some(),
+        "not the thief's sacrifice"
+    );
+}

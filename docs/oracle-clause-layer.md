@@ -490,3 +490,18 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Sonde : ligue 826 → 827 (+1 : Fecundity), corpus 15080 → 15089 (+9 :
   Hunted Wumpus, Harbor Guardian, Vex, Brood Sliver…), 0 perte, IR des
   cartes supportées inchangée.
+
+### Corrections de revue (#63)
+
+- Déclencheur retardé : chaque objet capturé voyage avec l'identité de
+  l'objet qu'il nommait (`captured_binding.rs`, clé `BINDING#identities`) ;
+  le déclencheur ne le retrouve que tant qu'il est le même objet (CR 400.7,
+  603.7c), comme la contrepartie de combat. Le repli de `resolve_target` ne
+  lit que ce contexte de liaison capturée.
+- Sacrifice d'un permanent lié : seul son contrôleur le sacrifie
+  (CR 701.21a) ; un permanent volé n'est pas sacrifié par l'exécutant.
+- Garde du `you` : ne lit que les jetons consommés par l'action exécutée
+  (`, then you draw a card` reste l'action du contrôleur).
+- La permission d'un joueur singulier (`that player may`) garde son lecteur
+  de programme (étape 12) ; seule une population passe par l'exécutant :
+  une seule représentation par forme.

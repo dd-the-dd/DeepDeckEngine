@@ -154,6 +154,7 @@ mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
+mod captured_binding;
 mod effect_performer;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
@@ -31380,15 +31381,10 @@ impl GameEngine {
                 .and_then(|id| match bindings.get(id) {
                     Some(RuntimeBinding::Objects(objects)) => objects.first().cloned(),
                     Some(_) => None,
-                    // A delayed trigger carries the identities it captured
-                    // when it was created (CR 603.7c) in its decisions.
-                    None => stack_object
-                        .decisions
-                        .get(id)
-                        .and_then(Value::as_array)
-                        .and_then(|objects| objects.first())
-                        .and_then(Value::as_str)
-                        .map(str::to_string),
+                    // A delayed trigger finds the object it captured when it
+                    // was created, only while it is that object (CR 603.7c,
+                    // 400.7); no other resolution reads its decisions.
+                    None => self.captured_bound_object(stack_object, id),
                 })
                 .map(|instance_id| {
                     if self.permanent_position(&instance_id).is_some() {
