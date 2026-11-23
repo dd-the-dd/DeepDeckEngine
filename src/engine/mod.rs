@@ -38256,6 +38256,7 @@ impl GameEngine {
                     Some(blocker_id.clone()),
                     json!({
                         "attackerId": attacker_id,
+                        "attackerIdentity": self.object_identity_value(&attacker_id),
                         "objectIdentity": self.object_identity_value(&blocker_id),
                     }),
                 );

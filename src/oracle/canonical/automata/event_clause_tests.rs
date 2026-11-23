@@ -38,11 +38,14 @@ fn combat_event_modifiers_compile_and_unsupported_ones_are_engine_gaps() {
         "Whenever this creature attacks alone, draw a card.",
         "Whenever this creature attacks for the first time each turn, draw a card.",
         "Whenever this creature blocks a creature with flying, draw a card.",
+        // The attacker of a block record counts the combats it became
+        // blocked in (S5 action-record ordinal).
+        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
     ] {
         assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
     }
     for text in [
-        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        "Whenever this creature becomes blocked by a creature for the first time each turn, draw a card.",
         "Whenever this creature blocks a creature with power 2 or less, draw a card.",
     ] {
         assert_eq!(

@@ -59,7 +59,8 @@ pub(super) struct CombatEventRecord {
     pub first_block_of_attacker: bool,
     /// This is the first creature the blocker blocks this combat.
     pub first_block_by_blocker: bool,
-    /// Per-turn ordinal of this lemma for the attacker (attack records).
+    /// Per-turn ordinal of this lemma for the attacker: its attacks (attack
+    /// records), or the combats it became blocked in (block records).
     pub attacker_turn_ordinal: Option<usize>,
     /// Per-turn ordinal of this lemma for the blocker (block records).
     pub blocker_turn_ordinal: Option<usize>,
@@ -505,13 +506,14 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
     let counterpart = counterpart.map(|(filter, _)| filter);
     let turn_ordinal = match event.get("turnOrdinal") {
         None => None,
-        // The ordinal is recorded for the attacker of an attack and for the
-        // blocker of a block; other roles fail as unsupported.
+        // The ordinal is recorded for the attacker of an attack, for each
+        // combatant of a block; other roles fail as unsupported.
         Some(value) => {
             let ordinal = integer_value(value).filter(|ordinal| *ordinal > 0)?;
             let recorded = matches!(
                 (lemma, subject_role),
-                (CombatLemma::Attack, Attacker) | (CombatLemma::Block, Blocker)
+                (CombatLemma::Attack | CombatLemma::Block, Attacker)
+                    | (CombatLemma::Block, Blocker)
             );
             if !recorded {
                 return None;
@@ -794,6 +796,41 @@ impl GameEngine {
             .count()
     }
 
+    /// The number of combats this turn in which the attacker's current
+    /// incarnation became blocked, this one included (`becomes blocked for
+    /// the first time each turn`). A creature becomes blocked once per combat
+    /// (CR 509.1h): each attack declaration opens a combat, and only its
+    /// first logged block of the attacker counts. The current block is logged
+    /// before its triggers are collected. A block logged without the
+    /// attacker's identity cannot be attributed to this object and is not
+    /// counted (CR 400.7).
+    fn attacker_blocked_turn_ordinal(&self, attacker_id: &str) -> usize {
+        let identity = self.object_identity_value(attacker_id);
+        let mut combats = 0;
+        let mut blocked_this_combat = false;
+        for event in self
+            .state
+            .events
+            .iter()
+            .filter(|event| event.turn_number == self.state.turn_number)
+        {
+            match event.kind.as_str() {
+                "attackDeclared" => blocked_this_combat = false,
+                "blockerDeclared"
+                    if !blocked_this_combat
+                        && event.detail["attackerId"].as_str() == Some(attacker_id)
+                        && event.detail.get("attackerIdentity").unwrap_or(&Value::Null)
+                            == &identity =>
+                {
+                    blocked_this_combat = true;
+                    combats += 1;
+                }
+                _ => {}
+            }
+        }
+        combats
+    }
+
     /// The attack declaration of the current combat (`attackDeclared`).
     fn current_attack_declaration(&self) -> Vec<String> {
         self.state
@@ -875,7 +912,7 @@ impl GameEngine {
                 .filter(|block| block.blocker_id == blocker_id)
                 .count()
                 == 1,
-            attacker_turn_ordinal: None,
+            attacker_turn_ordinal: Some(self.attacker_blocked_turn_ordinal(attacker_id)),
             blocker_turn_ordinal: Some(self.combat_turn_ordinal("blockerDeclared", blocker_id)),
             turn_player: self.state.players[self.state.active_player].id.clone(),
         }

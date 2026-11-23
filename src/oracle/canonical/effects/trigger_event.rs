@@ -510,8 +510,10 @@ fn lower_source_event_patterns(
         }
         if first_time {
             // The runtime records the ordinal of the attacker of an attack and
-            // of the blocker of a block.
-            if not_blocked || *verb == SourceEventVerb::BecameBlocked {
+            // of both combatants of a block (the attacker counts the combats
+            // it became blocked in); an unblocked record carries none. Per
+            // pair, `becomes blocked by X` has no first-pair ordinal.
+            if not_blocked || (*verb == SourceEventVerb::BecameBlocked && counterpart.is_some()) {
                 return Err(engine_gap(
                     cursor,
                     "an engine event matcher for `for the first time each turn` on an attack or a block",

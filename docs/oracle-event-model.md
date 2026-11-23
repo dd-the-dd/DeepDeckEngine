@@ -569,7 +569,13 @@ tests et les sondes se font sur le lot intégré.
   comme objet ciblé et un objet ciblant sans contrôleur ; l'ancienne forme
   `self` (protection, `stackObjectKind`) garde son chemin, dont elle est
   exclue par une seule garde dans `mod.rs`.
-- Restent : ordinal de `becomes blocked` et du ciblage (Valiant), propriétaire
+- Ordinal par tour de `becomes blocked` : l'enregistrement de blocage porte,
+  pour l'attaquant, le nombre de combats du tour où son incarnation courante
+  a été bloquée (`blockerDeclared` journalise `attackerIdentity`) ; `becomes
+  blocked for the first time each turn` est abaissé en motif générique. La
+  variante par paire (`becomes blocked by X for the first time…`) reste un
+  `engine-gap`.
+- Restent : ordinal du ciblage (Valiant), propriétaire
   du tour hors combat, déclencheurs intégrés (CR 603.7 / 603.12) branchés sur
   `read_event_clause`, `kind` en forme de phrase (`attachedPermanentTapped`,
   `doorUnlocked`, …) vers lemme + relation, familles de programmes
