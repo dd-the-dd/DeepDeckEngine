@@ -256,6 +256,6 @@ fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_engine_gap() {
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(
         parsed.abilities[0].diagnostics[0].state.as_deref(),
-        Some("trigger.event.engine-gap")
+        Some("engine.gap.event-matcher")
     );
 }

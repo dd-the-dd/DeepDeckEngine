@@ -89,7 +89,7 @@ fn a_modifier_on_an_occurrence_without_its_matcher_is_an_engine_gap() {
     let EventClauseAttempt::Committed(failure) = attempt else {
         panic!("committed engine gap")
     };
-    assert_eq!(failure.state, "trigger.event.engine-gap");
+    assert_eq!(failure.state, "engine.gap.event-matcher");
     assert!(failure.expected.contains("during your turn"));
 }
 

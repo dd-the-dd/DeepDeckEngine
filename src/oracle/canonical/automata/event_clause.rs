@@ -197,11 +197,16 @@ fn absorb_modifiers(
             Ok(GenericTriggerEventNode::Object(node))
         }
         _ => {
-            cursor.enter("trigger.event.engine-gap");
-            Err(cursor.fail(&format!(
-                "an engine event matcher for {} on this event",
-                tail.first_modifier_name().unwrap_or("this modifier")
-            )))
+            // The modifier was read: the missing piece is the runtime
+            // matcher (S0 engine gap), never a grammar failure.
+            cursor.enter("trigger.event.modifier-matcher");
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
+                &format!(
+                    "an engine event matcher for {} on this event",
+                    tail.first_modifier_name().unwrap_or("this modifier")
+                ),
+            ))
         }
     }
 }

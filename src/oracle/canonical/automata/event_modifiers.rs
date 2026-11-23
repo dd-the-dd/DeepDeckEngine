@@ -11,7 +11,7 @@
 //! Each modifier is a typed attribute of the event pattern, read once for
 //! every subject kind. Recognizing a modifier is not runtime support: the
 //! lowering of each event kind decides which modifiers its matcher evaluates,
-//! and an unsupported one fails as an engine gap (`trigger.event.engine-gap`),
+//! and an unsupported one fails as an engine gap (`engine.gap.event-matcher`),
 //! never dropped.
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 

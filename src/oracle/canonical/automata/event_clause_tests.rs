@@ -103,7 +103,7 @@ fn a_recognized_modifier_without_its_matcher_is_an_engine_gap() {
     ] {
         assert_eq!(
             parse("Creature — Wall", text).1.as_deref(),
-            Some("trigger.event.engine-gap"),
+            Some("engine.gap.event-matcher"),
             "{text}"
         );
     }
