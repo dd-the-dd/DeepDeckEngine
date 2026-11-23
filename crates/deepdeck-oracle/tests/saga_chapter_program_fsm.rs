@@ -161,6 +161,13 @@ fn die_roll_result_rows_are_never_unconditional_abilities() {
             .unwrap_or_else(|| panic!("{row}: {:#?}", parsed.abilities));
         assert_ne!(ability.status, "canonical", "{row}");
         assert!(ability.rule.is_none(), "{row}");
+        // The row's result number is not an effect subject.
+        assert_eq!(
+            ability.diagnostics[0].state.as_deref(),
+            Some("effect.start"),
+            "{row}: {:#?}",
+            ability.diagnostics
+        );
         // Not mislabelled as a station band body either.
         assert!(
             ability

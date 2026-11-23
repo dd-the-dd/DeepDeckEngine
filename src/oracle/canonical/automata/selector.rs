@@ -2,7 +2,7 @@ use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, PlayerRole, lookup_card_type, lookup_player_role, lookup_supertype,
 };
 
-use super::super::{MachineResult, OracleTokenCursor};
+use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     CardSupertype, NumericComparisonOperator, ObjectCardType, ObjectControllerScope, ObjectKind,
     ObjectPredicate, PlayerPredicate, SelectorNumericProperty, SelectorPredicate, SpellCasterScope,
@@ -26,6 +26,8 @@ struct ObjectQueryFrame {
     union_branches: Vec<SelectorPredicate>,
     /// Per union branch: some characteristic word appeared in plural form.
     branch_has_plural_surface: Vec<bool>,
+    /// Per union branch: the grammatical number of its noun head.
+    branch_number: Vec<super::GrammaticalNumber>,
     has_explicit_union: bool,
     has_repeated_head_article: bool,
     last_connector_is_exclusive: bool,
@@ -39,6 +41,12 @@ struct ObjectQueryFrame {
     /// The open comma run: the cursor before its first comma and the frame
     /// as it was there. It commits when `or`/`and/or` closes it.
     comma_run: Option<(
+        super::super::machine::MachineCheckpoint,
+        Box<ObjectQueryFrame>,
+    )>,
+    /// A run closed by `or`/`and/or` whose member after the connector must
+    /// still agree in number before the list commits.
+    closing_run: Option<(
         super::super::machine::MachineCheckpoint,
         Box<ObjectQueryFrame>,
     )>,
@@ -309,8 +317,10 @@ fn recognize_object_query_with_cardinality_policy(
                     }
                     if let Err(failure) = consume_optional_selector_article(cursor) {
                         // A failed member after a tentative comma ends the
-                        // list there: the comma is the parent's.
+                        // list there: the comma is the parent's, and the
+                        // member's failure explains a parent failing at it.
                         if abandon_comma_run(cursor, &mut frame) {
+                            cursor.defer_failure(failure);
                             state = ObjectQueryState::ReadPostnominalQualifier;
                             continue;
                         }
@@ -322,6 +332,7 @@ fn recognize_object_query_with_cardinality_policy(
                     Ok(branch) => branch,
                     Err(failure) => {
                         if abandon_comma_run(cursor, &mut frame) {
+                            cursor.defer_failure(failure);
                             state = ObjectQueryState::ReadPostnominalQualifier;
                             continue;
                         }
@@ -330,14 +341,50 @@ fn recognize_object_query_with_cardinality_policy(
                 };
                 frame.union_branches.push(branch);
                 let branch = cursor.token_slice(branch_start, cursor.position());
-                frame
-                    .branch_has_plural_surface
-                    .push((0..branch.len()).any(|index| {
-                        super::atom_surface_is_plural(
+                let numbers = (0..branch.len())
+                    .filter_map(|index| {
+                        super::atom_surface_number(
                             &branch[index].raw,
                             branch.get(index + 1).map(|token| token.raw.as_str()),
                         )
-                    }));
+                    })
+                    .collect::<Vec<_>>();
+                frame
+                    .branch_has_plural_surface
+                    .push(numbers.contains(&super::GrammaticalNumber::Plural));
+                // A member's own number: a trailing domain noun belongs to
+                // the whole list (`creature, land, or planeswalker cards`).
+                let numbers = (0..branch.len())
+                    .filter(|index| !super::atom_surface_is_domain_noun(&branch[*index].raw))
+                    .filter_map(|index| {
+                        super::atom_surface_number(
+                            &branch[index].raw,
+                            branch.get(index + 1).map(|token| token.raw.as_str()),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                frame
+                    .branch_number
+                    .push(if numbers.contains(&super::GrammaticalNumber::Plural) {
+                        super::GrammaticalNumber::Plural
+                    } else if numbers.contains(&super::GrammaticalNumber::Singular) {
+                        super::GrammaticalNumber::Singular
+                    } else {
+                        super::GrammaticalNumber::Unknown
+                    });
+                // The member after a closing `or` agrees with the run too.
+                if let Some((checkpoint, snapshot)) = frame.closing_run.take() {
+                    let run_start = snapshot.union_branches.len().saturating_sub(1);
+                    if !numbers_agree(&frame.branch_number[run_start..]) {
+                        let failure = cursor
+                            .fail("members of one object list sharing their grammatical number");
+                        cursor.rollback(checkpoint);
+                        frame = *snapshot;
+                        cursor.defer_failure(failure);
+                        state = ObjectQueryState::ReadPostnominalQualifier;
+                        continue;
+                    }
+                }
                 ObjectQueryState::ReadUnion
             }
             ObjectQueryState::ReadUnion => {
@@ -354,7 +401,10 @@ fn recognize_object_query_with_cardinality_policy(
                         frame.last_connector_is_exclusive = false;
                         ObjectQueryState::ReadAfterComma
                     } else {
-                        settle_comma_run(cursor, &mut frame);
+                        // `, or an opponent controls`: a dangling connector
+                        // is the reason the list stops here.
+                        let reason = dangling_list_connector_failure(cursor);
+                        settle_comma_run_with(cursor, &mut frame, reason);
                         ObjectQueryState::ReadPostnominalQualifier
                     }
                 } else if cursor.peek().is_some_and(|token| {
@@ -668,14 +718,101 @@ fn comma_continues_object_list(cursor: &OracleTokenCursor<'_>) -> bool {
 /// lists negative modifiers of one following head (`nonartifact, nonblack
 /// creature`); any other run gives its commas back to the parent.
 fn settle_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryFrame) {
+    settle_comma_run_with(cursor, frame, None);
+}
+
+/// `settle_comma_run` with the reason the list stopped, deferred to the
+/// parent that reads the returned comma.
+fn settle_comma_run_with(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: &mut ObjectQueryFrame,
+    reason: Option<MachineFailure>,
+) {
     let Some((checkpoint, snapshot)) = frame.comma_run.take() else {
         return;
     };
     let run_start = snapshot.union_branches.len().saturating_sub(1);
     if !modifiers_of_one_head(&frame.union_branches[run_start..]) {
+        let reason = reason.unwrap_or_else(|| {
+            cursor.fail("`or`/`and/or` closing the comma-separated object list")
+        });
         cursor.rollback(checkpoint);
         *frame = *snapshot;
+        cursor.defer_failure(reason);
     }
+}
+
+/// The failure of a list connector that no object phrase follows (`, or an
+/// opponent controls`), read on a lookahead copy; None for any other stop.
+fn dangling_list_connector_failure(cursor: &OracleTokenCursor<'_>) -> Option<MachineFailure> {
+    let mut lookahead = cursor.clone();
+    lookahead.consume(",").ok()?;
+    let connector = lookahead.peek()?.to_string();
+    if !(connector.eq_ignore_ascii_case("or") || connector.eq_ignore_ascii_case("and/or")) {
+        return None;
+    }
+    lookahead.consume(&connector).ok()?;
+    lookahead.enter("selector.predicate.after-comma");
+    Some(lookahead.fail("an object predicate after the selector-list comma"))
+}
+
+/// One list's members share their number; an invariant noun agrees with
+/// either.
+fn numbers_agree(numbers: &[super::GrammaticalNumber]) -> bool {
+    !(numbers.contains(&super::GrammaticalNumber::Singular)
+        && numbers.contains(&super::GrammaticalNumber::Plural))
+}
+
+/// Negative modifiers sharing the run's last, headed branch (`nonartifact,
+/// nonblack creature`). A run of modifiers alone (`noncreature, nonland`)
+/// has no head to modify and is not this form.
+fn modifiers_of_one_head(run: &[SelectorPredicate]) -> bool {
+    let Some((last, preceding)) = run.split_last() else {
+        return false;
+    };
+    !preceding.is_empty() && preceding.iter().all(negative_modifier) && !negative_modifier(last)
+}
+
+/// Gives an open comma run's commas back to the parent: the cursor and the
+/// frame return to the first comma. False when no run is open.
+fn abandon_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryFrame) -> bool {
+    let Some((checkpoint, snapshot)) = frame.comma_run.take().or_else(|| frame.closing_run.take())
+    else {
+        return false;
+    };
+    cursor.rollback(checkpoint);
+    *frame = *snapshot;
+    true
+}
+
+/// Closes an open comma run at `or`/`and/or`. The members of one list share
+/// their grammatical number (`an artifact, creatures or planeswalkers you
+/// control get` is a parent clause, not a list): otherwise the run is
+/// abandoned and false is returned. `nonartifact, nonblack creature or
+/// planeswalker` has no proved scope for its modifiers and is refused.
+fn close_comma_run(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: &mut ObjectQueryFrame,
+) -> MachineResult<bool> {
+    let Some((_, snapshot)) = frame.comma_run.as_ref() else {
+        return Ok(true);
+    };
+    let run_start = snapshot.union_branches.len().saturating_sub(1);
+    // The explicit scope refusal comes first: a modifier list must not fall
+    // back to its first bare modifier through the number check.
+    cursor.require(
+        !modifiers_of_one_head(&frame.union_branches[run_start..]),
+        "a negative-modifier list whose head is not coordinated with another branch",
+    )?;
+    if !numbers_agree(&frame.branch_number[run_start..]) {
+        let failure = cursor.fail("members of one object list sharing their grammatical number");
+        abandon_comma_run(cursor, frame);
+        cursor.defer_failure(failure);
+        return Ok(false);
+    }
+    // The member after the connector is checked once it is read.
+    frame.closing_run = frame.comma_run.take();
+    Ok(true)
 }
 
 /// Negative modifiers sharing the run's last, headed branch (`nonartifact,
