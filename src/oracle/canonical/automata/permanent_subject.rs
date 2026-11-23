@@ -87,8 +87,26 @@ pub(in crate::oracle::canonical) fn permanent_antecedent(
 
 /// Resolve only proved lexical/event subjects. The legacy owner fallback above
 /// remains available to existing consumers until each is requalified explicitly.
+/// The antecedent an action may operate on: a departed event subject
+/// (`a creature dies`) is no permanent any more (CR 400.7).
 pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
     context: &EffectRecognitionContext,
+) -> Option<PermanentEffectReference> {
+    proven_antecedent(context, false)
+}
+
+/// The antecedent a condition, a property or a player relation reads: a
+/// departed event subject still answers by last known information (CR
+/// 608.2h), so `if it was enchanted` or `its controller` keep it.
+pub(in crate::oracle::canonical) fn proven_read_antecedent(
+    context: &EffectRecognitionContext,
+) -> Option<PermanentEffectReference> {
+    proven_antecedent(context, true)
+}
+
+fn proven_antecedent(
+    context: &EffectRecognitionContext,
+    include_departed: bool,
 ) -> Option<PermanentEffectReference> {
     let reference = match context.permanent_subject_scope {
         PermanentSubjectScope::Local(reference) => reference,
@@ -97,7 +115,8 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
                 Some(PermanentEffectReference::Source(source))
             }
             // Without a source subject, `it` names the event's observed
-            // object, else the object that is the event's subject.
+            // object, else the object that is the event's subject while it is
+            // still a permanent (a dying object is the event's card instead).
             SourceAnaphorBinding::Unproved => context
                 .observed_event_object
                 .map(PermanentEffectReference::Observed)
@@ -106,7 +125,7 @@ pub(in crate::oracle::canonical) fn proven_permanent_antecedent(
                         .frame
                         .event_object
                         .as_ref()
-                        .filter(|slot| slot.subject)
+                        .filter(|slot| slot.subject && (include_departed || !slot.departed))
                         .map(|slot| slot.reference)
                 }),
         },

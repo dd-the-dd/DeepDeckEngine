@@ -29,6 +29,11 @@ pub(in crate::oracle::canonical) struct EventObjectSlot {
     /// attacks`, `a creature dies`), so a bare `it` can name it. A damaged
     /// recipient is named only with its nominal (`that creature`).
     pub subject: bool,
+    /// The event moved the object off the battlefield (`a creature dies`):
+    /// its last known information still answers property and player reads,
+    /// but it is no longer a permanent an action can operate on (CR 400.7,
+    /// 700.4). The card it became is the frame's `event_card`.
+    pub departed: bool,
 }
 
 impl EventObjectSlot {
@@ -108,8 +113,8 @@ impl BindingEnvironment {
                 context.permanent_subject_scope,
                 PermanentSubjectScope::Local(_)
             ),
-            object: super::permanent_subject::proven_permanent_antecedent(context).map(
-                |reference| ObjectSubjectAntecedent {
+            object: super::permanent_subject::proven_read_antecedent(context).map(|reference| {
+                ObjectSubjectAntecedent {
                     reference,
                     selector: match reference {
                         PermanentEffectReference::Target(_)
@@ -118,8 +123,8 @@ impl BindingEnvironment {
                         ) => context.permanent_subject_selector.clone(),
                         _ => None,
                     },
-                },
-            ),
+                }
+            }),
             player: None,
             subject: None,
             effect_index: context.current_effect_index,
@@ -565,6 +570,20 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
     if let Some(nominal) = nominal
         && !antecedent.is_some_and(|antecedent| lexical_antecedent_implies(antecedent, nominal))
         && let Some(slot) = event_object.filter(|slot| slot.implies(nominal))
+        && relation_supported(slot.reference)
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation {
+            relation,
+            object: slot.reference,
+        });
+    }
+    // `its controller` of a departed event subject (`a creature dies`): the
+    // object is no permanent antecedent any more, but its last known
+    // controller and owner still answer the relation (CR 608.2h).
+    if nominal.is_none()
+        && antecedent.is_none()
+        && let Some(slot) = event_object.filter(|slot| slot.subject && slot.departed)
         && relation_supported(slot.reference)
     {
         cursor.enter("player-subject.complete");

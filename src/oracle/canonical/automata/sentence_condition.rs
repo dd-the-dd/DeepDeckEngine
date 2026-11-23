@@ -794,8 +794,7 @@ fn resolve_object_anaphor(
         return Ok(ConditionObjectReference::SOURCE);
     };
     let mut candidates = Vec::new();
-    if let Some(reference) = super::permanent_subject::proven_permanent_antecedent(program.effects)
-    {
+    if let Some(reference) = super::permanent_subject::proven_read_antecedent(program.effects) {
         candidates.push(ConditionObjectReference::Permanent(reference));
     }
     if let Some(binding) = program.card_target {

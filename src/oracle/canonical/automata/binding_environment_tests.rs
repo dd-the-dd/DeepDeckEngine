@@ -264,6 +264,13 @@ fn it_names_the_object_that_is_the_event_subject() {
         "Whenever a creature you control deals combat damage to a creature, tap it.",
     );
     assert_ne!(status, "canonical");
+    // Near miss: a bare `it` of a dying creature is no permanent an action
+    // can operate on (CR 400.7); its last known information stays readable.
+    let (status, _, _) = parse(
+        ENCHANTMENT,
+        "Whenever a creature you control dies, untap it.",
+    );
+    assert_ne!(status, "canonical");
 }
 
 /// Every numeric leaf of the rules whose kind is a property read.
