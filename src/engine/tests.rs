@@ -288,6 +288,8 @@ mod exalted_runtime;
 #[path = "tests/parameterized_keyword_runtime.rs"]
 mod parameterized_keyword_runtime;
 
+#[path = "tests/event_count_runtime.rs"]
+mod event_count_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;

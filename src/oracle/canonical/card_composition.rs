@@ -151,7 +151,119 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     }
 }
 
+/// The object domains a target candidate query can name: permanents,
+/// players, cards in a zone, spells. An unknown query names none (it then
+/// relates to no earlier slot).
+fn candidate_domains(candidates: &Value) -> Vec<&'static str> {
+    match candidates["kind"].as_str() {
+        Some("permanents") => vec!["permanent"],
+        Some("players") => vec!["player"],
+        Some("anyTarget") => vec!["permanent", "player"],
+        Some("cards") => vec!["card"],
+        Some("spells" | "stackObjects") => vec!["spell"],
+        Some("union") => candidates["sets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(candidate_domains)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Resolves the target-list child's typed `otherThanEarlierTargets` relation
+/// (`another target X`, `each of two other target X`) in one declaration.
+/// An earlier target slot counts when it is declared under the same mode
+/// condition (a modal mode's `another` relates to its own mode's slots) and
+/// its domain can overlap the later slot's (a player slot never does). With
+/// such slots the relation records `distinctFrom` (compared by owning slot
+/// in the engine, whatever the slot sizes) and `another` names them, not
+/// the source (Wayta: `Target creature you control fights another target
+/// creature` may name Wayta). Without one the slot keeps its source
+/// exclusion (`another target creature you control`; Stiltzkin after a
+/// player slot; a mode-2 `another` when only mode 2 is chosen).
+fn resolve_other_target_relation(decisions: &mut [Value]) {
+    for index in 0..decisions.len() {
+        let later = &decisions[index];
+        if later["kind"].as_str() != Some("chooseTargets")
+            || later["candidates"]["otherThanEarlierTargets"].as_bool() != Some(true)
+        {
+            continue;
+        }
+        let later_domains = candidate_domains(&later["candidates"]);
+        let condition = later.get("condition").cloned();
+        let earlier = decisions[..index]
+            .iter()
+            .filter(|earlier| earlier["kind"].as_str() == Some("chooseTargets"))
+            .filter(|earlier| earlier.get("condition").cloned() == condition)
+            .filter(|earlier| {
+                candidate_domains(&earlier["candidates"])
+                    .iter()
+                    .any(|domain| later_domains.contains(domain))
+            })
+            .filter_map(|earlier| earlier["id"].as_str().map(str::to_string))
+            .collect::<Vec<_>>();
+        if earlier.is_empty() {
+            continue;
+        }
+        let later = &mut decisions[index];
+        later["distinctFrom"] = json!(earlier);
+        if let Some(candidates) = later["candidates"].as_object_mut() {
+            candidates.remove("excludeSource");
+        }
+    }
+}
+
+/// Resolves the relation in every declaration of the rule, nested ones
+/// (reflexive triggers, granted abilities) included, then consumes the
+/// marker. `get_mut`, not indexing: a rule without a declaration stays
+/// without one.
+fn mark_distinct_other_targets(rule: &mut Value) {
+    match rule {
+        Value::Object(map) => {
+            if let Some(decisions) = map
+                .get_mut("declaration")
+                .and_then(|declaration| declaration.get_mut("decisions"))
+                .and_then(Value::as_array_mut)
+            {
+                resolve_other_target_relation(decisions);
+            }
+            for (key, child) in map.iter_mut() {
+                if key != "declaration" {
+                    mark_distinct_other_targets(child);
+                }
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(mark_distinct_other_targets),
+        _ => {}
+    }
+}
+
+/// Composition entry: resolve the relation everywhere, then consume it.
+fn compose_other_target_relation(rule: &mut Value) {
+    mark_distinct_other_targets(rule);
+    strip_other_target_relation(rule);
+}
+
+fn strip_other_target_relation(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            map.remove("otherThanEarlierTargets");
+            for child in map.values_mut() {
+                strip_other_target_relation(child);
+            }
+        }
+        Value::Array(items) => items.iter_mut().for_each(strip_other_target_relation),
+        _ => {}
+    }
+}
+
 pub(crate) fn compose_card_rules_native(abilities: &mut [ParsedOracleAbility]) {
+    for ability in abilities.iter_mut() {
+        if let Some(rule) = ability.rule.as_mut() {
+            compose_other_target_relation(rule);
+        }
+    }
     link_exiles_to_linked_readers(abilities);
     let directives = abilities
         .iter()
@@ -377,3 +489,7 @@ fn replace_target_references(value: &mut Value, decision_id: &str, replacement: 
 pub(crate) fn compose_card_rules(abilities: &mut [ParsedOracleAbility]) {
     compose_card_rules_native(abilities);
 }
+
+#[cfg(test)]
+#[path = "card_composition_tests.rs"]
+mod card_composition_tests;

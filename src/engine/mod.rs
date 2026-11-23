@@ -158,6 +158,7 @@ mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
+mod event_count;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -2812,12 +2813,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 )
         }
         Some("countEvents" | "countEventsThisTurn") => {
-            expression["event"].is_string()
-                && expression
-                    .get("player")
-                    .is_none_or(player_reference_supported)
-                && expression.get("where").is_none_or(card_filter_supported)
-                && expression.get("fromZone").is_none_or(Value::is_string)
+            event_count::event_count_supported(expression)
         }
         Some("countEventsPreviousTurn") => {
             previous_turn_events::previous_turn_event_count_supported(expression)
@@ -3315,14 +3311,18 @@ fn player_reference_supported(reference: &Value) -> bool {
             value_kind(&reference["attachment"]) == Some("self")
         }
         Some("opponentsOf") => player_reference_supported(&reference["player"]),
+        // CR 102.3: every player but the named one, teammates included.
+        Some("playersExcept") => player_complement_reference_supported(reference),
         Some("chosenTarget" | "chosenObject" | "boundValue") => reference["id"].is_string(),
         _ => false,
     }
 }
 
 fn singular_player_reference_supported(reference: &Value) -> bool {
-    !matches!(value_kind(reference), Some("eachPlayer" | "opponentsOf"))
-        && player_reference_supported(reference)
+    !matches!(
+        value_kind(reference),
+        Some("eachPlayer" | "opponentsOf" | "playersExcept")
+    ) && player_reference_supported(reference)
 }
 
 fn player_complement_reference_supported(reference: &Value) -> bool {
@@ -4747,7 +4747,27 @@ fn declaration_shape_supported(rule: &Value) -> bool {
     let additional_costs_supported = declaration["additionalCosts"]
         .as_array()
         .is_none_or(|costs| costs.iter().all(additional_cost_supported));
-    decisions_supported && additional_costs_supported
+    // `distinctFrom` (CR 115.3) names earlier target slots of this same
+    // declaration; anything else is refused, not ignored.
+    let distinct_relations_supported =
+        declaration["decisions"].as_array().is_none_or(|decisions| {
+            decisions.iter().enumerate().all(|(index, decision)| {
+                decision.get("distinctFrom").is_none_or(|slots| {
+                    value_kind(decision) == Some("chooseTargets")
+                        && slots.as_array().is_some_and(|slots| {
+                            !slots.is_empty()
+                                && slots.iter().all(|slot| {
+                                    decisions[..index].iter().any(|earlier| {
+                                        value_kind(earlier) == Some("chooseTargets")
+                                            && earlier["id"].is_string()
+                                            && earlier["id"] == *slot
+                                    })
+                                })
+                        })
+                })
+            })
+        });
+    decisions_supported && distinct_relations_supported && additional_costs_supported
 }
 
 fn spell_rule_supported(rule: &Value) -> bool {
@@ -9955,58 +9975,15 @@ impl GameEngine {
                 )
             }
             Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            expression.get("player").is_none()
-                                || event.player_id.as_deref() == Some(controller_id)
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .filter(|event| match value_kind(&expression["where"]) {
-                            Some("cardTypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|card_type| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&card_type.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("subtypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|subtype| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&subtype.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("not")
-                                if value_kind(&expression["where"]["operand"])
-                                    == Some("cardTypeContains")
-                                    && expression["where"]["operand"]["value"].as_str()
-                                        == Some("Land") =>
-                            {
-                                !event.detail["typeLine"].as_str().is_some_and(|value| {
-                                    value.to_ascii_lowercase().contains("land")
-                                })
-                            }
-                            _ => true,
-                        })
-                        .count() as i32,
-                )
+                // The population is read relative to the source's controller.
+                let players = match expression.get("player") {
+                    Some(player) => Some(self.event_count_players(
+                        player_query::PlayerQueryContext::source(controller_id, None),
+                        player,
+                    )?),
+                    None => None,
+                };
+                self.count_matching_events(expression, players.as_deref())
             }
             Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("devotion") => {
@@ -16052,12 +16029,34 @@ impl GameEngine {
     where
         B: FnMut(&str, Option<&CardDefinition>) -> Result<usize, E>,
     {
+        // A spell's distinct target slots name different objects.
         declaration_result::finish(self.read_card_declarations_with_budget(
             card,
             controller_id,
             casting_source,
             resolve_budget,
         ))
+        .map(|declarations| {
+            declarations.map(|declarations| {
+                declarations
+                    .into_iter()
+                    .filter(|declaration| {
+                        card.rules
+                            .iter()
+                            .filter(|rule| value_kind(rule) == Some("spellAbility"))
+                            .filter(|rule| {
+                                target_legality::rule_declares_targets(rule, &declaration.targets)
+                            })
+                            .all(|rule| {
+                                target_legality::declaration_respects_distinct_targets(
+                                    rule,
+                                    &declaration.targets,
+                                )
+                            })
+                    })
+                    .collect()
+            })
+        })
     }
 
     fn read_card_declarations_with_budget<E, B>(
@@ -17409,12 +17408,29 @@ impl GameEngine {
             });
         definition.mana_cost.clear();
         definition.rules = vec![declaration_rule];
+        // A `{T}` cost taps the source, so another tap cost of the same
+        // activation (`Tap an untapped Ally you control`) cannot name it.
+        let taps_source = rule["costs"].as_array().into_iter().flatten().any(|cost| {
+            value_kind(cost) == Some("tap")
+                && matches!(value_kind(&cost["object"]), Some("self" | "abilitySource"))
+        });
+        let tap_cost_target_ids = rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| {
+                taps_source
+                    && value_kind(cost) == Some("tap")
+                    && value_kind(&cost["object"]) == Some("chosenTarget")
+            })
+            .filter_map(|cost| cost["object"]["id"].as_str());
         let excluded_target_ids = rule["declaration"]["decisions"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|decision| decision["candidates"]["excludeSource"].as_bool() == Some(true))
             .filter_map(|decision| decision["id"].as_str())
+            .chain(tap_cost_target_ids)
             .collect::<Vec<_>>();
         let mut declarations = self.read_card_declarations_with_budget(
             &definition,
@@ -17516,24 +17532,11 @@ impl GameEngine {
                         )
                 })
             });
-            let distinct = rule["distinctTargets"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .all(|group| {
-                    let values = group
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(Value::as_str)
-                        .filter_map(|target_id| declaration.targets.get(target_id))
-                        .collect::<Vec<_>>();
-                    values
-                        .iter()
-                        .enumerate()
-                        .all(|(index, value)| !values[..index].contains(value))
-                });
-            excludes_source && distinct
+            excludes_source
+                && target_legality::declaration_respects_distinct_targets(
+                    rule,
+                    &declaration.targets,
+                )
         });
         Ok(declarations)
     }
@@ -17552,6 +17555,9 @@ impl GameEngine {
         });
         if let Some(declaration) = rule.get("declaration") {
             declaration_rule["declaration"] = declaration.clone();
+        }
+        if let Some(distinct) = rule.get("distinctTargets") {
+            declaration_rule["distinctTargets"] = distinct.clone();
         }
         if let Some(decisions) = declaration_rule["declaration"]["decisions"].as_array_mut() {
             for decision in decisions {
@@ -31774,31 +31780,14 @@ impl GameEngine {
                 }
             }
             Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                let player_id = expression
-                    .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            player_id.as_ref().is_none_or(|player_id| {
-                                event.player_id.as_deref() == Some(player_id.as_str())
-                            })
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .count() as i32,
-                )
+                let players = match expression.get("player") {
+                    Some(player) => Some(self.event_count_players(
+                        player_query::PlayerQueryContext::runtime(stack_object, bindings),
+                        player,
+                    )?),
+                    None => None,
+                };
+                self.count_matching_events(expression, players.as_deref())
             }
             Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("sumEventValuesThisTurn") => {

@@ -313,26 +313,50 @@ SMOKE_INPUT=.tmp/released-vs-main/corpus-input.jsonl SMOKE_PROBE=<sortie du prob
 ```
 
 Pour chaque carte supportée du probe et chaque règle de sort, activée ou
-déclenchée, il construit un plateau synthétique (créatures, artefact,
-enchantement, terrain de chaque côté, cartes en main et au cimetière), prend la
-déclaration qui choisit le plus de cibles (événement synthétique pour un
-déclencheur, X = 2), résout la règle avec des décisions scriptées (première
-option, accepter l'optionnel) et classe le résultat : `error` (erreur ou
-panique), `noChange` (une primitive de premier niveau qui promet un changement
-observable — dégâts, vie, zones, marqueurs, jetons, engagement, F/E — n'a rien
-changé), `wrongCount` (le changement atteint un autre nombre d'objets que les
-cibles déclarées), `uncovered` (non installable : coût d'activation non payé,
-programme conditionnel ou à choix, règle statique ou de remplacement, contexte
-que le plateau synthétique ne fournit pas — contrepartie de combat, objet ou
-sort observé par l'événement, valeur d'un coût payé, emplacement optionnel
-laissé vide — ou montant/collection vide sur ce plateau), `pass`. Un sort non
-permanent se résout comme une carte lancée ; ses propres déplacements ne
-comptent pas comme l'effet. `uncovered` n'est jamais compté comme une réussite.
-Une règle que le runtime refuse à la résolution alors que le validateur
-l'accepte est un défaut d'alignement : le validateur doit la refuser avant le
-jeu (la carte cesse alors d'être supportée). Le rapport donne les
-comptes par classe et par primitive d'IR ; une hausse de `error`, `noChange`
-ou `wrongCount` bloque l'acceptation.
+déclenchée, il construit un plateau synthétique (de chaque côté : ours vert,
+géant noir, volant blanc, jeton créature, artefact, enchantement, terrain de
+base et terrain non-base ; créature, éphémère et terrain en main ; créature,
+rituel et artefact au cimetière ; bibliothèque de types mêlés ; réserve de
+mana pleine) et emprunte le chemin réel quand il existe :
+
+- `cast` : le sort est lancé par l'action légale (coûts payés par le moteur,
+  X = 2 quand X est déclaré, la déclaration au plus de cibles) ;
+- `activate` : la capacité est activée par l'action légale de sa règle
+  (`abilityRuleIndex`), coûts de mana, d'engagement, de sacrifice, de défausse
+  ou de vie compris ;
+- `event` : l'événement déclencheur réel est produit (la source lancée depuis
+  la main pour « enters », une autre créature lancée, une mort par dégâts
+  mortels, le début d'une étape, un éphémère lancé par soi ou l'adversaire) ;
+  un événement produit sans que la capacité se déclenche est classé
+  `noTrigger` ;
+- `combat` : un combat réel (attaque de la source, blocage par ou de la
+  source) ; la capacité est jugée sur la fenêtre d'événements de sa
+  résolution ;
+- `synthetic` : à défaut, la déclaration est faite directement pour la règle
+  (événement synthétique pour un déclencheur).
+
+Le résultat est classé `error` (erreur ou panique), `noTrigger`, `noChange`
+(une primitive de premier niveau qui promet un changement observable —
+dégâts, vie, zones, marqueurs, jetons, engagement, F/E — n'a rien changé),
+`wrongCount` (le changement atteint un autre nombre d'objets que les cibles
+déclarées, une collection change un autre ensemble que celui de la requête
+d'objets partagée, ou deux emplacements « another target » nomment le même
+objet), `uncovered` (non installable, avec sa raison : règle statique ou de
+remplacement, action légale absente sur ce plateau, contexte non fourni,
+montant ou collection vide, programme conditionnel qui n'a rien changé) ou
+`pass`. Un programme conditionnel ou à choix est classé à part,
+`contingentPass`, quand l'une des primitives qu'il contient a changé un objet
+ou un joueur autre que sa source ; un déplacement de zone ne compte que pour
+une carte autre que la source. Un sort non permanent se résout comme
+une carte lancée ; ses propres déplacements et ceux de la source ne comptent
+pas comme l'effet. `uncovered` n'est jamais compté comme une réussite. Une
+règle que le runtime refuse à la résolution alors que le validateur l'accepte
+est un défaut d'alignement : le validateur doit la refuser avant le jeu (la
+carte cesse alors d'être supportée). Le rapport donne les comptes par classe,
+par chemin et par primitive d'IR ; une hausse de `error`, `noTrigger`,
+`noChange` ou `wrongCount` bloque l'acceptation. `SMOKE_PROGRESS` écrit chaque
+règle jouée sur la sortie d'erreur pour localiser un scénario qui ne termine
+pas.
 
 La régression principale est pilotée par les cartes réelles, pas par une nouvelle
 suite unitaire compilée à chaque carte. Épingler les mêmes entrées avant/après et
