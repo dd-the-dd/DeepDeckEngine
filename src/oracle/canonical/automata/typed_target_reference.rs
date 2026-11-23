@@ -2,11 +2,9 @@
 //! validates it against the original declared target selector.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ObjectCardType, ObjectKind, ObjectPredicate, TargetBinding, TargetSelector,
-    project_object_query_domains, recognize_anaphoric_target_reference,
-};
-use crate::oracle::characteristic_vocabulary::{
-    CharacteristicLexeme, lookup_object_selector_lexeme,
+    ObjectCardType, ObjectKind, ObjectPlayerRelation, ObjectPredicate, TargetBinding,
+    TargetSelector, object_related_player_head, possessive_nominal, project_object_query_domains,
+    recognize_anaphoric_target_reference,
 };
 use crate::oracle::model::RecognizedEntity;
 
@@ -66,20 +64,10 @@ pub(in crate::oracle::canonical) fn recognize_typed_target_reference(
     cursor.consume("that")?;
     cursor.enter(nominal_state);
     let object = cursor.consume_type("possessiveTypeWord")?;
-    let normalized = object.raw.to_ascii_lowercase();
-    let surface = normalized
-        .strip_suffix("'s")
-        .or_else(|| normalized.strip_suffix("\u{2019}s"))
-        .ok_or_else(|| cursor.fail("a possessive registered object nominal"))?;
-    let nominal = match lookup_object_selector_lexeme(surface) {
-        Some(CharacteristicLexeme::CardType(value)) => TargetNominal::CardType(value),
-        Some(CharacteristicLexeme::ObjectDomain(value)) => TargetNominal::Domain(value),
-        _ => {
-            return Err(
-                cursor.fail("a registered card type or object domain for the target reference")
-            );
-        }
-    };
+    // The genitive nominal is the binding environment's shared reader.
+    let nominal = possessive_nominal(&object.raw).ok_or_else(|| {
+        cursor.fail("a registered card type or object domain for the target reference")
+    })?;
     let binding = antecedent
         .ok_or_else(|| cursor.fail("a prior target binding for the qualified object reference"))?;
     Ok(TypedTargetReference {
@@ -88,26 +76,15 @@ pub(in crate::oracle::canonical) fn recognize_typed_target_reference(
     })
 }
 
-/// A bounded lexical head hint only. The actual reference child still resolves
-/// the binding and preserves the nominal; this cannot establish semantics.
+/// A bounded lexical head hint only: the controller form of the binding
+/// environment's object-related player head. The actual reference child
+/// still resolves the binding; this cannot establish semantics.
 pub(in crate::oracle::canonical) fn controller_reference_head_length(
     tokens: &[RecognizedEntity],
 ) -> Option<usize> {
-    let raw = |index: usize| tokens.get(index).map(|token| token.raw.as_str());
-    if raw(0).is_some_and(|value| value.eq_ignore_ascii_case("its"))
-        && raw(1).is_some_and(|value| value.eq_ignore_ascii_case("controller"))
-    {
-        return Some(2);
-    }
-    if raw(0).is_some_and(|value| value.eq_ignore_ascii_case("that"))
-        && tokens
-            .get(1)
-            .is_some_and(|token| token.token_type == "possessiveTypeWord")
-        && raw(2).is_some_and(|value| value.eq_ignore_ascii_case("controller"))
-    {
-        return Some(3);
-    }
-    None
+    object_related_player_head(tokens)
+        .filter(|(_, relation)| *relation == ObjectPlayerRelation::Controller)
+        .map(|(length, _)| length)
 }
 
 fn object_implies_nominal(actual: &ObjectPredicate, required: &ObjectPredicate) -> bool {
