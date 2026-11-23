@@ -18906,7 +18906,9 @@ impl GameEngine {
                 if *fused {
                     decisions.insert("fused".to_string(), Value::Bool(true));
                 }
-                if adventure::has_adventure(&card.definition) || adventure::casting_as_adventure(card) {
+                if adventure::has_adventure(&card.definition)
+                    || adventure::casting_as_adventure(card)
+                {
                     decisions.insert(
                         adventure::CAST_AS_ADVENTURE.to_string(),
                         Value::Bool(adventure::casting_as_adventure(card)),
