@@ -448,11 +448,90 @@ fn a_distinct_relation_judges_only_the_rule_that_declared_the_targets() {
     ));
     let single = BTreeMap::from([
         ("first".to_string(), bear.clone()),
-        ("second".to_string(), bear),
+        ("second".to_string(), bear.clone()),
     ]);
     assert!(!target_legality::declaration_respects_distinct_targets(
         &relation, &single
     ));
+    // Modal slot ids contain `:` (`mode1:first`): the owning slot is the
+    // longest declared id, with an optional ordinal.
+    let modal = json!({
+        "kind": "spellAbility",
+        "declaration": { "kind": "castingDeclaration", "decisions": [
+            { "kind": "chooseTargets", "id": "mode1:first" },
+            { "kind": "chooseTargets", "id": "mode1:second", "distinctFrom": ["mode1:first"] },
+        ]},
+    });
+    let reused = BTreeMap::from([
+        ("mode1:first".to_string(), bear.clone()),
+        ("mode1:second:0".to_string(), bear.clone()),
+    ]);
+    assert!(target_legality::rule_declares_targets(&modal, &reused));
+    assert!(!target_legality::declaration_respects_distinct_targets(
+        &modal, &reused
+    ));
+    let distinct = BTreeMap::from([
+        ("mode1:first".to_string(), bear),
+        (
+            "mode1:second:0".to_string(),
+            TargetRef::Permanent {
+                instance_id: "giant".to_string(),
+            },
+        ),
+    ]);
+    assert!(target_legality::declaration_respects_distinct_targets(
+        &modal, &distinct
+    ));
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn wayta_may_fight_itself_but_not_one_creature_twice() {
+    // Activation-level: the source may be the second target; the same
+    // creature may not be both.
+    let card = compile(
+        "Wayta, Trainer Prodigy",
+        "Legendary Creature \u{2014} Human Warrior",
+        "{R}{G}{W}",
+        "{2}{G}, {T}: Target creature you control fights another target creature.",
+    );
+    let mut engine = board();
+    let mut wayta = test_instance("subject-source", card.clone(), "player-0");
+    wayta.summoning_sick = false;
+    engine.state.players[0].battlefield.push(wayta);
+    for _ in 0..3 {
+        engine.state.players[0].mana_pool.push(FloatingMana {
+            symbol: "G".to_string(),
+            spend_restriction: None,
+        });
+    }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let activations = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::ActivateAbility
+                && action.card_instance_id.as_deref() == Some("subject-source")
+        })
+        .collect::<Vec<_>>();
+    assert!(!activations.is_empty());
+    let named = |action: &LegalAction, slot: &str| action.targets.get(slot).cloned();
+    assert!(
+        activations.iter().all(|action| {
+            named(action, "targetPermanent1") != named(action, "targetPermanent2")
+        })
+    );
+    let source = Some(TargetRef::Permanent {
+        instance_id: "subject-source".to_string(),
+    });
+    assert!(
+        activations
+            .iter()
+            .any(|action| named(action, "targetPermanent2") == source),
+        "the source may be the other creature"
+    );
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

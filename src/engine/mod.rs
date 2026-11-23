@@ -4686,11 +4686,6 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             Some("chooseTargets") => {
                 decision["id"].is_string()
                     && decision.get("condition").is_none_or(condition_supported)
-                    && decision.get("distinctFrom").is_none_or(|slots| {
-                        slots.as_array().is_some_and(|slots| {
-                            !slots.is_empty() && slots.iter().all(Value::is_string)
-                        })
-                    })
                     && decision
                         .get("selectionConstraint")
                         .is_none_or(target_selection_constraint_supported)
@@ -4747,7 +4742,27 @@ fn declaration_shape_supported(rule: &Value) -> bool {
     let additional_costs_supported = declaration["additionalCosts"]
         .as_array()
         .is_none_or(|costs| costs.iter().all(additional_cost_supported));
-    decisions_supported && additional_costs_supported
+    // `distinctFrom` (CR 115.3) names earlier target slots of this same
+    // declaration; anything else is refused, not ignored.
+    let distinct_relations_supported =
+        declaration["decisions"].as_array().is_none_or(|decisions| {
+            decisions.iter().enumerate().all(|(index, decision)| {
+                decision.get("distinctFrom").is_none_or(|slots| {
+                    value_kind(decision) == Some("chooseTargets")
+                        && slots.as_array().is_some_and(|slots| {
+                            !slots.is_empty()
+                                && slots.iter().all(|slot| {
+                                    decisions[..index].iter().any(|earlier| {
+                                        value_kind(earlier) == Some("chooseTargets")
+                                            && earlier["id"].is_string()
+                                            && earlier["id"] == *slot
+                                    })
+                                })
+                        })
+                })
+            })
+        });
+    decisions_supported && distinct_relations_supported && additional_costs_supported
 }
 
 fn spell_rule_supported(rule: &Value) -> bool {

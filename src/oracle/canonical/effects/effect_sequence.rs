@@ -981,21 +981,9 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::ModifyStats(modifier) => {
-                cursor.enter("lower.modify-stats.another-target-relation");
-                if modifier.exclude_source_from_first_target
-                    && decisions
-                        .iter()
-                        .any(|decision: &Value| decision["kind"].as_str() == Some("chooseTargets"))
-                {
-                    // This local node can represent source exclusion, but the
-                    // sequence result cannot yet carry a relation to earlier
-                    // target declarations. Refuse that distinct-target meaning
-                    // instead of silently substituting excludeSource, even if
-                    // the previous target's domain appears incompatible.
-                    return Err(EffectSequenceLoweringFailure::FailedSupport(
-                        cursor.fail("distinct-target relation support for `another` after a preceding target declaration"),
-                    ));
-                }
+                // `another target creature gets +N/+N` after a preceding target
+                // declaration: the permanent subject marks the typed relation
+                // the card composition resolves (`distinctFrom`).
                 cursor.require(
                     [&modifier.delta.power, &modifier.delta.toughness].into_iter().all(|amount| {
                         !matches!(amount, NumericExpression::Atom(NumericAtom::Integer(value)) if i32::try_from(*value).is_err())
