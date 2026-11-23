@@ -151,7 +151,70 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     }
 }
 
+/// `another target X` (or `other target X`, `each of two other target X`)
+/// after an earlier target slot of the same ability names objects other
+/// than that slot's (CR 115.3; Deadshot: `Tap target creature. It deals
+/// damage … to another target creature.`). The slot already excludes its
+/// source; each pair of target ids across the two slots is recorded as a
+/// distinct target group the declaration must respect. A slot of several
+/// objects keys each object `id:index`.
+fn mark_distinct_other_targets(rule: &mut Value) {
+    const MAX_DISTINCT_SLOT_SIZE: i64 = 10;
+    let Some(decisions) = rule["declaration"]["decisions"].as_array() else {
+        return;
+    };
+    let slot_ids = |decision: &Value| -> Option<Vec<String>> {
+        let id = decision["id"].as_str()?;
+        match decision["maximum"].as_i64()? {
+            1 => Some(vec![id.to_string()]),
+            maximum @ 2..=MAX_DISTINCT_SLOT_SIZE => {
+                Some((0..maximum).map(|index| format!("{id}:{index}")).collect())
+            }
+            _ => None,
+        }
+    };
+    let slots = decisions
+        .iter()
+        .filter(|decision| decision["kind"].as_str() == Some("chooseTargets"))
+        .filter_map(|decision| {
+            Some((
+                slot_ids(decision)?,
+                decision["candidates"]["excludeSource"].as_bool() == Some(true),
+            ))
+        })
+        .collect::<Vec<_>>();
+    let mut groups = Vec::new();
+    for (index, (later_ids, other)) in slots.iter().enumerate() {
+        if !other {
+            continue;
+        }
+        for (earlier_ids, _) in &slots[..index] {
+            for earlier in earlier_ids {
+                for later in later_ids {
+                    groups.push(json!([earlier, later]));
+                }
+            }
+        }
+    }
+    if groups.is_empty() {
+        return;
+    }
+    if let Some(existing) = rule["distinctTargets"].as_array() {
+        for group in existing {
+            if !groups.contains(group) {
+                groups.push(group.clone());
+            }
+        }
+    }
+    rule["distinctTargets"] = Value::Array(groups);
+}
+
 pub(crate) fn compose_card_rules_native(abilities: &mut [ParsedOracleAbility]) {
+    for ability in abilities.iter_mut() {
+        if let Some(rule) = ability.rule.as_mut() {
+            mark_distinct_other_targets(rule);
+        }
+    }
     link_exiles_to_linked_readers(abilities);
     let directives = abilities
         .iter()

@@ -16051,12 +16051,31 @@ impl GameEngine {
     where
         B: FnMut(&str, Option<&CardDefinition>) -> Result<usize, E>,
     {
+        // A spell's distinct target slots name different objects.
         declaration_result::finish(self.read_card_declarations_with_budget(
             card,
             controller_id,
             casting_source,
             resolve_budget,
         ))
+        .map(|declarations| {
+            declarations.map(|declarations| {
+                declarations
+                    .into_iter()
+                    .filter(|declaration| {
+                        card.rules
+                            .iter()
+                            .filter(|rule| value_kind(rule) == Some("spellAbility"))
+                            .all(|rule| {
+                                target_legality::declaration_respects_distinct_targets(
+                                    rule,
+                                    &declaration.targets,
+                                )
+                            })
+                    })
+                    .collect()
+            })
+        })
     }
 
     fn read_card_declarations_with_budget<E, B>(
@@ -17408,12 +17427,29 @@ impl GameEngine {
             });
         definition.mana_cost.clear();
         definition.rules = vec![declaration_rule];
+        // A `{T}` cost taps the source, so another tap cost of the same
+        // activation (`Tap an untapped Ally you control`) cannot name it.
+        let taps_source = rule["costs"].as_array().into_iter().flatten().any(|cost| {
+            value_kind(cost) == Some("tap")
+                && matches!(value_kind(&cost["object"]), Some("self" | "abilitySource"))
+        });
+        let tap_cost_target_ids = rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| {
+                taps_source
+                    && value_kind(cost) == Some("tap")
+                    && value_kind(&cost["object"]) == Some("chosenTarget")
+            })
+            .filter_map(|cost| cost["object"]["id"].as_str());
         let excluded_target_ids = rule["declaration"]["decisions"]
             .as_array()
             .into_iter()
             .flatten()
             .filter(|decision| decision["candidates"]["excludeSource"].as_bool() == Some(true))
             .filter_map(|decision| decision["id"].as_str())
+            .chain(tap_cost_target_ids)
             .collect::<Vec<_>>();
         let mut declarations = self.read_card_declarations_with_budget(
             &definition,
@@ -17515,24 +17551,11 @@ impl GameEngine {
                         )
                 })
             });
-            let distinct = rule["distinctTargets"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .all(|group| {
-                    let values = group
-                        .as_array()
-                        .into_iter()
-                        .flatten()
-                        .filter_map(Value::as_str)
-                        .filter_map(|target_id| declaration.targets.get(target_id))
-                        .collect::<Vec<_>>();
-                    values
-                        .iter()
-                        .enumerate()
-                        .all(|(index, value)| !values[..index].contains(value))
-                });
-            excludes_source && distinct
+            excludes_source
+                && target_legality::declaration_respects_distinct_targets(
+                    rule,
+                    &declaration.targets,
+                )
         });
         Ok(declarations)
     }
@@ -17551,6 +17574,9 @@ impl GameEngine {
         });
         if let Some(declaration) = rule.get("declaration") {
             declaration_rule["declaration"] = declaration.clone();
+        }
+        if let Some(distinct) = rule.get("distinctTargets") {
+            declaration_rule["distinctTargets"] = distinct.clone();
         }
         if let Some(decisions) = declaration_rule["declaration"]["decisions"].as_array_mut() {
             for decision in decisions {
