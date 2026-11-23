@@ -1,6 +1,6 @@
 //! Engine adapter for authenticated target numeric reads and departure capture.
 //! The target designation module owns metadata; this module owns live/LKI choice.
-use super::target_numeric_lki::{
+use super::object_lki::{
     BattlefieldTargetIdentity, NumericTargetBinding, PreparedTargetDeparture, TargetNumericContext,
     TargetNumericProperty, TargetNumericReadError, TargetNumericValues, read_target_numeric,
 };

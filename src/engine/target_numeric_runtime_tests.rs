@@ -1,4 +1,4 @@
-use super::super::target_numeric_lki::{TargetNumericProperty, TargetNumericReadError};
+use super::super::object_lki::{TargetNumericProperty, TargetNumericReadError};
 use super::super::*;
 
 struct NoChoices;

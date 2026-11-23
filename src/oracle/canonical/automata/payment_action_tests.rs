@@ -260,15 +260,17 @@ fn a_cost_sequence_reads_only_the_connectors_its_parent_admits() {
 #[test]
 fn resolution_gains_atoms_first_read_in_other_cost_contexts() {
     // `sacrifice this PERMANENT` was an activation-only reader.
-    let EffectProgramNode::OptionalCost { cost, .. } =
-        resolution_program("you may sacrifice this artifact. If you do, draw two cards.").unwrap()
+    let EffectProgramNode::Outcome {
+        producer: OutcomeProducer::Cost(cost),
+        ..
+    } = resolution_program("you may sacrifice this artifact. If you do, draw two cards.").unwrap()
     else {
         panic!("optional cost program");
     };
     assert_eq!(cost, ResolutionCostNode::SacrificeSource);
     // The shared card selector replaces the `a card`-only resolution reader.
-    let EffectProgramNode::OptionalCost {
-        cost: ResolutionCostNode::DiscardCard { filter },
+    let EffectProgramNode::Outcome {
+        producer: OutcomeProducer::Cost(ResolutionCostNode::DiscardCard { filter }),
         ..
     } = resolution_program("you may discard a creature card. If you do, draw two cards.").unwrap()
     else {

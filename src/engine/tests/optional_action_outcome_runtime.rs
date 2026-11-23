@@ -357,3 +357,32 @@ fn zone_change_witness_requires_the_object_to_leave_its_zone() {
     unmeasured["action"] = json!({ "kind": "shuffleZone", "zone": { "kind": "library", "player": { "kind": "controllerOf", "object": { "kind": "self" } } } });
     assert!(!effect_supported(&unmeasured));
 }
+
+/// `If you do` after a mandatory instruction (CR 608.2c): the instruction's
+/// ActionResult antecedent gates the body through the measured
+/// `performAction` witness. Unused combination: discard gating a draw.
+const MANDATORY_TEXT: &str =
+    "At the beginning of your upkeep, discard a card. If you do, draw a card.";
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn if_you_do_after_a_mandatory_discard_follows_its_measured_performance() {
+    let (rule, effect) = parsed_effect(
+        "Mandatory Looter",
+        "Creature — Human Monk",
+        MANDATORY_TEXT,
+        "performAction",
+    );
+    let (mut engine, source) = loot_engine();
+    resolve(&mut engine, source, &rule, &effect, &mut Perform(true));
+    assert_eq!(engine.state.players[0].graveyard.len(), 1, "discarded");
+    assert!(engine.state.players[0].library.is_empty(), "then drew");
+    assert_eq!(engine.state.players[0].hand.len(), 1);
+
+    // An empty hand discards nothing, so the body does not run.
+    let (mut engine, source) = loot_engine();
+    engine.state.players[0].hand.clear();
+    resolve(&mut engine, source, &rule, &effect, &mut Perform(true));
+    assert!(engine.state.players[0].graveyard.is_empty());
+    assert_eq!(engine.state.players[0].library.len(), 1, "nothing drawn");
+}

@@ -243,7 +243,7 @@ mod object_identity_tests;
 mod object_relation_lki;
 mod source_bound_operands;
 mod target_legality;
-mod target_numeric_lki;
+mod object_lki;
 mod target_numeric_runtime;
 mod target_reassignment;
 mod targeting_triggers;
@@ -1326,7 +1326,7 @@ pub struct GameEngine {
     /// Set while layer-6 grants are being collected (see `effective_rules`).
     collecting_rule_grants: Cell<bool>,
     quantity_transaction: quantity_replacement::QuantityTransactionState,
-    target_numeric_contexts: target_numeric_lki::TargetNumericContexts,
+    target_numeric_contexts: object_lki::TargetNumericContexts,
     source_lki_contexts: source_lki::SourceLkiContexts,
     force_end_turn: bool,
     event_batches: event_batch::EventBatchState,
@@ -6330,7 +6330,7 @@ impl GameEngine {
             branching_decision_sequence: Cell::new(0),
             collecting_rule_grants: Cell::new(false),
             quantity_transaction: quantity_replacement::QuantityTransactionState::default(),
-            target_numeric_contexts: target_numeric_lki::TargetNumericContexts::default(),
+            target_numeric_contexts: object_lki::TargetNumericContexts::default(),
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
@@ -6359,7 +6359,7 @@ impl GameEngine {
             branching_decision_sequence: Cell::new(0),
             collecting_rule_grants: Cell::new(false),
             quantity_transaction: quantity_replacement::QuantityTransactionState::default(),
-            target_numeric_contexts: target_numeric_lki::TargetNumericContexts::default(),
+            target_numeric_contexts: object_lki::TargetNumericContexts::default(),
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
             force_end_turn: false,
             event_batches: event_batch::EventBatchState::default(),
@@ -31270,9 +31270,9 @@ impl GameEngine {
             )
         {
             let property = match value_kind(expression) {
-                Some("manaValueOf") => Some(target_numeric_lki::TargetNumericProperty::ManaValue),
-                Some("powerOf") => Some(target_numeric_lki::TargetNumericProperty::Power),
-                Some("toughnessOf") => Some(target_numeric_lki::TargetNumericProperty::Toughness),
+                Some("manaValueOf") => Some(object_lki::TargetNumericProperty::ManaValue),
+                Some("powerOf") => Some(object_lki::TargetNumericProperty::Power),
+                Some("toughnessOf") => Some(object_lki::TargetNumericProperty::Toughness),
                 _ => None,
             };
             if let Some(property) = property {

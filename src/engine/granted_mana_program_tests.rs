@@ -611,11 +611,11 @@ fn ordered_payment_promotes_passive_preflight_and_restores_private_observers() {
     cast.decisions
         .insert("manaPayment".into(), mana_payment_decision(&payment));
     cast.payment_sources = vec![grantor.instance_id.clone(), holder.instance_id.clone()];
-    let observer = super::target_numeric_lki::TargetNumericContext {
+    let observer = super::object_lki::TargetNumericContext {
         stack_id: "outer-payment-observer".into(),
         targets: BTreeMap::from([(
             "grantor".into(),
-            super::target_numeric_lki::NumericTargetBinding {
+            super::object_lki::NumericTargetBinding {
                 identity: super::object_identity::object_identity_of(&grantor).unwrap(),
                 last_known: None,
             },

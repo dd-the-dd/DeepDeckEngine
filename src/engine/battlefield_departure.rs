@@ -44,7 +44,7 @@ pub(super) enum PlannedGraveyardOutcome {
 pub(super) struct PlannedGraveyardDeparture {
     pub(super) outcome: PlannedGraveyardOutcome,
     pub(super) consume_specific_graveyard_replacement: bool,
-    pub(super) target_numeric_snapshot: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+    pub(super) target_numeric_snapshot: Option<super::object_lki::PreparedTargetDeparture>,
 }
 #[derive(Clone, Copy)]
 enum DepartureEvent {
@@ -290,7 +290,7 @@ impl GameEngine {
         &mut self,
         instance_id: &str,
         destination: FrozenGraveyardDestination,
-        prepared_target_numeric: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+        prepared_target_numeric: Option<super::object_lki::PreparedTargetDeparture>,
     ) -> Result<Option<InstalledBattlefieldDeparture>, EngineError> {
         if self.permanent_position(instance_id).is_none() {
             return Ok(None);
@@ -406,7 +406,7 @@ impl GameEngine {
     pub(super) fn install_permanent_exile_move_with_target_numeric(
         &mut self,
         instance_id: &str,
-        prepared_target_numeric: Option<super::target_numeric_lki::PreparedTargetDeparture>,
+        prepared_target_numeric: Option<super::object_lki::PreparedTargetDeparture>,
     ) -> Result<Option<InstalledBattlefieldDeparture>, EngineError> {
         if self.permanent_position(instance_id).is_none() {
             return Ok(None);

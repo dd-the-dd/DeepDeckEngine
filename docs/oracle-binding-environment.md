@@ -270,8 +270,45 @@ Référence := `that player` | `defending player` | `it` | `that NOUN`
   désormais leurs bloqueurs suivants (`they draw`, `the creature`,
   `choose any number`).
 
+## Étape 13 (lot architecture S2) : antécédent ActionResult, nombre antérieur
+
+Réalisée sans compilation dans le lot S2 ; preuve à l'intégration.
+
+- `BindingEnvironment::action_result` (`ActionResultSlot { performer }`) :
+  l'antécédent qu'un connecteur de résultat (`If you do`, `If they don't`,
+  `When that player does`) observe. Le résolveur unique
+  `recognize_outcome_connector` vérifie que le sujet du connecteur nomme
+  l'exécutant du producteur (`you may` → `you` ; `that player may` →
+  `they` / `that player` / `the player` ; instruction obligatoire → tout
+  sujet) et échoue sinon en `binding.action-result.performer`.
+- `CostOutcomeContinuation` et la grammaire du connecteur quittent
+  `resolution_cost.rs` : `PerformanceOutcome { Performed, Declined,
+  Reflexive }`. Les trois nœuds `OptionalCost`, `OptionalAction`,
+  `ReflexiveAction` deviennent un seul `EffectProgramNode::Outcome
+  { permission, producer: Cost | Action, outcome, body }`.
+- Nouveau : `ACTION. If you do, BODY.` après une instruction obligatoire
+  s'abaisse en `performAction{action, onPerformed: BODY}` (primitive
+  existante, témoin mesuré). `If you don't` après une instruction
+  obligatoire reste un échec explicite (aucune branche déclinée au moteur).
+- `BindingEnvironment::number` : `that number` est une primaire de la
+  grammaire arithmétique partagée (`with_prior_number`). Retire
+  `recognize_that_number_plus_literal` ; `half` lit le compte de la
+  bibliothèque comme opérande ordinaire et retire
+  `recognize_half_controller_library_count` (backlog #14).
+- `possessive_nominal` et `object_related_player_head` sont le seul lecteur
+  lexical du génitif ; `typed_target_reference.rs` les appelle.
+- Moteur : `target_numeric_lki.rs` devient `object_lki.rs` (instantané
+  d'identité : valeur de mana, force, endurance, contrôleur, propriétaire).
+
 ## Suite
 
+0. Restes du lot S2 : promotions `optional_bound_mill`,
+   `landfall_reflexive_counter`, `overload` et `DestroyReferencedSet`
+   (anaphore d'ensemble encore passée en paramètre par `recognize_effect`,
+   propriété de S3) ; épissage JSON `replace_x_value` (where-X) ; anaphores
+   locales de `conditional.rs`, `damage_replacement.rs`,
+   `sentence_condition.rs`, `permanent_subject.rs`, `action_result.rs` ;
+   transport `event_numeric_binding` du curseur à replier dans le cadre.
 1. Collections révélées ou regardées (`reveal … until` dans une branche
    `If you do`) et génitif numérique d'une carte observée
    (`that card's mana value`, environ 29 cartes) : l'abaissement numérique

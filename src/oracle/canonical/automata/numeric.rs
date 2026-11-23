@@ -4,7 +4,6 @@ use super::{
     EventNumericBinding, GraveyardScope, NumericAtom, NumericExpression, TargetBinding,
     recognize_source_object_property,
 };
-use super::{LocalPlayerReference, LocalZone, NumericRounding};
 
 /// Resolves Oracle's event-bound `that many`/`that much` numeric anaphor. An
 /// explicit parent binding wins; otherwise the binding the enclosing triggered
@@ -52,27 +51,6 @@ pub(in crate::oracle::canonical) fn recognize_distinct_card_type_count(
     };
     cursor.enter("numeric.distinct-card-types.complete");
     Ok(NumericExpression::CountDistinctCardTypes { zone })
-}
-
-/// Resolves `that number plus N` against a numeric expression retained by the
-/// parent. The antecedent is cloned into an arithmetic AST; no source text is
-/// reconstructed and an unresolved `that number` never degrades to a literal.
-pub(in crate::oracle::canonical) fn recognize_that_number_plus_literal(
-    cursor: &mut OracleTokenCursor<'_>,
-    antecedent: Option<&NumericExpression>,
-) -> MachineResult<NumericExpression> {
-    cursor.enter("numeric.prior-number-anaphor.demonstrative");
-    cursor.consume_phrase(&["that", "number"])?;
-    cursor.enter("numeric.prior-number-anaphor.resolve");
-    let left = antecedent
-        .cloned()
-        .ok_or_else(|| cursor.fail("a prior numeric-expression binding for `that number`"))?;
-    cursor.enter("numeric.add.operator");
-    cursor.consume("plus")?;
-    cursor.enter("numeric.add.right");
-    let right = NumericExpression::Atom(recognize_numeric_atom(cursor)?);
-    cursor.enter("numeric.add.complete");
-    Ok(NumericExpression::add(left, right))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -388,115 +366,6 @@ pub(in crate::oracle::canonical) fn recognize_source_cast_x_numeric_expression(
                 } else {
                     Ok(expression)
                 };
-            }
-        };
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum LibraryCountState {
-    Half,
-    Determiner,
-    QuantityNoun,
-    Of,
-    Cards,
-    In,
-    Possessor,
-    Zone,
-    Separator,
-    Rounded,
-    Direction,
-    Complete,
-}
-
-/// Recognizes Oracle's reusable rounded half-count over the controller's
-/// library without reconstructing a numeric-expression string.
-pub(in crate::oracle::canonical) fn recognize_half_controller_library_count(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<NumericExpression> {
-    let mut state = LibraryCountState::Half;
-    let mut rounding = None;
-    loop {
-        state = match state {
-            LibraryCountState::Half => {
-                cursor.enter("numeric.library-count.half");
-                cursor.consume("half")?;
-                LibraryCountState::Determiner
-            }
-            LibraryCountState::Determiner => {
-                cursor.enter("numeric.library-count.determiner");
-                cursor.consume("the")?;
-                LibraryCountState::QuantityNoun
-            }
-            LibraryCountState::QuantityNoun => {
-                cursor.enter("numeric.library-count.quantity-noun");
-                cursor.consume("number")?;
-                LibraryCountState::Of
-            }
-            LibraryCountState::Of => {
-                cursor.enter("numeric.library-count.of");
-                cursor.consume("of")?;
-                LibraryCountState::Cards
-            }
-            LibraryCountState::Cards => {
-                cursor.enter("numeric.library-count.cards");
-                cursor.consume("cards")?;
-                LibraryCountState::In
-            }
-            LibraryCountState::In => {
-                cursor.enter("numeric.library-count.in");
-                cursor.consume("in")?;
-                LibraryCountState::Possessor
-            }
-            LibraryCountState::Possessor => {
-                cursor.enter("numeric.library-count.possessor");
-                cursor.consume("your")?;
-                LibraryCountState::Zone
-            }
-            LibraryCountState::Zone => {
-                cursor.enter("numeric.library-count.zone");
-                cursor.consume("library")?;
-                LibraryCountState::Separator
-            }
-            LibraryCountState::Separator => {
-                cursor.enter("numeric.library-count.rounding-separator");
-                cursor.consume(",")?;
-                LibraryCountState::Rounded
-            }
-            LibraryCountState::Rounded => {
-                cursor.enter("numeric.library-count.rounded");
-                cursor.consume("rounded")?;
-                LibraryCountState::Direction
-            }
-            LibraryCountState::Direction => {
-                cursor.enter("numeric.library-count.direction");
-                rounding = Some(
-                    match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-                        Some("up") => {
-                            cursor.consume("up")?;
-                            NumericRounding::Up
-                        }
-                        Some("down") => {
-                            cursor.consume("down")?;
-                            NumericRounding::Down
-                        }
-                        _ => return Err(cursor.fail("`up` or `down` rounding direction")),
-                    },
-                );
-                LibraryCountState::Complete
-            }
-            LibraryCountState::Complete => {
-                cursor.enter("numeric.library-count.complete");
-                let count = NumericExpression::CardsInZone {
-                    player: LocalPlayerReference::Controller,
-                    zone: LocalZone::Library,
-                };
-                return NumericExpression::divide(
-                    count,
-                    2,
-                    cursor.require_value(rounding, "an explicit rounding direction")?,
-                )
-                .ok_or_else(|| cursor.fail("a positive literal divisor"));
             }
         };
     }

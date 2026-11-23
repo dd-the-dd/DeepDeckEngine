@@ -1,6 +1,7 @@
 use super::*;
 use crate::oracle::canonical::automata::{
-    EffectProgramNode, EffectRecognitionContext, recognize_effect_program_with_context,
+    EffectProgramNode, EffectRecognitionContext, OutcomeProducer, PerformanceOutcome,
+    recognize_effect_program_with_context,
 };
 use crate::oracle::syntax::recognize_entities;
 
@@ -22,27 +23,29 @@ fn each_cost_atom_composes_with_each_outcome_connector() {
     for (text, outcome) in [
         (
             "you may pay {1}. If you do, draw a card.",
-            CostOutcomeContinuation::IfPaid,
+            PerformanceOutcome::Performed,
         ),
         (
             "you may pay 2 life. If you don't, draw a card.",
-            CostOutcomeContinuation::IfDeclined,
+            PerformanceOutcome::Declined,
         ),
         (
             "you may discard a card. If you do, draw two cards.",
-            CostOutcomeContinuation::IfPaid,
+            PerformanceOutcome::Performed,
         ),
         (
             "you may sacrifice another creature or artifact. When you do, destroy target creature.",
-            CostOutcomeContinuation::WhenPaid,
+            PerformanceOutcome::Reflexive,
         ),
         (
             "you may sacrifice an artifact. When you do, you gain 3 life.",
-            CostOutcomeContinuation::WhenPaid,
+            PerformanceOutcome::Reflexive,
         ),
     ] {
-        let EffectProgramNode::OptionalCost {
-            outcome: parsed, ..
+        let EffectProgramNode::Outcome {
+            producer: OutcomeProducer::Cost(_),
+            outcome: parsed,
+            ..
         } = program(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"))
         else {
             panic!("{text}: optional cost must be a program node");
@@ -53,8 +56,10 @@ fn each_cost_atom_composes_with_each_outcome_connector() {
 
 #[test]
 fn another_excludes_the_source_and_keeps_the_shared_query() {
-    let EffectProgramNode::OptionalCost { cost, .. } =
-        program("you may sacrifice another creature. If you do, draw a card.").unwrap()
+    let EffectProgramNode::Outcome {
+        producer: OutcomeProducer::Cost(cost),
+        ..
+    } = program("you may sacrifice another creature. If you do, draw a card.").unwrap()
     else {
         panic!("optional cost");
     };
@@ -77,7 +82,12 @@ fn a_later_sentence_is_an_independent_step_outside_the_outcome() {
         panic!("an optional-cost block followed by an independent step");
     };
     assert_eq!(steps.len(), 2);
-    let EffectProgramNode::OptionalCost { body, .. } = &steps[0] else {
+    let EffectProgramNode::Outcome {
+        producer: OutcomeProducer::Cost(_),
+        body,
+        ..
+    } = &steps[0]
+    else {
         panic!("the outcome block comes first");
     };
     assert_eq!(body.action_count(), 1);
@@ -143,8 +153,8 @@ fn tapped_permanents_are_an_optional_cost_with_their_own_quantity_and_exclusion(
             false,
         ),
     ] {
-        let EffectProgramNode::OptionalCost {
-            cost: ResolutionCostNode::TapObjects(tap),
+        let EffectProgramNode::Outcome {
+            producer: OutcomeProducer::Cost(ResolutionCostNode::TapObjects(tap)),
             ..
         } = program(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"))
         else {
@@ -162,6 +172,10 @@ fn tapped_permanents_are_an_optional_cost_with_their_own_quantity_and_exclusion(
     assert_eq!(cost_failure(text).state, "cost.payment.quantity");
     assert!(matches!(
         program(text).unwrap(),
-        EffectProgramNode::OptionalAction { .. }
+        EffectProgramNode::Outcome {
+            permission: Some(_),
+            producer: OutcomeProducer::Action(_),
+            ..
+        }
     ));
 }

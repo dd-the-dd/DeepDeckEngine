@@ -1,7 +1,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EventNumericBinding, LocalObjectReference, NumericAtom, NumericExpression, NumericRounding,
-    TargetBinding, recognize_numeric_primary_expression, recognize_that_many_event_value,
+    EventNumericBinding, LocalObjectReference, LocalPlayerReference, LocalZone, NumericAtom,
+    NumericExpression, NumericRounding, TargetBinding, recognize_numeric_primary_expression,
+    recognize_that_many_event_value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -235,6 +236,11 @@ fn recognize_primary(
         let environment = super::installed_binding_environment(cursor);
         return super::recognize_bound_object_property(cursor, &environment);
     }
+    // `that number`: a number the enclosing frame already read, resolved
+    // by the binding environment like every other anaphor.
+    if super::prior_number_reference_starts(cursor) {
+        return super::recognize_prior_number_reference(cursor);
+    }
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
@@ -311,14 +317,15 @@ fn recognize_primary(
             .peek()
             .is_some_and(|word| word.eq_ignore_ascii_case("half"))
         {
-            if half_library_count_starts(cursor) {
-                return super::recognize_half_controller_library_count(cursor);
-            }
             // `half your life, rounded up` (CR 107.1a): half of any operand
             // of this grammar, with the rounding the text states.
             cursor.enter("numeric.arithmetic.half");
             cursor.consume("half")?;
-            let operand = recognize_primary(cursor, antecedent, event_binding, query_context)?;
+            let operand = if library_card_count_starts(cursor) {
+                recognize_library_card_count(cursor)?
+            } else {
+                recognize_primary(cursor, antecedent, event_binding, query_context)?
+            };
             cursor.enter("numeric.arithmetic.half.rounding");
             let rounding = recognize_stated_rounding(cursor)?;
             return Ok(NumericExpression::Divide {
@@ -331,17 +338,29 @@ fn recognize_primary(
     recognize_numeric_primary_expression(cursor, antecedent)
 }
 
-/// `half the number of cards in your library`: the established form.
-fn half_library_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    [
-        "half", "the", "number", "of", "cards", "in", "your", "library",
-    ]
-    .iter()
-    .enumerate()
-    .all(|(offset, word)| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+/// `the number of cards in your library`: the size of a hidden zone (CR
+/// 401.2) is a player's card count, not an object query over its cards.
+fn library_card_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["the", "number", "of", "cards", "in", "your", "library"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+fn recognize_library_card_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.library-count.quantity-noun");
+    cursor.consume_phrase(&["the", "number", "of", "cards", "in"])?;
+    cursor.enter("numeric.library-count.zone");
+    cursor.consume_phrase(&["your", "library"])?;
+    Ok(NumericExpression::CardsInZone {
+        player: LocalPlayerReference::Controller,
+        zone: LocalZone::Library,
     })
 }
 

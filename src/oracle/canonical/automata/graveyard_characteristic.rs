@@ -3,7 +3,7 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     LocalObjectReference, NumericExpression, recognize_distinct_card_type_count,
-    recognize_source_reference, recognize_that_number_plus_literal,
+    recognize_numeric_expression, recognize_source_reference, with_prior_number,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -88,10 +88,15 @@ pub(in crate::oracle::canonical) fn recognize_graveyard_card_type_characteristic
             }
             State::ToughnessValue => {
                 cursor.enter("characteristic.power-toughness.toughness-value");
-                frame.toughness = Some(recognize_that_number_plus_literal(
-                    cursor,
-                    frame.power.as_ref(),
-                )?);
+                // `that number plus 1`: the shared arithmetic grammar reads
+                // the power through the binding environment's prior number.
+                let power = cursor.require_value(
+                    frame.power.clone(),
+                    "a prior numeric-expression binding for `that number`",
+                )?;
+                frame.toughness = Some(with_prior_number(cursor, power, |cursor| {
+                    recognize_numeric_expression(cursor, None)
+                })?);
                 State::Terminator
             }
             State::Terminator => {
