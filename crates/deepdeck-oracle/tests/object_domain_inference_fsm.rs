@@ -270,3 +270,36 @@ fn other_is_refused_by_parents_that_cannot_lower_a_source_exclusion() {
     );
     assert_ne!(parsed.status, "canonical", "{:#?}", parsed.abilities);
 }
+
+#[test]
+fn coordinators_the_query_returns_are_refused_or_read_by_their_parent() {
+    // `or player` left by the permanent query: the target-list parent owns
+    // the refusal.
+    let parsed = parse(
+        "Instant",
+        "Target creature or player gets +2/+2 until end of turn.",
+    );
+    assert_ne!(parsed.status, "canonical");
+    assert_eq!(
+        parsed.diagnostics[0].state.as_deref(),
+        Some("target-list.complete"),
+        "{:#?}",
+        parsed.diagnostics
+    );
+    assert_eq!(parsed.diagnostics[0].found.as_deref(), Some("or"));
+    // A parent clause after the condition's query: the condition counts
+    // artifacts only; `creatures or planeswalkers` is the effect's subject.
+    let pump = rule(
+        "Sorcery",
+        "If you control an artifact, creatures or planeswalkers you control get +1/+1 until end of turn.",
+    );
+    let condition = &pump["effects"][0]["condition"]["left"]["where"];
+    assert_eq!(
+        condition,
+        &json!({ "kind": "cardTypeContains", "value": "Artifact" })
+    );
+    assert_eq!(
+        pump["effects"][0]["then"][0]["object"]["where"]["kind"],
+        "or"
+    );
+}

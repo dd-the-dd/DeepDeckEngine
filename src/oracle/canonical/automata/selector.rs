@@ -307,12 +307,28 @@ fn recognize_object_query_with_cardinality_policy(
                         frame.has_repeated_head_article = true;
                         frame.has_explicit_union = true;
                     }
-                    consume_optional_selector_article(cursor)?;
+                    if let Err(failure) = consume_optional_selector_article(cursor) {
+                        // A failed member after a tentative comma ends the
+                        // list there: the comma is the parent's.
+                        if abandon_comma_run(cursor, &mut frame) {
+                            state = ObjectQueryState::ReadPostnominalQualifier;
+                            continue;
+                        }
+                        return Err(failure);
+                    }
                 }
                 let branch_start = cursor.position();
-                frame
-                    .union_branches
-                    .push(recognize_object_intersection(cursor)?);
+                let branch = match recognize_object_intersection(cursor) {
+                    Ok(branch) => branch,
+                    Err(failure) => {
+                        if abandon_comma_run(cursor, &mut frame) {
+                            state = ObjectQueryState::ReadPostnominalQualifier;
+                            continue;
+                        }
+                        return Err(failure);
+                    }
+                };
+                frame.union_branches.push(branch);
                 let branch = cursor.token_slice(branch_start, cursor.position());
                 frame
                     .branch_has_plural_surface
@@ -369,10 +385,14 @@ fn recognize_object_query_with_cardinality_policy(
                         if !frame.last_connector_is_exclusive {
                             frame.has_inclusive_connector = true;
                         }
-                        // The connector closes any open comma run.
-                        frame.comma_run = None;
                         frame.has_explicit_union = true;
-                        ObjectQueryState::ReadObjectIntersection
+                        // The connector closes any open comma run, when the
+                        // run is one list.
+                        if close_comma_run(cursor, &mut frame)? {
+                            ObjectQueryState::ReadObjectIntersection
+                        } else {
+                            ObjectQueryState::ReadPostnominalQualifier
+                        }
                     }
                 } else {
                     settle_comma_run(cursor, &mut frame);
@@ -392,7 +412,10 @@ fn recognize_object_query_with_cardinality_policy(
                     }
                     frame.has_explicit_union = true;
                     // `, or` closes the comma run: the list is committed.
-                    frame.comma_run = None;
+                    if !close_comma_run(cursor, &mut frame)? {
+                        state = ObjectQueryState::ReadPostnominalQualifier;
+                        continue;
+                    }
                 }
                 cursor.require(
                     coordinated_object_selector_phrase_starts(cursor),
@@ -649,14 +672,57 @@ fn settle_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryF
         return;
     };
     let run_start = snapshot.union_branches.len().saturating_sub(1);
-    let modifiers_only = frame.union_branches.len() > run_start + 1
-        && frame.union_branches[run_start..frame.union_branches.len() - 1]
-            .iter()
-            .all(negative_modifier);
-    if !modifiers_only {
+    if !modifiers_of_one_head(&frame.union_branches[run_start..]) {
         cursor.rollback(checkpoint);
         *frame = *snapshot;
     }
+}
+
+/// Negative modifiers sharing the run's last, headed branch (`nonartifact,
+/// nonblack creature`). A run of modifiers alone (`noncreature, nonland`)
+/// has no head to modify and is not this form.
+fn modifiers_of_one_head(run: &[SelectorPredicate]) -> bool {
+    let Some((last, preceding)) = run.split_last() else {
+        return false;
+    };
+    !preceding.is_empty() && preceding.iter().all(negative_modifier) && !negative_modifier(last)
+}
+
+/// Gives an open comma run's commas back to the parent: the cursor and the
+/// frame return to the first comma. False when no run is open.
+fn abandon_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryFrame) -> bool {
+    let Some((checkpoint, snapshot)) = frame.comma_run.take() else {
+        return false;
+    };
+    cursor.rollback(checkpoint);
+    *frame = *snapshot;
+    true
+}
+
+/// Closes an open comma run at `or`/`and/or`. The members of one list share
+/// their grammatical number (`an artifact, creatures or planeswalkers you
+/// control get` is a parent clause, not a list): otherwise the run is
+/// abandoned and false is returned. `nonartifact, nonblack creature or
+/// planeswalker` has no proved scope for its modifiers and is refused.
+fn close_comma_run(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: &mut ObjectQueryFrame,
+) -> MachineResult<bool> {
+    let Some((_, snapshot)) = frame.comma_run.as_ref() else {
+        return Ok(true);
+    };
+    let run_start = snapshot.union_branches.len().saturating_sub(1);
+    let plural = &frame.branch_has_plural_surface[run_start..];
+    if plural.iter().any(|flag| *flag != plural[0]) {
+        abandon_comma_run(cursor, frame);
+        return Ok(false);
+    }
+    cursor.require(
+        !modifiers_of_one_head(&frame.union_branches[run_start..]),
+        "a negative-modifier list whose head is not coordinated with another branch",
+    )?;
+    frame.comma_run = None;
+    Ok(true)
 }
 
 fn negative_modifier(predicate: &SelectorPredicate) -> bool {

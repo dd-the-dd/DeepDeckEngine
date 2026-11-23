@@ -58,18 +58,17 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_cond
 ) -> MachineResult<LocalConditionNode> {
     cursor.enter("condition.controlled-permanent-presence.if");
     cursor.consume("if")?;
-    let condition =
-        recognize_controlled_permanent_presence_query_with(cursor, recognize_object_query)?;
+    let condition = recognize_controlled_permanent_presence_query(cursor)?;
     cursor.enter("condition.controlled-permanent-presence.separator");
     cursor.consume(",")?;
     Ok(condition)
 }
 
-/// Reads `you control a/an OBJECT` while the caller supplies its query
-/// boundary. This query owns neither `if` nor the trailing clause comma.
-pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_query_with(
+/// Reads `you control a/an OBJECT`. This query owns neither `if` nor the
+/// trailing clause comma: the shared object query returns a comma that does
+/// not continue its own list.
+pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_query(
     cursor: &mut OracleTokenCursor<'_>,
-    mut recognize_query: impl FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<super::ObjectQueryNode>,
 ) -> MachineResult<LocalConditionNode> {
     let mut state = ControlledPermanentPresenceState::Player;
     let mut predicate = None;
@@ -101,7 +100,7 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_quer
             }
             ControlledPermanentPresenceState::PermanentPredicate => {
                 cursor.enter("condition.controlled-permanent-presence.permanent-predicate");
-                let query = recognize_query(cursor)?;
+                let query = recognize_object_query(cursor)?;
                 cursor.require(
                     query.controller.is_none(),
                     "an unscoped permanent selector after `you control`",
@@ -134,14 +133,6 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_quer
 /// <permanents>`. The surrounding condition owns `if`/`unless` and punctuation.
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<ControlledPermanentCountConditionNode> {
-    recognize_controlled_permanent_count_query_with(cursor, recognize_object_query)
-}
-
-/// Reuses the count grammar with a parent-owned object-query boundary.
-pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query_with(
-    cursor: &mut OracleTokenCursor<'_>,
-    mut recognize_query: impl FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<super::ObjectQueryNode>,
 ) -> MachineResult<ControlledPermanentCountConditionNode> {
     let mut state = ControlledPermanentCountState::Player;
     let mut threshold = None;
@@ -224,7 +215,8 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query_w
             }
             ControlledPermanentCountState::PermanentPredicate => {
                 cursor.enter("condition.controlled-permanent-count.permanent-predicate");
-                let query = super::recognize_query_excluding_source(cursor, &mut recognize_query)?;
+                let query =
+                    super::recognize_query_excluding_source(cursor, recognize_object_query)?;
                 cursor.require(
                     query.controller.is_none(),
                     "an unscoped permanent selector after `you control`",

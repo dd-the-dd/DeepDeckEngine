@@ -1,7 +1,8 @@
 use super::*;
 
-// Optional instructions (not costs) whose outcome follows actual performance
-// (CR 608.2c, 603.12). Real Oracle texts.
+// Optional instructions and optional resolution costs whose outcome follows
+// actual performance (CR 608.2c, 603.12). Real Oracle texts; each one pins the
+// optional kind its text lowers to.
 const LOOT_TEXT: &str = "Whenever this creature deals combat damage to a player, you may draw a card. If you do, discard a card.";
 const DECLINED_TEXT: &str = "At the beginning of your upkeep, you may sacrifice an artifact, enchantment, or token. If you don't, tap this creature.";
 const REFLEXIVE_TEXT: &str = "When The Fire Nation Drill enters, you may tap it. When you do, destroy target creature with power 4 or less.";
@@ -41,7 +42,7 @@ impl DecisionProvider for Perform {
     }
 }
 
-fn parsed_effect(name: &str, type_line: &str, text: &str) -> (Value, Value) {
+fn parsed_effect(name: &str, type_line: &str, text: &str, kind: &str) -> (Value, Value) {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: name.to_string(),
         type_line: type_line.to_string(),
@@ -54,15 +55,7 @@ fn parsed_effect(name: &str, type_line: &str, text: &str) -> (Value, Value) {
     let rule = parsed.abilities[0].rule.clone().expect("canonical rule");
     assert!(rule_is_executable(&rule), "{rule:#}");
     let effect = rule["effects"][0].clone();
-    // `you may sacrifice X. If you don't, ...` is an optional resolution cost
-    // whether X is one object or a closed object list (roadmap #12).
-    assert!(
-        matches!(
-            effect["kind"].as_str(),
-            Some("optionalAction" | "optionalPayCostPerformEffects")
-        ),
-        "{effect:#}"
-    );
+    assert_eq!(effect["kind"], kind, "{effect:#}");
     (rule, effect)
 }
 
@@ -139,7 +132,12 @@ fn loot_engine() -> (GameEngine, CardInstance) {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn if_you_do_follows_a_performed_draw() {
-    let (rule, effect) = parsed_effect("Jeskai Elder", "Creature — Human Monk", LOOT_TEXT);
+    let (rule, effect) = parsed_effect(
+        "Jeskai Elder",
+        "Creature — Human Monk",
+        LOOT_TEXT,
+        "optionalAction",
+    );
     let (mut engine, source) = loot_engine();
     resolve(&mut engine, source, &rule, &effect, &mut Perform(true));
     assert!(
@@ -159,7 +157,12 @@ fn if_you_do_follows_a_performed_draw() {
 #[test]
 fn a_chosen_draw_from_an_empty_library_is_not_performed() {
     // CR 121.3 allows the choice; nothing is drawn, so `If you do` is false.
-    let (rule, effect) = parsed_effect("Jeskai Elder", "Creature — Human Monk", LOOT_TEXT);
+    let (rule, effect) = parsed_effect(
+        "Jeskai Elder",
+        "Creature — Human Monk",
+        LOOT_TEXT,
+        "optionalAction",
+    );
     let (mut engine, source) = loot_engine();
     engine.state.players[0].library.clear();
     resolve(&mut engine, source, &rule, &effect, &mut Perform(true));
@@ -175,7 +178,12 @@ fn a_chosen_draw_from_an_empty_library_is_not_performed() {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn a_declined_draw_performs_nothing() {
-    let (rule, effect) = parsed_effect("Jeskai Elder", "Creature — Human Monk", LOOT_TEXT);
+    let (rule, effect) = parsed_effect(
+        "Jeskai Elder",
+        "Creature — Human Monk",
+        LOOT_TEXT,
+        "optionalAction",
+    );
     let (mut engine, source) = loot_engine();
     resolve(&mut engine, source, &rule, &effect, &mut Perform(false));
     assert_eq!(engine.state.players[0].library.len(), 1);
@@ -187,7 +195,12 @@ fn a_declined_draw_performs_nothing() {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[test]
 fn if_you_dont_follows_a_declined_or_impossible_instruction() {
-    let (rule, effect) = parsed_effect("Devouring Sugarmaw", "Creature — Horror", DECLINED_TEXT);
+    let (rule, effect) = parsed_effect(
+        "Devouring Sugarmaw",
+        "Creature — Horror",
+        DECLINED_TEXT,
+        "optionalPayCostPerformEffects",
+    );
     let tapped = |engine: &GameEngine| engine.state.players[0].battlefield[0].tapped;
 
     // Nothing to sacrifice: the option can't be chosen (CR 608.2d).
@@ -216,9 +229,13 @@ fn if_you_dont_follows_a_declined_or_impossible_instruction() {
     );
     assert_eq!(engine.state.players[0].battlefield.len(), 1);
     assert!(!tapped(&engine));
-    if effect["kind"] == "optionalAction" {
-        assert_eq!(last_outcome(&engine), (json!(true), json!(true)));
-    }
+    // The pay-cost path: the chosen artifact was sacrificed as the payment.
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "artifact")
+    );
 
     // Declined: nothing is sacrificed and the source is tapped.
     let mut engine = test_engine(2);
@@ -235,6 +252,7 @@ fn when_you_do_triggers_only_after_the_instruction_happened() {
         "The Fire Nation Drill",
         "Legendary Artifact — Vehicle",
         REFLEXIVE_TEXT,
+        "optionalAction",
     );
     assert!(
         rule["declaration"].is_null(),

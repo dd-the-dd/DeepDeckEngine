@@ -297,3 +297,78 @@ fn a_token_count_condition_reads_is_token_and_its_controller() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn negative_modifier_lists_are_conjunctions_at_runtime() {
+    // Unlikely Alliance's `nonattacking, nonblocking creature`: an attacking
+    // creature is not a legal target (AND, not OR).
+    let spell = compiled(
+        "Alliance Probe",
+        "Instant",
+        "Target nonattacking, nonblocking creature gets +0/+2 until end of turn.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.players[0].mana_pool = ["C", "G"]
+        .into_iter()
+        .map(|symbol| FloatingMana {
+            symbol: symbol.to_string(),
+            spend_restriction: None,
+        })
+        .collect();
+    engine.state.players[0].hand = vec![test_instance("alliance", spell, "player-0")];
+    let mut attacker = creature("attacker", "Creature \u{2014} Bear", "player-1");
+    attacker.flags.insert("attacking".to_string(), true);
+    engine.state.players[1].battlefield = vec![
+        attacker,
+        creature("idle", "Creature \u{2014} Bear", "player-1"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let targets = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("alliance")
+        })
+        .flat_map(|action| action.targets.into_values())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        targets,
+        [TargetRef::Permanent {
+            instance_id: "idle".to_string(),
+        }]
+    );
+
+    // Blot Out the Sky's `noncreature, nonland permanents`: only the
+    // artifact is neither a creature nor a land.
+    let sweep = compiled(
+        "Sweep Probe",
+        "Sorcery",
+        "Destroy all noncreature, nonland permanents.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        test_instance("relic", test_definition("relic", "Artifact"), "player-1"),
+        creature("bear", "Creature \u{2014} Bear", "player-1"),
+        test_instance(
+            "forest",
+            test_definition("forest", "Basic Land \u{2014} Forest"),
+            "player-1",
+        ),
+        test_instance(
+            "golem",
+            test_definition("golem", "Artifact Creature \u{2014} Golem"),
+            "player-1",
+        ),
+    ];
+    cast_and_resolve(&mut engine, "sweep", sweep);
+    assert!(engine.permanent_position("relic").is_none());
+    for survivor in ["bear", "forest", "golem"] {
+        assert!(engine.permanent_position(survivor).is_some(), "{survivor}");
+    }
+}
