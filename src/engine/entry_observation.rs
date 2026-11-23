@@ -1,7 +1,7 @@
 //! Immutable entry-event observation and non-target object references.
 //! Uses the existing battlefield incarnation marker; never mints an identity,
 //! declares a target, or recaptures an object at ability resolution.
-use super::target_numeric_lki::BattlefieldTargetIdentity;
+use super::object_lki::BattlefieldTargetIdentity;
 use super::*;
 
 const OBSERVED_OBJECT_DECISION: &str = "__deepdeckObservedEventObjectV1";

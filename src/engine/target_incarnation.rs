@@ -7,7 +7,7 @@
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
 
-use super::target_numeric_lki::{
+use super::object_lki::{
     BattlefieldTargetIdentity, NumericTargetBinding, PreparedTargetDeparture,
     TargetNumericReadError,
 };
