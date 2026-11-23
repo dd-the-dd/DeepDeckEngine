@@ -261,8 +261,8 @@ fn recognize_parameter(
             cursor.enter("keyword.parameterized.quality");
             let collection = recognize_object_collection(cursor)?;
             cursor.require(
-                collection.controller.is_none(),
-                "a quality without its own controller relation",
+                collection.controller.is_none() && !collection.exclude_source,
+                "a quality without its own controller relation or source exclusion",
             )?;
             cursor.require(
                 collection.predicate.supports_domain(ObjectKind::Permanent)

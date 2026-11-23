@@ -117,3 +117,35 @@ fn mixed_domain_distribution_has_explicit_cap_but_same_domain_unions_stay_intact
         same
     );
 }
+
+#[test]
+fn subtype_heads_project_the_permanent_domain_and_card_nouns_override_them() {
+    // CR 205.3d: `target Wall` and `target Equipment` can only be
+    // permanents of the type the subtype belongs to.
+    for name in ["Wall", "Equipment", "Goblin"] {
+        let projected = project_object_query_domains(
+            &ObjectPredicate::Subtype(name.to_string()),
+            &[ObjectKind::Spell, ObjectKind::Permanent],
+        )
+        .unwrap();
+        assert_eq!(projected.len(), 1, "{name}");
+        assert_eq!(projected[0].domain, ObjectKind::Permanent, "{name}");
+    }
+    let elf_card = ObjectPredicate::Intersection(vec![
+        ObjectPredicate::Subtype("Elf".to_string()),
+        ObjectPredicate::ObjectKind(ObjectKind::Card),
+    ]);
+    assert_eq!(
+        project_object_query_domains(&elf_card, &[ObjectKind::Card, ObjectKind::Permanent])
+            .unwrap()[0]
+            .domain,
+        ObjectKind::Card
+    );
+    assert_eq!(
+        project_object_query_domains(
+            &ObjectPredicate::Subtype("Arcane".to_string()),
+            &[ObjectKind::Spell, ObjectKind::Permanent]
+        ),
+        Err(TargetDomainProjectionError::MissingPositiveNominal)
+    );
+}

@@ -126,9 +126,9 @@ fn recognize_counted_collection(
         )?;
         return Ok(NumericExpression::CountQuery(Box::new(query)));
     }
-    let exclude_source = recognize_optional_source_exclusion(cursor)?;
     cursor.enter("numeric.for-each.collection");
     let query = recognize_object_collection(cursor)?;
+    let exclude_source = query.exclude_source;
     // CR 110.1: `on the battlefield` names every permanent there, whoever
     // controls it. The explicit zone anchors a nominal head such as `Elves`.
     let explicit_battlefield = query.controller.is_none()
@@ -145,7 +145,7 @@ fn recognize_counted_collection(
         cursor.consume_phrase(&["on", "the", "battlefield"])?;
     }
     cursor.require(
-        battlefield_anchored(&query)
+        query.denotes_battlefield_permanents()
             || (explicit_battlefield
                 && query.predicate.supports_domain(ObjectKind::Permanent)
                 && query.predicate.has_nominal_head()),
@@ -239,23 +239,11 @@ fn recognize_opponent_count(
 /// a collection without that relation keeps the battlefield reading.
 fn counted_zone_relation_follows(cursor: &OracleTokenCursor<'_>) -> bool {
     let mut trial = cursor.clone();
-    if recognize_optional_source_exclusion(&mut trial).unwrap_or(false) {
-        return false;
-    }
-    recognize_object_collection(&mut trial).is_ok_and(|query| query.controller.is_none())
+    recognize_object_collection(&mut trial)
+        .is_ok_and(|query| query.controller.is_none() && !query.exclude_source)
         && trial
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
-}
-
-/// A collection is read on the battlefield when a permanent card type anchors
-/// it, or when a noun compatible with permanents (a subtype such as
-/// `Elementals`) is qualified by a control relation: `X you control` names
-/// permanents (CR 108.4, 110.2), not cards in another zone.
-fn battlefield_anchored(query: &ObjectQueryNode) -> bool {
-    query.predicate.supports_domain(ObjectKind::Permanent)
-        && (query.predicate.has_domain(ObjectKind::Permanent)
-            || (query.controller.is_some() && query.predicate.has_nominal_head()))
 }
 
 /// Lexical lookahead for `the greatest power|toughness among ...`.
@@ -292,7 +280,11 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
     cursor.enter("numeric.greatest-among.collection");
     let query = recognize_object_collection(cursor)?;
     cursor.require(
-        battlefield_anchored(&query),
+        !query.exclude_source,
+        "an aggregated collection without a source exclusion",
+    )?;
+    cursor.require(
+        query.denotes_battlefield_permanents(),
         "an aggregated collection anchored in the battlefield-permanent domain",
     )?;
     cursor.require(

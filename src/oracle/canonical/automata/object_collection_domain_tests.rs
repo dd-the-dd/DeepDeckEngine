@@ -30,8 +30,9 @@ fn explicit_domain_retains_subtype_without_inventing_creature() {
                 SelectorPredicate::Subtype("Ally".to_owned()),
             ])
         );
+        // CR 109.2a: `Allies` without `card` or `spell` names permanents.
         assert!(
-            !collection
+            collection
                 .objects
                 .predicate
                 .has_domain(ObjectKind::Permanent)
@@ -103,7 +104,9 @@ fn domain_is_opt_in_without_weakening_legacy_collection_contract() {
     let mut cursor = OracleTokenCursor::new("collection-domain", &tokens);
     let query = recognize_object_collection(&mut cursor).unwrap();
     assert!(query.predicate.has_nominal_head());
-    assert!(!query.predicate.has_domain(ObjectKind::Permanent));
+    // CR 109.2a: a subtype head without `card` or `spell` is a permanent.
+    assert!(query.predicate.has_domain(ObjectKind::Permanent));
+    assert!(query.denotes_battlefield_permanents());
 }
 
 #[test]

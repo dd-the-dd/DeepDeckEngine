@@ -413,7 +413,8 @@ pub(in crate::oracle::canonical) fn recognize_activation_prohibition(
                     cursor.enter("static.activation-prohibition.source-collection");
                     let objects = recognize_object_collection(cursor)?;
                     cursor.require(
-                        objects.predicate.has_domain(ObjectKind::Permanent)
+                        !objects.exclude_source
+                            && objects.predicate.has_domain(ObjectKind::Permanent)
                             && objects.predicate.supports_domain(ObjectKind::Permanent),
                         "a source collection anchored in the battlefield-permanent domain",
                     )?;

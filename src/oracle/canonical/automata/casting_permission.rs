@@ -155,7 +155,8 @@ fn recognize_permitted_action(
     let query = recognize_object_collection(cursor)?;
     cursor.enter("permission.play.card-domain");
     cursor.require(
-        query.controller.is_none()
+        !query.exclude_source
+            && query.controller.is_none()
             && query.predicate.has_nominal_head()
             && query.predicate.supports_domain(ObjectKind::Card),
         "a card collection without a battlefield controller relation",

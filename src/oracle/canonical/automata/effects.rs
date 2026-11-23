@@ -490,15 +490,14 @@ fn recognize_damage_recipient_group(
         .is_some_and(|token| token.eq_ignore_ascii_case("each"))
     {
         cursor.consume("each")?;
-        let exclude_source = super::recognize_optional_source_exclusion(cursor)?;
-        // The shared collection grammar owns head coordination and a shared
+        // The shared collection grammar owns head coordination, a shared
         // trailing controller (`each creature and planeswalker your
-        // opponents control`).
+        // opponents control`) and the `other` source exclusion.
         let objects = super::recognize_object_collection(cursor)?;
+        let exclude_source = objects.exclude_source;
         cursor.enter("effect.damage.collection.validation");
         cursor.require(
-            objects.predicate.supports_domain(ObjectKind::Permanent)
-                && objects.predicate.has_domain(ObjectKind::Permanent),
+            objects.denotes_battlefield_permanents(),
             "a collection explicitly anchored in the battlefield-permanent domain",
         )?;
         cursor.require(
@@ -854,7 +853,11 @@ pub(in crate::oracle::canonical) fn permanent_target_supported(selector: &Target
 
 fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut usize) -> bool {
     match predicate {
-        SelectorPredicate::CardType(card_type) if card_type.is_permanent_type() => {
+        // CR 109.2a, 205.3d: `target Wall`, `target Goblin` name permanents.
+        // Explicit card and spell nouns are refused below.
+        SelectorPredicate::CardType(_) | SelectorPredicate::Subtype(_)
+            if predicate.denotes_permanent_head(true) =>
+        {
             *permanent_domains += 1;
             true
         }

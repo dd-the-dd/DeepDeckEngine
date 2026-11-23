@@ -253,24 +253,65 @@ impl ObjectPredicate {
     /// must establish it so no alternative can escape the requested domain.
     /// Permanent card types establish the permanent domain directly; card
     /// types alone do not establish the broader card or spell domains.
+    ///
+    /// CR 109.2a: a subtype head used without `card` or `spell` names a
+    /// permanent (`Goblins`, `target Wall`). An explicit card or spell noun
+    /// in the same description (`Elf card`, `Goblin spells`) keeps its own
+    /// domain, and a negated subtype (`non-Elf`) is never a head.
     pub(in crate::oracle::canonical) fn has_domain(&self, domain: ObjectKind) -> bool {
+        self.establishes_domain(domain, true)
+    }
+
+    /// The atom-level CR 109.2a/205.3d inference shared by every domain
+    /// projection: a permanent card type, the `permanent` noun, or a subtype
+    /// that only permanents carry when no card/spell noun is present.
+    pub(in crate::oracle::canonical) fn denotes_permanent_head(&self, subtype_heads: bool) -> bool {
+        match self {
+            Self::ObjectKind(kind) => *kind == ObjectKind::Permanent,
+            Self::CardType(card_type) => card_type.is_permanent_type(),
+            // `seven or more Plains`: a land, artifact, enchantment,
+            // planeswalker or battle subtype only exists on that permanent
+            // type, whatever surrounds it.
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::noncreature_subtype_implies_permanent(
+                    name,
+                ) || (subtype_heads
+                    && crate::oracle::characteristic_vocabulary::subtype_denotes_permanent(name))
+            }
+            _ => false,
+        }
+    }
+
+    /// An explicit non-permanent object noun (`card`, `spell`) inside this
+    /// conjunction: CR 109.2a then no longer reads a subtype as a permanent.
+    fn names_nonpermanent_domain(&self) -> bool {
+        match self {
+            Self::ObjectKind(kind) => *kind != ObjectKind::Permanent,
+            Self::Intersection(operands) => operands.iter().any(Self::names_nonpermanent_domain),
+            Self::Union(operands) => operands.iter().any(Self::names_nonpermanent_domain),
+            _ => false,
+        }
+    }
+
+    fn establishes_domain(&self, domain: ObjectKind, subtype_heads: bool) -> bool {
         match self {
             Self::ObjectKind(actual) => *actual == domain,
-            Self::CardType(card_type) => {
-                domain == ObjectKind::Permanent && card_type.is_permanent_type()
+            Self::CardType(_) | Self::Subtype(_) => {
+                domain == ObjectKind::Permanent && self.denotes_permanent_head(subtype_heads)
             }
-            Self::Not(operand) => operand.has_domain(domain),
-            // `seven or more Plains`: a land, artifact, enchantment,
-            // planeswalker or battle subtype only exists on that permanent type.
-            Self::Subtype(name) => domain == ObjectKind::Permanent
-                && crate::oracle::characteristic_vocabulary::noncreature_subtype_implies_permanent(
-                    name,
-                ),
+            Self::Not(operand) => operand.establishes_domain(domain, false),
             Self::Intersection(operands) => {
-                operands.iter().any(|operand| operand.has_domain(domain))
+                let subtype_heads =
+                    subtype_heads && !operands.iter().any(Self::names_nonpermanent_domain);
+                operands
+                    .iter()
+                    .any(|operand| operand.establishes_domain(domain, subtype_heads))
             }
             Self::Union(operands) => {
-                !operands.is_empty() && operands.iter().all(|operand| operand.has_domain(domain))
+                !operands.is_empty()
+                    && operands
+                        .iter()
+                        .all(|operand| operand.establishes_domain(domain, subtype_heads))
             }
             Self::IsCommander
             | Self::IsToken

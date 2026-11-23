@@ -877,6 +877,15 @@ pub(in crate::oracle) fn noncreature_subtype_implies_permanent(ir_name: &str) ->
         .unwrap_or(false)
 }
 
+/// Whether a subtype head without `card`, `spell` or `source` names a
+/// permanent (CR 109.2a): a creature subtype (a creature or Kindred
+/// permanent) or a land, artifact, enchantment, planeswalker or battle
+/// subtype (CR 205.3d). Spell subtypes (`Arcane`, `Lesson`) never do.
+pub(in crate::oracle) fn subtype_denotes_permanent(ir_name: &str) -> bool {
+    noncreature_subtype_implies_permanent(ir_name)
+        || lookup_creature_subtype(ir_name, AcceptedForms::SingularOnly).is_some()
+}
+
 /// One `[type]walk` keyword word (CR 702.14a) whose type is a land subtype
 /// from the versioned CR 205.3 snapshot: the canonical subtype and the
 /// lowercase keyword name the engine reads (`Swamp` / `swampwalk`).

@@ -2,8 +2,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalObjectReference, ObjectKind, ObjectQueryNode, recognize_object_collection,
-    recognize_optional_source_exclusion, recognize_source_reference_with_antecedent,
+    LocalObjectReference, ObjectQueryNode, recognize_object_collection,
+    recognize_source_reference_with_antecedent,
 };
 
 /// A location in a reusable action is independent of the verb using it.
@@ -73,8 +73,9 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
             }
             PermanentOperandState::Collection => {
                 cursor.enter("permanent.operand.collection");
-                frame.exclude_source = recognize_optional_source_exclusion(cursor)?;
-                frame.collection = Some(recognize_object_collection(cursor)?);
+                let collection = recognize_object_collection(cursor)?;
+                frame.exclude_source = collection.exclude_source;
+                frame.collection = Some(collection);
                 PermanentOperandState::Domain
             }
             PermanentOperandState::Domain => {
@@ -84,8 +85,7 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
                     .as_ref()
                     .ok_or_else(|| cursor.fail("a populated permanent collection"))?;
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Permanent)
-                        && query.predicate.supports_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "an explicitly battlefield-permanent collection, not players or cards",
                 )?;
                 PermanentOperandState::Complete

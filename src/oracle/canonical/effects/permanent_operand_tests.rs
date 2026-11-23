@@ -5,6 +5,7 @@ fn collection(controller: Option<ObjectControllerScope>) -> PermanentOperandNode
         objects: ObjectQueryNode {
             predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
             controller,
+            exclude_source: false,
         },
         exclude_source: false,
     }
@@ -67,6 +68,7 @@ fn unsupported_declaration_dependent_predicate_is_not_replaced_with_zero() {
                 },
             ]),
             controller: Some(ObjectControllerScope::AbilityController),
+            exclude_source: false,
         },
         exclude_source: false,
     };

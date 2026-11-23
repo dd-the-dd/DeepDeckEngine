@@ -205,6 +205,9 @@ mod object_state_predicate_runtime;
 #[path = "tests/characteristic_batch_runtime.rs"]
 mod characteristic_batch_runtime;
 
+#[path = "tests/object_domain_inference_runtime.rs"]
+mod object_domain_inference_runtime;
+
 #[path = "tests/barrowgoyf_runtime.rs"]
 mod barrowgoyf_runtime;
 

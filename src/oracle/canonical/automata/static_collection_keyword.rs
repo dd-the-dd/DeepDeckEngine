@@ -1,8 +1,7 @@
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::{
-    KeywordAtomNode, ObjectKind, ObjectQueryNode, recognize_keyword_atom_reminder_annotation,
-    recognize_object_collection, recognize_optional_source_exclusion,
-    recognize_standalone_keyword_list,
+    KeywordAtomNode, ObjectQueryNode, recognize_keyword_atom_reminder_annotation,
+    recognize_object_collection, recognize_standalone_keyword_list,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -51,10 +50,6 @@ pub(in crate::oracle::canonical) fn try_recognize_static_collection_keyword_gran
         state = match state {
             StaticCollectionKeywordState::Objects => {
                 cursor.enter("static.collection-keyword.objects");
-                frame.exclude_source = match recognize_optional_source_exclusion(cursor) {
-                    Ok(excluded) => excluded,
-                    Err(failure) => return StaticCollectionKeywordRecognition::Failed(failure),
-                };
                 let objects = match recognize_object_collection(cursor) {
                     Ok(objects) => objects,
                     Err(_) => {
@@ -62,6 +57,7 @@ pub(in crate::oracle::canonical) fn try_recognize_static_collection_keyword_gran
                         return StaticCollectionKeywordRecognition::NotClaimed;
                     }
                 };
+                frame.exclude_source = objects.exclude_source;
                 frame.objects = Some(objects);
                 StaticCollectionKeywordState::Predicate
             }
@@ -83,8 +79,7 @@ pub(in crate::oracle::canonical) fn try_recognize_static_collection_keyword_gran
                     );
                 };
                 if let Err(failure) = cursor.require(
-                    objects.predicate.has_domain(ObjectKind::Permanent)
-                        && objects.predicate.supports_domain(ObjectKind::Permanent),
+                    objects.denotes_battlefield_permanents(),
                     "a collection explicitly anchored in the battlefield-permanent domain",
                 ) {
                     return StaticCollectionKeywordRecognition::Failed(failure);

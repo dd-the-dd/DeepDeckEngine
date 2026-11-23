@@ -366,12 +366,14 @@ fn permanent_only_subtypes_establish_the_permanent_domain() {
         "Artifact",
         "{T}: Draw a card. Activate only if you control two or more Equipment.",
     );
-    // Creature subtypes also exist on Kindred spells: no implied permanent.
-    rejected(
+    // CR 109.2a: a creature subtype without `card` or `spell` also names
+    // permanents (a Kindred spell on the stack is not an Elf permanent).
+    let elves = canonical_rules(
         "Probe",
         "Sorcery",
         "If you control seven or more Elves, draw a card.",
     );
+    assert!(elves.iter().any(|rule| has_kind(rule, "countPermanents")));
 }
 
 #[test]

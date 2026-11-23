@@ -25,6 +25,7 @@ fn each_operand_preserves_shared_query_and_following_effect_boundary() {
             objects: ObjectQueryNode {
                 predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
                 controller: Some(ObjectControllerScope::AbilityController),
+                exclude_source: false,
             },
             exclude_source: false,
         }
