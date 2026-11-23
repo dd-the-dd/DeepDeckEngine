@@ -1658,6 +1658,63 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.connectors.push(connector);
                         SequenceState::Effect
                     }
+                    Some("if")
+                        if context.sentence_conditionals
+                            && memory.open_branch.is_none()
+                            && memory.sentence_delay.is_none()
+                            && memory.sentence_duration.is_none()
+                            && memory.effects.len() == memory.sentence_start + 1
+                            && super::sentence_condition_starts(cursor) =>
+                    {
+                        // #11 Branch: a postposed `if CONDITION` gates the one
+                        // action of its sentence (CR 608.2c), the same
+                        // conditional as the preposed form with no else branch.
+                        attempt_frame.commit();
+                        // The condition is checked before its action is
+                        // performed: only earlier sentences' departures and
+                        // no card-collection result of this very action.
+                        let departed = memory
+                            .departed_permanent_targets()
+                            .into_iter()
+                            .filter(|binding| binding.effect_index < memory.sentence_start)
+                            .collect::<Vec<_>>();
+                        let mut condition_effects = context.clone();
+                        condition_effects.permanent_subject_scope = memory.permanent_subject_scope;
+                        let condition_context = super::SentenceConditionContext {
+                            name_links,
+                            name_failure,
+                            effects: &condition_effects,
+                            card_target: memory.card_target_antecedent(),
+                            card_focus: false,
+                            departed_targets: &departed,
+                        };
+                        let condition = super::recognize_postposed_sentence_condition(
+                            cursor,
+                            &condition_context,
+                        )?;
+                        cursor.require(
+                            !condition_reads_previous_action(&condition),
+                            "a postposed condition that does not read the result of an earlier action",
+                        )?;
+                        cursor.enter("sequence.conditional.postposed-scope");
+                        cursor.require(
+                            matches!(cursor.peek(), None | Some(".")),
+                            "a postposed condition ending its sentence",
+                        )?;
+                        // The anaphors an `Otherwise` sentence would read are
+                        // those before this sentence, which are no longer
+                        // known here: no `Otherwise` may follow a postposed `if`.
+                        let snapshot = memory.anaphor_snapshot();
+                        memory.branch_snapshots.push(snapshot);
+                        memory.conditionals.push(super::SentenceConditionalNode {
+                            condition,
+                            then_first: memory.sentence_start,
+                            then_end: memory.effects.len(),
+                            else_end: None,
+                        });
+                        memory.else_candidate = None;
+                        SequenceState::ConnectorOrEnd
+                    }
                     Some("instead") if memory.open_branch.is_some() => {
                         cursor.enter("sequence.conditional.instead");
                         return Err(cursor.fail(
@@ -1980,6 +2037,21 @@ fn guarded_singular_target(memory: &SequenceMemory, first_effect: usize) -> Opti
         .last_target
         .or(scoped)
         .filter(|binding| binding.effect_index >= first_effect)
+}
+
+/// True when a sentence condition reads the result of the action before it
+/// (`if you can't`): its preposed form names the previous sentence's action,
+/// which a postposed condition would misread as its own.
+fn condition_reads_previous_action(condition: &super::SentenceConditionNode) -> bool {
+    match condition {
+        super::BooleanConditionNode::Atom(atom) => {
+            matches!(atom, super::SentenceConditionAtom::PreviousActionImpossible)
+        }
+        super::BooleanConditionNode::And(children) | super::BooleanConditionNode::Or(children) => {
+            children.iter().any(condition_reads_previous_action)
+        }
+        super::BooleanConditionNode::Not(child) => condition_reads_previous_action(child),
+    }
 }
 
 /// Consumes one parenthetical, including nested parentheses and quoted text.
@@ -2907,3 +2979,7 @@ mod controller_subject_sequence_tests;
 #[cfg(test)]
 #[path = "sequence_attempt_tests.rs"]
 mod sequence_attempt_tests;
+
+#[cfg(test)]
+#[path = "effect_dispatch_tests.rs"]
+mod effect_dispatch_tests;
