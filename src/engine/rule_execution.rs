@@ -129,19 +129,36 @@ impl GameEngine {
         request: &CanonicalSpellCast,
     ) -> Result<Option<LegalAction>, EngineError> {
         let player_index = self.player_index(&request.controller_id)?;
-        let sources = self.state.players[player_index]
-            .hand
-            .iter()
-            .filter(|card| card.definition.id == request.source_definition_id)
-            .collect::<Vec<_>>();
+        // The hand first; otherwise the one card in another zone a permission
+        // may let its controller cast from (an Adventure's exile, CR 715.4).
+        let player = &self.state.players[player_index];
+        let matching = |cards: &'_ [CardInstance]| {
+            cards
+                .iter()
+                .filter(|card| card.definition.id == request.source_definition_id)
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let mut sources = matching(&player.hand);
+        if sources.is_empty() {
+            sources = [
+                &player.exile,
+                &player.graveyard,
+                &player.command_zone,
+                &player.library,
+            ]
+            .into_iter()
+            .flat_map(|cards| matching(cards))
+            .collect();
+        }
         let [source] = sources.as_slice() else {
             return match sources.len() {
                 0 => Err(EngineError::new(format!(
-                    "spell definition {} is absent from {}'s hand",
+                    "spell definition {} is absent from {}'s hand and other card zones",
                     request.source_definition_id, request.controller_id
                 ))),
                 count => Err(EngineError::new(format!(
-                    "spell definition {} is ambiguous in {}'s hand ({count} matches)",
+                    "spell definition {} is ambiguous in {}'s card zones ({count} matches)",
                     request.source_definition_id, request.controller_id
                 ))),
             };

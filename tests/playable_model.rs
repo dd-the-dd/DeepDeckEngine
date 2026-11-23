@@ -543,3 +543,98 @@ fn named_tokens_compile_their_catalog_oracle_text_instead_of_using_name_override
     }));
     assert_eq!(blood.rules[0]["effects"][0]["kind"], "drawCards");
 }
+
+fn brazen_borrower_request() -> OracleCardParseRequest {
+    OracleCardParseRequest {
+        card_name: "Brazen Borrower // Petty Theft".to_string(),
+        faces: vec![
+            OracleCardFace {
+                id: "brazen-borrower".to_string(),
+                mana_cost: Some("{1}{U}{U}".to_string()),
+                name: "Brazen Borrower".to_string(),
+                oracle_text: "Flash\nFlying\nThis creature can block only creatures with flying."
+                    .to_string(),
+                power: Some("3".to_string()),
+                toughness: Some("1".to_string()),
+                loyalty: None,
+                type_line: "Creature \u{2014} Faerie Rogue".to_string(),
+            },
+            OracleCardFace {
+                id: "petty-theft".to_string(),
+                mana_cost: Some("{1}{U}".to_string()),
+                name: "Petty Theft".to_string(),
+                oracle_text:
+                    "Return target nonland permanent an opponent controls to its owner's hand."
+                        .to_string(),
+                power: None,
+                toughness: None,
+                loyalty: None,
+                type_line: "Instant \u{2014} Adventure".to_string(),
+            },
+        ],
+        layout: Some("adventure".to_string()),
+        mana_cost: Some("{1}{U}{U} // {1}{U}".to_string()),
+        oracle_text: None,
+        type_line: "Creature \u{2014} Faerie Rogue // Instant \u{2014} Adventure".to_string(),
+    }
+}
+
+/// Feature: The playable adapter links an Adventure (CR 715) to the adventurer
+/// card instead of merging it into the creature cast, and the runtime
+/// fixture plays exactly these compiled rules.
+#[test]
+fn playable_card_compilation_links_the_adventure_spell() {
+    let compilation = compile_playable_card(PlayableCardInput {
+        face_id: Some("brazen-borrower".to_string()),
+        id: "brazen-borrower".to_string(),
+        is_game_piece: false,
+        is_sideboard: false,
+        is_token: false,
+        oracle: brazen_borrower_request(),
+        power: Some("3".to_string()),
+        toughness: Some("1".to_string()),
+    })
+    .expect("Brazen Borrower has a playable creature face");
+
+    assert_eq!(compilation.parser_status, "canonical");
+    assert_eq!(compilation.engine_status, "executable");
+    assert_eq!(compilation.unexecutable_rule_count, 0);
+    assert!(
+        compilation
+            .card
+            .rules
+            .iter()
+            .all(|rule| rule["kind"] != "spellAbility")
+    );
+    let adventure = compilation
+        .card
+        .rules
+        .iter()
+        .find(|rule| rule["kind"] == "adventureSpell")
+        .expect("linked Adventure");
+    assert_eq!(adventure["spell"]["name"], "Petty Theft");
+    assert_eq!(adventure["spell"]["manaCost"], "{1}{U}");
+    assert_eq!(adventure["spell"]["rules"][0]["kind"], "spellAbility");
+
+    if let Ok(path) = std::env::var("ARCH_DUMP_BRAZEN_RULES") {
+        std::fs::write(
+            path,
+            serde_json::to_string(&compilation.card.rules).unwrap(),
+        )
+        .unwrap();
+    }
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(
+        "crates/deepdeck-runtime-fixture-runner/fixtures/adventure/brazen-borrower-end-to-end.json",
+    );
+    if fixture.exists() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(fixture).unwrap()).unwrap();
+        let card = fixture["initialState"]["players"][0]["hand"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|card| card["id"] == "brazen-borrower")
+            .expect("the fixture holds Brazen Borrower in hand");
+        assert_eq!(card["rules"], serde_json::json!(compilation.card.rules));
+    }
+}
