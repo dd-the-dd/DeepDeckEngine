@@ -821,7 +821,9 @@ pub(in crate::oracle::canonical) fn recognize_cards_exist_in_controller_graveyar
             CardsExistInZoneConditionState::Complete => {
                 cursor.enter("condition.zone-card-presence.complete");
                 cursor.require(!predicates.is_empty(), "one or more card predicates")?;
-                let mut atoms = predicates
+                // One conjunction per existential list, also of one member,
+                // so the lowered program keeps a single shape.
+                let atoms = predicates
                     .into_iter()
                     .map(|predicate| {
                         BooleanConditionNode::Atom(ConditionAtom::Compare(
@@ -836,11 +838,7 @@ pub(in crate::oracle::canonical) fn recognize_cards_exist_in_controller_graveyar
                         ))
                     })
                     .collect::<Vec<_>>();
-                return Ok(if atoms.len() == 1 {
-                    atoms.pop().expect("one predicate was checked")
-                } else {
-                    BooleanConditionNode::And(atoms)
-                });
+                return Ok(BooleanConditionNode::And(atoms));
             }
         };
     }
