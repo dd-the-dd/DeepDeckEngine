@@ -1,9 +1,13 @@
+//! The targeting frame of `become` (CR 115.1, 603.2): `SUBJECT becomes the
+//! target of STACK-OBJECT`. The subject is either a union of targeted-object
+//! selectors (this module) or the ability source (`source_event_union.rs`);
+//! both share the targeting stack-object selector read here. The enclosing
+//! event clause (`event_clause.rs`) owns the trigger word and separator.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectSequenceNode, ObjectControllerScope, ObjectKind, ObjectPredicate,
-    recognize_effect_sequence, recognize_object_query,
+    ObjectControllerScope, ObjectKind, ObjectPredicate, VerbAgreement, VerbLemma, consume_lemma,
+    recognize_object_query,
 };
-use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum TargetedObjectDomain {
@@ -28,7 +32,8 @@ pub(in crate::oracle::canonical) enum TargetingStackKind {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TargetingStackSelectorNode {
     pub kinds: Vec<TargetingStackKind>,
-    pub controller: ObjectControllerScope,
+    /// `you control` / `an opponent controls`; `None` is any controller.
+    pub controller: Option<ObjectControllerScope>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,10 +42,13 @@ pub(in crate::oracle::canonical) struct BecameTargetEventNode {
     pub targeting_stack: TargetingStackSelectorNode,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) struct BecameTargetTriggeredAbilityNode {
-    pub event: BecameTargetEventNode,
-    pub effects: EffectSequenceNode,
+/// Whether the targeting stack object needs a written controller relation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TargetingControllerPolicy {
+    /// The object-selector observers are matched with a controller relation.
+    Required,
+    /// The source observer matches a stack object of any controller.
+    Optional,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -139,6 +147,16 @@ fn recognize_controller_scope(
     Ok(ObjectControllerScope::OpponentOfAbilityController)
 }
 
+/// A written controller relation of the targeting stack object starts here.
+fn controller_scope_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    (word(0, "you") && word(1, "control")) || (word(0, "an") && word(1, "opponent"))
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum StackSourceState {
     Article,
@@ -148,8 +166,10 @@ enum StackSourceState {
     Complete,
 }
 
-fn recognize_targeting_stack_selector(
+/// Reads `a spell [or ability] [CONTROLLER]` after `becomes the target of`.
+pub(in crate::oracle::canonical) fn recognize_targeting_stack_selector(
     cursor: &mut OracleTokenCursor<'_>,
+    policy: TargetingControllerPolicy,
 ) -> MachineResult<TargetingStackSelectorNode> {
     let mut state = StackSourceState::Article;
     let mut kinds = Vec::new();
@@ -195,7 +215,10 @@ fn recognize_targeting_stack_selector(
                 }
             }
             StackSourceState::Controller => {
-                controller = Some(recognize_controller_scope(cursor)?);
+                if policy == TargetingControllerPolicy::Required || controller_scope_starts(cursor)
+                {
+                    controller = Some(recognize_controller_scope(cursor)?);
+                }
                 StackSourceState::Complete
             }
             StackSourceState::Complete => {
@@ -210,38 +233,54 @@ fn recognize_targeting_stack_selector(
                     !kinds.is_empty(),
                     "at least one targeting stack-source kind",
                 )?;
-                return Ok(TargetingStackSelectorNode {
-                    kinds,
-                    controller: cursor
-                        .require_value(controller, "a targeting source controller")?,
-                });
+                return Ok(TargetingStackSelectorNode { kinds, controller });
             }
         };
     }
 }
 
-pub(in crate::oracle::canonical) fn recognize_became_target_triggered_ability(
+/// `the target of` at `offset`: the targeting frame of the `become` lemma.
+/// A lexical probe that commits nothing.
+pub(in crate::oracle::canonical) fn targeting_frame_starts(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> bool {
+    ["the", "target", "of"]
+        .iter()
+        .enumerate()
+        .all(|(index, word)| {
+            cursor
+                .peek_ahead(offset + index)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// Reads `the target of` after a consumed `become` verb.
+pub(in crate::oracle::canonical) fn consume_targeting_relation(
     cursor: &mut OracleTokenCursor<'_>,
-    name_links: &[ResolvedNameLink],
-    name_failure: Option<&NameResolutionFailure>,
-) -> MachineResult<BecameTargetTriggeredAbilityNode> {
-    cursor.enter("trigger.became-target.envelope");
-    cursor.consume("whenever")?;
+) -> MachineResult<()> {
+    cursor.enter("event.became-target.relation");
+    cursor.consume_phrase(&["the", "target", "of"])
+}
+
+/// Reads `a|an SELECTOR (or a|an SELECTOR)* becomes the target of STACK`
+/// after the trigger word; the enclosing clause owns the separator.
+pub(in crate::oracle::canonical) fn recognize_became_target_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<BecameTargetEventNode> {
     let objects = recognize_targeted_object_selectors(cursor)?;
     cursor.enter("event.became-target.action");
-    cursor.consume("becomes")?;
-    cursor.enter("event.became-target.relation");
-    cursor.consume_phrase(&["the", "target", "of"])?;
-    let targeting_stack = recognize_targeting_stack_selector(cursor)?;
-    cursor.enter("trigger.became-target.separator");
-    cursor.consume(",")?;
-    let effects = recognize_effect_sequence(cursor, name_links, name_failure)?;
-    Ok(BecameTargetTriggeredAbilityNode {
-        event: BecameTargetEventNode {
-            objects,
-            targeting_stack,
-        },
-        effects,
+    consume_lemma(
+        cursor,
+        VerbLemma::Become,
+        VerbAgreement::ThirdPersonSingular,
+    )?;
+    consume_targeting_relation(cursor)?;
+    let targeting_stack =
+        recognize_targeting_stack_selector(cursor, TargetingControllerPolicy::Required)?;
+    Ok(BecameTargetEventNode {
+        objects,
+        targeting_stack,
     })
 }
 

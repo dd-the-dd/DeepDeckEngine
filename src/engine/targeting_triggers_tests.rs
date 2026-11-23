@@ -756,3 +756,150 @@ fn precommitted_triggered_targets_are_not_chosen_or_dispatched_twice() {
     );
     assert_eq!(engine.state.stack.len(), 1);
 }
+
+/// `When this creature becomes the target of a spell or ability, ...`: the
+/// generic pattern with the source as the targeted object and a stack object
+/// of any controller (CR 115.1).
+fn source_watcher_rule(controller: Option<Value>) -> Value {
+    let mut stack = json!({
+        "kind": "stackItems",
+        "where": {
+            "kind": "or",
+            "operands": [
+                { "kind": "isSpell" },
+                { "kind": "isActivatedAbility" },
+                { "kind": "isTriggeredAbility" },
+            ],
+        },
+    });
+    if let Some(controller) = controller {
+        stack["controller"] = controller;
+    }
+    json!({
+        "kind": "triggeredAbility",
+        "source": { "kind": "self" },
+        "event": {
+            "kind": "becameTarget",
+            "object": { "kind": "self" },
+            "targetingStackObject": stack,
+        },
+        "effects": [{
+            "kind": "drawCards",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "count": { "kind": "integer", "value": 1 },
+        }],
+    })
+}
+
+fn install_source_watcher(engine: &mut GameEngine, controller: Option<Value>) -> String {
+    let mut watcher = definition("source-watcher", "Creature - Illusion");
+    watcher.rules.push(source_watcher_rule(controller));
+    let permanent = card_instance("player-0", &watcher, 1);
+    let id = permanent.instance_id.clone();
+    engine.state.players[0].battlefield.push(permanent);
+    id
+}
+
+fn target_with(engine: &mut GameEngine, stack_id: &str, controller: &str, target: &str) {
+    engine
+        .state
+        .stack
+        .push(stack_object(stack_id, controller, "Instant", None));
+    engine
+        .enqueue_targeting_triggers(
+            stack_id,
+            &BTreeMap::from([(
+                "target".to_string(),
+                TargetRef::Permanent {
+                    instance_id: target.to_string(),
+                },
+            )]),
+        )
+        .expect("supported target cost programs");
+}
+
+fn triggered_count(engine: &GameEngine) -> usize {
+    engine
+        .state
+        .stack
+        .iter()
+        .filter(|object| object.ability_kind.as_deref() == Some("triggeredAbility"))
+        .count()
+}
+
+#[test]
+fn the_source_observer_triggers_for_a_stack_object_of_any_controller() {
+    assert_eq!(
+        became_target_event_supported(&source_watcher_rule(None)["event"]),
+        Some(true)
+    );
+    for controller in ["player-0", "player-1"] {
+        let mut engine = engine();
+        let watcher = install_source_watcher(&mut engine, None);
+        target_with(&mut engine, "stack:spell", controller, &watcher);
+        // One trigger: the historical self path does not also publish the
+        // generic form.
+        assert_eq!(triggered_count(&engine), 1, "{controller}");
+    }
+}
+
+#[test]
+fn the_source_observer_reads_the_stack_controller_relation() {
+    let opponents = json!({
+        "kind": "opponentsOf",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    });
+    let mut engine = engine();
+    let watcher = install_source_watcher(&mut engine, Some(opponents));
+    target_with(&mut engine, "stack:own-spell", "player-0", &watcher);
+    assert_eq!(triggered_count(&engine), 0, "own spell is a near miss");
+    target_with(&mut engine, "stack:opponent-spell", "player-1", &watcher);
+    assert_eq!(triggered_count(&engine), 1);
+}
+
+#[test]
+fn another_targeted_permanent_is_a_near_miss_for_the_source_observer() {
+    let mut engine = engine();
+    install_source_watcher(&mut engine, None);
+    let other = card_instance("player-0", &definition("other", "Creature - Bear"), 2);
+    let other_id = other.instance_id.clone();
+    engine.state.players[0].battlefield.push(other);
+    target_with(&mut engine, "stack:spell", "player-1", &other_id);
+    assert_eq!(triggered_count(&engine), 0);
+}
+
+/// Valiant (`... you control for the first time each turn`): the ordinal
+/// counts only logged targeting events whose stack object satisfied the
+/// selector, so an opponent's earlier spell does not use up the first time.
+#[test]
+fn the_targeting_turn_ordinal_counts_matching_logged_events() {
+    let own = json!({ "kind": "controllerOf", "object": { "kind": "self" } });
+    let mut engine = engine();
+    let mut watcher = definition("valiant-watcher", "Creature - Soldier");
+    let mut rule = source_watcher_rule(Some(own));
+    rule["event"]["turnOrdinal"] = json!(1);
+    assert_eq!(became_target_event_supported(&rule["event"]), Some(true));
+    watcher.rules.push(rule);
+    let permanent = card_instance("player-0", &watcher, 1);
+    let watcher_id = permanent.instance_id.clone();
+    engine.state.players[0].battlefield.push(permanent);
+
+    target_with(&mut engine, "stack:opponent-spell", "player-1", &watcher_id);
+    assert_eq!(
+        triggered_count(&engine),
+        0,
+        "an opponent's spell is not counted"
+    );
+    target_with(&mut engine, "stack:first-own", "player-0", &watcher_id);
+    assert_eq!(triggered_count(&engine), 1);
+    target_with(&mut engine, "stack:second-own", "player-0", &watcher_id);
+    assert_eq!(triggered_count(&engine), 1, "only the first time each turn");
+}
+
+#[test]
+fn a_targeting_ordinal_needs_a_kind_only_selector_on_the_source() {
+    let mut event = source_watcher_rule(None)["event"].clone();
+    event["turnOrdinal"] = json!(1);
+    event["targetingStackObject"]["where"] = json!({ "kind": "isColorless" });
+    assert_eq!(became_target_event_supported(&event), Some(false));
+}

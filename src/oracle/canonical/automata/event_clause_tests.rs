@@ -38,11 +38,14 @@ fn combat_event_modifiers_compile_and_unsupported_ones_are_engine_gaps() {
         "Whenever this creature attacks alone, draw a card.",
         "Whenever this creature attacks for the first time each turn, draw a card.",
         "Whenever this creature blocks a creature with flying, draw a card.",
+        // The attacker of a block record counts the combats it became
+        // blocked in (S5 action-record ordinal).
+        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
     ] {
         assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
     }
     for text in [
-        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        "Whenever this creature becomes blocked by a creature for the first time each turn, draw a card.",
         "Whenever this creature blocks a creature with power 2 or less, draw a card.",
     ] {
         assert_eq!(
@@ -70,4 +73,38 @@ fn a_player_set_names_the_verb_it_does_not_read() {
     );
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
     assert!(expected.unwrap_or_default().contains("lemma `put`"));
+}
+
+#[test]
+fn the_shared_modifier_tail_composes_with_every_combat_subject() {
+    // Previously unused combinations: the turn owner on a source block, and
+    // `alone` / `and isn't blocked` / the turn ordinal on a quantified
+    // attacker. No new production is needed per combination.
+    for text in [
+        "Whenever this creature blocks during an opponent's turn, draw a card.",
+        "Whenever this creature attacks during your turn, draw a card.",
+        "Whenever a creature you control attacks alone, draw a card.",
+        "Whenever a creature you control attacks and isn't blocked, draw a card.",
+        "Whenever another creature you control attacks for the first time each turn, draw a card.",
+        "Whenever a creature an opponent controls attacks during your turn, draw a card.",
+    ] {
+        assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
+    }
+}
+
+#[test]
+fn a_recognized_modifier_without_its_matcher_is_an_engine_gap() {
+    for text in [
+        "Whenever a creature you control dies during your turn, draw a card.",
+        "Whenever this creature enters during your turn, draw a card.",
+        "Whenever a creature you control blocks alone, draw a card.",
+        "Whenever a creature you control attacks and isn't blocked for the first time each turn, draw a card.",
+        "Whenever you gain life during your turn, draw a card.",
+    ] {
+        assert_eq!(
+            parse("Creature — Wall", text).1.as_deref(),
+            Some("trigger.event.engine-gap"),
+            "{text}"
+        );
+    }
 }

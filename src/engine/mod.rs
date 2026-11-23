@@ -21843,6 +21843,7 @@ impl GameEngine {
                         .iter()
                         .any(|event| {
                             value_kind(event) == Some("becameTarget")
+                                && !targeting_triggers::is_generic_became_target_event(event)
                                 && value_kind(&event["object"]) == Some("self")
                                 && (event["stackObjectKind"].as_str() != Some("spell")
                                     || targeting_stack_is_spell)
@@ -37304,6 +37305,7 @@ impl GameEngine {
                     Some(blocker_id.clone()),
                     json!({
                         "attackerId": attacker_id,
+                        "attackerIdentity": self.object_identity_value(&attacker_id),
                         "objectIdentity": self.object_identity_value(&blocker_id),
                     }),
                 );
