@@ -113,4 +113,83 @@ fn domain(effect: &Value) -> Option<Domain> {
         with self.assertRaisesRegex(ValueError,'catalogue/executor role mismatch'):
             role_conformance(sources)
 
+    def root_sources(self,in_batch,performer=None):
+        sources={'src/engine/mod.rs':RustSource('src/engine/mod.rs',b'''
+fn effect_supported(effect: &Value) -> bool {
+    if let Some(supported) = effect_performer::performer_effect_supported(effect) { return supported; }
+    effect_domains::effect_domain_supported(effect).unwrap_or(false)
+}
+fn execute_effect(&mut self, effect: &Value) -> Result<(), Error> {
+    let scope = self.begin_event_batch();
+    let result = self.execute_effect_in_batch(effect);
+    self.end_event_batch(scope);
+    result
+}
+'''+in_batch)}
+        sources['src/engine/effect_performer.rs']=RustSource('src/engine/effect_performer.rs',performer or b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    let performer = effect.get("performer")?;
+    let mut action = effect.clone();
+    Some(singular_player_reference_supported(performer) && effect_supported(&action))
+}
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
+    let Some(performer) = effect.get("performer") else { return Ok(false); };
+    self.execute_effect_in_batch(&action)?;
+    Ok(true)
+}
+''')
+        return sources
+
+    def test_event_batch_root_and_performer_envelope_are_followed_not_waived(self):
+        routed=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    if self.execute_effect_domain(effect)? { return Ok(()); }
+    match value_kind(effect) { Some("rootKind") => Ok(()), _ => Err(Error) }
+}
+'''
+        sources=self.root_sources(routed)
+        self.assertTrue(role_conformance(sources)['rootDelegationsRegistered'])
+        # A delegation hidden behind the batch wrapper still fails closed.
+        hidden=self.root_sources(routed.replace(b'execute_effect_domain',b'execute_new_domain'))
+        with self.assertRaisesRegex(ValueError,r"unregistered root executor delegation: \['execute_new_domain'\]"):
+            role_conformance(hidden)
+
+    def test_root_batch_executor_arms_are_attributed(self):
+        source=RustSource('src/engine/mod.rs',b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    match value_kind(effect) { Some("rootKind") => Ok(()), _ => Err(Error) }
+}
+''')
+        self.assertEqual([a['kinds'] for a in source.arms('execute_effect_in_batch','executor-branch')],[['rootKind']])
+        self.assertIn('execute_effect_in_batch',MODULE.ROOT_EXECUTORS)
+
+    def test_performer_envelope_must_stay_kind_transparent(self):
+        routed=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    Ok(())
+}
+'''
+        inspects=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    match value_kind(effect) { Some("hiddenKind") => Some(true), _ => None }
+}
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> { self.execute_effect_in_batch(effect)?; Ok(true) }
+'''
+        with self.assertRaisesRegex(ValueError,'inspects effect kinds'):
+            role_conformance(self.root_sources(routed,inspects))
+        no_reentry=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> { Some(effect.get("performer").is_some()) }
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> { self.execute_effect_in_batch(effect)?; Ok(true) }
+'''
+        with self.assertRaisesRegex(ValueError,'no longer re-enters effect_supported'):
+            role_conformance(self.root_sources(routed,no_reentry))
+        executor_no_reentry=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> { Some(effect_supported(effect)) }
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> { self.hidden_mutation(effect)?; Ok(true) }
+'''
+        with self.assertRaisesRegex(ValueError,'no longer re-enters execute_effect_in_batch'):
+            role_conformance(self.root_sources(routed,executor_no_reentry))
+
 if __name__=='__main__':unittest.main(verbosity=2)

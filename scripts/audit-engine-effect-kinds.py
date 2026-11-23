@@ -136,7 +136,8 @@ def census(sources):
             add(accepted,path,'supports_known_effect','domain-validator-branch')
             for name in source.functions:
                 if re.fullmatch('execute_[A-Za-z0-9_]+_known',name):add(executed,path,name,'domain-executor-branch')
-    for path,name in [('src/engine/mod.rs','execute_effect'),('src/engine/zone_change_triggers.rs','execute_zone_change_effect')]:
+    for path,name in [*((ROOT,name) for name in ROOT_EXECUTORS if name in sources[ROOT].functions),
+                      ('src/engine/zone_change_triggers.rs','execute_zone_change_effect')]:
         add(executed,path,name,'executor-branch')
     for kind,path,name in [('forEachPlayer','src/engine/player_iteration.rs','player_iteration_supported'),
                            ('emitAbilitySignal','src/engine/ability_signals.rs','ability_signal_effect_supported'),
@@ -151,9 +152,32 @@ def census(sources):
         for kind in kinds:executed[kind].append(arm)
     return accepted,executed
 
+ROOT='src/engine/mod.rs'
+# The root executor opens one simultaneous event batch (CR 603.2c) and routes inside it.
+ROOT_EXECUTORS=('execute_effect','execute_effect_in_batch')
+EVENT_BATCH_SCOPE={'begin_event_batch','end_event_batch'}
+# Kind-transparent envelopes: each strips one envelope field and re-enters the root role, so it
+# accepts or executes no kind the census does not already attribute. Verified, never waived.
+TRANSPARENT_VALIDATORS={'effect_performer::performer_effect_supported':('src/engine/effect_performer.rs','performer_effect_supported','effect_supported')}
+TRANSPARENT_EXECUTORS={'execute_performed_effect':('src/engine/effect_performer.rs','execute_performed_effect','execute_effect_in_batch')}
+
+def calls(tokens,receiver):
+    """Plain `name(` calls (receiver=None) or `self.name(` method calls."""
+    if receiver is None:
+        return {tokens[i].text for i in range(1,len(tokens)-1)
+                if tokens[i+1].text=='(' and tokens[i-1].text not in ('.',':','fn') and re.fullmatch('[a-z_][a-z0-9_]*',tokens[i].text)}
+    return {tokens[i+2].text for i in range(len(tokens)-3)
+            if tokens[i].text==receiver and tokens[i+1].text=='.' and tokens[i+3].text=='('}
+
+def transparent_wrapper(sources,path,name,reentry,receiver):
+    if path not in sources:raise ValueError(f'kind-transparent wrapper {name}: {path} is missing')
+    body=lex(sources[path].whole_function(name,[],'transparent')['body'])
+    if any(t.text=='value_kind' for t in body):raise ValueError(f'{path}:{name} inspects effect kinds; register it as a validator/executor role instead')
+    if reentry not in calls(body,receiver):raise ValueError(f'{path}:{name} no longer re-enters {reentry}; it is not kind-transparent')
+
 def role_conformance(sources):
     """Fail closed when the root adds a delegation the census does not know."""
-    root=sources['src/engine/mod.rs']
+    root=sources[ROOT]
     arm=root.whole_function('effect_supported',[],'validator')
     ts=lex(arm['body']);qualified=set()
     for i in range(len(ts)-4):
@@ -163,13 +187,19 @@ def role_conformance(sources):
            'life::direct_life_effect_supported','validation::damage_effect_supported','validation::token_copy_effect_supported',
            'sacrifice::explicit_object_sacrifice_supported','zone_change_triggers::zone_change_effect_supported',
            'subtypes::effect_supported','effect_domains::effect_domain_supported'}
-    if qualified-known:raise ValueError(f'unregistered root validator delegation: {sorted(qualified-known)}')
-    arm=root.whole_function('execute_effect',[],'executor');ts=lex(arm['body']);calls=set()
-    for i in range(len(ts)-3):
-        if ts[i].text=='self' and ts[i+1].text=='.' and ts[i+3].text=='(':calls.add(ts[i+2].text)
+    if qualified-known-TRANSPARENT_VALIDATORS.keys():raise ValueError(f'unregistered root validator delegation: {sorted(qualified-known-TRANSPARENT_VALIDATORS.keys())}')
+    for name in qualified&TRANSPARENT_VALIDATORS.keys():transparent_wrapper(sources,*TRANSPARENT_VALIDATORS[name],None)
     known_runtime={'execute_player_iteration','execute_ability_signal_effect','execute_direct_life_effect',
                    'execute_explicit_object_sacrifice','execute_zone_change_effect','execute_effect_domain'}
-    if calls-known_runtime:raise ValueError(f'unregistered root executor delegation: {sorted(calls-known_runtime)}')
+    allowed=known_runtime|TRANSPARENT_EXECUTORS.keys()|EVENT_BATCH_SCOPE|{'execute_effect_in_batch'}
+    pending=['execute_effect'];seen=set();executor_calls=set()
+    while pending:
+        name=pending.pop()
+        if name in seen:continue
+        seen.add(name);found=calls(lex(root.whole_function(name,[],'executor')['body']),'self');executor_calls|=found
+        pending.extend(n for n in found if n in ROOT_EXECUTORS)
+    if executor_calls-allowed:raise ValueError(f'unregistered root executor delegation: {sorted(executor_calls-allowed)}')
+    for name in executor_calls&TRANSPARENT_EXECUTORS.keys():transparent_wrapper(sources,*TRANSPARENT_EXECUTORS[name],'self')
     catalog_path='src/engine/effect_domains/mod.rs'
     if catalog_path in sources:
         routed={k for a in sources[catalog_path].arms('domain','routing-only') for k in a['kinds']}

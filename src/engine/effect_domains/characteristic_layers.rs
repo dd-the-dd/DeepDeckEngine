@@ -46,30 +46,32 @@ fn duration_supported(duration: &Value) -> bool {
 }
 
 pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
-    Some(
-        characteristic_object_supported(&effect["object"])
-            && duration_supported(&effect["duration"])
-            && match value_kind(effect) {
-                Some("setCardTypes") => effect["cardTypes"].as_array().is_some_and(|types| {
-                    !types.is_empty()
-                        && types.iter().all(|card_type| {
-                            card_type
-                                .as_str()
-                                .is_some_and(|value| PERMANENT_CARD_TYPES.contains(&value))
-                        })
-                }),
-                Some("setColors") => effect["colors"].as_array().is_some_and(|colors| {
-                    colors
-                        .iter()
-                        .all(|color| matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G")))
-                }),
-                Some("setBasePowerToughness") => {
-                    numeric_expression_supported(&effect["power"])
-                        && numeric_expression_supported(&effect["toughness"])
-                }
-                _ => false,
-            },
-    )
+    Some(supports_known_effect(effect))
+}
+
+fn supports_known_effect(effect: &Value) -> bool {
+    characteristic_object_supported(&effect["object"])
+        && duration_supported(&effect["duration"])
+        && match value_kind(effect) {
+            Some("setCardTypes") => effect["cardTypes"].as_array().is_some_and(|types| {
+                !types.is_empty()
+                    && types.iter().all(|card_type| {
+                        card_type
+                            .as_str()
+                            .is_some_and(|value| PERMANENT_CARD_TYPES.contains(&value))
+                    })
+            }),
+            Some("setColors") => effect["colors"].as_array().is_some_and(|colors| {
+                colors
+                    .iter()
+                    .all(|color| matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G")))
+            }),
+            Some("setBasePowerToughness") => {
+                numeric_expression_supported(&effect["power"])
+                    && numeric_expression_supported(&effect["toughness"])
+            }
+            _ => false,
+        }
 }
 
 fn latest_marker<'a>(definition: &'a CardDefinition, kind: &str) -> Option<&'a Value> {
@@ -150,6 +152,17 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
         _provider: &mut P,
     ) -> Result<bool, EngineError> {
+        self.execute_characteristic_layers_domain_known(effect, stack_object, bindings, decisions)
+            .map(|()| true)
+    }
+
+    fn execute_characteristic_layers_domain_known(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+        decisions: &mut BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
         let (marker_kind, mut marker, event, payload) = match value_kind(effect) {
             Some("setCardTypes") => (
                 CARD_TYPE_SET_MARKER,
@@ -218,6 +231,6 @@ impl GameEngine {
                 payload.clone(),
             );
         }
-        Ok(true)
+        Ok(())
     }
 }
