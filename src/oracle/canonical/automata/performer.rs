@@ -154,9 +154,44 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
     let verb = cursor.position();
     replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
+    // A written `you` in another player's clause names the ability's
+    // controller, which the performer's instruction would read as the
+    // performer itself: that reading is ambiguous and fails explicitly.
+    // Quoted abilities (CR 113.1) are their own scope: their `you` is the
+    // controller of the object that has them.
     let mut depth = 0usize;
+    let mut quoted = false;
+    for token in tokens.iter().skip(verb + 1) {
+        match token.raw.as_str() {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => break,
+            raw if depth == 0
+                && ["you", "your", "yours", "you've"]
+                    .iter()
+                    .any(|word| raw.eq_ignore_ascii_case(word)) =>
+            {
+                let mut at = cursor.clone();
+                at.enter("clause.performer.controller-reference");
+                return Err(at.fail_with_span(
+                    "a performer clause without `you`, which would name the performer instead of the ability's controller",
+                    token.index,
+                    token.span_start,
+                    token.span_end,
+                    token.raw.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    let mut depth = 0usize;
+    let mut quoted = false;
     for token in tokens.iter_mut().skip(verb + 1) {
         match token.raw.as_str() {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
             "(" => depth += 1,
             ")" => depth = depth.saturating_sub(1),
             "." if depth == 0 => break,

@@ -691,3 +691,40 @@ fn the_deployed_card_is_the_antecedent_across_sentences() {
         "{alone:#?}"
     );
 }
+
+/// A written `you` inside another player's clause names the ability's
+/// controller; the performer's instruction would read it as the performer.
+/// That reading is ambiguous and fails explicitly.
+#[test]
+fn a_controller_reference_inside_a_performed_clause_fails_explicitly() {
+    for oracle in [
+        "Each opponent returns a creature you control to its owner's hand.",
+        "Each player creates a token that's a copy of a creature you control.",
+    ] {
+        let (status, _, states) = parse(SORCERY, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+        assert!(
+            states
+                .iter()
+                .any(|state| state == "clause.performer.controller-reference"),
+            "{oracle}: {states:?}"
+        );
+    }
+    // The performer's own pronouns are not controller references.
+    let (status, _, _) = parse(
+        SORCERY,
+        "Each player puts a creature card from their graveyard onto the battlefield.",
+    );
+    assert_eq!(status, "canonical");
+}
+
+/// A quoted ability is its own scope: its `you` is not a controller
+/// reference of the performed clause (Goblin Spymaster).
+#[test]
+fn a_quoted_ability_inside_a_performed_clause_keeps_its_own_you() {
+    let (status, _, states) = parse(
+        "Enchantment",
+        "At the beginning of each opponent's end step, that player creates a 1/1 red Goblin creature token with \"Creatures you control attack each combat if able.\"",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+}

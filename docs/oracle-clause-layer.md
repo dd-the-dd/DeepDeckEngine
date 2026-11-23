@@ -468,3 +468,14 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   Sneak Attack (liaison, hâte, sacrifice retardé), recombinaison (compteur),
   absence de liaison sans lecteur, exécution (hâte puis sacrifice à l'étape
   de fin).
+
+### Étape 26 : garde du `you` écrit dans la proposition d'un exécutant
+
+- Un `you`/`your` écrit dans la proposition d'un autre joueur nomme le
+  contrôleur de la capacité ; la lecture comme instruction de l'exécutant le
+  lirait comme l'exécutant. Cette lecture ambiguë échoue en
+  `clause.performer.controller-reference`. Les capacités citées (CR 113.1)
+  sont leur propre portée : ni la garde ni le passage à la deuxième personne
+  ne s'y appliquent (Goblin Spymaster garde son `Creatures you control`).
+- Sonde : ligue 820 → 820, corpus 14847 → 14847, 0 perte, aucune IR
+  modifiée : aucune carte supportée ne contenait ce cas.
