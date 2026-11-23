@@ -2964,17 +2964,6 @@ fn condition_supported(condition: &Value) -> bool {
         Some("objectIsAttacking") => target_reference_supported(&condition["object"]),
         Some("wasCastWithAlternativeCost") => condition["mode"].is_string(),
         Some("notYourTurn") => true,
-        Some("opponentCastSpellWithAnyColor") => {
-            condition["colors"].as_array().is_some_and(|colors| {
-                !colors.is_empty()
-                    && colors.iter().all(|color| {
-                        color.as_str().is_some_and(|color| {
-                            color_name_to_symbol(color).is_some()
-                                || matches!(color, "W" | "U" | "B" | "R" | "G")
-                        })
-                    })
-            })
-        }
         Some("triggeringSpellManaSourceMatches") => card_filter_supported(&condition["where"]),
         Some("manaSymbolsSpentToCastSource") => {
             condition["symbols"].as_array().is_some_and(|symbols| {
@@ -8783,33 +8772,6 @@ impl GameEngine {
                     .unwrap_or(false)
             }),
             Some("notYourTurn") => self.state.players[self.state.active_player].id != controller_id,
-            Some("opponentCastSpellWithAnyColor") => {
-                let wanted = condition["colors"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .filter_map(|color| {
-                        color_name_to_symbol(color)
-                            .map(ToOwned::to_owned)
-                            .or_else(|| {
-                                matches!(color, "W" | "U" | "B" | "R" | "G")
-                                    .then(|| color.to_string())
-                            })
-                    })
-                    .collect::<BTreeSet<_>>();
-                self.state.events.iter().any(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "spellCast"
-                        && event.player_id.as_deref() != Some(controller_id)
-                        && event.detail["colors"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter_map(Value::as_str)
-                            .any(|color| wanted.contains(color))
-                })
-            }
             Some("triggeringSpellManaSourceMatches") => decisions
                 .get("triggeringSpellManaSourceDefinitions")
                 .and_then(Value::as_array)

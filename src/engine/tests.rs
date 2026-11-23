@@ -25032,6 +25032,14 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
         test_definition("drawn-card", "Land"),
         "player-0",
     ));
+    // The opponent's blue spell, now in its owner's graveyard.
+    let mut blue_spell = test_definition("earlier-blue-spell", "Instant");
+    blue_spell.mana_cost = "{U}".to_string();
+    engine.state.players[1].graveyard.push(test_instance(
+        "earlier-blue-spell",
+        blue_spell,
+        "player-1",
+    ));
     engine.record_event(
         "spellCast",
         Some("player-1".to_string()),
@@ -25041,9 +25049,27 @@ fn temporary_colored_hexproof_and_counter_prohibition_affect_live_rules() {
     let effects = json!([
         {
             "kind": "conditionalEffect",
+            // An opponent cast a blue or black spell this turn: the generic
+            // spell-cast history filtered by the shared color predicate.
             "condition": {
-                "kind": "opponentCastSpellWithAnyColor",
-                "colors": ["blue", "black"],
+                "kind": "compare",
+                "operator": ">=",
+                "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "spellCast",
+                    "player": {
+                        "kind": "opponentsOf",
+                        "player": { "kind": "abilityController" },
+                    },
+                    "where": {
+                        "kind": "or",
+                        "operands": [
+                            { "kind": "colorContains", "value": "blue" },
+                            { "kind": "colorContains", "value": "black" },
+                        ],
+                    },
+                },
+                "right": { "kind": "integer", "value": 1 },
             },
             "then": [{
                 "kind": "drawCards",
