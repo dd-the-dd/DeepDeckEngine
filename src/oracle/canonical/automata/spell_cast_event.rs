@@ -359,6 +359,21 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
                     }
                 }
                 let mut query = query;
+                // `an Equipment spell or a spell that targets ...`: a branch
+                // that is the whole spell domain is meaningful only with its
+                // own trailing relative clause, so that clause is local to
+                // the last branch, not a qualifier of the whole union. The
+                // event has one spell predicate and one target relation in
+                // conjunction; the branch-local scope is refused.
+                if peek_word(cursor, 0, "that")
+                    && matches!(&query.predicate, ObjectPredicate::Union(branches)
+                        if branches.contains(&ObjectPredicate::ObjectKind(ObjectKind::Spell)))
+                {
+                    cursor.enter("event.spell-cast.qualifier-scope");
+                    return Err(cursor.fail(
+                        "a relative clause qualifying the whole spell query, not one coordinated branch",
+                    ));
+                }
                 // `that has KEYWORD`: the shared keyword vocabulary as one more
                 // conjunct of the spell predicate (the card's own keywords).
                 if peek_word(cursor, 0, "that") && peek_word(cursor, 1, "has") {
