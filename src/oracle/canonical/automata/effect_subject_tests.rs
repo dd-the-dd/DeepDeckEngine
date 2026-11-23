@@ -560,3 +560,31 @@ fn performer_near_misses() {
         assert_ne!(status, "canonical", "{oracle}");
     }
 }
+
+/// A subjectless verb of the same sentence continues the performer of the
+/// previous action (CR 608.2c), whichever reader read that action.
+#[test]
+fn a_later_verb_of_the_sentence_continues_the_performer() {
+    // Real card shape: Mirko Vosk / Destroy the Evidence (`its controller
+    // reveals ..., then puts ...`). Unused recombination: a population that
+    // mills, then creates.
+    let effects = effects(
+        SORCERY,
+        "Each opponent mills two cards, then creates a Treasure token.",
+    );
+    let created = effects
+        .iter()
+        .find(|effect| {
+            effect["kind"] == "forEachPlayer"
+                && effect["effects"][0]["kind"] != "mill"
+                && effect["effects"][0]["performer"].is_object()
+        })
+        .unwrap_or_else(|| panic!("a performed creation: {effects:#?}"));
+    assert_eq!(created["players"]["kind"], "opponentsOf", "{created:#}");
+    // Near miss: the performer does not cross a sentence boundary.
+    let (status, _, _) = parse(
+        SORCERY,
+        "Each opponent mills two cards. Creates a Treasure token.",
+    );
+    assert_ne!(status, "canonical");
+}

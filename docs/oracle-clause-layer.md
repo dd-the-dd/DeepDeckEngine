@@ -399,3 +399,16 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   recombinaison inédite (`each opponent creates a Treasure token`),
   quasi-échecs (accord, possessif sans objet), exécution (le jeton va au
   joueur de l'événement ; chaque joueur remet sa propre carte).
+
+### Étape 22 : l'exécutant continue sur les verbes de sa phrase
+
+- Après une action dont un autre joueur est l'exécutant (lue par
+  l'emplacement d'exécutant, par le lecteur d'action de joueur ou par la
+  liste quantifiée), un verbe sans sujet de la même phrase garde cet
+  exécutant (`each opponent mills two cards, then creates …`, `its
+  controller reveals …, then puts …`). Chaque action d'une population reste
+  sa propre boucle (CR 608.2c, 101.4). La continuation ne franchit pas la
+  frontière de phrase.
+- Sonde : ligue 816 → 816, corpus 14780 → 14784 (+4 : Mirko Vosk, Clear the
+  Land, Destroy the Evidence, Malboro), 0 perte, IR des cartes supportées
+  inchangée.
