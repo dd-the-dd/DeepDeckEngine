@@ -113,14 +113,17 @@ fn object_target_domain_is_owned_by_selector_not_repeated_in_each_characteristic
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("permanent-subject-domain-negative", &tokens);
-        // Either the operand refuses, or it leaves `or player` unread for a
-        // parent that has no player branch here.
+        // The operand either refuses or reads only the permanent branch and
+        // leaves `or player` to its parent; the target-list parent then
+        // refuses it (`target-list.complete`, see object_domain_inference_fsm).
         let operand = recognize_contextual_permanent_operand(
             &mut cursor,
             &[],
             None,
             &EffectRecognitionContext::default(),
         );
-        assert!(operand.is_err() || cursor.finish().is_err(), "{text}");
+        if operand.is_ok() {
+            assert_eq!(cursor.peek(), Some("or"), "{text}");
+        }
     }
 }

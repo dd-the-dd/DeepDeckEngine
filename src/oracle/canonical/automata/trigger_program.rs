@@ -102,10 +102,8 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         cursor.set_event_numeric_binding(event.value.numeric_binding());
         // The modes read the event's bindings; their sentence frames stay
         // those the shared modal lowering owns.
-        let mut modal_context = trigger_guard_context(&event.value);
-        modal_context.observed_event_object = context.observed_event_object;
-        modal_context.source_attachment = context.source_attachment;
-        modal_context.frame = context.frame.clone();
+        let modal_context =
+            triggered_modal_body_context(trigger_guard_context(&event.value), &context);
         let modal = recognize_effect_sequence_modal_with_context(
             cursor,
             name_links,
@@ -181,6 +179,21 @@ pub(in crate::oracle::canonical) fn triggered_body_context(
     context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
     context.source_attachment = source_attachment;
     context
+}
+
+/// The context printed modes are read with: the trigger's own source and
+/// event bindings (`base`) plus the observed object, attachment and frame of
+/// its program context. Sentence frames inside a mode belong to the shared
+/// modal lowering, so the program-only settings are not copied. Event
+/// triggers and Saga chapters share it.
+pub(in crate::oracle::canonical) fn triggered_modal_body_context(
+    mut base: EffectRecognitionContext,
+    program: &EffectRecognitionContext,
+) -> EffectRecognitionContext {
+    base.observed_event_object = program.observed_event_object;
+    base.source_attachment = program.source_attachment;
+    base.frame = program.frame.clone();
+    base
 }
 
 /// `Choose one —` / `Choose two —` opens printed modes chosen as the trigger

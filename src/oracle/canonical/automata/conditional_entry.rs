@@ -6,8 +6,7 @@ use crate::oracle::{
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     LocalConditionNode, LocalObjectReference, ObjectCardType, ObjectPredicate,
-    recognize_controlled_permanent_presence_query_with, recognize_object_query,
-    recognize_source_reference,
+    recognize_controlled_permanent_presence_query, recognize_source_reference,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,10 +88,7 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_conditional_e
                 State::Condition
             }
             State::Condition => {
-                let condition = recognize_controlled_permanent_presence_query_with(
-                    cursor,
-                    recognize_object_query,
-                )?;
+                let condition = recognize_controlled_permanent_presence_query(cursor)?;
                 let LocalConditionNode::ControlledPermanentCount(condition) = condition else {
                     return Err(cursor.fail("a controlled permanent presence condition"));
                 };
