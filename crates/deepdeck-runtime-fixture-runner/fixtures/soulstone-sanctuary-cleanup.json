@@ -1,0 +1,318 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "soulstone-sanctuary-animation-persists-through-cleanup",
+  "seed": 120,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{4}"
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "cardType": "Creature",
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "addCardType",
+        "object": {
+          "kind": "self"
+        },
+        "retainExistingTypes": true
+      },
+      {
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "modifySubtypeSet",
+        "mode": "all",
+        "object": {
+          "kind": "self"
+        },
+        "subtypeClass": "creature"
+      },
+      {
+        "duration": {
+          "kind": "permanent"
+        },
+        "keyword": "vigilance",
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "setBasePowerToughness",
+        "object": {
+          "kind": "self"
+        },
+        "power": {
+          "kind": "integer",
+          "value": 3
+        },
+        "toughness": {
+          "kind": "integer",
+          "value": 3
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Soulstone pilot",
+        "battlefield": [
+          {
+            "id": "soulstone-sanctuary",
+            "name": "Soulstone Sanctuary",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": "{C}",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{4}"
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cardType": "Creature",
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "addCardType",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "retainExistingTypes": true
+                  },
+                  {
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "modifySubtypeSet",
+                    "mode": "all",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "subtypeClass": "creature"
+                  },
+                  {
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "keyword": "vigilance",
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "setBasePowerToughness",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "power": {
+                      "kind": "integer",
+                      "value": 3
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ],
+    "turnNumber": 1,
+    "step": "postcombatMain"
+  },
+  "assertions": [
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "cardTypeContains",
+        "value": "Land"
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "cardTypeContains",
+        "value": "Creature"
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Shark"
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Elf"
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Island"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "white"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "blue"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "black"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "red"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "green"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "power": 3,
+      "toughness": 3
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "keyword": "vigilance",
+      "equals": true
+    }
+  ],
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "soulstone-sanctuary"
+      }
+    },
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 1
+    }
+  ]
+}

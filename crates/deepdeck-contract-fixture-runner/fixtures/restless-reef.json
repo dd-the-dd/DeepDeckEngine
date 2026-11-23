@@ -6,68 +6,179 @@
   "expectedExecutable": true,
   "rules": [
     {
+      "event": {
+        "kind": "wouldEnterBattlefield",
+        "object": {
+          "kind": "self"
+        }
+      },
       "kind": "replacementEffect",
-      "source": { "kind": "self" },
-      "event": { "kind": "wouldEnterBattlefield", "object": { "kind": "self" } },
-      "replacement": [{
-        "kind": "setEnteringState",
-        "object": { "kind": "self" },
-        "tapped": true
-      }]
+      "replacement": [
+        {
+          "kind": "setEnteringState",
+          "object": {
+            "kind": "self"
+          },
+          "tapped": true
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
     },
     {
-      "kind": "manaAbility",
-      "source": { "kind": "self" },
-      "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
-      "effects": [{
-        "kind": "addMana",
-        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-        "mana": { "kind": "chooseOne", "options": ["{U}", "{B}"] }
-      }]
-    },
-    {
-      "kind": "activatedAbility",
-      "source": { "kind": "self" },
-      "costs": [{ "kind": "payMana", "manaCost": "{2}{U}{B}" }],
+      "costs": [
+        {
+          "kind": "tap",
+          "object": {
+            "kind": "self"
+          }
+        }
+      ],
       "effects": [
         {
-          "kind": "becomeCreature",
-          "object": { "kind": "self" },
-          "addTypes": ["Creature"],
-          "addSubtypes": ["Shark"],
-          "addColors": ["U", "B"],
-          "basePower": { "kind": "integer", "value": 4 },
-          "baseToughness": { "kind": "integer", "value": 4 },
-          "retainExistingTypes": true,
-          "duration": { "kind": "untilEndOfCurrentTurn" }
-        },
-        {
-          "kind": "grantKeyword",
-          "object": { "kind": "self" },
-          "keyword": "deathtouch",
-          "duration": { "kind": "untilEndOfCurrentTurn" }
+          "kind": "addMana",
+          "mana": {
+            "kind": "chooseOne",
+            "options": [
+              "{U}",
+              "{B}"
+            ]
+          },
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
         }
-      ]
+      ],
+      "kind": "manaAbility",
+      "source": {
+        "kind": "self"
+      }
     },
     {
-      "kind": "triggeredAbility",
-      "source": { "kind": "self" },
-      "event": { "kind": "declaredAttacker", "object": { "kind": "self" } },
+      "costs": [
+        {
+          "kind": "payMana",
+          "manaCost": "{2}{U}{B}"
+        }
+      ],
       "declaration": {
-        "kind": "castingDeclaration",
-        "decisions": [{
-          "id": "targetPlayer",
-          "kind": "chooseTargets",
-          "minimum": 1,
-          "maximum": 1,
-          "candidates": { "kind": "players" }
-        }]
+        "decisions": [],
+        "kind": "castingDeclaration"
       },
-      "effects": [{
-        "kind": "mill",
-        "player": { "kind": "chosenTarget", "id": "targetPlayer" },
-        "count": { "kind": "integer", "value": 4 }
-      }]
+      "effects": [
+        {
+          "cardType": "Creature",
+          "duration": {
+            "kind": "untilEndOfCurrentTurn"
+          },
+          "kind": "addCardType",
+          "object": {
+            "kind": "self"
+          },
+          "retainExistingTypes": true
+        },
+        {
+          "duration": {
+            "kind": "untilEndOfCurrentTurn"
+          },
+          "kind": "modifySubtypeSet",
+          "mode": "add",
+          "object": {
+            "kind": "self"
+          },
+          "subtypeClass": "creature",
+          "subtypes": [
+            "Shark"
+          ]
+        },
+        {
+          "colors": [
+            "U",
+            "B"
+          ],
+          "duration": {
+            "kind": "untilEndOfCurrentTurn"
+          },
+          "kind": "setColors",
+          "object": {
+            "kind": "self"
+          }
+        },
+        {
+          "duration": {
+            "kind": "untilEndOfCurrentTurn"
+          },
+          "keyword": "deathtouch",
+          "kind": "grantKeyword",
+          "object": {
+            "kind": "self"
+          }
+        },
+        {
+          "duration": {
+            "kind": "untilEndOfCurrentTurn"
+          },
+          "kind": "setBasePowerToughness",
+          "object": {
+            "kind": "self"
+          },
+          "power": {
+            "kind": "integer",
+            "value": 4
+          },
+          "toughness": {
+            "kind": "integer",
+            "value": 4
+          }
+        }
+      ],
+      "kind": "activatedAbility",
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "declaration": {
+        "decisions": [
+          {
+            "candidates": {
+              "kind": "players"
+            },
+            "id": "targetPlayer",
+            "kind": "chooseTargets",
+            "maximum": 1,
+            "minimum": 1
+          }
+        ],
+        "kind": "castingDeclaration"
+      },
+      "effects": [
+        {
+          "count": {
+            "kind": "integer",
+            "value": 4
+          },
+          "kind": "mill",
+          "player": {
+            "id": "targetPlayer",
+            "kind": "chosenTarget"
+          }
+        }
+      ],
+      "event": {
+        "kind": "declaredAttacker",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "kind": "triggeredAbility",
+      "source": {
+        "kind": "self"
+      }
     }
   ]
 }

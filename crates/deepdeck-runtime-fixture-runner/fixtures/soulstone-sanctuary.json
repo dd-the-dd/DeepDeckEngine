@@ -3,62 +3,71 @@
   "id": "soulstone-sanctuary-becomes-a-vigilant-land-creature-with-subtype-domain",
   "seed": 120,
   "rule": {
-    "kind": "activatedAbility",
-    "source": {
-      "kind": "self"
-    },
     "costs": [
       {
         "kind": "payMana",
         "manaCost": "{4}"
       }
     ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
     "effects": [
       {
-        "kind": "becomeCreature",
+        "cardType": "Creature",
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "addCardType",
         "object": {
           "kind": "self"
         },
-        "addTypes": [
-          "Creature"
-        ],
-        "addSubtypes": [],
-        "addColors": [],
-        "basePower": {
-          "kind": "integer",
-          "value": 3
-        },
-        "baseToughness": {
-          "kind": "integer",
-          "value": 3
-        },
-        "retainExistingTypes": true,
-        "duration": {
-          "kind": "permanent"
-        }
+        "retainExistingTypes": true
       },
       {
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "modifySubtypeSet",
+        "mode": "all",
+        "object": {
+          "kind": "self"
+        },
+        "subtypeClass": "creature"
+      },
+      {
+        "duration": {
+          "kind": "permanent"
+        },
+        "keyword": "vigilance",
         "kind": "grantKeyword",
         "object": {
           "kind": "self"
-        },
-        "keyword": "vigilance",
-        "duration": {
-          "kind": "permanent"
         }
       },
       {
-        "kind": "modifySubtypeSet",
+        "duration": {
+          "kind": "permanent"
+        },
+        "kind": "setBasePowerToughness",
         "object": {
           "kind": "self"
         },
-        "subtypeClass": "creature",
-        "mode": "all",
-        "duration": {
-          "kind": "permanent"
+        "power": {
+          "kind": "integer",
+          "value": 3
+        },
+        "toughness": {
+          "kind": "integer",
+          "value": 3
         }
       }
-    ]
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
   },
   "initialState": {
     "activePlayerId": "player-0",
@@ -73,10 +82,6 @@
             "typeLine": "Land",
             "rules": [
               {
-                "kind": "manaAbility",
-                "source": {
-                  "kind": "self"
-                },
                 "costs": [
                   {
                     "kind": "tap",
@@ -88,73 +93,86 @@
                 "effects": [
                   {
                     "kind": "addMana",
+                    "mana": "{C}",
                     "player": {
                       "kind": "controllerOf",
                       "object": {
                         "kind": "self"
                       }
-                    },
-                    "mana": "{C}"
+                    }
                   }
-                ]
-              },
-              {
-                "kind": "activatedAbility",
+                ],
+                "kind": "manaAbility",
                 "source": {
                   "kind": "self"
-                },
+                }
+              },
+              {
                 "costs": [
                   {
                     "kind": "payMana",
                     "manaCost": "{4}"
                   }
                 ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
                 "effects": [
                   {
-                    "kind": "becomeCreature",
+                    "cardType": "Creature",
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "addCardType",
                     "object": {
                       "kind": "self"
                     },
-                    "addTypes": [
-                      "Creature"
-                    ],
-                    "addSubtypes": [],
-                    "addColors": [],
-                    "basePower": {
-                      "kind": "integer",
-                      "value": 3
-                    },
-                    "baseToughness": {
-                      "kind": "integer",
-                      "value": 3
-                    },
-                    "retainExistingTypes": true,
-                    "duration": {
-                      "kind": "permanent"
-                    }
+                    "retainExistingTypes": true
                   },
                   {
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "modifySubtypeSet",
+                    "mode": "all",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "subtypeClass": "creature"
+                  },
+                  {
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "keyword": "vigilance",
                     "kind": "grantKeyword",
                     "object": {
                       "kind": "self"
-                    },
-                    "keyword": "vigilance",
-                    "duration": {
-                      "kind": "permanent"
                     }
                   },
                   {
-                    "kind": "modifySubtypeSet",
+                    "duration": {
+                      "kind": "permanent"
+                    },
+                    "kind": "setBasePowerToughness",
                     "object": {
                       "kind": "self"
                     },
-                    "subtypeClass": "creature",
-                    "mode": "all",
-                    "duration": {
-                      "kind": "permanent"
+                    "power": {
+                      "kind": "integer",
+                      "value": 3
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 3
                     }
                   }
-                ]
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
               }
             ]
           }
@@ -164,7 +182,9 @@
         "id": "player-1",
         "name": "Opponent"
       }
-    ]
+    ],
+    "turnNumber": 1,
+    "step": "postcombatMain"
   },
   "execution": {
     "controllerId": "player-0",
@@ -172,25 +192,113 @@
   },
   "assertions": [
     {
-      "kind": "permanentTypeLineContains",
+      "kind": "eventCount",
+      "eventKind": "subtypeSetModified",
+      "equals": 1
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
       "playerId": "player-0",
       "definitionId": "soulstone-sanctuary",
-      "value": "Land",
+      "filter": {
+        "kind": "cardTypeContains",
+        "value": "Land"
+      },
       "equals": true
     },
     {
-      "kind": "permanentTypeLineContains",
+      "kind": "permanentMatchesEffectiveFilter",
       "playerId": "player-0",
       "definitionId": "soulstone-sanctuary",
-      "value": "Creature",
+      "filter": {
+        "kind": "cardTypeContains",
+        "value": "Creature"
+      },
       "equals": true
     },
     {
-      "kind": "permanentHasKeyword",
+      "kind": "permanentMatchesEffectiveFilter",
       "playerId": "player-0",
       "definitionId": "soulstone-sanctuary",
-      "keyword": "vigilance",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Shark"
+      },
       "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Elf"
+      },
+      "equals": true
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Island"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "white"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "blue"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "black"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "red"
+      },
+      "equals": false
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "filter": {
+        "kind": "colorContains",
+        "value": "green"
+      },
+      "equals": false
     },
     {
       "kind": "permanentPowerToughness",
@@ -200,13 +308,11 @@
       "toughness": 3
     },
     {
-      "kind": "eventCount",
-      "eventKind": "subtypeSetModified",
-      "equals": 1
-    },
-    {
-      "kind": "decisionCount",
-      "equals": 0
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "soulstone-sanctuary",
+      "keyword": "vigilance",
+      "equals": true
     }
   ]
 }
