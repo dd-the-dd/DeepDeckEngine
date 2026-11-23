@@ -190,6 +190,10 @@
         {
           "fixture_id": "brainstorm-empty-library-puts-back-nothing",
           "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-empty-library.json"
+        },
+        {
+          "fixture_id": "brainstorm-empty-library-without-guard-loses",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-empty-library-loses.json"
         }
       ]
     },
@@ -885,6 +889,10 @@
         {
           "fixture_id": "restless-reef-animation-and-keyword-expire-at-cleanup",
           "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-animation-cleanup.json"
+        },
+        {
+          "fixture_id": "restless-reef-base-power-toughness-reverts-at-cleanup",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-base-pt-reverts.json"
         }
       ]
     },
@@ -1785,6 +1793,10 @@
         {
           "fixture_id": "soulstone-sanctuary-animation-persists-through-cleanup",
           "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary-cleanup.json"
+        },
+        {
+          "fixture_id": "soulstone-sanctuary-activation-pays-four-and-animates",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary-activation.json"
         }
       ]
     },

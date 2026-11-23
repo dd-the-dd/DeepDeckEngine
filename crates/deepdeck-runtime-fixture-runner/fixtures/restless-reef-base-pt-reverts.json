@@ -1,0 +1,352 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "restless-reef-base-power-toughness-reverts-at-cleanup",
+  "seed": 70,
+  "rule": {
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{2}{U}{B}"
+      }
+    ],
+    "declaration": {
+      "decisions": [],
+      "kind": "castingDeclaration"
+    },
+    "effects": [
+      {
+        "cardType": "Creature",
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "addCardType",
+        "object": {
+          "kind": "self"
+        },
+        "retainExistingTypes": true
+      },
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "modifySubtypeSet",
+        "mode": "add",
+        "object": {
+          "kind": "self"
+        },
+        "subtypeClass": "creature",
+        "subtypes": [
+          "Shark"
+        ]
+      },
+      {
+        "colors": [
+          "U",
+          "B"
+        ],
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "setColors",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "keyword": "deathtouch",
+        "kind": "grantKeyword",
+        "object": {
+          "kind": "self"
+        }
+      },
+      {
+        "duration": {
+          "kind": "untilEndOfCurrentTurn"
+        },
+        "kind": "setBasePowerToughness",
+        "object": {
+          "kind": "self"
+        },
+        "power": {
+          "kind": "integer",
+          "value": 4
+        },
+        "toughness": {
+          "kind": "integer",
+          "value": 4
+        }
+      }
+    ],
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Reef pilot",
+        "manaPool": [
+          "C",
+          "C",
+          "U",
+          "B"
+        ],
+        "battlefield": [
+          {
+            "id": "restless-reef",
+            "name": "Restless Reef",
+            "typeLine": "Land",
+            "rules": [
+              {
+                "event": {
+                  "kind": "wouldEnterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "replacementEffect",
+                "replacement": [
+                  {
+                    "kind": "setEnteringState",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "tapped": true
+                  }
+                ],
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "tap",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "effects": [
+                  {
+                    "kind": "addMana",
+                    "mana": {
+                      "kind": "chooseOne",
+                      "options": [
+                        "{U}",
+                        "{B}"
+                      ]
+                    },
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "manaAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{2}{U}{B}"
+                  }
+                ],
+                "declaration": {
+                  "decisions": [],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "cardType": "Creature",
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "addCardType",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "retainExistingTypes": true
+                  },
+                  {
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "modifySubtypeSet",
+                    "mode": "add",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "subtypeClass": "creature",
+                    "subtypes": [
+                      "Shark"
+                    ]
+                  },
+                  {
+                    "colors": [
+                      "U",
+                      "B"
+                    ],
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "setColors",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "keyword": "deathtouch",
+                    "kind": "grantKeyword",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "duration": {
+                      "kind": "untilEndOfCurrentTurn"
+                    },
+                    "kind": "setBasePowerToughness",
+                    "object": {
+                      "kind": "self"
+                    },
+                    "power": {
+                      "kind": "integer",
+                      "value": 4
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 4
+                    }
+                  }
+                ],
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              {
+                "declaration": {
+                  "decisions": [
+                    {
+                      "candidates": {
+                        "kind": "players"
+                      },
+                      "id": "targetPlayer",
+                      "kind": "chooseTargets",
+                      "maximum": 1,
+                      "minimum": 1
+                    }
+                  ],
+                  "kind": "castingDeclaration"
+                },
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 4
+                    },
+                    "kind": "mill",
+                    "player": {
+                      "id": "targetPlayer",
+                      "kind": "chosenTarget"
+                    }
+                  }
+                ],
+                "event": {
+                  "kind": "declaredAttacker",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ],
+    "turnNumber": 1,
+    "step": "postcombatMain"
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "restless-reef"
+    },
+    {
+      "kind": "resolveTopStack"
+    },
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 1
+    },
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "restless-reef"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "addCardType",
+            "object": {
+              "kind": "self"
+            },
+            "cardType": "Creature",
+            "retainExistingTypes": true,
+            "duration": {
+              "kind": "permanent"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentPowerToughness",
+      "playerId": "player-0",
+      "definitionId": "restless-reef",
+      "power": 0,
+      "toughness": 0
+    },
+    {
+      "kind": "permanentMatchesEffectiveFilter",
+      "playerId": "player-0",
+      "definitionId": "restless-reef",
+      "filter": {
+        "kind": "subtypeContains",
+        "value": "Shark"
+      },
+      "equals": false
+    }
+  ]
+}

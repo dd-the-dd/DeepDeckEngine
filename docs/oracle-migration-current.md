@@ -56,9 +56,11 @@ A proof of the unconditional path alone does not qualify:
 - `manifestDread` (CR 701.62a): look at the top two cards and manifest one. The
   card that was not manifested goes to the graveyard. Needs a runtime test that
   checks both destinations: one face-down 2/2 on the battlefield and the other
-  card in the graveyard, neither left in the library. Per CR 701.62b, an
-  "whenever you manifest dread" trigger fires after the whole process, even when
-  parts of it were impossible (for example, a library with fewer than two cards).
+  card in the graveyard, neither left in the library. Per CR 701.62b
+  (checked against the cached rule text in `data/ability-catalog`), an ability
+  that triggers whenever a player manifests dread triggers after the whole
+  process is complete, even if some or all of its actions were impossible (for
+  example, a library with fewer than two cards).
 
 ## Adventure layout runtime (CR 716, PR #69)
 

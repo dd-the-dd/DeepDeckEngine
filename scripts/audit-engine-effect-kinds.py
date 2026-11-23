@@ -137,6 +137,37 @@ def engine_synthesized_executors(executor_only):
     if unexplained:raise ValueError(f'executor without any accepting validator: {unexplained}; add the validator arm, or register an engine-synthesized kind with its origin')
     return sorted(set(executor_only))
 
+def lowering_files(repo):
+    """Parser and lowering sources: the only code that may emit Oracle IR kinds."""
+    roots=[repo/'src/oracle',repo/'src/model.rs']
+    files=[]
+    for root in roots:
+        if root.is_file():files.append(root)
+        elif root.is_dir():files.extend(p for p in root.rglob('*.rs') if 'test' not in p.stem and 'tests' not in p.parts)
+    return sorted(files)
+
+def lowering_emits_engine_synthesized(sources):
+    """Fail closed when a parser or lowering source names an engine-synthesized kind as a string
+    literal: no Oracle text may lower to an effect only the engine is allowed to build."""
+    found=sorted({(path,token.text.strip('"')) for path,source in sources.items() for token in source.tokens
+                  if token.text.startswith('"') and token.text.strip('"') in ENGINE_SYNTHESIZED_EFFECTS})
+    if found:raise ValueError(f'parser/lowering source emits an engine-synthesized kind: {found}')
+
+# Fixture seams: public engine entry points that bypass casting. Only the engine module that
+# defines them and the fixture runner (outside src/) may call them; gameplay code never does.
+FIXTURE_SEAMS={'resolve_canonical_spell','canonical_spell_sources'}
+FIXTURE_SEAM_HOME='src/engine/rule_execution.rs'
+
+def production_files(repo):
+    return sorted(p for p in (repo/'src').rglob('*.rs') if 'test' not in p.stem and 'tests' not in p.parts) if (repo/'src').is_dir() else []
+
+def fixture_seam_callers(sources):
+    """Fail closed when production code outside the seam's home calls a fixture seam."""
+    callers=sorted({(path,token.text) for path,source in sources.items() if path!=FIXTURE_SEAM_HOME
+                    for i,token in enumerate(source.tokens[:-1])
+                    if token.text in FIXTURE_SEAMS and source.tokens[i+1].text in ('(',':')})
+    if callers:raise ValueError(f'production code calls a fixture seam: {callers}')
+
 def census(sources):
     accepted=collections.defaultdict(list);executed=collections.defaultdict(list)
     def add(target,path,name,role):
@@ -203,6 +234,7 @@ def generic_end(tokens,i):
     depth=0
     for j in range(i,len(tokens)):
         if tokens[j].text=='<':depth+=1
+        elif tokens[j].text=='>' and tokens[j-1].text=='-':continue  # `->` in a fn type, not a closing angle
         elif tokens[j].text=='>':
             depth-=1
             if depth==0:return j+1
@@ -374,6 +406,14 @@ def main(argv=None):
     counts={'acceptedKinds':len(accepted),'executedKinds':len(executed),'both':len(accepted.keys()&executed.keys()),
             'acceptedWithoutExecutor':sorted(accepted.keys()-executed.keys()),'executorWithoutAcceptance':sorted(executed.keys()-accepted.keys())}
     counts['engineSynthesizedWithoutValidator']=engine_synthesized_executors(counts['executorWithoutAcceptance'])
+    # Lex only the lowering files that mention a synthesized kind at all; the lexer then decides
+    # whether the mention is a string literal (an emitted kind) or a comment.
+    production={p.relative_to(repo).as_posix():p.read_bytes() for p in production_files(repo)}
+    fixture_seam_callers({path:RustSource(path,raw) for path,raw in production.items()
+                          if any(seam.encode() in raw for seam in FIXTURE_SEAMS)})
+    lowering={p.relative_to(repo).as_posix():p.read_bytes() for p in lowering_files(repo)}
+    lowering_emits_engine_synthesized({path:RustSource(path,raw) for path,raw in lowering.items()
+                                       if any(kind.encode() in raw for kind in ENGINE_SYNTHESIZED_EFFECTS)})
     retired_raw=args.retired_kinds_json.read_bytes() if args.retired_kinds_json else None
     retired=retired_list(args.retired_kinds_json,retired_raw) if args.retired_kinds_json else []
     guard={'checked':bool(args.retired_kinds_json),'retiredKinds':retired,
