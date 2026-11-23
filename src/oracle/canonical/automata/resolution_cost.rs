@@ -1,9 +1,12 @@
-//! Optional resolution cost and its outcome continuation (CR 608.2c, 603.12):
+//! Optional resolution cost (CR 608.2c, 603.12):
 //!
 //! ```text
 //! OptionalCost := CostSequence "." Outcome "," PROGRAM
-//! Outcome      := "if you do" | "if you don't" | "when you do"
 //! ```
+//!
+//! The outcome connector (`if you do`, `if you don't`, `when you do`) is not
+//! cost grammar: it resolves against the ActionResult antecedent of the one
+//! binding environment (`binding_environment.rs`), whatever produced it.
 //!
 //! The cost is the shared `CostSequenceNode` of ordinary payment actions (see
 //! `payment_action`). This parent projects each action onto the engine's
@@ -90,66 +93,11 @@ impl ResolutionCostNode {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum CostOutcomeContinuation {
-    /// `If you do, …` — the body resolves only if the cost was paid.
-    IfPaid,
-    /// `If you don't, …` — the body resolves only if the cost was not paid.
-    IfDeclined,
-    /// `When you do, …` — a reflexive trigger with its own targets (CR 603.12).
-    WhenPaid,
-}
-
 pub(in crate::oracle::canonical) fn optional_cost_head(cursor: &OracleTokenCursor<'_>) -> bool {
     !cursor
         .peek_token()
         .is_some_and(|token| token.token_type == "manaSymbol" || token.token_type == "tapSymbol")
         && payment_action_starts(cursor)
-}
-
-/// True when the first sentence after the cursor is followed by a typed cost
-/// outcome connector. Lexical lookahead only; it commits nothing.
-pub(in crate::oracle::canonical) fn cost_outcome_follows_first_sentence(
-    cursor: &OracleTokenCursor<'_>,
-) -> bool {
-    let mut offset = 0;
-    while let Some(raw) = cursor.peek_ahead(offset) {
-        if raw == "." {
-            return outcome_at(cursor, offset + 1).is_some();
-        }
-        offset += 1;
-    }
-    false
-}
-
-pub(in crate::oracle::canonical) fn outcome_at(
-    cursor: &OracleTokenCursor<'_>,
-    offset: usize,
-) -> Option<(CostOutcomeContinuation, usize)> {
-    let word = |index: usize| {
-        cursor
-            .peek_ahead(offset + index)
-            .map(str::to_ascii_lowercase)
-    };
-    // The connector's subject is the permission's performer: `you`, or
-    // another player named by `they` / `that player` / `the player`
-    // (CR 608.2c `if [that player] does`).
-    let (subject_width, singular) = match (word(1)?.as_str(), word(2).as_deref()) {
-        ("you" | "they", _) => (1, false),
-        ("that" | "the", Some("player")) => (2, true),
-        _ => return None,
-    };
-    let verb = word(1 + subject_width)?;
-    let outcome = match (word(0)?.as_str(), verb.as_str(), singular) {
-        ("if", "do", false) | ("if", "does", true) => CostOutcomeContinuation::IfPaid,
-        ("if", "don't" | "don’t", false) | ("if", "doesn't" | "doesn’t", true) => {
-            CostOutcomeContinuation::IfDeclined
-        }
-        ("when", "do", false) | ("when", "does", true) => CostOutcomeContinuation::WhenPaid,
-        _ => return None,
-    };
-    let width = 2 + subject_width;
-    (word(width)?.as_str() == ",").then_some((outcome, width + 1))
 }
 
 /// One resolution cost: the shared cost sequence projected onto the engine's
@@ -327,27 +275,6 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
             Ok(ResolutionCostNode::RemoveSourceCounters { counter, count })
         }
     }
-}
-
-/// Reads `. Outcome ,` after a complete cost.
-pub(in crate::oracle::canonical) fn recognize_cost_outcome_continuation(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<CostOutcomeContinuation> {
-    cursor.enter("cost.outcome.sentence-end");
-    cursor.consume(".")?;
-    recognize_outcome_connector(cursor)
-}
-
-/// Reads `If you do ,` / `If you don't ,` / `When you do ,` at a sentence
-/// start. The outcome refers to the preceding cost or instruction.
-pub(in crate::oracle::canonical) fn recognize_outcome_connector(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<CostOutcomeContinuation> {
-    cursor.enter("cost.outcome.connector");
-    let (outcome, width) = outcome_at(cursor, 0)
-        .ok_or_else(|| cursor.fail("`If you do,`, `If you don't,` or `When you do,`"))?;
-    cursor.advance_to(cursor.position() + width)?;
-    Ok(outcome)
 }
 
 #[cfg(test)]

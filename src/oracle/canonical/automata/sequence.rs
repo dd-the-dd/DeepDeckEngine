@@ -751,6 +751,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             .map(|binding| super::PlayerBinding(binding.effect_index)),
                         subject: None,
                         effect_index: Some(effect_index),
+                        ..super::BindingEnvironment::default()
                     },
                 )));
                 let base_action_context = action_context;

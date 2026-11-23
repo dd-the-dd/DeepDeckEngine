@@ -68,11 +68,38 @@ fn a_mandatory_draw_reuses_the_measured_instruction_contract() {
 }
 
 #[test]
-fn if_you_do_after_a_mandatory_instruction_is_not_a_reflexive_outcome() {
-    // Near miss: `If you do` has no permission to observe and stays unsupported.
+fn if_you_do_after_a_mandatory_instruction_gates_the_body_on_its_performance() {
+    // CR 608.2c: the connector observes the instruction's ActionResult. It is
+    // not reflexive: the body runs inside the resolving ability and its
+    // targets belong to the enclosing declaration.
+    // Unused combination: a discard instruction gating a draw.
+    let rule = trigger("When this artifact enters, discard a card. If you do, draw two cards.");
+    let block = &rule["effects"][0];
+    assert_eq!(block["kind"], "performAction");
+    assert_eq!(block["action"]["kind"], "discardCards");
+    assert_eq!(block["onPerformed"][0]["kind"], "drawCards");
+    assert!(block["onPerformed"][0].get("ability").is_none());
+}
+
+#[test]
+fn a_declined_outcome_after_a_mandatory_instruction_fails_explicitly() {
+    // Near miss: a mandatory instruction has no declined branch to observe.
     assert!(
         parse(
-            "When this artifact enters, draw a card. If you do, you gain 2 life.",
+            "When this artifact enters, draw a card. If you don't, you gain 2 life.",
+            "triggeredAbility",
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn a_connector_subject_must_name_the_permission_performer() {
+    // The ActionResult antecedent of `you may` is the controller: `If they
+    // do` names nobody here and fails instead of guessing a performer.
+    assert!(
+        parse(
+            "When this artifact enters, you may draw a card. If they do, you gain 2 life.",
             "triggeredAbility",
         )
         .is_err()
