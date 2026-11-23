@@ -390,6 +390,7 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             subject,
             verb,
             damage,
+            ..
         }) if subject.multiplicity == EventMultiplicity::PerObject => match verb {
             ObjectEventVerb::Attack
             | ObjectEventVerb::Die
