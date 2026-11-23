@@ -94,3 +94,50 @@ fn negated_statuses_also_modify_one_head() {
         "{predicate:?}"
     );
 }
+
+#[test]
+fn a_run_of_negative_modifiers_without_a_head_is_not_a_list() {
+    // `noncreature, nonland` has no noun to modify: the comma is returned
+    // instead of composing a union of two bare modifiers.
+    let (predicate, next) = read("noncreature, nonland, draw a card");
+    assert_eq!(
+        predicate,
+        SelectorPredicate::Not(Box::new(card_type(ObjectCardType::Creature)))
+    );
+    assert_eq!(next.as_deref(), Some(","));
+}
+
+#[test]
+fn modifiers_of_one_head_followed_by_or_are_refused() {
+    // `nonartifact, nonblack creature or planeswalker`: the modifiers' scope
+    // over the `or` branch is unproved, so the list fails explicitly instead
+    // of becoming a union with a bare `nonartifact`.
+    let tokens = recognize_entities("nonartifact, nonblack creature or planeswalker");
+    let mut cursor = OracleTokenCursor::new("transactional-coordinator", &tokens);
+    let failure = recognize_object_query(&mut cursor).expect_err("unproved modifier scope");
+    assert_eq!(
+        failure.expected,
+        "a negative-modifier list whose head is not coordinated with another branch"
+    );
+    // Near miss: the explicit `, or` union of modifiers keeps its reading.
+    let (predicate, next) = read("noncreature, or nonland permanent");
+    assert!(matches!(predicate, SelectorPredicate::Intersection(_)));
+    assert_eq!(next, None);
+}
+
+#[test]
+fn an_or_closing_members_of_different_number_is_the_parent_clause() {
+    // `If you control an artifact, creatures or planeswalkers you control
+    // get ...`: one list's members share their number, so the comma and the
+    // `or` belong to the following clause.
+    let (predicate, next) = read("artifact, creatures or planeswalkers you control get +1/+1");
+    assert_eq!(predicate, card_type(ObjectCardType::Artifact));
+    assert_eq!(next.as_deref(), Some(","));
+    // Near miss: members of the same number still form the list.
+    let (predicate, next) = read("artifacts, creatures or planeswalkers you control get +1/+1");
+    assert!(
+        matches!(&predicate, SelectorPredicate::Union(branches) if branches.len() == 3),
+        "{predicate:?}"
+    );
+    assert_eq!(next.as_deref(), Some("get"));
+}

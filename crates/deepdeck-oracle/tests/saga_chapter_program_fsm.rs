@@ -127,3 +127,47 @@ fn a_modal_chapter_reads_its_modes_like_a_modal_trigger() {
         rules[0]
     );
 }
+
+#[test]
+fn die_roll_result_rows_are_never_unconditional_abilities() {
+    // Diviner's Portent: `15+ |` rows are die-roll results, not station
+    // bands; whatever owns them, they are not accepted as unconditional.
+    let request = OracleCardParseRequest {
+        card_name: "Diviner's Portent".to_string(),
+        type_line: "Instant".to_string(),
+        mana_cost: Some("{3}{U}{U}".to_string()),
+        oracle_text: Some(
+            "Roll a d20 and add the number of cards in your hand.\n1\u{2014}14 | Draw X cards.\n15+ | Scry X, then draw X cards."
+                .to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    let parsed = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || parse_oracle_card(request))
+        .expect("parser thread")
+        .join()
+        .expect("parser");
+    assert_ne!(parsed.status, "canonical");
+    for row in [
+        "1\u{2014}14 | Draw X cards.",
+        "15+ | Scry X, then draw X cards.",
+    ] {
+        let ability = parsed
+            .abilities
+            .iter()
+            .find(|ability| ability.source.text == row)
+            .unwrap_or_else(|| panic!("{row}: {:#?}", parsed.abilities));
+        assert_ne!(ability.status, "canonical", "{row}");
+        assert!(ability.rule.is_none(), "{row}");
+        // Not mislabelled as a station band body either.
+        assert!(
+            ability
+                .diagnostics
+                .iter()
+                .all(|diagnostic| diagnostic.code != "ungated_band_body"),
+            "{row}"
+        );
+    }
+}

@@ -144,3 +144,73 @@ fn a_targeted_grouped_chapter_declares_its_target_each_time_it_triggers() {
         assert_eq!(toughness(&engine, "own-bear"), 3);
     }
 }
+
+/// Picks the second printed mode of a modal declaration; any other choice
+/// takes its first option.
+struct SecondMode;
+impl DecisionProvider for SecondMode {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        Ok(request
+            .options
+            .iter()
+            .position(|option| option.decisions.get("chosenModes") == Some(&json!(["mode2"])))
+            .unwrap_or(0))
+    }
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
+#[test]
+fn a_modal_chapter_declares_and_honours_its_chosen_mode() {
+    // CR 700.2b: the mode of a modal triggered ability is chosen as it is
+    // put on the stack; only that mode resolves.
+    let compilation = compile_playable_card(PlayableCardInput {
+        id: "modal-saga".to_string(),
+        face_id: None,
+        is_token: false,
+        is_game_piece: false,
+        is_sideboard: false,
+        power: None,
+        toughness: None,
+        oracle: OracleCardParseRequest {
+            card_name: "Modal Saga".to_string(),
+            type_line: "Enchantment \u{2014} Saga".to_string(),
+            mana_cost: Some("{1}{B}".to_string()),
+            oracle_text: Some("(As this Saga enters and after your draw step, add a lore counter. Sacrifice after II.)\nI \u{2014} Choose one \u{2014}\n\u{2022} You gain 3 life.\n\u{2022} Each opponent loses 3 life.\nII \u{2014} Draw a card.".to_string()),
+            layout: Some("saga".to_string()),
+            faces: Vec::new(),
+        },
+    })
+    .expect("the Saga compiles");
+    assert_eq!(
+        compilation.engine_status, "executable",
+        "{:#?}",
+        compilation.parser_result.diagnostics
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![test_instance("modal-saga", compilation.card, "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let (life, opponent) = (engine.state.players[0].life, engine.state.players[1].life);
+    assert_eq!(engine.put_counters_on_permanent("modal-saga", "lore", 1), 1);
+    engine
+        .commit_pending_triggered_targets(&mut SecondMode)
+        .expect("the chapter declares its mode");
+    let [stacked] = engine.state.stack.as_slice() else {
+        panic!("chapter I alone triggers: {:#?}", engine.state.stack);
+    };
+    assert_eq!(
+        stacked.decisions.get("chosenModes"),
+        Some(&json!(["mode2"]))
+    );
+    engine
+        .resolve_top_stack(&mut SecondMode)
+        .expect("the chapter resolves");
+    assert_eq!(engine.state.players[0].life, life);
+    assert_eq!(engine.state.players[1].life, opponent - 3);
+}

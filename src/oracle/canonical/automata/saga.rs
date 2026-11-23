@@ -8,6 +8,7 @@ use super::{
     recognize_activated_mana_ability, recognize_characteristic_token_activation,
     recognize_controller_library_search, recognize_effect_program_with_context,
     recognize_effect_sequence_modal_with_context, triggered_body_context,
+    triggered_modal_body_context,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -202,19 +203,20 @@ pub(in crate::oracle::canonical) fn recognize_saga_chapter(
     } else {
         cursor.enter("saga.chapter.program");
         let source = EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf);
+        let program_context = triggered_body_context(source.clone(), None);
         SagaChapterBodyNode::Program(if modal_trigger_body_starts(cursor) {
             TriggerBodyNode::Modal(recognize_effect_sequence_modal_with_context(
                 cursor,
                 name_links,
                 name_failure,
-                &source,
+                &triggered_modal_body_context(source, &program_context),
             )?)
         } else {
             TriggerBodyNode::Program(recognize_effect_program_with_context(
                 cursor,
                 name_links,
                 name_failure,
-                &triggered_body_context(source, None),
+                &program_context,
             )?)
         })
     };

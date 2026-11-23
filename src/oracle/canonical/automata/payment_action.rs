@@ -289,7 +289,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
     };
     let objects = |cursor: &mut OracleTokenCursor<'_>, verb: PaymentVerb| {
         cursor.enter(verb.operand_state());
-        recognize_payment_objects(cursor, verb, form.third_person && verb.lists_continue())
+        recognize_payment_objects(cursor, verb)
     };
     match (lemma, frame) {
         (VerbLemma::Pay, ArgumentFrame::ResourcePayment) => {
@@ -418,11 +418,6 @@ impl PaymentVerb {
         }
     }
 
-    /// A third-person payer's object list may continue after a comma.
-    fn lists_continue(self) -> bool {
-        matches!(self, Self::Sacrifice)
-    }
-
     fn operand_state(self) -> &'static str {
         match self {
             Self::Tap => "action.tap.operand",
@@ -438,14 +433,12 @@ impl PaymentVerb {
     }
 }
 
-/// The shared selection operand: a source reference or chosen objects.
-/// `list_continues`: a third-person payer's object list may continue after a
-/// comma (`unless they sacrifice a creature, artifact, or land`); an
-/// imperative cost list keeps the comma as its own separator.
+/// The shared selection operand: a source reference or chosen objects. The
+/// object query decides whether a comma continues its own list (`unless they
+/// sacrifice a creature, artifact, or land`) or belongs to the cost list.
 fn recognize_payment_objects(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
-    list_continues: bool,
 ) -> MachineResult<PaymentObjectsNode> {
     cursor.enter("cost.payment.selection");
     if cursor
@@ -456,7 +449,7 @@ fn recognize_payment_objects(
         cursor.enter("cost.payment.source.noun");
         return recognize_source_noun(cursor, verb.domain()).map(PaymentObjectsNode::Source);
     }
-    recognize_chosen_objects(cursor, verb, list_continues).map(PaymentObjectsNode::Chosen)
+    recognize_chosen_objects(cursor, verb).map(PaymentObjectsNode::Chosen)
 }
 
 fn recognize_source_noun(
@@ -481,7 +474,6 @@ fn recognize_source_noun(
 fn recognize_chosen_objects(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
-    list_continues: bool,
 ) -> MachineResult<ChosenPaymentObjectsNode> {
     cursor.enter("cost.payment.quantity");
     cursor.require(
@@ -526,7 +518,7 @@ fn recognize_chosen_objects(
     let filter =
         match verb.domain() {
             OperandDomain::Permanent => PaymentObjectFilter::Permanents(
-                recognize_permanent_operand(cursor, verb, exclude_source, list_continues)?,
+                recognize_permanent_operand(cursor, verb, exclude_source)?,
             ),
             OperandDomain::Card => {
                 cursor.enter("cost.payment.card-query");
@@ -555,15 +547,10 @@ fn recognize_permanent_operand(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
     exclude_source: bool,
-    list_continues: bool,
 ) -> MachineResult<ObjectQueryNode> {
     cursor.enter("cost.payment.object-query");
     let query_start = cursor.position();
-    let object = if list_continues {
-        recognize_object_query(cursor)?
-    } else {
-        recognize_object_query(cursor)?
-    };
+    let object = recognize_object_query(cursor)?;
     // `another X or a Y`: each branch has its own article, so one source
     // exclusion cannot be scoped to the whole query.
     cursor.enter("cost.payment.branch-article");
@@ -692,7 +679,6 @@ fn recognize_counter_holder(
                 cursor,
                 PaymentVerb::Remove,
                 false,
-                false,
             )?)
         }
         "among" => {
@@ -700,7 +686,6 @@ fn recognize_counter_holder(
             CounterHolderNode::Among(recognize_permanent_operand(
                 cursor,
                 PaymentVerb::Remove,
-                false,
                 false,
             )?)
         }
