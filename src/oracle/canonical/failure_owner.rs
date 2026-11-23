@@ -22,7 +22,8 @@
 //! Composed states are built from bounded parts (frame states, lexicon lemmas,
 //! tokenizer classes and sanitized Oracle words) and interned once.
 use super::automata::{
-    ALL_LEMMAS, VerbForm, diagnostic_word_key, is_unsupported_rules_verb, lookup_verb,
+    Auxiliary, EFFECT_LEMMAS, VerbForm, diagnostic_word_key, is_unsupported_rules_verb,
+    lookup_auxiliary, lookup_verb,
 };
 use super::machine::{MachineFailure, OracleTokenCursor, intern_state};
 use crate::oracle::ability_catalog::{AbilityCategory, match_catalog_mechanic};
@@ -281,16 +282,21 @@ fn fused_copula(lower: &str) -> bool {
 }
 
 /// The modality written between a subject and its verb, as a state suffix.
+/// The clause's own auxiliary table (`lookup_auxiliary`) is the authority;
+/// only the past and future auxiliaries it does not read yet are listed here.
 fn modality(lower: &str) -> Option<&'static str> {
+    if let Some((auxiliary, _)) = lookup_auxiliary(lower) {
+        return Some(match auxiliary {
+            Auxiliary::May => ".may",
+            Auxiliary::Can => ".can",
+            Auxiliary::Cannot => ".cannot",
+            Auxiliary::DoNot => ".negated",
+            Auxiliary::Must => ".must",
+            Auxiliary::Would => ".would",
+        });
+    }
     Some(match lower {
-        "may" => ".may",
-        "can" => ".can",
-        "can't" | "can\u{2019}t" | "cannot" => ".cannot",
-        "don't" | "don\u{2019}t" | "doesn't" | "doesn\u{2019}t" | "didn't" | "didn\u{2019}t" => {
-            ".negated"
-        }
-        "must" => ".must",
-        "would" => ".would",
+        "didn't" | "didn\u{2019}t" => ".negated",
         "could" => ".could",
         "will" => ".will",
         _ => return None,
@@ -380,7 +386,7 @@ fn relative_clause_verb(previous: &RecognizedEntity, lower: &str) -> bool {
 fn finite_verb(tokens: &[RecognizedEntity], index: usize) -> Option<String> {
     let token = tokens.get(index)?;
     let lower = token.raw.to_lowercase();
-    if let Some((entry, forms)) = lookup_verb(&lower, &ALL_LEMMAS) {
+    if let Some((entry, forms)) = lookup_verb(&lower, &EFFECT_LEMMAS) {
         return forms
             .iter()
             .any(|form| matches!(form, VerbForm::Base | VerbForm::ThirdPersonSingular))

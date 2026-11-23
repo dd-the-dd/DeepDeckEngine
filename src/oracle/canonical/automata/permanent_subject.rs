@@ -480,9 +480,11 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         )?;
         return Ok(PermanentOperandNode::Targets(targets));
     }
-    // A bare plural collection (`other creatures you control`): the shared
-    // collection frame reads its optional source exclusion. This lookahead
-    // only decides whether a characteristic head follows.
+    // A bare plural collection (`other creatures you control`, `attacking
+    // creatures`, `tapped creatures`; #18 object-set subject): the shared
+    // collection frame reads its optional source exclusion and its state
+    // adjectives. This lookahead only decides whether a characteristic or
+    // state head follows.
     let head_offset = usize::from(
         cursor
             .peek()
@@ -497,7 +499,12 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         .is_some_and(|token| {
             matches!(
                 token.token_type.as_str(),
-                "typeWord" | "negativeTypeWord" | "supertypeWord" | "colorWord"
+                "typeWord"
+                    | "negativeTypeWord"
+                    | "supertypeWord"
+                    | "colorWord"
+                    | "stateWord"
+                    | "combatStateWord"
             )
         })
     {

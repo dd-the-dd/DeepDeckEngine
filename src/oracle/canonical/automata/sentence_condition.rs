@@ -181,6 +181,21 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition(
     Ok(condition)
 }
 
+/// Reads a postposed `if CONDITION` (`Draw a card if you control a
+/// Wizard.`, #11 Branch): the same condition as the preposed form, without
+/// its comma; the sequence parent owns the sentence end and the gated range.
+pub(in crate::oracle::canonical) fn recognize_postposed_sentence_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &SentenceConditionContext<'_>,
+) -> MachineResult<SentenceConditionNode> {
+    cursor.enter("condition.sentence.postposed-if");
+    cursor.consume("if")?;
+    cursor.enter("condition.sentence.boolean-program");
+    recognize_boolean_condition_list_before_separator(cursor, |cursor| {
+        recognize_sentence_condition_atom(cursor, context)
+    })
+}
+
 pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &SentenceConditionContext<'_>,

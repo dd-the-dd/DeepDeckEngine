@@ -132,10 +132,16 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
             "sacrifice this enchantment unless any player pays {3}.",
             "sequence.unless.payer.any-player",
         ),
-        // `its` needs a target declared by the guarded action.
+        // `its` needs a target declared by the guarded action: the shared
+        // performer grammar names the missing antecedent.
         (
             "sacrifice this creature unless its controller pays {1}.",
-            "reference.anaphora.resolve-target",
+            "player-subject.object-relation.antecedent",
+        ),
+        // An owner pays nothing the frame lowers.
+        (
+            "destroy target artifact unless its owner pays {2}.",
+            "sequence.unless.payer.binding",
         ),
         // A state condition is not a payment.
         (

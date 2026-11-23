@@ -128,10 +128,19 @@ fn unrelated_player_exile_phrases_remain_outside_the_promoted_boundary() {
         ability.diagnostics[0].automaton.as_deref(),
         Some("contextual-effect-program")
     );
-    // The mill reader no longer claims a target subject it cannot mill: the
-    // clause reports its deepest component, the subject and its lemma (S0).
+    // The effect dispatcher reads the declared subject and routes only a
+    // target player who mills to the mill frame; any other verb fails at the
+    // shared clause state naming the lemma and the subject kind (S3).
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("effect.clause/subject.target.verb.exile")
+        Some("clause.verb.unsupported")
+    );
+    assert!(
+        ability.diagnostics[0]
+            .expected
+            .as_deref()
+            .is_some_and(|expected| expected.contains("a declared target player")),
+        "{:#?}",
+        ability.diagnostics
     );
 }
