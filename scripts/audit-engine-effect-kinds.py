@@ -121,6 +121,22 @@ def retired_list(path,raw=None):
     if len(values)!=len(set(values)):raise ValueError('duplicate retired kind')
     return values
 
+# Kinds the engine builds for itself and executes without any validator. No Oracle text lowers
+# to them, so no card contract may accept them: accepting one would let a parsed card claim an
+# engine-internal step as executable coverage. Any other executor without acceptance fails.
+ENGINE_SYNTHESIZED_EFFECTS={
+    # Paradigm: in its controller's precombat main phase, enqueue_paradigm_triggers (mod.rs) turns
+    # a `paradigmDelayedTrigger` rule modifier into a triggered ability whose only effect is
+    # castParadigmCopy and puts it on the stack itself.
+    'castParadigmCopy',
+}
+
+def engine_synthesized_executors(executor_only):
+    """The executor-only kinds, all of which must be registered engine-synthesized kinds."""
+    unexplained=sorted(set(executor_only)-ENGINE_SYNTHESIZED_EFFECTS)
+    if unexplained:raise ValueError(f'executor without any accepting validator: {unexplained}; add the validator arm, or register an engine-synthesized kind with its origin')
+    return sorted(set(executor_only))
+
 def census(sources):
     accepted=collections.defaultdict(list);executed=collections.defaultdict(list)
     def add(target,path,name,role):
@@ -357,6 +373,7 @@ def main(argv=None):
     sources={p:RustSource(p,b) for p,b in raw.items()};conformance=role_conformance(sources);accepted,executed=census(sources)
     counts={'acceptedKinds':len(accepted),'executedKinds':len(executed),'both':len(accepted.keys()&executed.keys()),
             'acceptedWithoutExecutor':sorted(accepted.keys()-executed.keys()),'executorWithoutAcceptance':sorted(executed.keys()-accepted.keys())}
+    counts['engineSynthesizedWithoutValidator']=engine_synthesized_executors(counts['executorWithoutAcceptance'])
     retired_raw=args.retired_kinds_json.read_bytes() if args.retired_kinds_json else None
     retired=retired_list(args.retired_kinds_json,retired_raw) if args.retired_kinds_json else []
     guard={'checked':bool(args.retired_kinds_json),'retiredKinds':retired,

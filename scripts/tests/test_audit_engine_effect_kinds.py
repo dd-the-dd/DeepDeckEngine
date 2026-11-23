@@ -339,4 +339,9 @@ fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
         with self.assertRaisesRegex(ValueError,r"reads keys the census cannot prove are not the kind: \['slot'\]"):
             role_conformance(self.root_sources(self.ROUTED_PERFORMER,renamed))
 
+    def test_executor_without_validator_must_be_engine_synthesized(self):
+        self.assertEqual(MODULE.engine_synthesized_executors(['castParadigmCopy']),['castParadigmCopy'])
+        with self.assertRaisesRegex(ValueError,r"executor without any accepting validator: \['hiddenKind'\]"):
+            MODULE.engine_synthesized_executors(['castParadigmCopy','hiddenKind'])
+
 if __name__=='__main__':unittest.main(verbosity=2)
