@@ -1018,53 +1018,6 @@ fn close_comma_run(
     Ok(true)
 }
 
-/// Negative modifiers sharing the run's last, headed branch (`nonartifact,
-/// nonblack creature`). A run of modifiers alone (`noncreature, nonland`)
-/// has no head to modify and is not this form.
-fn modifiers_of_one_head(run: &[SelectorPredicate]) -> bool {
-    let Some((last, preceding)) = run.split_last() else {
-        return false;
-    };
-    !preceding.is_empty() && preceding.iter().all(negative_modifier) && !negative_modifier(last)
-}
-
-/// Gives an open comma run's commas back to the parent: the cursor and the
-/// frame return to the first comma. False when no run is open.
-fn abandon_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryFrame) -> bool {
-    let Some((checkpoint, snapshot)) = frame.comma_run.take() else {
-        return false;
-    };
-    cursor.rollback(checkpoint);
-    *frame = *snapshot;
-    true
-}
-
-/// Closes an open comma run at `or`/`and/or`. The members of one list share
-/// their grammatical number (`an artifact, creatures or planeswalkers you
-/// control get` is a parent clause, not a list): otherwise the run is
-/// abandoned and false is returned. `nonartifact, nonblack creature or
-/// planeswalker` has no proved scope for its modifiers and is refused.
-fn close_comma_run(
-    cursor: &mut OracleTokenCursor<'_>,
-    frame: &mut ObjectQueryFrame,
-) -> MachineResult<bool> {
-    let Some((_, snapshot)) = frame.comma_run.as_ref() else {
-        return Ok(true);
-    };
-    let run_start = snapshot.union_branches.len().saturating_sub(1);
-    let plural = &frame.branch_has_plural_surface[run_start..];
-    if plural.iter().any(|flag| *flag != plural[0]) {
-        abandon_comma_run(cursor, frame);
-        return Ok(false);
-    }
-    cursor.require(
-        !modifiers_of_one_head(&frame.union_branches[run_start..]),
-        "a negative-modifier list whose head is not coordinated with another branch",
-    )?;
-    frame.comma_run = None;
-    Ok(true)
-}
-
 fn negative_modifier(predicate: &SelectorPredicate) -> bool {
     match predicate {
         // `nonattacking, nonblocking creature`: negated statuses too.

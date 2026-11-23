@@ -20,8 +20,7 @@ use super::{
     PlayerStateConditionNode, PlayerStateMeasure, TargetPlayerLifeAction, ThresholdOperator,
     recognize_boolean_condition_list_before_separator, recognize_clause, recognize_condition_atom,
     recognize_count_threshold, recognize_numeric_atom, recognize_object_query,
-    recognize_player_possession_proposition, recognize_search_card_selector,
-    recognize_spell_cast_query, threshold_comparison,
+    recognize_player_possession_proposition, recognize_search_card_selector, threshold_comparison,
 };
 use super::{ClauseArguments, VerbForm, VerbLemma, Voice, is_verb_form, lookup_verb};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
@@ -553,7 +552,9 @@ fn recognize_history_predicate(
             cursor.enter("condition.history.cast.amount");
             let threshold = recognize_count_threshold(cursor, true)?;
             cursor.enter("condition.history.cast.query");
-            let query = recognize_spell_cast_query(cursor)?;
+            let query =
+                super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
+                    .into_spell_cast_query(cursor)?;
             cursor.require(
                 query.caster.is_none(),
                 "one caster relation, supplied by the history's player subject",
@@ -741,7 +742,10 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
     )?;
     cursor.enter("condition.history.object.query");
     let (predicate, player, domain) = if verb == ObjectHistoryVerb::WasCast {
-        let query = cursor.bounded(verb_position, recognize_spell_cast_query)?;
+        let query = cursor.bounded(verb_position, |cursor| {
+            super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
+                .into_spell_cast_query(cursor)
+        })?;
         cursor.require(
             query.caster.is_none(),
             "a spell query without a caster relation (the actor is a separate subject)",

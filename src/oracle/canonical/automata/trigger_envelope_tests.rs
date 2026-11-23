@@ -1,3 +1,4 @@
+use super::super::{ObjectControllerScope, PermanentDiedEventBranchNode};
 use super::*;
 use crate::oracle::syntax::recognize_oracle_entities;
 

@@ -65,6 +65,9 @@ pub(super) fn band_gate_open(source: &CardInstance, rule: &Value) -> bool {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "band_gate_tests.rs"]
 mod tests;

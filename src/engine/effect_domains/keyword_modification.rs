@@ -357,7 +357,7 @@ impl GameEngine {
                         .iter()
                         .position(|rule| rule == from)
                     {
-                        permanent.definition.printed_rules()[rule_index] = to.clone();
+                        permanent.definition.printed_rules_mut()[rule_index] = to.clone();
                         self.record_event(
                             "abilityReplaced",
                             Some(stack_object.controller.clone()),
