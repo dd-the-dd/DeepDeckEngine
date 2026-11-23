@@ -479,3 +479,14 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   ne s'y appliquent (Goblin Spymaster garde son `Creatures you control`).
 - Sonde : ligue 820 → 820, corpus 14847 → 14847, 0 perte, aucune IR
   modifiée : aucune carte supportée ne contenait ce cas.
+
+### Étape 27 : permission d'un exécutant (`each opponent may …`)
+
+- `PLAYER may VERB …` est la permission propre de l'exécutant (CR 608.2d) :
+  le dernier mot du sujet se lit `you`, le verbe reste nu, et le programme
+  facultatif existant (`recognize_optional_sequence`) lit la phrase ;
+  l'exécutant (singulier ou boucle de population) est posé sur
+  `optionalEffects`, dont le moteur adresse déjà le choix au joueur résolu.
+- Sonde : ligue 826 → 827 (+1 : Fecundity), corpus 15080 → 15089 (+9 :
+  Hunted Wumpus, Harbor Guardian, Vex, Brood Sliver…), 0 perte, IR des
+  cartes supportées inchangée.

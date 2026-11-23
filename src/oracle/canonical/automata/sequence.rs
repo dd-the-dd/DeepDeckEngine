@@ -1112,11 +1112,30 @@ fn recognize_effect_sequence_attempt_scoped(
                                         Ok(tokens) => {
                                             let mut shifted = head.with_tokens(&tokens);
                                             let controller = super::PlayerEffectSubject::Controller;
-                                            match read_action(
-                                                &mut shifted,
-                                                Some(&controller),
-                                                attempt_frame,
-                                            ) {
+                                            // `PLAYER may ...`: the performer's
+                                            // own optional sentence, read from
+                                            // the subject's last word as `you`.
+                                            let modal = head
+                                                .peek()
+                                                .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
+                                            let read = if modal {
+                                                let at = shifted.position() - 1;
+                                                shifted.rollback_to_position(at);
+                                                super::recognize_optional_sequence(
+                                                    &mut shifted,
+                                                    name_links,
+                                                    name_failure,
+                                                    &action_context,
+                                                )
+                                                .map(LocalEffectNode::OptionalSequence)
+                                            } else {
+                                                read_action(
+                                                    &mut shifted,
+                                                    Some(&controller),
+                                                    attempt_frame,
+                                                )
+                                            };
+                                            match read {
                                                 Ok(effect) => {
                                                     let end = shifted.position();
                                                     cursor.advance_to(end).map(|()| {

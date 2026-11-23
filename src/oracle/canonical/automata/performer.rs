@@ -138,6 +138,19 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
 ) -> MachineResult<Vec<RecognizedEntity>> {
     let mut cursor = cursor.clone();
     cursor.enter("clause.performer.verb");
+    // `PLAYER may VERB`: the permission is the performer's own `you may`
+    // (CR 608.2d): the subject's last word reads `you`, the verb is bare.
+    let modal = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
+    if modal {
+        cursor.consume("may")?;
+    }
+    let agreement = if modal {
+        VerbAgreement::Base
+    } else {
+        agreement
+    };
     let raw = cursor
         .peek()
         .ok_or_else(|| cursor.fail("a verb after the performer"))?;
@@ -153,7 +166,11 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     )?;
     let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
     let verb = cursor.position();
-    replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
+    if modal {
+        replace_word(&mut tokens[verb - 2], "you");
+    } else {
+        replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
+    }
     // A written `you` in another player's clause names the ability's
     // controller, which the performer's instruction would read as the
     // performer itself: that reading is ambiguous and fails explicitly.
