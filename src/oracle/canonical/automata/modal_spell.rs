@@ -12,7 +12,14 @@
 //!              | "any" "number"               zero to every mode
 //! RepeatPermission := "you may choose the same mode more than once" "."   (CR 700.2d)
 //! Mode        := "•" [FlavorWord "—"] EffectProgram
+//!
+//! SpreeBody   := "Spree" [Reminder] SpreeMode{2,}                    (CR 702.172)
+//! SpreeMode   := "+" ManaCost "—" EffectProgram
 //! ```
+//!
+//! A Spree mode's cost is an additional cost paid only when that mode is
+//! chosen (CR 702.172a); the `+` marker has no other rules meaning (CR
+//! 702.172b).
 //!
 //! Commitment is structural: a body is modal only when it starts with
 //! `choose` and contains a mode bullet. `a`/`an` are articles, never a mode
@@ -23,8 +30,9 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    EffectProgramNode, EffectRecognitionContext, rebase_machine_failure, rebase_name_failure,
-    rebase_name_link, recognize_effect_program_with_context,
+    EffectProgramNode, EffectRecognitionContext, ManaCostNode, rebase_machine_failure,
+    rebase_name_failure, rebase_name_link, recognize_effect_program_with_context,
+    recognize_mana_cost,
 };
 
 const MODE_BULLET: &str = "\u{2022}";
@@ -35,6 +43,9 @@ pub(in crate::oracle::canonical) struct EffectSequenceModalNode {
     pub cardinality: ModalCardinalityNode,
     /// Every printed mode is one shared effect program.
     pub modes: Vec<EffectProgramNode>,
+    /// Spree (CR 702.172a): the additional cost of each mode, in mode order.
+    /// Empty for a bulleted modal ability.
+    pub mode_costs: Vec<ManaCostNode>,
 }
 
 impl EffectSequenceModalNode {
@@ -267,50 +278,144 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_context
             cursor.enter("modal.effect-sequence.mode-flavor-word");
             cursor.advance_to(cursor.position() + label_width + 1)?;
         }
-        let mode_start = cursor.position();
-        let mut mode_end = mode_start;
-        while let Some(raw) = cursor.peek_ahead(mode_end - mode_start) {
-            if raw == MODE_BULLET {
-                break;
-            }
-            mode_end += 1;
-        }
-        cursor.enter("modal.effect-sequence.mode-body");
-        cursor.require(mode_end > mode_start, "a nonempty modal effect program")?;
-        let mode_links = name_links
-            .iter()
-            .filter_map(|link| rebase_name_link(link, mode_start, mode_end))
-            .collect::<Vec<_>>();
-        let mode_failure =
-            name_failure.and_then(|failure| rebase_name_failure(failure, mode_start, mode_end));
-        let mut mode_cursor = OracleTokenCursor::new(
-            "modal-effect-sequence-mode",
-            cursor.token_slice(mode_start, mode_end),
-        );
-        // The event's `that many` quantity reaches every mode.
-        mode_cursor.set_event_numeric_binding(cursor.event_numeric_binding());
-        // Every mode is lowered by the shared modal lowering, which owns
-        // its `unless` frames (CR 118.12).
-        let mode = recognize_effect_program_with_context(
-            &mut mode_cursor,
-            &mode_links,
-            mode_failure.as_ref(),
-            &context.clone().with_unless_frames(),
-        )
-        .and_then(|mode| {
-            mode_cursor.enter("modal.effect-sequence.mode-complete");
-            mode_cursor.finish()?;
-            Ok(mode)
-        })
-        .map_err(|failure| rebase_machine_failure(failure, mode_start))?;
-        modes.push(mode);
-        cursor.advance_to(mode_end)?;
+        modes.push(recognize_mode_program(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+            |tokens, offset| tokens[offset].raw == MODE_BULLET,
+        )?);
     }
 
     cursor.enter("modal.effect-sequence.complete");
     let cardinality = resolve_cardinality(cursor, header, modes.len())?;
     cursor.finish()?;
-    Ok(EffectSequenceModalNode { cardinality, modes })
+    Ok(EffectSequenceModalNode {
+        cardinality,
+        modes,
+        mode_costs: Vec::new(),
+    })
+}
+
+/// Reads one mode body from the cursor up to the next mode marker (as
+/// `is_marker` decides) or the end, as one complete shared effect program on
+/// a bounded subcursor with rebased name links.
+fn recognize_mode_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    is_marker: impl Fn(&[crate::oracle::model::RecognizedEntity], usize) -> bool,
+) -> MachineResult<EffectProgramNode> {
+    let mode_start = cursor.position();
+    let remaining = cursor.token_slice(mode_start, usize::MAX);
+    let mode_end = mode_start
+        + (0..remaining.len())
+            .find(|offset| is_marker(remaining, *offset))
+            .unwrap_or(remaining.len());
+    cursor.enter("modal.effect-sequence.mode-body");
+    cursor.require(mode_end > mode_start, "a nonempty modal effect program")?;
+    let mode_links = name_links
+        .iter()
+        .filter_map(|link| rebase_name_link(link, mode_start, mode_end))
+        .collect::<Vec<_>>();
+    let mode_failure =
+        name_failure.and_then(|failure| rebase_name_failure(failure, mode_start, mode_end));
+    let mut mode_cursor = OracleTokenCursor::new(
+        "modal-effect-sequence-mode",
+        cursor.token_slice(mode_start, mode_end),
+    );
+    // The event's `that many` quantity reaches every mode.
+    mode_cursor.set_event_numeric_binding(cursor.event_numeric_binding());
+    // Every mode is lowered by the shared modal lowering, which owns its
+    // `unless` frames (CR 118.12).
+    let mode = recognize_effect_program_with_context(
+        &mut mode_cursor,
+        &mode_links,
+        mode_failure.as_ref(),
+        &context.clone().with_unless_frames(),
+    )
+    .and_then(|mode| {
+        mode_cursor.enter("modal.effect-sequence.mode-complete");
+        mode_cursor.finish()?;
+        Ok(mode)
+    })
+    .map_err(|failure| rebase_machine_failure(failure, mode_start))?;
+    cursor.advance_to(mode_end)?;
+    Ok(mode)
+}
+
+/// A Spree mode marker: `+` followed by the mode's mana cost.
+fn spree_marker_at(tokens: &[crate::oracle::model::RecognizedEntity], offset: usize) -> bool {
+    tokens[offset].raw == "+"
+        && tokens
+            .get(offset + 1)
+            .is_some_and(|token| token.token_type == "manaSymbol")
+}
+
+/// Structural markers of a Spree body: the `Spree` keyword and a `+ COST`
+/// mode marker. Nothing is consumed.
+pub(in crate::oracle::canonical) fn spree_body_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let tokens = cursor.token_slice(cursor.position(), usize::MAX);
+    word_at(cursor, 0, "spree") && (0..tokens.len()).any(|offset| spree_marker_at(tokens, offset))
+}
+
+/// `Spree (reminder) + COST — MODE + COST — MODE ...`: one or more modes
+/// (CR 702.172a), each with its own additional cost.
+pub(in crate::oracle::canonical) fn recognize_spree_modal(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<EffectSequenceModalNode> {
+    let context = EffectRecognitionContext::default();
+    cursor.enter("modal.spree.keyword");
+    cursor.consume("spree")?;
+    if cursor.peek() == Some("(") {
+        // CR 207.2: the reminder restates CR 702.172a and has no rules meaning.
+        cursor.enter("modal.spree.reminder");
+        cursor.consume("(")?;
+        let mut depth = 1usize;
+        while depth > 0 {
+            match cursor.peek() {
+                None => return Err(cursor.fail("a closing parenthesis for the Spree reminder")),
+                Some("(") => depth += 1,
+                Some(")") => depth -= 1,
+                Some(_) => {}
+            }
+            cursor.advance_to(cursor.position() + 1)?;
+        }
+    }
+    let mut modes = Vec::new();
+    let mut mode_costs = Vec::new();
+    while cursor.peek() == Some("+") {
+        cursor.enter("modal.spree.mode-marker");
+        cursor.consume("+")?;
+        mode_costs.push(recognize_mana_cost(cursor)?);
+        cursor.enter("modal.spree.mode-dash");
+        cursor.consume(HEADER_DASH)?;
+        modes.push(recognize_mode_program(
+            cursor,
+            name_links,
+            name_failure,
+            &context,
+            spree_marker_at,
+        )?);
+    }
+    cursor.enter("modal.spree.complete");
+    let cardinality = resolve_cardinality(
+        cursor,
+        ModalHeaderNode {
+            count: ModeCountNode::AtLeast(1),
+            allow_repeated: false,
+        },
+        modes.len(),
+    )?;
+    cursor.finish()?;
+    Ok(EffectSequenceModalNode {
+        cardinality,
+        modes,
+        mode_costs,
+    })
 }
 
 /// Width of a mode's leading flavor-word label: a short run of words closed

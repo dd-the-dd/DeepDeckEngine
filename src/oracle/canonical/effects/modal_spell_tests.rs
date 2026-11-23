@@ -206,3 +206,27 @@ fn a_mode_is_a_whole_effect_program() {
         "{rule:#}"
     );
 }
+
+#[test]
+fn spree_modes_carry_their_costs_as_mode_conditioned_additional_costs() {
+    // CR 702.172a: one or more modes; each chosen mode's cost is paid as an
+    // additional cost. The `+` markers delimit the shared mode bodies.
+    let text = "Spree (Choose one or more additional costs.)\n+ {1} \u{2014} Destroy all artifacts.\n+ {2}{R} \u{2014} Destroy all creatures.";
+    let rule = modal_rule(text).expect("a Spree body is a modal container");
+    let modes = &rule["declaration"]["decisions"][0];
+    assert_eq!(modes["kind"], "chooseModes");
+    assert_eq!(modes["minimum"], 1);
+    assert_eq!(modes["maximum"]["value"], 2);
+    let costs = rule["declaration"]["additionalCosts"]
+        .as_array()
+        .expect("mode costs");
+    assert_eq!(costs.len(), 2);
+    assert_eq!(costs[0]["kind"], "conditional");
+    assert_eq!(costs[0]["condition"]["value"], "mode1");
+    assert_eq!(costs[1]["then"][0]["manaCost"], "{2}{R}");
+}
+
+#[test]
+fn a_spree_near_miss_without_mode_costs_is_not_claimed() {
+    assert!(!claims("Spree (Choose one or more additional costs.)"));
+}

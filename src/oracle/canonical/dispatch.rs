@@ -490,6 +490,19 @@ fn parse_existing_native_rule(
         };
     }
 
+    if claims_promoted_spree_family(input) {
+        return match parse_promoted_effect_sequence_modal(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if ability_kind == "triggeredAbility" && claims_promoted_became_target_trigger_family(input) {
         return match parse_promoted_became_target_trigger(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

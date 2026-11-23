@@ -2,33 +2,49 @@ use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
 /// Claims a spell whose body carries the modal container's structural
-/// markers (`choose` and a mode bullet). Once claimed, the header and every
-/// mode fail explicitly in their own states; nothing falls back.
+/// markers (`choose` and a mode bullet, or `Spree` and a `+ COST` mode).
+/// Once claimed, the header and every mode fail explicitly in their own
+/// states; nothing falls back.
 pub(in crate::oracle::canonical) fn claims_promoted_effect_sequence_modal_family(
     input: &AbilityInput<'_>,
 ) -> bool {
     let probe = OracleTokenCursor::new("modal-body-probe", input.tokens);
-    modal_body_starts(&probe)
+    modal_body_starts(&probe) || spree_body_starts(&probe)
+}
+
+/// The Spree container (CR 702.172) is claimed by its keyword and `+ COST`
+/// markers before any keyword-line family can read `Spree` alone.
+pub(in crate::oracle::canonical) fn claims_promoted_spree_family(input: &AbilityInput<'_>) -> bool {
+    spree_body_starts(&OracleTokenCursor::new("spree-body-probe", input.tokens))
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_effect_sequence_modal(
     input: &AbilityInput<'_>,
 ) -> MachineResult<CanonicalRuleDraft> {
     let mut cursor = OracleTokenCursor::new("modal-effect-program", input.tokens);
-    let modal = recognize_effect_sequence_modal(
-        &mut cursor,
-        input.name_links,
-        input.name_resolution_failure,
-    )?;
+    let modal = if spree_body_starts(&cursor) {
+        recognize_spree_modal(&mut cursor, input.name_links, input.name_resolution_failure)?
+    } else {
+        recognize_effect_sequence_modal(
+            &mut cursor,
+            input.name_links,
+            input.name_resolution_failure,
+        )?
+    };
     let lowered = lower_effect_sequence_modal(&mut cursor, &modal)?;
+    let mut declaration = json!({
+        "kind": "castingDeclaration",
+        "decisions": lowered.decisions,
+    });
+    let additional_costs = lower_mode_additional_costs(&modal);
+    if !additional_costs.is_empty() {
+        declaration["additionalCosts"] = Value::Array(additional_costs);
+    }
     Ok(draft(
         json!({
             "kind": "spellAbility",
             "source": self_ref(),
-            "declaration": {
-                "kind": "castingDeclaration",
-                "decisions": lowered.decisions,
-            },
+            "declaration": declaration,
             "effects": lowered.effects,
         }),
         &[
@@ -38,6 +54,23 @@ pub(in crate::oracle::canonical) fn parse_promoted_effect_sequence_modal(
             "Preserve printed mode and effect order during lowering",
         ],
     ))
+}
+
+/// CR 702.172a: each Spree mode's cost is an additional cost paid exactly
+/// when that mode is chosen. Bulleted modes carry no cost.
+fn lower_mode_additional_costs(modal: &EffectSequenceModalNode) -> Vec<Value> {
+    modal
+        .mode_costs
+        .iter()
+        .enumerate()
+        .map(|(index, cost)| {
+            json!({
+                "kind": "conditional",
+                "condition": selection("chosenModes", &format!("mode{}", index + 1)),
+                "then": [lower_resource_mana_payment(cost)],
+            })
+        })
+        .collect()
 }
 
 /// One lowered occurrence of a mode: its selection condition and program.
