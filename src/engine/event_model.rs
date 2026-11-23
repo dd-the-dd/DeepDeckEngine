@@ -63,6 +63,42 @@ pub(super) struct CombatEventRecord {
     pub attacker_turn_ordinal: Option<usize>,
     /// Per-turn ordinal of this lemma for the blocker (block records).
     pub blocker_turn_ordinal: Option<usize>,
+    /// The player whose turn it is when the action happens (CR 500.1): the
+    /// turn owner a `during your turn` modifier compares with.
+    pub turn_player: String,
+}
+
+/// A turn-owner modifier of a pattern, relative to the source's controller
+/// (CR 500.1), whoever performs the action.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum TurnOwnerRelation {
+    /// `during your turn`.
+    SourceController,
+    /// `during an opponent's turn`.
+    OpponentOfSourceController,
+}
+
+impl TurnOwnerRelation {
+    /// The `duringControllerTurn` / `duringOpponentTurn` fields shared with
+    /// the cast pattern; both at once is contradictory and unsupported.
+    fn from_pattern(event: &Value) -> Option<Option<Self>> {
+        match (
+            optional_flag(event, "duringControllerTurn")?,
+            optional_flag(event, "duringOpponentTurn")?,
+        ) {
+            (false, false) => Some(None),
+            (true, false) => Some(Some(Self::SourceController)),
+            (false, true) => Some(Some(Self::OpponentOfSourceController)),
+            (true, true) => None,
+        }
+    }
+
+    pub(super) fn matches(self, turn_player: &str, source_controller: &str) -> bool {
+        match self {
+            Self::SourceController => turn_player == source_controller,
+            Self::OpponentOfSourceController => turn_player != source_controller,
+        }
+    }
 }
 
 impl CombatEventRecord {
@@ -168,6 +204,8 @@ pub(super) struct CombatEventPattern<'a> {
     pub face_down_only: bool,
     /// `for the first time each turn`: the subject's per-turn ordinal.
     pub turn_ordinal: Option<usize>,
+    /// `during your turn` / `during an opponent's turn` (CR 500.1).
+    pub turn_owner: Option<TurnOwnerRelation>,
     pub group: PublicationGroup,
     /// A pattern written in the generic `eventPattern` IR.
     pub generic: bool,
@@ -193,6 +231,7 @@ impl<'a> CombatEventPattern<'a> {
             saddled_only: false,
             face_down_only: false,
             turn_ordinal: None,
+            turn_owner: None,
             group,
             generic: false,
         }
@@ -380,6 +419,8 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             "attackingAlone",
             "declaredAttacker",
             "turnOrdinal",
+            "duringControllerTurn",
+            "duringOpponentTurn",
             "aggregation",
         ],
     ) {
@@ -519,6 +560,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
         attacking_alone,
         declared_attacker,
         turn_ordinal,
+        turn_owner: TurnOwnerRelation::from_pattern(event)?,
         generic: true,
         ..CombatEventPattern::new(lemma, subject_role, relation, group)
     })
@@ -625,6 +667,11 @@ impl GameEngine {
         }
         if let Some(ordinal) = pattern.turn_ordinal
             && record.turn_ordinal(pattern.subject_role) != Some(ordinal)
+        {
+            return false;
+        }
+        if let Some(owner) = pattern.turn_owner
+            && !owner.matches(&record.turn_player, &source.controller)
         {
             return false;
         }
@@ -795,6 +842,7 @@ impl GameEngine {
                     self.combat_turn_ordinal("attackerDeclared", attacker_id),
                 ),
                 blocker_turn_ordinal: None,
+                turn_player: actor.clone(),
             })
             .collect()
     }
@@ -829,6 +877,7 @@ impl GameEngine {
                 == 1,
             attacker_turn_ordinal: None,
             blocker_turn_ordinal: Some(self.combat_turn_ordinal("blockerDeclared", blocker_id)),
+            turn_player: self.state.players[self.state.active_player].id.clone(),
         }
     }
 
@@ -862,6 +911,7 @@ impl GameEngine {
                 first_block_by_blocker: false,
                 attacker_turn_ordinal: None,
                 blocker_turn_ordinal: None,
+                turn_player: actor.clone(),
             })
             .collect()
     }

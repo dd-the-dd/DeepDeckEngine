@@ -87,17 +87,11 @@ fn read_action(
     }))
 }
 
-fn recognize(
+/// The actor, its alternative verbs and the shared object, after the
+/// trigger word and before the separator.
+fn recognize_clause(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<Option<ActorObjectEventAlternativesNode>> {
-    let Some(word) = cursor
-        .peek()
-        .filter(|s| s.eq_ignore_ascii_case("when") || s.eq_ignore_ascii_case("whenever"))
-    else {
-        return Ok(None);
-    };
-    let introducer = word.to_string();
-    cursor.consume(&introducer)?;
     let Some(actor) = try_recognize_event_actor_scope(cursor)? else {
         return Ok(None);
     };
@@ -138,8 +132,6 @@ fn recognize(
         "event.actor-object.object-domain",
         "event.actor-object.object-controller",
     )?;
-    cursor.enter("event.actor-object.separator");
-    cursor.consume(",")?;
     Ok(Some(ActorObjectEventAlternativesNode {
         actor,
         actions,
@@ -148,11 +140,13 @@ fn recognize(
     }))
 }
 
-pub(in crate::oracle::canonical) fn try_recognize_actor_object_event(
+/// The clause after the trigger word, for the shared event clause
+/// (`event_clause.rs`), which owns the trigger word and separator.
+pub(in crate::oracle::canonical) fn try_recognize_actor_object_event_clause(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> ActorObjectEventAttempt {
     let checkpoint = cursor.checkpoint();
-    match recognize(cursor) {
+    match recognize_clause(cursor) {
         Ok(Some(event)) => ActorObjectEventAttempt::Recognized(event),
         Ok(None) => {
             cursor.rollback(checkpoint);

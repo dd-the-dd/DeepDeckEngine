@@ -53,12 +53,9 @@ pub(in crate::oracle::canonical) struct SpellOriginNode {
     pub own_zone: bool,
 }
 
-/// `during your turn` / `during an opponent's turn` (CR 500.1).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum SpellTurnNode {
-    ControllerTurn,
-    OpponentTurn,
-}
+/// `during your turn` / `during an opponent's turn` (CR 500.1): the shared
+/// event modifier of `event_modifiers.rs`.
+pub(in crate::oracle::canonical) type SpellTurnNode = super::EventTurnOwner;
 
 /// `that targets [only] T [or T]...`: the spell's targets (CR 115.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -145,18 +142,6 @@ fn recognize_spell_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<S
         excluded,
         own_zone,
     })
-}
-
-/// Reads `during your turn` or `during an opponent's turn`.
-fn recognize_spell_turn(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SpellTurnNode> {
-    cursor.enter("event.spell-cast.turn");
-    cursor.consume("during")?;
-    if peek_word(cursor, 0, "your") {
-        cursor.consume_phrase(&["your", "turn"])?;
-        return Ok(SpellTurnNode::ControllerTurn);
-    }
-    cursor.consume_phrase(&["an", "opponent's", "turn"])?;
-    Ok(SpellTurnNode::OpponentTurn)
 }
 
 fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -250,7 +235,9 @@ pub(in crate::oracle::canonical) fn recognize_spell_cast_event_atom(
         .ok_or_else(|| cursor.fail("a supported spell-cast event atom"))
 }
 
-fn recognize_optional_spell_cast_event_atom(
+/// The cast clause after the trigger word, without the envelope separator.
+/// `Ok(None)` when no actor-cast clause starts at the cursor.
+pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
     cursor: &mut OracleTokenCursor<'_>,
     ordinal_support: SpellCastOrdinalSupport,
 ) -> MachineResult<Option<SpellCastEventNode>> {
@@ -389,7 +376,7 @@ fn recognize_optional_spell_cast_event_atom(
                     frame.origin = Some(recognize_spell_origin(cursor)?);
                 }
                 if peek_word(cursor, 0, "during") {
-                    frame.turn = Some(recognize_spell_turn(cursor)?);
+                    frame.turn = Some(super::recognize_turn_owner_modifier(cursor)?);
                 }
                 if frame.ordinal.is_some() {
                     SpellCastEventState::Period

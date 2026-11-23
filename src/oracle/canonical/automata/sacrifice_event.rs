@@ -38,7 +38,7 @@ pub(in crate::oracle::canonical) fn try_recognize_sacrifice_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> SacrificeEventAttempt {
     let checkpoint = cursor.checkpoint();
-    match recognize_sacrifice_event_attempt(cursor) {
+    match recognize_sacrifice_event_attempt(cursor, SacrificeEventState::Trigger) {
         Ok(Some(event)) => SacrificeEventAttempt::Recognized(event),
         Ok(None) => {
             cursor.rollback(checkpoint);
@@ -48,10 +48,30 @@ pub(in crate::oracle::canonical) fn try_recognize_sacrifice_event(
     }
 }
 
+/// The sacrifice clause after the trigger word, for the shared event clause
+/// (`event_clause.rs`), which owns the trigger word and separator.
+pub(in crate::oracle::canonical) fn try_recognize_sacrifice_event_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> SacrificeEventAttempt {
+    let checkpoint = cursor.checkpoint();
+    match recognize_sacrifice_event_attempt(cursor, SacrificeEventState::Actor) {
+        Ok(Some(event)) => SacrificeEventAttempt::Recognized(event),
+        Ok(None) => {
+            cursor.rollback(checkpoint);
+            SacrificeEventAttempt::NotClaimed
+        }
+        Err(failure) => SacrificeEventAttempt::Failed(failure),
+    }
+}
+
+/// From `Trigger`, the complete envelope (trigger word to separator); from
+/// `Actor`, the clause alone, completed before the separator.
 fn recognize_sacrifice_event_attempt(
     cursor: &mut OracleTokenCursor<'_>,
+    start: SacrificeEventState,
 ) -> MachineResult<Option<SacrificeEventNode>> {
-    let mut state = SacrificeEventState::Trigger;
+    let with_envelope = matches!(start, SacrificeEventState::Trigger);
+    let mut state = start;
     let mut frame = SacrificeEventFrame::default();
     loop {
         state = match state {
@@ -102,7 +122,11 @@ fn recognize_sacrifice_event_attempt(
                 )?;
                 frame.object = Some(object);
                 frame.exclude_source = exclude_source;
-                SacrificeEventState::Separator
+                if with_envelope {
+                    SacrificeEventState::Separator
+                } else {
+                    SacrificeEventState::Complete
+                }
             }
             SacrificeEventState::Separator => {
                 cursor.enter("event.sacrifice.separator");

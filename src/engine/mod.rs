@@ -22611,6 +22611,7 @@ impl GameEngine {
                         .iter()
                         .any(|event| {
                             value_kind(event) == Some("becameTarget")
+                                && !targeting_triggers::is_generic_became_target_event(event)
                                 && value_kind(&event["object"]) == Some("self")
                                 && (event["stackObjectKind"].as_str() != Some("spell")
                                     || targeting_stack_is_spell)

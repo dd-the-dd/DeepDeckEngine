@@ -11,16 +11,20 @@
 //!                `is|are dealt [combat|noncombat] damage`, `clause.rs`)
 //!              | enter(s) | die(s)
 //!              | ("is" | "are") "put into a graveyard from the battlefield"
+//! ObjectEvent [alone] ModifierTail   -- `event_modifiers.rs`
 //! ```
 //!
 //! The event kind is the verb; the subject is the shared numeric bound plus
 //! the shared object query. The trigger parent interprets the bound as event
 //! multiplicity; a condition parent would interpret the same bound as a count.
+//! Every verb is a lexicon lemma read in the subject's agreement; only the
+//! passive auxiliary (`is`/`are`) is read here.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ClauseModality, DamageArguments, DamageClauseArguments, DamageKind, NumericAtom,
-    ObjectQueryNode, VerbAgreement, Voice, recognize_numeric_atom, recognize_object_collection,
-    recognize_object_query, recognize_supplied_damage_clause, supplied_damage_frame,
+    ClauseModality, DamageArguments, DamageClauseArguments, DamageKind, EventModifierTail,
+    NumericAtom, ObjectQueryNode, VerbAgreement, VerbLemma, Voice, consume_lemma, lemma_at,
+    recognize_numeric_atom, recognize_object_collection, recognize_object_query,
+    recognize_supplied_damage_clause, supplied_damage_frame,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -78,6 +82,11 @@ pub(in crate::oracle::canonical) struct ObjectEventNode {
     pub verb: ObjectEventVerb,
     /// The shared damage complement of `DealDamage`.
     pub damage: Option<super::DamageDealtComplement>,
+    /// `attacks alone` (CR 506.5).
+    pub alone: bool,
+    /// The shared clause modifier tail; each event kind's lowering decides
+    /// which modifiers its matcher evaluates.
+    pub modifiers: EventModifierTail,
 }
 
 /// `N or more` at the cursor, as a lexical probe that commits nothing.
@@ -165,49 +174,17 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             Some(_) => return Err(cursor.fail("a damage event complement")),
         };
         cursor.enter("event.object.complete");
+        let modifiers = super::read_event_modifier_tail(cursor)?;
         return Ok(ObjectEventNode {
             subject,
             verb,
             damage,
+            alone: false,
+            modifiers,
         });
     }
     cursor.enter("event.object.verb");
-    let raw = cursor
-        .peek()
-        .map(str::to_ascii_lowercase)
-        .ok_or_else(|| cursor.fail("an object event verb"))?;
-    let next_is = |word: &str| {
-        cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
-    };
-    let (base, mut verb) = match raw.as_str() {
-        "leave" | "leaves" if next_is("the") => ("leave", ObjectEventVerb::LeaveBattlefield),
-        "leave" | "leaves" => ("leave", ObjectEventVerb::LeaveControllerGraveyard),
-        "attack" | "attacks" => ("attack", ObjectEventVerb::Attack),
-        "block" | "blocks" => ("block", ObjectEventVerb::Block),
-        "become" | "becomes" => ("become", ObjectEventVerb::BecomeBlocked),
-        "enter" | "enters" => ("enter", ObjectEventVerb::Enter),
-        "die" | "dies" => ("die", ObjectEventVerb::Die),
-        "is" | "are" if next_is("put") => ("is", ObjectEventVerb::PutIntoGraveyardFromBattlefield),
-        _ => {
-            return Err(cursor.fail(
-                "leave, attack, block, become blocked, deal combat damage, enter, die, be put into a graveyard or be dealt damage",
-            ));
-        }
-    };
-    cursor.enter("event.object.verb-agreement");
-    let expected = match (base, singular) {
-        ("is", true) => "is".to_string(),
-        ("is", false) => "are".to_string(),
-        (_, true) => format!("{base}s"),
-        (_, false) => base.to_string(),
-    };
-    cursor.require(
-        raw == expected,
-        "a verb agreeing in number with its subject",
-    )?;
-    cursor.consume(&expected)?;
+    let mut verb = recognize_object_event_verb(cursor, agreement)?;
     cursor.enter("event.object.complement");
     match verb {
         ObjectEventVerb::LeaveControllerGraveyard => {
@@ -274,12 +251,81 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         | ObjectEventVerb::Die
         | ObjectEventVerb::PutIntoGraveyard(..) => {}
     }
+    // `alone` (CR 506.5) is typed after any verb; the lowering decides which
+    // verbs evaluate it. The clause tail follows.
+    let alone = super::consume_alone_modifier(cursor)?;
+    let modifiers = super::read_event_modifier_tail(cursor)?;
     cursor.enter("event.object.complete");
     Ok(ObjectEventNode {
         subject,
         verb,
         damage: None,
+        alone,
+        modifiers,
     })
+}
+
+/// The object-event lemmas, each with the event kind its frame denotes.
+const OBJECT_EVENT_LEMMAS: [VerbLemma; 6] = [
+    VerbLemma::Leave,
+    VerbLemma::Attack,
+    VerbLemma::Block,
+    VerbLemma::Become,
+    VerbLemma::Enter,
+    VerbLemma::Die,
+];
+
+/// The passive auxiliary `be` agreeing with the subject (`is`/`are put`).
+fn passive_auxiliary(agreement: VerbAgreement) -> &'static str {
+    match agreement {
+        VerbAgreement::ThirdPersonSingular => "is",
+        VerbAgreement::Base => "are",
+    }
+}
+
+/// Reads the event verb as a lexicon lemma in the subject's agreement. A
+/// lemma written in the other agreement is a distinct agreement failure.
+fn recognize_object_event_verb(
+    cursor: &mut OracleTokenCursor<'_>,
+    agreement: VerbAgreement,
+) -> MachineResult<ObjectEventVerb> {
+    let other = match agreement {
+        VerbAgreement::ThirdPersonSingular => VerbAgreement::Base,
+        VerbAgreement::Base => VerbAgreement::ThirdPersonSingular,
+    };
+    let passive_put = |cursor: &OracleTokenCursor<'_>, agreement: VerbAgreement| {
+        peek_word(cursor, 0, passive_auxiliary(agreement)) && peek_word(cursor, 1, "put")
+    };
+    if passive_put(cursor, agreement) {
+        cursor.consume(passive_auxiliary(agreement))?;
+        return Ok(ObjectEventVerb::PutIntoGraveyardFromBattlefield);
+    }
+    if let Some(lemma) = OBJECT_EVENT_LEMMAS
+        .into_iter()
+        .find(|lemma| lemma_at(cursor, *lemma, agreement))
+    {
+        consume_lemma(cursor, lemma, agreement)?;
+        return Ok(match lemma {
+            VerbLemma::Leave if peek_word(cursor, 0, "the") => ObjectEventVerb::LeaveBattlefield,
+            VerbLemma::Leave => ObjectEventVerb::LeaveControllerGraveyard,
+            VerbLemma::Attack => ObjectEventVerb::Attack,
+            VerbLemma::Block => ObjectEventVerb::Block,
+            VerbLemma::Become => ObjectEventVerb::BecomeBlocked,
+            VerbLemma::Enter => ObjectEventVerb::Enter,
+            _ => ObjectEventVerb::Die,
+        });
+    }
+    if passive_put(cursor, other)
+        || OBJECT_EVENT_LEMMAS
+            .into_iter()
+            .any(|lemma| lemma_at(cursor, lemma, other))
+    {
+        cursor.enter("event.object.verb-agreement");
+        return Err(cursor.fail("a verb agreeing in number with its subject"));
+    }
+    Err(cursor.fail(
+        "leave, attack, block, become blocked, deal combat damage, enter, die, be put into a graveyard or be dealt damage",
+    ))
 }
 
 fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {

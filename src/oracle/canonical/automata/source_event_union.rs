@@ -7,7 +7,9 @@
 //!              | "leaves the battlefield"
 //!              | "is put into a graveyard from the battlefield"
 //!              | "becomes" ("tapped" | "untapped" | "blocked")
+//!              | "becomes the target of" STACK-OBJECT
 //!              | "exploits" COUNTERPART
+//! SourceEvent ModifierTail   -- the shared tail of `event_modifiers.rs`
 //! ```
 //!
 //! The subject is the shared source reference; each verb is one event atom.
@@ -41,6 +43,9 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     BecameTapped,
     BecameUntapped,
     BecameBlocked,
+    /// `becomes the target of STACK-OBJECT` (CR 115.1), always with its
+    /// targeting stack-object selector (`SourceEventModifier::TargetingStack`).
+    BecameTarget,
     /// `exploits a creature` (CR 702.110b), always with its counterpart.
     Exploited,
 }
@@ -80,6 +85,27 @@ pub(in crate::oracle::canonical) enum SourceEventModifier {
     NotBlocked,
     /// `for the first time each turn`.
     FirstTimeEachTurn,
+    /// `during your turn` / `during an opponent's turn` (CR 500.1).
+    DuringTurn(super::EventTurnOwner),
+    /// The spell or ability of `becomes the target of STACK-OBJECT`.
+    TargetingStack(super::TargetingStackSelectorNode),
+}
+
+impl SourceEventModifier {
+    /// The clause-level modifiers of the shared tail, as source modifiers.
+    pub(in crate::oracle::canonical) fn from_tail(tail: super::EventModifierTail) -> Vec<Self> {
+        let mut modifiers = Vec::new();
+        if tail.not_blocked {
+            modifiers.push(Self::NotBlocked);
+        }
+        if tail.first_time_each_turn {
+            modifiers.push(Self::FirstTimeEachTurn);
+        }
+        if let Some(owner) = tail.turn_owner {
+            modifiers.push(Self::DuringTurn(owner));
+        }
+        modifiers
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -154,8 +180,7 @@ fn recognize_source_event_verb(
     }
     if verb_at(cursor, VerbLemma::Attack) {
         consume_verb(cursor, VerbLemma::Attack)?;
-        if peek_is(cursor, 0, "alone") {
-            cursor.consume("alone")?;
+        if super::consume_alone_modifier(cursor)? {
             modifiers.push(SourceEventModifier::AttackingAlone);
         }
         return Ok(SourceEventVerb::Attacked);
@@ -227,6 +252,17 @@ fn recognize_source_event_verb(
     }
     if verb_at(cursor, VerbLemma::Become) {
         consume_verb(cursor, VerbLemma::Become)?;
+        // The targeting frame of `become` (CR 115.1): the stack object is
+        // a typed attribute; a source observer takes any controller.
+        if super::targeting_frame_starts(cursor, 0) {
+            super::consume_targeting_relation(cursor)?;
+            let stack = super::recognize_targeting_stack_selector(
+                cursor,
+                super::TargetingControllerPolicy::Optional,
+            )?;
+            modifiers.push(SourceEventModifier::TargetingStack(stack));
+            return Ok(SourceEventVerb::BecameTarget);
+        }
         cursor.enter("event.source.becomes");
         let state = cursor
             .peek()
@@ -290,24 +326,11 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
             }
         }
     }
-    // Generic event modifiers: the negated companion event and the
-    // turn-ordinal qualifier. They are typed attributes of the pattern.
-    cursor.enter("event.source.modifier");
-    if peek_is(cursor, 0, "and")
-        && (peek_is(cursor, 1, "isn't") || peek_is(cursor, 1, "isn’t"))
-        && peek_is(cursor, 2, "blocked")
-    {
-        cursor.advance_to(cursor.position() + 3)?;
-        modifiers.push(SourceEventModifier::NotBlocked);
-    }
-    if peek_is(cursor, 0, "for")
-        && peek_is(cursor, 1, "the")
-        && peek_is(cursor, 2, "first")
-        && peek_is(cursor, 3, "time")
-    {
-        cursor.consume_phrase(&["for", "the", "first", "time", "each", "turn"])?;
-        modifiers.push(SourceEventModifier::FirstTimeEachTurn);
-    }
+    // The shared clause modifier tail (the negated companion event, the
+    // turn ordinal, the turn owner): typed attributes of the pattern.
+    modifiers.extend(SourceEventModifier::from_tail(
+        super::read_event_modifier_tail(cursor)?,
+    ));
     cursor.enter("event.source.complete");
     Ok(SourceEventUnionNode {
         source,

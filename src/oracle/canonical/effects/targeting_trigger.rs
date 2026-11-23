@@ -1,3 +1,6 @@
+//! Lowering of the targeting frame of `become` (CR 115.1) to the generic
+//! `becameTarget` event: the targeted subject (a selector union or the
+//! source) and the targeting stack-object selector.
 use super::super::*;
 
 fn lower_controller(scope: ObjectControllerScope) -> Value {
@@ -32,6 +35,30 @@ fn lower_targeting_stack_kind(kind: TargetingStackKind) -> Value {
     }
 }
 
+/// The spell or ability that targets: `stackItems` with its kinds and, when
+/// written, its controller relation (absent: any controller).
+pub(in crate::oracle::canonical) fn lower_targeting_stack_selector(
+    selector: &TargetingStackSelectorNode,
+) -> Value {
+    let mut source_kinds = selector
+        .kinds
+        .iter()
+        .copied()
+        .map(lower_targeting_stack_kind)
+        .collect::<Vec<_>>();
+    let source_where = if source_kinds.len() == 1 {
+        source_kinds.pop().expect("one stack-source kind")
+    } else {
+        or(source_kinds)
+    };
+    let mut lowered = json!({"kind": "stackItems"});
+    if let Some(controller) = selector.controller {
+        lowered["controller"] = lower_controller(controller);
+    }
+    lowered["where"] = source_where;
+    lowered
+}
+
 pub(in crate::oracle::canonical) fn lower_became_target_event(
     event: &BecameTargetEventNode,
 ) -> Value {
@@ -45,39 +72,21 @@ pub(in crate::oracle::canonical) fn lower_became_target_event(
     } else {
         json!({ "kind": "union", "sets": object_sets })
     };
-    let mut source_kinds = event
-        .targeting_stack
-        .kinds
-        .iter()
-        .copied()
-        .map(lower_targeting_stack_kind)
-        .collect::<Vec<_>>();
-    let source_where = if source_kinds.len() == 1 {
-        source_kinds.pop().expect("one stack-source kind")
-    } else {
-        or(source_kinds)
-    };
     json!({
         "kind": "becameTarget",
         "object": object,
-        "targetingStackObject": {
-            "kind": "stackItems",
-            "controller": lower_controller(event.targeting_stack.controller),
-            "where": source_where,
-        },
+        "targetingStackObject": lower_targeting_stack_selector(&event.targeting_stack),
     })
 }
 
-pub(in crate::oracle::canonical) fn lower_targetless_trigger_effects(
-    effects: &EffectSequenceNode,
-) -> Result<Vec<Value>, TargetlessLoweringError> {
-    let mut lowered = Vec::new();
-    for (effect_index, effect) in effects.effects.iter().enumerate() {
-        lowered.extend(lower_targetless_local_effects(
-            effect,
-            TargetlessDeclarationSupport::None,
-            Some(&format!("targetingEffect{effect_index}")),
-        )?);
-    }
-    Ok(lowered)
+/// The source itself as the targeted object (`this creature becomes the
+/// target of ...`), matched by the generic targeting observer.
+pub(in crate::oracle::canonical) fn lower_source_became_target_event(
+    selector: &TargetingStackSelectorNode,
+) -> Value {
+    json!({
+        "kind": "becameTarget",
+        "object": self_ref(),
+        "targetingStackObject": lower_targeting_stack_selector(selector),
+    })
 }

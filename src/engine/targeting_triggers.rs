@@ -19,6 +19,19 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
     if value_kind(event) != Some("becameTarget") {
         return None;
     }
+    // The generic form: a targeted subject and a typed targeting stack-object
+    // selector, matched by `enqueue_generic_became_target_triggers`.
+    if is_generic_became_target_event(event) {
+        return Some(
+            event.as_object().is_some_and(|fields| {
+                fields
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "kind" | "object" | "targetingStackObject"))
+            }) && (value_kind(&event["object"]) == Some("self")
+                || became_target_object_selector_supported(&event["object"]))
+                && targeting_stack_selector_supported(&event["targetingStackObject"]),
+        );
+    }
     if value_kind(&event["object"]) == Some("self") {
         return Some(
             event
@@ -29,10 +42,14 @@ pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
                     .is_none_or(|kind| matches!(kind.as_str(), Some("spell" | "spellOrAbility"))),
         );
     }
-    Some(
-        became_target_object_selector_supported(&event["object"])
-            && targeting_stack_selector_supported(&event["targetingStackObject"]),
-    )
+    Some(false)
+}
+
+/// A `becameTarget` event with a typed targeting stack-object selector. The
+/// historical self form (`stackObjectKind`, `controlledByOpponent`, ward)
+/// has its own publication path and never carries this selector.
+pub(super) fn is_generic_became_target_event(event: &Value) -> bool {
+    value_kind(event) == Some("becameTarget") && event.get("targetingStackObject").is_some()
 }
 
 fn controller_reference_supported(reference: &Value) -> bool {
@@ -62,11 +79,12 @@ fn became_target_object_selector_supported(selector: &Value) -> bool {
     }
 }
 
+/// An absent controller is a stack object of any controller.
 fn targeting_stack_selector_supported(selector: &Value) -> bool {
     value_kind(selector) == Some("stackItems")
         && selector
             .get("controller")
-            .is_some_and(controller_reference_supported)
+            .is_none_or(controller_reference_supported)
         && target_candidates_supported(selector)
 }
 
@@ -312,11 +330,13 @@ impl GameEngine {
         source: &CardInstance,
     ) -> bool {
         value_kind(selector) == Some("stackItems")
-            && controller_reference_matches(
-                &selector["controller"],
-                &targeting_stack.controller,
-                &source.controller,
-            )
+            && selector.get("controller").is_none_or(|controller| {
+                controller_reference_matches(
+                    controller,
+                    &targeting_stack.controller,
+                    &source.controller,
+                )
+            })
             && matches_stack_item_filter(targeting_stack, &selector["where"])
     }
 
@@ -327,6 +347,12 @@ impl GameEngine {
         source: &CardInstance,
     ) -> bool {
         match value_kind(selector) {
+            // The observing permanent itself (`this creature becomes the
+            // target of ...`), while it is on the battlefield.
+            Some("self") => matches!(
+                target,
+                TargetRef::Permanent { instance_id } if *instance_id == source.instance_id
+            ),
             Some("union") => selector["sets"].as_array().is_some_and(|sets| {
                 sets.iter()
                     .any(|set| self.target_matches_event_object(set, target, source))
@@ -451,8 +477,7 @@ impl GameEngine {
                         && triggered_event_variants(&rule["event"])
                             .iter()
                             .any(|event| {
-                                value_kind(event) == Some("becameTarget")
-                                    && value_kind(&event["object"]) != Some("self")
+                                is_generic_became_target_event(event)
                                     && self.target_matches_event_object(
                                         &event["object"],
                                         &target,
