@@ -1447,7 +1447,12 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.destroy-reference.permanent-binding");
                 let reference =
                     lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
-                let mut lowered = json!({"kind": "destroyPermanent", "permanent": reference});
+                let kind = match destroy.action {
+                    ReferencedPermanentAction::Destroy => "destroyPermanent",
+                    ReferencedPermanentAction::Exile => "exilePermanent",
+                    ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
+                };
+                let mut lowered = json!({"kind": kind, "permanent": reference});
                 if destroy.cannot_regenerate {
                     lowered["cannotRegenerate"] = json!(true);
                 }

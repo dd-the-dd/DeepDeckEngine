@@ -610,3 +610,40 @@ fn a_clause_without_a_duration_is_indefinite() {
     let (status, _, _) = parse(SORCERY, "Target creature gets +2/+2.");
     assert_ne!(status, "canonical");
 }
+
+/// `exile|sacrifice it` on the permanent a move put onto the battlefield is
+/// the bound permanent, and a delayed timing captures it (CR 603.7c).
+#[test]
+fn a_delayed_action_on_the_returned_permanent() {
+    // Real card: Goryo's Vengeance. Unused recombination: a sacrifice of the
+    // returned card at the end step.
+    for (oracle, kind) in [
+        (
+            "Return target legendary creature card from your graveyard to the battlefield. That creature gains haste. Exile it at the beginning of the next end step.",
+            "exilePermanent",
+        ),
+        (
+            "Return target creature card from your graveyard to the battlefield. Sacrifice it at the beginning of the next end step.",
+            "sacrificePermanent",
+        ),
+    ] {
+        let effects = effects("Instant", oracle);
+        let delayed = effects
+            .iter()
+            .find(|effect| effect["kind"] == "installDelayedStepTrigger")
+            .unwrap_or_else(|| panic!("a delayed trigger: {effects:#?}"));
+        assert_eq!(delayed["effects"][0]["kind"], kind, "{delayed:#}");
+        assert!(
+            delayed["captureBindings"]
+                .as_array()
+                .is_some_and(|bindings| !bindings.is_empty()),
+            "{delayed:#}"
+        );
+    }
+    // Near miss: a card returned to the hand is no permanent antecedent.
+    let (status, _, _) = parse(
+        "Instant",
+        "Return target creature card from your graveyard to your hand. Sacrifice it at the beginning of the next end step.",
+    );
+    assert_ne!(status, "canonical");
+}

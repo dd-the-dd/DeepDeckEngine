@@ -45,7 +45,11 @@ fn supports_known_effect(effect: &Value) -> bool {
             (matches!(
                 value_kind(&effect["permanent"]),
                 Some("self" | "abilitySource")
-            ) || target_reference_supported(&effect["permanent"]))
+            ) || target_reference_supported(&effect["permanent"])
+                || matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("singleBoundObject" | "boundObject")
+                ))
                 && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("sacrificePermanents") => {

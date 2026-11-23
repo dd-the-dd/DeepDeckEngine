@@ -229,6 +229,65 @@ pub(in crate::oracle::canonical) fn recognize_destroy_regeneration_prohibition(
 pub(in crate::oracle::canonical) struct DestroyReferenceEffectNode {
     pub object: super::PermanentEffectReference,
     pub cannot_regenerate: bool,
+    /// The zone action on the bound permanent.
+    pub action: ReferencedPermanentAction,
+}
+
+/// What happens to one bound permanent reference.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ReferencedPermanentAction {
+    /// CR 701.8.
+    Destroy,
+    /// CR 701.13.
+    Exile,
+    /// CR 701.21: only its controller sacrifices it.
+    Sacrifice,
+}
+
+/// `exile|sacrifice REFERENCE` on a permanent the program bound other than
+/// the ability's source (`exile it` after a card was returned to the
+/// battlefield, `sacrifice that creature`). Source references keep their
+/// own readers; anything else is not claimed.
+pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+    context: &super::EffectRecognitionContext,
+) -> Option<MachineResult<DestroyReferenceEffectNode>> {
+    let action = if super::lemma_at(cursor, super::VerbLemma::Exile, super::VerbAgreement::Base) {
+        ReferencedPermanentAction::Exile
+    } else if super::lemma_at(
+        cursor,
+        super::VerbLemma::Sacrifice,
+        super::VerbAgreement::Base,
+    ) {
+        ReferencedPermanentAction::Sacrifice
+    } else {
+        return None;
+    };
+    let mut trial = cursor.clone();
+    trial.enter("effect.referenced-permanent.action");
+    trial.advance_to(trial.position() + 1).ok()?;
+    trial.enter("effect.referenced-permanent.object");
+    let Ok(super::PermanentOperandNode::BoundReference(object)) =
+        super::recognize_contextual_permanent_operand(
+            &mut trial,
+            name_links,
+            name_failure,
+            context,
+        )
+    else {
+        return None;
+    };
+    if matches!(object, super::PermanentEffectReference::Source(_)) {
+        return None;
+    }
+    *cursor = trial;
+    Some(Ok(DestroyReferenceEffectNode {
+        object,
+        cannot_regenerate: false,
+        action,
+    }))
 }
 
 pub(in crate::oracle::canonical) fn recognize_destroy_reference_effect(
@@ -249,6 +308,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_reference_effect(
     Ok(DestroyReferenceEffectNode {
         object,
         cannot_regenerate,
+        action: ReferencedPermanentAction::Destroy,
     })
 }
 

@@ -902,6 +902,32 @@ fn recognize_effect_sequence_attempt_scoped(
                                 }
                             }
                         }
+                        // `exile|sacrifice it` on the permanent a move put
+                        // onto the battlefield or a declared permanent
+                        // target: the bound permanent, never a card
+                        // collection.
+                        let permanent_antecedent =
+                            object_antecedent.as_ref().is_some_and(|antecedent| {
+                                matches!(
+                                    antecedent.reference,
+                                    super::PermanentEffectReference::Observed(
+                                        super::TypedObservedEventObject::MovedOntoBattlefield,
+                                    )
+                                ) || (matches!(
+                                    antecedent.reference,
+                                    super::PermanentEffectReference::Target(_)
+                                ) && antecedent.selector.is_some())
+                            });
+                        if permanent_antecedent
+                            && let Some(node) = super::recognize_referenced_permanent_zone_action(
+                                attempt,
+                                name_links,
+                                name_failure,
+                                &action_context,
+                            )
+                        {
+                            return node.map(LocalEffectNode::DestroyReference);
+                        }
                         match super::try_recognize_target_card_action(attempt) {
                             super::CollectionOperandAttempt::Recognized(fragment) => {
                                 return Ok(

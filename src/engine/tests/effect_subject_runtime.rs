@@ -334,3 +334,67 @@ fn a_grant_without_a_duration_is_not_a_temporary_one() {
         .expect("flying granted");
     assert!(granted.get("temporaryUntilTurn").is_none(), "{granted:#}");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_returned_card_is_exiled_by_the_delayed_action_that_captured_it() {
+    // Goryo's Vengeance: the delayed trigger captures the returned
+    // permanent's identity when it is created (CR 603.7c) and exiles that
+    // object at the next end step.
+    let rule = parsed_rules(
+        "Instant",
+        "Return target legendary creature card from your graveyard to the battlefield. That creature gains haste. Exile it at the beginning of the next end step.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard.push(test_instance(
+        "emrakul",
+        test_definition("emrakul", "Legendary Creature - Eldrazi"),
+        "player-0",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:goryo".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("goryo", test_definition("goryo", "Instant"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Card {
+                instance_id: "emrakul".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    assert!(engine.permanent_position("emrakul").is_some(), "returned");
+    let modifiers = format!("{:#?}", engine.state.rule_modifiers);
+    engine.enqueue_step_triggers("endStep");
+    let stack = engine.state.stack.len();
+    resolve_stack(&mut engine);
+    assert!(
+        engine.permanent_position("emrakul").is_none(),
+        "stack {stack}: {modifiers}"
+    );
+    assert!(
+        engine.state.players[0]
+            .exile
+            .iter()
+            .any(|card| card.instance_id == "emrakul"),
+        "exiled at the end step"
+    );
+}

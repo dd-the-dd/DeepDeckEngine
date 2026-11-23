@@ -428,3 +428,24 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   Upheaval, les quatre Chimera), 0 perte, IR des cartes supportées
   inchangée. Preuves : retour puis octroi, recombinaison ciblée, quasi-échec
   (statistiques), exécution (le mot-clé n'a pas d'échéance).
+
+### Étape 24 : actions de zone sur un permanent lié, retardées
+
+- `exile|sacrifice it|that creature|the creature` sur un permanent lié autre
+  que la source (la carte qu'un déplacement a mise sur le champ de bataille,
+  une cible de permanent déclarée) est l'action de zone de ce permanent :
+  le nœud de référence de destruction porte désormais l'action
+  (`Destroy|Exile|Sacrifice`), abaissée vers `destroyPermanent`,
+  `exilePermanent`, `sacrificePermanent` (support moteur du `singleBoundObject`
+  ajouté pour le sacrifice). Ce n'est jamais une collection de cartes.
+- Une échéance différée (`at the beginning of the next end step`) déplace
+  l'action dans le déclencheur retardé existant, qui capture l'identité de
+  l'objet lié à sa création (CR 603.7c).
+- Moteur : `singleBoundObject`/`boundObject` lu par un déclencheur retardé
+  retrouve l'identité capturée dans ses décisions ; sans cela l'action
+  retardée ne faisait rien à l'exécution (règle faussement exécutable).
+- Sonde : ligue 818 → 819 (+1 : Goryo's Vengeance), corpus 14831 → 14840
+  (+9 : Apprentice Necromancer, Treacherous Urge, Footsteps of the Goryo,
+  Postmortem Lunge…), 0 perte, IR des cartes supportées inchangée. Preuves :
+  exil et sacrifice retardés avec capture, quasi-échec (carte rendue à la
+  main), exécution (la carte rendue est exilée à l'étape de fin).

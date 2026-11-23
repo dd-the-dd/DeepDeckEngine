@@ -31377,13 +31377,21 @@ impl GameEngine {
         match value_kind(reference) {
             Some("boundObject" | "singleBoundObject") => reference["binding"]
                 .as_str()
-                .and_then(|id| bindings.get(id))
-                .and_then(|binding| match binding {
-                    RuntimeBinding::Objects(objects) => objects.first(),
-                    _ => None,
+                .and_then(|id| match bindings.get(id) {
+                    Some(RuntimeBinding::Objects(objects)) => objects.first().cloned(),
+                    Some(_) => None,
+                    // A delayed trigger carries the identities it captured
+                    // when it was created (CR 603.7c) in its decisions.
+                    None => stack_object
+                        .decisions
+                        .get(id)
+                        .and_then(Value::as_array)
+                        .and_then(|objects| objects.first())
+                        .and_then(Value::as_str)
+                        .map(str::to_string),
                 })
                 .map(|instance_id| {
-                    if self.permanent_position(instance_id).is_some() {
+                    if self.permanent_position(&instance_id).is_some() {
                         TargetRef::Permanent {
                             instance_id: instance_id.clone(),
                         }
