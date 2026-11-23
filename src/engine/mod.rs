@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
 mod battlefield_departure;
@@ -5978,6 +5979,7 @@ fn rule_supported(rule: &Value) -> bool {
     match value_kind(rule) {
         Some("spellAbility") => spell_rule_supported(rule),
         Some("prepareSpell") => prepare_spell_rule_supported(rule),
+        Some("adventureSpell") => adventure::adventure_spell_rule_supported(rule),
         Some("manaAbility") => mana_rule_supported(rule),
         Some("replacementEffect") => replacement_rule_supported(rule),
         Some("activatedAbility") => activated_rule_supported(rule),
@@ -18199,7 +18201,13 @@ impl GameEngine {
                 let split_faces = split_face_definitions(&card.definition);
                 if split_faces.is_empty() {
                     let casting_card = (*card).clone();
-                    return vec![(casting_card, *source_zone, None, false)];
+                    // CR 715.3a: an adventurer card may instead be cast as its Adventure.
+                    let adventure =
+                        adventure::adventure_casting_card(card, source_zone, &self.state.permissions)
+                            .map(|card| (card, *source_zone, None, false));
+                    return std::iter::once((casting_card, *source_zone, None, false))
+                        .chain(adventure)
+                        .collect();
                 }
                 let mut sources = split_faces
                     .into_iter()
@@ -18906,6 +18914,9 @@ impl GameEngine {
                 if *fused {
                     decisions.insert("fused".to_string(), Value::Bool(true));
                 }
+                if adventure::casting_as_adventure(card) {
+                    decisions.insert(adventure::CAST_AS_ADVENTURE.to_string(), Value::Bool(true));
+                }
                 decisions.insert("manaPayment".to_string(), mana_payment_decision(&payment));
                 if !convoke_sources.is_empty() {
                     decisions.insert("convokeSources".to_string(), json!(convoke_sources));
@@ -18950,6 +18961,8 @@ impl GameEngine {
                         card.instance_id,
                         if *fused {
                             "fused".to_string()
+                        } else if adventure::casting_as_adventure(card) {
+                            "adventure".to_string()
                         } else {
                             split_face_index.unwrap_or(0).to_string()
                         },
@@ -26219,6 +26232,8 @@ impl GameEngine {
                     .and_then(|instance_id| self.card_outside_battlefield(instance_id))
                     .map(|card| card.definition.clone())
                     .ok_or_else(|| EngineError::new("spell source is no longer available"))?;
+                let source_definition =
+                    adventure::casting_definition(&action.decisions, source_definition)?;
                 let cast_source_zone = action
                     .decisions
                     .get("castSourceZone")
@@ -26449,6 +26464,9 @@ impl GameEngine {
                 {
                     return Err(EngineError::new("split card face is no longer available"));
                 }
+                // CR 715.3b: on the stack, only the Adventure's characteristics.
+                card.definition =
+                    adventure::casting_definition(&action.decisions, card.definition.clone())?;
                 if action
                     .decisions
                     .get("fused")

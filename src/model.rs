@@ -240,14 +240,19 @@ pub fn compile_related_token_definition(token: &Value) -> Result<Option<CardDefi
     Ok(Some(definition))
 }
 
-fn linked_prepare_face_id<'a>(
+/// The spell part linked to the selected primary part, with the rule kind that
+/// carries it: a prepare spell (`prepareSpell`) or an Adventure
+/// (`adventureSpell`, CR 715). Other layouts link no spell part.
+fn linked_spell_face_id<'a>(
     parser_result: &'a OracleCardParseResult,
     selected_face_id: Option<&str>,
-) -> Option<&'a str> {
+) -> Option<(&'a str, &'static str)> {
     let structure = parser_result.card_structure.as_ref()?;
-    if structure.kind != CardStructureKind::Preparation {
-        return None;
-    }
+    let (spell_role, rule_kind) = match structure.kind {
+        CardStructureKind::Preparation => (CardPartRole::PreparedSpell, "prepareSpell"),
+        CardStructureKind::Adventure => (CardPartRole::AdventureSpell, "adventureSpell"),
+        _ => return None,
+    };
     let primary = structure
         .parts
         .iter()
@@ -255,10 +260,11 @@ fn linked_prepare_face_id<'a>(
     let spell = structure
         .parts
         .iter()
-        .find(|part| part.role == CardPartRole::PreparedSpell)?;
+        .find(|part| part.role == spell_role)?;
     (selected_face_id == primary.face_id.as_deref())
         .then_some(spell.face_id.as_deref())
         .flatten()
+        .map(|face_id| (face_id, rule_kind))
 }
 
 fn has_intrinsic_basic_land_mana_ability(type_line: &str) -> bool {
@@ -440,7 +446,8 @@ pub fn playable_rules_for_face(
         .flat_map(|ability| playable_rules_for_ability(ability, selected_type_line))
         .collect::<Vec<_>>();
 
-    let Some(spell_face_id) = linked_prepare_face_id(parser_result, selected_face_id) else {
+    let Some((spell_face_id, rule_kind)) = linked_spell_face_id(parser_result, selected_face_id)
+    else {
         return rules;
     };
     let Some(spell_face) = parser_result
@@ -458,7 +465,7 @@ pub fn playable_rules_for_face(
         .flat_map(|ability| playable_rules_for_ability(ability, &spell_face.type_line))
         .collect::<Vec<_>>();
     rules.push(json!({
-        "kind": "prepareSpell",
+        "kind": rule_kind,
         "spell": {
             "id": spell_face.id,
             "name": spell_face.name,
@@ -569,8 +576,8 @@ pub fn compile_playable_card(input: PlayableCardInput) -> Result<PlayableCardCom
         .or_else(|| selected_face.and_then(|face| face.toughness.clone()));
 
     let parser_result = parse_oracle_card(input.oracle);
-    let linked_face_id =
-        linked_prepare_face_id(&parser_result, selected_face_id.as_deref()).map(ToOwned::to_owned);
+    let linked_face_id = linked_spell_face_id(&parser_result, selected_face_id.as_deref())
+        .map(|(face_id, _)| face_id.to_owned());
     let selected_abilities = parser_result
         .abilities
         .iter()
