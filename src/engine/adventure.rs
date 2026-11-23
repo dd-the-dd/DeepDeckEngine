@@ -165,44 +165,10 @@ impl GameEngine {
                 casting
                     .flags
                     .insert(CASTING_AS_ADVENTURE_FLAG.to_string(), true);
-                self.adventure_admitted(&player.id, &casting, zone)
+                self.casting_route(player, &casting, zone, true)
+                    .is_some()
                     .then_some((casting, zone))
             })
             .collect()
-    }
-
-    /// Whether the Adventure (a card with the Adventure's characteristics) may
-    /// be cast from `zone` (CR 716.3a, 601.3e). Each route is the one the
-    /// creature's casting sources use, evaluated on the Adventure; a route
-    /// this list does not know never admits it.
-    fn adventure_admitted(&self, player_id: &str, adventure: &CardInstance, zone: &str) -> bool {
-        if zone == "hand" {
-            return true;
-        }
-        if self
-            .battlefield_casting_permission(player_id, adventure, zone)
-            .is_some()
-        {
-            return true;
-        }
-        if zone == "library" && self.top_library_cast_admitted(player_id, &adventure.definition) {
-            return true;
-        }
-        // A permission for this one card ("you may cast that card") admits
-        // either half (CR 716.3d) under the same scope check as the creature,
-        // unless it filters characteristics the Adventure lacks. The
-        // creature-only Adventure permission never admits the Adventure.
-        self.state.permissions.iter().any(|permission| {
-            value_kind(permission) != Some(ADVENTURE_PERMISSION)
-                && permission["cardInstanceId"].as_str() == Some(adventure.instance_id.as_str())
-                && matches!(permission["action"].as_str(), Some("play" | "cast"))
-                && permission["whileInZone"]
-                    .as_str()
-                    .is_none_or(|while_in| while_in == zone)
-                && permission
-                    .get("where")
-                    .is_none_or(|filter| matches_card_filter(&adventure.definition, filter))
-                && self.card_permission_in_scope(permission, player_id)
-        })
     }
 }

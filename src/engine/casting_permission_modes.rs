@@ -2,11 +2,40 @@
 use super::casting_cost::{SelectedCastingBasePolicy, selected_casting_base_policy};
 use super::*;
 
+/// The route that admits a card for casting or playing (see
+/// [`GameEngine::casting_route`]).
+#[derive(Clone, Copy, Debug)]
+pub(super) enum CastingRoute<'a> {
+    Hand,
+    CommandZone,
+    Mayhem,
+    DiscardCast,
+    Flashback,
+    Escape,
+    ArcadeGannon,
+    StaticPermission,
+    GraveyardLand,
+    TopOfLibrary,
+    CardPermission(&'a Value),
+}
+
+const ADVENTURE_PERMISSION: &str = "adventureCastPermission";
+
 pub(super) struct PreparedCastingRoute {
     pub declarations: Vec<CastingDeclaration>,
     pub permission: Option<Value>,
     pub is_miracle: bool,
 }
+/// The life a card permission's alternative cost asks for, evaluated on the
+/// definition actually being cast (CR 716.3a: an Adventure's own mana value).
+pub(super) fn casting_permission_life_cost(permission: &Value, casting: &CardDefinition) -> i32 {
+    let cost = &permission["alternativeLifeCost"];
+    if value_kind(cost) == Some("manaValueOf") && value_kind(&cost["object"]) == Some("castCard") {
+        return mana_value(casting).max(0);
+    }
+    0
+}
+
 fn ordinary_base(decisions: &BTreeMap<String, Value>) -> bool {
     matches!(
         selected_casting_base_policy(decisions),
@@ -20,7 +49,12 @@ impl GameEngine {
     /// expiry, its condition, controller-turn timing, source control, and, for
     /// its card, the zone it is confined to and the incarnation it was granted
     /// for (CR 400.7). Every admission of a card permission uses it.
-    pub(super) fn card_permission_in_scope(&self, permission: &Value, player_id: &str) -> bool {
+    pub(super) fn card_permission_in_scope(
+        &self,
+        permission: &Value,
+        player_id: &str,
+        casting: Option<&CardDefinition>,
+    ) -> bool {
         let source_controller = || {
             permission["sourceCardInstanceId"]
                 .as_str()
@@ -55,6 +89,132 @@ impl GameEngine {
                         .is_none_or(|zone| self.card_zone_owner_id(instance_id, zone).is_some())
                         && self.permission_incarnation_current(permission, instance_id)
                 })
+            // What it permits, and for what: playing or casting, and only a
+            // card matching its filter with the characteristics being used.
+            && permission["action"]
+                .as_str()
+                .is_none_or(|action| matches!(action, "play" | "cast"))
+            && casting.is_none_or(|definition| {
+                permission
+                    .get("where")
+                    .is_none_or(|filter| matches_card_filter(definition, filter))
+            })
+    }
+
+    /// The route that admits `card` (with the characteristics it is being
+    /// cast with) from `zone` for `player`, or `None` (CR 601.2a, 601.3e). It
+    /// is the one enumeration of casting sources: the creature and an
+    /// Adventure (CR 716.3a) both go through it, each with its own
+    /// characteristics. A card named by a permission is admitted from the
+    /// zone it is actually in, never an assumed one.
+    pub(super) fn casting_route<'a>(
+        &'a self,
+        player: &EnginePlayer,
+        card: &CardInstance,
+        zone: &str,
+        adventure: bool,
+    ) -> Option<CastingRoute<'a>> {
+        let own = |cards: &[CardInstance]| {
+            cards
+                .iter()
+                .any(|held| held.instance_id == card.instance_id)
+        };
+        let definition = &card.definition;
+        let route = match zone {
+            "hand" if own(&player.hand) => Some(CastingRoute::Hand),
+            // Known gap, failing closed: no Adventure from the command zone.
+            "commandZone" if own(&player.command_zone) && !adventure => {
+                Some(CastingRoute::CommandZone)
+            }
+            "graveyard" if own(&player.graveyard) => {
+                let discarded_this_turn = self.state.events.iter().any(|event| {
+                    event.turn_number == self.state.turn_number
+                        && event.kind == "cardDiscarded"
+                        && event.player_id.as_deref() == Some(player.id.as_str())
+                        && event.card_instance_id.as_deref() == Some(card.instance_id.as_str())
+                });
+                if mayhem_ability(definition).is_some() && discarded_this_turn {
+                    Some(CastingRoute::Mayhem)
+                } else if graveyard_discard_cast_ability(definition) {
+                    Some(CastingRoute::DiscardCast)
+                } else if self.effective_flashback_cost(card).is_some()
+                    && (is_instant(definition) || is_sorcery(definition))
+                {
+                    Some(CastingRoute::Flashback)
+                } else if escape_ability(definition).is_some() {
+                    Some(CastingRoute::Escape)
+                } else if self
+                    .arcade_gannon_source_for_card(&player.id, card)
+                    .is_some()
+                {
+                    Some(CastingRoute::ArcadeGannon)
+                } else if self
+                    .battlefield_casting_permission(&player.id, card, "graveyard")
+                    .is_some()
+                {
+                    Some(CastingRoute::StaticPermission)
+                } else if self.can_play_lands_from_graveyard(&player.id) && is_land(definition) {
+                    Some(CastingRoute::GraveyardLand)
+                } else {
+                    None
+                }
+            }
+            "exile"
+                if own(&player.exile)
+                    && card.owner == player.id
+                    && self
+                        .battlefield_casting_permission(&player.id, card, "exile")
+                        .is_some() =>
+            {
+                Some(CastingRoute::StaticPermission)
+            }
+            "library"
+                if player.library.last().map(|top| top.instance_id.as_str())
+                    == Some(card.instance_id.as_str())
+                    && self.top_library_cast_admitted(&player.id, definition) =>
+            {
+                Some(CastingRoute::TopOfLibrary)
+            }
+            _ => None,
+        };
+        route.or_else(|| {
+            self.state
+                .permissions
+                .iter()
+                .find(|permission| {
+                    permission["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
+                        // CR 716.3d: the Adventure's own exile admits only the creature.
+                        && !(adventure && value_kind(permission) == Some(ADVENTURE_PERMISSION))
+                        && permission["sourceZone"]
+                            .as_str()
+                            .is_none_or(|source_zone| source_zone == zone)
+                        && self.card_permission_in_scope(permission, &player.id, Some(definition))
+                })
+                .filter(|_| self.card_in_permission_zone(&card.instance_id, zone))
+                .map(CastingRoute::CardPermission)
+        })
+    }
+
+    /// Whether a card a permission names is really in `zone` and usable from
+    /// there: any player's hand, graveyard, exile or command zone, or the top
+    /// of a library (the zone it is actually in, not an assumed one).
+    fn card_in_permission_zone(&self, instance_id: &str, zone: &str) -> bool {
+        match zone {
+            "library" => self.state.players.iter().any(|player| {
+                player.library.last().map(|top| top.instance_id.as_str()) == Some(instance_id)
+            }),
+            "hand" | "graveyard" | "exile" | "commandZone" => {
+                self.card_zone_owner_id(instance_id, zone).is_some()
+            }
+            _ => false,
+        }
+    }
+
+    /// The zone a card outside the battlefield is actually in.
+    pub(super) fn card_outside_battlefield_zone(&self, instance_id: &str) -> Option<&'static str> {
+        ["hand", "graveyard", "exile", "library", "commandZone"]
+            .into_iter()
+            .find(|zone| self.card_zone_owner_id(instance_id, zone).is_some())
     }
 
     /// Whether a card with `definition` may be played from the top of
