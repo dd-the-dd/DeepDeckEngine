@@ -148,6 +148,38 @@ impl GameEngine {
                             spell_profile.as_ref(),
                         )?;
                     }
+                } else if value_kind(&effect["recipient"]) == Some("chosenTargets") {
+                    // Each chosen target of the slot is dealt the full amount;
+                    // an illegal one is skipped (CR 608.2b).
+                    let declaration_id = effect["recipient"]["id"].as_str().unwrap_or_default();
+                    let target_ids = stack_object
+                        .targets
+                        .keys()
+                        .filter(|target_id| {
+                            target_legality::target_belongs_to_declaration(
+                                stack_object,
+                                declaration_id,
+                                target_id,
+                            )
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    for target_id in target_ids {
+                        let reference = json!({ "kind": "chosenTarget", "id": target_id });
+                        if let Some(target) =
+                            self.resolve_target(&reference, stack_object, bindings)
+                        {
+                            self.deal_damage_amount_with_source_profile(
+                                target,
+                                amount,
+                                &damage_source_id,
+                                false,
+                                QuantityOrigin::Effect,
+                                Some(provider),
+                                spell_profile.as_ref(),
+                            )?;
+                        }
+                    }
                 } else if value_kind(&effect["recipient"]) == Some("eachPermanent") {
                     // The shared object query identifies the recipients once,
                     // before any of them is dealt damage.
@@ -328,6 +360,15 @@ impl GameEngine {
                         decisions,
                     )
                     .unwrap_or_default()
+                } else if value_kind(&effect["permanent"]) == Some("eachPermanent") {
+                    // `tap all artifacts`: the shared object query fixes the
+                    // affected set on resolution (CR 611.2c).
+                    self.resolve_runtime_object_ids_checked(
+                        &effect["permanent"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?
                 } else {
                     self.resolve_target(&effect["permanent"], stack_object, bindings)
                         .and_then(|target| match target {

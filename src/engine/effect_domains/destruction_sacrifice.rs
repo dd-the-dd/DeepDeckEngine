@@ -156,6 +156,11 @@ impl GameEngine {
                     {
                         excluded.insert(stack_object.card.instance_id.clone());
                     }
+                    // The controller scope is a player population (`you`,
+                    // `your opponents`, `players other than you`).
+                    let controllers = effect["permanent"]
+                        .get("player")
+                        .map(|player| self.resolve_players(player, stack_object, bindings));
                     let instance_ids = self
                         .state
                         .players
@@ -166,15 +171,9 @@ impl GameEngine {
                         })
                         .filter(|permanent| !excluded.contains(&permanent.instance_id))
                         .filter(|permanent| {
-                            effect["permanent"].get("player").is_none_or(|player| {
-                                if value_kind(player) == Some("opponentsOf") {
-                                    self.resolve_player(&player["player"], stack_object, bindings)
-                                        .is_some_and(|player_id| permanent.controller != player_id)
-                                } else {
-                                    self.resolve_player(player, stack_object, bindings)
-                                        .is_some_and(|player_id| permanent.controller == player_id)
-                                }
-                            })
+                            controllers
+                                .as_ref()
+                                .is_none_or(|players| players.contains(&permanent.controller))
                         })
                         .filter(|permanent| {
                             self.runtime_object_filter_matches(

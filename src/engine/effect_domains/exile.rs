@@ -160,9 +160,9 @@ impl GameEngine {
                 }
             }
             Some("exilePermanent") => {
-                let selected_player = effect["permanent"]
+                let selected_players = effect["permanent"]
                     .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
+                    .map(|player| self.resolve_players(player, stack_object, bindings));
                 let instance_ids = match value_kind(&effect["permanent"]) {
                     // Declared target collections: members that became
                     // illegal are unaffected, the others are still exiled
@@ -181,9 +181,9 @@ impl GameEngine {
                         .iter()
                         .flat_map(|player| player.battlefield.iter())
                         .filter(|permanent| {
-                            selected_player
+                            selected_players
                                 .as_ref()
-                                .is_none_or(|player_id| permanent.controller == *player_id)
+                                .is_none_or(|players| players.contains(&permanent.controller))
                                 && self.permanent_matches_effective_filter(
                                     permanent,
                                     &effect["permanent"]["where"],

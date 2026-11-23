@@ -467,7 +467,25 @@ fn recognize_damage_recipient_group(
             super::recognize_player_set_reference(cursor)?,
         ));
     }
-    if cursor
+    // `each of two target creatures`, `each of up to three targets`: each
+    // declared target is dealt the full amount (CR 115.1, 120.1). The
+    // distributive determiner owns no collection; the target list follows.
+    let distributive_targets = cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("each"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|token| token.eq_ignore_ascii_case("of"))
+        && (cursor.peek_ahead(2).is_some_and(|token| {
+            token.eq_ignore_ascii_case("target") || token.eq_ignore_ascii_case("up")
+        }) || cursor
+            .token_slice(cursor.position() + 2, cursor.position() + 3)
+            .first()
+            .is_some_and(|token| token.token_type == "quantity"));
+    if distributive_targets {
+        cursor.enter("effect.damage.distributive-targets");
+        cursor.consume_phrase(&["each", "of"])?;
+    } else if cursor
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("each"))
     {
