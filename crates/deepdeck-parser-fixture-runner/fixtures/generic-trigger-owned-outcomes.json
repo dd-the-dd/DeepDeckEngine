@@ -33,7 +33,7 @@
       }
     },
     {
-      "id": "owned-period-does-not-silently-extend-optionality",
+      "id": "owned-period-ends-optionality-before-the-draw",
       "request": {
         "cardName": "Synthetic Optional Program",
         "typeLine": "Creature — Elf Shaman",
@@ -118,7 +118,7 @@
       }
     },
     {
-      "id": "owned-if-you-do-not-implicitly-accepted",
+      "id": "owned-if-you-do-observes-the-optional-destroy",
       "request": {
         "cardName": "Synthetic Optional Program",
         "typeLine": "Creature — Elf Shaman",

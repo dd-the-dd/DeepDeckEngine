@@ -496,7 +496,7 @@
       }
     },
     {
-      "id": "hostile-wrong-keyword",
+      "id": "mismatched-reminder-has-no-rules-weight",
       "request": {
         "cardName": "Collection Guide",
         "typeLine": "Enchantment",

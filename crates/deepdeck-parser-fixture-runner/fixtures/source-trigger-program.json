@@ -593,7 +593,7 @@
       }
     },
     {
-      "id": "synthetic-compound-event-not-approximated",
+      "id": "source-enters-or-dies-is-an-event-union",
       "request": {
         "cardName": "Synthetic source near miss",
         "typeLine": "Creature",

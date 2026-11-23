@@ -642,7 +642,7 @@
       }
     },
     {
-      "id": "conditional-suffix-is-not-unconditional",
+      "id": "conditional-suffix-scopes-the-grant",
       "request": {
         "cardName": "Synthetic Collection Grant",
         "typeLine": "Enchantment",
