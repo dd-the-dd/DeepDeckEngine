@@ -178,6 +178,14 @@ impl ObjectPredicate {
     ) -> bool {
         match self {
             Self::CardType(actual) => *actual == expected,
+            // CR 205.3d: an object can't have a subtype that corresponds to
+            // none of its types. A subtype of exactly one card type (`Forest`,
+            // `Equipment`, `Aura`) therefore guarantees that type. Creature
+            // subtypes do not: Kindred spells carry them too.
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::noncreature_subtype_card_type(name)
+                    == Some(expected)
+            }
             Self::Intersection(operands) => operands
                 .iter()
                 .any(|operand| operand.guarantees_card_type(expected)),
@@ -189,7 +197,6 @@ impl ObjectPredicate {
             }
             Self::IsCommander
             | Self::IsToken
-            | Self::Subtype(_)
             | Self::CharacteristicBatch(_)
             | Self::Color(_)
             | Self::ColorQuantity(_)
@@ -262,14 +269,92 @@ impl ObjectPredicate {
     /// type or noncreature permanent subtype (`noncreature`, `non-Equipment`)
     /// keeps the anchor it had before this inference, through `Not`.
     pub(in crate::oracle::canonical) fn has_domain(&self, domain: ObjectKind) -> bool {
-        self.establishes_domain(domain, true)
+        self.establishes_domain(domain, DomainReading::INFERRED)
     }
 
     /// The domain this predicate names without the CR 109.2 subtype-head
     /// inference: for a parent whose own noun (`source`) or coordination
     /// (`Elf or Goblin permanent`) decides how a bare subtype is read.
     pub(in crate::oracle::canonical) fn has_explicit_domain(&self, domain: ObjectKind) -> bool {
-        self.establishes_domain(domain, false)
+        self.establishes_domain(domain, DomainReading::EXPLICIT)
+    }
+
+    /// The domain a positive noun of this predicate names (CR 109.2a): the
+    /// subtype-head inference applies, but a negated noun (`noncreature`)
+    /// never anchors a domain by itself. Target declarations and domain
+    /// projections use this reading.
+    pub(in crate::oracle::canonical) fn has_positive_domain(&self, domain: ObjectKind) -> bool {
+        self.establishes_domain(domain, DomainReading::POSITIVE)
+    }
+
+    /// The one object-domain authority (CR 109.2a): the predicate names
+    /// `domain` and every branch is evaluable in it. Parents type-check a
+    /// recognized noun phrase with this, never with their own domain walk.
+    pub(in crate::oracle::canonical) fn is_in_domain(&self, domain: ObjectKind) -> bool {
+        self.has_domain(domain) && self.supports_domain(domain)
+    }
+
+    /// The domain authority for a noun phrase that may state a control
+    /// relation: a nominal head the permanent domain admits (`tokens`,
+    /// `commanders`) related by control names permanents (CR 108.4, 110.2).
+    pub(in crate::oracle::canonical) fn is_in_domain_when_controlled(
+        &self,
+        domain: ObjectKind,
+        controlled: bool,
+    ) -> bool {
+        self.is_in_domain(domain)
+            || (controlled
+                && domain == ObjectKind::Permanent
+                && self.supports_domain(domain)
+                && self.has_nominal_head())
+    }
+
+    /// A declared target in `domain` (CR 115.1, 601.2c): a positive noun
+    /// names the domain, every branch is evaluable there, no atom reads a
+    /// choice made later during resolution, and no object noun is negated
+    /// (a negated object noun has no filter to lower).
+    pub(in crate::oracle::canonical) fn is_declarable_target_in(&self, domain: ObjectKind) -> bool {
+        self.has_positive_domain(domain)
+            && self.supports_domain(domain)
+            && !self.reads_resolution_choice()
+            && !self.negates_object_kind()
+    }
+
+    /// Whether an object-kind noun (`card`, `spell`, `permanent`) occurs
+    /// anywhere in this predicate.
+    pub(in crate::oracle::canonical) fn names_object_kind(&self) -> bool {
+        match self {
+            Self::ObjectKind(_) => true,
+            Self::Not(operand) => operand.names_object_kind(),
+            Self::Intersection(operands) | Self::Union(operands) => {
+                operands.iter().any(Self::names_object_kind)
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether an object-kind noun occurs under a negation.
+    pub(in crate::oracle::canonical) fn negates_object_kind(&self) -> bool {
+        match self {
+            Self::Not(operand) => operand.names_object_kind(),
+            Self::Intersection(operands) | Self::Union(operands) => {
+                operands.iter().any(Self::negates_object_kind)
+            }
+            _ => false,
+        }
+    }
+
+    /// Whether an atom reads a choice made during resolution (`of the chosen
+    /// type`, CR 608.2d), which a declaration-time filter cannot evaluate.
+    pub(in crate::oracle::canonical) fn reads_resolution_choice(&self) -> bool {
+        match self {
+            Self::ChosenCreatureType => true,
+            Self::Not(operand) => operand.reads_resolution_choice(),
+            Self::Intersection(operands) | Self::Union(operands) => {
+                operands.iter().any(Self::reads_resolution_choice)
+            }
+            _ => false,
+        }
     }
 
     /// The atom-level CR 109.2/205.3d inference shared by every domain
@@ -306,25 +391,33 @@ impl ObjectPredicate {
         }
     }
 
-    fn establishes_domain(&self, domain: ObjectKind, subtype_heads: bool) -> bool {
+    /// The single domain walk shared by every projection above.
+    fn establishes_domain(&self, domain: ObjectKind, reading: DomainReading) -> bool {
         match self {
             Self::ObjectKind(actual) => *actual == domain,
             Self::CardType(_) | Self::Subtype(_) => {
-                domain == ObjectKind::Permanent && self.denotes_permanent_head(subtype_heads)
+                domain == ObjectKind::Permanent
+                    && self.denotes_permanent_head(reading.subtype_heads)
             }
-            Self::Not(operand) => operand.establishes_domain(domain, false),
+            Self::Not(operand) => {
+                reading.through_negation
+                    && operand.establishes_domain(domain, reading.without_subtype_heads())
+            }
             Self::Intersection(operands) => {
-                let subtype_heads =
-                    subtype_heads && !operands.iter().any(Self::names_nonpermanent_domain);
+                let reading = if operands.iter().any(Self::names_nonpermanent_domain) {
+                    reading.without_subtype_heads()
+                } else {
+                    reading
+                };
                 operands
                     .iter()
-                    .any(|operand| operand.establishes_domain(domain, subtype_heads))
+                    .any(|operand| operand.establishes_domain(domain, reading))
             }
             Self::Union(operands) => {
                 !operands.is_empty()
                     && operands
                         .iter()
-                        .all(|operand| operand.establishes_domain(domain, subtype_heads))
+                        .all(|operand| operand.establishes_domain(domain, reading))
             }
             Self::IsCommander
             | Self::IsToken
@@ -379,6 +472,37 @@ impl ObjectPredicate {
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::NumericComparison { .. } => false,
+        }
+    }
+}
+
+/// How the one domain walk reads nouns (CR 109.2a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct DomainReading {
+    /// A subtype that only permanents carry names a permanent.
+    subtype_heads: bool,
+    /// A negated permanent noun keeps the anchor it had before inference.
+    through_negation: bool,
+}
+
+impl DomainReading {
+    const INFERRED: Self = Self {
+        subtype_heads: true,
+        through_negation: true,
+    };
+    const EXPLICIT: Self = Self {
+        subtype_heads: false,
+        through_negation: true,
+    };
+    const POSITIVE: Self = Self {
+        subtype_heads: true,
+        through_negation: false,
+    };
+
+    const fn without_subtype_heads(self) -> Self {
+        Self {
+            subtype_heads: false,
+            through_negation: self.through_negation,
         }
     }
 }

@@ -14,7 +14,7 @@
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
     ObjectKind, ObjectPredicate, recognize_counter_name, recognize_object_query,
-    recognize_search_card_selector, recognize_spell_cast_query,
+    recognize_search_card_selector,
 };
 use crate::oracle::counter_name::CounterName;
 
@@ -361,14 +361,14 @@ fn recognize_spells_cast_proposition(
     cursor.enter("condition.player.cast.amount");
     let threshold = recognize_count_threshold(cursor, true)?;
     cursor.enter("condition.player.cast.query");
-    let query = recognize_spell_cast_query(cursor)?;
+    let query = super::recognize_object_noun_query(cursor, super::ObjectQueryContext::ORDINARY)?
+        .into_spell_cast_query(cursor)?;
     cursor.require(
         query.caster.is_none(),
         "one caster relation, supplied by the condition's player subject",
     )?;
     cursor.require(
-        query.predicate.has_domain(ObjectKind::Spell)
-            && query.predicate.supports_domain(ObjectKind::Spell),
+        query.predicate.is_in_domain(ObjectKind::Spell),
         "an explicit spell-domain query",
     )?;
     let predicate = (query.predicate != ObjectPredicate::ObjectKind(ObjectKind::Spell))

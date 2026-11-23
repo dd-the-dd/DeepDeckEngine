@@ -295,3 +295,65 @@ fn permanent_card_category_and_explicit_reading_cancel_subtype_heads() {
     let equipment = ObjectPredicate::Subtype("Equipment".to_string());
     assert!(equipment.has_explicit_domain(ObjectKind::Permanent));
 }
+
+#[test]
+fn single_family_subtype_guarantees_its_card_type() {
+    // CR 205.3d: a subtype corresponds to its card type, so `Forest` and
+    // `Equipment` guarantee land and artifact.
+    let subtype = |name: &str| ObjectPredicate::Subtype(name.to_string());
+    assert!(subtype("Forest").guarantees_card_type(ObjectCardType::Land));
+    assert!(subtype("Equipment").guarantees_card_type(ObjectCardType::Artifact));
+    assert!(subtype("Aura").guarantees_card_type(ObjectCardType::Enchantment));
+    // A union keeps the guarantee only when every branch has it.
+    assert!(
+        ObjectPredicate::Union(vec![subtype("Forest"), subtype("Island")])
+            .guarantees_card_type(ObjectCardType::Land)
+    );
+    // Near misses: Kindred spells carry creature subtypes, and spell
+    // subtypes are shared by instants and sorceries.
+    assert!(!subtype("Elf").guarantees_card_type(ObjectCardType::Creature));
+    assert!(!subtype("Arcane").guarantees_card_type(ObjectCardType::Instant));
+    assert!(!subtype("Forest").guarantees_card_type(ObjectCardType::Artifact));
+}
+
+#[test]
+fn declarable_target_uses_the_one_positive_domain_authority() {
+    let creature = permanent_type;
+    let not = |predicate: ObjectPredicate| ObjectPredicate::Not(Box::new(predicate));
+    // `nonattacking creature`: a negated status is an ordinary filter.
+    let nonattacking = ObjectPredicate::Intersection(vec![
+        not(ObjectPredicate::Status(ObjectStatus::Attacking)),
+        creature(),
+    ]);
+    assert!(nonattacking.is_declarable_target_in(ObjectKind::Permanent));
+    // CR 109.2a: `target Wall` names a permanent.
+    assert!(
+        ObjectPredicate::Subtype("Wall".to_string()).is_declarable_target_in(ObjectKind::Permanent)
+    );
+    // A negated noun never anchors a target domain by itself.
+    assert!(not(creature()).has_domain(ObjectKind::Permanent));
+    assert!(!not(creature()).is_declarable_target_in(ObjectKind::Permanent));
+    // A resolution-time choice cannot filter a declared target.
+    let chosen_type =
+        ObjectPredicate::Intersection(vec![creature(), ObjectPredicate::ChosenCreatureType]);
+    assert!(chosen_type.is_in_domain(ObjectKind::Permanent));
+    assert!(!chosen_type.is_declarable_target_in(ObjectKind::Permanent));
+    // A negated object noun has no filter to lower.
+    let nonpermanent = ObjectPredicate::Intersection(vec![
+        creature(),
+        not(ObjectPredicate::ObjectKind(ObjectKind::Card)),
+    ]);
+    assert!(!nonpermanent.is_declarable_target_in(ObjectKind::Permanent));
+    // `instant spell` is a spell target, never a permanent one.
+    let instant_spell = ObjectPredicate::Intersection(vec![
+        nonpermanent_type(),
+        ObjectPredicate::ObjectKind(ObjectKind::Spell),
+    ]);
+    assert!(instant_spell.is_declarable_target_in(ObjectKind::Spell));
+    assert!(!instant_spell.is_declarable_target_in(ObjectKind::Permanent));
+    assert!(instant_spell.is_in_domain(ObjectKind::Spell));
+    assert!(!instant_spell.is_in_domain_when_controlled(ObjectKind::Permanent, true));
+    // A token related by control names a permanent (CR 108.4, 110.2).
+    assert!(!ObjectPredicate::IsToken.is_in_domain(ObjectKind::Permanent));
+    assert!(ObjectPredicate::IsToken.is_in_domain_when_controlled(ObjectKind::Permanent, true));
+}

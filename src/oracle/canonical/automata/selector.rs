@@ -33,8 +33,13 @@ struct ObjectQueryFrame {
     last_connector_is_exclusive: bool,
     has_inclusive_connector: bool,
     postnominal_qualifiers: Vec<PostnominalQualifier>,
-    subject_scope: Option<QuerySubjectScope>,
-    ownership_scope: Option<QuerySubjectScope>,
+    /// The player relations read from their own verbs (`control`, `cast`,
+    /// `own`), never chosen by the parent.
+    relations: QueryRelations,
+    /// Where the ownership relation stood among the postnominal qualifiers,
+    /// so a parent reading it as the `ownedBy` characteristic keeps its
+    /// position in the composed predicate.
+    owner_qualifier_index: Option<usize>,
     logical_connectors: Vec<super::ContextualListConnector>,
     pending_logical_connector: Option<super::ContextualListConnector>,
     logical_comma: bool,
@@ -64,12 +69,40 @@ struct PostnominalQualifier {
     scope: PostnominalQualifierScope,
 }
 
+/// The relation lexicon of an object query (CR 108.3 owner, 108.4
+/// controller, 601.2 caster). The verb names the relation; the subject
+/// names the player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum QueryRelationKind {
+enum RelationVerb {
     Control,
     Cast,
     Own,
-    ObjectRelations,
+}
+
+impl RelationVerb {
+    /// The verb form a reader of this relation expects after its subject.
+    const fn surface(self, third_person: bool) -> &'static str {
+        match (self, third_person) {
+            (Self::Control, false) => "control",
+            (Self::Control, true) => "controls",
+            (Self::Cast, false) => "cast",
+            (Self::Cast, true) => "casts",
+            (Self::Own, false) => "own",
+            (Self::Own, true) => "owns",
+        }
+    }
+
+    /// The verb in its agreement with the subject: base form after `you`
+    /// and plural subjects, third person singular after `an opponent` and
+    /// a bound player.
+    fn from_word(raw: &str, third_person: bool) -> Option<Self> {
+        match (raw.to_ascii_lowercase().as_str(), third_person) {
+            ("control", false) | ("controls", true) => Some(Self::Control),
+            ("cast", false) | ("casts", true) => Some(Self::Cast),
+            ("own", false) | ("owns", true) => Some(Self::Own),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -81,11 +114,84 @@ enum QuerySubjectScope {
     EventPlayer,
 }
 
+/// Where one relation verb was read, so a parent that cannot consume the
+/// relation reports the verb itself, as a reader expecting another verb
+/// would have.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct RecognizedObjectQuery {
-    predicate: SelectorPredicate,
-    subject_scope: Option<QuerySubjectScope>,
-    ownership_scope: Option<QuerySubjectScope>,
+struct RelationSite {
+    token_index: usize,
+    span_start: usize,
+    span_end: usize,
+    raw: String,
+    negated: bool,
+    third_person: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ReadRelation {
+    scope: QuerySubjectScope,
+    site: RelationSite,
+}
+
+/// Every player relation one noun phrase states, one slot per relation
+/// verb. The noun phrase reads them all; each parent type-checks which
+/// relations it consumes.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct QueryRelations {
+    controller: Option<ReadRelation>,
+    caster: Option<ReadRelation>,
+    owner: Option<ReadRelation>,
+}
+
+impl QueryRelations {
+    fn slot_mut(&mut self, verb: RelationVerb) -> &mut Option<ReadRelation> {
+        match verb {
+            RelationVerb::Control => &mut self.controller,
+            RelationVerb::Cast => &mut self.caster,
+            RelationVerb::Own => &mut self.owner,
+        }
+    }
+
+    /// Whether the phrase states no player relation at all.
+    pub(in crate::oracle::canonical) fn is_empty(&self) -> bool {
+        self.controller.is_none() && self.caster.is_none() && self.owner.is_none()
+    }
+
+    fn controller_scope(&self) -> Option<QuerySubjectScope> {
+        self.controller.as_ref().map(|relation| relation.scope)
+    }
+
+    fn owner_scope(&self) -> Option<QuerySubjectScope> {
+        self.owner.as_ref().map(|relation| relation.scope)
+    }
+
+    /// Whether the phrase relates its objects to a controlling player.
+    pub(in crate::oracle::canonical) fn has_controller(&self) -> bool {
+        self.controller.is_some()
+    }
+}
+
+/// A relation the parent cannot consume fails at its verb, in the state a
+/// relation reader expecting `expected` reports (`you cast` where a
+/// controlled permanent is required fails at `cast`, expecting `control`).
+fn refuse_relation(
+    cursor: &mut OracleTokenCursor<'_>,
+    relation: &ReadRelation,
+    expected: RelationVerb,
+) -> super::super::MachineFailure {
+    let site = &relation.site;
+    cursor.enter(if site.negated {
+        "selector.controller-qualifier.negated-relation"
+    } else {
+        "selector.controller-qualifier.relation-or-negation"
+    });
+    cursor.fail_with_span(
+        expected.surface(site.third_person),
+        site.token_index,
+        site.span_start,
+        site.span_end,
+        site.raw.clone(),
+    )
 }
 
 /// Ownership stays a relation to a player, not an object characteristic.
@@ -104,54 +210,204 @@ pub(in crate::oracle::canonical) struct RelatedObjectQueryNode {
     pub ownership: Option<ObjectOwnershipScope>,
 }
 
-/// Opt-in relation transport. Historical wrappers still recognize their own
-/// controller/caster domain and cannot consume an ownership relation silently.
-pub(in crate::oracle::canonical) fn recognize_related_object_query(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<RelatedObjectQueryNode> {
-    let query = recognize_object_query_internal(cursor, QueryRelationKind::ObjectRelations)?;
-    Ok(RelatedObjectQueryNode {
-        objects: super::ObjectQueryNode {
-            predicate: query.predicate,
-            controller: query.subject_scope.map(object_controller_scope),
-            exclude_source: false,
-        },
-        ownership: query.ownership_scope.map(|scope| match scope {
-            QuerySubjectScope::AbilityController => ObjectOwnershipScope::AbilityController,
-            QuerySubjectScope::NotAbilityController => ObjectOwnershipScope::NotAbilityController,
-            QuerySubjectScope::OpponentOfAbilityController => {
-                ObjectOwnershipScope::OpponentOfAbilityController
-            }
-            QuerySubjectScope::EventPlayer => ObjectOwnershipScope::EventPlayer,
-        }),
-    })
+/// How many objects the parent's determiner selects with one quota. It is a
+/// parent fact handed to the noun phrase, not a separate grammar.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum QueryQuota {
+    #[default]
+    ExistingQuery,
+    /// One parent-owned quota applies to the whole candidate predicate. An
+    /// explicitly repeated determiner would introduce a separate quota and
+    /// must not be erased by Boolean normalization into a single union.
+    ParentOwnedShared { exactly_one: bool },
 }
 
-fn object_relation_kind_at(cursor: &OracleTokenCursor<'_>) -> MachineResult<QueryRelationKind> {
-    let offset = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("you") => 1,
-        Some("an" | "your") => 2,
-        _ if bound_player_relation_starts(cursor) => 2,
-        _ => return Err(cursor.fail("an explicit player relation subject")),
+/// The facts a parent supplies to the one object noun-phrase recognizer.
+/// They are data: there is one recognizer, not one wrapper per policy.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectQueryContext {
+    quota: QueryQuota,
+    /// `Some(available)` for a resolution-owned query, whose numeric
+    /// comparisons may read pure expressions and, when available, the
+    /// ability source (its counters, by last-known information).
+    source_available: Option<bool>,
+}
+
+impl ObjectQueryContext {
+    /// An ordinary query: literal or declared-X comparisons, no quota.
+    pub(in crate::oracle::canonical) const ORDINARY: Self = Self {
+        quota: QueryQuota::ExistingQuery,
+        source_available: None,
     };
-    let offset = offset
-        + usize::from(
-            cursor
-                .peek_ahead(offset)
-                .is_some_and(|s| s.eq_ignore_ascii_case("don't")),
-        );
-    match cursor
-        .peek_ahead(offset)
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("control" | "controls") => Ok(QueryRelationKind::Control),
-        Some("own" | "owns") => Ok(QueryRelationKind::Own),
-        _ => Err(cursor.fail("a controller or owner relation")),
+
+    /// A resolution-owned query. Source proof is distinct from implicit
+    /// event subjects and grammatical antecedents.
+    pub(in crate::oracle::canonical) const fn resolution(source_available: bool) -> Self {
+        Self {
+            quota: QueryQuota::ExistingQuery,
+            source_available: Some(source_available),
+        }
+    }
+
+    /// One parent-owned quota (`two artifacts or creatures`) for the whole
+    /// coordinated predicate.
+    pub(in crate::oracle::canonical) fn shared_quota(count: &super::NumericExpression) -> Self {
+        Self {
+            quota: QueryQuota::ParentOwnedShared {
+                exactly_one: matches!(
+                    count,
+                    super::NumericExpression::Atom(super::NumericAtom::Integer(1))
+                ),
+            },
+            source_available: None,
+        }
     }
 }
 
-/// Recognizes an object predicate plus its optional controller relation,
+/// One recognized object noun phrase: its composed predicate and every
+/// player relation it states. Parents only type-check it through the
+/// projections below; none of them re-reads the text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct RecognizedObjectQuery {
+    predicate: SelectorPredicate,
+    /// The same predicate with an ownership relative to the ability
+    /// controller read as the `ownedBy` characteristic, at its position.
+    owned_predicate: Option<SelectorPredicate>,
+    relations: QueryRelations,
+}
+
+impl RecognizedObjectQuery {
+    /// The composed characteristic predicate, without any player relation.
+    pub(in crate::oracle::canonical) fn predicate(&self) -> &SelectorPredicate {
+        &self.predicate
+    }
+
+    pub(in crate::oracle::canonical) fn relations(&self) -> &QueryRelations {
+        &self.relations
+    }
+
+    /// Coordinates the noun phrases of one set (`artifacts and creatures you
+    /// control`). The set composes the characteristic predicates; its player
+    /// relations are the last branch's, since a relation ends a set.
+    pub(in crate::oracle::canonical) fn coordinate(
+        branches: Vec<RecognizedObjectQuery>,
+        compose: impl Fn(Vec<SelectorPredicate>) -> Option<SelectorPredicate>,
+    ) -> Option<RecognizedObjectQuery> {
+        let last = branches.last()?;
+        let relations = last.relations.clone();
+        let owned_last = last.owned_predicate.clone();
+        let plain: Vec<SelectorPredicate> = branches
+            .into_iter()
+            .map(|branch| branch.predicate)
+            .collect();
+        let owned_predicate = match owned_last {
+            Some(owned) => {
+                let mut predicates = plain.clone();
+                if let Some(slot) = predicates.last_mut() {
+                    *slot = owned;
+                }
+                compose(predicates)
+            }
+            None => None,
+        };
+        Some(RecognizedObjectQuery {
+            predicate: compose(plain)?,
+            owned_predicate,
+            relations,
+        })
+    }
+
+    /// The characteristic predicate a control consumer reads: an ownership
+    /// relative to the ability controller becomes `ownedBy` (CR 108.3);
+    /// any other relation the consumer cannot represent fails at its verb.
+    fn controlled_predicate(
+        &self,
+        cursor: &mut OracleTokenCursor<'_>,
+    ) -> MachineResult<SelectorPredicate> {
+        if let Some(caster) = &self.relations.caster {
+            return Err(refuse_relation(cursor, caster, RelationVerb::Control));
+        }
+        match &self.relations.owner {
+            None => Ok(self.predicate.clone()),
+            Some(owner) => match owner.scope {
+                QuerySubjectScope::AbilityController | QuerySubjectScope::NotAbilityController => {
+                    cursor.require_value(
+                        self.owned_predicate.clone(),
+                        "an ownership characteristic composed with the query",
+                    )
+                }
+                QuerySubjectScope::OpponentOfAbilityController | QuerySubjectScope::EventPlayer => {
+                    Err(refuse_relation(cursor, owner, RelationVerb::Control))
+                }
+            },
+        }
+    }
+
+    /// A query whose player relation is control (CR 108.4). An ownership
+    /// relative to the ability controller is the `ownedBy` characteristic
+    /// of the same objects; the player who cast a spell is not a controller.
+    pub(in crate::oracle::canonical) fn into_object_query(
+        self,
+        cursor: &mut OracleTokenCursor<'_>,
+    ) -> MachineResult<super::ObjectQueryNode> {
+        let predicate = self.controlled_predicate(cursor)?;
+        Ok(super::ObjectQueryNode {
+            predicate,
+            controller: self
+                .relations
+                .controller_scope()
+                .map(object_controller_scope),
+            exclude_source: false,
+        })
+    }
+
+    /// A spell collection whose player relation is the player who cast the
+    /// spell, not the spell's current controller on the stack.
+    pub(in crate::oracle::canonical) fn into_spell_cast_query(
+        self,
+        cursor: &mut OracleTokenCursor<'_>,
+    ) -> MachineResult<super::SpellCastQueryNode> {
+        if let Some(relation) = self
+            .relations
+            .controller
+            .as_ref()
+            .or(self.relations.owner.as_ref())
+        {
+            return Err(refuse_relation(cursor, relation, RelationVerb::Cast));
+        }
+        Ok(super::SpellCastQueryNode {
+            predicate: self.predicate,
+            caster: self
+                .relations
+                .caster
+                .as_ref()
+                .map(|relation| spell_caster_scope(relation.scope)),
+        })
+    }
+
+    /// Object relations kept as relations: control and ownership.
+    pub(in crate::oracle::canonical) fn into_related_query(
+        self,
+        cursor: &mut OracleTokenCursor<'_>,
+    ) -> MachineResult<RelatedObjectQueryNode> {
+        if let Some(caster) = &self.relations.caster {
+            return Err(refuse_relation(cursor, caster, RelationVerb::Control));
+        }
+        Ok(RelatedObjectQueryNode {
+            objects: super::ObjectQueryNode {
+                predicate: self.predicate,
+                controller: self
+                    .relations
+                    .controller_scope()
+                    .map(object_controller_scope),
+                exclude_source: false,
+            },
+            ownership: self.relations.owner_scope().map(object_ownership_scope),
+        })
+    }
+}
+
+/// Recognizes an object predicate plus every player relation it states,
 /// independently of whether a parent uses it as a target or as a set query.
 ///
 /// Coordinators are transactional: a comma, `or` or `and/or` is consumed only
@@ -159,131 +415,26 @@ fn object_relation_kind_at(cursor: &OracleTokenCursor<'_>) -> MachineResult<Quer
 /// once `or`/`and/or` closes it (or when it lists negative modifiers of one
 /// head). Otherwise the connector stays with the parent, whatever the parent
 /// is (an `if` separator, a cost list, an effect sequence).
+pub(in crate::oracle::canonical) fn recognize_object_noun_query(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: ObjectQueryContext,
+) -> MachineResult<RecognizedObjectQuery> {
+    recognize_object_query_frame(cursor, context, false)
+}
+
+/// The ordinary object query: the noun phrase read as controlled objects.
 pub(in crate::oracle::canonical) fn recognize_object_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<super::ObjectQueryNode> {
-    let query = recognize_object_query_internal(cursor, QueryRelationKind::Control)?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
+    recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?.into_object_query(cursor)
 }
 
-/// One object query whose numeric comparisons may read the ability source
-/// when `source_available` (its counters, by last-known information).
-pub(in crate::oracle::canonical) fn recognize_object_query_with_source(
+fn recognize_object_query_frame(
     cursor: &mut OracleTokenCursor<'_>,
-    source_available: bool,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query = recognize_object_query_with_cardinality_policy(
-        cursor,
-        QueryRelationKind::Control,
-        CoordinatedCardinalityPolicy::ExistingQuery,
-        Some(source_available),
-        false,
-    )?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
-}
-
-/// Recognizes a spell collection whose player relation is the player who cast
-/// the spell, not the spell's current controller on the stack.
-pub(in crate::oracle::canonical) fn recognize_spell_cast_query(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<super::SpellCastQueryNode> {
-    let query = recognize_object_query_internal(cursor, QueryRelationKind::Cast)?;
-    Ok(super::SpellCastQueryNode {
-        predicate: query.predicate,
-        caster: query.subject_scope.map(spell_caster_scope),
-    })
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum CoordinatedCardinalityPolicy {
-    ExistingQuery,
-    ParentOwnedSharedQuota { exactly_one: bool },
-}
-
-/// One parent-owned quota applies to the whole candidate predicate. An
-/// explicitly repeated determiner would introduce a separate quota and must
-/// not be erased by Boolean normalization into a single union.
-pub(in crate::oracle::canonical) fn recognize_object_query_with_shared_cardinality(
-    cursor: &mut OracleTokenCursor<'_>,
-    count: &super::NumericExpression,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query = recognize_object_query_with_cardinality_policy(
-        cursor,
-        QueryRelationKind::Control,
-        CoordinatedCardinalityPolicy::ParentOwnedSharedQuota {
-            exactly_one: matches!(
-                count,
-                super::NumericExpression::Atom(super::NumericAtom::Integer(1))
-            ),
-        },
-        None,
-        false,
-    )?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
-}
-
-/// A resolution-owned query permits pure expression operands. Source proof
-/// is distinct from implicit event subjects and grammatical antecedents.
-pub(in crate::oracle::canonical) fn recognize_resolution_card_query(
-    cursor: &mut OracleTokenCursor<'_>,
-    source_available: bool,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query = recognize_object_query_with_cardinality_policy(
-        cursor,
-        QueryRelationKind::Control,
-        CoordinatedCardinalityPolicy::ExistingQuery,
-        Some(source_available),
-        false,
-    )?;
-    cursor.enter("selector.resolution-card.domain");
-    cursor.require(
-        query.predicate.has_domain(ObjectKind::Card)
-            && query.predicate.supports_domain(ObjectKind::Card),
-        "an explicit card-domain query",
-    )?;
-    cursor.require(
-        query.subject_scope.is_none(),
-        "an unscoped card predicate in the source zone",
-    )?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: None,
-        exclude_source: false,
-    })
-}
-
-fn recognize_object_query_internal(
-    cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: QueryRelationKind,
-) -> MachineResult<RecognizedObjectQuery> {
-    recognize_object_query_with_cardinality_policy(
-        cursor,
-        relation_kind,
-        CoordinatedCardinalityPolicy::ExistingQuery,
-        None,
-        false,
-    )
-}
-
-fn recognize_object_query_with_cardinality_policy(
-    cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: QueryRelationKind,
-    cardinality_policy: CoordinatedCardinalityPolicy,
-    query_source_available: Option<bool>,
+    context: ObjectQueryContext,
     logical_properties: bool,
 ) -> MachineResult<RecognizedObjectQuery> {
+    let query_source_available = context.source_available;
     let mut state = ObjectQueryState::Start;
     let mut frame = ObjectQueryFrame::default();
 
@@ -526,70 +677,25 @@ fn recognize_object_query_with_cardinality_policy(
                         scope: PostnominalQualifierScope::LastCoordinatedHead,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if let Some(length) = ownership_relation_length(cursor, relation_kind) {
-                    // `creature you own`, `permanents you don't own` (CR
-                    // 108.3): the ownership relation of the collection.
-                    cursor.enter("selector.ownership-relation");
-                    let negated = length == 3;
-                    for _ in 0..length {
-                        let raw = cursor.peek().unwrap_or_default().to_string();
-                        cursor.consume(&raw)?;
-                    }
-                    frame.postnominal_qualifiers.push(PostnominalQualifier {
-                        predicate: SelectorPredicate::OwnedByAbilityController { negated },
-                        scope: PostnominalQualifierScope::WholeQuery,
-                    });
+                } else if player_relation_subject_starts(cursor) {
+                    // `you control`, `an opponent owns`, `you cast`, `you
+                    // don't own`, `defending player controls`: the verb
+                    // names the relation (CR 108.3, 108.4, 601.2).
+                    cursor.enter("selector.player-relation");
+                    let (verb, relation) = recognize_player_relation(cursor, None)?;
+                    retain_player_relation(cursor, &mut frame, verb, relation)?;
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if cursor.peek().is_some_and(|token| {
-                    token.eq_ignore_ascii_case("you")
-                        || token.eq_ignore_ascii_case("an")
-                        || token.eq_ignore_ascii_case("your")
-                }) || bound_player_relation_starts(cursor)
-                {
-                    let role = if matches!(relation_kind, QueryRelationKind::ObjectRelations) {
-                        object_relation_kind_at(cursor)?
-                    } else {
-                        relation_kind
-                    };
-                    let slot = if matches!(role, QueryRelationKind::Own) {
-                        &mut frame.ownership_scope
-                    } else {
-                        &mut frame.subject_scope
-                    };
-                    cursor.require(slot.is_none(), "at most one relation for each player role")?;
-                    *slot = Some(recognize_object_subject_scope(cursor, role)?);
-                    ObjectQueryState::ReadPostnominalQualifier
-                } else if matches!(relation_kind, QueryRelationKind::ObjectRelations)
-                    && cursor
-                        .peek()
-                        .is_some_and(|token| token.eq_ignore_ascii_case("but"))
-                {
+                } else if let Some(inherited) = inherited_relation_after_but(cursor, &frame) {
+                    // `you control but don't own`: a second relation of the
+                    // same subject. A `but` followed by anything else is
+                    // the parent's.
+                    cursor.enter("selector.player-relation.but");
                     cursor.consume("but")?;
-                    if cursor.peek().is_some_and(|token| {
-                        token.eq_ignore_ascii_case("you")
-                            || token.eq_ignore_ascii_case("an")
-                            || token.eq_ignore_ascii_case("your")
-                    }) {
-                        ObjectQueryState::ReadPostnominalQualifier
-                    } else {
-                        cursor.require(frame.subject_scope == Some(QuerySubjectScope::AbilityController),
-                            "an explicit inherited controller subject for a following ownership relation")?;
-                        cursor
-                            .require(frame.ownership_scope.is_none(), "one ownership relation")?;
-                        let negated = cursor
-                            .peek()
-                            .is_some_and(|token| token.eq_ignore_ascii_case("don't"));
-                        if negated {
-                            cursor.consume("don't")?;
-                        }
-                        cursor.consume("own")?;
-                        frame.ownership_scope = Some(if negated {
-                            QuerySubjectScope::NotAbilityController
-                        } else {
-                            QuerySubjectScope::AbilityController
-                        });
-                        ObjectQueryState::ReadPostnominalQualifier
+                    if inherited.is_some() {
+                        let (verb, relation) = recognize_player_relation(cursor, inherited)?;
+                        retain_player_relation(cursor, &mut frame, verb, relation)?;
                     }
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if let Some(length) = chosen_creature_type_qualifier_length(cursor) {
                     // `of the chosen type` / `of that [creature] type`: the
                     // creature type chosen earlier in the program (CR 608.2d).
@@ -614,15 +720,17 @@ fn recognize_object_query_with_cardinality_policy(
                 }) {
                     let relative_word = cursor.peek().expect("checked relative word").to_string();
                     cursor.consume(&relative_word)?;
-                    let relative = recognize_object_query_with_cardinality_policy(
+                    let relative = recognize_object_query_frame(
                         cursor,
-                        QueryRelationKind::Control,
-                        cardinality_policy,
-                        query_source_available,
+                        ObjectQueryContext {
+                            quota: context.quota,
+                            source_available: query_source_available,
+                        },
                         true,
-                    )?;
+                    )?
+                    .into_object_query(cursor)?;
                     cursor.require(
-                        relative.subject_scope.is_none(),
+                        relative.controller.is_none(),
                         "a relative characteristic without another controller qualifier",
                     )?;
                     frame.postnominal_qualifiers.push(PostnominalQualifier {
@@ -636,9 +744,7 @@ fn recognize_object_query_with_cardinality_policy(
             }
             ObjectQueryState::Complete => {
                 cursor.enter("selector.predicate.complete");
-                if let CoordinatedCardinalityPolicy::ParentOwnedSharedQuota { exactly_one } =
-                    cardinality_policy
-                {
+                if let QueryQuota::ParentOwnedShared { exactly_one } = context.quota {
                     cursor.require(!frame.has_repeated_head_article || (exactly_one
                         && frame.last_connector_is_exclusive && !frame.has_inclusive_connector),
                         "coordinated alternatives with one shared quota, not independent headed quantities")?;
@@ -657,44 +763,141 @@ fn recognize_object_query_with_cardinality_policy(
                 {
                     frame.union_branches = vec![shared];
                 }
-                let shared_qualifiers = compose_postnominal_scopes(
-                    cursor,
-                    &mut frame.union_branches,
-                    frame.postnominal_qualifiers,
-                )?;
-                let base = match frame.union_branches.len() {
-                    0 => return Err(cursor.fail("a populated selector predicate")),
-                    1 => frame.union_branches.pop().expect("one branch"),
-                    _ if logical_properties => {
-                        let atoms = frame
-                            .union_branches
-                            .into_iter()
-                            .map(super::BooleanConditionNode::Atom)
-                            .collect();
-                        let composed = super::lower_boolean_precedence(
+                // CR 108.3: an ownership relative to the ability controller
+                // is also the `ownedBy` characteristic of the same objects.
+                // Both readings compose here, once; the parent's projection
+                // chooses the one its consumer represents.
+                let owned_predicate = match frame.relations.owner_scope() {
+                    Some(
+                        scope @ (QuerySubjectScope::AbilityController
+                        | QuerySubjectScope::NotAbilityController),
+                    ) => {
+                        let mut qualifiers = frame.postnominal_qualifiers.clone();
+                        let index = frame
+                            .owner_qualifier_index
+                            .unwrap_or(qualifiers.len())
+                            .min(qualifiers.len());
+                        qualifiers.insert(
+                            index,
+                            PostnominalQualifier {
+                                predicate: SelectorPredicate::OwnedByAbilityController {
+                                    negated: scope == QuerySubjectScope::NotAbilityController,
+                                },
+                                scope: PostnominalQualifierScope::WholeQuery,
+                            },
+                        );
+                        Some(compose_query_predicate(
                             cursor,
-                            atoms,
-                            frame.logical_connectors,
-                        )?;
-                        object_predicate_from_boolean(composed)
+                            frame.union_branches.clone(),
+                            qualifiers,
+                            frame.logical_connectors.clone(),
+                            logical_properties,
+                        )?)
                     }
-                    _ => lift_shared_trailing_domain(frame.union_branches),
+                    _ => None,
                 };
-                let predicate = if shared_qualifiers.is_empty() {
-                    base
-                } else {
-                    let mut operands = Vec::with_capacity(1 + shared_qualifiers.len());
-                    operands.push(base);
-                    operands.extend(shared_qualifiers);
-                    SelectorPredicate::Intersection(operands)
-                };
+                let predicate = compose_query_predicate(
+                    cursor,
+                    frame.union_branches,
+                    frame.postnominal_qualifiers,
+                    frame.logical_connectors,
+                    logical_properties,
+                )?;
                 return Ok(RecognizedObjectQuery {
                     predicate,
-                    subject_scope: frame.subject_scope,
-                    ownership_scope: frame.ownership_scope,
+                    owned_predicate,
+                    relations: frame.relations,
                 });
             }
         };
+    }
+}
+
+/// Composes the coordinated branches, their postnominal qualifiers and,
+/// for a logical property list, its Boolean precedence into one predicate.
+fn compose_query_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut branches: Vec<SelectorPredicate>,
+    qualifiers: Vec<PostnominalQualifier>,
+    logical_connectors: Vec<super::ContextualListConnector>,
+    logical_properties: bool,
+) -> MachineResult<SelectorPredicate> {
+    let shared_qualifiers = compose_postnominal_scopes(cursor, &mut branches, qualifiers)?;
+    let base = match branches.len() {
+        0 => return Err(cursor.fail("a populated selector predicate")),
+        1 => branches.pop().expect("one branch"),
+        _ if logical_properties => {
+            let atoms = branches
+                .into_iter()
+                .map(super::BooleanConditionNode::Atom)
+                .collect();
+            let composed = super::lower_boolean_precedence(cursor, atoms, logical_connectors)?;
+            object_predicate_from_boolean(composed)
+        }
+        _ => lift_shared_trailing_domain(branches),
+    };
+    Ok(if shared_qualifiers.is_empty() {
+        base
+    } else {
+        let mut operands = Vec::with_capacity(1 + shared_qualifiers.len());
+        operands.push(base);
+        operands.extend(shared_qualifiers);
+        SelectorPredicate::Intersection(operands)
+    })
+}
+
+/// Stores one read relation in its verb's slot. A second relation of the
+/// same verb is refused; ownership remembers its qualifier position.
+fn retain_player_relation(
+    cursor: &mut OracleTokenCursor<'_>,
+    frame: &mut ObjectQueryFrame,
+    verb: RelationVerb,
+    relation: ReadRelation,
+) -> MachineResult<()> {
+    let slot = frame.relations.slot_mut(verb);
+    cursor.require(slot.is_none(), "at most one relation for each player role")?;
+    *slot = Some(relation);
+    if verb == RelationVerb::Own {
+        frame.owner_qualifier_index = Some(frame.postnominal_qualifiers.len());
+    }
+    Ok(())
+}
+
+fn is_negation_word(raw: &str) -> bool {
+    raw.eq_ignore_ascii_case("don't") || raw.eq_ignore_ascii_case("don\u{2019}t")
+}
+
+/// After a relation, `but` opens a second relation only when one follows:
+/// `but don't own` / `but own` inherit the controller subject (`Some`),
+/// `but an opponent owns` names its own subject (`None`). Pure lookahead.
+fn inherited_relation_after_but(
+    cursor: &OracleTokenCursor<'_>,
+    frame: &ObjectQueryFrame,
+) -> Option<Option<QuerySubjectScope>> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("but"))
+        || frame.relations.is_empty()
+    {
+        return None;
+    }
+    let mut lookahead = cursor.clone();
+    lookahead.consume("but").ok()?;
+    if player_relation_subject_starts(&lookahead) {
+        return Some(None);
+    }
+    let negated = lookahead.peek().is_some_and(is_negation_word);
+    let verb = lookahead.peek_ahead(usize::from(negated))?;
+    if !verb.eq_ignore_ascii_case("own") {
+        return None;
+    }
+    // Only the ability controller has a written `don't` form; the inherited
+    // subject is the controller relation's (`you control but don't own`).
+    match frame.relations.controller_scope() {
+        Some(QuerySubjectScope::AbilityController) if frame.relations.owner.is_none() => {
+            Some(Some(QuerySubjectScope::AbilityController))
+        }
+        _ => None,
     }
 }
 
@@ -1300,33 +1503,55 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ControllerQualifierState {
+enum PlayerRelationState {
     Subject,
     Opponent,
     Opponents,
-    RelationOrNegation,
-    NegatedRelation,
+    NegationOrVerb,
+    Verb,
     Complete,
 }
 
-/// Recognizes the controller relation attached to an object selector. The
-/// relation is retained outside the card-characteristic predicate so lowering
-/// can populate the generic target-candidate controller field.
-fn recognize_object_subject_scope(
+/// A player subject of a relation clause at the cursor: `you`, `an
+/// opponent`, `your opponents`, or a bound player (`defending player
+/// controls`). Dispatch hint only; the relation reader validates the clause.
+fn player_relation_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_some_and(|token| {
+        token.eq_ignore_ascii_case("you")
+            || token.eq_ignore_ascii_case("an")
+            || token.eq_ignore_ascii_case("your")
+    }) || bound_player_relation_starts(cursor)
+}
+
+/// Recognizes one relation clause after an object noun: a player subject
+/// and the verb naming the relation (`you control`, `an opponent owns`,
+/// `you cast`, `you don't own`). The relation is retained outside the
+/// characteristic predicate so lowering can populate the generic controller,
+/// caster or owner field.
+fn recognize_player_relation(
     cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: QueryRelationKind,
-) -> MachineResult<QuerySubjectScope> {
-    let mut state = ControllerQualifierState::Subject;
-    let mut scope = None;
-    let mut plural_opponents = false;
+    inherited: Option<QuerySubjectScope>,
+) -> MachineResult<(RelationVerb, ReadRelation)> {
+    // An inherited subject (`you control but don't own`) starts at its
+    // optional negation; only `you` is ever inherited.
+    let mut state = if inherited.is_some() {
+        PlayerRelationState::NegationOrVerb
+    } else {
+        PlayerRelationState::Subject
+    };
+    let mut scope = inherited;
+    let mut third_person = false;
+    let mut negated = false;
+    let mut verb = None;
+    let mut site = None;
     loop {
         state = match state {
-            ControllerQualifierState::Subject => {
+            PlayerRelationState::Subject => {
                 cursor.enter("selector.controller-qualifier.subject");
                 if bound_player_relation_starts(cursor) {
-                    // `defending player controls`, `that player controls`:
-                    // the player is resolved by the binding environment
-                    // (C2), never guessed by this query.
+                    // `defending player controls`, `that player owns`: the
+                    // player is resolved by the binding environment (C2),
+                    // never guessed by this query.
                     cursor.enter("selector.controller-qualifier.bound-player");
                     let environment = super::installed_binding_environment(cursor);
                     let player = super::recognize_bound_player_reference(cursor, &environment)?;
@@ -1335,100 +1560,84 @@ fn recognize_object_subject_scope(
                         "a player the triggering event records",
                     )?;
                     scope = Some(QuerySubjectScope::EventPlayer);
-                    plural_opponents = false;
-                    ControllerQualifierState::RelationOrNegation
+                    third_person = true;
+                    PlayerRelationState::Verb
                 } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
                 {
                     cursor.consume("you")?;
                     scope = Some(QuerySubjectScope::AbilityController);
-                    ControllerQualifierState::RelationOrNegation
+                    PlayerRelationState::NegationOrVerb
                 } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
                 {
                     cursor.consume("your")?;
-                    plural_opponents = true;
-                    ControllerQualifierState::Opponents
+                    PlayerRelationState::Opponents
                 } else {
                     cursor.consume("an")?;
-                    ControllerQualifierState::Opponent
+                    PlayerRelationState::Opponent
                 }
             }
-            ControllerQualifierState::Opponent => {
+            PlayerRelationState::Opponent => {
                 cursor.enter("selector.controller-qualifier.opponent");
                 cursor.consume("opponent")?;
                 scope = Some(QuerySubjectScope::OpponentOfAbilityController);
-                ControllerQualifierState::RelationOrNegation
+                third_person = true;
+                PlayerRelationState::Verb
             }
-            ControllerQualifierState::Opponents => {
+            PlayerRelationState::Opponents => {
                 cursor.enter("selector.controller-qualifier.opponents");
                 cursor.consume("opponents")?;
                 scope = Some(QuerySubjectScope::OpponentOfAbilityController);
-                ControllerQualifierState::RelationOrNegation
+                PlayerRelationState::Verb
             }
-            ControllerQualifierState::RelationOrNegation => {
+            PlayerRelationState::NegationOrVerb => {
                 cursor.enter("selector.controller-qualifier.relation-or-negation");
-                match scope {
-                    Some(QuerySubjectScope::AbilityController)
-                        if cursor
-                            .peek()
-                            .is_some_and(|raw| raw.eq_ignore_ascii_case("don't")) =>
-                    {
-                        cursor.consume("don't")?;
-                        scope = Some(QuerySubjectScope::NotAbilityController);
-                        ControllerQualifierState::NegatedRelation
-                    }
-                    Some(QuerySubjectScope::AbilityController) => {
-                        cursor.consume(match relation_kind {
-                            QueryRelationKind::Control => "control",
-                            QueryRelationKind::Cast => "cast",
-                            QueryRelationKind::Own => "own",
-                            QueryRelationKind::ObjectRelations => {
-                                unreachable!("role selected before subject reader")
-                            }
-                        })?;
-                        ControllerQualifierState::Complete
-                    }
-                    Some(
-                        QuerySubjectScope::OpponentOfAbilityController
-                        | QuerySubjectScope::EventPlayer,
-                    ) => {
-                        cursor.consume(match (relation_kind, plural_opponents) {
-                            (QueryRelationKind::Control, true) => "control",
-                            (QueryRelationKind::Control, false) => "controls",
-                            (QueryRelationKind::Cast, true) => "cast",
-                            (QueryRelationKind::Cast, false) => "casts",
-                            (QueryRelationKind::Own, true) => "own",
-                            (QueryRelationKind::Own, false) => "owns",
-                            (QueryRelationKind::ObjectRelations, _) => {
-                                unreachable!("role selected before subject reader")
-                            }
-                        })?;
-                        ControllerQualifierState::Complete
-                    }
-                    Some(QuerySubjectScope::NotAbilityController) => {
-                        return Err(cursor.fail("an unresolved positive controller relation"));
-                    }
-                    None => return Err(cursor.fail("a resolved controller subject")),
+                if cursor.peek().is_some_and(is_negation_word) {
+                    let word = cursor.peek().expect("checked negation").to_string();
+                    cursor.consume(&word)?;
+                    scope = Some(QuerySubjectScope::NotAbilityController);
+                    negated = true;
                 }
+                PlayerRelationState::Verb
             }
-            ControllerQualifierState::NegatedRelation => {
-                cursor.enter("selector.controller-qualifier.negated-relation");
-                cursor.consume(match relation_kind {
-                    QueryRelationKind::Control => "control",
-                    QueryRelationKind::Cast => "cast",
-                    QueryRelationKind::Own => "own",
-                    QueryRelationKind::ObjectRelations => {
-                        unreachable!("role selected before subject reader")
-                    }
-                })?;
-                ControllerQualifierState::Complete
+            PlayerRelationState::Verb => {
+                // The states keep the names of the former controller reader
+                // so a malformed verb reports where it always did.
+                cursor.enter(if negated {
+                    "selector.controller-qualifier.negated-relation"
+                } else {
+                    "selector.controller-qualifier.relation-or-negation"
+                });
+                let token_index = cursor.position();
+                let token = cursor
+                    .peek_token()
+                    .cloned()
+                    .ok_or_else(|| cursor.fail("a control, cast or own relation verb"))?;
+                let read = RelationVerb::from_word(&token.raw, third_person)
+                    .ok_or_else(|| cursor.fail(RelationVerb::Control.surface(third_person)))?;
+                cursor.consume(&token.raw)?;
+                site = Some(RelationSite {
+                    token_index,
+                    span_start: token.span_start,
+                    span_end: token.span_end,
+                    raw: token.raw,
+                    negated,
+                    third_person,
+                });
+                verb = Some(read);
+                PlayerRelationState::Complete
             }
-            ControllerQualifierState::Complete => {
+            PlayerRelationState::Complete => {
                 cursor.enter("selector.controller-qualifier.complete");
-                return cursor.require_value(scope, "an object controller scope");
+                let scope = cursor.require_value(scope, "an object relation subject")?;
+                let site = cursor.require_value(site, "a read relation verb")?;
+                return Ok((
+                    cursor.require_value(verb, "a relation verb")?,
+                    ReadRelation { scope, site },
+                ));
             }
         };
     }
@@ -1445,30 +1654,14 @@ fn object_controller_scope(scope: QuerySubjectScope) -> ObjectControllerScope {
     }
 }
 
-/// `you own` (2) / `you don't own` (3) in a query whose relation is
-/// control: an ownership qualifier, not the controller subject. Queries
-/// that read player relations themselves keep their own reader.
-fn ownership_relation_length(
-    cursor: &OracleTokenCursor<'_>,
-    relation_kind: QueryRelationKind,
-) -> Option<usize> {
-    if !matches!(relation_kind, QueryRelationKind::Control) {
-        return None;
-    }
-    let word = |offset: usize, expected: &str| {
-        cursor
-            .peek_ahead(offset)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
-    if !word(0, "you") {
-        return None;
-    }
-    if word(1, "own") {
-        Some(2)
-    } else if (word(1, "don't") || word(1, "don\u{2019}t")) && word(2, "own") {
-        Some(3)
-    } else {
-        None
+fn object_ownership_scope(scope: QuerySubjectScope) -> ObjectOwnershipScope {
+    match scope {
+        QuerySubjectScope::AbilityController => ObjectOwnershipScope::AbilityController,
+        QuerySubjectScope::NotAbilityController => ObjectOwnershipScope::NotAbilityController,
+        QuerySubjectScope::OpponentOfAbilityController => {
+            ObjectOwnershipScope::OpponentOfAbilityController
+        }
+        QuerySubjectScope::EventPlayer => ObjectOwnershipScope::EventPlayer,
     }
 }
 
@@ -1481,7 +1674,7 @@ fn bound_player_relation_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     };
     (word(0, "defending") || word(0, "that"))
         && word(1, "player")
-        && (word(2, "controls") || word(2, "owns"))
+        && (word(2, "controls") || word(2, "owns") || word(2, "casts"))
 }
 
 fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
@@ -2372,3 +2565,7 @@ fn chosen_creature_type_qualifier_length(cursor: &OracleTokenCursor<'_>) -> Opti
     let noun = determiner + usize::from(word(determiner, "creature"));
     word(noun, "type").then_some(noun + 1)
 }
+
+#[cfg(test)]
+#[path = "selector_relation_lexicon_tests.rs"]
+mod relation_lexicon_tests;

@@ -1,8 +1,7 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EventActorScope, ObjectKind, ObjectPredicate, SpellCastQueryNode, TriggeringPlayerBinding,
-    object_predicate_uses_x, recognize_ordinal_atom, recognize_spell_cast_query,
-    try_recognize_event_actor_scope,
+    object_predicate_uses_x, recognize_ordinal_atom, try_recognize_event_actor_scope,
 };
 
 /// Compatibility name for existing cast consumers. The subject parser and
@@ -342,7 +341,11 @@ fn recognize_optional_spell_cast_event_atom(
                 SpellCastEventState::Query
             }
             SpellCastEventState::Query => {
-                let query = recognize_spell_cast_query(cursor)?;
+                let query = super::recognize_object_noun_query(
+                    cursor,
+                    super::ObjectQueryContext::ORDINARY,
+                )?
+                .into_spell_cast_query(cursor)?;
                 cursor.enter("event.spell-cast.caster-identity");
                 cursor.require(
                     query.caster.is_none(),
@@ -350,8 +353,7 @@ fn recognize_optional_spell_cast_event_atom(
                 )?;
                 cursor.enter("event.spell-cast.spell-domain");
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Spell)
-                        && query.predicate.supports_domain(ObjectKind::Spell),
+                    query.predicate.is_in_domain(ObjectKind::Spell),
                     "an explicit spell-domain ObjectQuery",
                 )?;
                 cursor.enter("event.spell-cast.predicate-binding");

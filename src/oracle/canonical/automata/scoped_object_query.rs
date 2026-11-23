@@ -60,8 +60,7 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
     };
     cursor.enter("query.zone.domain");
     cursor.require(
-        objects.objects.predicate.supports_domain(domain)
-            && objects.objects.predicate.has_domain(domain),
+        objects.objects.predicate.is_in_domain(domain),
         "an explicit nominal domain appropriate to the query's actual zone",
     )?;
     cursor.require(

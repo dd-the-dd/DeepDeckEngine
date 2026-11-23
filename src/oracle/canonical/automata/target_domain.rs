@@ -30,7 +30,7 @@ pub(in crate::oracle::canonical) fn project_object_query_domains(
     // Preserve same-domain Boolean characteristics as one AST. In particular,
     // an ordinary spell with many color/type alternatives needs no DNF work.
     for domain in allowed {
-        if predicate.supports_domain(*domain) && positive_nominal(predicate, *domain) {
+        if predicate.supports_domain(*domain) && predicate.has_positive_domain(*domain) {
             return Ok(vec![ObjectDomainProjection {
                 domain: *domain,
                 predicate: predicate.clone(),
@@ -57,7 +57,7 @@ pub(in crate::oracle::canonical) fn project_object_query_domains(
                 // permanents carry names a permanent unless the branch also
                 // names `card` or `spell` (checked by `explicit` above).
                 atom if atom.denotes_permanent_head(true) => permanent_nominal = true,
-                ObjectPredicate::Not(child) if has_explicit_domain(child) => {
+                ObjectPredicate::Not(child) if child.names_object_kind() => {
                     return Err(TargetDomainProjectionError::UnsupportedDomain);
                 }
                 _ => {}
@@ -111,7 +111,7 @@ fn validate_domain_atoms(
         ObjectPredicate::ObjectKind(domain) if !allowed.contains(domain) => {
             Err(TargetDomainProjectionError::UnsupportedDomain)
         }
-        ObjectPredicate::Not(child) if has_explicit_domain(child) => {
+        ObjectPredicate::Not(child) if child.names_object_kind() => {
             Err(TargetDomainProjectionError::UnsupportedDomain)
         }
         ObjectPredicate::Not(child) => validate_domain_atoms(child, allowed),
@@ -125,22 +125,6 @@ fn validate_domain_atoms(
             Ok(())
         }
         _ => Ok(()),
-    }
-}
-
-fn positive_nominal(predicate: &ObjectPredicate, domain: ObjectKind) -> bool {
-    match predicate {
-        ObjectPredicate::ObjectKind(actual) => *actual == domain,
-        ObjectPredicate::CardType(_) | ObjectPredicate::Subtype(_) => {
-            domain == ObjectKind::Permanent && predicate.denotes_permanent_head(true)
-        }
-        ObjectPredicate::Intersection(children) => {
-            children.iter().any(|child| positive_nominal(child, domain))
-        }
-        ObjectPredicate::Union(children) => {
-            !children.is_empty() && children.iter().all(|child| positive_nominal(child, domain))
-        }
-        _ => false,
     }
 }
 
@@ -188,14 +172,22 @@ fn predicate_branches(
     }
 }
 
-fn has_explicit_domain(predicate: &ObjectPredicate) -> bool {
-    match predicate {
-        ObjectPredicate::ObjectKind(_) => true,
-        ObjectPredicate::Not(child) => has_explicit_domain(child),
-        ObjectPredicate::Union(children) | ObjectPredicate::Intersection(children) => {
-            children.iter().any(has_explicit_domain)
+impl TargetSelector {
+    /// One battlefield-permanent target slot (CR 115.1, 601.2c): a single
+    /// object selector declarable in the permanent domain. The domain test is
+    /// the shared ObjectPredicate authority; there is no separate whitelist.
+    /// The spell/permanent union keeps its own projection below.
+    pub(in crate::oracle::canonical) fn is_permanent_target(&self) -> bool {
+        match self {
+            TargetSelector::Object(predicate)
+            | TargetSelector::ControlledObject { predicate, .. } => {
+                predicate.is_declarable_target_in(ObjectKind::Permanent)
+            }
+            TargetSelector::Union(_)
+            | TargetSelector::Any
+            | TargetSelector::Player(_)
+            | TargetSelector::StackItem(_) => false,
         }
-        _ => false,
     }
 }
 
