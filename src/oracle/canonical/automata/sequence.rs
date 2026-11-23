@@ -2592,7 +2592,7 @@ fn recognize_return_frame(
         return recognize_target_card_zone_change_effect(cursor)
             .map(LocalEffectNode::TargetCardZoneChange);
     }
-    match try_recognize_target_card_zone_change_effect_with_verb(cursor, "return") {
+    match try_recognize_target_card_zone_change_effect_with_verb(cursor, VerbLemma::Return) {
         TargetCardZoneChangeParseAttempt::Parsed(node) => {
             return Ok(LocalEffectNode::TargetCardZoneChange(node));
         }
