@@ -251,6 +251,8 @@ use echo_upkeep::{ECHO_DUE_FLAG, ECHO_UPKEEP_FLAG};
 mod turns;
 mod untap_attempt;
 mod validation;
+mod zone_of_function;
+use zone_of_function::ZoneOfFunction;
 mod zone_change_triggers;
 mod zone_entry;
 
@@ -5902,9 +5904,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
 }
 
 fn battlefield_static_rule_supported(rule: &Value) -> bool {
-    value_kind(&rule["activeWhile"]) == Some("inZone")
-        && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-        && value_kind(&rule["activeWhile"]["zone"]) == Some("battlefield")
+    zone_of_function::static_zone_of_function(rule) == Some(ZoneOfFunction::Battlefield)
         && rule.get("condition").is_none_or(condition_supported)
         && rule["modifiers"].as_array().is_some_and(|modifiers| {
             !modifiers.is_empty() && modifiers.iter().all(battlefield_static_modifier_supported)
@@ -5912,9 +5912,7 @@ fn battlefield_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn casting_static_rule_supported(rule: &Value) -> bool {
-    value_kind(&rule["activeWhile"]) == Some("inZone")
-        && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-        && value_kind(&rule["activeWhile"]["zone"]) == Some("stackOrCast")
+    zone_of_function::static_zone_of_function(rule) == Some(ZoneOfFunction::StackOrCast)
         && rule["modifiers"].as_array().is_some_and(|modifiers| {
             !modifiers.is_empty()
                 && modifiers.iter().all(|modifier| {
@@ -5929,9 +5927,8 @@ fn casting_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn eminence_static_rule_supported(rule: &Value) -> bool {
-    value_kind(&rule["activeWhile"]) == Some("inZone")
-        && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-        && value_kind(&rule["activeWhile"]["zone"]) == Some("commandZoneOrBattlefield")
+    zone_of_function::static_zone_of_function(rule)
+        == Some(ZoneOfFunction::CommandZoneOrBattlefield)
         && rule["modifiers"].as_array().is_some_and(|modifiers| {
             !modifiers.is_empty()
                 && modifiers.iter().all(|modifier| {
@@ -5987,11 +5984,13 @@ fn rule_supported(rule: &Value) -> bool {
             battlefield_static_rule_supported(rule)
                 || casting_static_rule_supported(rule)
                 || eminence_static_rule_supported(rule)
+                // CR 604.3: statics that say they function from a graveyard,
+                // hand or exile join the continuous-effect collector there.
+                || zone_of_function::card_zone_static_rule_supported(rule)
                 // CR 309.2: a Dungeon stays in the command zone; its entry
                 // restriction is read there by the venture procedure.
-                || (value_kind(&rule["activeWhile"]) == Some("inZone")
-                    && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-                    && value_kind(&rule["activeWhile"]["zone"]) == Some("command")
+                || (zone_of_function::static_zone_of_function(rule)
+                    == Some(ZoneOfFunction::Command)
                     && rule["modifiers"].as_array().is_some_and(|modifiers| {
                         !modifiers.is_empty()
                             && modifiers.iter().all(|modifier| {
@@ -5999,9 +5998,8 @@ fn rule_supported(rule: &Value) -> bool {
                                     && modifier["procedure"].is_string()
                             })
                     }))
-                || (value_kind(&rule["activeWhile"]) == Some("inZone")
-                    && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-                    && value_kind(&rule["activeWhile"]["zone"]) == Some("stack")
+                || (zone_of_function::static_zone_of_function(rule)
+                    == Some(ZoneOfFunction::Stack)
                     && rule["modifiers"].as_array().is_some_and(|modifiers| {
                         !modifiers.is_empty()
                             && modifiers.iter().all(|modifier| {
@@ -6028,9 +6026,7 @@ fn spell_cant_be_countered(card: &CardDefinition) -> bool {
     card.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some("staticAbility")
             && rule_supported(rule)
-            && value_kind(&rule["activeWhile"]) == Some("inZone")
-            && value_kind(&rule["activeWhile"]["object"]) == Some("self")
-            && value_kind(&rule["activeWhile"]["zone"]) == Some("stack")
+            && zone_of_function::static_zone_of_function(rule) == Some(ZoneOfFunction::Stack)
             && rule["modifiers"].as_array().is_some_and(|modifiers| {
                 modifiers.iter().any(|modifier| {
                     value_kind(modifier) == Some("cantBeCountered")
@@ -25488,14 +25484,8 @@ impl GameEngine {
                 .into_iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
-                        && match source_zone {
-                            "hand" => rule["triggerZone"].as_str() == Some("hand"),
-                            "commandZone" => {
-                                rule["triggerZone"].as_str() == Some("commandZoneOrBattlefield")
-                            }
-                            "exile" => rule["triggerZone"].as_str() == Some("exile"),
-                            _ => !matches!(rule["triggerZone"].as_str(), Some("hand" | "exile")),
-                        }
+                        && zone_of_function::trigger_zone_of_function(rule)
+                            .functions_in(source_zone)
                         && rule.get("condition").is_none_or(|condition| {
                             self.condition_value_with_source(
                                 condition,

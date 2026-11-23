@@ -83,7 +83,52 @@ impl GameEngine {
                     })
                     .collect::<Vec<_>>()
             })
+            .chain(self.card_zone_static_modifier_sites())
             .collect()
+    }
+
+    /// CR 604.3: static abilities of cards in a graveyard, hand or exile
+    /// that state that zone as their zone of function. They share the
+    /// battlefield modifier vocabulary and activity checks.
+    fn card_zone_static_modifier_sites(&self) -> Vec<BattlefieldStaticModifierSite> {
+        let zones = self.state.players.iter().flat_map(|player| {
+            [
+                ("graveyard", &player.graveyard),
+                ("hand", &player.hand),
+                ("exile", &player.exile),
+            ]
+        });
+        let mut sites = Vec::new();
+        for (zone, cards) in zones {
+            for source in cards {
+                for (rule_index, rule) in source.definition.printed_rules().iter().enumerate() {
+                    if !zone_of_function::static_zone_of_function(rule).is_some_and(|function| {
+                        function.is_card_zone_outside_battlefield() && function.functions_in(zone)
+                    }) || !Self::rule_metadata_active_for_source(source, rule)
+                    {
+                        continue;
+                    }
+                    for (modifier_index, modifier) in rule["modifiers"]
+                        .as_array()
+                        .into_iter()
+                        .flatten()
+                        .enumerate()
+                    {
+                        sites.push(BattlefieldStaticModifierSite {
+                            source: source.clone(),
+                            rule_index,
+                            modifier_index,
+                            modifier: modifier.clone(),
+                            outer_rule_supported: zone_of_function::card_zone_static_rule_supported(
+                                rule,
+                            ),
+                            outer_condition: rule.get("condition").cloned(),
+                        });
+                    }
+                }
+            }
+        }
+        sites
     }
 
     pub(super) fn static_modifier_site_is_active(
