@@ -92,7 +92,7 @@ fn unsupported_suffix_is_a_committed_direct_mana_spell_failure() {
     // language, which has no atom for it.
     assert_eq!(
         diagnostic.state.as_deref(),
-        Some("condition.unless.atom-kind")
+        Some("sequence.unless.payer.indefinite-player")
     );
     assert_eq!(diagnostic.found.as_deref(), Some("an"));
 }
