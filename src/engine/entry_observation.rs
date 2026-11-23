@@ -136,8 +136,10 @@ pub(super) fn reference_scope_supported(rule: &Value) -> bool {
 }
 
 pub(super) fn node_requires_checkpoint(node: &Value) -> bool {
-    value_kind(node) == Some("untapPermanent")
-        && value_kind(&node["permanent"]) == Some("observedEventObject")
+    matches!(
+        value_kind(node),
+        Some("untapPermanent" | "destroyPermanent")
+    ) && value_kind(&node["permanent"]) == Some("observedEventObject")
 }
 
 impl GameEngine {

@@ -322,3 +322,44 @@ fn all_entry_branches_produce_a_reference_but_entry_or_death_does_not() {
     assert!(!rule_is_executable(&program));
     assert!(!reference_scope_supported(&program));
 }
+
+/// Grave Peril's shape: `When a nonblack creature enters, sacrifice this
+/// enchantment. If you do, destroy that creature.` The destroy reads the
+/// creature the entry event observed, never a target.
+#[test]
+fn performed_sacrifice_destroys_the_observed_entering_creature() {
+    let peril = json!({"kind":"triggeredAbility","source":{"kind":"self"},
+        "event":{"kind":"permanentEntered","anyController":true,
+            "where":{"kind":"cardTypeContains","value":"Creature"}},
+        "effects":[{"kind":"performAction",
+            "action":{"kind":"sacrificePermanent","permanent":{"kind":"self"}},
+            "onPerformed":[{"kind":"destroyPermanent",
+                "permanent":{"kind":"observedEventObject","event":"permanentEntered"}}]}]});
+    assert!(rule_is_executable(&peril));
+    let mut engine = make_engine(0);
+    let mut source = card_instance("p0", &definition("peril", "Enchantment", vec![peril]), 7);
+    engine.prepare_battlefield_entry_identity(&mut source);
+    engine.state.players[0].battlefield.push(source);
+    let mut creature = card_instance("p1", &definition("bear", "Creature - Bear", Vec::new()), 81);
+    creature.definition.power = Some("2".into());
+    creature.definition.toughness = Some("2".into());
+    let id = creature.instance_id.clone();
+    for installed in engine.install_prepared_battlefield_entries(vec![(1, creature)]) {
+        engine.publish_prepared_enter_battlefield_triggers(&installed);
+    }
+    assert_eq!(engine.state.stack.len(), 1);
+    let mut provider = NoChoices::default();
+    engine.resolve_top_stack(&mut provider).unwrap();
+    assert!(
+        engine.permanent_position(&id).is_none(),
+        "the observed creature is destroyed"
+    );
+    assert!(
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .all(|card| card.definition.id != "peril"),
+        "the enchantment was sacrificed"
+    );
+    assert_eq!(provider.calls, 0);
+}

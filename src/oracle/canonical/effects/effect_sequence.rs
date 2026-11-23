@@ -3197,7 +3197,12 @@ pub(in crate::oracle::canonical) fn lower_regeneration_shield(object: Value) -> 
 pub(in crate::oracle::canonical) fn lower_tap_state_change(untap: bool, object: Value) -> Value {
     match (untap, object["kind"].as_str()) {
         (false, _) => json!({"kind": "tapPermanent", "permanent": object}),
-        (true, Some("chosenTargets")) => json!({"kind": "untapPermanents", "objects": object}),
+        // A collection operand untaps each of its objects (`untap each
+        // other Merfolk you control`); the singular primitive takes one.
+        (
+            true,
+            Some("chosenTargets" | "chosenObjects" | "eachPermanent" | "boundObjects" | "union"),
+        ) => json!({"kind": "untapPermanents", "objects": object}),
         (true, _) => json!({"kind": "untapPermanent", "permanent": object}),
     }
 }

@@ -30,11 +30,18 @@ pub(crate) enum EngineGap {
     ResolutionCostAction,
     /// A typed payment action that has no activation-cost schema.
     ActivationCostAction,
+    /// An event-history count filtered by a permanent state (face-down,
+    /// tapped, a designation or counters): the event log records the
+    /// object's definition, not its state.
+    EventHistoryState,
+    /// A modal choice that allows zero modes (`choose up to N`, `any
+    /// number`): the runtime declares at least one mode.
+    ZeroModeChoice,
 }
 
 impl EngineGap {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 7] = [
+    pub(crate) const ALL: [Self; 9] = [
         Self::EventMatcher,
         Self::GrantedNonActivatedAbility,
         Self::MeasuredPerformance,
@@ -42,6 +49,8 @@ impl EngineGap {
         Self::PermissionWindow,
         Self::ResolutionCostAction,
         Self::ActivationCostAction,
+        Self::EventHistoryState,
+        Self::ZeroModeChoice,
     ];
 
     /// The reported failure state, always `engine.gap.<kind>`.
@@ -54,6 +63,8 @@ impl EngineGap {
             Self::PermissionWindow => "engine.gap.permission-window",
             Self::ResolutionCostAction => "engine.gap.resolution-cost-action",
             Self::ActivationCostAction => "engine.gap.activation-cost-action",
+            Self::EventHistoryState => "engine.gap.event-history-state",
+            Self::ZeroModeChoice => "engine.gap.zero-mode-choice",
         }
     }
 }

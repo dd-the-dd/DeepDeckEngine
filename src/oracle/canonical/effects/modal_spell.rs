@@ -150,6 +150,13 @@ pub(in crate::oracle::canonical) fn lower_effect_sequence_modal(
     cursor: &mut OracleTokenCursor<'_>,
     modal: &EffectSequenceModalNode,
 ) -> MachineResult<LoweredEffectSequence> {
+    if modal.cardinality.minimum == 0 {
+        cursor.enter("modal.lower.cardinality");
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::ZeroModeChoice,
+            "a mode count of at least one (`up to N` and `any number` allow zero modes)",
+        ));
+    }
     let mode_ids = (1..=modal.modes.len())
         .map(|index| format!("mode{index}"))
         .collect::<Vec<_>>();

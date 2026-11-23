@@ -182,13 +182,17 @@ fn repeatable_modes_lower_one_occurrence_per_possible_choice() {
 }
 
 #[test]
-fn an_up_to_header_keeps_its_zero_minimum_for_the_runtime_to_judge() {
-    let rule = modal_rule(
+fn an_up_to_header_reads_zero_modes_and_reports_the_runtime_gap() {
+    // `up to two` / `any number` read a zero minimum; the runtime declares at
+    // least one mode, so the complete reading is an engine gap, never a rule
+    // the engine would refuse after a canonical parse.
+    for text in [
         "Choose up to two \u{2014} \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures. \u{2022} Destroy all lands.",
-    )
-    .expect("an up-to header");
-    assert_eq!(rule["declaration"]["decisions"][0]["minimum"], 0);
-    assert_eq!(rule["declaration"]["decisions"][0]["maximum"]["value"], 2);
+        "Choose any number \u{2014} \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures.",
+    ] {
+        let failure = modal_rule(text).expect_err(text);
+        assert_eq!(failure.state, "engine.gap.zero-mode-choice", "{text}");
+    }
 }
 
 #[test]

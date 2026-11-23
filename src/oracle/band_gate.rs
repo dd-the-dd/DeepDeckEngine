@@ -232,8 +232,33 @@ pub(crate) fn band_body_source(source: AbilitySource, body: &BandBody) -> Abilit
 }
 
 /// Attaches the band's gate to a rule compiled from its body.
-pub(crate) fn apply_band_gate(rule: &mut Value, body: &BandBody) {
+pub(crate) fn apply_band_gate(rule: &mut Value, body: &BandBody) -> Result<(), ParserDiagnostic> {
+    // The runtime consults a source's band only for battlefield statics,
+    // keywords, triggers and battlefield activations; a gated mana ability
+    // (or any other rule kind) would run ungated, so it is an engine gap.
+    let reads_gate = match rule["kind"].as_str() {
+        Some("staticAbility" | "keywordAbility" | "keywordAbilityGroup" | "triggeredAbility") => {
+            true
+        }
+        Some("activatedAbility") => rule
+            .get("activationZone")
+            .is_none_or(|zone| zone.as_str() == Some("battlefield")),
+        _ => false,
+    };
+    if !reads_gate {
+        return Err(band_diagnostic(
+            "oracle_machine_failure",
+            format!(
+                "This {} is gated by {}, but the runtime does not gate that rule kind.",
+                rule["kind"].as_str().unwrap_or("rule"),
+                body.gate.description()
+            ),
+            "engine.gap.band-gated-rule",
+            "a rule kind whose band gate the runtime consults",
+        ));
+    }
     rule["bandGate"] = body.gate.lower();
+    Ok(())
 }
 
 /// The outcome of reading a band body line as a printed power/toughness box.
@@ -274,7 +299,8 @@ pub(crate) fn band_power_toughness(text: &str, body: &BandBody) -> BandPowerToug
                     "toughness": { "kind": "integer", "value": toughness },
                 }],
             });
-            apply_band_gate(&mut rule, body);
+            apply_band_gate(&mut rule, body)
+                .expect("a printed P/T box is a static ability its band gates");
             BandPowerToughness::Rule(rule)
         }
         BandIntroducer::Station | BandIntroducer::CaseSolved => {

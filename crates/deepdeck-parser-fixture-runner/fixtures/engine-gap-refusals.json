@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "engine-gaps/parsed-but-unexecutable-refusals",
+  "cases": [
+    {
+      "id": "grave-peril-destroys-observed-entrant",
+      "request": {
+        "cardName": "Grave Peril",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "When a nonblack creature enters, sacrifice this enchantment. If you do, destroy that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "performAction"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/0/onPerformed/0/permanent/kind",
+                "equals": "observedEventObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "deepway-navigator-untaps-a-collection",
+      "request": {
+        "cardName": "Deepway Navigator",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{W}{U}",
+        "oracleText": "Flash\nWhen this creature enters, untap each other Merfolk you control.\nAs long as you attacked with three or more Merfolk this turn, Merfolk you control get +1/+0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "untapPermanents"
+              },
+              {
+                "pointer": "/effects/0/objects/kind",
+                "equals": "eachPermanent"
+              },
+              {
+                "pointer": "/effects/0/objects/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-tunnel-tipster-face-down-entry-history",
+      "request": {
+        "cardName": "Tunnel Tipster",
+        "typeLine": "Creature — Mole Scout",
+        "manaCost": "{1}{G}",
+        "oracleText": "At the beginning of your end step, if a face-down creature entered the battlefield under your control this turn, put a +1/+1 counter on this creature.\n{T}: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-history-state"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-moment-of-reckoning-zero-modes",
+      "request": {
+        "cardName": "Moment of Reckoning",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}{B}{B}",
+        "oracleText": "Choose up to four. You may choose the same mode more than once.\n• Destroy target nonland permanent.\n• Return target nonland permanent card from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.zero-mode-choice"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-edea-unowned-died-filter",
+      "request": {
+        "cardName": "Edea, Possessed Sorceress",
+        "typeLine": "Legendary Creature — Human Warlock",
+        "manaCost": "{2}{U}{B}{R}",
+        "oracleText": "Ward {2}\nAt the beginning of combat on your turn, gain control of target creature an opponent controls until end of turn. Untap that creature. It gains haste until end of turn.\nWhenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-joraga-band-gated-mana-ability",
+      "request": {
+        "cardName": "Joraga Treespeaker",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{G}",
+        "oracleText": "Level up {1}{G} ({1}{G}: Put a level counter on this. Level up only as a sorcery.)\nLEVEL 1-4\n1/2\n{T}: Add {G}{G}.\nLEVEL 5+\n1/4\nElves you control have \"{T}: Add {G}{G}.\"",
+        "layout": "leveler",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 5,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.band-gated-rule"
+          }
+        ]
+      }
+    }
+  ]
+}

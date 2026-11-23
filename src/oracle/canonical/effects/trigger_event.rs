@@ -339,6 +339,17 @@ fn lower_source_event_union(
     })
 }
 
+fn predicate_reads_ownership(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::OwnedByAbilityController { .. } => true,
+        ObjectPredicate::Not(operand) => predicate_reads_ownership(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().any(predicate_reads_ownership)
+        }
+        _ => false,
+    }
+}
+
 fn engine_gap(cursor: &mut OracleTokenCursor<'_>, expected: &str) -> MachineFailure {
     cursor.enter("trigger.event.engine-gap");
     cursor.engine_gap(
@@ -1278,6 +1289,14 @@ fn lower_transition_branch(
             controller: scope,
             exclude_source,
         } => {
+            // The zone-change matcher filters the moved object's
+            // characteristics; it has no owner relation (`you don't own`).
+            if predicate_reads_ownership(predicate) {
+                return Err(engine_gap(
+                    cursor,
+                    "a zone-change object filter without an ownership relation",
+                ));
+            }
             let mut lowered =
                 json!({"kind": kind, "where": lower_permanent_object_predicate(predicate)});
             match scope {

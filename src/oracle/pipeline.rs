@@ -386,8 +386,24 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
                     if announced_class_level.is_none() {
                         apply_class_level_requirement(&mut draft.rule, minimum_class_level);
                     }
-                    if let Some(body) = &band {
-                        super::band_gate::apply_band_gate(&mut draft.rule, body);
+                    if let Some(body) = &band
+                        && let Err(diagnostic) =
+                            super::band_gate::apply_band_gate(&mut draft.rule, body)
+                    {
+                        let ability_type = semantic_kind(&draft.rule)
+                            .unwrap_or(ability_kind)
+                            .to_string();
+                        abilities.push(ParsedOracleAbility {
+                            source,
+                            ability_type,
+                            status: "unsupported".to_string(),
+                            recognizer,
+                            rule: None,
+                            entities,
+                            iterations: Vec::new(),
+                            diagnostics: vec![diagnostic],
+                        });
+                        continue;
                     }
                     apply_room_door_index(
                         &card_structure,

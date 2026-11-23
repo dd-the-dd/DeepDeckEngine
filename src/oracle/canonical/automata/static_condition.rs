@@ -706,6 +706,21 @@ pub(in crate::oracle::canonical) fn object_event_history_starts(
 /// Whether a predicate is evaluable from the recorded type line of an object
 /// that left the battlefield (the event keeps its type line, not its other
 /// characteristics).
+/// Whether the predicate reads a permanent state rather than a definition.
+fn predicate_reads_object_state(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::Status(_)
+        | ObjectPredicate::Designation(_)
+        | ObjectPredicate::HasCounter(_)
+        | ObjectPredicate::ChosenCreatureType => true,
+        ObjectPredicate::Not(operand) => predicate_reads_object_state(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().any(predicate_reads_object_state)
+        }
+        _ => false,
+    }
+}
+
 fn type_line_predicate(predicate: &ObjectPredicate) -> bool {
     match predicate {
         ObjectPredicate::CardType(_)
@@ -774,6 +789,14 @@ pub(in crate::oracle::canonical) fn recognize_object_event_history_atom(
             query.predicate.supports_domain(ObjectKind::Permanent),
             "a predicate valid for a battlefield permanent",
         )?;
+        if verb == ObjectHistoryVerb::EnteredBattlefield
+            && predicate_reads_object_state(&query.predicate)
+        {
+            return Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::EventHistoryState,
+                "a characteristic the entry record keeps (a face-down, tapped, designation or counter state is not recorded)",
+            ));
+        }
         if verb != ObjectHistoryVerb::EnteredBattlefield {
             cursor.require(
                 type_line_predicate(&query.predicate),
