@@ -52,6 +52,11 @@ pub struct CanonicalSpellCast {
     /// on the selected declaration.
     #[serde(default)]
     pub declaration_decisions: BTreeMap<String, Value>,
+    /// The zone the card is cast from, when the request names it explicitly
+    /// (`hand`, `graveyard`, `exile`, `library`, `commandZone`); otherwise
+    /// the copy with a legal cast is found as described on the selector.
+    #[serde(default)]
+    pub source_zone: Option<String>,
 }
 
 /// A deterministic request to play one uniquely identified land through the
@@ -62,6 +67,9 @@ pub struct CanonicalSpellCast {
 pub struct CanonicalLandPlay {
     pub player_id: String,
     pub source_definition_id: String,
+    /// The zone the land is played from, when the request names it.
+    #[serde(default)]
+    pub source_zone: Option<String>,
 }
 
 impl GameEngine {
@@ -77,16 +85,21 @@ impl GameEngine {
         player_index: usize,
         definition_id: &str,
         kind: ActionKind,
+        source_zone: Option<&str>,
         legal_actions: &[LegalAction],
     ) -> Result<Option<CardInstance>, EngineError> {
         let player = &self.state.players[player_index];
-        let copies = player
-            .hand
-            .iter()
-            .chain(player.exile.iter())
-            .chain(player.graveyard.iter())
-            .chain(player.command_zone.iter())
-            .chain(player.library.iter())
+        let zones: [(&str, &Vec<CardInstance>); 5] = [
+            ("hand", &player.hand),
+            ("exile", &player.exile),
+            ("graveyard", &player.graveyard),
+            ("commandZone", &player.command_zone),
+            ("library", &player.library),
+        ];
+        let copies = zones
+            .into_iter()
+            .filter(|(zone, _)| source_zone.is_none_or(|requested| requested == *zone))
+            .flat_map(|(_, cards)| cards.iter())
             .filter(|card| card.definition.id == definition_id)
             .collect::<Vec<_>>();
         if copies.is_empty() {
@@ -138,6 +151,7 @@ impl GameEngine {
             player_index,
             &request.source_definition_id,
             ActionKind::PlayLand,
+            request.source_zone.as_deref(),
             &legal_actions,
         )?
         else {
@@ -189,6 +203,7 @@ impl GameEngine {
             player_index,
             &request.source_definition_id,
             ActionKind::CastSpell,
+            request.source_zone.as_deref(),
             &legal_actions,
         )?
         else {

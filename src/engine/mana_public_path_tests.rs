@@ -146,6 +146,7 @@ fn spell(e: &mut GameEngine) {
 
 fn cast_request() -> CanonicalSpellCast {
     CanonicalSpellCast {
+        source_zone: None,
         controller_id: "player-0".into(),
         source_definition_id: "paid-spell".into(),
         use_alternative_cost: false,

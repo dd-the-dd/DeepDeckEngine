@@ -129,6 +129,7 @@ mod library_shuffle;
 mod life;
 mod life_gain_replacement;
 mod linked_exile_return;
+mod linked_spell_part;
 mod mana;
 mod mana_ability_execution;
 mod mana_postcost;
@@ -4768,7 +4769,7 @@ fn spell_rule_supported(rule: &Value) -> bool {
 
 fn prepare_spell_rule_supported(rule: &Value) -> bool {
     value_kind(rule) == Some("prepareSpell")
-        && adventure::linked_spell_part_supported(&rule["spell"], None)
+        && linked_spell_part::linked_spell_part_supported(&rule["spell"], None)
 }
 
 /// Activated abilities normally function on the battlefield. Explicit zone
@@ -17881,11 +17882,6 @@ impl GameEngine {
             .iter()
             .map(|card| card.instance_id.clone())
             .collect::<BTreeSet<_>>();
-        for card in &player.command_zone {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "commandZone"));
-            }
-        }
         let was_discarded_this_turn = |card: &CardInstance| {
             self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
@@ -17895,113 +17891,32 @@ impl GameEngine {
             })
         };
         let has_mayhem = |card: &CardInstance| mayhem_ability(&card.definition).is_some();
-        for card in player
-            .graveyard
-            .iter()
-            .filter(|card| has_mayhem(card) && was_discarded_this_turn(card))
-        {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player
-            .graveyard
-            .iter()
-            .filter(|card| graveyard_discard_cast_ability(&card.definition))
-        {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player.graveyard.iter().filter(|card| {
-            self.effective_flashback_cost(card).is_some()
-                && (is_instant(&card.definition) || is_sorcery(&card.definition))
-        }) {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player
-            .graveyard
-            .iter()
-            .filter(|card| escape_ability(&card.definition).is_some())
-        {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player.graveyard.iter().filter(|card| {
-            self.arcade_gannon_source_for_card(&player.id, card)
-                .is_some()
-        }) {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player.graveyard.iter().filter(|card| {
-            self.battlefield_casting_permission(&player.id, card, "graveyard")
-                .is_some()
-        }) {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "graveyard"));
-            }
-        }
-        for card in player.exile.iter().filter(|card| {
-            card.owner == player.id
-                && self
-                    .battlefield_casting_permission(&player.id, card, "exile")
-                    .is_some()
-        }) {
-            if seen_sources.insert(card.instance_id.clone()) {
-                card_sources.push((card, "exile"));
-            }
-        }
-        if self.can_play_lands_from_graveyard(&player.id) {
-            for card in player
-                .graveyard
-                .iter()
-                .filter(|card| is_land(&card.definition))
-            {
-                if seen_sources.insert(card.instance_id.clone()) {
-                    card_sources.push((card, "graveyard"));
-                }
-            }
-        }
-        let can_play_top_card = player.library.last().is_some_and(|top_card| {
-            self.top_library_cast_admitted(&player.id, &top_card.definition)
-        });
-        if can_play_top_card
-            && let Some(card) = player.library.last()
-            && seen_sources.insert(card.instance_id.clone())
-        {
-            card_sources.push((card, "library"));
-        }
-        for permission in self
+        // One enumeration of casting sources (casting_permission_modes.rs):
+        // each candidate is admitted by its route, from the zone it is in.
+        let permission_named = self
             .state
             .permissions
             .iter()
-            .filter(|permission| self.card_permission_in_scope(permission, &player.id))
-        {
-            let Some(instance_id) = permission["cardInstanceId"].as_str() else {
-                continue;
-            };
-            if !seen_sources.insert(instance_id.to_string()) {
-                continue;
-            }
-            if let Some(card) = self.card_outside_battlefield(instance_id) {
-                let source_zone = permission["sourceZone"].as_str().unwrap_or_else(|| {
-                    if self.state.players.iter().any(|candidate| {
-                        candidate
-                            .exile
-                            .iter()
-                            .any(|card| card.instance_id == instance_id)
-                    }) {
-                        "exile"
-                    } else {
-                        "graveyard"
-                    }
-                });
-                card_sources.push((card, source_zone));
+            .filter_map(|permission| permission["cardInstanceId"].as_str())
+            .filter_map(|instance_id| {
+                let zone = self.card_outside_battlefield_zone(instance_id)?;
+                Some((self.card_outside_battlefield(instance_id)?, zone))
+            });
+        let candidates = player
+            .command_zone
+            .iter()
+            .map(|card| (card, "commandZone"))
+            .chain(player.graveyard.iter().map(|card| (card, "graveyard")))
+            .chain(player.exile.iter().map(|card| (card, "exile")))
+            .chain(player.library.last().map(|card| (card, "library")))
+            .chain(permission_named)
+            .collect::<Vec<_>>();
+        for (card, zone) in candidates {
+            if !seen_sources.contains(&card.instance_id)
+                && self.casting_route(player, card, zone, false).is_some()
+            {
+                seen_sources.insert(card.instance_id.clone());
+                card_sources.push((card, zone));
             }
         }
         let active_main = player_index == self.state.active_player
@@ -18183,9 +18098,14 @@ impl GameEngine {
             if self.spell_cast_from_zone_prohibited(&player.id, source_zone, &card.definition) {
                 continue;
             }
+            // The permission behind this cast, evaluated on the characteristics
+            // being cast. An Adventure never uses its own exile permission
+            // (CR 716.3d), which admits only the creature.
             let permission = self.state.permissions.iter().find(|permission| {
                 permission["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
-                    && self.card_permission_in_scope(permission, &player.id)
+                    && !(adventure::casting_as_adventure(card)
+                        && value_kind(permission) == Some("adventureCastPermission"))
+                    && self.card_permission_in_scope(permission, &player.id, Some(&card.definition))
             });
             let plotted_permission = permission
                 .filter(|permission| value_kind(permission) == Some("plottedCardPermission"));
@@ -18449,15 +18369,17 @@ impl GameEngine {
                 let spend_mana_as_any_type = permission.is_some_and(|permission| {
                     permission["spendManaAsAnyType"].as_bool() == Some(true)
                 });
-                let gwenom_cast = *source_zone == "library"
-                    && self.state.rule_modifiers.iter().any(|modifier| {
-                        value_kind(modifier) == Some("gwenomTopLibraryCasting")
-                            && modifier["playerId"].as_str() == Some(player.id.as_str())
-                            && modifier["expiresAfterTurn"].as_u64()
-                                == Some(u64::from(self.state.turn_number))
-                    });
-                let gwenom_life_cost = gwenom_cast
-                    .then(|| mana_value(&card.definition).max(0))
+                let top_library_window = (*source_zone == "library")
+                    .then(|| self.top_library_casting_window(&player.id))
+                    .flatten();
+                let top_library_cast = top_library_window.is_some();
+                let top_library_life_cost = top_library_window
+                    .map(|window| {
+                        casting_permission_modes::casting_permission_life_cost(
+                            window,
+                            &card.definition,
+                        )
+                    })
                     .unwrap_or(0);
                 let life_cost = self
                     .casting_additional_life_cost(
@@ -18467,12 +18389,15 @@ impl GameEngine {
                     )
                     .saturating_add(
                         permission
-                            .and_then(|permission| permission["alternativeLifeCost"].as_i64())
-                            .and_then(|amount| i32::try_from(amount).ok())
-                            .unwrap_or(0)
-                            .max(0),
+                            .map(|permission| {
+                                casting_permission_modes::casting_permission_life_cost(
+                                    permission,
+                                    &card.definition,
+                                )
+                            })
+                            .unwrap_or(0),
                     )
-                    .saturating_add(gwenom_life_cost);
+                    .saturating_add(top_library_life_cost);
                 if player.life < life_cost {
                     continue;
                 }
@@ -18517,13 +18442,14 @@ impl GameEngine {
                     commander_increases.clone(),
                     targeting_reduction,
                 )?;
-                if gwenom_cast {
+                if top_library_cast {
                     declaration
                         .decisions
                         .insert("withoutPayingManaCost".to_string(), Value::Bool(true));
-                    declaration
-                        .decisions
-                        .insert("gwenomLifeCost".to_string(), Value::from(gwenom_life_cost));
+                    declaration.decisions.insert(
+                        "topLibraryLifeCost".to_string(),
+                        Value::from(top_library_life_cost),
+                    );
                     mana_costs = self.checked_casting_mana_costs_for_base_components(
                         &card.definition,
                         &player.id,

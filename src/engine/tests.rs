@@ -18305,7 +18305,11 @@ fn exiled_spell_life_alternative_uses_its_mana_value_and_no_mana() {
         .iter()
         .find(|permission| permission["cardInstanceId"] == "exiled-spell")
         .expect("the exiled card receives a permission");
-    assert_eq!(permission["alternativeLifeCost"], 3);
+    // The amount is the cast card's mana value, read at cast time (CR 716.3a).
+    assert_eq!(
+        permission["alternativeLifeCost"],
+        json!({ "kind": "manaValueOf", "object": { "kind": "castCard" } })
+    );
     assert_eq!(
         permission["expiresAfterTurn"],
         Value::from(engine.state.turn_number)

@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "casting-permission/library-top-card-is-cast-from-the-library",
+  "seed": 812,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 3
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Pilot",
+        "manaPool": [
+          "U"
+        ],
+        "library": [
+          {
+            "id": "top-spell",
+            "name": "Top Spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "top-permission-source",
+            "name": "Top Permission Source",
+            "typeLine": "Artifact",
+            "manaCost": "{0}",
+            "rules": []
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "player-0",
+        "sourceDefinitionId": "top-permission-source",
+        "targets": {
+          "topCard": {
+            "card": {
+              "instanceId": "player-0:top-spell:0"
+            }
+          }
+        }
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "grantPermission",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "action": {
+              "kind": "cast",
+              "card": {
+                "kind": "chosenTarget",
+                "id": "topCard"
+              },
+              "normalTimingApplies": true,
+              "normalCostsApply": true
+            },
+            "duration": {
+              "kind": "untilEndOfCurrentTurn"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "top-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 23
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "top-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "library",
+      "definitionId": "top-spell",
+      "equals": false
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

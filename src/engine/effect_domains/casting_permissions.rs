@@ -158,15 +158,19 @@ impl GameEngine {
                     .resolve_object_ids(&effect["cards"], bindings, decisions)
                     .unwrap_or_default();
                 for card_id in cards {
+                    // CR 716.3a: the life paid is the mana value of what is
+                    // actually cast (an Adventure or the creature), so it is
+                    // evaluated at cast time, not when the permission is granted.
                     let alternative_life_cost = effect["play"]
                         .get("alternativeCost")
                         .filter(|cost| value_kind(cost) == Some("payLife"))
-                        .filter(|cost| {
+                        .is_some_and(|cost| {
                             value_kind(&cost["amount"]) == Some("manaValueOf")
                                 && value_kind(&cost["amount"]["object"]) == Some("grantedCard")
                         })
-                        .and_then(|_| self.card_outside_battlefield(&card_id))
-                        .map(|card| mana_value(&card.definition).max(0));
+                        .then(
+                            || json!({ "kind": "manaValueOf", "object": { "kind": "castCard" } }),
+                        );
                     let mut permission = json!({
                         "kind": "cardPermission",
                         "action": "play",
@@ -184,7 +188,7 @@ impl GameEngine {
                         permission["expiresAfterTurn"] = Value::from(self.state.turn_number);
                     }
                     if let Some(amount) = alternative_life_cost {
-                        permission["alternativeLifeCost"] = Value::from(amount);
+                        permission["alternativeLifeCost"] = amount;
                     }
                     if let Some(condition) = effect.get("condition") {
                         permission["condition"] = condition.clone();

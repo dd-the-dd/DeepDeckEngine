@@ -96,8 +96,10 @@ pub(super) fn execute_plain<P: DecisionProvider>(
             use_alternative_cost,
             alternative_exile_definition_id,
             declaration_decisions,
+            source_zone,
         } => engine.cast_canonical_spell(
             &CanonicalSpellCast {
+                source_zone: source_zone.clone(),
                 controller_id: controller_id.clone(),
                 source_definition_id: source_definition_id.clone(),
                 use_alternative_cost: *use_alternative_cost,
@@ -109,8 +111,10 @@ pub(super) fn execute_plain<P: DecisionProvider>(
         FixtureAction::PlayLand {
             player_id,
             source_definition_id,
+            source_zone,
         } => engine.play_canonical_land(
             &CanonicalLandPlay {
+                source_zone: source_zone.clone(),
                 player_id: player_id.clone(),
                 source_definition_id: source_definition_id.clone(),
             },

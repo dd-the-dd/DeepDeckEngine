@@ -539,8 +539,23 @@ mod tests {
 
 pub fn compile_playable_card(input: PlayableCardInput) -> Result<PlayableCardCompilation, String> {
     // Fail before selecting a partial face or accepting an empty rule vector.
-    plan_card_structure(&input.oracle)
+    let structure = plan_card_structure(&input.oracle)
         .map_err(|failure| format!("{}: {}", failure.code, failure.message))?;
+    // A linked spell part (an Adventure, CR 716.2; a prepare spell) is cast
+    // through its card, never played as a card of its own.
+    if let Some(face_id) = input.face_id.as_deref()
+        && structure.parts.iter().any(|part| {
+            part.face_id.as_deref() == Some(face_id)
+                && matches!(
+                    part.role,
+                    CardPartRole::AdventureSpell | CardPartRole::PreparedSpell
+                )
+        })
+    {
+        return Err(format!(
+            "linked spell part is not a playable face: {face_id}; select its card's primary face"
+        ));
+    }
     let selected_face = if input.oracle.faces.is_empty() {
         None
     } else if let Some(face_id) = input.face_id.as_deref() {

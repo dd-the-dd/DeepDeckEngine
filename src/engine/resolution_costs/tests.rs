@@ -284,6 +284,7 @@ fn copying_before_an_unsupported_retarget_restores_public_stack_and_private_sequ
         engine
             .cast_canonical_spell(
                 &CanonicalSpellCast {
+                    source_zone: None,
                     controller_id: actor.into(),
                     source_definition_id: id.into(),
                     use_alternative_cost: false,
@@ -352,6 +353,7 @@ fn optional_life_cost_waits_for_sba_until_after_real_spell_resolution() {
     engine
         .cast_canonical_spell(
             &CanonicalSpellCast {
+                source_zone: None,
                 controller_id: "p0".into(),
                 source_definition_id: definition.id.clone(),
                 use_alternative_cost: false,
