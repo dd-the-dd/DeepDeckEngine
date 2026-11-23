@@ -84,29 +84,20 @@ fn expected_restriction() -> serde_json::Value {
 fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
     let parsed = parse_adventure(FRONT_ORACLE);
 
-    // CR 715: the engine has no Adventure casting runtime yet, so the card
-    // is not executable coverage even though every ability is recognized.
-    assert_eq!(parsed.status, "unsupported", "{parsed:#?}");
+    // CR 715: the Adventure part is linked to the adventurer card and cast as
+    // its Adventure, so the whole card is native canonical coverage.
+    assert_eq!(parsed.status, "canonical", "{parsed:#?}");
     assert_eq!(parsed.abilities.len(), 4);
     assert!(
         parsed
             .abilities
             .iter()
-            .all(|ability| ability.recognizer == RecognizerProvenance::Native)
+            .all(|ability| ability.recognizer == RecognizerProvenance::Native
+                && ability.status == "canonical")
     );
-    assert!(
-        parsed.abilities[..3]
-            .iter()
-            .all(|ability| ability.status == "canonical")
-    );
-    let adventure = &parsed.abilities[3];
-    assert_eq!(adventure.status, "unsupported");
-    assert_eq!(adventure.rule, None);
-    assert_eq!(adventure.diagnostics.len(), 1);
-    assert_eq!(adventure.diagnostics[0].code, "card_layout_runtime_missing");
     assert_eq!(
-        adventure.diagnostics[0].state.as_deref(),
-        Some("card-structure.layout-runtime")
+        parsed.abilities[3].source.face_id.as_deref(),
+        Some("petty-theft")
     );
     assert_eq!(
         parsed.abilities[0].rule.as_ref().unwrap()["ability"]["kind"],
@@ -118,7 +109,7 @@ fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
     );
     assert_eq!(parsed.abilities[2].rule, Some(expected_restriction()));
 
-    // The Adventure part's grammar itself is native and primitive.
+    // The Adventure part compiles exactly as the same text on a lone instant.
     let petty_theft = parse_single("Petty Theft", "Instant", ADVENTURE_ORACLE);
     assert_eq!(petty_theft.status, "canonical", "{petty_theft:#?}");
     assert_eq!(
@@ -126,6 +117,7 @@ fn exact_adventure_is_fully_native_and_preserves_all_four_abilities() {
         RecognizerProvenance::Native
     );
     let spell = petty_theft.abilities[0].rule.as_ref().unwrap();
+    assert_eq!(parsed.abilities[3].rule.as_ref(), Some(spell));
     assert_eq!(spell["kind"], "spellAbility");
     assert_eq!(
         spell["declaration"]["decisions"][0]["candidates"],
@@ -201,5 +193,52 @@ fn attack_near_miss_is_rejected_by_the_native_action_state() {
     assert_eq!(
         diagnostic.state.as_deref(),
         Some("block-restriction.action")
+    );
+}
+
+#[test]
+fn omen_part_still_refuses_with_its_own_layout_reason() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Omen Drake // Fair Wind".to_string(),
+        type_line: "Creature \u{2014} Drake // Sorcery \u{2014} Omen".to_string(),
+        mana_cost: Some("{3}{U} // {1}{U}".to_string()),
+        oracle_text: None,
+        layout: Some("omen".to_string()),
+        faces: vec![
+            OracleCardFace {
+                id: "omen-drake".to_string(),
+                name: "Omen Drake".to_string(),
+                type_line: "Creature \u{2014} Drake".to_string(),
+                mana_cost: Some("{3}{U}".to_string()),
+                oracle_text: "Flying".to_string(),
+                power: Some("3".to_string()),
+                toughness: Some("3".to_string()),
+                loyalty: None,
+            },
+            OracleCardFace {
+                id: "fair-wind".to_string(),
+                name: "Fair Wind".to_string(),
+                type_line: "Sorcery \u{2014} Omen".to_string(),
+                mana_cost: Some("{1}{U}".to_string()),
+                oracle_text: "Draw a card.".to_string(),
+                power: None,
+                toughness: None,
+                loyalty: None,
+            },
+        ],
+    });
+
+    assert_eq!(parsed.status, "unsupported", "{parsed:#?}");
+    let omen = parsed
+        .abilities
+        .iter()
+        .find(|ability| ability.source.face_id.as_deref() == Some("fair-wind"))
+        .expect("the Omen part is preserved");
+    assert_eq!(omen.status, "unsupported");
+    assert_eq!(omen.rule, None);
+    assert_eq!(omen.diagnostics[0].code, "card_layout_runtime_missing");
+    assert_eq!(
+        omen.diagnostics[0].state.as_deref(),
+        Some("card-structure.omen-runtime")
     );
 }
