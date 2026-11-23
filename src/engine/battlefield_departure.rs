@@ -3,6 +3,7 @@
 use super::card_zone_transition::{
     ObjectTransitionReason, ObjectZone, OwnedMovementCard, reset_movement_card,
 };
+use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -204,73 +205,30 @@ impl GameEngine {
             },
         )?;
         let owner_id = permanent.owner.clone();
-        let specific_replacement = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| {
-                value_kind(modifier) == Some("exileSpecificCardInsteadOfGraveyard")
-                    && modifier["cardInstanceId"].as_str() == Some(instance_id.as_str())
-            })
-            .map(|modifier| {
+        // Propose -> match -> order -> apply (replacement_pipeline.rs): one
+        // graveyard-destination replacement at most may apply here.
+        let graveyard_replacement = self
+            .select_graveyard_destination_replacement(
+                permanent,
+                &owner_id,
+                static_modifiers,
+                &ReplacementOrder::RequireUnique {
+                    ambiguity: format!(
+                        "{context} has multiple graveyard destination replacements for {instance_id}"
+                    ),
+                },
+            )?
+            .map(|proposal| {
+                let consume_specific = matches!(
+                    proposal.program.origin,
+                    GraveyardReplacementOrigin::SpecificCard { .. }
+                );
                 (
-                    modifier["sourceCardInstanceId"]
-                        .as_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    None,
-                    true,
+                    proposal.source_id,
+                    proposal.program.controller,
+                    consume_specific,
                 )
             });
-        let static_replacements = static_modifiers
-            .iter()
-            .filter(|(source, modifier)| {
-                value_kind(modifier) == Some("replaceGraveyardDestination")
-                    && matches_card_filter(&permanent.definition, &modifier["where"])
-                    && self.event_player_reference_matches(
-                        &modifier["graveyardOwners"],
-                        source,
-                        &owner_id,
-                    )
-            })
-            .map(|(source, _)| {
-                (
-                    source.instance_id.clone(),
-                    Some(source.controller.clone()),
-                    false,
-                )
-            });
-        let temporary_replacements = self
-            .state
-            .rule_modifiers
-            .iter()
-            .filter(|modifier| {
-                value_kind(modifier) == Some("temporaryGraveyardDestinationReplacement")
-                    && modifier["playerId"].as_str() == Some(owner_id.as_str())
-                    && modifier["expiresAfterTurn"].as_u64()
-                        == Some(u64::from(self.state.turn_number))
-            })
-            .map(|modifier| {
-                (
-                    modifier["sourceCardInstanceId"]
-                        .as_str()
-                        .unwrap_or_default()
-                        .to_string(),
-                    modifier["playerId"].as_str().map(ToOwned::to_owned),
-                    false,
-                )
-            });
-        let graveyard_replacement = exactly_one_or_none(
-            specific_replacement
-                .chain(static_replacements)
-                .chain(temporary_replacements)
-                .collect::<Vec<_>>(),
-            || {
-                EngineError::new(format!(
-                    "{context} has multiple graveyard destination replacements for {instance_id}"
-                ))
-            },
-        )?;
         validate_zone_or_death_replacement_choice(
             &instance_id,
             death_replacement.is_some(),

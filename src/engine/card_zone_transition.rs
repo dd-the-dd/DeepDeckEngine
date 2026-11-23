@@ -565,60 +565,39 @@ impl GameEngine {
         player_index: usize,
         card: &CardInstance,
     ) -> PreparedGraveyardDestination {
+        use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
         use super::*;
         let graveyard_owner_id = self.state.players[player_index].id.clone();
-        if let Some(modifier_index) = self.state.rule_modifiers.iter().position(|modifier| {
-            value_kind(modifier) == Some("exileSpecificCardInsteadOfGraveyard")
-                && modifier["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
-        }) {
-            let modifier = &self.state.rule_modifiers[modifier_index];
-            return PreparedGraveyardDestination::Exile {
-                source_card_id: card.instance_id.clone(),
-                one_shot_modifier: Some(modifier.clone()),
-                detail: json!({"destination":"exile", "replacementSourceId":modifier["sourceCardInstanceId"]}),
-            };
-        }
-        let replacement_source = self
-            .battlefield_static_modifiers()
-            .into_iter()
-            .find(|(source, modifier)| {
-                value_kind(modifier) == Some("replaceGraveyardDestination")
-                    && matches_card_filter(&card.definition, &modifier["where"])
-                    && self.event_player_reference_matches(
-                        &modifier["graveyardOwners"],
-                        source,
-                        &graveyard_owner_id,
-                    )
-            })
-            .map(|(source, _)| (source.instance_id, source.controller))
-            .or_else(|| {
-                self.state
-                    .rule_modifiers
-                    .iter()
-                    .find(|modifier| {
-                        value_kind(modifier) == Some("temporaryGraveyardDestinationReplacement")
-                            && modifier["playerId"].as_str() == Some(graveyard_owner_id.as_str())
-                            && modifier["expiresAfterTurn"].as_u64()
-                                == Some(u64::from(self.state.turn_number))
-                    })
-                    .map(|modifier| {
-                        (
-                            modifier["sourceCardInstanceId"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                            modifier["playerId"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .to_string(),
-                        )
-                    })
-            });
-        match replacement_source {
-            Some((source_id, source_controller)) => PreparedGraveyardDestination::Exile {
-                source_card_id: card.instance_id.clone(),
-                one_shot_modifier: None,
-                detail: json!({"destination":"exile", "replacementSourceId":source_id, "replacementControllerId":source_controller}),
+        // Every proposal sends the card to exile; they differ only in
+        // attribution, so the first proposal in precedence order applies.
+        let selected = self
+            .select_graveyard_destination_replacement(
+                card,
+                &graveyard_owner_id,
+                &self.battlefield_static_modifiers(),
+                &ReplacementOrder::FirstProposed,
+            )
+            .unwrap_or_default();
+        match selected {
+            Some(proposal) => match proposal.program.origin {
+                GraveyardReplacementOrigin::SpecificCard { modifier } => {
+                    PreparedGraveyardDestination::Exile {
+                        source_card_id: card.instance_id.clone(),
+                        detail: json!({"destination":"exile", "replacementSourceId":modifier["sourceCardInstanceId"]}),
+                        one_shot_modifier: Some(modifier),
+                    }
+                }
+                GraveyardReplacementOrigin::Static | GraveyardReplacementOrigin::Temporary => {
+                    PreparedGraveyardDestination::Exile {
+                        source_card_id: card.instance_id.clone(),
+                        one_shot_modifier: None,
+                        detail: json!({
+                            "destination": "exile",
+                            "replacementSourceId": proposal.source_id,
+                            "replacementControllerId": proposal.program.controller.unwrap_or_default(),
+                        }),
+                    }
+                }
             },
             None => PreparedGraveyardDestination::Graveyard {
                 source_card_id: card.instance_id.clone(),

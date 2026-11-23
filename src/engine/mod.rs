@@ -136,6 +136,7 @@ mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
 mod regeneration;
+mod replacement_pipeline;
 mod trigger_multiplicity;
 mod trigger_observer_presence;
 mod zone_change_events;
