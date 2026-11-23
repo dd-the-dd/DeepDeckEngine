@@ -49,6 +49,9 @@ pub(in crate::oracle::canonical) enum DamageSourceNode {
         predicate: Option<ObjectPredicate>,
         controller: Option<ObjectControllerScope>,
         exclude_source: bool,
+        /// CR 109.2: `a Goblin source` is any object, not a permanent; the
+        /// noun cancels the subtype-head inference.
+        source_noun: bool,
     },
 }
 
@@ -313,6 +316,7 @@ fn recognize_damage_source(
             predicate: None,
             controller,
             exclude_source,
+            source_noun: true,
         });
     }
     let query = recognize_object_query(cursor)?;
@@ -328,6 +332,7 @@ fn recognize_damage_source(
             predicate: Some(query.predicate),
             controller,
             exclude_source,
+            source_noun: true,
         });
     }
     cursor.enter("replacement.damage-source.query-domain");
@@ -339,6 +344,7 @@ fn recognize_damage_source(
         predicate: Some(query.predicate),
         controller: query.controller,
         exclude_source,
+        source_noun: false,
     })
 }
 

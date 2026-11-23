@@ -79,8 +79,7 @@ fn recognize_targeted_object_selectors(
                     TargetedObjectDomain::Spell
                 } else {
                     cursor.require(
-                        query.predicate.supports_domain(ObjectKind::Permanent)
-                            && query.predicate.has_domain(ObjectKind::Permanent),
+                        query.denotes_battlefield_permanents(),
                         "a predicate establishing a permanent or spell domain",
                     )?;
                     TargetedObjectDomain::Permanent

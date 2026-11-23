@@ -142,3 +142,124 @@ fn a_subtype_target_accepts_only_permanents_with_that_subtype() {
     );
     assert!(engine.permanent_position("bear").is_some());
 }
+
+/// Casts a target-free spell from player 0's hand and resolves it.
+fn cast_and_resolve(engine: &mut GameEngine, id: &str, spell: CardDefinition) {
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.active_player = 0;
+    engine.state.players[0].mana_pool = ["C", "G"]
+        .into_iter()
+        .map(|symbol| FloatingMana {
+            symbol: symbol.to_string(),
+            spend_restriction: None,
+        })
+        .collect();
+    engine.state.players[0].hand = vec![test_instance(id, spell, "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell && action.card_instance_id.as_deref() == Some(id)
+        })
+        .expect("the spell can be cast");
+    engine
+        .apply_priority_action(&cast, &mut RandomAi::seeded(11))
+        .expect("cast the spell");
+    engine
+        .resolve_top_stack(&mut RandomAi::seeded(12))
+        .expect("resolve the spell");
+}
+
+fn equipment(id: &str, controller: &str) -> CardInstance {
+    test_instance(
+        id,
+        test_definition(id, "Artifact \u{2014} Equipment"),
+        controller,
+    )
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn source_counts_exclude_only_the_source_and_scale_damage() {
+    // `for each other Elf you control`: the source is the modified object.
+    let lord = compiled(
+        "Elf Counter Probe",
+        "Creature \u{2014} Elf",
+        "This creature gets +1/+1 for each other Elf you control.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        test_instance("lord", lord, "player-0"),
+        creature("elf-a", "Creature \u{2014} Elf", "player-0"),
+        creature("elf-b", "Creature \u{2014} Elf", "player-0"),
+    ];
+    engine.state.players[1].battlefield =
+        vec![creature("their-elf", "Creature \u{2014} Elf", "player-1")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert_eq!(power_toughness(&engine, "lord"), (4, 4));
+
+    // `for each Equipment you control` as a damage amount.
+    let spell = compiled(
+        "Probe",
+        "Sorcery",
+        "Probe deals 1 damage to each opponent for each Equipment you control.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        equipment("sword", "player-0"),
+        equipment("boots", "player-0"),
+        creature("bear", "Creature \u{2014} Bear", "player-0"),
+    ];
+    engine.state.players[1].battlefield = vec![equipment("their-sword", "player-1")];
+    let opponent = engine.state.players[1].life;
+    cast_and_resolve(&mut engine, "probe", spell);
+    assert_eq!(engine.state.players[1].life, opponent - 2);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn bare_subtype_sweeps_reach_exactly_the_permanents_with_that_subtype() {
+    let goblins = || {
+        vec![
+            creature("own-goblin", "Creature \u{2014} Goblin", "player-0"),
+            creature("own-bear", "Creature \u{2014} Bear", "player-0"),
+        ]
+    };
+    let their_goblin = || creature("their-goblin", "Creature \u{2014} Goblin", "player-1");
+
+    // `Destroy all Goblins.`
+    let spell = compiled("Goblin Sweep Probe", "Sorcery", "Destroy all Goblins.");
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = goblins();
+    engine.state.players[1].battlefield = vec![their_goblin()];
+    cast_and_resolve(&mut engine, "sweep", spell);
+    assert!(engine.permanent_position("own-goblin").is_none());
+    assert!(engine.permanent_position("their-goblin").is_none());
+    assert!(engine.permanent_position("own-bear").is_some());
+
+    // `Put a +1/+1 counter on each Vampire you control.`
+    let spell = compiled(
+        "Vampire Counter Probe",
+        "Sorcery",
+        "Put a +1/+1 counter on each Vampire you control.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        creature("own-vampire", "Creature \u{2014} Vampire", "player-0"),
+        creature("own-bear", "Creature \u{2014} Bear", "player-0"),
+    ];
+    engine.state.players[1].battlefield = vec![creature(
+        "their-vampire",
+        "Creature \u{2014} Vampire",
+        "player-1",
+    )];
+    cast_and_resolve(&mut engine, "counters", spell);
+    assert_eq!(power_toughness(&engine, "own-vampire"), (3, 3));
+    assert_eq!(power_toughness(&engine, "own-bear"), (2, 2));
+    assert_eq!(power_toughness(&engine, "their-vampire"), (2, 2));
+}

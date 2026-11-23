@@ -475,23 +475,33 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         )?;
         return Ok(PermanentOperandNode::Targets(targets));
     }
-    // A bare plural collection (`other creatures you control`) shares the
-    // quantified operand's optional source exclusion.
-    let mut collection_start = cursor.clone();
-    let exclude_source = recognize_optional_source_exclusion(&mut collection_start)?;
-    if collection_start.peek_token().is_some_and(|token| {
-        matches!(
-            token.token_type.as_str(),
-            "typeWord" | "negativeTypeWord" | "supertypeWord" | "colorWord"
+    // A bare plural collection (`other creatures you control`): the shared
+    // collection frame reads its optional source exclusion. This lookahead
+    // only decides whether a characteristic head follows.
+    let head_offset = usize::from(
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("other")),
+    );
+    if cursor
+        .token_slice(
+            cursor.position() + head_offset,
+            cursor.position() + head_offset + 1,
         )
-    }) {
-        *cursor = collection_start;
+        .first()
+        .is_some_and(|token| {
+            matches!(
+                token.token_type.as_str(),
+                "typeWord" | "negativeTypeWord" | "supertypeWord" | "colorWord"
+            )
+        })
+    {
         let query = recognize_object_collection(cursor)?;
         cursor.require(
-            query.predicate.has_domain(ObjectKind::Permanent)
-                && query.predicate.supports_domain(ObjectKind::Permanent),
+            query.denotes_battlefield_permanents(),
             "a battlefield permanent collection",
         )?;
+        let exclude_source = query.exclude_source;
         return Ok(PermanentOperandNode::Collection {
             objects: query,
             exclude_source,

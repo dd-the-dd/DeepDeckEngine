@@ -220,22 +220,28 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query_w
                 ControlledPermanentCountState::OptionalOther
             }
             ControlledPermanentCountState::OptionalOther => {
+                // `other` is read with the query, as its own field.
                 cursor.enter("condition.controlled-permanent-count.optional-other");
-                exclude_source = super::recognize_optional_source_exclusion(cursor)?;
                 ControlledPermanentCountState::PermanentPredicate
             }
             ControlledPermanentCountState::PermanentPredicate => {
                 cursor.enter("condition.controlled-permanent-count.permanent-predicate");
-                let query = recognize_query(cursor)?;
+                let query = super::recognize_query_excluding_source(cursor, &mut recognize_query)?;
                 cursor.require(
                     query.controller.is_none(),
                     "an unscoped permanent selector after `you control`",
                 )?;
+                exclude_source = query.exclude_source;
+                // The leading `you control` is this query's control relation.
+                let controlled = super::ObjectQueryNode {
+                    controller: Some(super::ObjectControllerScope::AbilityController),
+                    ..query
+                };
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Permanent),
+                    controlled.denotes_battlefield_permanents(),
                     "a selector that establishes the permanent domain",
                 )?;
-                predicate = Some(query.predicate);
+                predicate = Some(controlled.predicate);
                 ControlledPermanentCountState::Complete
             }
             ControlledPermanentCountState::Complete => {

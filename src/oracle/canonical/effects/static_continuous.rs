@@ -180,7 +180,7 @@ fn read_static_continuous_effect(
                     }));
                 } else {
                     let delta = recognize_signed_power_toughness_delta(cursor)?;
-                    let scale = read_optional_for_each_count(cursor)?;
+                    let scale = read_optional_for_each_count(cursor, source_subject)?;
                     let scaled = |amount: i64| match &scale {
                         None => integer(amount),
                         Some(_) if amount == 0 => integer(0),
@@ -442,6 +442,10 @@ fn read_collection_entry_modification(
     let base = NumericExpression::Atom(atom);
     let count = if for_each_count_starts(cursor) {
         let counted = recognize_for_each_count(cursor)?;
+        cursor.require(
+            !count_excludes_source(&counted),
+            "an `other` count whose antecedent is the source, not each entering permanent",
+        )?;
         cursor.require_value(
             scale_by_for_each_count(&base, counted),
             "a literal counter quantity multiplied by `for each`",
@@ -687,12 +691,20 @@ fn read_where_x_power_toughness_delta(
 /// shared numeric projection, so the modifier IR is the common count IR.
 fn read_optional_for_each_count(
     cursor: &mut OracleTokenCursor<'_>,
+    source_subject: bool,
 ) -> MachineResult<Option<Value>> {
     if !for_each_count_starts(cursor) {
         return Ok(None);
     }
     cursor.enter("static.continuous.for-each");
     let count = recognize_for_each_count(cursor)?;
+    // `other` names the source only when the source is the modified object;
+    // otherwise it means other than each modified object.
+    cursor.enter("static.continuous.for-each.other-antecedent");
+    cursor.require(
+        source_subject || !count_excludes_source(&count),
+        "an `other` count whose antecedent is the source, not each modified object",
+    )?;
     lower_numeric_expression(&count)
         .map(Some)
         .ok_or_else(|| cursor.fail("a counted collection lowered to a runtime count"))

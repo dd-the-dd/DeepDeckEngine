@@ -366,7 +366,7 @@ fn permanent_only_subtypes_establish_the_permanent_domain() {
         "Artifact",
         "{T}: Draw a card. Activate only if you control two or more Equipment.",
     );
-    // CR 109.2a: a creature subtype without `card` or `spell` also names
+    // CR 109.2: a creature subtype without `card` or `spell` also names
     // permanents (a Kindred spell on the stack is not an Elf permanent).
     let elves = canonical_rules(
         "Probe",

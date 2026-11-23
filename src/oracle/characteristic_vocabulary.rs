@@ -878,7 +878,7 @@ pub(in crate::oracle) fn noncreature_subtype_implies_permanent(ir_name: &str) ->
 }
 
 /// Whether a subtype head without `card`, `spell` or `source` names a
-/// permanent (CR 109.2a): a creature subtype (a creature or Kindred
+/// permanent (CR 109.2): a creature subtype (a creature or Kindred
 /// permanent) or a land, artifact, enchantment, planeswalker or battle
 /// subtype (CR 205.3d). Spell subtypes (`Arcane`, `Lesson`) never do.
 pub(in crate::oracle) fn subtype_denotes_permanent(ir_name: &str) -> bool {

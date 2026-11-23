@@ -1,8 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ObjectCastConditionNode, ObjectCastStatus, ObjectKind, ReplacementDestination,
-    ReplacementObjectBinding, WouldEnterBattlefieldEventNode, ZoneReplacementNode,
-    recognize_object_query,
+    ObjectCastConditionNode, ObjectCastStatus, ReplacementDestination, ReplacementObjectBinding,
+    WouldEnterBattlefieldEventNode, ZoneReplacementNode, recognize_object_query,
 };
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
@@ -43,8 +42,7 @@ pub(in crate::oracle::canonical) fn recognize_would_enter_battlefield_event(
                     "an entering-object predicate without a controller qualifier",
                 )?;
                 cursor.require(
-                    query.predicate.supports_domain(ObjectKind::Permanent)
-                        && query.predicate.has_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "a permanent object predicate",
                 )?;
                 object = Some(query.predicate);

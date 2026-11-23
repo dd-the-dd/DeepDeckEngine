@@ -19,6 +19,24 @@ struct ObjectSetFrame {
     exclude_source: bool,
 }
 
+/// `[other] QUERY` for a parent that owns its query boundary: the source
+/// exclusion is read here, once, and returned as the query's own field, so
+/// no parent scans for `other` itself. The collection frame uses the same
+/// lexical child for its first branch.
+pub(in crate::oracle::canonical) fn recognize_query_excluding_source(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut recognize_query: impl FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<ObjectQueryNode>,
+) -> MachineResult<ObjectQueryNode> {
+    let excluded = super::recognize_optional_source_exclusion(cursor)?;
+    let mut query = recognize_query(cursor)?;
+    cursor.require(
+        !(excluded && query.exclude_source),
+        "one source exclusion for one object query",
+    )?;
+    query.exclude_source |= excluded;
+    Ok(query)
+}
+
 /// The collection reading of one recognized object set: its composed
 /// predicate, its player relations and whether `other` excludes the source.
 struct RecognizedCollection {
@@ -29,7 +47,7 @@ struct RecognizedCollection {
 }
 
 impl ObjectQueryNode {
-    /// CR 109.2a: whether this query denotes battlefield permanents. A type
+    /// CR 109.2: whether this query denotes battlefield permanents. A type
     /// or subtype head without `card`/`spell` names a permanent; a noun the
     /// permanent domain admits (`tokens`, `commanders`) qualified by a
     /// control relation names permanents too (CR 108.4, 110.2). This is the

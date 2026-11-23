@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CardMoveOwnerNode, CardZoneName, CollectionOperandAttempt, ExpressedTargetCardinality,
-    ObjectKind, ObjectQueryNode, RecognizedEffectFragment, recognize_expressed_target_cardinality,
+    ObjectQueryNode, RecognizedEffectFragment, recognize_expressed_target_cardinality,
     recognize_object_query_before_effect_separator, try_recognize_card_move_destination,
 };
 
@@ -79,8 +79,7 @@ pub(in crate::oracle::canonical) fn recognize_permanent_selection_operand(
                     .as_ref()
                     .ok_or_else(|| cursor.fail("a populated permanent query"))?;
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Permanent)
-                        && query.predicate.supports_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "battlefield permanents, not players, spells or cards in another zone",
                 )?;
                 State::Complete

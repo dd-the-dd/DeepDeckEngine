@@ -254,15 +254,25 @@ impl ObjectPredicate {
     /// Permanent card types establish the permanent domain directly; card
     /// types alone do not establish the broader card or spell domains.
     ///
-    /// CR 109.2a: a subtype head used without `card` or `spell` names a
-    /// permanent (`Goblins`, `target Wall`). An explicit card or spell noun
-    /// in the same description (`Elf card`, `Goblin spells`) keeps its own
-    /// domain, and a negated subtype (`non-Elf`) is never a head.
+    /// CR 109.2: a subtype head used without `card`, `spell`, `source` or
+    /// `scheme` names a permanent (`Goblins`, `target Wall`). An explicit
+    /// card or spell noun in the same description (`Elf card`, `Goblin
+    /// spells`, `Goblin permanent card`) keeps its own domain. A negated
+    /// creature subtype (`non-Elf`) is never a head; a negated permanent card
+    /// type or noncreature permanent subtype (`noncreature`, `non-Equipment`)
+    /// keeps the anchor it had before this inference, through `Not`.
     pub(in crate::oracle::canonical) fn has_domain(&self, domain: ObjectKind) -> bool {
         self.establishes_domain(domain, true)
     }
 
-    /// The atom-level CR 109.2a/205.3d inference shared by every domain
+    /// The domain this predicate names without the CR 109.2 subtype-head
+    /// inference: for a parent whose own noun (`source`) or coordination
+    /// (`Elf or Goblin permanent`) decides how a bare subtype is read.
+    pub(in crate::oracle::canonical) fn has_explicit_domain(&self, domain: ObjectKind) -> bool {
+        self.establishes_domain(domain, false)
+    }
+
+    /// The atom-level CR 109.2/205.3d inference shared by every domain
     /// projection: a permanent card type, the `permanent` noun, or a subtype
     /// that only permanents carry when no card/spell noun is present.
     pub(in crate::oracle::canonical) fn denotes_permanent_head(&self, subtype_heads: bool) -> bool {
@@ -282,11 +292,14 @@ impl ObjectPredicate {
         }
     }
 
-    /// An explicit non-permanent object noun (`card`, `spell`) inside this
-    /// conjunction: CR 109.2a then no longer reads a subtype as a permanent.
+    /// An explicit non-permanent object noun (`card`, `spell`, or the
+    /// `permanent card` category) inside this conjunction: CR 109.2 then no
+    /// longer reads a subtype as a permanent. `source` and `scheme` are
+    /// nouns their parents read; they call `has_explicit_domain`.
     fn names_nonpermanent_domain(&self) -> bool {
         match self {
             Self::ObjectKind(kind) => *kind != ObjectKind::Permanent,
+            Self::PermanentCard => true,
             Self::Intersection(operands) => operands.iter().any(Self::names_nonpermanent_domain),
             Self::Union(operands) => operands.iter().any(Self::names_nonpermanent_domain),
             _ => false,

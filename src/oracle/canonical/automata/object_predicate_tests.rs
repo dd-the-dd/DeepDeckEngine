@@ -240,7 +240,7 @@ fn expression_rhs_visits_x_inside_qualified_nominal_predicates() {
 #[test]
 fn subtype_heads_denote_permanents_unless_a_card_or_spell_noun_is_present() {
     let subtype = |name: &str| ObjectPredicate::Subtype(name.to_string());
-    // CR 109.2a: creature and permanent-family subtypes without `card` or
+    // CR 109.2: creature and permanent-family subtypes without `card` or
     // `spell` name permanents (`Goblins`, `target Wall`, `Equipment`).
     for name in ["Goblin", "Elf", "Vampire", "Wall", "Equipment", "Forest"] {
         assert!(subtype(name).has_domain(ObjectKind::Permanent), "{name}");
@@ -279,4 +279,19 @@ fn subtype_heads_denote_permanents_unless_a_card_or_spell_noun_is_present() {
     assert!(!ObjectPredicate::Not(Box::new(subtype("Elf"))).has_domain(ObjectKind::Permanent));
     // A noncreature permanent subtype keeps its former anchor (CR 205.3d).
     assert!(ObjectPredicate::Not(Box::new(subtype("Equipment"))).has_domain(ObjectKind::Permanent));
+}
+
+#[test]
+fn permanent_card_category_and_explicit_reading_cancel_subtype_heads() {
+    let goblin = || ObjectPredicate::Subtype("Goblin".to_string());
+    // `Goblin permanent card` (Goblin Lackey, Moggcatcher): a card noun.
+    let permanent_card =
+        ObjectPredicate::Intersection(vec![goblin(), ObjectPredicate::PermanentCard]);
+    assert!(!permanent_card.has_domain(ObjectKind::Permanent));
+    // A parent whose own noun decides (`a Goblin source`, `Elf or Goblin
+    // permanent`) reads the explicit domain only.
+    assert!(!goblin().has_explicit_domain(ObjectKind::Permanent));
+    assert!(goblin().has_domain(ObjectKind::Permanent));
+    let equipment = ObjectPredicate::Subtype("Equipment".to_string());
+    assert!(equipment.has_explicit_domain(ObjectKind::Permanent));
 }

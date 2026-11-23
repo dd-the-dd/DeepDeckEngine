@@ -53,7 +53,7 @@ pub(in crate::oracle::canonical) fn project_object_query_domains(
                     }
                     explicit = Some(*domain);
                 }
-                // CR 109.2a, 205.3d: a permanent card type or a subtype only
+                // CR 109.2, 205.3d: a permanent card type or a subtype only
                 // permanents carry names a permanent unless the branch also
                 // names `card` or `spell` (checked by `explicit` above).
                 atom if atom.denotes_permanent_head(true) => permanent_nominal = true,

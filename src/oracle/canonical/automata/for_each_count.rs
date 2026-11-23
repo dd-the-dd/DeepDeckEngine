@@ -246,6 +246,29 @@ fn counted_zone_relation_follows(cursor: &OracleTokenCursor<'_>) -> bool {
             .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
 }
 
+/// `for each other X`: whether the count excludes the ability source. Only
+/// a count whose `other` antecedent is the source lowers to `excludeSource`.
+pub(in crate::oracle::canonical) fn count_excludes_source(count: &NumericExpression) -> bool {
+    matches!(count, NumericExpression::PermanentCount(node) if node.exclude_source)
+}
+
+/// Whether an action's affected object is the ability source itself, the
+/// only antecedent `other` in a count may name here (`it gets +1/+0 for
+/// each other attacking Goblin`). For a collection, a target or an attached
+/// object, `other` means other than each affected object (`Nephilim you
+/// control get +1/+1 for each other Nephilim`), which needs the affected
+/// object's binding; such a composition is refused instead of lowered to a
+/// source exclusion.
+pub(in crate::oracle::canonical) fn operand_is_source(operand: &PermanentOperandNode) -> bool {
+    matches!(
+        operand,
+        PermanentOperandNode::Reference(LocalObjectReference::SourceSelf)
+            | PermanentOperandNode::BoundReference(PermanentEffectReference::Source(
+                LocalObjectReference::SourceSelf
+            ))
+    )
+}
+
 /// Lexical lookahead for `the greatest power|toughness among ...`.
 pub(in crate::oracle::canonical) fn greatest_property_among_starts(
     cursor: &OracleTokenCursor<'_>,
@@ -328,6 +351,15 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
 ) -> bool {
     // `gets +1/+1 for each ...`: each component of the signed delta is
     // scaled by the same count; a zero component stays zero (CR 613.4c).
+    let affected = match effect {
+        LocalEffectNode::ModifyStats(node) => Some(&node.targets),
+        LocalEffectNode::PutCounters(node) => Some(&node.permanent),
+        _ => None,
+    };
+    if count_excludes_source(&count) && affected.is_some_and(|operand| !operand_is_source(operand))
+    {
+        return false;
+    }
     if let LocalEffectNode::ModifyStats(node) = effect {
         let scale = |component: &NumericExpression| match component {
             NumericExpression::Atom(NumericAtom::Integer(0)) => Some(component.clone()),

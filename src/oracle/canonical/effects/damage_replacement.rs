@@ -80,6 +80,7 @@ fn lower_controller(scope: ObjectControllerScope) -> Value {
 fn lower_source_predicate(
     cursor: &OracleTokenCursor<'_>,
     predicate: &ObjectPredicate,
+    source_noun: bool,
 ) -> MachineResult<(Value, Option<&'static str>)> {
     if predicate.has_domain(ObjectKind::Spell) {
         cursor.require(
@@ -91,7 +92,12 @@ fn lower_source_predicate(
             Some("spell"),
         ));
     }
-    if predicate.has_domain(ObjectKind::Permanent) {
+    let permanent = if source_noun {
+        predicate.has_explicit_domain(ObjectKind::Permanent)
+    } else {
+        predicate.has_domain(ObjectKind::Permanent)
+    };
+    if permanent {
         cursor.require(
             predicate.supports_domain(ObjectKind::Permanent),
             "a permanent source predicate within the permanent domain",
@@ -118,10 +124,11 @@ fn lower_damage_source(
             predicate,
             controller,
             exclude_source,
+            source_noun,
         } => {
             let mut lowered = json!({ "kind": "objects" });
             if let Some(predicate) = predicate {
-                let (filter, domain) = lower_source_predicate(cursor, predicate)?;
+                let (filter, domain) = lower_source_predicate(cursor, predicate, *source_noun)?;
                 if !filter.is_null() {
                     lowered["where"] = filter;
                 }

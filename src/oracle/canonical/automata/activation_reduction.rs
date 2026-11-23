@@ -1,5 +1,5 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{ObjectControllerScope, ObjectKind, ObjectPredicate, recognize_object_query};
+use super::{ObjectControllerScope, ObjectPredicate, recognize_object_query};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ActivationCostReductionNode {
@@ -73,7 +73,7 @@ pub(in crate::oracle::canonical) fn recognize_activation_cost_reduction(
                     "a permanent selector controlled by the ability controller",
                 )?;
                 cursor.require(
-                    query.predicate.has_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "a battlefield-permanent selector",
                 )?;
                 selector = Some(query.predicate);
