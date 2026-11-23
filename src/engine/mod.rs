@@ -157,6 +157,7 @@ mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
+mod event_count;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -2811,12 +2812,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 )
         }
         Some("countEvents" | "countEventsThisTurn") => {
-            expression["event"].is_string()
-                && expression
-                    .get("player")
-                    .is_none_or(player_reference_supported)
-                && expression.get("where").is_none_or(card_filter_supported)
-                && expression.get("fromZone").is_none_or(Value::is_string)
+            event_count::event_count_supported(expression)
         }
         Some("countEventsPreviousTurn") => {
             previous_turn_events::previous_turn_event_count_supported(expression)
@@ -9954,58 +9950,16 @@ impl GameEngine {
                 )
             }
             Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            expression.get("player").is_none()
-                                || event.player_id.as_deref() == Some(controller_id)
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .filter(|event| match value_kind(&expression["where"]) {
-                            Some("cardTypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|card_type| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&card_type.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("subtypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|subtype| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&subtype.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("not")
-                                if value_kind(&expression["where"]["operand"])
-                                    == Some("cardTypeContains")
-                                    && expression["where"]["operand"]["value"].as_str()
-                                        == Some("Land") =>
-                            {
-                                !event.detail["typeLine"].as_str().is_some_and(|value| {
-                                    value.to_ascii_lowercase().contains("land")
-                                })
-                            }
-                            _ => true,
-                        })
-                        .count() as i32,
-                )
+                // The population is read relative to the source's controller.
+                let players = match expression.get("player") {
+                    Some(player) => Some(
+                        player_query::PlayerQueryContext::source(controller_id, None)
+                            .resolve_population(self, player)
+                            .ok()?,
+                    ),
+                    None => None,
+                };
+                self.count_matching_events(expression, players.as_deref())
             }
             Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("devotion") => {
@@ -31874,31 +31828,15 @@ impl GameEngine {
                 }
             }
             Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                let player_id = expression
-                    .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            player_id.as_ref().is_none_or(|player_id| {
-                                event.player_id.as_deref() == Some(player_id.as_str())
-                            })
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .count() as i32,
-                )
+                let players = match expression.get("player") {
+                    Some(player) => Some(
+                        player_query::PlayerQueryContext::runtime(stack_object, bindings)
+                            .resolve_population(self, player)
+                            .ok()?,
+                    ),
+                    None => None,
+                };
+                self.count_matching_events(expression, players.as_deref())
             }
             Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("sumEventValuesThisTurn") => {
