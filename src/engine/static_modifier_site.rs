@@ -54,7 +54,7 @@ impl GameEngine {
             .flat_map(|source| {
                 source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .enumerate()
                     .filter(|(_, rule)| {

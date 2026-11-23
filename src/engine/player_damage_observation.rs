@@ -5,7 +5,7 @@ use super::*;
 impl GameEngine {
     pub(super) fn require_player_damage_batch_observers(&self) -> Result<(), EngineError> {
         for source in self.state.players.iter().flat_map(|p| p.battlefield.iter()) {
-            for rule in &source.definition.rules {
+            for rule in self.effective_rules(&source).iter() {
                 for event in triggered_event_variants(&rule["event"]) {
                     if matches!(
                         value_kind(event),
@@ -54,9 +54,8 @@ impl GameEngine {
             .flat_map(|p| p.battlefield.iter().cloned())
             .collect::<Vec<_>>();
         for source in sources {
-            for rule in source
-                .definition
-                .rules
+            for rule in self
+                .effective_rules(&source)
                 .iter()
                 .filter(|r| triggered_rule_supported(r))
                 .cloned()

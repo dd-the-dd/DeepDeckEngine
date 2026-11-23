@@ -382,9 +382,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|observer| {
-                observer
-                    .definition
-                    .rules
+                self.effective_rules(&observer)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)

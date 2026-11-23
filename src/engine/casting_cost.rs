@@ -228,7 +228,7 @@ impl GameEngine {
         if selected.is_empty() {
             return Ok(0);
         }
-        if !card.rules.iter().any(|rule| {
+        if !card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("delve")
         }) {
@@ -286,7 +286,7 @@ impl GameEngine {
             .filter(|ability| alternative_cost_supported(ability))
             .cloned()
             .or_else(|| {
-                card.rules.iter().find_map(|rule| {
+                card.printed_rules().iter().find_map(|rule| {
                     (value_kind(rule) == Some("keywordAbility")
                         && alternative_cost_supported(&rule["ability"]))
                     .then(|| rule["ability"].clone())
@@ -303,7 +303,7 @@ impl GameEngine {
         match selected_casting_base_policy(decisions) {
             SelectedCastingBasePolicy::Waived => String::new(),
             SelectedCastingBasePolicy::Awaken => card
-                .rules
+                .printed_rules()
                 .iter()
                 .find(|rule| {
                     value_kind(rule) == Some("keywordAbility")
@@ -358,7 +358,7 @@ impl GameEngine {
             cost_query::CastingQueryContext::spell(card, controller_id, decisions, casting_source);
         let mut total = 0_i32;
         for modifier in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| casting_static_rule_supported(rule))
             .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
@@ -430,7 +430,7 @@ impl GameEngine {
                 .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))?,
             self.minimum_casting_mana(controller_id, card),
         );
-        let delve_payment = if card.rules.iter().any(|rule| {
+        let delve_payment = if card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("delve")
         }) {

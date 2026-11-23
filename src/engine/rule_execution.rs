@@ -749,9 +749,13 @@ impl GameEngine {
         moved
             .card
             .definition
-            .rules
+            .printed_rules_mut()
             .retain(|rule| value_kind(rule) != Some("spellAbility"));
-        moved.card.definition.rules.push(execution.rule.clone());
+        moved
+            .card
+            .definition
+            .printed_rules_mut()
+            .push(execution.rule.clone());
         self.commit_movement_identity(
             &mut moved,
             &card_zone_transition::ObjectZone::Stack,

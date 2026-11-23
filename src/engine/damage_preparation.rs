@@ -63,7 +63,7 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
                 .find_map(|aura| {
-                    aura.definition.rules.iter().find_map(|rule| {
+                    self.effective_rules(&aura).iter().find_map(|rule| {
                         (value_kind(rule) == Some("staticAbility")
                             && rule["modifiers"].as_array().is_some_and(|modifiers| {
                                 modifiers.iter().any(|modifier| {

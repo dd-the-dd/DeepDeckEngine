@@ -53,7 +53,14 @@ pub(super) fn stack_requires_checkpoint(stack: &[super::StackObject]) -> bool {
             });
         pending_declaration
             || object.ability_rule.as_ref().map_or_else(
-                || object.card.definition.rules.iter().any(requires_checkpoint),
+                || {
+                    object
+                        .card
+                        .definition
+                        .printed_rules()
+                        .iter()
+                        .any(requires_checkpoint)
+                },
                 requires_checkpoint,
             )
     })

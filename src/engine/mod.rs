@@ -119,6 +119,7 @@ mod deck_construction_keywords;
 mod declaration_result;
 mod destruction_batch;
 mod effect_domains;
+mod effective_rules;
 mod event_batch;
 mod event_model;
 mod invariants;
@@ -1316,6 +1317,8 @@ pub struct GameEngine {
     pending_empty_draws: BTreeSet<String>,
     commander_last_zones: BTreeMap<String, String>,
     branching_decision_sequence: Cell<u64>,
+    /// Set while layer-6 grants are being collected (see `effective_rules`).
+    collecting_rule_grants: Cell<bool>,
     quantity_transaction: quantity_replacement::QuantityTransactionState,
     target_numeric_contexts: target_numeric_lki::TargetNumericContexts,
     source_lki_contexts: source_lki::SourceLkiContexts,
@@ -1515,7 +1518,7 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
         .as_ref()
         .unwrap_or(&card.definition)
         .clone();
-    let Some(face) = printed.rules.iter().find_map(|rule| {
+    let Some(face) = printed.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("rulesMarker"))
             .then(|| rule["transformFaces"].as_array())
             .flatten()
@@ -1541,7 +1544,7 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
         .filter(|value| !value.is_null())
         .and_then(Value::as_str)
         .map(ToOwned::to_owned);
-    definition.rules.retain(|rule| {
+    definition.printed_rules_mut().retain(|rule| {
         rule["activeFaceIndex"]
             .as_u64()
             .is_none_or(|index| index == face_index as u64)
@@ -1549,7 +1552,7 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
     let starting_loyalty = face["loyalty"]
         .as_str()
         .and_then(|loyalty| loyalty.parse::<i32>().ok());
-    for rule in &mut definition.rules {
+    for rule in definition.printed_rules_mut() {
         if value_kind(rule) != Some("rulesMarker") || !rule["transformFaces"].is_array() {
             continue;
         }
@@ -1559,19 +1562,19 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
             rule.remove("startingLoyalty");
         }
     }
-    definition.rules.extend(
+    definition.printed_rules_mut().extend(
         card.definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| rule.get("activeFaceIndex").is_none())
-            .filter(|rule| !printed.rules.contains(rule))
+            .filter(|rule| !printed.printed_rules().contains(rule))
             .cloned(),
     );
     if let Some(starting_loyalty) = face["loyalty"]
         .as_str()
         .and_then(|value| value.parse::<i32>().ok())
     {
-        definition.rules.push(json!({
+        definition.printed_rules_mut().push(json!({
             "kind": "rulesMarker",
             "activeFaceIndex": face_index,
             "startingLoyalty": { "kind": "integer", "value": starting_loyalty },
@@ -1587,7 +1590,7 @@ fn apply_card_face(card: &mut CardInstance, face_index: usize) -> bool {
 }
 
 fn split_face_definitions(card: &CardDefinition) -> Vec<CardDefinition> {
-    let Some(faces) = card.rules.iter().find_map(|rule| {
+    let Some(faces) = card.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("rulesMarker"))
             .then(|| rule["splitFaces"].as_array())
             .flatten()
@@ -1603,7 +1606,7 @@ fn split_face_definitions(card: &CardDefinition) -> Vec<CardDefinition> {
             definition.mana_cost = face["manaCost"].as_str().unwrap_or_default().to_string();
             definition.power = face["power"].as_str().map(ToOwned::to_owned);
             definition.toughness = face["toughness"].as_str().map(ToOwned::to_owned);
-            definition.rules = face["rules"].as_array()?.clone();
+            definition.set_printed_rules(face["rules"].as_array()?.clone());
             Some(definition)
         })
         .collect()
@@ -1642,7 +1645,7 @@ fn fused_split_definition(card: &CardDefinition) -> Option<CardDefinition> {
     let faces = split_face_definitions(card);
     if faces.len() < 2
         || !faces.iter().all(|face| {
-            face.rules.iter().any(|rule| {
+            face.printed_rules().iter().any(|rule| {
                 value_kind(rule) == Some("keywordAbility")
                     && value_kind(&rule["ability"]) == Some("fuse")
             })
@@ -1655,19 +1658,21 @@ fn fused_split_definition(card: &CardDefinition) -> Option<CardDefinition> {
         .iter()
         .map(|face| face.mana_cost.as_str())
         .collect::<String>();
-    definition.rules = faces
-        .into_iter()
-        .enumerate()
-        .flat_map(|(face_index, face)| {
-            face.rules
-                .into_iter()
-                .map(move |mut rule| {
-                    namespace_rule_declarations(&mut rule, &format!("fuse{face_index}"));
-                    rule
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect();
+    definition.set_printed_rules(
+        faces
+            .into_iter()
+            .enumerate()
+            .flat_map(|(face_index, face)| {
+                face.into_printed_rules()
+                    .into_iter()
+                    .map(move |mut rule| {
+                        namespace_rule_declarations(&mut rule, &format!("fuse{face_index}"));
+                        rule
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect(),
+    );
     Some(definition)
 }
 
@@ -1690,7 +1695,7 @@ fn is_permanent(card: &CardDefinition) -> bool {
 
 fn is_commander_definition(card: &CardDefinition) -> bool {
     card.is_commander
-        || card.rules.iter().any(|rule| {
+        || card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("rulesMarker") && rule["text"].as_str() == Some("Commander")
         })
 }
@@ -1837,7 +1842,7 @@ fn card_color_symbols(card: &CardDefinition) -> BTreeSet<String> {
         })
         .collect::<BTreeSet<_>>();
     for symbol in card
-        .rules
+        .printed_rules()
         .iter()
         .flat_map(|rule| rule["colorIndicator"].as_array().into_iter().flatten())
         .filter_map(Value::as_str)
@@ -1845,7 +1850,7 @@ fn card_color_symbols(card: &CardDefinition) -> BTreeSet<String> {
         symbols.insert(symbol.to_string());
     }
     for symbol in card
-        .rules
+        .printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("rulesMarker"))
         .flat_map(|rule| rule["colorIdentity"].as_array().into_iter().flatten())
@@ -2037,7 +2042,7 @@ fn count_rule_kind(value: &Value, expected: &str) -> usize {
 }
 
 fn keyword_count(card: &CardDefinition, keyword: &str) -> usize {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| keyword_rule_supported(rule))
         .map(|rule| count_rule_kind(rule, keyword))
@@ -2045,14 +2050,14 @@ fn keyword_count(card: &CardDefinition, keyword: &str) -> usize {
 }
 
 fn has_keyword(card: &CardDefinition, keyword: &str) -> bool {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| keyword_rule_supported(rule))
         .any(|rule| rule_contains_kind(rule, keyword))
 }
 
 fn stored_decision_value<'a>(card: &'a CardDefinition, decision_id: &str) -> Option<&'a str> {
-    card.rules.iter().find_map(|rule| {
+    card.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("storedDecisionValue")
             && rule["decisionId"].as_str() == Some(decision_id))
         .then(|| rule["value"].as_str())
@@ -2061,7 +2066,7 @@ fn stored_decision_value<'a>(card: &'a CardDefinition, decision_id: &str) -> Opt
 }
 
 fn ward_costs(card: &CardDefinition) -> Vec<Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter_map(|rule| match value_kind(rule) {
             Some("keywordAbility") => {
@@ -3184,7 +3189,7 @@ fn enchant_candidates_shape(enchant_ability: &Value) -> Value {
 
 /// The `enchant` keyword ability of a card definition, if it has one.
 fn enchant_ability_of(definition: &CardDefinition) -> Option<&Value> {
-    definition.rules.iter().find_map(|rule| {
+    definition.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("keywordAbility")
             && value_kind(&rule["ability"]) == Some("enchant"))
         .then_some(&rule["ability"])
@@ -3456,7 +3461,7 @@ fn escalate_ability_supported(value: &Value) -> bool {
 }
 
 fn escalate_cost(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| {
@@ -3487,7 +3492,7 @@ fn companion_ability_supported(value: &Value) -> bool {
 }
 
 fn companion_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| companion_ability_supported(&rule["ability"]).then(|| &rule["ability"]))
@@ -3533,7 +3538,7 @@ fn splice_ability_supported(value: &Value) -> bool {
 }
 
 fn splice_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| splice_ability_supported(&rule["ability"]).then(|| &rule["ability"]))
@@ -3563,7 +3568,7 @@ fn replace_rule_decision_ids(value: &mut Value, replacements: &BTreeMap<String, 
 fn scoped_splice_spell_rules(card: &CardInstance) -> Vec<Value> {
     let mut rules = card
         .definition
-        .rules
+        .printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("spellAbility"))
         .cloned()
@@ -3781,7 +3786,7 @@ fn prototype_ability_supported(value: &Value) -> bool {
 }
 
 fn prototype_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .map(|rule| &rule["ability"])
@@ -3789,7 +3794,7 @@ fn prototype_ability(card: &CardDefinition) -> Option<&Value> {
 }
 
 fn morph_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .map(|rule| &rule["ability"])
@@ -3813,7 +3818,7 @@ fn face_down_creature_definition(card: &CardDefinition) -> CardDefinition {
 }
 
 fn miracle_cost(card: &CardDefinition) -> Option<&str> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| {
@@ -3878,7 +3883,7 @@ fn dash_ability_supported(value: &Value) -> bool {
 }
 
 fn dash_cost(card: &CardDefinition) -> Option<&str> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| {
@@ -3889,7 +3894,7 @@ fn dash_cost(card: &CardDefinition) -> Option<&str> {
 }
 
 fn blitz_cost(card: &CardDefinition) -> Option<&str> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| {
@@ -3900,7 +3905,7 @@ fn blitz_cost(card: &CardDefinition) -> Option<&str> {
 }
 
 fn flashback_cost(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| {
@@ -3928,7 +3933,7 @@ fn mayhem_ability_supported(value: &Value) -> bool {
 }
 
 fn mayhem_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| mayhem_ability_supported(&rule["ability"]).then(|| &rule["ability"]))
@@ -3939,7 +3944,7 @@ fn mayhem_mana_cost(card: &CardDefinition) -> Option<&str> {
 }
 
 fn graveyard_discard_cast_ability(card: &CardDefinition) -> bool {
-    card.rules.iter().any(|rule| {
+    card.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some("keywordAbility")
             && value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
     })
@@ -3964,7 +3969,7 @@ fn escape_ability_supported(value: &Value) -> bool {
 }
 
 fn escape_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| escape_ability_supported(&rule["ability"]).then(|| &rule["ability"]))
@@ -3984,7 +3989,7 @@ fn impending_ability_supported(value: &Value) -> bool {
 }
 
 fn impending_ability(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .filter(|rule| value_kind(rule) == Some("keywordAbility"))
         .find_map(|rule| impending_ability_supported(&rule["ability"]).then(|| &rule["ability"]))
@@ -4564,11 +4569,11 @@ fn named_token_rules(name: &str) -> Option<Vec<Value>> {
     compile_named_token_definition(name)
         .ok()
         .flatten()
-        .map(|definition| definition.rules)
+        .map(|definition| definition.into_printed_rules())
 }
 
 fn source_linked_token_definition(source: &CardDefinition, name: &str) -> Option<CardDefinition> {
-    source.rules.iter().find_map(|rule| {
+    source.printed_rules().iter().find_map(|rule| {
         let compiled = rule["relatedTokenDefinitions"]
             .as_array()
             .into_iter()
@@ -6046,7 +6051,7 @@ pub fn rule_is_executable(rule: &Value) -> bool {
 }
 
 fn spell_cant_be_countered(card: &CardDefinition) -> bool {
-    card.rules.iter().any(|rule| {
+    card.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some("staticAbility")
             && rule_supported(rule)
             && value_kind(&rule["activeWhile"]) == Some("inZone")
@@ -6062,21 +6067,21 @@ fn spell_cant_be_countered(card: &CardDefinition) -> bool {
 }
 
 fn spell_exiles_after_resolution(card: &CardDefinition) -> bool {
-    card.rules.iter().any(|rule| {
+    card.printed_rules().iter().any(|rule| {
         matches!(value_kind(rule), Some("rulesMarker" | "spellAbility"))
             && rule["exileAfterResolution"].as_bool() == Some(true)
     })
 }
 
 fn spell_is_adventure(card: &CardDefinition) -> bool {
-    card.rules.iter().any(|rule| {
+    card.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some("spellAbility")
             && rule["adventureAfterResolution"].as_bool() == Some(true)
     })
 }
 
 fn spell_suspend_after_resolution(card: &CardDefinition) -> Option<i32> {
-    card.rules.iter().find_map(|rule| {
+    card.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("spellAbility"))
             .then(|| integer_value(&rule["suspendAfterResolution"]))
             .flatten()
@@ -6084,14 +6089,14 @@ fn spell_suspend_after_resolution(card: &CardDefinition) -> Option<i32> {
 }
 
 fn spell_shuffles_into_library_after_resolution(card: &CardDefinition) -> bool {
-    card.rules.iter().any(|rule| {
+    card.printed_rules().iter().any(|rule| {
         value_kind(rule) == Some("spellAbility")
             && rule["destinationAfterResolution"].as_str() == Some("library")
     })
 }
 
 fn paradigm_spell_name(card: &CardDefinition) -> Option<String> {
-    card.rules.iter().find_map(|rule| {
+    card.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("keywordAbility") && paradigm_ability_supported(&rule["ability"]))
             .then(|| {
                 rule["ability"]["spellName"]
@@ -6103,7 +6108,7 @@ fn paradigm_spell_name(card: &CardDefinition) -> Option<String> {
 }
 
 fn prepared_spell_definition(card: &CardDefinition) -> Option<CardDefinition> {
-    card.rules.iter().find_map(|rule| {
+    card.printed_rules().iter().find_map(|rule| {
         (value_kind(rule) == Some("prepareSpell"))
             .then(|| serde_json::from_value(rule["spell"].clone()).ok())
             .flatten()
@@ -6172,7 +6177,7 @@ impl GameEngine {
             .into_values()
             .collect::<Vec<_>>();
         for definition in &game_pieces {
-            for rule in &definition.rules {
+            for rule in definition.printed_rules() {
                 if !rule_supported(rule) {
                     unsupported_rules.push(UnsupportedRule {
                         card_id: definition.id.clone(),
@@ -6208,7 +6213,7 @@ impl GameEngine {
                 .enumerate()
                 .filter(|(_, definition)| is_deck_library_card_for_mode(definition, game_mode))
                 .map(|(index, definition)| {
-                    for rule in &definition.rules {
+                    for rule in definition.printed_rules() {
                         if !rule_supported(rule) {
                             unsupported_rules.push(UnsupportedRule {
                                 card_id: definition.id.clone(),
@@ -6227,7 +6232,7 @@ impl GameEngine {
                     .enumerate()
                     .filter(|(_, definition)| is_deck_commander_card(definition))
                     .map(|(index, definition)| {
-                        for rule in &definition.rules {
+                        for rule in definition.printed_rules() {
                             if !rule_supported(rule) {
                                 unsupported_rules.push(UnsupportedRule {
                                     card_id: definition.id.clone(),
@@ -6332,6 +6337,7 @@ impl GameEngine {
             pending_empty_draws: BTreeSet::new(),
             commander_last_zones,
             branching_decision_sequence: Cell::new(0),
+            collecting_rule_grants: Cell::new(false),
             quantity_transaction: quantity_replacement::QuantityTransactionState::default(),
             target_numeric_contexts: target_numeric_lki::TargetNumericContexts::default(),
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
@@ -6360,6 +6366,7 @@ impl GameEngine {
             pending_empty_draws: BTreeSet::new(),
             commander_last_zones: BTreeMap::new(),
             branching_decision_sequence: Cell::new(0),
+            collecting_rule_grants: Cell::new(false),
             quantity_transaction: quantity_replacement::QuantityTransactionState::default(),
             target_numeric_contexts: target_numeric_lki::TargetNumericContexts::default(),
             source_lki_contexts: source_lki::SourceLkiContexts::default(),
@@ -6718,7 +6725,7 @@ impl GameEngine {
         self.state.players[opponent_index].hand.clear();
         if !opponent_skips_draw_step {
             for permanent in &mut self.state.players[opponent_index].battlefield {
-                permanent.definition.rules.retain(|rule| {
+                permanent.definition.printed_rules_mut().retain(|rule| {
                     !rule["modifiers"].as_array().is_some_and(|modifiers| {
                         modifiers
                             .iter()
@@ -7035,7 +7042,7 @@ impl GameEngine {
                 .hand
                 .iter()
                 .filter(|card| {
-                    card.definition.rules.iter().any(|rule| {
+                    card.definition.printed_rules().iter().any(|rule| {
                         value_kind(rule) == Some("keywordAbility")
                             && value_kind(&rule["ability"]) == Some("openingHandBattlefield")
                     })
@@ -7749,7 +7756,7 @@ impl GameEngine {
                 .graveyard
                 .iter()
                 .filter_map(|card| {
-                    card.definition.rules.iter().find_map(|rule| {
+                    card.definition.printed_rules().iter().find_map(|rule| {
                         (value_kind(rule) == Some("keywordAbility")
                             && dredge_ability_supported(&rule["ability"]))
                         .then(|| {
@@ -7857,7 +7864,7 @@ impl GameEngine {
         let mut triggers = Vec::new();
         for player in self.state.players.iter().filter(|player| !player.has_lost) {
             for source in &player.battlefield {
-                for rule in &source.definition.rules {
+                for rule in self.effective_rules(&source).iter() {
                     let Some(event) = triggered_event_variants(&rule["event"])
                         .into_iter()
                         .find(|event| value_kind(event) == Some("cardDrawn"))
@@ -10622,7 +10629,7 @@ impl GameEngine {
             .flat_map(|source| {
                 source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| eminence_static_rule_supported(rule))
                     .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
@@ -10647,91 +10654,6 @@ impl GameEngine {
             })
     }
 
-    fn granted_activated_abilities(&self, permanent: &CardInstance) -> Vec<Value> {
-        let mut abilities = Vec::new();
-        for (source, modifier) in
-            self.battlefield_static_modifiers()
-                .into_iter()
-                .filter(|(source, modifier)| {
-                    value_kind(modifier) == Some("grantActivatedAbility")
-                        && Self::static_selector_matches(source, &modifier["objects"], permanent)
-                })
-        {
-            let mut ability = modifier["ability"].clone();
-            ability["grantedByInstanceId"] = Value::String(source.instance_id.clone());
-            if !abilities.contains(&ability) {
-                abilities.push(ability);
-            }
-        }
-        for (source, modifier) in self
-            .battlefield_static_modifiers()
-            .into_iter()
-            .filter(|(_, modifier)| {
-                matches!(
-                    value_kind(modifier),
-                    Some(
-                        "grantActivatedAbilitiesFromLinkedExile"
-                            | "grantActivatedAbilitiesFromZone"
-                    )
-                )
-            })
-            .filter(|(source, modifier)| {
-                Self::static_selector_matches(source, &modifier["objects"], permanent)
-            })
-        {
-            let cards = if value_kind(&modifier) == Some("grantActivatedAbilitiesFromLinkedExile") {
-                let linked_card_ids = self
-                    .state
-                    .rule_modifiers
-                    .iter()
-                    .filter(|link| {
-                        value_kind(link) == Some("exiledWithSource")
-                            && link["sourceCardInstanceId"].as_str()
-                                == Some(source.instance_id.as_str())
-                    })
-                    .filter_map(|link| link["cardInstanceId"].as_str())
-                    .collect::<BTreeSet<_>>();
-                self.state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.exile.iter())
-                    .filter(|card| linked_card_ids.contains(card.instance_id.as_str()))
-                    .collect::<Vec<_>>()
-            } else {
-                let player_id = match value_kind(&modifier["cards"]["zone"]["player"]) {
-                    Some("controllerOf") => source.controller.as_str(),
-                    _ => continue,
-                };
-                let Ok(player_index) = self.player_index(player_id) else {
-                    continue;
-                };
-                match value_kind(&modifier["cards"]["zone"]) {
-                    Some("graveyard") => {
-                        self.state.players[player_index].graveyard.iter().collect()
-                    }
-                    Some("exile") => self.state.players[player_index].exile.iter().collect(),
-                    _ => Vec::new(),
-                }
-            };
-            for card in cards
-                .into_iter()
-                .filter(|card| matches_card_filter(&card.definition, &modifier["cards"]["where"]))
-            {
-                for rule in card
-                    .definition
-                    .rules
-                    .iter()
-                    .filter(|rule| activated_rule_supported(rule))
-                {
-                    if !abilities.contains(rule) {
-                        abilities.push(rule.clone());
-                    }
-                }
-            }
-        }
-        abilities
-    }
-
     fn effective_flashback_cost(&self, card: &CardInstance) -> Option<Value> {
         flashback_cost(&card.definition).cloned().or_else(|| {
             self.battlefield_static_modifiers()
@@ -10753,71 +10675,6 @@ impl GameEngine {
                     }
                 })
         })
-    }
-
-    fn rule_metadata_active_for_source(source: &CardInstance, rule: &Value) -> bool {
-        if rule["minimumClassLevel"].as_i64().is_some_and(|minimum| {
-            i64::from(source.counters.get("classLevel").copied().unwrap_or(1)) < minimum
-        }) {
-            return false;
-        }
-        let Some(door_index) = rule["roomDoorIndex"].as_u64() else {
-            return true;
-        };
-        source
-            .flags
-            .get(&format!("roomDoor{door_index}Unlocked"))
-            .copied()
-            .unwrap_or(false)
-    }
-
-    fn permanent_loses_all_abilities(&self, permanent: &CardInstance) -> bool {
-        if self.state.rule_modifiers.iter().any(|modifier| {
-            (value_kind(modifier) == Some("loseAllAbilities")
-                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
-                && modifier["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number)))
-                || (value_kind(modifier) == Some("linkedAbilityLoss")
-                    && modifier["targetCardInstanceId"].as_str()
-                        == Some(permanent.instance_id.as_str())
-                    && modifier["sourceCardInstanceId"]
-                        .as_str()
-                        .and_then(|source_id| self.permanent_position(source_id))
-                        .is_some())
-        }) {
-            return true;
-        }
-
-        self.state
-            .players
-            .iter()
-            .flat_map(|player| player.battlefield.iter())
-            .filter(|source| !source.flags.get("phasedOut").copied().unwrap_or(false))
-            .any(|source| {
-                source
-                    .definition
-                    .rules
-                    .iter()
-                    .filter(|rule| {
-                        battlefield_static_rule_supported(rule)
-                            && Self::rule_metadata_active_for_source(source, rule)
-                    })
-                    .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
-                    .any(|modifier| {
-                        value_kind(modifier) == Some("loseAllAbilities")
-                            && Self::static_selector_matches(
-                                source,
-                                &modifier["objects"],
-                                permanent,
-                            )
-                    })
-            })
-    }
-
-    fn rule_active_for_source(&self, source: &CardInstance, rule: &Value) -> bool {
-        Self::rule_metadata_active_for_source(source, rule)
-            && !self.permanent_loses_all_abilities(source)
     }
 
     pub fn permanent_has_effective_keyword(&self, permanent: &CardInstance, keyword: &str) -> bool {
@@ -10859,7 +10716,7 @@ impl GameEngine {
                 .is_some_and(|counter| permanent.counters.get(counter).copied().unwrap_or(0) > 0)
             || permanent
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .filter(|rule| keyword_rule_supported(rule))
                 .filter(|rule| self.rule_active_for_source(permanent, rule))
@@ -11007,7 +10864,7 @@ impl GameEngine {
                         .filter_map(Value::as_str)
                         .any(|quality| card_matches_protection_quality(source, quality))
                 })
-        }) || permanent.definition.rules.iter().any(|rule| {
+        }) || self.effective_rules(&permanent).iter().any(|rule| {
             let abilities = match value_kind(rule) {
                 Some("keywordAbility") => vec![&rule["ability"]],
                 Some("keywordAbilityGroup") => {
@@ -11077,7 +10934,7 @@ impl GameEngine {
         }
         permanent
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| self.rule_active_for_source(permanent, rule))
             .flat_map(|rule| match value_kind(rule) {
@@ -12508,7 +12365,7 @@ impl GameEngine {
         controller_id: &str,
         targets: &BTreeMap<String, TargetRef>,
     ) -> i32 {
-        card.rules
+        card.printed_rules()
             .iter()
             .filter(|rule| casting_static_rule_supported(rule))
             .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
@@ -12649,7 +12506,7 @@ impl GameEngine {
     }
 
     fn card_casting_prohibited(&self, player_id: &str, card: &CardDefinition) -> bool {
-        if card.rules.iter().any(|rule| {
+        if card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("rulesMarker")
                 && rule["cantCastThroughTurn"]
                     .as_u64()
@@ -12658,7 +12515,7 @@ impl GameEngine {
             return true;
         }
         if let Some(minimum) = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("rulesMarker"))
             .filter_map(|rule| integer_value(&rule["minimumGraveyardCardsToCast"]))
@@ -12672,7 +12529,7 @@ impl GameEngine {
         {
             return true;
         }
-        let legendary_sorcery = card.rules.iter().any(|rule| {
+        let legendary_sorcery = card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("rulesMarker")
                 && rule["legendarySorceryRestriction"].as_bool() == Some(true)
         });
@@ -12770,7 +12627,7 @@ impl GameEngine {
         source_zone: &str,
     ) -> bool {
         let controlled_permanent_permission = source_zone == "hand"
-            && card.rules.iter().any(|rule| {
+            && card.printed_rules().iter().any(|rule| {
                 value_kind(rule) == Some("keywordAbility")
                     && conditional_flash_ability_supported(&rule["ability"])
                     && match value_kind(&rule["ability"]) {
@@ -12804,7 +12661,7 @@ impl GameEngine {
                         _ => false,
                     }
             });
-        let attacking_legendary_permission = card.rules.iter().any(|rule| {
+        let attacking_legendary_permission = card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("rulesMarker")
                 && rule["flashWithAttackingLegendary"].as_bool() == Some(true)
         }) && self.state.players.iter().any(|player| {
@@ -12944,7 +12801,7 @@ impl GameEngine {
         for player in &self.state.players {
             for source in &player.battlefield {
                 if source.controller != permanent.controller
-                    && source.definition.rules.iter().any(|rule| {
+                    && self.effective_rules(&source).iter().any(|rule| {
                         rule["modifiers"]
                             .as_array()
                             .into_iter()
@@ -12956,7 +12813,7 @@ impl GameEngine {
                     return Some(source.controller.as_str());
                 }
                 if source.attached_to.as_deref() == Some(permanent.instance_id.as_str())
-                    && source.definition.rules.iter().any(|rule| {
+                    && self.effective_rules(&source).iter().any(|rule| {
                         rule["modifiers"]
                             .as_array()
                             .into_iter()
@@ -13019,7 +12876,7 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
                 .any(|source| {
-                    source.definition.rules.iter().any(|rule| {
+                    self.effective_rules(&source).iter().any(|rule| {
                         battlefield_static_rule_supported(rule)
                             && rule["modifiers"]
                                 .as_array()
@@ -13136,7 +12993,7 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
                 .any(|source| {
-                    source.definition.rules.iter().any(|rule| {
+                    source.definition.printed_rules().iter().any(|rule| {
                         battlefield_static_rule_supported(rule)
                             && rule["modifiers"]
                                 .as_array()
@@ -13289,7 +13146,7 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> i32 {
         let declared_cost = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
             .map(|rule| {
@@ -13321,7 +13178,7 @@ impl GameEngine {
     }
 
     fn card_has_convoke(&self, card: &CardDefinition, controller_id: &str) -> bool {
-        card.rules.iter().any(|rule| {
+        card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && convoke_ability_supported(&rule["ability"])
         }) || self
@@ -13339,7 +13196,7 @@ impl GameEngine {
     }
 
     fn card_has_improvise(&self, card: &CardDefinition, controller_id: &str) -> bool {
-        card.rules.iter().any(|rule| {
+        card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && improvise_ability_supported(&rule["ability"])
         }) || self
@@ -13358,7 +13215,7 @@ impl GameEngine {
 
     fn conspire_instance_count(&self, card: &CardDefinition, controller_id: &str) -> usize {
         let printed = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| {
                 value_kind(rule) == Some("keywordAbility")
@@ -13383,7 +13240,7 @@ impl GameEngine {
 
     fn replicate_costs(&self, card: &CardDefinition, controller_id: &str) -> Vec<String> {
         let printed = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("keywordAbility"))
             .filter_map(|rule| {
@@ -13531,7 +13388,7 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Vec<String> {
         let mut costs = Vec::new();
-        for (rule_index, rule) in card.rules.iter().enumerate() {
+        for (rule_index, rule) in card.printed_rules().iter().enumerate() {
             if value_kind(rule) == Some("spellAbility") {
                 self.collect_conditional_mana_costs(
                     &rule["declaration"]["additionalCosts"],
@@ -13665,7 +13522,7 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> i32 {
         let intrinsic = card
-            .rules
+            .printed_rules()
             .iter()
             .enumerate()
             .filter(|(rule_index, rule)| {
@@ -13832,7 +13689,7 @@ impl GameEngine {
 
         let mut target_ids = Vec::new();
         for rule in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
         {
@@ -13859,7 +13716,7 @@ impl GameEngine {
         let target_ids = self.casting_sacrifice_cost_targets(card, controller_id, decisions);
         let mut bound = Vec::new();
         for cost in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
             .flat_map(|rule| rule["declaration"]["additionalCosts"].as_array())
@@ -14028,7 +13885,7 @@ impl GameEngine {
 
         let mut target_ids = Vec::new();
         for rule in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
         {
@@ -14120,7 +13977,7 @@ impl GameEngine {
 
         let mut target_ids = Vec::new();
         for rule in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
         {
@@ -14219,7 +14076,7 @@ impl GameEngine {
 
         let mut selected = Vec::new();
         for rule in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
         {
@@ -14253,7 +14110,7 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Vec<String> {
         let payment_count = escalate_payment_count(decisions);
-        card.rules
+        card.printed_rules()
             .iter()
             .enumerate()
             .filter(|(_, rule)| {
@@ -14278,11 +14135,16 @@ impl GameEngine {
         provider: &mut P,
     ) -> Result<(), EngineError> {
         let payment_count = escalate_payment_count(&action.decisions);
-        for (rule_index, cost) in card.rules.iter().enumerate().filter_map(|(index, rule)| {
-            (value_kind(rule) == Some("keywordAbility")
-                && escalate_ability_supported(&rule["ability"]))
-            .then_some((index, &rule["ability"]["cost"]))
-        }) {
+        for (rule_index, cost) in
+            card.printed_rules()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, rule)| {
+                    (value_kind(rule) == Some("keywordAbility")
+                        && escalate_ability_supported(&rule["ability"]))
+                    .then_some((index, &rule["ability"]["cost"]))
+                })
+        {
             for payment_index in 0..payment_count {
                 self.apply_keyword_cost(
                     action,
@@ -14313,7 +14175,7 @@ impl GameEngine {
         if selected.is_empty() {
             return Ok(());
         }
-        if !card.rules.iter().any(|rule| {
+        if !card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("delve")
         }) {
@@ -14664,7 +14526,7 @@ impl GameEngine {
             .and_then(Value::as_str)
             .ok_or_else(|| EngineError::new("alternative sacrifice has no permanent"))?;
         let where_filter = card
-            .rules
+            .printed_rules()
             .iter()
             .find_map(|rule| {
                 (value_kind(rule) == Some("keywordAbility")
@@ -15268,7 +15130,7 @@ impl GameEngine {
             .iter()
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| source.controller == controller_id)
-            .flat_map(|source| source.definition.rules.iter())
+            .flat_map(|source| source.definition.printed_rules().iter())
             .filter(|rule| value_kind(rule) == Some("storedDecisionValue"))
             .filter_map(|rule| {
                 Some((
@@ -15847,7 +15709,7 @@ impl GameEngine {
             }
             let mut splice_definition = splice_card.definition.clone();
             splice_definition.mana_cost.clear();
-            splice_definition.rules = splice_rules;
+            splice_definition.set_printed_rules(splice_rules);
             let Some(splice_declarations) = session
                 .declarations_for_card(&splice_definition, controller_id)
                 .map_err(Failure::Dependency)?
@@ -16146,7 +16008,7 @@ impl GameEngine {
                 .collect();
         }
         let has_explicit_x_declaration = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
             .any(|rule| {
@@ -16171,7 +16033,7 @@ impl GameEngine {
                 })
                 .collect();
         }
-        if card.rules.iter().any(|rule| {
+        if card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("delve")
         }) {
@@ -16226,7 +16088,7 @@ impl GameEngine {
             assignments = expanded;
         }
         for ability in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("keywordAbility"))
             .filter_map(|rule| {
@@ -16273,7 +16135,7 @@ impl GameEngine {
             }
         }
         for _ability in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("keywordAbility"))
             .filter_map(|rule| {
@@ -16398,7 +16260,7 @@ impl GameEngine {
             assignments = expanded;
         }
         for (rule_index, ability) in card
-            .rules
+            .printed_rules()
             .iter()
             .enumerate()
             .filter(|(_, rule)| value_kind(rule) == Some("keywordAbility"))
@@ -16471,7 +16333,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        for (rule_index, _) in card.rules.iter().enumerate().filter(|(_, rule)| {
+        for (rule_index, _) in card.printed_rules().iter().enumerate().filter(|(_, rule)| {
             value_kind(rule) == Some("keywordAbility")
                 && offspring_ability_supported(&rule["ability"])
         }) {
@@ -16491,7 +16353,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if card.rules.iter().any(|rule| {
+        if card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility") && gift_ability_supported(&rule["ability"])
         }) {
             let opponents = self
@@ -16519,7 +16381,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if let Some(ability) = card.rules.iter().find_map(|rule| {
+        if let Some(ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && sacrifice_creature_alternative_cost_supported(&rule["ability"]))
             .then_some(&rule["ability"])
@@ -16564,7 +16426,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if let Some(ability) = card.rules.iter().find_map(|rule| {
+        if let Some(ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && alternative_cost_supported(&rule["ability"]))
             .then_some(&rule["ability"])
@@ -16711,7 +16573,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        for (rule_index, rule) in card.rules.iter().enumerate().filter(|(_, rule)| {
+        for (rule_index, rule) in card.printed_rules().iter().enumerate().filter(|(_, rule)| {
             value_kind(rule) == Some("keywordAbility")
                 && waterbend_ability_supported(&rule["ability"])
         }) {
@@ -16747,7 +16609,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if card.rules.iter().any(|rule| {
+        if card.printed_rules().iter().any(|rule| {
             value_kind(&rule["castingInstruction"]) == Some("sacrificeHalfControlledLands")
         }) {
             let candidates = self
@@ -16836,7 +16698,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if let Some(enchant_ability) = card.rules.iter().find_map(|rule| {
+        if let Some(enchant_ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("enchant"))
             .then_some(&rule["ability"])
@@ -16857,7 +16719,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
-        if let Some(bestow_cost) = card.rules.iter().find_map(|rule| {
+        if let Some(bestow_cost) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("bestow"))
             .then(|| rule["ability"]["manaCost"].as_str())
@@ -16898,7 +16760,7 @@ impl GameEngine {
             assignments = expanded;
         }
         for rule in card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
         {
@@ -17174,11 +17036,16 @@ impl GameEngine {
                 }
             }
         }
-        for (rule_index, cost) in card.rules.iter().enumerate().filter_map(|(index, rule)| {
-            (value_kind(rule) == Some("keywordAbility")
-                && escalate_ability_supported(&rule["ability"]))
-            .then_some((index, &rule["ability"]["cost"]))
-        }) {
+        for (rule_index, cost) in
+            card.printed_rules()
+                .iter()
+                .enumerate()
+                .filter_map(|(index, rule)| {
+                    (value_kind(rule) == Some("keywordAbility")
+                        && escalate_ability_supported(&rule["ability"]))
+                    .then_some((index, &rule["ability"]["cost"]))
+                })
+        {
             let mut expanded = Vec::new();
             for assignment in assignments {
                 let payment_count = escalate_payment_count(&assignment.decisions);
@@ -17407,7 +17274,7 @@ impl GameEngine {
                 rules: Vec::new(),
             });
         definition.mana_cost.clear();
-        definition.rules = vec![declaration_rule];
+        definition.set_printed_rules(vec![declaration_rule]);
         let excluded_target_ids = rule["declaration"]["decisions"]
             .as_array()
             .into_iter()
@@ -17594,7 +17461,7 @@ impl GameEngine {
         }
         let mut definition = source.definition.clone();
         definition.mana_cost.clear();
-        definition.rules = vec![declaration_rule];
+        definition.set_printed_rules(vec![declaration_rule]);
         mana_discovery_session::ManaDiscoverySession::new(self)
             .declarations_for_card(&definition, controller_id)
     }
@@ -17806,7 +17673,7 @@ impl GameEngine {
 
     fn card_is_executable_spell(&self, card: &CardDefinition) -> bool {
         let spell_rules = card
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
             .collect::<Vec<_>>();
@@ -17831,7 +17698,7 @@ impl GameEngine {
                 .iter()
                 .filter(|source| source.controller == player_id)
                 .filter(|source| {
-                    source.definition.rules.iter().any(|rule| {
+                    self.effective_rules(&source).iter().any(|rule| {
                         battlefield_static_rule_supported(rule)
                             && rule["modifiers"]
                                 .as_array()
@@ -18572,13 +18439,14 @@ impl GameEngine {
                         targeting_reduction,
                     )?;
                 }
-                let conditional_alternative_cost = card.definition.rules.iter().find_map(|rule| {
-                    let alternative = &rule["conditionalAlternativeCost"];
-                    (value_kind(rule) == Some("rulesMarker")
-                        && alternative["manaCost"].is_string()
-                        && alternative["opponentCastColor"].is_string())
-                    .then_some(alternative)
-                });
+                let conditional_alternative_cost =
+                    card.definition.printed_rules().iter().find_map(|rule| {
+                        let alternative = &rule["conditionalAlternativeCost"];
+                        (value_kind(rule) == Some("rulesMarker")
+                            && alternative["manaCost"].is_string()
+                            && alternative["opponentCastColor"].is_string())
+                        .then_some(alternative)
+                    });
                 if let Some(alternative) = conditional_alternative_cost
                     && matches!(
                         casting_cost::selected_casting_base_policy(&declaration.decisions),
@@ -18718,7 +18586,7 @@ impl GameEngine {
                     });
                 let kicker_costs_paid = card
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| {
                         value_kind(rule) == Some("keywordAbility")
@@ -18728,7 +18596,7 @@ impl GameEngine {
                     .filter(|cost| {
                         if card
                             .definition
-                            .rules
+                            .printed_rules()
                             .iter()
                             .any(|rule| rule["ability"]["costs"].is_array())
                         {
@@ -18747,7 +18615,7 @@ impl GameEngine {
                     .collect::<Vec<_>>();
                 let offspring_costs = card
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .enumerate()
                     .filter(|(rule_index, rule)| {
@@ -19208,7 +19076,7 @@ impl GameEngine {
                 }
             }
             for card in &player.hand {
-                let warp_cost = card.definition.rules.iter().find_map(|rule| {
+                let warp_cost = card.definition.printed_rules().iter().find_map(|rule| {
                     (value_kind(rule) == Some("keywordAbility")
                         && paid_hand_keyword_supported(&rule["ability"], "warp"))
                     .then(|| rule["ability"]["cost"]["manaCost"].as_str())
@@ -19306,7 +19174,7 @@ impl GameEngine {
                 continue;
             }
             if player_index == self.state.active_player {
-                for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+                for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                     if value_kind(rule) != Some("keywordAbility")
                         || !foretell_ability_supported(&rule["ability"])
                     {
@@ -19352,7 +19220,7 @@ impl GameEngine {
                     });
                 }
             }
-            for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+            for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                 if value_kind(rule) != Some("keywordAbility")
                     || !suspend_ability_supported(&rule["ability"])
                 {
@@ -19407,7 +19275,7 @@ impl GameEngine {
                 });
             }
             if active_main && self.state.stack.is_empty() {
-                for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+                for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                     if value_kind(rule) != Some("keywordAbility")
                         || !plot_ability_supported(&rule["ability"])
                     {
@@ -19456,7 +19324,7 @@ impl GameEngine {
                     });
                 }
             }
-            for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+            for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                 if value_kind(rule) != Some("keywordAbility")
                     || !cycling_ability_supported(&rule["ability"])
                 {
@@ -19502,7 +19370,7 @@ impl GameEngine {
                     blocker_id: None,
                 });
             }
-            for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+            for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                 if value_kind(rule) != Some("keywordAbility") {
                     continue;
                 }
@@ -19561,7 +19429,7 @@ impl GameEngine {
                 continue;
             }
             for card in cards {
-                for (rule_index, rule) in card.definition.rules.iter().enumerate() {
+                for (rule_index, rule) in card.definition.printed_rules().iter().enumerate() {
                     let is_mana_ability = mana_rule_supported(rule);
                     if !(activated_rule_supported(rule) || is_mana_ability)
                         || !activated_rule_usable_from_zone(rule, zone_name)
@@ -19738,7 +19606,7 @@ impl GameEngine {
                 {
                     continue;
                 }
-                for (rule_index, rule) in permanent.definition.rules.iter().enumerate() {
+                for (rule_index, rule) in self.effective_rules(permanent).printed() {
                     if value_kind(rule) != Some("keywordAbility")
                         || !equip_ability_supported(&rule["ability"])
                     {
@@ -20133,7 +20001,7 @@ impl GameEngine {
             .filter(|permanent| !permanent.flags.get("phasedOut").copied().unwrap_or(false))
             .filter(|permanent| {
                 permanent.controller == player.id
-                    || permanent.definition.rules.iter().any(|rule| {
+                    || self.effective_rules(permanent).iter().any(|rule| {
                         value_kind(rule) == Some("activatedAbility")
                             && rule["anyPlayerMayActivate"].as_bool() == Some(true)
                     })
@@ -20147,14 +20015,13 @@ impl GameEngine {
             if self.activation_prohibited(permanent, false) {
                 continue;
             }
-            let printed_rule_count = permanent.definition.rules.len();
-            let ability_rules = permanent
-                .definition
-                .rules
-                .iter()
-                .cloned()
-                .enumerate()
-                .map(|(index, rule)| (index, rule, false))
+            let printed_rule_count = permanent.definition.printed_rules().len();
+            // Printed indices address the printed layer; granted abilities
+            // follow it in grant order (see `granted_activated_abilities`).
+            let ability_rules = self
+                .effective_rules(permanent)
+                .printed()
+                .map(|(index, rule)| (index, rule.clone(), false))
                 .chain(
                     self.granted_activated_abilities(permanent)
                         .into_iter()
@@ -21657,7 +21524,7 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         let mut all_sources = BTreeSet::new();
         for (rule_index, ability) in card
-            .rules
+            .printed_rules()
             .iter()
             .enumerate()
             .filter(|(_, rule)| value_kind(rule) == Some("keywordAbility"))
@@ -21720,7 +21587,7 @@ impl GameEngine {
         card: &CardDefinition,
     ) -> Result<Vec<CardInstance>, EngineError> {
         let source_ids = card
-            .rules
+            .printed_rules()
             .iter()
             .enumerate()
             .filter(|(_, rule)| {
@@ -22150,9 +22017,7 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| source.controller == triggering_source.controller)
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -22270,9 +22135,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -22390,7 +22253,7 @@ impl GameEngine {
             .flat_map(|source| {
                 source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -22486,9 +22349,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -22605,7 +22466,7 @@ impl GameEngine {
             if source.controller == targeting_player_id {
                 continue;
             }
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && triggered_event_variants(&rule["event"])
                         .iter()
@@ -22652,9 +22513,7 @@ impl GameEngine {
                 .flat_map(|player| player.battlefield.iter())
                 .filter(|source| source.controller == targeting_player_id)
                 .flat_map(|source| {
-                    source
-                        .definition
-                        .rules
+                    self.effective_rules(&source)
                         .iter()
                         .filter(|rule| {
                             triggered_rule_supported(rule)
@@ -22839,7 +22698,7 @@ impl GameEngine {
                     .chain(player.graveyard.iter().map(|source| (source, "graveyard")))
             })
             .filter(|(trigger_source, source_zone)| {
-                trigger_source.definition.rules.iter().any(|rule| {
+                self.effective_rules(&trigger_source).iter().any(|rule| {
                     triggered_rule_supported(rule)
                         && rule["triggerZone"].as_str().unwrap_or("battlefield") == *source_zone
                         && if *source_zone == "battlefield" {
@@ -22856,16 +22715,10 @@ impl GameEngine {
             .map(|(source, _)| source.clone())
             .collect::<Vec<_>>();
         let mut triggers = Vec::new();
-        for (rule_index, rule) in source
-            .definition
-            .rules
-            .iter()
-            .enumerate()
-            .filter(|(_, rule)| {
-                value_kind(rule) == Some("keywordAbility")
-                    && offspring_ability_supported(&rule["ability"])
-            })
-        {
+        for (rule_index, rule) in self.effective_rules(&source).printed().filter(|(_, rule)| {
+            value_kind(rule) == Some("keywordAbility")
+                && offspring_ability_supported(&rule["ability"])
+        }) {
             if !source
                 .flags
                 .get(&offspring_decision_id(rule_index))
@@ -22904,7 +22757,7 @@ impl GameEngine {
             ));
         }
         for trigger_source in trigger_sources {
-            for rule in trigger_source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&trigger_source).iter().filter(|rule| {
                 triggered_rule_supported(rule) && self.rule_active_for_source(&trigger_source, rule)
             }) {
                 // One move record, read on the entering object (CR 603.6a).
@@ -22980,9 +22833,8 @@ impl GameEngine {
     }
 
     fn enqueue_card_plotted_triggers(&mut self, source: &CardInstance) {
-        let rules = source
-            .definition
-            .rules
+        let rules = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -23008,9 +22860,7 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| source.controller == saga.controller)
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -23035,9 +22885,8 @@ impl GameEngine {
     }
 
     fn enqueue_door_unlocked_triggers(&mut self, source: &CardInstance, door_index: usize) {
-        let rules = source
-            .definition
-            .rules
+        let rules = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -23068,9 +22917,8 @@ impl GameEngine {
     }
 
     fn enqueue_individual_permanent_tapped_triggers(&mut self, source: &CardInstance) {
-        let triggers = source
-            .definition
-            .rules
+        let triggers = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -23103,9 +22951,7 @@ impl GameEngine {
                 attachment.attached_to.as_deref() == Some(source.instance_id.as_str())
             })
             .flat_map(|attachment| {
-                attachment
-                    .definition
-                    .rules
+                self.effective_rules(&attachment)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -23198,9 +23044,7 @@ impl GameEngine {
                 .flat_map(|player| player.battlefield.iter())
                 .filter(|source| source.controller == controller)
                 .flat_map(|source| {
-                    source
-                        .definition
-                        .rules
+                    self.effective_rules(&source)
                         .iter()
                         .filter_map(|rule| {
                             if !triggered_rule_supported(rule)
@@ -23447,7 +23291,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| {
-                source.definition.rules.iter().any(|rule| {
+                self.effective_rules(&source).iter().any(|rule| {
                     triggered_rule_supported(rule)
                         && self.rule_active_for_source(source, rule)
                         && triggered_event_variants(&rule["event"])
@@ -23458,7 +23302,7 @@ impl GameEngine {
             .cloned()
             .collect::<Vec<_>>();
         for source in sources {
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 if !triggered_rule_supported(rule)
                     || value_kind(&rule["event"]) != Some("lifeGained")
                 {
@@ -23491,7 +23335,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| {
-                source.definition.rules.iter().any(|rule| {
+                self.effective_rules(&source).iter().any(|rule| {
                     triggered_rule_supported(rule)
                         && self.rule_active_for_source(source, rule)
                         && triggered_event_variants(&rule["event"])
@@ -23502,9 +23346,8 @@ impl GameEngine {
             .cloned()
             .collect::<Vec<_>>();
         for source in sources {
-            let matching_rules = source
-                .definition
-                .rules
+            let matching_rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23545,9 +23388,8 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter().cloned())
             .collect::<Vec<_>>();
         for source in sources {
-            let matching_rules = source
-                .definition
-                .rules
+            let matching_rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23586,9 +23428,8 @@ impl GameEngine {
             "classLevel".to_string(),
             Value::Number(serde_json::Number::from(level)),
         )]);
-        let rules = source
-            .definition
-            .rules
+        let rules = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -23621,9 +23462,8 @@ impl GameEngine {
             if source.controller != controller_id {
                 continue;
             }
-            let rules = source
-                .definition
-                .rules
+            let rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23682,9 +23522,8 @@ impl GameEngine {
             ("manaProduced".to_string(), json!(produced_mana)),
         ]);
         for trigger_source in trigger_sources {
-            let rules = trigger_source
-                .definition
-                .rules
+            let rules = self
+                .effective_rules(&trigger_source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23750,9 +23589,8 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter().cloned())
             .collect::<Vec<_>>();
         for source in sources {
-            let rules = source
-                .definition
-                .rules
+            let rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23812,9 +23650,8 @@ impl GameEngine {
                     })
             });
         if let Some(discarded) = discarded {
-            let self_discard_rules = discarded
-                .definition
-                .rules
+            let self_discard_rules = self
+                .effective_rules(&discarded)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -23860,7 +23697,7 @@ impl GameEngine {
             .collect::<Vec<_>>();
         let mut triggers = Vec::new();
         for source in sources {
-            for rule in &source.definition.rules {
+            for rule in self.effective_rules(&source).iter() {
                 if !triggered_rule_supported(rule) {
                     continue;
                 }
@@ -23982,9 +23819,7 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter().cloned())
             .filter(|source| source.controller == player_id)
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -24011,9 +23846,7 @@ impl GameEngine {
                 to: "graveyard",
                 reason: None,
             };
-            source
-                .definition
-                .rules
+            self.effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -24037,9 +23870,7 @@ impl GameEngine {
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|observer| {
-                observer
-                    .definition
-                    .rules
+                self.effective_rules(&observer)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -24130,7 +23961,7 @@ impl GameEngine {
                 continue;
             }
             let mut triggers = Vec::new();
-            for rule in &source.definition.rules {
+            for rule in self.effective_rules(&source).iter() {
                 if !triggered_rule_supported(rule) || !self.rule_active_for_source(&source, rule) {
                     continue;
                 }
@@ -24207,9 +24038,7 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter().cloned())
             .filter(|source| source.controller == player_id)
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -24657,9 +24486,8 @@ impl GameEngine {
                     trigger_multiplicity::TriggerOrigin::Emblem,
                 ));
             }
-            if let Some(quantity) = source
-                .definition
-                .rules
+            if let Some(quantity) = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     rule["temporaryUntilTurn"]
@@ -24703,7 +24531,7 @@ impl GameEngine {
             let record = attack_records
                 .iter()
                 .find(|record| record.attacker == *attacker_id);
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && record.is_some_and(|record| {
                         self.rule_matches_combat_record(
@@ -24737,9 +24565,8 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter().cloned())
             .collect::<Vec<_>>();
         for source in &battlefield_sources {
-            let rules = source
-                .definition
-                .rules
+            let rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| triggered_rule_supported(rule))
                 .filter(|rule| {
@@ -24847,7 +24674,7 @@ impl GameEngine {
             }
         }
         for source in battlefield_sources {
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && (attack_records.iter().any(|record| {
                         self.rule_matches_combat_record(
@@ -25126,9 +24953,8 @@ impl GameEngine {
             batch: None,
         };
         for source in sources {
-            let rules = source
-                .definition
-                .rules
+            let rules = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| {
                     triggered_rule_supported(rule)
@@ -25300,7 +25126,7 @@ impl GameEngine {
                         trigger_multiplicity::TriggerOrigin::ObjectAbility,
                     ));
                 }
-                for rule in &source.definition.rules {
+                for rule in self.effective_rules(&source).iter() {
                     let is_prowess = value_kind(rule) == Some("prowess")
                         || (value_kind(rule) == Some("keywordAbility")
                             && value_kind(&rule["ability"]) == Some("prowess"));
@@ -25394,7 +25220,7 @@ impl GameEngine {
             .map(|object| object.card.clone())
         {
             // `When you cast this spell`: the spell observes its own cast.
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && triggered_event_variants(&rule["event"])
                         .iter()
@@ -25420,7 +25246,7 @@ impl GameEngine {
                 .iter()
                 .filter(|card| card.flags.get("suspended").copied().unwrap_or(false))
             {
-                for rule in source.definition.rules.iter().filter(|rule| {
+                for rule in self.effective_rules(&source).iter().filter(|rule| {
                     triggered_rule_supported(rule)
                         && triggered_event_variants(&rule["event"])
                             .iter()
@@ -25599,9 +25425,7 @@ impl GameEngine {
             .flat_map(|player| player.battlefield.iter())
             .filter(|source| source.controller == event_player_id)
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -25658,7 +25482,7 @@ impl GameEngine {
             .flat_map(|source| {
                 source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -25698,7 +25522,7 @@ impl GameEngine {
             .collect::<Vec<_>>();
         let mut triggers = Vec::new();
         for source in sources {
-            for rule in source.definition.rules.iter().filter(|rule| {
+            for rule in self.effective_rules(&source).iter().filter(|rule| {
                 triggered_rule_supported(rule)
                     && value_kind(&rule["event"]) == Some("stateConditionMet")
                     && self.condition_value_with_source(
@@ -25745,7 +25569,7 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.command_zone.iter())
                 .filter(|source| {
-                    source.definition.rules.iter().any(|rule| {
+                    source.definition.printed_rules().iter().any(|rule| {
                         rule["triggerZone"].as_str() == Some("commandZoneOrBattlefield")
                             && triggered_rule_supported(rule)
                     })
@@ -25763,7 +25587,7 @@ impl GameEngine {
                 .filter(|source| {
                     source
                         .definition
-                        .rules
+                        .printed_rules()
                         .iter()
                         .cloned()
                         .chain(suspend_keyword::keyword_triggered_rules(source))
@@ -25782,7 +25606,7 @@ impl GameEngine {
                     .iter()
                     .flat_map(|player| player.hand.iter())
                     .filter(|source| {
-                        source.definition.rules.iter().any(|rule| {
+                        source.definition.printed_rules().iter().any(|rule| {
                             rule["triggerZone"].as_str() == Some("hand")
                                 && triggered_rule_supported(rule)
                         })
@@ -25792,7 +25616,13 @@ impl GameEngine {
             );
         }
         for (source, source_zone) in sources {
-            let mut candidate_rules = source.definition.rules.iter().cloned().collect::<Vec<_>>();
+            // Effective layer: a permanent's functioning printed rules plus
+            // granted triggered abilities; other zones keep printed rules.
+            let mut candidate_rules = self
+                .effective_rules(&source)
+                .iter()
+                .cloned()
+                .collect::<Vec<_>>();
             if source_zone == "exile" {
                 candidate_rules.extend(suspend_keyword::keyword_triggered_rules(&source));
             }
@@ -25803,21 +25633,6 @@ impl GameEngine {
             } else {
                 source.controller.as_str()
             };
-            if source_zone == "battlefield" {
-                candidate_rules.extend(
-                    self.battlefield_static_modifiers()
-                        .into_iter()
-                        .filter(|(grant_source, modifier)| {
-                            value_kind(modifier) == Some("grantTriggeredAbility")
-                                && Self::static_selector_matches(
-                                    grant_source,
-                                    &modifier["objects"],
-                                    &source,
-                                )
-                        })
-                        .map(|(_, modifier)| modifier["ability"].clone()),
-                );
-            }
             let rules = candidate_rules
                 .into_iter()
                 .filter(|rule| {
@@ -26404,7 +26219,9 @@ impl GameEngine {
                     )
                     .ok_or_else(|| EngineError::new("split card can no longer be fused"))?;
                 }
-                card.definition.rules.extend(spliced_spell_rules);
+                card.definition
+                    .printed_rules_mut()
+                    .extend(spliced_spell_rules);
                 if let Some(source_id) = prepared_source_id.as_deref() {
                     self.set_permanent_prepared(source_id, false)?;
                 }
@@ -27065,7 +26882,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("foretell has no rule index"))?;
                     let foretell_cost = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             value_kind(rule) == Some("keywordAbility")
@@ -27123,7 +26940,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("suspend has no rule index"))?;
                     let time_counters = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             value_kind(rule) == Some("keywordAbility")
@@ -27167,10 +26984,15 @@ impl GameEngine {
                         .and_then(Value::as_u64)
                         .and_then(|value| usize::try_from(value).ok())
                         .ok_or_else(|| EngineError::new("plot has no rule index"))?;
-                    if !source.definition.rules.get(rule_index).is_some_and(|rule| {
-                        value_kind(rule) == Some("keywordAbility")
-                            && plot_ability_supported(&rule["ability"])
-                    }) {
+                    if !source
+                        .definition
+                        .printed_rules()
+                        .get(rule_index)
+                        .is_some_and(|rule| {
+                            value_kind(rule) == Some("keywordAbility")
+                                && plot_ability_supported(&rule["ability"])
+                        })
+                    {
                         return Err(EngineError::new("plot rule is not executable"));
                     }
                     if player_index != self.state.active_player
@@ -27296,7 +27118,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("activation has no rule index"))?;
                     let rule = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             (activated_rule_supported(rule) || mana_rule_supported(rule))
@@ -27554,7 +27376,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("cycling has no rule index"))?;
                     let ability = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             value_kind(rule) == Some("keywordAbility")
@@ -27602,7 +27424,7 @@ impl GameEngine {
                     );
                     for rule in source
                         .definition
-                        .rules
+                        .printed_rules()
                         .iter()
                         .filter(|rule| {
                             triggered_rule_supported(rule)
@@ -27648,7 +27470,7 @@ impl GameEngine {
                         .ok_or_else(|| EngineError::new("typed cycling has no rule index"))?;
                     let ability = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             value_kind(rule) == Some("keywordAbility")
@@ -27736,7 +27558,7 @@ impl GameEngine {
                         self.state.players[controller_index].battlefield[card_index].clone();
                     let ability = source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| {
                             value_kind(rule) == Some("keywordAbility")
@@ -27855,7 +27677,7 @@ impl GameEngine {
                 } else {
                     source
                         .definition
-                        .rules
+                        .printed_rules()
                         .get(rule_index)
                         .filter(|rule| activated_rule_supported(rule))
                         .cloned()
@@ -28130,7 +27952,7 @@ impl GameEngine {
                 let mut stack_decisions = action.decisions.clone();
                 for stored in source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| value_kind(rule) == Some("storedDecisionValue"))
                 {
@@ -29211,17 +29033,17 @@ impl GameEngine {
                         })
                         .ok_or_else(|| EngineError::new("stored replacement choice is missing"))?
                         .to_string();
-                    card.definition.rules.retain(|rule| {
+                    card.definition.printed_rules_mut().retain(|rule| {
                         value_kind(rule) != Some("storedDecisionValue")
                             || rule["decisionId"].as_str() != Some(decision_id)
                     });
-                    card.definition.rules.push(json!({
+                    card.definition.printed_rules_mut().push(json!({
                         "kind": "storedDecisionValue",
                         "decisionId": decision_id,
                         "value": chosen_value,
                     }));
                     let gains_chosen_subtype =
-                        card.definition.rules.iter().any(|rule| {
+                        card.definition.printed_rules().iter().any(|rule| {
                             value_kind(rule) == Some("staticAbility")
                                 && rule["modifiers"].as_array().into_iter().flatten().any(
                                     |modifier| value_kind(modifier) == Some("addChosenSubtype"),
@@ -29469,7 +29291,7 @@ impl GameEngine {
                         .flatten()
                         .filter_map(Value::as_str)
                     {
-                        card.definition.rules.push(json!({
+                        card.definition.printed_rules_mut().push(json!({
                             "kind": "keywordAbility",
                             "source": { "kind": "self" },
                             "ability": { "kind": keyword },
@@ -29625,7 +29447,7 @@ impl GameEngine {
         }
         let replacement_rules = card
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| replacement_rule_supported(rule))
             .cloned()
@@ -30446,7 +30268,7 @@ impl GameEngine {
         // C not at all. CR 702.44d: each instance works separately.
         let sunburst_instances = card
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| {
                 value_kind(rule) == Some("keywordAbility")
@@ -30468,7 +30290,7 @@ impl GameEngine {
         }
         let graft_counters = card
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("keywordAbility"))
             .filter(|rule| value_kind(&rule["ability"]) == Some("graft"))
@@ -30478,7 +30300,7 @@ impl GameEngine {
             let count = graft_counters;
             *card.counters.entry("+1/+1".to_string()).or_default() += count;
         }
-        let has_read_ahead = card.definition.rules.iter().any(|rule| {
+        let has_read_ahead = card.definition.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("readAhead")
         });
@@ -30535,7 +30357,7 @@ impl GameEngine {
             && !card.counters.contains_key("loyalty")
             && let Some(starting_loyalty) = card
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .filter_map(|rule| integer_value(&rule["startingLoyalty"]))
                 .max()
@@ -30543,7 +30365,7 @@ impl GameEngine {
             card.counters
                 .insert("loyalty".to_string(), starting_loyalty);
         }
-        if card.definition.rules.iter().any(|rule| {
+        if card.definition.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("triggeredAbility")
                 && value_kind(&rule["condition"]) == Some("sourceNeedsEcho")
         }) {
@@ -30755,7 +30577,7 @@ impl GameEngine {
             if permanent_spell_copy {
                 card.owner = stack_object.controller.clone();
                 card.definition.is_token = true;
-                if card.definition.rules.iter().any(|rule| {
+                if card.definition.printed_rules().iter().any(|rule| {
                     rule["modifiers"].as_array().is_some_and(|modifiers| {
                         modifiers.iter().any(|modifier| {
                             value_kind(modifier) == Some("removeLegendaryFromTokenCopy")
@@ -30866,7 +30688,7 @@ impl GameEngine {
                 card.flags
                     .insert(format!("roomDoor{door_index}Unlocked"), true);
             }
-            if card.definition.rules.iter().any(|rule| {
+            if card.definition.printed_rules().iter().any(|rule| {
                 value_kind(rule) == Some("keywordAbility")
                     && value_kind(&rule["ability"]) == Some("enchant")
             }) || stack_object
@@ -30894,7 +30716,7 @@ impl GameEngine {
                 let original_type_line = card.definition.type_line.clone();
                 card.flags.insert("bestowedAura".to_string(), true);
                 card.definition.type_line = "Enchantment - Aura".to_string();
-                card.definition.rules.push(json!({
+                card.definition.printed_rules_mut().push(json!({
                     "kind": "bestowOriginalTypeLine",
                     "value": original_type_line,
                 }));
@@ -31019,7 +30841,7 @@ impl GameEngine {
             let promised_gift = stack_object
                 .card
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .find(|rule| {
                     value_kind(rule) == Some("keywordAbility")
@@ -31058,7 +30880,7 @@ impl GameEngine {
             for rule in stack_object
                 .card
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .filter(|rule| value_kind(rule) == Some("spellAbility"))
                 .cloned()
@@ -31087,7 +30909,7 @@ impl GameEngine {
                 let counter_count = stack_object
                     .card
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .find(|rule| {
                         value_kind(rule) == Some("keywordAbility")
@@ -31117,7 +30939,7 @@ impl GameEngine {
                 permanent.definition.power = Some("0".to_string());
                 permanent.definition.toughness = Some("0".to_string());
                 if !has_keyword(&permanent.definition, "haste") {
-                    permanent.definition.rules.push(json!({
+                    permanent.definition.printed_rules_mut().push(json!({
                         "kind": "keywordAbility",
                         "source": { "kind": "self" },
                         "ability": { "kind": "haste" },
@@ -34526,7 +34348,7 @@ impl GameEngine {
             .flat_map(|source| {
                 source
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
@@ -34626,7 +34448,7 @@ impl GameEngine {
             return;
         };
         let source = self.state.players[source_player].battlefield[source_index].clone();
-        let Some(modifier) = source.definition.rules.iter().find_map(|rule| {
+        let Some(modifier) = source.definition.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("staticAbility"))
                 .then(|| rule["modifiers"].as_array())
                 .flatten()
@@ -34723,7 +34545,7 @@ impl GameEngine {
                     attachment.attached_to = None;
                     if let Some(original_type_line) = attachment
                         .definition
-                        .rules
+                        .printed_rules()
                         .iter()
                         .find(|rule| value_kind(rule) == Some("bestowOriginalTypeLine"))
                         .and_then(|rule| rule["value"].as_str())
@@ -34733,11 +34555,11 @@ impl GameEngine {
                     }
                     attachment
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .retain(|rule| value_kind(rule) != Some("bestowOriginalTypeLine"));
                     continue;
                 }
-                let is_aura = attachment.definition.rules.iter().any(|rule| {
+                let is_aura = attachment.definition.printed_rules().iter().any(|rule| {
                     value_kind(rule) == Some("keywordAbility")
                         && value_kind(&rule["ability"]) == Some("enchant")
                 });
@@ -35412,9 +35234,8 @@ impl GameEngine {
     }
 
     fn enqueue_permanent_transformed_triggers(&mut self, source: &CardInstance) {
-        let rules = source
-            .definition
-            .rules
+        let rules = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -35433,9 +35254,8 @@ impl GameEngine {
     }
 
     fn enqueue_turned_face_up_triggers(&mut self, source: &CardInstance) {
-        let rules = source
-            .definition
-            .rules
+        let rules = self
+            .effective_rules(&source)
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)
@@ -35487,7 +35307,7 @@ impl GameEngine {
             .battlefield
             .remove(card_index);
         permanent.flags.remove("suspendedCastHaste");
-        if permanent.definition.rules.iter().any(|rule| {
+        if permanent.definition.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("triggeredAbility")
                 && value_kind(&rule["condition"]) == Some("sourceNeedsEcho")
         }) {
@@ -35654,7 +35474,7 @@ impl GameEngine {
                 return Ok(());
             };
             let next_rooms = dungeon
-                .rules
+                .printed_rules()
                 .iter()
                 .find(|rule| {
                     value_kind(rule) == Some("dungeonRoom")
@@ -35694,7 +35514,7 @@ impl GameEngine {
                     if !has_card_type(piece, "Dungeon") {
                         return false;
                     }
-                    let restriction = piece.rules.iter().find_map(|rule| {
+                    let restriction = piece.printed_rules().iter().find_map(|rule| {
                         (value_kind(rule) == Some("staticAbility"))
                             .then(|| rule["modifiers"].as_array())
                             .flatten()?
@@ -35741,7 +35561,7 @@ impl GameEngine {
                 .into_iter()
                 .find(|dungeon| dungeon.name == selected_name)
                 .unwrap_or_else(|| self.state.game_pieces[0].clone());
-            let Some(room_name) = dungeon.rules.iter().find_map(|rule| {
+            let Some(room_name) = dungeon.printed_rules().iter().find_map(|rule| {
                 (value_kind(rule) == Some("dungeonRoom"))
                     .then(|| rule["room"].as_str().map(ToOwned::to_owned))
                     .flatten()
@@ -35752,7 +35572,7 @@ impl GameEngine {
         };
 
         let Some(room_rule) = dungeon
-            .rules
+            .printed_rules()
             .iter()
             .find(|rule| {
                 value_kind(rule) == Some("dungeonRoom")
@@ -36595,7 +36415,7 @@ impl GameEngine {
             .iter()
             .filter(|player| {
                 player.battlefield.iter().any(|permanent| {
-                    permanent.definition.rules.iter().any(|rule| {
+                    permanent.definition.printed_rules().iter().any(|rule| {
                         value_kind(rule) == Some("keywordAbility")
                             && value_kind(&rule["ability"]) == Some("storied")
                     })
@@ -36635,7 +36455,7 @@ impl GameEngine {
             .filter(|player| player.battlefield.len() >= 10)
             .filter(|player| {
                 player.battlefield.iter().any(|permanent| {
-                    permanent.definition.rules.iter().any(|rule| {
+                    permanent.definition.printed_rules().iter().any(|rule| {
                         value_kind(rule) == Some("keywordAbility")
                             && value_kind(&rule["ability"]) == Some("ascend")
                     })
@@ -36892,22 +36712,26 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
                 .flat_map(|source| {
-                    source.definition.rules.iter().flat_map(move |rule| {
-                        rule["modifiers"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter(|modifier| {
-                                value_kind(rule) == Some("staticAbility")
-                                    && value_kind(modifier) == Some("convertUnspentMana")
-                                    && value_kind(&modifier["player"]) == Some("controllerOf")
-                            })
-                            .filter_map(move |modifier| {
-                                modifier["to"]
-                                    .as_str()
-                                    .map(|symbol| (source.controller.clone(), symbol.to_string()))
-                            })
-                    })
+                    source
+                        .definition
+                        .printed_rules()
+                        .iter()
+                        .flat_map(move |rule| {
+                            rule["modifiers"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter(|modifier| {
+                                    value_kind(rule) == Some("staticAbility")
+                                        && value_kind(modifier) == Some("convertUnspentMana")
+                                        && value_kind(&modifier["player"]) == Some("controllerOf")
+                                })
+                                .filter_map(move |modifier| {
+                                    modifier["to"].as_str().map(|symbol| {
+                                        (source.controller.clone(), symbol.to_string())
+                                    })
+                                })
+                        })
                 })
                 .collect::<BTreeMap<_, _>>();
             let mut mana_retentions = self
@@ -36916,27 +36740,31 @@ impl GameEngine {
                 .iter()
                 .flat_map(|player| player.battlefield.iter())
                 .flat_map(|source| {
-                    source.definition.rules.iter().flat_map(move |rule| {
-                        rule["modifiers"]
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter(|modifier| {
-                                value_kind(rule) == Some("staticAbility")
-                                    && value_kind(modifier) == Some("retainUnspentMana")
-                                    && value_kind(&modifier["player"]) == Some("controllerOf")
-                            })
-                            .flat_map(move |modifier| {
-                                modifier["symbols"]
-                                    .as_array()
-                                    .into_iter()
-                                    .flatten()
-                                    .filter_map(Value::as_str)
-                                    .map(move |symbol| {
-                                        (source.controller.clone(), symbol.to_string())
-                                    })
-                            })
-                    })
+                    source
+                        .definition
+                        .printed_rules()
+                        .iter()
+                        .flat_map(move |rule| {
+                            rule["modifiers"]
+                                .as_array()
+                                .into_iter()
+                                .flatten()
+                                .filter(|modifier| {
+                                    value_kind(rule) == Some("staticAbility")
+                                        && value_kind(modifier) == Some("retainUnspentMana")
+                                        && value_kind(&modifier["player"]) == Some("controllerOf")
+                                })
+                                .flat_map(move |modifier| {
+                                    modifier["symbols"]
+                                        .as_array()
+                                        .into_iter()
+                                        .flatten()
+                                        .filter_map(Value::as_str)
+                                        .map(move |symbol| {
+                                            (source.controller.clone(), symbol.to_string())
+                                        })
+                                })
+                        })
                 })
                 .fold(
                     BTreeMap::<String, BTreeSet<String>>::new(),
@@ -38280,7 +38108,7 @@ impl GameEngine {
                             }
                             let rules = source
                                 .definition
-                                .rules
+                                .printed_rules()
                                 .iter()
                                 .filter(|rule| {
                                     triggered_rule_supported(rule)
@@ -39078,7 +38906,7 @@ impl GameEngine {
                 permanent.damage_marked = 0;
                 permanent.power_modifier = 0;
                 permanent.toughness_modifier = 0;
-                if permanent.definition.rules.iter().any(|rule| {
+                if permanent.definition.printed_rules().iter().any(|rule| {
                     value_kind(rule) == Some("temporaryCrewCreature")
                         && rule["temporaryUntilTurn"].as_u64() == Some(u64::from(turn_number))
                 }) && let Some(printed) = &permanent.printed_definition
@@ -39112,7 +38940,7 @@ impl GameEngine {
                 {
                     permanent.definition.type_line = original_type_line.clone();
                 }
-                permanent.definition.rules.retain(|rule| {
+                permanent.definition.printed_rules_mut().retain(|rule| {
                     rule["temporaryUntilTurn"].as_u64() != Some(u64::from(turn_number))
                 });
             }

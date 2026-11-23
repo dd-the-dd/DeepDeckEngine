@@ -122,7 +122,7 @@ impl GameEngine {
                             .map(|(p, c)| &self.state.players[p].battlefield[c])
                             .or_else(|| self.card_outside_battlefield(id))
                     })
-                    .and_then(|card| card.definition.rules.get(index))
+                    .and_then(|card| card.definition.printed_rules().get(index))
             } else {
                 None
             };
@@ -446,7 +446,7 @@ impl GameEngine {
                 .filter(|player| !player.has_lost)
                 .flat_map(|player| player.battlefield.iter())
             {
-                for rule in source.definition.rules.iter().filter(|rule| {
+                for rule in self.effective_rules(&source).iter().filter(|rule| {
                     triggered_rule_supported(rule)
                         && triggered_event_variants(&rule["event"])
                             .iter()

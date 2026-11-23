@@ -142,7 +142,7 @@ impl GameEngine {
             .players
             .iter()
             .flat_map(|p| p.battlefield.iter())
-            .flat_map(|c| c.definition.rules.iter())
+            .flat_map(|c| c.definition.printed_rules().iter())
             .any(|rule| {
                 triggered_event_variants(&rule["event"])
                     .iter()
@@ -300,9 +300,7 @@ impl GameEngine {
                     .flat_map(|player| player.battlefield.iter())
                     .filter(|trigger_source| trigger_source.controller == player_id)
                     .flat_map(|trigger_source| {
-                        trigger_source
-                            .definition
-                            .rules
+                        self.effective_rules(&trigger_source)
                             .iter()
                             .filter(|rule| {
                                 triggered_rule_supported(rule)

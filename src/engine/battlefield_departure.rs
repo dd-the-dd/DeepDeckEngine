@@ -122,26 +122,16 @@ impl GameEngine {
             .flat_map(|player| &player.battlefield)
             .filter(|source| !source.flags.get("phasedOut").copied().unwrap_or(false))
             .map(|source| {
-                let mut candidates = source.definition.rules.clone();
-                candidates.extend(
-                    modifiers
-                        .iter()
-                        .filter(|(grant_source, modifier)| {
-                            value_kind(modifier) == Some("grantTriggeredAbility")
-                                && Self::static_selector_matches(
-                                    grant_source,
-                                    &modifier["objects"],
-                                    source,
-                                )
-                        })
-                        .map(|(_, modifier)| modifier["ability"].clone()),
-                );
-                let rules = candidates
-                    .into_iter()
+                // Effective layer (CR 613.1f): granted triggered abilities are
+                // captured with the printed ones, before the departure.
+                let rules = self
+                    .effective_rules_with_modifiers(source, &modifiers)
+                    .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)
                             && self.battlefield_observer_rule_active(source, rule)
                     })
+                    .cloned()
                     .collect::<Vec<_>>();
                 DepartureTriggerSource {
                     source: source.clone(),

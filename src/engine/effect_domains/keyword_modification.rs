@@ -313,7 +313,7 @@ impl GameEngine {
                         ability["temporaryUntilTurn"] = Value::from(self.state.turn_number);
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(ability.clone());
                         self.record_event(
                             "abilityGranted",
@@ -331,7 +331,7 @@ impl GameEngine {
                     let ability = effect["ability"].clone();
                     self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .push(ability.clone());
                     self.record_event(
                         "abilityGranted",
@@ -353,11 +353,11 @@ impl GameEngine {
                     let permanent = &mut self.state.players[player_index].battlefield[card_index];
                     if let Some(rule_index) = permanent
                         .definition
-                        .rules
+                        .printed_rules()
                         .iter()
                         .position(|rule| rule == from)
                     {
-                        permanent.definition.rules[rule_index] = to.clone();
+                        permanent.definition.printed_rules()[rule_index] = to.clone();
                         self.record_event(
                             "abilityReplaced",
                             Some(stack_object.controller.clone()),
@@ -430,7 +430,7 @@ impl GameEngine {
                 {
                     self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .push(json!({
                             "kind": "staticAbility",
                             "source": { "kind": "self" },
@@ -459,14 +459,14 @@ impl GameEngine {
                 let granted = stack_object
                     .card
                     .definition
-                    .rules
+                    .printed_rules()
                     .iter()
                     .filter(|rule| current_ability != Some(*rule))
                     .cloned()
                     .collect::<Vec<_>>();
                 self.state.players[player_index].battlefield[card_index]
                     .definition
-                    .rules
+                    .printed_rules_mut()
                     .extend(granted);
             }
             Some("grantKeyword") => {
@@ -582,7 +582,7 @@ impl GameEngine {
                         }
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(rule);
                     }
                 }
@@ -602,7 +602,7 @@ impl GameEngine {
                     {
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(json!({
                                 "kind": "keywordAbility",
                                 "source": { "kind": "self" },
@@ -645,7 +645,7 @@ impl GameEngine {
                     {
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(json!({
                                 "kind": "keywordAbility",
                                 "source": { "kind": "self" },
@@ -669,7 +669,7 @@ impl GameEngine {
                     {
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(json!({
                                 "kind": "keywordAbility",
                                 "source": { "kind": "self" },

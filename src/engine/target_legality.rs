@@ -39,7 +39,7 @@ fn declaration_rules(stack: &StackObject) -> Vec<&Value> {
             stack
                 .card
                 .definition
-                .rules
+                .printed_rules()
                 .iter()
                 .filter(|rule| value_kind(rule) == Some("spellAbility"))
                 .collect()

@@ -247,7 +247,7 @@ impl GameEngine {
                             .filter_map(Value::as_str)
                             .collect::<Vec<_>>();
                         if !colors.is_empty() {
-                            permanent.definition.rules.push(json!({
+                            permanent.definition.printed_rules_mut().push(json!({
                                 "kind": "rulesMarker",
                                 "colorIndicator": colors,
                             }));
@@ -289,7 +289,7 @@ impl GameEngine {
                 let subtype = effect["subtype"].as_str().unwrap_or_default();
                 let permanent = &mut self.state.players[player_index].battlefield[card_index];
                 if value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn") {
-                    permanent.definition.rules.push(json!({
+                    permanent.definition.printed_rules_mut().push(json!({
                         "kind": "staticAbility",
                         "source": { "kind": "self" },
                         "activeWhile": {
@@ -397,7 +397,7 @@ impl GameEngine {
                     });
                     self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .push(rule);
                 }
             }
@@ -419,7 +419,7 @@ impl GameEngine {
                 {
                     self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules
+                        .printed_rules_mut()
                         .push(json!({
                             "kind": "staticAbility",
                             "source": { "kind": "self" },

@@ -251,7 +251,7 @@ impl GameEngine {
                 {
                     let rules = &mut self.state.players[player_index].battlefield[card_index]
                         .definition
-                        .rules;
+                        .printed_rules();
                     rules.retain(|rule| {
                         value_kind(rule) != Some("storedDecisionValue")
                             || rule["decisionId"].as_str() != Some(decision_id)

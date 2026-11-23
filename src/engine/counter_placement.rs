@@ -174,9 +174,7 @@ impl GameEngine {
             .iter()
             .flat_map(|player| player.battlefield.iter())
             .flat_map(|source| {
-                source
-                    .definition
-                    .rules
+                self.effective_rules(&source)
                     .iter()
                     .filter(|rule| {
                         triggered_rule_supported(rule)

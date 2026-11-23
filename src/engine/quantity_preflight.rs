@@ -24,7 +24,7 @@ fn builtin_fact(name: &str) -> Option<bool> {
                             (
                                 name,
                                 definition
-                                    .rules
+                                    .printed_rules()
                                     .iter()
                                     .any(|rule| payload_risk(rule, None, 0)),
                             )
@@ -45,7 +45,7 @@ fn named_token_may_enable(name: &str, source: Option<&CardDefinition>, depth: us
     };
     // Follow the executor's typed-related-definition precedence. The text
     // fallback is intentionally not compiled a second time during preflight.
-    for rule in &source.rules {
+    for rule in source.printed_rules() {
         for raw in rule["relatedTokenDefinitions"]
             .as_array()
             .into_iter()
@@ -147,7 +147,7 @@ fn payload_risk(value: &Value, source: Option<&CardDefinition>, depth: usize) ->
 }
 fn definition_risk(definition: &CardDefinition, depth: usize) -> bool {
     definition
-        .rules
+        .printed_rules()
         .iter()
         .any(|rule| payload_risk(rule, Some(definition), depth + 1))
 }

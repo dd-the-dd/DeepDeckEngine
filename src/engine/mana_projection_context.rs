@@ -208,7 +208,7 @@ impl<'a> ManaProjectionContext<'a> {
         if !self.engine.mana_abilities_replaced_by_land_subtype(source)
             && !self.engine.permanent_loses_all_abilities(source)
         {
-            for (index, rule) in source.definition.rules.iter().enumerate() {
+            for (index, rule) in source.definition.printed_rules().iter().enumerate() {
                 if !self.engine.rule_active_for_source(source, rule) {
                     continue;
                 }
@@ -246,7 +246,7 @@ impl<'a> ManaProjectionContext<'a> {
             .iter()
             .flat_map(|p| &p.battlefield)
         {
-            for rule in &granting.definition.rules {
+            for rule in granting.definition.printed_rules() {
                 for modifier in rule["modifiers"].as_array().into_iter().flatten() {
                     if value_kind(modifier) == Some("dampingSphereMana") {
                         return Err(ManaProjectionContextError::new(

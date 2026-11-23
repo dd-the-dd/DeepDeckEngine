@@ -26,7 +26,7 @@ pub(super) const CASTING_AS_ADVENTURE_FLAG: &str = "castingAsAdventure";
 const ADVENTURE_PERMISSION: &str = "adventureCastPermission";
 
 fn linked_adventure(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .find(|rule| value_kind(rule) == Some("adventureSpell"))
         .map(|rule| &rule["spell"])
@@ -50,10 +50,10 @@ pub(super) fn linked_spell_part_supported(spell: &Value, required_subtype: Optio
     (is_instant(&spell) || is_sorcery(&spell))
         && required_subtype.is_none_or(|subtype| type_line_contains(&spell.type_line, subtype))
         && spell
-            .rules
+            .printed_rules()
             .iter()
             .any(|rule| value_kind(rule) == Some("spellAbility"))
-        && spell.rules.iter().all(rule_supported)
+        && spell.printed_rules().iter().all(rule_supported)
 }
 
 pub(super) fn adventure_spell_rule_supported(rule: &Value) -> bool {
@@ -72,18 +72,20 @@ pub(super) fn adventure_spell_definition(card: &CardDefinition) -> Option<CardDe
     definition.mana_cost = spell["manaCost"].as_str()?.to_string();
     definition.power = None;
     definition.toughness = None;
-    definition.rules = spell["rules"]
-        .as_array()?
-        .iter()
-        .cloned()
-        .map(|mut rule| {
-            if value_kind(&rule) == Some("spellAbility") {
-                rule["exileAfterResolution"] = Value::Bool(true);
-                rule["adventureAfterResolution"] = Value::Bool(true);
-            }
-            rule
-        })
-        .collect();
+    definition.set_printed_rules(
+        spell["rules"]
+            .as_array()?
+            .iter()
+            .cloned()
+            .map(|mut rule| {
+                if value_kind(&rule) == Some("spellAbility") {
+                    rule["exileAfterResolution"] = Value::Bool(true);
+                    rule["adventureAfterResolution"] = Value::Bool(true);
+                }
+                rule
+            })
+            .collect(),
+    );
     Some(definition)
 }
 

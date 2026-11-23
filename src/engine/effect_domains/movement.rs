@@ -249,7 +249,7 @@ impl GameEngine {
                         .flatten()
                         .filter_map(Value::as_str)
                     {
-                        card.definition.rules.push(json!({
+                        card.definition.printed_rules_mut().push(json!({
                             "kind": "keywordAbility",
                             "source": { "kind": "self" },
                             "ability": { "kind": keyword },

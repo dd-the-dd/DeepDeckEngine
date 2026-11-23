@@ -93,7 +93,7 @@ impl GameEngine {
                 .permanent_position(id)
                 .map(|(p, c)| &self.state.players[p].battlefield[c])
                 .or_else(|| self.card_outside_battlefield(id));
-            source.and_then(|card| card.definition.rules.get(index))
+            source.and_then(|card| card.definition.printed_rules().get(index))
         };
         selected.is_none_or(|rule| {
             super::resolution_preflight::requires_checkpoint(rule)
