@@ -1,5 +1,5 @@
 //! Route selection precedes route-specific costs and source quota attribution.
-use super::casting_cost::{SelectedCastingBasePolicy, selected_casting_base_policy};
+use super::casting_cost::CastingMode;
 use super::*;
 
 pub(super) struct PreparedCastingRoute {
@@ -8,10 +8,7 @@ pub(super) struct PreparedCastingRoute {
     pub is_miracle: bool,
 }
 fn ordinary_base(decisions: &BTreeMap<String, Value>) -> bool {
-    matches!(
-        selected_casting_base_policy(decisions),
-        SelectedCastingBasePolicy::Printed | SelectedCastingBasePolicy::Room(_)
-    )
+    CastingMode::of(decisions).uses_ordinary_base()
 }
 impl GameEngine {
     /// The one scope check for a permission that names a card: whether it

@@ -2463,13 +2463,23 @@ fn hob_batch10_attack_restriction_counts_other_matching_permanents() {
             "object": { "kind": "self" },
             "zone": { "kind": "battlefield" },
         },
+        // "can't attack unless you control two or more other Wolves" is a
+        // conditional keyword grant over the shared count and comparison.
         "modifiers": [{
-            "kind": "cantAttackUnlessControls",
-            "object": { "kind": "self" },
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-            "where": { "kind": "subtypeContains", "value": "Wolf" },
-            "minimum": { "kind": "integer", "value": 2 },
-            "excludeSource": true,
+            "kind": "grantKeyword",
+            "objects": { "kind": "self" },
+            "keyword": "cantAttack",
+            "condition": {
+                "kind": "compare",
+                "operator": "<",
+                "left": {
+                    "kind": "countPermanents",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "where": { "kind": "subtypeContains", "value": "Wolf" },
+                    "excludeSource": true,
+                },
+                "right": { "kind": "integer", "value": 2 },
+            },
         }],
     })];
     let mut engine = test_engine(2);
@@ -24186,124 +24196,6 @@ fn enduring_story_attack_tax_only_applies_after_the_story_is_gained() {
     assert!(attacks_player_zero(
         &engine.legal_attacker_actions(&BTreeSet::new())
     ));
-}
-
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[test]
-fn enduring_story_alternative_cost_only_applies_to_the_first_equip_activation() {
-    let mut engine = test_engine(2);
-    engine.state.step = GameStep::PrecombatMain;
-    engine.state.active_player = 0;
-
-    let mut story_definition = test_definition("story-smith", "Legendary Creature - Dwarf");
-    story_definition.rules = vec![json!({
-        "kind": "staticAbility",
-        "source": { "kind": "self" },
-        "activeWhile": {
-            "kind": "inZone",
-            "object": { "kind": "self" },
-            "zone": { "kind": "battlefield" },
-        },
-        "modifiers": [{
-            "kind": "firstActivatedAbilityAlternativeCost",
-            "player": { "kind": "abilityController" },
-            "abilityKind": "equip",
-            "cost": { "kind": "payMana", "manaCost": "{0}" },
-            "condition": {
-                "kind": "hasEnduringStory",
-                "player": { "kind": "abilityController" },
-            },
-        }],
-    })];
-    let mut equipment_definition = test_definition("training-axe", "Artifact - Equipment");
-    equipment_definition.rules = vec![json!({
-        "kind": "keywordAbility",
-        "source": { "kind": "self" },
-        "ability": {
-            "kind": "equip",
-            "costs": [{ "kind": "payMana", "manaCost": "{2}" }],
-        },
-    })];
-    engine.state.players[0].battlefield = vec![
-        test_instance("story-smith", story_definition, "player-0"),
-        test_instance("training-axe", equipment_definition, "player-0"),
-        test_instance(
-            "equip-target",
-            test_definition("equip-target", "Creature - Soldier"),
-            "player-0",
-        ),
-    ];
-
-    engine
-        .admit_explicit_test_fixture_objects()
-        .expect("fixture objects are admitted");
-    let equip_actions = |engine: &GameEngine| {
-        engine
-            .legal_priority_actions(0)
-            .into_iter()
-            .filter(|action| {
-                action.kind == ActionKind::ActivateAbility
-                    && action.card_instance_id.as_deref() == Some("training-axe")
-            })
-            .collect::<Vec<_>>()
-    };
-    assert!(equip_actions(&engine).is_empty());
-
-    engine.state.rule_modifiers.push(json!({
-        "kind": "enduringStory",
-        "playerId": "player-0",
-    }));
-    let action = equip_actions(&engine)
-        .into_iter()
-        .find(|action| {
-            action.targets.get("equipTarget")
-                == Some(&TargetRef::Permanent {
-                    instance_id: "equip-target".to_string(),
-                })
-                && action.decisions.get("firstActivatedAbilityAlternativeCost")
-                    == Some(&Value::Bool(true))
-        })
-        .expect("the first equip activation has the free story alternative");
-    assert!(action.payment_sources.is_empty());
-    engine
-        .apply_priority_action(&action, &mut RandomAi::seeded(1))
-        .expect("activate equip for the alternative cost");
-    assert!(engine.state.events.iter().any(|event| {
-        event.turn_number == engine.state.turn_number
-            && event.kind == "equipAbilityPutOnStack"
-            && event.player_id.as_deref() == Some("player-0")
-    }));
-    engine
-        .resolve_top_stack(&mut RandomAi::seeded(1))
-        .expect("resolve the first equip activation");
-    let (equipment_player, equipment_index) = engine
-        .permanent_position("training-axe")
-        .expect("equipment remains on the battlefield");
-    assert_eq!(
-        engine.state.players[equipment_player].battlefield[equipment_index]
-            .attached_to
-            .as_deref(),
-        Some("equip-target")
-    );
-
-    engine.state.players[0].mana_pool.extend([
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-        FloatingMana {
-            symbol: "C".to_string(),
-            spend_restriction: None,
-        },
-    ]);
-    let later_actions = equip_actions(&engine);
-    assert!(!later_actions.is_empty());
-    assert!(later_actions.iter().all(|action| {
-        action
-            .decisions
-            .get("firstActivatedAbilityAlternativeCost")
-            .is_none()
-    }));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

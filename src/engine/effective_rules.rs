@@ -249,23 +249,7 @@ impl GameEngine {
             })
         {
             let cards = if value_kind(modifier) == Some("grantActivatedAbilitiesFromLinkedExile") {
-                let linked_card_ids = self
-                    .state
-                    .rule_modifiers
-                    .iter()
-                    .filter(|link| {
-                        value_kind(link) == Some("exiledWithSource")
-                            && link["sourceCardInstanceId"].as_str()
-                                == Some(source.instance_id.as_str())
-                    })
-                    .filter_map(|link| link["cardInstanceId"].as_str())
-                    .collect::<BTreeSet<_>>();
-                self.state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.exile.iter())
-                    .filter(|card| linked_card_ids.contains(card.instance_id.as_str()))
-                    .collect::<Vec<_>>()
+                self.cards_exiled_with(source)
             } else {
                 let player_id = match value_kind(&modifier["cards"]["zone"]["player"]) {
                     Some("controllerOf") => source.controller.as_str(),

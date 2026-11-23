@@ -6,10 +6,10 @@
 
 use super::*;
 
-/// Sole declaration-level classifier for choosing a base cost. Spell extras
-/// (kicker, splice, replicate, floors) are deliberately outside this policy.
+/// The base cost a casting declaration selects (CR 601.2b, 118.9). Spell
+/// extras (kicker, splice, replicate, floors) are deliberately outside it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum SelectedCastingBasePolicy {
+pub(super) enum CastingBase {
     Printed,
     Waived,
     Awaken,
@@ -22,46 +22,104 @@ pub(super) enum SelectedCastingBasePolicy {
     Miracle,
     Room(usize),
 }
-pub(super) fn selected_casting_base_policy(
-    decisions: &BTreeMap<String, Value>,
-) -> SelectedCastingBasePolicy {
-    let chosen = |key: &str| decisions.get(key).and_then(Value::as_bool) == Some(true);
-    if chosen("useAlternativePlayerCounterCost")
-        || chosen("useAshlingEvoke")
-        || chosen("useSacrificeAlternativeCost")
-        || chosen("useAlternativeCost")
-        || chosen("withoutPayingManaCost")
-    {
-        SelectedCastingBasePolicy::Waived
-    } else if chosen("awakened") {
-        SelectedCastingBasePolicy::Awaken
-    } else if chosen("useForetell") {
-        SelectedCastingBasePolicy::Foretell
-    } else if chosen("useImpending") {
-        SelectedCastingBasePolicy::Impending
-    } else if chosen("useBestow")
-        && decisions
-            .get("bestowManaCost")
-            .and_then(Value::as_str)
-            .is_some()
-    {
-        SelectedCastingBasePolicy::Bestow
-    } else if chosen("useEscape") {
-        SelectedCastingBasePolicy::Escape
-    } else if chosen("useMayhem") {
-        SelectedCastingBasePolicy::Mayhem
-    } else if chosen("useFlashback") {
-        SelectedCastingBasePolicy::Flashback
-    } else if chosen("miracleCast") {
-        SelectedCastingBasePolicy::Miracle
-    } else if let Some(index) = decisions
-        .get("roomDoor")
-        .and_then(Value::as_u64)
-        .and_then(|v| usize::try_from(v).ok())
-    {
-        SelectedCastingBasePolicy::Room(index)
-    } else {
-        SelectedCastingBasePolicy::Printed
+
+/// A step the cast records on the spell once it is on the stack.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) enum CastingFollowUp {
+    /// "If its alternative cost was paid" checks read
+    /// `castWithAlternativeCost:<mode>`.
+    MarkAlternativeCost(String),
+    /// CR 702.33d: "if it was kicked".
+    MarkKicked,
+}
+
+/// The casting mode one declaration selected, as data:
+/// `castingMode{fromZone, base, additionalCosts, followUps}`. Cost and
+/// stack-time readers classify a declaration through this value instead of
+/// re-reading individual decision flags.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct CastingMode {
+    pub from_zone: String,
+    pub base: CastingBase,
+    /// Mana components the mode adds to its selected base.
+    pub additional_costs: Vec<String>,
+    pub follow_ups: Vec<CastingFollowUp>,
+}
+
+impl CastingMode {
+    pub(super) fn of(decisions: &BTreeMap<String, Value>) -> Self {
+        let chosen = |key: &str| decisions.get(key).and_then(Value::as_bool) == Some(true);
+        let base = if chosen("useAlternativePlayerCounterCost")
+            || chosen("useSacrificeAlternativeCost")
+            || chosen("useAlternativeCost")
+            || chosen("withoutPayingManaCost")
+        {
+            CastingBase::Waived
+        } else if chosen("awakened") {
+            CastingBase::Awaken
+        } else if chosen("useForetell") {
+            CastingBase::Foretell
+        } else if chosen("useImpending") {
+            CastingBase::Impending
+        } else if chosen("useBestow")
+            && decisions
+                .get("bestowManaCost")
+                .and_then(Value::as_str)
+                .is_some()
+        {
+            CastingBase::Bestow
+        } else if chosen("useEscape") {
+            CastingBase::Escape
+        } else if chosen("useMayhem") {
+            CastingBase::Mayhem
+        } else if chosen("useFlashback") {
+            CastingBase::Flashback
+        } else if chosen("miracleCast") {
+            CastingBase::Miracle
+        } else if let Some(index) = decisions
+            .get("roomDoor")
+            .and_then(Value::as_u64)
+            .and_then(|v| usize::try_from(v).ok())
+        {
+            CastingBase::Room(index)
+        } else {
+            CastingBase::Printed
+        };
+        let mut follow_ups = Vec::new();
+        if chosen("useAlternativeCost")
+            && let Some(mode) = decisions.get("alternativeCostMode").and_then(Value::as_str)
+        {
+            follow_ups.push(CastingFollowUp::MarkAlternativeCost(mode.to_string()));
+        }
+        if chosen("kicked") {
+            follow_ups.push(CastingFollowUp::MarkKicked);
+        }
+        Self {
+            from_zone: decisions
+                .get("castSourceZone")
+                .and_then(Value::as_str)
+                .unwrap_or("hand")
+                .to_string(),
+            base,
+            additional_costs: Vec::new(),
+            follow_ups,
+        }
+    }
+
+    /// Whether the printed (or Room door) mana cost is the base, so a
+    /// conditional alternative or a permission's mana route may replace it.
+    pub(super) fn uses_ordinary_base(&self) -> bool {
+        matches!(self.base, CastingBase::Printed | CastingBase::Room(_))
+    }
+
+    /// Flags the spell carries on the stack for later "if it was" checks.
+    pub(super) fn follow_up_flags(&self) -> impl Iterator<Item = String> + '_ {
+        self.follow_ups.iter().map(|follow_up| match follow_up {
+            CastingFollowUp::MarkAlternativeCost(mode) => {
+                format!("castWithAlternativeCost:{mode}")
+            }
+            CastingFollowUp::MarkKicked => "kicked".to_string(),
+        })
     }
 }
 
@@ -129,9 +187,7 @@ impl GameEngine {
     ) -> Result<Vec<String>, EngineError> {
         let mut base_components =
             vec![self.selected_casting_base_mana_cost(card, controller_id, decisions)];
-        if decisions.get("useAshlingEvoke").and_then(Value::as_bool) == Some(true) {
-            base_components.push("{4}".to_string());
-        }
+        base_components.extend(CastingMode::of(decisions).additional_costs);
         if decisions.get("useAlternativeCost").and_then(Value::as_bool) == Some(true) {
             let selected_alternative = self.selected_alternative_cost(card, decisions);
             let selected_mana_costs = selected_alternative
@@ -300,9 +356,9 @@ impl GameEngine {
         _controller_id: &str,
         decisions: &BTreeMap<String, Value>,
     ) -> String {
-        match selected_casting_base_policy(decisions) {
-            SelectedCastingBasePolicy::Waived => String::new(),
-            SelectedCastingBasePolicy::Awaken => card
+        match CastingMode::of(decisions).base {
+            CastingBase::Waived => String::new(),
+            CastingBase::Awaken => card
                 .printed_rules()
                 .iter()
                 .find(|rule| {
@@ -312,38 +368,32 @@ impl GameEngine {
                 .and_then(|rule| rule["ability"]["cost"]["manaCost"].as_str())
                 .unwrap_or(&card.mana_cost)
                 .to_string(),
-            SelectedCastingBasePolicy::Foretell => decisions
+            CastingBase::Foretell => decisions
                 .get("foretellManaCost")
                 .and_then(Value::as_str)
                 .unwrap_or(&card.mana_cost)
                 .to_string(),
-            SelectedCastingBasePolicy::Impending => {
-                impending_mana_cost(card).unwrap_or_default().to_string()
-            }
-            SelectedCastingBasePolicy::Bestow => decisions
+            CastingBase::Impending => impending_mana_cost(card).unwrap_or_default().to_string(),
+            CastingBase::Bestow => decisions
                 .get("bestowManaCost")
                 .and_then(Value::as_str)
                 .unwrap_or(&card.mana_cost)
                 .to_string(),
-            SelectedCastingBasePolicy::Escape => {
-                escape_mana_cost(card).unwrap_or_default().to_string()
-            }
-            SelectedCastingBasePolicy::Mayhem => mayhem_mana_cost(card)
+            CastingBase::Escape => escape_mana_cost(card).unwrap_or_default().to_string(),
+            CastingBase::Mayhem => mayhem_mana_cost(card)
                 .unwrap_or(&card.mana_cost)
                 .to_string(),
-            SelectedCastingBasePolicy::Flashback => {
-                flashback_mana_cost(card).unwrap_or_default().to_string()
-            }
-            SelectedCastingBasePolicy::Miracle => decisions
+            CastingBase::Flashback => flashback_mana_cost(card).unwrap_or_default().to_string(),
+            CastingBase::Miracle => decisions
                 .get("miracleManaCost")
                 .and_then(Value::as_str)
                 .unwrap_or(&card.mana_cost)
                 .to_string(),
-            SelectedCastingBasePolicy::Room(index) => room_mana_costs(card)
+            CastingBase::Room(index) => room_mana_costs(card)
                 .get(index)
                 .cloned()
                 .unwrap_or_else(|| card.mana_cost.clone()),
-            SelectedCastingBasePolicy::Printed => card.mana_cost.clone(),
+            CastingBase::Printed => card.mana_cost.clone(),
         }
     }
 

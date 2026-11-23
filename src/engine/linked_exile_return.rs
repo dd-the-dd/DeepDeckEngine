@@ -120,6 +120,26 @@ impl GameEngine {
             },
         })
     }
+    /// Cards still in exile that were exiled with `source` (CR 607.2a).
+    pub(super) fn cards_exiled_with(&self, source: &CardInstance) -> Vec<&CardInstance> {
+        let linked_card_ids = self
+            .state
+            .rule_modifiers
+            .iter()
+            .filter(|link| {
+                value_kind(link) == Some("exiledWithSource")
+                    && link["sourceCardInstanceId"].as_str() == Some(source.instance_id.as_str())
+            })
+            .filter_map(|link| link["cardInstanceId"].as_str())
+            .collect::<BTreeSet<_>>();
+        self.state
+            .players
+            .iter()
+            .flat_map(|player| player.exile.iter())
+            .filter(|card| linked_card_ids.contains(card.instance_id.as_str()))
+            .collect()
+    }
+
     fn linked_source_identity(source: &CardInstance) -> Option<&str> {
         Self::tracked_zone_identity(source)
     }

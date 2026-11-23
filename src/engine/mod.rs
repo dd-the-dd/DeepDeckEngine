@@ -180,6 +180,7 @@ mod object_identity_initialization;
 mod object_identity_test_setup;
 mod object_predicate;
 mod object_snapshot;
+mod one_shot_modifier;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -2646,10 +2647,6 @@ fn numeric_expression_supported(expression: &Value) -> bool {
             Some("anyGraveyard") => true,
             _ => false,
         },
-        Some("countCardsExiledWithSource") => matches!(
-            value_kind(&expression["object"]),
-            Some("self" | "abilitySource")
-        ),
         Some("countDecisionCardsMatching") => {
             expression["decisionId"].is_string() && card_filter_supported(&expression["where"])
         }
@@ -2738,6 +2735,14 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         }
         Some("devotionToChosenColor" | "commanderColorIdentityCount") => {
             player_reference_supported(&expression["player"])
+        }
+        Some("countCards") if value_kind(&expression["zone"]) == Some("exile") => {
+            // CR 607.2a: the cards exiled with a linked source.
+            matches!(
+                value_kind(&expression["zone"]["linkedSource"]),
+                Some("self" | "abilitySource")
+            ) && expression.get("where").is_none_or(card_filter_supported)
+                && expression.get("allPlayers").is_none()
         }
         Some("countCards") => {
             matches!(
@@ -4221,10 +4226,6 @@ fn replacement_operation_supported(operation: &Value) -> bool {
             operation["decisionId"].is_string()
                 && operation["destination"].as_str() == Some("graveyard")
         }
-        Some("sacrificeLandsOrReplaceWithGraveyard") => {
-            operation["decisionId"].is_string()
-                && integer_value(&operation["required"]).is_some_and(|count| count > 0)
-        }
         Some("putEnteringCountersForChosenType") => {
             operation["counter"].is_string() && operation["decisionId"].is_string()
         }
@@ -5311,8 +5312,11 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
     }
     match value_kind(modifier) {
         Some("commanderEligible") => true,
-        Some("preventOpponentsGainLife") => player_reference_supported(&modifier["player"]),
-        Some("preventPlayersGainLife" | "preventPlayersDrawCards") => true,
+        Some("prohibitPlayerAction") => {
+            life::prohibited_player_set_supported(&modifier["players"])
+                && life::prohibited_player_action_supported(&modifier["action"])
+        }
+        Some("preventPlayersDrawCards") => true,
         Some("multiplyUnownedControlledTriggeredAbility") => {
             player_reference_supported(&modifier["player"])
                 && integer_value(&modifier["additionalTriggers"]).is_some_and(|count| count > 0)
@@ -5386,16 +5390,6 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             value_kind(&modifier["object"]) == Some("self")
                 && modifier.get("condition").is_none_or(condition_supported)
         }
-        Some("cantAttackUnlessControls") => {
-            value_kind(&modifier["object"]) == Some("self")
-                && player_reference_supported(&modifier["player"])
-                && card_filter_supported(&modifier["where"])
-                && integer_value(&modifier["minimum"]).is_some_and(|minimum| minimum > 0)
-                && modifier["excludeSource"].as_bool().is_some()
-        }
-        Some("attackMostLifeOpponentUnlessControlNamed") => {
-            value_kind(&modifier["object"]) == Some("self") && modifier["exceptionName"].is_string()
-        }
         Some("cantBeSacrificed") => {
             value_kind(&modifier["object"]) == Some("self")
                 || static_object_selector_supported(&modifier["objects"])
@@ -5413,15 +5407,6 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && modifier
                     .get("protectPlaneswalkers")
                     .is_none_or(Value::is_boolean)
-        }
-        Some("firstActivatedAbilityAlternativeCost") => {
-            player_reference_supported(&modifier["player"])
-                && modifier["abilityKind"].as_str() == Some("equip")
-                && value_kind(&modifier["cost"]) == Some("payMana")
-                && modifier["cost"]["manaCost"]
-                    .as_str()
-                    .is_some_and(|cost| parse_mana_requirement(cost).is_some())
-                && modifier.get("condition").is_none_or(condition_supported)
         }
         Some("increaseDamageBySourceCounter") => {
             player_reference_supported(&modifier["player"])
@@ -5683,18 +5668,6 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && modifier
                     .get("exceptFirstInDrawStep")
                     .is_none_or(Value::is_boolean)
-        }
-        Some("replaceEvent") => {
-            value_kind(&modifier["event"]) == Some("connive")
-                && static_object_selector_supported(&modifier["event"]["objects"])
-                && modifier["replacement"].as_array().is_some_and(|effects| {
-                    !effects.is_empty()
-                        && effects.iter().all(effect_supported)
-                        && effects
-                            .iter()
-                            .all(|effect| !rule_contains_kind(effect, "connive"))
-                })
-                && modifier["resumeOriginal"].as_bool() == Some(true)
         }
         Some("playLandsFromGraveyard") => player_reference_supported(&modifier["player"]),
         Some("reduceCastingCost") => {
@@ -10178,6 +10151,24 @@ impl GameEngine {
                 .map(|index| self.state.players[index].life);
         }
 
+        if value_kind(expression) == Some("countCards")
+            && value_kind(&expression["zone"]) == Some("exile")
+        {
+            // A linked exile zone needs its source object; without one the
+            // count is undefined rather than zero.
+            let source = source?;
+            let count = self
+                .cards_exiled_with(source)
+                .into_iter()
+                .filter(|card| {
+                    expression
+                        .get("where")
+                        .is_none_or(|filter| matches_card_filter(&card.definition, filter))
+                })
+                .count();
+            return i32::try_from(count).ok();
+        }
+
         if value_kind(expression) == Some("countTurnsTaken") {
             let player_id = match value_kind(&expression["player"]) {
                 Some("abilityController") => controller_id,
@@ -10987,74 +10978,6 @@ impl GameEngine {
             })
     }
 
-    fn first_activated_ability_alternative_mana_cost(
-        &self,
-        player_id: &str,
-        ability_kind: &str,
-    ) -> Option<String> {
-        let activation_event_kind = match ability_kind {
-            "equip" => "equipAbilityPutOnStack",
-            _ => return None,
-        };
-        if self.state.events.iter().any(|event| {
-            event.turn_number == self.state.turn_number
-                && event.kind == activation_event_kind
-                && event.player_id.as_deref() == Some(player_id)
-        }) {
-            return None;
-        }
-        self.battlefield_static_modifiers()
-            .into_iter()
-            .find_map(|(source, modifier)| {
-                (value_kind(&modifier) == Some("firstActivatedAbilityAlternativeCost")
-                    && modifier["abilityKind"].as_str() == Some(ability_kind)
-                    && self.event_player_reference_matches(&modifier["player"], &source, player_id)
-                    && modifier.get("condition").is_none_or(|condition| {
-                        self.condition_value_with_source(
-                            condition,
-                            &source.controller,
-                            &BTreeMap::new(),
-                            Some(&source),
-                        )
-                    }))
-                .then(|| modifier["cost"]["manaCost"].as_str().map(str::to_string))
-                .flatten()
-            })
-    }
-
-    fn most_life_attack_requirement(&self, permanent: &CardInstance) -> Option<i32> {
-        let modifier = self
-            .battlefield_static_modifiers()
-            .into_iter()
-            .find(|(source, modifier)| {
-                source.instance_id == permanent.instance_id
-                    && value_kind(modifier) == Some("attackMostLifeOpponentUnlessControlNamed")
-            })
-            .map(|(_, modifier)| modifier)?;
-        let exception_name = modifier["exceptionName"].as_str()?;
-        let controls_exception = self
-            .state
-            .players
-            .iter()
-            .flat_map(|player| player.battlefield.iter())
-            .any(|candidate| {
-                candidate.controller == permanent.controller
-                    && candidate
-                        .definition
-                        .name
-                        .eq_ignore_ascii_case(exception_name)
-            });
-        if controls_exception {
-            return None;
-        }
-        self.state
-            .players
-            .iter()
-            .filter(|player| !player.has_lost && player.id != permanent.controller)
-            .map(|player| player.life)
-            .max()
-    }
-
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
         if card_type.eq_ignore_ascii_case("Creature")
             && permanent
@@ -11763,24 +11686,6 @@ impl GameEngine {
                         )
                     })
                     .unwrap_or(0)
-            }
-            Some("countCardsExiledWithSource")
-                if matches!(
-                    value_kind(&expression["object"]),
-                    Some("self" | "abilitySource")
-                ) =>
-            {
-                self.state
-                    .rule_modifiers
-                    .iter()
-                    .filter(|modifier| {
-                        value_kind(modifier) == Some("exiledWithSource")
-                            && modifier["sourceCardInstanceId"].as_str()
-                                == Some(source.instance_id.as_str())
-                    })
-                    .filter_map(|modifier| modifier["cardInstanceId"].as_str())
-                    .collect::<BTreeSet<_>>()
-                    .len() as i32
             }
             Some("countDefendingPlayerPermanents")
                 if value_kind(&expression["attacker"]) == Some("self") =>
@@ -13354,10 +13259,6 @@ impl GameEngine {
             } else {
                 details.join(" and ")
             });
-        }
-
-        if decisions.get("useAshlingEvoke").and_then(Value::as_bool) == Some(true) {
-            return Some("pay {4} for evoke".to_string());
         }
 
         if let Some(use_alternative) = decisions
@@ -18097,27 +17998,6 @@ impl GameEngine {
             else {
                 continue;
             };
-            if *source_zone == "hand"
-                && is_permanent(&card.definition)
-                && type_line_contains(&card.definition.type_line, "Elemental")
-                && self.has_ecc_static_ability("ashlingGrantEvoke", Some(&player.id))
-            {
-                declarations = declarations
-                    .into_iter()
-                    .flat_map(|declaration| {
-                        let mut normal = declaration.clone();
-                        normal
-                            .decisions
-                            .insert("useAshlingEvoke".to_string(), Value::Bool(false));
-                        let mut evoke = declaration;
-                        evoke
-                            .decisions
-                            .insert("useAshlingEvoke".to_string(), Value::Bool(true));
-                        [normal, evoke]
-                    })
-                    .take(MAX_DECLARATION_OPTIONS)
-                    .collect();
-            }
             if *source_zone == "graveyard"
                 && let Some(cost) = self.effective_flashback_cost(card)
             {
@@ -18448,11 +18328,7 @@ impl GameEngine {
                         .then_some(alternative)
                     });
                 if let Some(alternative) = conditional_alternative_cost
-                    && matches!(
-                        casting_cost::selected_casting_base_policy(&declaration.decisions),
-                        casting_cost::SelectedCastingBasePolicy::Printed
-                            | casting_cost::SelectedCastingBasePolicy::Room(_)
-                    )
+                    && casting_cost::CastingMode::of(&declaration.decisions).uses_ordinary_base()
                     && alternative["opponentCastColor"]
                         .as_str()
                         .and_then(color_name_to_symbol)
@@ -19685,21 +19561,11 @@ impl GameEngine {
                                 )]
                             })
                             .unwrap_or_default();
-                        let mut cost_options = sacrifice_options
+                        let cost_options = sacrifice_options
                             .into_iter()
-                            .map(|sacrifice_id| (sacrifice_id, base_mana_costs.clone(), false))
+                            .map(|sacrifice_id| (sacrifice_id, base_mana_costs.clone()))
                             .collect::<Vec<_>>();
-                        if let Some(alternative_cost) =
-                            self.first_activated_ability_alternative_mana_cost(&player.id, "equip")
-                        {
-                            let alternative_mana_costs = vec![alternative_cost];
-                            if !cost_options.iter().any(|(sacrifice_id, mana_costs, _)| {
-                                sacrifice_id.is_none() && *mana_costs == alternative_mana_costs
-                            }) {
-                                cost_options.push((None, alternative_mana_costs, true));
-                            }
-                        }
-                        for (sacrifice_id, mana_costs, uses_alternative_cost) in cost_options {
+                        for (sacrifice_id, mana_costs) in cost_options {
                             let excluded = sacrifice_id.iter().cloned().collect::<BTreeSet<_>>();
                             let Some(payment) = session.payment_for_mana_costs(
                                 player_index,
@@ -19718,12 +19584,6 @@ impl GameEngine {
                                 ),
                                 ("manaPayment".to_string(), mana_payment_decision(&payment)),
                             ]);
-                            if uses_alternative_cost {
-                                decisions.insert(
-                                    "firstActivatedAbilityAlternativeCost".to_string(),
-                                    Value::Bool(true),
-                                );
-                            }
                             if !payment.pool_indices.is_empty() {
                                 decisions.insert(
                                     "manaPoolPayment".to_string(),
@@ -19748,25 +19608,15 @@ impl GameEngine {
                             )?;
                             actions.push(LegalAction {
                                 id: format!(
-                                    "equip:{}:{rule_index}:{target_id}{}",
+                                    "equip:{}:{rule_index}:{target_id}",
                                     permanent.instance_id,
-                                    if uses_alternative_cost {
-                                        ":alternative"
-                                    } else {
-                                        ""
-                                    }
                                 ),
                                 kind: ActionKind::ActivateAbility,
                                 player_id: player.id.clone(),
                                 label: format!(
-                                    "Equip {} to {}{}",
+                                    "Equip {} to {}",
                                     permanent.definition.name,
                                     self.card_name_for_instance(target_id),
-                                    if uses_alternative_cost {
-                                        " using the alternative cost"
-                                    } else {
-                                        ""
-                                    }
                                 ),
                                 card_instance_id: Some(permanent.instance_id.clone()),
                                 payment_sources: payment
@@ -26228,12 +26078,7 @@ impl GameEngine {
                 card.flags.insert("wasCast".to_string(), true);
                 card.flags.insert(
                     "wasCastFromHand".to_string(),
-                    action
-                        .decisions
-                        .get("castSourceZone")
-                        .and_then(Value::as_str)
-                        .unwrap_or("hand")
-                        == "hand",
+                    casting_cost::CastingMode::of(&action.decisions).from_zone == "hand",
                 );
                 let next_creature_modifier = is_creature(&card.definition)
                     .then(|| {
@@ -26255,23 +26100,17 @@ impl GameEngine {
                     card.flags
                         .insert("additionalEnteringPlusOneCounter".to_string(), true);
                 }
-                let one_shot_cant_be_countered = next_creature_modifier
-                    .as_ref()
-                    .is_some_and(|modifier| modifier["cantBeCountered"].as_bool() == Some(true))
-                    || self
-                        .state
-                        .rule_modifiers
-                        .iter()
-                        .position(|modifier| {
-                            modifier["kind"] == "nextSpellCantBeCountered"
-                                && modifier["playerId"] == action.player_id
-                        })
-                        .map(|index| {
-                            self.state.rule_modifiers.remove(index);
-                            true
-                        })
-                        .unwrap_or(false)
-                    || action
+                // The first matching one-shot modifier is consumed by this
+                // cast even when the spell already can't be countered.
+                let one_shot_operations =
+                    self.consume_one_shot_spell_cast_modifier(&action.player_id, &card.definition);
+                let one_shot_cant_be_countered =
+                    next_creature_modifier.as_ref().is_some_and(|modifier| {
+                        modifier["cantBeCountered"].as_bool() == Some(true)
+                    }) || one_shot_modifier::operations_set_stack_modifier(
+                        &one_shot_operations,
+                        "cantBeCountered",
+                    ) || action
                         .decisions
                         .get("manaPayment")
                         .and_then(Value::as_array)
@@ -29097,41 +28936,6 @@ impl GameEngine {
                         card.flags.insert("enterGraveyardInstead".to_string(), true);
                     }
                 }
-                Some("sacrificeLandsOrReplaceWithGraveyard") => {
-                    let decision_id = operation["decisionId"]
-                        .as_str()
-                        .unwrap_or("entryLandSacrifices");
-                    let required =
-                        integer_value(&operation["required"]).unwrap_or(2).max(0) as usize;
-                    let selected = decisions
-                        .get(decision_id)
-                        .and_then(Value::as_array)
-                        .into_iter()
-                        .flatten()
-                        .filter_map(Value::as_str)
-                        .map(ToOwned::to_owned)
-                        .collect::<Vec<_>>();
-                    let valid = selected.len() == required
-                        && selected.iter().collect::<BTreeSet<_>>().len() == selected.len()
-                        && selected.iter().all(|instance_id| {
-                            self.permanent_position(instance_id).is_some_and(
-                                |(player_index, card_index)| {
-                                    let permanent =
-                                        &self.state.players[player_index].battlefield[card_index];
-                                    permanent.controller == card.controller
-                                        && is_land(&permanent.definition)
-                                        && !permanent.tapped
-                                },
-                            )
-                        });
-                    if valid {
-                        for instance_id in selected {
-                            self.move_permanent_to_graveyard(&instance_id, "sacrificed")?;
-                        }
-                    } else {
-                        card.flags.insert("enterGraveyardInstead".to_string(), true);
-                    }
-                }
                 Some("putEnteringCountersForChosenType") => {
                     let decision_id = operation["decisionId"]
                         .as_str()
@@ -29321,13 +29125,6 @@ impl GameEngine {
                         card.definition.is_token = false;
                         card.flags.insert("copiedEquipment".to_string(), true);
                     }
-                }
-                Some("ability" | "elementalRevealLandEntry") => {
-                    let revealed = decisions
-                        .get("revealedElemental")
-                        .and_then(Value::as_array)
-                        .is_some_and(|cards| !cards.is_empty());
-                    card.tapped = !revealed;
                 }
                 Some("conditional") => {
                     let branch = if self.condition_value(
@@ -30599,35 +30396,9 @@ impl GameEngine {
                     card.flags.insert(decision_id.clone(), true);
                 }
             }
-            if stack_object
-                .decisions
-                .get("useAlternativeCost")
-                .and_then(Value::as_bool)
-                == Some(true)
-                && let Some(mode) = stack_object
-                    .decisions
-                    .get("alternativeCostMode")
-                    .and_then(Value::as_str)
-            {
-                card.flags
-                    .insert(format!("castWithAlternativeCost:{mode}"), true);
-            }
-            if stack_object
-                .decisions
-                .get("useAshlingEvoke")
-                .and_then(Value::as_bool)
-                == Some(true)
-            {
-                card.flags
-                    .insert("castWithAlternativeCost:evoke".to_string(), true);
-            }
-            if stack_object
-                .decisions
-                .get("kicked")
-                .and_then(Value::as_bool)
-                .unwrap_or(false)
-            {
-                card.flags.insert("kicked".to_string(), true);
+            // The casting mode's follow-ups mark how the spell was cast.
+            for flag in casting_cost::CastingMode::of(&stack_object.decisions).follow_up_flags() {
+                card.flags.insert(flag, true);
             }
             for symbol in ["W", "U", "B", "R", "G"] {
                 let count = mana_symbol_spent_count(&stack_object.decisions, symbol);
@@ -37234,32 +37005,6 @@ impl GameEngine {
                         && Self::static_selector_matches(source, &modifier["object"], card)
                 })
         };
-        let conditional_attack_allowed = |card: &CardInstance| {
-            self.battlefield_static_modifiers()
-                .iter()
-                .filter(|(source, modifier)| {
-                    source.instance_id == card.instance_id
-                        && value_kind(modifier) == Some("cantAttackUnlessControls")
-                })
-                .all(|(source, modifier)| {
-                    let minimum = integer_value(&modifier["minimum"]).unwrap_or(i32::MAX);
-                    let count = self
-                        .state
-                        .players
-                        .iter()
-                        .flat_map(|player| player.battlefield.iter())
-                        .filter(|permanent| permanent.controller == source.controller)
-                        .filter(|permanent| {
-                            !modifier["excludeSource"].as_bool().unwrap_or(false)
-                                || permanent.instance_id != source.instance_id
-                        })
-                        .filter(|permanent| {
-                            matches_card_filter(&permanent.definition, &modifier["where"])
-                        })
-                        .count() as i32;
-                    count >= minimum
-                })
-        };
         let selected_has_attack_alone = selected.iter().any(|instance_id| {
             active
                 .battlefield
@@ -37300,7 +37045,6 @@ impl GameEngine {
                                 && modifier["ability"].as_str()
                                     == Some("kulrathCounteredCreaturesCantAttackOrBlock")
                         }))
-                && conditional_attack_allowed(card)
                 && !selected.contains(&card.instance_id)
                 && !selected_has_attack_alone
                 && (selected.is_empty() || !attacks_alone(card))
@@ -37384,15 +37128,6 @@ impl GameEngine {
                                     .is_some_and(|player_id| player_id != goading_player)
                             })
                     })
-                    || self
-                        .most_life_attack_requirement(card)
-                        .is_some_and(|maximum_life| {
-                            self.player_index(&defending_player_id).ok().is_none_or(
-                                |player_index| {
-                                    self.state.players[player_index].life != maximum_life
-                                },
-                            )
-                        })
                 {
                     continue;
                 }
@@ -37449,7 +37184,6 @@ impl GameEngine {
                     // The self requirement modifier and the granted marker
                     // are the same effective requirement (CR 508.1d).
                     self.permanent_has_keyword(card, "attackEachCombatIfAble")
-                        || self.most_life_attack_requirement(card).is_some()
                         || self.goad_source_for(card).is_some()
                 })
         });

@@ -17,6 +17,25 @@ pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
         || (value_kind(value) == Some("gainLife") && integer_value(&value["amount"]).is_none())
 }
 
+/// Player sets a static `prohibitPlayerAction` may name, relative to its
+/// source: you, its controller, each player, or the opponents of one of them.
+pub(super) fn prohibited_player_set_supported(reference: &Value) -> bool {
+    match value_kind(reference) {
+        Some("abilityController" | "eachPlayer") => true,
+        Some("controllerOf") => matches!(
+            value_kind(&reference["object"]),
+            Some("self" | "abilitySource")
+        ),
+        Some("opponentsOf") => prohibited_player_set_supported(&reference["player"]),
+        _ => false,
+    }
+}
+
+/// Player actions a static prohibition can forbid (CR 119.8 for life gain).
+pub(super) fn prohibited_player_action_supported(action: &Value) -> bool {
+    matches!(action.as_str(), Some("gainLife"))
+}
+
 /// Validates direct `gainLife` and `loseLife` IR nodes.
 ///
 /// `None` means this module does not own the effect kind.
@@ -360,6 +379,20 @@ impl GameEngine {
     }
 }
 
+impl GameEngine {
+    /// A static `prohibitPlayerAction` from a permanent forbids `action` for
+    /// every player in its source-relative player set.
+    pub(super) fn player_action_prohibited(&self, player_id: &str, action: &str) -> bool {
+        self.battlefield_static_modifiers()
+            .iter()
+            .any(|(source, modifier)| {
+                value_kind(modifier) == Some("prohibitPlayerAction")
+                    && modifier["action"].as_str() == Some(action)
+                    && self.event_player_reference_matches(&modifier["players"], source, player_id)
+            })
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
@@ -395,13 +428,7 @@ impl GameEngine {
         let prevented = self.state.rule_modifiers.iter().any(|modifier| {
             value_kind(modifier) == Some("lifeTotalCannotChange")
                 && modifier["playerId"].as_str() == Some(player_id)
-        }) || self.battlefield_static_modifiers().iter().any(
-            |(source, modifier)| {
-                value_kind(modifier) == Some("preventOpponentsGainLife")
-                    && source.controller != player_id
-                    || value_kind(modifier) == Some("preventPlayersGainLife")
-            },
-        );
+        }) || self.player_action_prohibited(player_id, "gainLife");
         let multiplier = if prevented {
             1
         } else {
