@@ -65,10 +65,17 @@
             "recognizer": "native",
             "rule": {
               "kind": "triggeredAbility",
-              "source": { "kind": "self" },
+              "source": {
+                "kind": "self"
+              },
               "event": {
                 "kind": "cardDrawn",
-                "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
               },
               "declaration": {
                 "kind": "castingDeclaration",
@@ -78,16 +85,26 @@
                     "id": "targetDamageable",
                     "minimum": 1,
                     "maximum": 1,
-                    "candidates": { "kind": "anyTarget" }
+                    "candidates": {
+                      "kind": "anyTarget"
+                    }
                   }
                 ]
               },
               "effects": [
                 {
                   "kind": "dealDamage",
-                  "source": { "kind": "self" },
-                  "recipient": { "kind": "chosenTarget", "id": "targetDamageable" },
-                  "amount": { "kind": "integer", "value": 1 }
+                  "source": {
+                    "kind": "self"
+                  },
+                  "recipient": {
+                    "kind": "chosenTarget",
+                    "id": "targetDamageable"
+                  },
+                  "amount": {
+                    "kind": "integer",
+                    "value": 1
+                  }
                 }
               ]
             }
@@ -265,14 +282,57 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "trigger.spell-cast.numeric-stack-context"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "spellCast",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "where": {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "manaValueOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "operator": ">=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 4
+                  }
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -288,14 +348,61 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "trigger.spell-cast.numeric-stack-context"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "drawCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "anyPlayer": true,
+                "kind": "spellCast",
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "compare",
+                      "left": {
+                        "kind": "powerOf",
+                        "object": {
+                          "kind": "candidate"
+                        }
+                      },
+                      "operator": ">=",
+                      "right": {
+                        "kind": "integer",
+                        "value": 4
+                      }
+                    }
+                  ]
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

@@ -301,13 +301,73 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "selector.predicate.qualifier-scope"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "and",
+                            "operands": [
+                              {
+                                "kind": "or",
+                                "operands": [
+                                  {
+                                    "kind": "colorContains",
+                                    "value": "Red"
+                                  },
+                                  {
+                                    "kind": "colorContains",
+                                    "value": "Green"
+                                  }
+                                ]
+                              },
+                              {
+                                "kind": "cardTypeContains",
+                                "value": "Creature"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "hasKeyword",
+                            "value": "flying"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

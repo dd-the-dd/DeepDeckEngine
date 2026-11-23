@@ -339,24 +339,66 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native",
-            "abilityType": "spellAbility"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "automaton": "mandatory-additional-sacrifice",
-            "state": "additional-cost.mandatory-sacrifice.terminator",
-            "expected": "."
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "additionalCosts": [
+                  {
+                    "kind": "sacrificePermanent",
+                    "permanent": {
+                      "id": "additionalCostPermanent",
+                      "kind": "chosenObject"
+                    }
+                  }
+                ],
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "dealtDamageThisTurn"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "additionalCostPermanent",
+                    "kind": "chooseObjects",
+                    "quantity": {
+                      "kind": "exactly",
+                      "value": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -390,6 +432,39 @@
             "automaton": "mandatory-additional-sacrifice",
             "state": "additional-cost.mandatory-sacrifice.numeric-context",
             "expectedContains": "contextual numeric producer support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unread-relative-cost-retains-native-failure",
+      "request": {
+        "cardName": "Generic Conditional Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature that a Wizard blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "automaton": "mandatory-additional-sacrifice",
+            "state": "additional-cost.mandatory-sacrifice.terminator",
+            "expected": "."
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native",
+            "abilityType": "spellAbility"
           }
         ]
       }

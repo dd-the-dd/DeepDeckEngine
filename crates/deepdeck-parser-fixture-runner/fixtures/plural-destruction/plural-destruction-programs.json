@@ -306,14 +306,46 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "effect.zone-change.target.validation"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 2,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "kind": "exilePermanent",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTargets"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -442,13 +474,74 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Enchantment"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 2,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "condition": {
+                    "kind": "compare",
+                    "left": {
+                      "excludeSource": false,
+                      "kind": "countPermanents",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Artifact"
+                      }
+                    },
+                    "operator": ">=",
+                    "right": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  },
+                  "else": [],
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "kind": "destroyPermanent",
+                      "permanent": {
+                        "id": "targetPermanent",
+                        "kind": "chosenTargets"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

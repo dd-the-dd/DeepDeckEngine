@@ -536,11 +536,79 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "distinctFrom": [
+                      "targetPermanent1"
+                    ],
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "charge",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "charge",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

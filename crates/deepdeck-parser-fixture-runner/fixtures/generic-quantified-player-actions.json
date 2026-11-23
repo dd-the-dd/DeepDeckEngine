@@ -202,11 +202,69 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                },
+                {
+                  "bind": "quantifiedPlayer",
+                  "effects": [
+                    {
+                      "amount": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "kind": "gainLife",
+                      "player": {
+                        "id": "quantifiedPlayer",
+                        "kind": "boundValue"
+                      }
+                    }
+                  ],
+                  "kind": "forEachPlayer",
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

@@ -276,23 +276,10 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "abilities": [
-          {
-            "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "program.mana.backend-effect-order"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 0,
+        "abilities": []
       }
     },
     {

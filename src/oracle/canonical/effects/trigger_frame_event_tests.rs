@@ -302,6 +302,9 @@ fn combat_modifiers_lower_to_generic_event_patterns() {
     first_block["turnOrdinal"] = json!(1);
     let mut alone_first = alone.clone();
     alone_first["turnOrdinal"] = json!(1);
+    // The blocked attacker's per-turn ordinal is recorded with the block.
+    let mut first_blocked = source_pattern("block", "attacker");
+    first_blocked["turnOrdinal"] = json!(1);
     for (text, expected) in [
         // Rogue Kavu, Eternal of Harsh Truths, Godo's ordinal.
         (
@@ -325,6 +328,10 @@ fn combat_modifiers_lower_to_generic_event_patterns() {
         (
             "Whenever this creature attacks alone for the first time each turn, draw a card.",
             alone_first,
+        ),
+        (
+            "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+            first_blocked,
         ),
         (
             "Whenever this creature attacks alone or blocks, draw a card.",
@@ -387,8 +394,7 @@ fn block_counterparts_are_typed_queries_of_the_other_combatant() {
 #[test]
 fn combat_modifiers_without_a_runtime_matcher_remain_engine_gaps() {
     for text in [
-        // No per-turn ordinal is recorded for a blocked attacker or tapping.
-        "Whenever this creature becomes blocked for the first time each turn, draw a card.",
+        // No per-turn ordinal is recorded for tapping.
         "Whenever this creature becomes tapped for the first time each turn, draw a card.",
         // `and isn't blocked` completes one attack, not a union.
         "Whenever this creature blocks or attacks and isn't blocked, draw a card.",

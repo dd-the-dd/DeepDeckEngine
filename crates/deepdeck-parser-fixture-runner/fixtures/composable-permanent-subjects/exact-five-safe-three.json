@@ -14,11 +14,61 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "abilities": [],
+                    "colors": [
+                      "Blue"
+                    ],
+                    "power": 1,
+                    "subtypes": [
+                      "Merfolk"
+                    ],
+                    "toughness": 1,
+                    "types": [
+                      "Creature"
+                    ]
+                  }
+                }
+              ],
+              "event": {
+                "drawOrdinal": 2,
+                "kind": "cardDrawn",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
           {
             "index": 1,
             "status": "canonical",
-            "recognizer": "native",
             "rule": {
               "costs": [
                 {
@@ -69,9 +119,7 @@
               }
             }
           }
-        ],
-        "cardStatus": "unsupported",
-        "allowDiagnostics": true
+        ]
       }
     },
     {
@@ -85,19 +133,115 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "distinctFrom": [
+                      "targetPermanent1"
+                    ],
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "firstStrike",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 0
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "lifelink",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
-        ],
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure"
-          }
-        ],
-        "cardStatus": "unsupported"
+        ]
       }
     },
     {
@@ -111,19 +255,93 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  },
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "distinctFrom": [
+                      "targetPermanent1"
+                    ],
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
-        ],
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure"
-          }
-        ],
-        "cardStatus": "unsupported"
+        ]
       }
     },
     {
@@ -137,19 +355,139 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "bind": "createdTokens",
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "token": {
+                    "abilities": [],
+                    "colors": [
+                      "Green",
+                      "Blue"
+                    ],
+                    "power": 0,
+                    "subtypes": [
+                      "Fractal"
+                    ],
+                    "toughness": 0,
+                    "types": [
+                      "Creature"
+                    ]
+                  }
+                },
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "counter": "+1/+1",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "binding": "createdTokens",
+                    "kind": "boundObjects"
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
           {
-            "code": "oracle_machine_failure"
+            "index": 1,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "cardTypeContains",
+                        "value": "Creature"
+                      }
+                    },
+                    "id": "targetPermanent",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "counter": "+1/+1",
+                  "kind": "putCounters",
+                  "permanent": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "keyword": "vigilance",
+                  "kind": "grantKeyword",
+                  "object": {
+                    "id": "targetPermanent",
+                    "kind": "chosenTarget"
+                  }
+                }
+              ],
+              "event": {
+                "kind": "stepBegan",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                },
+                "step": "beginCombat"
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
-        ],
-        "cardStatus": "unsupported"
+        ]
       }
     },
     {
@@ -164,11 +502,61 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "kind": "createTokens",
+                  "quantity": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "token": {
+                    "abilities": [
+                      {
+                        "kind": "hexproof"
+                      }
+                    ],
+                    "colors": [
+                      "Blue"
+                    ],
+                    "power": 1,
+                    "subtypes": [
+                      "Merfolk"
+                    ],
+                    "toughness": 1,
+                    "types": [
+                      "Creature"
+                    ]
+                  }
+                }
+              ],
+              "event": {
+                "kind": "enterBattlefield",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
           {
             "index": 1,
             "status": "canonical",
-            "recognizer": "native",
             "rule": {
               "costs": [
                 {
@@ -213,9 +601,7 @@
               }
             }
           }
-        ],
-        "cardStatus": "unsupported",
-        "allowDiagnostics": true
+        ]
       }
     },
     {
@@ -393,11 +779,12 @@
       },
       "expect": {
         "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native",
             "rule": {
               "costs": [
                 {
@@ -454,10 +841,185 @@
                 "kind": "self"
               }
             }
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "condition": {
+                    "kind": "not",
+                    "operand": {
+                      "kind": "controlsPermanent",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          },
+                          {
+                            "kind": "subtypeContains",
+                            "subtypeClass": "creature",
+                            "value": "Army"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "controller": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "kind": "createTokens",
+                      "quantity": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "token": {
+                        "colors": [
+                          "Black"
+                        ],
+                        "name": "Orc Army Token",
+                        "power": 0,
+                        "subtypes": [
+                          "Orc",
+                          "Army"
+                        ],
+                        "toughness": 0,
+                        "types": [
+                          "Creature"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "condition": {
+                    "kind": "controlsPermanent",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        {
+                          "kind": "subtypeContains",
+                          "subtypeClass": "creature",
+                          "value": "Army"
+                        }
+                      ]
+                    }
+                  },
+                  "kind": "conditional",
+                  "then": [
+                    {
+                      "candidates": {
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "kind": "permanents",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "subtypeContains",
+                              "subtypeClass": "creature",
+                              "value": "Army"
+                            }
+                          ]
+                        }
+                      },
+                      "id": "effect0:amassedArmy",
+                      "kind": "choosePermanents",
+                      "maximum": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "minimum": {
+                        "kind": "integer",
+                        "value": 1
+                      },
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 3
+                      },
+                      "counter": "+1/+1",
+                      "kind": "putCounters",
+                      "permanent": {
+                        "decisionId": "effect0:amassedArmy",
+                        "kind": "decisionResult"
+                      }
+                    },
+                    {
+                      "bind": "effect0:amassedArmy:object",
+                      "effects": [
+                        {
+                          "duration": {
+                            "kind": "permanent"
+                          },
+                          "kind": "addSubtypeToPermanent",
+                          "object": {
+                            "id": "effect0:amassedArmy:object",
+                            "kind": "boundValue"
+                          },
+                          "subtype": "Orc"
+                        }
+                      ],
+                      "kind": "forEachObject",
+                      "objects": {
+                        "decisionId": "effect0:amassedArmy",
+                        "kind": "decisionResult"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "abilityId": "amass",
+                  "kind": "emitAbilitySignal",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "event": {
+                "kind": "combatDamageToPlayer",
+                "source": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
-        ],
-        "cardStatus": "unsupported",
-        "allowDiagnostics": true
+        ]
       }
     },
     {
@@ -473,54 +1035,54 @@
       "expect": {
         "outcome": "success",
         "abilities": [
-        {
-          "index": 0,
-          "status": "canonical",
-          "recognizer": "native",
-          "rule": {
-            "kind": "staticAbility",
-            "source": {
-              "kind": "self"
-            },
-            "activeWhile": {
-              "kind": "inZone",
-              "object": {
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
                 "kind": "self"
               },
-              "zone": {
-                "kind": "battlefield"
-              }
-            },
-            "modifiers": [
-              {
-                "kind": "multiplyTriggeredAbility",
-                "sources": {
-                  "kind": "permanents",
-                  "where": {
-                    "kind": "and",
-                    "operands": [
-                      {
-                        "kind": "subtypeContains",
-                        "value": "Ninja"
-                      },
-                      {
-                        "kind": "cardTypeContains",
-                        "value": "Creature"
-                      }
-                    ]
-                  },
-                  "controller": {
-                    "kind": "controllerOf",
-                    "object": {
-                      "kind": "self"
-                    }
-                  }
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
                 },
-                "additionalTriggers": 1
-              }
-            ]
-          }
-        },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "multiplyTriggeredAbility",
+                  "sources": {
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "subtypeContains",
+                          "value": "Ninja"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    },
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "additionalTriggers": 1
+                }
+              ]
+            }
+          },
           {
             "index": 1,
             "status": "canonical",

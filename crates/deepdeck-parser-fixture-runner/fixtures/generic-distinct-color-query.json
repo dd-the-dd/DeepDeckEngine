@@ -70,27 +70,73 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 3,
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "automaton": "static-continuous-effect",
-            "state": "selector.predicate.start",
-            "found": "color"
-          }
-        ],
         "abilities": [
           {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "ability": {
+                "kind": "vigilance"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
+          {
             "index": 1,
-            "status": "unsupported"
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "kind": "modifyPowerToughness",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "power": {
+                    "kind": "countDistinctColors",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "toughness": {
+                    "kind": "countDistinctColors",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           },
           {
             "index": 2,
             "status": "canonical",
-            "recognizer": "native",
             "rule": {
               "costs": [
                 {
@@ -530,12 +576,47 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "costs": [
+                {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              ],
+              "effects": [
+                {
+                  "kind": "addMana",
+                  "mana": {
+                    "kind": "eachColorAmongPermanents",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "manaAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -557,6 +638,29 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "catalog-mechanic-label-is-not-a-flavor-word",
+      "request": {
+        "cardName": "Shared Query Negative",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Exhaust — {T}: For each color among permanents you control, add one mana of that color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.verb",
+            "found": "Exhaust"
           }
         ]
       }

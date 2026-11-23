@@ -329,13 +329,47 @@
         "oracleText": "Creatures you control have trample. (Each of those creatures can deal all combat damage to the player or planeswalker it's attacking.)"
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -351,13 +385,47 @@
         "oracleText": "Artifacts you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Artifact"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -373,13 +441,56 @@
         "oracleText": "Artifacts or creatures you control have trample. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "or",
+                      "operands": [
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Artifact"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -395,13 +506,47 @@
         "oracleText": "Creatures you control have reach. (Each of those creatures can deal excess combat damage to the player or planeswalker it's attacking.)"
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "reach",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -417,13 +562,47 @@
         "oracleText": "Creatures you control have trample. (Each of those creature can deal excess combat damage to the player or planeswalker it's attacking.)"
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "battlefield"
+                }
+              },
+              "kind": "staticAbility",
+              "modifiers": [
+                {
+                  "keyword": "trample",
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "kind": "permanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              ],
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

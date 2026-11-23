@@ -898,12 +898,51 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "effects": [
+                {
+                  "bind": "quantifiedPlayer",
+                  "effects": [
+                    {
+                      "count": {
+                        "kind": "integer",
+                        "value": 2
+                      },
+                      "kind": "drawCards",
+                      "player": {
+                        "id": "quantifiedPlayer",
+                        "kind": "boundValue"
+                      }
+                    }
+                  ],
+                  "kind": "forEachPlayer",
+                  "players": {
+                    "kind": "eachPlayer"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "kind": "loseLife",
+                  "player": {
+                    "kind": "eachPlayer"
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

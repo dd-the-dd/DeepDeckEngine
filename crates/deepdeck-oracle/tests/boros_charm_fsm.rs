@@ -86,12 +86,34 @@ fn modal_damage_rejects_a_nondamageable_union_branch() {
 
 #[test]
 fn promoted_modal_rejects_trailing_unconsumed_tokens() {
-    let parsed = parse("Boros Charm", &format!("{BOROS_CHARM_ORACLE} Draw a card."));
+    // A later sentence of the last bullet belongs to that mode; an
+    // unreadable one must still fail instead of being dropped.
+    let parsed = parse(
+        "Boros Charm",
+        &format!("{BOROS_CHARM_ORACLE} Frobnicate a relic."),
+    );
 
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities[0].recognizer, RecognizerProvenance::Native);
     assert!(parsed.abilities[0].rule.is_none());
     let diagnostics =
         serde_json::to_string(&parsed.abilities[0].diagnostics).expect("diagnostics serialize");
-    assert!(diagnostics.contains("end of input"));
+    assert!(diagnostics.contains("Frobnicate"), "{diagnostics}");
+}
+
+#[test]
+fn a_later_sentence_of_the_last_bullet_belongs_to_that_mode() {
+    // A bullet's text runs to the next bullet or the end of the line, so a
+    // second sentence is part of the third mode, not a spell-wide step.
+    let parsed = parse("Boros Charm", &format!("{BOROS_CHARM_ORACLE} Draw a card."));
+
+    assert_eq!(
+        parsed.status, "canonical",
+        "{:#?}",
+        parsed.abilities[0].diagnostics
+    );
+    let rule = parsed.abilities[0].rule.as_ref().expect("modal rule");
+    let effects = rule["effects"].as_array().expect("mode branches");
+    assert_eq!(effects.len(), 3);
+    assert_eq!(effects[2]["then"][1]["kind"], "drawCards");
 }

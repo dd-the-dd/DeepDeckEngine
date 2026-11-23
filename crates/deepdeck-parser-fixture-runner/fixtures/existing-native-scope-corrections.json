@@ -333,15 +333,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "spellAbility",
             "rule": {
               "declaration": {
                 "decisions": [
@@ -397,13 +395,47 @@
                 "kind": "self"
               }
             }
-          }
-        ],
-        "diagnostics": [
+          },
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "effect.start"
+            "index": 1,
+            "status": "canonical",
+            "rule": {
+              "ability": {
+                "activationZone": "hand",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{2}"
+                },
+                "costs": [
+                  {
+                    "card": {
+                      "kind": "self"
+                    },
+                    "kind": "discardCard"
+                  }
+                ],
+                "effects": [
+                  {
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "kind": "drawCards",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "cycling"
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

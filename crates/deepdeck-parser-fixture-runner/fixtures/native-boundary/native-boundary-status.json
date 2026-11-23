@@ -13,19 +13,108 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "additionalCosts": [
+                  {
+                    "condition": {
+                      "kind": "selectionContains",
+                      "selection": {
+                        "decisionId": "buybackMode",
+                        "kind": "decisionResult"
+                      },
+                      "value": "buyback"
+                    },
+                    "else": [],
+                    "kind": "conditional",
+                    "then": [
+                      {
+                        "kind": "payMana",
+                        "manaCost": "{3}"
+                      }
+                    ]
+                  }
+                ],
+                "decisions": [
+                  {
+                    "id": "buybackMode",
+                    "kind": "chooseModes",
+                    "maximum": 1,
+                    "minimum": 1,
+                    "options": [
+                      "decline",
+                      "buyback"
+                    ]
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
+          },
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 1,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "anyTarget"
+                    },
+                    "id": "targetDamageable",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 1
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "kind": "dealDamage",
+                  "recipient": {
+                    "id": "targetDamageable",
+                    "kind": "chosenTarget"
+                  },
+                  "source": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "amount": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "kind": "gainLife",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              ],
+              "kind": "spellAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -63,7 +152,7 @@
       "id": "reality-claim-0",
       "request": {
         "cardName": "Unflinching Hortimancer",
-        "typeLine": "Creature \u2014 Human Cleric",
+        "typeLine": "Creature — Human Cleric",
         "manaCost": "{1}{W}",
         "oracleText": "Ward {1} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)\nWhenever you gain life, put a +1/+1 counter on this creature.",
         "layout": "normal",
@@ -93,7 +182,12 @@
                 "pointer": "/event",
                 "equals": {
                   "kind": "lifeGained",
-                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
                 }
               },
               {
@@ -109,7 +203,7 @@
       "id": "reality-claim-4",
       "request": {
         "cardName": "Wrecking Gecko",
-        "typeLine": "Artifact Creature \u2014 Lizard Construct",
+        "typeLine": "Artifact Creature — Lizard Construct",
         "manaCost": "{4}{G}",
         "oracleText": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\n{6}{G}{G}: This creature gets +4/+4 and gains trample until end of turn.",
         "layout": "normal",
@@ -188,7 +282,7 @@
       "id": "reality-claim-8",
       "request": {
         "cardName": "Ruric Thar, Biomagus",
-        "typeLine": "Legendary Creature \u2014 Ogre Crab Wizard",
+        "typeLine": "Legendary Creature — Ogre Crab Wizard",
         "manaCost": "{4}{U}{U}",
         "oracleText": "Flying\nProwess, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn twice.)\nWhenever Ruric Thar becomes the target of a spell or ability an opponent controls, draw a card.",
         "layout": "normal",
@@ -216,7 +310,7 @@
       "id": "generic-ward-reminder",
       "request": {
         "cardName": "Generic Keyword Creature",
-        "typeLine": "Creature \u2014 Shapeshifter",
+        "typeLine": "Creature — Shapeshifter",
         "manaCost": "{3}",
         "oracleText": "Ward {3} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {3}.)",
         "layout": "normal",
@@ -244,7 +338,7 @@
       "id": "generic-repeated-reminder",
       "request": {
         "cardName": "Generic Keyword Creature",
-        "typeLine": "Creature \u2014 Shapeshifter",
+        "typeLine": "Creature — Shapeshifter",
         "manaCost": "{3}",
         "oracleText": "Prowess, prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn twice.)",
         "layout": "normal",
@@ -279,14 +373,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "spellAbility",
             "rule": {
               "declaration": {
                 "decisions": [
@@ -379,14 +472,129 @@
           },
           {
             "index": 1,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "rule": {
+              "ability": {
+                "activationZone": "hand",
+                "cost": {
+                  "kind": "payMana",
+                  "manaCost": "{2}"
+                },
+                "costs": [
+                  {
+                    "card": {
+                      "kind": "self"
+                    },
+                    "kind": "discardCard"
+                  }
+                ],
+                "effects": [
+                  {
+                    "candidates": {
+                      "kind": "cards",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "typeLineContains",
+                            "value": "Basic"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Land"
+                          }
+                        ]
+                      },
+                      "zone": {
+                        "kind": "library",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    "id": "searchedCards",
+                    "kind": "chooseCards",
+                    "maximum": 1,
+                    "minimum": 0,
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "revealCards"
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "moveCards",
+                    "to": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "kind": "shuffleZone",
+                    "zone": {
+                      "kind": "library",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "cards": {
+                      "decisionId": "searchedCards",
+                      "kind": "decisionResult"
+                    },
+                    "kind": "recordLibrarySearch",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "kind": "typecycling",
+                "where": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "typeLineContains",
+                      "value": "Basic"
+                    },
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  ]
+                }
+              },
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }
@@ -397,7 +605,7 @@
         "cardName": "Test Spell",
         "typeLine": "Sorcery",
         "manaCost": "{4}{R}",
-        "oracleText": "Awaken 4\u2014{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
+        "oracleText": "Awaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
         "layout": "normal",
         "faces": []
       },
@@ -415,6 +623,35 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "mixed-unexpanded-keyword",
+      "request": {
+        "cardName": "Mixed Proof",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Entwine {2}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "keyword.unsupported.entwine"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
           }
         ]
       }
