@@ -294,15 +294,19 @@ impl ObjectPredicate {
         self.has_domain(domain) && self.supports_domain(domain)
     }
 
-    /// The first of a parent's admissible domains this predicate is in.
-    pub(in crate::oracle::canonical) fn inferred_domain(
+    /// The domain authority for a noun phrase that may state a control
+    /// relation: a nominal head the permanent domain admits (`tokens`,
+    /// `commanders`) related by control names permanents (CR 108.4, 110.2).
+    pub(in crate::oracle::canonical) fn is_in_domain_when_controlled(
         &self,
-        admissible: &[ObjectKind],
-    ) -> Option<ObjectKind> {
-        admissible
-            .iter()
-            .copied()
-            .find(|domain| self.is_in_domain(*domain))
+        domain: ObjectKind,
+        controlled: bool,
+    ) -> bool {
+        self.is_in_domain(domain)
+            || (controlled
+                && domain == ObjectKind::Permanent
+                && self.supports_domain(domain)
+                && self.has_nominal_head())
     }
 
     /// A declared target in `domain` (CR 115.1, 601.2c): a positive noun

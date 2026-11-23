@@ -52,10 +52,8 @@ impl ObjectQueryNode {
     /// control relation names permanents too (CR 108.4, 110.2). This is the
     /// one permanent-domain check every collection parent shares.
     pub(in crate::oracle::canonical) fn denotes_battlefield_permanents(&self) -> bool {
-        self.predicate.is_in_domain(ObjectKind::Permanent)
-            || (self.controller.is_some()
-                && self.predicate.supports_domain(ObjectKind::Permanent)
-                && self.predicate.has_nominal_head())
+        self.predicate
+            .is_in_domain_when_controlled(ObjectKind::Permanent, self.controller.is_some())
     }
 }
 

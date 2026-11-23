@@ -252,12 +252,11 @@ pub(in crate::oracle::canonical) fn infer_noun_phrase_domain(
     query: &RecognizedObjectQuery,
     expected: &[ObjectKind],
 ) -> Option<ObjectKind> {
-    query.predicate().inferred_domain(expected).or_else(|| {
-        (expected.contains(&ObjectKind::Permanent)
-            && query.relations().has_controller()
-            && query.predicate().supports_domain(ObjectKind::Permanent)
-            && query.predicate().has_nominal_head())
-        .then_some(ObjectKind::Permanent)
+    let controlled = query.relations().has_controller();
+    expected.iter().copied().find(|domain| {
+        query
+            .predicate()
+            .is_in_domain_when_controlled(*domain, controlled)
     })
 }
 

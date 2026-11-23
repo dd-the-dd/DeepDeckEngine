@@ -351,8 +351,9 @@ fn declarable_target_uses_the_one_positive_domain_authority() {
     ]);
     assert!(instant_spell.is_declarable_target_in(ObjectKind::Spell));
     assert!(!instant_spell.is_declarable_target_in(ObjectKind::Permanent));
-    assert_eq!(
-        instant_spell.inferred_domain(&[ObjectKind::Permanent, ObjectKind::Spell]),
-        Some(ObjectKind::Spell)
-    );
+    assert!(instant_spell.is_in_domain(ObjectKind::Spell));
+    assert!(!instant_spell.is_in_domain_when_controlled(ObjectKind::Permanent, true));
+    // A token related by control names a permanent (CR 108.4, 110.2).
+    assert!(!ObjectPredicate::IsToken.is_in_domain(ObjectKind::Permanent));
+    assert!(ObjectPredicate::IsToken.is_in_domain_when_controlled(ObjectKind::Permanent, true));
 }
