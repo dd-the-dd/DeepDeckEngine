@@ -933,12 +933,6 @@ fn recognize_effect_sequence_attempt_scoped(
                                 super::ReferencedPermanentActionAttempt::Parsed(node) => {
                                     return Ok(LocalEffectNode::ReferencedPermanentAction(node));
                                 }
-                                super::ReferencedPermanentActionAttempt::FailedCommitted(
-                                    failure,
-                                ) => {
-                                    attempt_frame.commit();
-                                    return Err(failure);
-                                }
                                 super::ReferencedPermanentActionAttempt::NotClaimed => {}
                             }
                         }

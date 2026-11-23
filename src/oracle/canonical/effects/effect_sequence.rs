@@ -723,6 +723,7 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                let on_battlefield = operand_on_battlefield(&grant.objects, sequence);
                 for object in objects {
                     effects.extend(
                         lower_keyword_grant_to_object(
@@ -730,6 +731,7 @@ fn lower_local_effect_sequence_with_collections(
                             &grant.abilities,
                             &grant.duration,
                             &object,
+                            on_battlefield,
                         )
                         .ok_or_else(|| {
                             cursor.fail("a supported keyword-grant duration and granted rule")
@@ -1038,6 +1040,7 @@ fn lower_local_effect_sequence_with_collections(
                             &modifier.abilities,
                             &modifier.duration,
                             &object,
+                            operand_on_battlefield(&modifier.targets, sequence),
                         )
                         .ok_or_else(|| {
                             cursor.fail("a supported keyword-grant duration and granted rule")
@@ -3006,20 +3009,17 @@ fn apply_performer(
             )));
         }
         PerformerNode::Population {
-            excluding_controller: true,
-            ..
+            players,
+            excluding_controller,
         } => {
-            // CR 102.3: `each other player` includes a teammate, which the
-            // opponents set does not; no player set names it yet.
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail(
-                    "a player set of every player other than the controller, teammates included",
-                ),
-            ));
-        }
-        PerformerNode::Population { players, .. } => {
             let bind = format!("performer{effect_index}");
-            let players = lower_player_set_reference(*players);
+            // CR 102.3: `each other player` is every player but the
+            // controller, teammates included, not the opponents set.
+            let players = if *excluding_controller {
+                json!({"kind": "playersExcept", "player": controller()})
+            } else {
+                lower_player_set_reference(*players)
+            };
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
@@ -3101,6 +3101,37 @@ fn bind_deployed_card_when_read(
     let bound = effects.iter_mut().any(|effect| bind(effect, choice));
     cursor.require(bound, "the deployment's move to bind")?;
     Ok(())
+}
+
+/// True when a permanent operand denotes objects on the battlefield as the
+/// action resolves (CR 400.7, 603.10a), the condition of an indefinite
+/// grant: declared permanent targets (one or several), collections, the
+/// source, attached permanents, the card a move put onto the battlefield,
+/// created tokens, an entering permanent and the combat counterpart. A
+/// target declared by a card action (a card in a graveyard or exile) and an
+/// event's permanent (which may be last known information in a dies or
+/// leaves frame) are not.
+fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSequenceNode) -> bool {
+    match operand {
+        PermanentOperandNode::Targets(_)
+        | PermanentOperandNode::Collection { .. }
+        | PermanentOperandNode::Reference(_) => true,
+        PermanentOperandNode::BoundReference(reference) => match reference {
+            PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
+            PermanentEffectReference::Target(binding) => sequence
+                .effects
+                .get(binding.effect_index)
+                .and_then(ordinary_action_targets)
+                .is_some_and(|targets| targets.slots.get(binding.slot_index).is_some()),
+            PermanentEffectReference::Observed(
+                TypedObservedEventObject::MovedOntoBattlefield
+                | TypedObservedEventObject::CreatedTokens
+                | TypedObservedEventObject::EnteringPermanent
+                | TypedObservedEventObject::CombatCounterpart,
+            ) => true,
+            PermanentEffectReference::Observed(_) => false,
+        },
+    }
 }
 
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {

@@ -818,3 +818,31 @@ fn zone_action_near_misses_stay_non_canonical() {
         assert_ne!(status, "canonical", "{oracle}: {states:?}");
     }
 }
+
+/// CR 102.3: `each other player` is every player but the controller,
+/// teammates included, never the opponents set.
+#[test]
+fn each_other_player_is_the_controllers_complement() {
+    let effects = effects(SORCERY, "Each other player creates a Treasure token.");
+    assert_eq!(effects[0]["kind"], "forEachPlayer", "{effects:#?}");
+    assert_eq!(
+        effects[0]["players"]["kind"], "playersExcept",
+        "{effects:#?}"
+    );
+}
+
+/// An indefinite grant needs a battlefield object (CR 611.2a, 400.7,
+/// 603.10a), decided on the typed operand: plural declared targets take it;
+/// an event's permanent that may be last known information does not.
+#[test]
+fn an_indefinite_grant_reads_the_operand_zone() {
+    let grants = effects(SORCERY, "Up to two target creatures gain flying.");
+    assert!(
+        grants
+            .iter()
+            .all(|effect| effect["duration"]["kind"] == "permanent"),
+        "{grants:#?}"
+    );
+    let (status, _, _) = parse("Enchantment", "Whenever a creature dies, it gains flying.");
+    assert_ne!(status, "canonical");
+}
