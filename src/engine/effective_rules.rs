@@ -160,20 +160,12 @@ impl GameEngine {
         result
     }
 
-    /// Instance-specific ability loss (an effect that named this object)
-    /// follows the object anywhere; static ability loss applies only to a
-    /// permanent.
+    /// Ability loss is a continuous effect on a permanent (CR 613.1f). An
+    /// object in another zone is a new object (CR 400.7) whose printed
+    /// abilities function from their own zone of function; departure
+    /// observers capture the permanent's effective rules before it leaves.
     fn object_loses_all_abilities(&self, object: &CardInstance, on_battlefield: bool) -> bool {
-        if on_battlefield {
-            return self.permanent_loses_all_abilities(object);
-        }
-        self.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("loseAllAbilities")
-                && modifier["cardInstanceId"].as_str() == Some(object.instance_id.as_str())
-                && modifier["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
-        })
+        on_battlefield && self.permanent_loses_all_abilities(object)
     }
 
     /// Cheap printed scan: whether any permanent prints a rule grant. It
