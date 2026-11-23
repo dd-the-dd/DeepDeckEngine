@@ -830,3 +830,19 @@ fn each_other_player_is_the_controllers_complement() {
         "{effects:#?}"
     );
 }
+
+/// An indefinite grant needs a battlefield object (CR 611.2a, 400.7,
+/// 603.10a), decided on the typed operand: plural declared targets take it;
+/// an event's permanent that may be last known information does not.
+#[test]
+fn an_indefinite_grant_reads_the_operand_zone() {
+    let grants = effects(SORCERY, "Up to two target creatures gain flying.");
+    assert!(
+        grants
+            .iter()
+            .all(|effect| effect["duration"]["kind"] == "permanent"),
+        "{grants:#?}"
+    );
+    let (status, _, _) = parse("Enchantment", "Whenever a creature dies, it gains flying.");
+    assert_ne!(status, "canonical");
+}
