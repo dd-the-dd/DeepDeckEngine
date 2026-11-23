@@ -3,7 +3,7 @@ use super::{
     ChoiceBinding, ControlledCountDirection, ControlledPermanentCountConditionNode,
     LocalObjectReference, LocalPlayerReference, NumericAtom, ObjectKind, PlayerZoneKind,
     SelectorPredicate, recognize_card_type_union_selector, recognize_numeric_atom,
-    recognize_object_query_before_separator, recognize_source_reference,
+    recognize_object_query, recognize_source_reference,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -58,10 +58,8 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_cond
 ) -> MachineResult<LocalConditionNode> {
     cursor.enter("condition.controlled-permanent-presence.if");
     cursor.consume("if")?;
-    let condition = recognize_controlled_permanent_presence_query_with(
-        cursor,
-        recognize_object_query_before_separator,
-    )?;
+    let condition =
+        recognize_controlled_permanent_presence_query_with(cursor, recognize_object_query)?;
     cursor.enter("condition.controlled-permanent-presence.separator");
     cursor.consume(",")?;
     Ok(condition)
@@ -137,7 +135,7 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_quer
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_count_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ControlledPermanentCountConditionNode> {
-    recognize_controlled_permanent_count_query_with(cursor, recognize_object_query_before_separator)
+    recognize_controlled_permanent_count_query_with(cursor, recognize_object_query)
 }
 
 /// Reuses the count grammar with a parent-owned object-query boundary.

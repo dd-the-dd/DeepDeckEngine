@@ -42,8 +42,7 @@ use super::{ArgumentFrame, VerbLemma, recognize_operand_verb};
 use super::{
     CollectionSelectionMethod, CostConnector, CostSequenceNode, ObjectCardType,
     ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode,
-    positive_literal, recognize_counter_name, recognize_mana_cost,
-    recognize_object_query_before_cost_separator, recognize_object_query_before_separator,
+    positive_literal, recognize_counter_name, recognize_mana_cost, recognize_object_query,
     recognize_pay_life_cost_with_verb, recognize_search_card_selector, recognize_tap_self_cost,
 };
 
@@ -561,9 +560,9 @@ fn recognize_permanent_operand(
     cursor.enter("cost.payment.object-query");
     let query_start = cursor.position();
     let object = if list_continues {
-        recognize_object_query_before_cost_separator(cursor)?
+        recognize_object_query(cursor)?
     } else {
-        recognize_object_query_before_separator(cursor)?
+        recognize_object_query(cursor)?
     };
     // `another X or a Y`: each branch has its own article, so one source
     // exclusion cannot be scoped to the whole query.

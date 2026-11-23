@@ -4,7 +4,7 @@ use super::card_collection_operand::{
 };
 use super::{
     NumericExpression, ObjectKind, ObjectPredicate, RecognizedEffectFragment,
-    recognize_numeric_expression, recognize_object_query_before_cost_separator,
+    recognize_numeric_expression, recognize_object_query,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,7 +111,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
         } else {
             // A comma continues a coordinated type list (`an artifact,
             // instant, or sorcery card`); any other comma is the parent's.
-            let query = recognize_object_query_before_cost_separator(&mut trial)?;
+            let query = recognize_object_query(&mut trial)?;
             trial.require(
                 query.controller.is_none(),
                 "an unscoped predicate over the bound card collection",

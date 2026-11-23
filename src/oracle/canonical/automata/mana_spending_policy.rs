@@ -23,7 +23,7 @@ pub(in crate::oracle::canonical) fn recognize_mana_spending_policy(
         cursor.consume(&article)?;
     }
     cursor.enter("mana.policy.spell-query");
-    let query = recognize_object_query_before_effect_separator(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none()
             && query.predicate.has_domain(ObjectKind::Spell)

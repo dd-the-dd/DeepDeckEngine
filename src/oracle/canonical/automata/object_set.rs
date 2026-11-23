@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ObjectKind, ObjectQueryNode, ObjectSetNode, SelectorPredicate, SpellCastQueryNode,
-    recognize_object_query_before_separator, recognize_spell_cast_query_before_separator,
+    recognize_object_query, recognize_spell_cast_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -207,14 +207,13 @@ fn recognize_collection_continuation(
     }
     match relation_kind {
         CollectionRelationKind::Relations => {
-            super::recognize_related_object_query_before_separator(cursor)
-                .map(CollectionQueryNode::Relations)
+            super::recognize_related_object_query(cursor).map(CollectionQueryNode::Relations)
         }
         CollectionRelationKind::Control => {
-            recognize_object_query_before_separator(cursor).map(CollectionQueryNode::Control)
+            recognize_object_query(cursor).map(CollectionQueryNode::Control)
         }
         CollectionRelationKind::Cast => {
-            recognize_spell_cast_query_before_separator(cursor).map(CollectionQueryNode::Cast)
+            recognize_spell_cast_query(cursor).map(CollectionQueryNode::Cast)
         }
     }
 }
@@ -320,14 +319,14 @@ fn recognize_collection_with_relations(
                 frame.exclude_source = super::recognize_optional_source_exclusion(cursor)?;
                 let query = match relation_kind {
                     CollectionRelationKind::Relations => CollectionQueryNode::Relations(
-                        super::recognize_related_object_query_before_separator(cursor)?,
+                        super::recognize_related_object_query(cursor)?,
                     ),
-                    CollectionRelationKind::Control => CollectionQueryNode::Control(
-                        recognize_object_query_before_separator(cursor)?,
-                    ),
-                    CollectionRelationKind::Cast => CollectionQueryNode::Cast(
-                        recognize_spell_cast_query_before_separator(cursor)?,
-                    ),
+                    CollectionRelationKind::Control => {
+                        CollectionQueryNode::Control(recognize_object_query(cursor)?)
+                    }
+                    CollectionRelationKind::Cast => {
+                        CollectionQueryNode::Cast(recognize_spell_cast_query(cursor)?)
+                    }
                 };
                 retain_query(cursor, &mut frame, query)?;
                 ObjectSetState::ConnectorOrComplete

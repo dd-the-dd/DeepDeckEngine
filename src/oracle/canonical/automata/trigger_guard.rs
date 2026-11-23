@@ -3,8 +3,8 @@ use super::{
     LocalConditionNode, SentenceConditionContext, SentenceConditionNode,
     recognize_boolean_condition_list_before_separator,
     recognize_controlled_permanent_count_query_with,
-    recognize_controlled_permanent_presence_query_with,
-    recognize_object_query_before_condition_connector, recognize_sentence_condition_atom,
+    recognize_controlled_permanent_presence_query_with, recognize_object_query,
+    recognize_sentence_condition_atom,
 };
 
 /// Reads the optional `if CONDITION` after a complete trigger event (the
@@ -62,16 +62,10 @@ pub(in crate::oracle::canonical) fn recognize_trigger_guard_atom(
             || word.eq_ignore_ascii_case("another")
     });
     if presence {
-        recognize_controlled_permanent_presence_query_with(
-            cursor,
-            recognize_object_query_before_condition_connector,
-        )
+        recognize_controlled_permanent_presence_query_with(cursor, recognize_object_query)
     } else {
-        recognize_controlled_permanent_count_query_with(
-            cursor,
-            recognize_object_query_before_condition_connector,
-        )
-        .map(LocalConditionNode::ControlledPermanentCount)
+        recognize_controlled_permanent_count_query_with(cursor, recognize_object_query)
+            .map(LocalConditionNode::ControlledPermanentCount)
     }
 }
 

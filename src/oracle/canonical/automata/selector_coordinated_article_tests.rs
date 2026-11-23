@@ -46,12 +46,12 @@ fn coordinated_articles_preserve_the_same_typed_query_and_qualifier_scopes() {
 fn articles_do_not_change_parent_boundaries_or_admit_missing_heads() {
     let tokens = recognize_entities("Island or a Swamp or you control a Forest,");
     let mut cursor = OracleTokenCursor::new("coordinated-article", &tokens);
-    recognize_object_query_before_condition_connector(&mut cursor).unwrap();
+    recognize_object_query(&mut cursor).unwrap();
     assert_eq!(cursor.peek(), Some("or"));
 
     let tokens = recognize_entities("artifact or a creature you control, draw");
     let mut cursor = OracleTokenCursor::new("coordinated-article", &tokens);
-    recognize_object_query_before_separator(&mut cursor).unwrap();
+    recognize_object_query(&mut cursor).unwrap();
     assert_eq!(cursor.peek(), Some(","));
 
     for text in [

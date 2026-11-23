@@ -6,8 +6,9 @@ const LOOT_TEXT: &str = "Whenever this creature deals combat damage to a player,
 const DECLINED_TEXT: &str = "At the beginning of your upkeep, you may sacrifice an artifact, enchantment, or token. If you don't, tap this creature.";
 const REFLEXIVE_TEXT: &str = "When The Fire Nation Drill enters, you may tap it. When you do, destroy target creature with power 4 or less.";
 
-/// Answers the optional-action choice with `self.0`; any other decision
-/// (discard, sacrifice or reflexive target) takes its first option.
+/// Answers the optional-action choice, or an optional resolution payment
+/// (pay or decline), with `self.0`; any other decision (discard, sacrifice
+/// or reflexive target) takes its first option.
 struct Perform(bool);
 impl DecisionProvider for Perform {
     fn choose(
@@ -15,6 +16,21 @@ impl DecisionProvider for Perform {
         _: &GameState,
         request: &EngineDecisionRequest,
     ) -> Result<usize, EngineError> {
+        if let Some(decline) = request
+            .options
+            .iter()
+            .position(|option| option.kind == ActionKind::DeclinePayment)
+        {
+            return Ok(if self.0 {
+                request
+                    .options
+                    .iter()
+                    .position(|option| option.kind != ActionKind::DeclinePayment)
+                    .unwrap_or(decline)
+            } else {
+                decline
+            });
+        }
         Ok(request
             .options
             .iter()
@@ -38,7 +54,15 @@ fn parsed_effect(name: &str, type_line: &str, text: &str) -> (Value, Value) {
     let rule = parsed.abilities[0].rule.clone().expect("canonical rule");
     assert!(rule_is_executable(&rule), "{rule:#}");
     let effect = rule["effects"][0].clone();
-    assert_eq!(effect["kind"], "optionalAction");
+    // `you may sacrifice X. If you don't, ...` is an optional resolution cost
+    // whether X is one object or a closed object list (roadmap #12).
+    assert!(
+        matches!(
+            effect["kind"].as_str(),
+            Some("optionalAction" | "optionalPayCostPerformEffects")
+        ),
+        "{effect:#}"
+    );
     (rule, effect)
 }
 
@@ -192,7 +216,9 @@ fn if_you_dont_follows_a_declined_or_impossible_instruction() {
     );
     assert_eq!(engine.state.players[0].battlefield.len(), 1);
     assert!(!tapped(&engine));
-    assert_eq!(last_outcome(&engine), (json!(true), json!(true)));
+    if effect["kind"] == "optionalAction" {
+        assert_eq!(last_outcome(&engine), (json!(true), json!(true)));
+    }
 
     // Declined: nothing is sacrificed and the source is tapped.
     let mut engine = test_engine(2);

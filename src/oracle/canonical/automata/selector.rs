@@ -36,6 +36,12 @@ struct ObjectQueryFrame {
     logical_connectors: Vec<super::ContextualListConnector>,
     pending_logical_connector: Option<super::ContextualListConnector>,
     logical_comma: bool,
+    /// The open comma run: the cursor before its first comma and the frame
+    /// as it was there. It commits when `or`/`and/or` closes it.
+    comma_run: Option<(
+        super::super::machine::MachineCheckpoint,
+        Box<ObjectQueryFrame>,
+    )>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -92,16 +98,10 @@ pub(in crate::oracle::canonical) struct RelatedObjectQueryNode {
 
 /// Opt-in relation transport. Historical wrappers still recognize their own
 /// controller/caster domain and cannot consume an ownership relation silently.
-pub(in crate::oracle::canonical) fn recognize_related_object_query_before_separator(
+pub(in crate::oracle::canonical) fn recognize_related_object_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<RelatedObjectQueryNode> {
-    let query = recognize_object_query_internal(
-        cursor,
-        true,
-        QueryRelationKind::ObjectRelations,
-        false,
-        false,
-    )?;
+    let query = recognize_object_query_internal(cursor, QueryRelationKind::ObjectRelations)?;
     Ok(RelatedObjectQueryNode {
         objects: super::ObjectQueryNode {
             predicate: query.predicate,
@@ -145,25 +145,16 @@ fn object_relation_kind_at(cursor: &OracleTokenCursor<'_>) -> MachineResult<Quer
 
 /// Recognizes an object predicate plus its optional controller relation,
 /// independently of whether a parent uses it as a target or as a set query.
+///
+/// Coordinators are transactional: a comma, `or` or `and/or` is consumed only
+/// when another object phrase follows, and a comma-separated run commits only
+/// once `or`/`and/or` closes it (or when it lists negative modifiers of one
+/// head). Otherwise the connector stays with the parent, whatever the parent
+/// is (an `if` separator, a cost list, an effect sequence).
 pub(in crate::oracle::canonical) fn recognize_object_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<super::ObjectQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, false, QueryRelationKind::Control, false, false)?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
-}
-
-/// Recognizes an object query whose trailing comma belongs to the parent
-/// grammar, such as the separator between an `if` condition and its effect.
-pub(in crate::oracle::canonical) fn recognize_object_query_before_separator(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, true, QueryRelationKind::Control, false, false)?;
+    let query = recognize_object_query_internal(cursor, QueryRelationKind::Control)?;
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
@@ -173,16 +164,13 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_separator(
 
 /// One object query whose numeric comparisons may read the ability source
 /// when `source_available` (its counters, by last-known information).
-pub(in crate::oracle::canonical) fn recognize_object_query_before_separator_with_source(
+pub(in crate::oracle::canonical) fn recognize_object_query_with_source(
     cursor: &mut OracleTokenCursor<'_>,
     source_available: bool,
 ) -> MachineResult<super::ObjectQueryNode> {
     let query = recognize_object_query_with_cardinality_policy(
         cursor,
-        true,
         QueryRelationKind::Control,
-        false,
-        false,
         CoordinatedCardinalityPolicy::ExistingQuery,
         Some(source_available),
         false,
@@ -194,61 +182,15 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_separator_with
     })
 }
 
-/// A payment operand inside a cost list. A comma ends the operand unless it
-/// continues the object list (`a creature, artifact, or land`); a comma that
-/// opens the next payment action (`, discard a card`) stays with the parent.
-pub(in crate::oracle::canonical) fn recognize_object_query_before_cost_separator(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, false, QueryRelationKind::Control, false, true)?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
-}
-
 /// Recognizes a spell collection whose player relation is the player who cast
 /// the spell, not the spell's current controller on the stack.
-pub(in crate::oracle::canonical) fn recognize_spell_cast_query_before_separator(
+pub(in crate::oracle::canonical) fn recognize_spell_cast_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<super::SpellCastQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, true, QueryRelationKind::Cast, false, false)?;
+    let query = recognize_object_query_internal(cursor, QueryRelationKind::Cast)?;
     Ok(super::SpellCastQueryNode {
         predicate: query.predicate,
         caster: query.subject_scope.map(spell_caster_scope),
-    })
-}
-
-/// Reads a condition's object query. Its parent owns both the comma and an
-/// `or` whose next token cannot begin an object predicate. The Boolean parent
-/// must then recognize another complete condition atom; an unknown suffix is
-/// never accepted merely because this child returned a prefix.
-pub(in crate::oracle::canonical) fn recognize_object_query_before_condition_connector(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, true, QueryRelationKind::Control, true, false)?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
-    })
-}
-
-/// The effect parent owns a comma immediately introducing `then`/`and`.
-/// Ordinary comma-separated object branches keep the shared query grammar.
-pub(in crate::oracle::canonical) fn recognize_object_query_before_effect_separator(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<super::ObjectQueryNode> {
-    let query =
-        recognize_object_query_internal(cursor, false, QueryRelationKind::Control, false, true)?;
-    Ok(super::ObjectQueryNode {
-        predicate: query.predicate,
-        controller: query.subject_scope.map(object_controller_scope),
-        exclude_source: false,
     })
 }
 
@@ -267,10 +209,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_with_shared_cardinali
 ) -> MachineResult<super::ObjectQueryNode> {
     let query = recognize_object_query_with_cardinality_policy(
         cursor,
-        false,
         QueryRelationKind::Control,
-        false,
-        true,
         CoordinatedCardinalityPolicy::ParentOwnedSharedQuota {
             exactly_one: matches!(
                 count,
@@ -295,10 +234,7 @@ pub(in crate::oracle::canonical) fn recognize_resolution_card_query(
 ) -> MachineResult<super::ObjectQueryNode> {
     let query = recognize_object_query_with_cardinality_policy(
         cursor,
-        true,
         QueryRelationKind::Control,
-        false,
-        true,
         CoordinatedCardinalityPolicy::ExistingQuery,
         Some(source_available),
         false,
@@ -322,17 +258,11 @@ pub(in crate::oracle::canonical) fn recognize_resolution_card_query(
 
 fn recognize_object_query_internal(
     cursor: &mut OracleTokenCursor<'_>,
-    comma_terminates: bool,
     relation_kind: QueryRelationKind,
-    condition_connector_terminates: bool,
-    effect_connector_terminates: bool,
 ) -> MachineResult<RecognizedObjectQuery> {
     recognize_object_query_with_cardinality_policy(
         cursor,
-        comma_terminates,
         relation_kind,
-        condition_connector_terminates,
-        effect_connector_terminates,
         CoordinatedCardinalityPolicy::ExistingQuery,
         None,
         false,
@@ -341,10 +271,7 @@ fn recognize_object_query_internal(
 
 fn recognize_object_query_with_cardinality_policy(
     cursor: &mut OracleTokenCursor<'_>,
-    comma_terminates: bool,
     relation_kind: QueryRelationKind,
-    condition_connector_terminates: bool,
-    effect_connector_terminates: bool,
     cardinality_policy: CoordinatedCardinalityPolicy,
     query_source_available: Option<bool>,
     logical_properties: bool,
@@ -400,32 +327,19 @@ fn recognize_object_query_with_cardinality_policy(
             ObjectQueryState::ReadUnion => {
                 cursor.enter("selector.predicate.union");
                 if cursor.peek().is_some_and(|token| token == ",") {
-                    frame.logical_comma = logical_properties;
-                    // A comma that is followed by neither another object
-                    // phrase nor a list `or` belongs to the enclosing effect
-                    // list (`sacrifice a creature, discard a card`).
-                    let comma_ends_effect_list = effect_connector_terminates && {
-                        let checkpoint = cursor.checkpoint();
-                        cursor.consume(",")?;
-                        let continues = cursor.peek().is_some_and(|word| {
-                            word.eq_ignore_ascii_case("or") || word.eq_ignore_ascii_case("and/or")
-                        }) || coordinated_object_selector_phrase_starts(cursor);
-                        cursor.rollback(checkpoint);
-                        !continues
-                    };
-                    if comma_terminates
-                        || comma_ends_effect_list
-                        || (effect_connector_terminates
-                            && cursor.peek_ahead(1).is_some_and(|word| {
-                                word.eq_ignore_ascii_case("then")
-                                    || word.eq_ignore_ascii_case("and")
-                            }))
-                    {
-                        ObjectQueryState::Complete
-                    } else {
+                    if comma_continues_object_list(cursor) {
+                        // A comma run is tentative until `or`/`and/or` closes it.
+                        if frame.comma_run.is_none() {
+                            let snapshot = Box::new(frame.clone());
+                            frame.comma_run = Some((cursor.checkpoint(), snapshot));
+                        }
+                        frame.logical_comma = logical_properties;
                         cursor.consume(",")?;
                         frame.last_connector_is_exclusive = false;
                         ObjectQueryState::ReadAfterComma
+                    } else {
+                        settle_comma_run(cursor, &mut frame);
+                        ObjectQueryState::ReadPostnominalQualifier
                     }
                 } else if cursor.peek().is_some_and(|token| {
                     token.eq_ignore_ascii_case("or")
@@ -435,35 +349,33 @@ fn recognize_object_query_with_cardinality_policy(
                     let checkpoint = cursor.checkpoint();
                     let connector = cursor.peek().expect("checked connector").to_string();
                     cursor.consume(&connector)?;
-                    if logical_properties {
-                        cursor.require(!(connector.eq_ignore_ascii_case("and") && frame.logical_comma),
-                            "an explicitly supported logical conjunction without ambiguous serial-comma scope")?;
-                        frame.pending_logical_connector =
-                            Some(if connector.eq_ignore_ascii_case("and") {
-                                super::ContextualListConnector::And
-                            } else {
-                                super::ContextualListConnector::Or
-                            });
-                    }
-                    frame.last_connector_is_exclusive = connector.eq_ignore_ascii_case("or");
-                    if !frame.last_connector_is_exclusive {
-                        frame.has_inclusive_connector = true;
-                    }
-                    if condition_connector_terminates
-                        && connector.eq_ignore_ascii_case("or")
-                        && !coordinated_object_selector_phrase_starts(cursor)
-                    {
+                    if !coordinated_object_selector_phrase_starts(cursor) {
+                        // The connector joins whatever the parent reads next.
                         cursor.rollback(checkpoint);
-                        ObjectQueryState::Complete
+                        settle_comma_run(cursor, &mut frame);
+                        ObjectQueryState::ReadPostnominalQualifier
                     } else {
+                        if logical_properties {
+                            cursor.require(!(connector.eq_ignore_ascii_case("and") && frame.logical_comma),
+                                "an explicitly supported logical conjunction without ambiguous serial-comma scope")?;
+                            frame.pending_logical_connector =
+                                Some(if connector.eq_ignore_ascii_case("and") {
+                                    super::ContextualListConnector::And
+                                } else {
+                                    super::ContextualListConnector::Or
+                                });
+                        }
+                        frame.last_connector_is_exclusive = connector.eq_ignore_ascii_case("or");
+                        if !frame.last_connector_is_exclusive {
+                            frame.has_inclusive_connector = true;
+                        }
+                        // The connector closes any open comma run.
+                        frame.comma_run = None;
                         frame.has_explicit_union = true;
-                        cursor.require(
-                            coordinated_object_selector_phrase_starts(cursor),
-                            "an object type after the selector union",
-                        )?;
                         ObjectQueryState::ReadObjectIntersection
                     }
                 } else {
+                    settle_comma_run(cursor, &mut frame);
                     ObjectQueryState::ReadPostnominalQualifier
                 }
             }
@@ -479,6 +391,8 @@ fn recognize_object_query_with_cardinality_policy(
                         frame.has_inclusive_connector = true;
                     }
                     frame.has_explicit_union = true;
+                    // `, or` closes the comma run: the list is committed.
+                    frame.comma_run = None;
                 }
                 cursor.require(
                     coordinated_object_selector_phrase_starts(cursor),
@@ -629,10 +543,7 @@ fn recognize_object_query_with_cardinality_policy(
                     cursor.consume(&relative_word)?;
                     let relative = recognize_object_query_with_cardinality_policy(
                         cursor,
-                        comma_terminates,
                         QueryRelationKind::Control,
-                        condition_connector_terminates,
-                        effect_connector_terminates,
                         cardinality_policy,
                         query_source_available,
                         true,
@@ -714,31 +625,72 @@ fn recognize_object_query_with_cardinality_policy(
     }
 }
 
+/// Whether a comma at the cursor continues the object list: another object
+/// phrase follows, possibly after `or`/`and/or`. Pure lookahead.
+fn comma_continues_object_list(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut lookahead = cursor.clone();
+    if lookahead.consume(",").is_err() {
+        return false;
+    }
+    if let Some(connector) = lookahead.peek().map(str::to_string)
+        && (connector.eq_ignore_ascii_case("or") || connector.eq_ignore_ascii_case("and/or"))
+        && lookahead.consume(&connector).is_err()
+    {
+        return false;
+    }
+    coordinated_object_selector_phrase_starts(&lookahead)
+}
+
+/// Ends the coordination phase. An unclosed comma run is kept only when it
+/// lists negative modifiers of one following head (`nonartifact, nonblack
+/// creature`); any other run gives its commas back to the parent.
+fn settle_comma_run(cursor: &mut OracleTokenCursor<'_>, frame: &mut ObjectQueryFrame) {
+    let Some((checkpoint, snapshot)) = frame.comma_run.take() else {
+        return;
+    };
+    let run_start = snapshot.union_branches.len().saturating_sub(1);
+    let modifiers_only = frame.union_branches.len() > run_start + 1
+        && frame.union_branches[run_start..frame.union_branches.len() - 1]
+            .iter()
+            .all(negative_modifier);
+    if !modifiers_only {
+        cursor.rollback(checkpoint);
+        *frame = *snapshot;
+    }
+}
+
+fn negative_modifier(predicate: &SelectorPredicate) -> bool {
+    match predicate {
+        // `nonattacking, nonblocking creature`: negated statuses too.
+        SelectorPredicate::Not(operand)
+            if matches!(operand.as_ref(), SelectorPredicate::Status(_)) =>
+        {
+            true
+        }
+        SelectorPredicate::Not(operand) => matches!(
+            operand.as_ref(),
+            SelectorPredicate::CardType(_)
+                | SelectorPredicate::Color(_)
+                | SelectorPredicate::ColorQuantity(_)
+                | SelectorPredicate::Supertype(_)
+                | SelectorPredicate::Subtype(_)
+                | SelectorPredicate::CharacteristicBatch(_)
+                | SelectorPredicate::IsToken
+                | SelectorPredicate::IsCommander
+        ),
+        SelectorPredicate::Intersection(operands) => {
+            !operands.is_empty() && operands.iter().all(negative_modifier)
+        }
+        _ => false,
+    }
+}
+
 /// Commas between negative adjectives constrain one following nominal head.
 /// Explicit `or`/`and/or` remain unions; a list without a positive head remains
 /// unresolved here and is rejected by the caller's existing domain validation.
 fn compose_comma_separated_negative_modifiers(branches: &mut Vec<SelectorPredicate>) {
     if branches.len() < 2 {
         return;
-    }
-    fn negative_modifier(predicate: &SelectorPredicate) -> bool {
-        match predicate {
-            SelectorPredicate::Not(operand) => matches!(
-                operand.as_ref(),
-                SelectorPredicate::CardType(_)
-                    | SelectorPredicate::Color(_)
-                    | SelectorPredicate::ColorQuantity(_)
-                    | SelectorPredicate::Supertype(_)
-                    | SelectorPredicate::Subtype(_)
-                    | SelectorPredicate::CharacteristicBatch(_)
-                    | SelectorPredicate::IsToken
-                    | SelectorPredicate::IsCommander
-            ),
-            SelectorPredicate::Intersection(operands) => {
-                !operands.is_empty() && operands.iter().all(negative_modifier)
-            }
-            _ => false,
-        }
     }
     let (last, preceding) = branches.split_last().expect("multiple branches");
     if !preceding.iter().all(negative_modifier) {
@@ -2183,6 +2135,10 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
         };
     }
 }
+
+#[cfg(test)]
+#[path = "selector_transactional_coordinator_tests.rs"]
+mod transactional_coordinator_tests;
 
 #[cfg(test)]
 #[path = "selector_negative_modifier_tests.rs"]

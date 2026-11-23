@@ -149,7 +149,7 @@ fn collection_preserves_earlier_local_qualifiers_and_shared_numeric_tail() {
 fn terminal_controller_and_parent_comma_are_preserved() {
     let tokens = recognize_entities("artifact or creature with flying you control, draw");
     let mut cursor = OracleTokenCursor::new("selector-qualifier-scope", &tokens);
-    let query = recognize_object_query_before_separator(&mut cursor).unwrap();
+    let query = recognize_object_query(&mut cursor).unwrap();
     assert_eq!(
         query.controller,
         Some(ObjectControllerScope::AbilityController)

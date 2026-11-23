@@ -68,7 +68,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
             } else {
                 recognize_numeric_expression(&mut trial, None)?
             };
-            let query = recognize_object_query_before_separator(&mut trial)?;
+            let query = recognize_object_query(&mut trial)?;
             trial.require(
                 query.controller.is_none()
                     && query.predicate.has_domain(ObjectKind::Card)
@@ -80,7 +80,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
             Some(query.predicate)
         } else if explicit_cards {
             trial.consume("all")?;
-            let query = recognize_object_query_before_separator(&mut trial)?;
+            let query = recognize_object_query(&mut trial)?;
             trial.require(
                 query.controller.is_none()
                     && query.predicate.has_domain(ObjectKind::Card)

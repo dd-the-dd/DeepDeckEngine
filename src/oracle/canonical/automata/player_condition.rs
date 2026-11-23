@@ -13,9 +13,8 @@
 //! parent recombines a subject with a measure on its own.
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    ObjectKind, ObjectPredicate, recognize_counter_name,
-    recognize_object_query_before_condition_connector, recognize_search_card_selector,
-    recognize_spell_cast_query_before_separator,
+    ObjectKind, ObjectPredicate, recognize_counter_name, recognize_object_query,
+    recognize_search_card_selector, recognize_spell_cast_query,
 };
 use crate::oracle::counter_name::CounterName;
 
@@ -338,7 +337,7 @@ fn recognize_controlled_permanents_proposition(
     cursor.enter("condition.player.controls.amount");
     let threshold = recognize_count_threshold(cursor, true)?;
     cursor.enter("condition.player.controls.query");
-    let query = recognize_object_query_before_condition_connector(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none(),
         "a permanent query without its own controller relation",
@@ -362,7 +361,7 @@ fn recognize_spells_cast_proposition(
     cursor.enter("condition.player.cast.amount");
     let threshold = recognize_count_threshold(cursor, true)?;
     cursor.enter("condition.player.cast.query");
-    let query = recognize_spell_cast_query_before_separator(cursor)?;
+    let query = recognize_spell_cast_query(cursor)?;
     cursor.require(
         query.caster.is_none(),
         "one caster relation, supplied by the condition's player subject",

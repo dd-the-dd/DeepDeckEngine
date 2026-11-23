@@ -33,9 +33,8 @@ use super::{
     EventNumericBinding, NumericExpression, ObjectControllerScope, ObjectKind, ObjectPredicate,
     VerbAgreement, Voice, event_quantity_scale_starts, recognize_clause,
     recognize_event_quantity_expression, recognize_literal_quantity, recognize_object_query,
-    recognize_object_query_before_condition_connector, recognize_optional_source_exclusion,
-    recognize_source_reference, recognize_supplied_damage_clause, source_reference_starts_at,
-    supplied_damage_frame,
+    recognize_optional_source_exclusion, recognize_source_reference,
+    recognize_supplied_damage_clause, source_reference_starts_at, supplied_damage_frame,
 };
 
 /// The source of the damage event. A query keeps its shared predicate (absent
@@ -462,7 +461,7 @@ fn recognize_damage_recipient(
         return Ok(DamageEventRecipient::Player(player));
     }
     cursor.enter("replacement.damage-recipient.permanent");
-    let query = recognize_object_query_before_condition_connector(cursor)?;
+    let query = recognize_object_query(cursor)?;
     // Only permanents and players are dealt damage (CR 120.1), so the event
     // supplies the permanent domain to a nominal head such as `a Hero`.
     cursor.require(

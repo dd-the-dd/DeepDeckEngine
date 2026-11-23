@@ -12,10 +12,10 @@ use super::{
     TargetPlayerLifeAction, clause_starts, collective_opponents_condition_starts,
     quantified_player_condition_starts, recognize_boolean_condition_list_before_separator,
     recognize_clause, recognize_collective_opponents_condition,
-    recognize_controller_turn_proposition, recognize_numeric_atom,
-    recognize_object_query_before_condition_connector, recognize_player_possession_proposition,
-    recognize_quantified_player_condition, recognize_search_card_selector,
-    recognize_source_reference, recognize_trigger_guard_atom, source_reference_starts_at,
+    recognize_controller_turn_proposition, recognize_numeric_atom, recognize_object_query,
+    recognize_player_possession_proposition, recognize_quantified_player_condition,
+    recognize_search_card_selector, recognize_source_reference, recognize_trigger_guard_atom,
+    source_reference_starts_at,
 };
 use super::{ClauseArguments, VerbForm, VerbLemma, Voice, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
@@ -548,7 +548,7 @@ fn recognize_opponent_count_comparison_atom(
     let direction = if more { "more" } else { "fewer" };
     cursor.consume(direction)?;
     cursor.enter("condition.static.count-comparison.query");
-    let query = recognize_object_query_before_condition_connector(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none(),
         "a permanent query without its own controller relation",
@@ -689,7 +689,7 @@ fn recognize_permanents_died_atom(
         "an `or more` this-turn death count",
     )?;
     cursor.enter("condition.static.died.subject");
-    let query = recognize_object_query_before_condition_connector(cursor)?;
+    let query = recognize_object_query(cursor)?;
     cursor.require(
         query.controller.is_none(),
         "a death count without a controller relation",

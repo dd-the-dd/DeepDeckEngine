@@ -113,15 +113,14 @@ fn object_target_domain_is_owned_by_selector_not_repeated_in_each_characteristic
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("permanent-subject-domain-negative", &tokens);
-        assert!(
-            recognize_contextual_permanent_operand(
-                &mut cursor,
-                &[],
-                None,
-                &EffectRecognitionContext::default()
-            )
-            .is_err(),
-            "{text}"
+        // Either the operand refuses, or it leaves `or player` unread for a
+        // parent that has no player branch here.
+        let operand = recognize_contextual_permanent_operand(
+            &mut cursor,
+            &[],
+            None,
+            &EffectRecognitionContext::default(),
         );
+        assert!(operand.is_err() || cursor.finish().is_err(), "{text}");
     }
 }
