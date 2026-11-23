@@ -180,7 +180,7 @@ impl GameEngine {
                         let ability = effect["ability"].clone();
                         self.state.players[player_index].battlefield[card_index]
                             .definition
-                            .rules
+                            .printed_rules_mut()
                             .push(ability.clone());
                         self.record_event(
                             "abilityGranted",

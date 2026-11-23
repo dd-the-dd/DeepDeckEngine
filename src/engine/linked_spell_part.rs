@@ -18,8 +18,8 @@ pub(super) fn linked_spell_part_supported(spell: &Value, required_subtype: Optio
     (is_instant(&spell) || is_sorcery(&spell))
         && required_subtype.is_none_or(|subtype| type_line_contains(&spell.type_line, subtype))
         && spell
-            .rules
+            .printed_rules()
             .iter()
             .any(|rule| value_kind(rule) == Some("spellAbility"))
-        && spell.rules.iter().all(rule_supported)
+        && spell.printed_rules().iter().all(rule_supported)
 }

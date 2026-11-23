@@ -143,9 +143,8 @@ impl GameEngine {
             })
             .unwrap_or_else(|| resolved.card.clone());
         for (object_id, detail) in acted_on {
-            let triggers = source
-                .definition
-                .rules
+            let triggers = self
+                .effective_rules(&source)
                 .iter()
                 .filter(|rule| triggered_rule_supported(rule))
                 .filter(|rule| {

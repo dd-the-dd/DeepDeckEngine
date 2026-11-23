@@ -270,7 +270,7 @@ impl GameEngine {
             if source.flags.get("phasedOut").copied().unwrap_or(false) {
                 continue;
             }
-            for rule in &source.definition.rules {
+            for rule in source.definition.printed_rules() {
                 if !Self::rule_metadata_active_for_source(source, rule) {
                     continue;
                 }

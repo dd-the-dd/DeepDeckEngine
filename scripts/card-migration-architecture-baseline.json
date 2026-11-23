@@ -185,7 +185,17 @@
     "reanimateTargetCard",
     "returnAttackingCreaturesToOwnersHands",
     "returnRecentGraveyardCards",
-    "shuffleGraveyardIntoLibrary"
+    "shuffleGraveyardIntoLibrary",
+    "exchangeLifeWithSourcePower",
+    "countCardsExiledWithSource",
+    "nextSpellCantBeCountered",
+    "elementalRevealLandEntry",
+    "sacrificeLandsOrReplaceWithGraveyard",
+    "firstActivatedAbilityAlternativeCost",
+    "preventPlayersGainLife",
+    "preventOpponentsGainLife",
+    "attackMostLifeOpponentUnlessControlNamed",
+    "cantAttackUnlessControls"
   ],
   "policy": "No opaque Oracle resolver, card-specific operation or retired composite is permitted. Historical implementation: archive/legacy-oracle-2026-11-13."
 }

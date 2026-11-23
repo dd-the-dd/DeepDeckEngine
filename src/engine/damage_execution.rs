@@ -288,9 +288,8 @@ impl GameEngine {
                             ),
                         ]);
                         for ability_source in trigger_sources {
-                            let rules = ability_source
-                                .definition
-                                .rules
+                            let rules = self
+                                .effective_rules(&ability_source)
                                 .iter()
                                 .filter(|rule| {
                                     triggered_rule_supported(rule)
@@ -328,9 +327,8 @@ impl GameEngine {
                     {
                         let damaged =
                             self.state.players[damaged_player].battlefield[damaged_index].clone();
-                        let rules = damaged
-                            .definition
-                            .rules
+                        let rules = self
+                            .effective_rules(&damaged)
                             .iter()
                             .filter(|rule| {
                                 triggered_rule_supported(rule)

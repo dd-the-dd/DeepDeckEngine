@@ -782,12 +782,16 @@ impl GameEngine {
         let spell_abilities = moved
             .card
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| value_kind(rule) == Some("spellAbility"))
             .collect::<Vec<_>>();
         if spell_abilities.is_empty() {
-            moved.card.definition.rules.push(execution.rule.clone());
+            moved
+                .card
+                .definition
+                .printed_rules_mut()
+                .push(execution.rule.clone());
         } else if !spell_abilities.contains(&&execution.rule) {
             return Err(EngineError::new(format!(
                 "spell source {source_instance_id} declares spell abilities and the rule is not one of them"

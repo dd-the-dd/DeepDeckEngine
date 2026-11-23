@@ -170,7 +170,7 @@ impl<'a> PlayerQueryContext<'a> {
                             source
                                 .card
                                 .definition
-                                .rules
+                                .printed_rules()
                                 .iter()
                                 .filter(|r| value_kind(r) == Some("spellAbility"))
                                 .collect::<Vec<_>>()

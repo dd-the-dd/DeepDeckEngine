@@ -140,3 +140,45 @@ fn executes_gain_and_loss_against_resolved_players() {
             .expect("unowned effects are declined")
     );
 }
+
+fn prohibition_rule(players: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({"kind":"staticAbility","source":{"kind":"self"},
+        "activeWhile":{"kind":"inZone","object":{"kind":"self"},"zone":{"kind":"battlefield"}},
+        "modifiers":[{"kind":"prohibitPlayerAction","players":players,"action":"gainLife"}]})
+}
+
+#[test]
+fn life_gain_prohibition_is_one_player_set_primitive() {
+    use super::{prohibited_player_action_supported, prohibited_player_set_supported};
+    let opponents = serde_json::json!({"kind":"opponentsOf","player":{"kind":"abilityController"}});
+    assert!(prohibited_player_set_supported(&opponents));
+    assert!(prohibited_player_set_supported(
+        &serde_json::json!({"kind":"eachPlayer"})
+    ));
+    // Near miss: a targeted player is not a static player set.
+    assert!(!prohibited_player_set_supported(
+        &serde_json::json!({"kind":"targetPlayer","targetId":"player"})
+    ));
+    assert!(prohibited_player_action_supported(&serde_json::json!(
+        "gainLife"
+    )));
+    assert!(!prohibited_player_action_supported(&serde_json::json!(
+        "loseLife"
+    )));
+
+    let mut engine = engine();
+    let mut source = definition("prohibitor", "Enchantment");
+    source.rules = vec![prohibition_rule(opponents)];
+    engine.state.players[0]
+        .battlefield
+        .push(card_instance("player-0", &source, 500));
+    engine.admit_explicit_test_fixture_objects().unwrap();
+    assert!(engine.player_action_prohibited("player-1", "gainLife"));
+    assert!(!engine.player_action_prohibited("player-0", "gainLife"));
+    assert!(
+        engine
+            .prepare_life_gain("player-1", 3)
+            .expect("prepared gain")
+            .is_some_and(|plan| plan.prevented)
+    );
+}

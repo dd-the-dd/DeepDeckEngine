@@ -316,3 +316,41 @@ fn selected_alternative_cost_receives_static_tax() {
     assert!(costs.iter().any(|cost| cost == "{1}"));
     assert!(costs.iter().all(|cost| !cost.contains("{U}")));
 }
+
+#[test]
+fn casting_mode_is_one_typed_value_for_zone_base_and_follow_ups() {
+    use super::{CastingBase, CastingFollowUp, CastingMode};
+    let printed = CastingMode::of(&BTreeMap::new());
+    assert_eq!(printed.from_zone, "hand");
+    assert_eq!(printed.base, CastingBase::Printed);
+    assert!(printed.uses_ordinary_base());
+    assert!(printed.follow_ups.is_empty());
+
+    let alternative = CastingMode::of(&BTreeMap::from([
+        ("useAlternativeCost".to_string(), Value::Bool(true)),
+        ("alternativeCostMode".to_string(), json!("evoke")),
+        ("kicked".to_string(), Value::Bool(true)),
+        ("castSourceZone".to_string(), json!("graveyard")),
+    ]));
+    assert_eq!(alternative.base, CastingBase::Waived);
+    assert_eq!(alternative.from_zone, "graveyard");
+    assert!(!alternative.uses_ordinary_base());
+    assert_eq!(
+        alternative.follow_ups,
+        vec![
+            CastingFollowUp::MarkAlternativeCost("evoke".to_string()),
+            CastingFollowUp::MarkKicked,
+        ]
+    );
+    assert_eq!(
+        alternative.follow_up_flags().collect::<Vec<_>>(),
+        vec![
+            "castWithAlternativeCost:evoke".to_string(),
+            "kicked".to_string()
+        ]
+    );
+
+    let room = CastingMode::of(&BTreeMap::from([("roomDoor".to_string(), json!(1))]));
+    assert_eq!(room.base, CastingBase::Room(1));
+    assert!(room.uses_ordinary_base());
+}

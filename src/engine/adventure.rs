@@ -26,7 +26,7 @@ pub(super) const CASTING_AS_ADVENTURE_FLAG: &str = "castingAsAdventure";
 const ADVENTURE_PERMISSION: &str = "adventureCastPermission";
 
 fn linked_adventure(card: &CardDefinition) -> Option<&Value> {
-    card.rules
+    card.printed_rules()
         .iter()
         .find(|rule| value_kind(rule) == Some("adventureSpell"))
         .map(|rule| &rule["spell"])
@@ -52,18 +52,20 @@ pub(super) fn adventure_spell_definition(card: &CardDefinition) -> Option<CardDe
     definition.mana_cost = spell["manaCost"].as_str()?.to_string();
     definition.power = None;
     definition.toughness = None;
-    definition.rules = spell["rules"]
-        .as_array()?
-        .iter()
-        .cloned()
-        .map(|mut rule| {
-            if value_kind(&rule) == Some("spellAbility") {
-                rule["exileAfterResolution"] = Value::Bool(true);
-                rule["adventureAfterResolution"] = Value::Bool(true);
-            }
-            rule
-        })
-        .collect();
+    definition.set_printed_rules(
+        spell["rules"]
+            .as_array()?
+            .iter()
+            .cloned()
+            .map(|mut rule| {
+                if value_kind(&rule) == Some("spellAbility") {
+                    rule["exileAfterResolution"] = Value::Bool(true);
+                    rule["adventureAfterResolution"] = Value::Bool(true);
+                }
+                rule
+            })
+            .collect(),
+    );
     Some(definition)
 }
 

@@ -14,7 +14,7 @@ use super::*;
 /// effect that exiled it with time counters (the `suspended` designation).
 pub(super) fn card_has_suspend(card: &CardInstance) -> bool {
     card.flags.get("suspended").copied().unwrap_or(false)
-        || card.definition.rules.iter().any(|rule| {
+        || card.definition.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("keywordAbility")
                 && suspend_ability_supported(&rule["ability"])
         })
@@ -166,7 +166,7 @@ impl GameEngine {
     ) {
         let rules = source
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .cloned()
             .chain(keyword_triggered_rules(source))

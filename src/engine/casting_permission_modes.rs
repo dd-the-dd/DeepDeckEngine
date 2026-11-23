@@ -1,5 +1,5 @@
 //! Route selection precedes route-specific costs and source quota attribution.
-use super::casting_cost::{SelectedCastingBasePolicy, selected_casting_base_policy};
+use super::casting_cost::CastingMode;
 use super::*;
 
 /// The route that admits a card for casting or playing (see
@@ -37,10 +37,7 @@ pub(super) fn casting_permission_life_cost(permission: &Value, casting: &CardDef
 }
 
 fn ordinary_base(decisions: &BTreeMap<String, Value>) -> bool {
-    matches!(
-        selected_casting_base_policy(decisions),
-        SelectedCastingBasePolicy::Printed | SelectedCastingBasePolicy::Room(_)
-    )
+    CastingMode::of(decisions).uses_ordinary_base()
 }
 impl GameEngine {
     /// The one scope check for a permission that names a card: whether it

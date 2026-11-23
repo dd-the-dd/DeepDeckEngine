@@ -29,7 +29,7 @@ impl ManaProgramOrigin {
     }
     pub(super) fn program<'a>(&'a self, holder: &'a CardInstance) -> Option<&'a Value> {
         match self {
-            Self::Native { rule_index } => holder.definition.rules.get(*rule_index),
+            Self::Native { rule_index } => holder.definition.printed_rules().get(*rule_index),
             Self::Granted { program, .. } => Some(program),
         }
     }
@@ -85,7 +85,7 @@ impl ManaChoice {
 pub(super) fn native_mana_programs(holder: &CardInstance) -> Vec<AdmittedManaProgram> {
     holder
         .definition
-        .rules
+        .printed_rules()
         .iter()
         .enumerate()
         .filter(|(_, rule)| mana_rule_supported(rule))

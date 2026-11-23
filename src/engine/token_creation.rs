@@ -169,7 +169,7 @@ impl GameEngine {
             .or_else(|| {
                 catalog_definition
                     .as_ref()
-                    .map(|definition| definition.rules.clone())
+                    .map(|definition| definition.printed_rules().to_vec())
             })
             .unwrap_or_default();
         let color_indicator = token["colors"]
@@ -398,7 +398,7 @@ impl GameEngine {
             .flatten()
             .filter_map(Value::as_str)
         {
-            definition.rules.push(json!({
+            definition.printed_rules_mut().push(json!({
                 "kind": "keywordAbility",
                 "source": { "kind": "self" },
                 "ability": { "kind": keyword },
@@ -534,7 +534,7 @@ impl GameEngine {
             .filter_map(color_name_to_symbol)
             .collect::<Vec<_>>();
         if !color_symbols.is_empty() {
-            definition.rules.push(json!({
+            definition.printed_rules_mut().push(json!({
                 "kind": "rulesMarker",
                 "text": format!("Color indicator: {}.", color_symbols.join(", ")),
                 "colorIndicator": color_symbols,
@@ -546,14 +546,14 @@ impl GameEngine {
             .flatten()
             .filter_map(Value::as_str)
         {
-            definition.rules.push(json!({
+            definition.printed_rules_mut().push(json!({
                 "kind": "keywordAbility",
                 "source": { "kind": "self" },
                 "ability": { "kind": keyword },
             }));
         }
         if effect["diesDrawCard"].as_bool().unwrap_or(false) {
-            definition.rules.push(json!({
+            definition.printed_rules_mut().push(json!({
                 "kind": "triggeredAbility",
                 "source": { "kind": "self" },
                 "event": {
@@ -596,7 +596,7 @@ impl GameEngine {
                 attached_to: None,
             };
             if type_line_contains(&token.definition.type_line, "Aura") {
-                let enchant_filter = token.definition.rules.iter().find_map(|rule| {
+                let enchant_filter = token.definition.printed_rules().iter().find_map(|rule| {
                     (value_kind(rule) == Some("keywordAbility")
                         && value_kind(&rule["ability"]) == Some("enchant"))
                     .then(|| rule["ability"]["where"].clone())

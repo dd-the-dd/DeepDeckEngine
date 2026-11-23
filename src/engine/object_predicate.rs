@@ -179,7 +179,7 @@ pub(super) fn matches_object_atom(view: DefinitionView<'_>, predicate: &Value) -
             power.saturating_add(toughness) <= maximum
         }
         Some("hasActivatedAbility") => card
-            .rules
+            .printed_rules()
             .iter()
             .any(|rule| value_kind(rule) == Some("activatedAbility")),
         Some("hasKeyword") => predicate["value"]

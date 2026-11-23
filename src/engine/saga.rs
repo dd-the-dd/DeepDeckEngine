@@ -19,7 +19,7 @@ pub(super) enum SagaChapterPolicy {
 pub(super) fn saga_final_chapter(source: &CardDefinition) -> Option<i32> {
     type_line_contains(&source.type_line, "Saga").then_some(())?;
     source
-        .rules
+        .printed_rules()
         .iter()
         .filter(|candidate| value_kind(&candidate["event"]) == Some("sagaChapterReached"))
         .flat_map(|candidate| {
@@ -165,7 +165,7 @@ impl GameEngine {
         }
         let rules = source
             .definition
-            .rules
+            .printed_rules()
             .iter()
             .filter(|rule| {
                 triggered_rule_supported(rule)

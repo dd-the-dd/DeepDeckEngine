@@ -21,7 +21,6 @@ mod hand;
 mod keyword_modification;
 mod library;
 mod library_observation;
-mod life;
 mod linked_exile;
 mod mana;
 mod movement;
@@ -66,7 +65,6 @@ enum Domain {
     CostTransactions,
     ReflexiveCostTransactions,
 
-    Life,
     Choices,
     Library,
     LibraryObservation,
@@ -108,7 +106,6 @@ fn domain(effect: &Value) -> Option<Domain> {
         Some("optionalPayCostPerformEffects" | "tryPayCost") => Some(Domain::CostTransactions),
         Some("optionalPayCostCreateReflexiveTrigger") => Some(Domain::ReflexiveCostTransactions),
 
-        Some("exchangeLifeWithSourcePower") => Some(Domain::Life),
         Some(
             "choosePlayers" | "chooseNumber" | "chooseCardName" | "chooseCreatureType"
             | "choosePermanents" | "chooseCards" | "chooseOrder",
@@ -340,7 +337,6 @@ pub(super) fn effect_domain_supported(effect: &Value) -> Option<bool> {
         Domain::CostTransactions => cost_transactions::supports_effect(effect),
         Domain::ReflexiveCostTransactions => reflexive_cost_transactions::supports_effect(effect),
 
-        Domain::Life => life::supports_effect(effect),
         Domain::Choices => choices::supports_effect(effect),
         Domain::Library => library::supports_effect(effect),
         Domain::LibraryObservation => library_observation::supports_effect(effect),
@@ -419,14 +415,6 @@ impl GameEngine {
                 provider,
             ),
 
-            Domain::Life => self.execute_life_domain(
-                effect,
-                next_effect,
-                stack_object,
-                bindings,
-                decisions,
-                provider,
-            ),
             Domain::Choices => self.execute_choices_domain(
                 effect,
                 next_effect,

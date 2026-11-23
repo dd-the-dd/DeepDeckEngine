@@ -11,14 +11,13 @@
 //! is asked. Prevention programs do not apply to damage that can't be
 //! prevented (CR 615.12). No Oracle text is interpreted here.
 use serde::Deserialize;
-use serde_json::{Value, json};
-use std::collections::BTreeMap;
+use serde_json::Value;
 
 use super::quantity_replacement::{OptionalQuantityProvider, QuantityExpression};
+use super::replacement_pipeline::ReplacementChoiceOption;
 use super::{
-    ActionKind, CardInstance, DecisionKind, EngineDecisionRequest, EngineError, GameEngine,
-    LegalAction, TargetRef, card_filter_supported, matches_card_filter, permanent_filter_supported,
-    value_kind,
+    CardInstance, EngineError, GameEngine, TargetRef, card_filter_supported, matches_card_filter,
+    permanent_filter_supported, value_kind,
 };
 
 /// Bounded order analysis: beyond this many simultaneous programs an order
@@ -468,46 +467,29 @@ impl GameEngine {
                 ));
             }
         };
-        let request = EngineDecisionRequest {
-            id: format!(
-                "damage-replacement:{}:{}:{}",
-                self.state.turn_number,
-                self.state.events.len(),
-                outcome.applied.len()
-            ),
-            kind: DecisionKind::ReplacementChoice,
-            player_id: player.clone(),
-            source_card: None,
-            source_card_instance_id: None,
-            choice: None,
-            options: applicable
-                .iter()
-                .map(|index| {
-                    let program = &programs[*index];
-                    LegalAction {
-                        id: program.id.clone(),
-                        kind: ActionKind::ChooseResolution,
-                        player_id: player.clone(),
-                        label: format!("Apply {}", program.source.definition.name),
-                        card_instance_id: Some(program.source.instance_id.clone()),
-                        payment_sources: Vec::new(),
-                        decisions: BTreeMap::from([(
-                            "damageReplacementId".to_string(),
-                            json!(program.id),
-                        )]),
-                        targets: BTreeMap::new(),
-                        target_order: Vec::new(),
-                        attacker_id: None,
-                        blocker_id: None,
-                    }
-                })
-                .collect(),
-        };
-        let choice = self.choose_action(provider, request)?;
+        let options = applicable
+            .iter()
+            .map(|index| {
+                let program = &programs[*index];
+                ReplacementChoiceOption {
+                    id: &program.id,
+                    source_id: &program.source.instance_id,
+                    source_name: &program.source.definition.name,
+                }
+            })
+            .collect::<Vec<_>>();
+        let chosen = self.choose_replacement(
+            &player,
+            "damage-replacement",
+            "damageReplacementId",
+            outcome.applied.len(),
+            &options,
+            provider,
+        )?;
         applicable
             .iter()
             .copied()
-            .find(|index| programs[*index].id == choice.id)
+            .find(|index| programs[*index].id == chosen)
             .ok_or_else(|| EngineError::new("damage replacement choice has no matching program"))
     }
 }

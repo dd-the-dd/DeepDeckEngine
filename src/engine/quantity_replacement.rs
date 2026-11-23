@@ -5,14 +5,13 @@
 //! eventually creates tokens or places counters. No Oracle text is interpreted.
 
 use serde::Deserialize;
-use serde_json::{Value, json};
-use std::collections::{BTreeMap, BTreeSet};
+use serde_json::Value;
 
 use super::numeric_evaluation::{IntegerRounding, checked_integer_arithmetic};
+use super::replacement_pipeline::{ReplacementOrder, ReplacementProposal};
 use super::{
-    ActionKind, CardDefinition, CardInstance, DecisionKind, DecisionProvider,
-    EngineDecisionRequest, EngineError, GameEngine, LegalAction, card_filter_supported,
-    matches_card_filter, permanent_filter_supported, value_kind,
+    CardDefinition, CardInstance, DecisionProvider, EngineDecisionRequest, EngineError, GameEngine,
+    card_filter_supported, matches_card_filter, permanent_filter_supported, value_kind,
 };
 
 /// Private engine checkpoint scope. It is neither game state nor Oracle IR.
@@ -246,7 +245,6 @@ pub(super) fn quantity_modifier_supported(modifier: &Value) -> Option<bool> {
 }
 
 struct ApplicableProgram {
-    id: String,
     source: CardInstance,
     program: Program,
 }
@@ -480,7 +478,8 @@ impl GameEngine {
         event: QuantityEvent<'_>,
         provider: &mut P,
     ) -> Result<QuantityResolution, EngineError> {
-        let programs = self
+        // Propose -> match -> order -> apply (replacement_pipeline.rs).
+        let proposals = self
             .battlefield_static_modifiers()
             .into_iter()
             .enumerate()
@@ -489,98 +488,54 @@ impl GameEngine {
                     return None;
                 }
                 let program = parse_program(&modifier)?;
-                Some(ApplicableProgram {
+                Some(ReplacementProposal {
                     id: format!("{}:quantity:{ordinal}", source.instance_id),
-                    source,
-                    program,
+                    source_id: source.instance_id.clone(),
+                    source_name: source.definition.name.clone(),
+                    program: ApplicableProgram { source, program },
                 })
             })
             .collect::<Vec<_>>();
-        let mut used = BTreeSet::new();
         let mut resolution = QuantityResolution {
             amount: event.amount,
             original_origin: event.origin,
             effective_origin: event.origin,
             applied: Vec::new(),
         };
-        while resolution.amount > 0 {
-            let applicable = programs
-                .iter()
-                .enumerate()
-                .filter(|(index, program)| {
-                    !used.contains(index)
-                        && self.quantity_program_matches(
-                            program,
-                            event,
-                            resolution.amount,
-                            resolution.effective_origin,
-                        )
-                })
-                .map(|(index, _)| index)
-                .collect::<Vec<_>>();
-            if applicable.is_empty() {
-                break;
-            }
-            let index = if applicable.len() == 1 {
-                applicable[0]
-            } else {
-                let player = event.recipient.controller().to_string();
-                let request = EngineDecisionRequest {
-                    id: format!(
-                        "quantity-replacement:{}:{}:{}",
-                        self.state.turn_number,
-                        self.state.events.len(),
-                        resolution.applied.len()
-                    ),
-                    kind: DecisionKind::ReplacementChoice,
-                    player_id: player.clone(),
-                    source_card: None,
-                    source_card_instance_id: None,
-                    choice: None,
-                    options: applicable
-                        .iter()
-                        .map(|index| {
-                            let replacement = &programs[*index];
-                            LegalAction {
-                                id: replacement.id.clone(),
-                                kind: ActionKind::ChooseResolution,
-                                player_id: player.clone(),
-                                label: format!("Apply {}", replacement.source.definition.name),
-                                card_instance_id: Some(replacement.source.instance_id.clone()),
-                                payment_sources: Vec::new(),
-                                decisions: BTreeMap::from([(
-                                    "quantityReplacementId".to_string(),
-                                    json!(replacement.id),
-                                )]),
-                                targets: BTreeMap::new(),
-                                target_order: Vec::new(),
-                                attacker_id: None,
-                                blocker_id: None,
-                            }
-                        })
-                        .collect(),
-                };
-                let choice = self.choose_action(provider, request)?;
-                applicable
-                    .into_iter()
-                    .find(|index| programs[*index].id == choice.id)
-                    .ok_or_else(|| {
-                        EngineError::new("quantity replacement choice has no matching program")
-                    })?
-            };
-            let replacement = &programs[index];
-            resolution.amount = replacement
-                .program
-                .quantity
-                .evaluate(resolution.amount)?
-                .max(0);
-            // CR614.16/616.2: once a replacement creates the modified token or
-            // counter event, an effect-only replacement may newly apply even
-            // when the original event was a cost or a turn-based action.
-            resolution.effective_origin = QuantityOrigin::Effect;
-            used.insert(index);
-            resolution.applied.push(replacement.id.clone());
-        }
+        let chooser = event.recipient.controller().to_string();
+        let applied = self.run_replacement_pipeline(
+            &proposals,
+            &mut resolution,
+            &ReplacementOrder::AffectedChooses {
+                player_id: &chooser,
+                request_prefix: "quantity-replacement",
+                decision_key: "quantityReplacementId",
+            },
+            provider,
+            |proposal, resolution| {
+                resolution.amount > 0
+                    && self.quantity_program_matches(
+                        &proposal.program,
+                        event,
+                        resolution.amount,
+                        resolution.effective_origin,
+                    )
+            },
+            |proposal, resolution| {
+                resolution.amount = proposal
+                    .program
+                    .program
+                    .quantity
+                    .evaluate(resolution.amount)?
+                    .max(0);
+                // CR614.16/616.2: once a replacement creates the modified token or
+                // counter event, an effect-only replacement may newly apply even
+                // when the original event was a cost or a turn-based action.
+                resolution.effective_origin = QuantityOrigin::Effect;
+                Ok(())
+            },
+        )?;
+        resolution.applied = applied;
         Ok(resolution)
     }
 }
