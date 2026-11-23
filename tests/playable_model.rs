@@ -630,3 +630,174 @@ fn playable_card_compilation_links_the_adventure_spell() {
         .expect("the fixture holds Brazen Borrower in hand");
     assert_eq!(card["rules"], serde_json::json!(compilation.card.rules));
 }
+
+/// Feature: A linked spell part (an Adventure, CR 716.2) is cast through its
+/// card; it is never compiled as a playable card of its own.
+#[test]
+fn playable_card_compilation_refuses_a_linked_spell_part_as_the_face() {
+    let error = compile_playable_card(PlayableCardInput {
+        face_id: Some("petty-theft".to_string()),
+        id: "petty-theft".to_string(),
+        is_game_piece: false,
+        is_sideboard: false,
+        is_token: false,
+        oracle: brazen_borrower_request(),
+        power: None,
+        toughness: None,
+    })
+    .expect_err("an Adventure is not a playable face");
+    assert!(error.contains("linked spell part"), "{error}");
+}
+
+fn adventure_face(
+    id: &str,
+    name: &str,
+    type_line: &str,
+    cost: &str,
+    text: &str,
+    power: Option<&str>,
+    toughness: Option<&str>,
+) -> OracleCardFace {
+    OracleCardFace {
+        id: id.to_string(),
+        name: name.to_string(),
+        type_line: type_line.to_string(),
+        mana_cost: Some(cost.to_string()),
+        oracle_text: text.to_string(),
+        power: power.map(str::to_string),
+        toughness: toughness.map(str::to_string),
+        loyalty: None,
+    }
+}
+
+/// Feature: Real adventurer cards (a creature, a sorcery Adventure on a
+/// giant, and a Town land) compile with a linked Adventure, and their runtime
+/// fixtures play exactly these compiled rules.
+#[test]
+fn real_adventurer_cards_match_their_runtime_fixtures() {
+    let cards = [
+        (
+            "murderous-rider",
+            "Murderous Rider // Swift End",
+            "{1}{B}{B} // {1}{B}{B}",
+            adventure_face(
+                "murderous-rider",
+                "Murderous Rider",
+                "Creature \u{2014} Zombie Knight",
+                "{1}{B}{B}",
+                "Lifelink\nWhen this creature dies, put it on the bottom of its owner's library.",
+                Some("2"),
+                Some("3"),
+            ),
+            adventure_face(
+                "swift-end",
+                "Swift End",
+                "Instant \u{2014} Adventure",
+                "{1}{B}{B}",
+                "Destroy target creature or planeswalker. You lose 2 life. (Then exile this card. You may cast the creature later from exile.)",
+                None,
+                None,
+            ),
+        ),
+        (
+            "stormkeld-vanguard",
+            "Stormkeld Vanguard // Bear Down",
+            "{4}{G}{G} // {1}{G}",
+            adventure_face(
+                "stormkeld-vanguard",
+                "Stormkeld Vanguard",
+                "Creature \u{2014} Giant Warrior",
+                "{4}{G}{G}",
+                "This creature can't be blocked by creatures with power 2 or less.",
+                Some("6"),
+                Some("7"),
+            ),
+            adventure_face(
+                "bear-down",
+                "Bear Down",
+                "Sorcery \u{2014} Adventure",
+                "{1}{G}",
+                "Destroy target artifact or enchantment. (Then exile this card. You may cast the creature later from exile.)",
+                None,
+                None,
+            ),
+        ),
+        (
+            "midgar-city-of-mako",
+            "Midgar, City of Mako // Reactor Raid",
+            "{2}{B}",
+            adventure_face(
+                "midgar-city-of-mako",
+                "Midgar, City of Mako",
+                "Land \u{2014} Town",
+                "",
+                "This land enters tapped.\n{T}: Add {B}.",
+                None,
+                None,
+            ),
+            adventure_face(
+                "reactor-raid",
+                "Reactor Raid",
+                "Sorcery \u{2014} Adventure",
+                "{2}{B}",
+                "You may sacrifice an artifact or creature. If you do, draw two cards. (Then exile this card. You may play the land later from exile.)",
+                None,
+                None,
+            ),
+        ),
+    ];
+    for (id, name, cost, primary, spell) in cards {
+        let type_line = format!("{} // {}", primary.type_line, spell.type_line);
+        let (power, toughness) = (primary.power.clone(), primary.toughness.clone());
+        let compilation = compile_playable_card(PlayableCardInput {
+            face_id: Some(id.to_string()),
+            id: id.to_string(),
+            is_game_piece: false,
+            is_sideboard: false,
+            is_token: false,
+            oracle: OracleCardParseRequest {
+                card_name: name.to_string(),
+                faces: vec![primary, spell],
+                layout: Some("adventure".to_string()),
+                mana_cost: Some(cost.to_string()),
+                oracle_text: None,
+                type_line,
+            },
+            power,
+            toughness,
+        })
+        .expect("the adventurer has a playable primary face");
+        assert_eq!(compilation.parser_status, "canonical", "{id}");
+        assert_eq!(compilation.engine_status, "executable", "{id}");
+        assert!(
+            compilation
+                .card
+                .rules
+                .iter()
+                .any(|rule| rule["kind"] == "adventureSpell"),
+            "{id}"
+        );
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
+            "crates/deepdeck-runtime-fixture-runner/fixtures/adventure/{}-end-to-end.json",
+            if id == "midgar-city-of-mako" {
+                "midgar"
+            } else {
+                id
+            }
+        ));
+        let fixture: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(fixture).expect("the fixture"))
+                .expect("the fixture is JSON");
+        let card = fixture["initialState"]["players"][0]["hand"]
+            .as_array()
+            .expect("the pilot has a hand")
+            .iter()
+            .find(|card| card["id"] == id)
+            .expect("the fixture holds the card in hand");
+        assert_eq!(
+            card["rules"],
+            serde_json::json!(compilation.card.rules),
+            "{id}"
+        );
+    }
+}

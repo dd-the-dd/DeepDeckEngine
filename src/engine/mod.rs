@@ -129,6 +129,7 @@ mod library_shuffle;
 mod life;
 mod life_gain_replacement;
 mod linked_exile_return;
+mod linked_spell_part;
 mod mana;
 mod mana_ability_execution;
 mod mana_postcost;
@@ -4768,7 +4769,7 @@ fn spell_rule_supported(rule: &Value) -> bool {
 
 fn prepare_spell_rule_supported(rule: &Value) -> bool {
     value_kind(rule) == Some("prepareSpell")
-        && adventure::linked_spell_part_supported(&rule["spell"], None)
+        && linked_spell_part::linked_spell_part_supported(&rule["spell"], None)
 }
 
 /// Activated abilities normally function on the battlefield. Explicit zone
@@ -18368,15 +18369,17 @@ impl GameEngine {
                 let spend_mana_as_any_type = permission.is_some_and(|permission| {
                     permission["spendManaAsAnyType"].as_bool() == Some(true)
                 });
-                let gwenom_cast = *source_zone == "library"
-                    && self.state.rule_modifiers.iter().any(|modifier| {
-                        value_kind(modifier) == Some("gwenomTopLibraryCasting")
-                            && modifier["playerId"].as_str() == Some(player.id.as_str())
-                            && modifier["expiresAfterTurn"].as_u64()
-                                == Some(u64::from(self.state.turn_number))
-                    });
-                let gwenom_life_cost = gwenom_cast
-                    .then(|| mana_value(&card.definition).max(0))
+                let top_library_window = (*source_zone == "library")
+                    .then(|| self.top_library_casting_window(&player.id))
+                    .flatten();
+                let top_library_cast = top_library_window.is_some();
+                let top_library_life_cost = top_library_window
+                    .map(|window| {
+                        casting_permission_modes::casting_permission_life_cost(
+                            window,
+                            &card.definition,
+                        )
+                    })
                     .unwrap_or(0);
                 let life_cost = self
                     .casting_additional_life_cost(
@@ -18394,7 +18397,7 @@ impl GameEngine {
                             })
                             .unwrap_or(0),
                     )
-                    .saturating_add(gwenom_life_cost);
+                    .saturating_add(top_library_life_cost);
                 if player.life < life_cost {
                     continue;
                 }
@@ -18439,13 +18442,14 @@ impl GameEngine {
                     commander_increases.clone(),
                     targeting_reduction,
                 )?;
-                if gwenom_cast {
+                if top_library_cast {
                     declaration
                         .decisions
                         .insert("withoutPayingManaCost".to_string(), Value::Bool(true));
-                    declaration
-                        .decisions
-                        .insert("gwenomLifeCost".to_string(), Value::from(gwenom_life_cost));
+                    declaration.decisions.insert(
+                        "topLibraryLifeCost".to_string(),
+                        Value::from(top_library_life_cost),
+                    );
                     mana_costs = self.checked_casting_mana_costs_for_base_components(
                         &card.definition,
                         &player.id,

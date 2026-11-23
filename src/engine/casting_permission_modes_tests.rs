@@ -110,6 +110,7 @@ fn stale_static_waiver_is_rejected_before_mutation() {
     assert!(error.to_string().contains("permission is no longer active"));
     assert_eq!(serde_json::to_value(&engine.state).unwrap(), before);
     let request = CanonicalSpellCast {
+        source_zone: None,
         controller_id: "p0".into(),
         source_definition_id: "spell".into(),
         use_alternative_cost: false,

@@ -583,6 +583,7 @@ fn resource_error_without_any_multiplier_rolls_back_public_draw_and_retries_clea
     e.stack_sequence = usize::MAX - 1;
     let before = e.state.clone();
     let request = rule_execution::CanonicalSpellCast {
+        source_zone: None,
         controller_id: "player-0".into(),
         source_definition_id: "zero-instant".into(),
         use_alternative_cost: false,

@@ -79,8 +79,6 @@ impl GameEngine {
                 || self.state.players[self.state.active_player].id == player_id)
             && (permission["whileSourceControlled"].as_bool() != Some(true)
                 || source_controller() == Some(player_id))
-            && (value_kind(permission) != Some("azulaExiledPermission")
-                || source_controller() == Some(player_id))
             && permission["cardInstanceId"]
                 .as_str()
                 .is_none_or(|instance_id| {
@@ -232,12 +230,27 @@ impl GameEngine {
                     && value_kind(modifier) == Some("playCardsFromTopLibrary")
                     && matches_card_filter(definition, &modifier["where"])
             })
-            || self.state.rule_modifiers.iter().any(|modifier| {
-                value_kind(modifier) == Some("gwenomTopLibraryCasting")
-                    && modifier["playerId"].as_str() == Some(player_id)
-                    && modifier["expiresAfterTurn"].as_u64()
-                        == Some(u64::from(self.state.turn_number))
-            })
+            || self.top_library_casting_window(player_id).is_some()
+    }
+
+    /// This turn's window to cast the top card of `player_id`'s library
+    /// (`topLibraryCastingWindow`): typed attributes, not a card-named kind.
+    /// `whileSourceControlled` ends it once its source changes control, and an
+    /// `alternativeLifeCost` is paid instead of the mana cost.
+    pub(super) fn top_library_casting_window(&self, player_id: &str) -> Option<&Value> {
+        self.state.rule_modifiers.iter().find(|modifier| {
+            value_kind(modifier) == Some("topLibraryCastingWindow")
+                && modifier["playerId"].as_str() == Some(player_id)
+                && modifier["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
+                && (modifier["whileSourceControlled"].as_bool() != Some(true)
+                    || modifier["sourceCardInstanceId"]
+                        .as_str()
+                        .and_then(|source_id| self.permanent_position(source_id))
+                        .is_some_and(|(source_player, source_index)| {
+                            self.state.players[source_player].battlefield[source_index].controller
+                                == player_id
+                        }))
+        })
     }
 
     /// A permission bound to one incarnation (`zoneIdentity`) ends when its

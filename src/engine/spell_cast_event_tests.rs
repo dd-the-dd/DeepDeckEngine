@@ -75,6 +75,7 @@ fn cast_and_resolve(engine: &mut GameEngine, caster: usize, index: usize) {
     engine
         .cast_canonical_spell(
             &CanonicalSpellCast {
+                source_zone: None,
                 controller_id: format!("player-{caster}"),
                 source_definition_id: format!("p{caster}-spell-{index}"),
                 use_alternative_cost: false,

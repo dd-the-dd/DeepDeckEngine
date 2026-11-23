@@ -36,29 +36,9 @@ pub(super) fn has_adventure(card: &CardDefinition) -> bool {
     linked_adventure(card).is_some()
 }
 
-/// A linked spell part (`prepareSpell`, `adventureSpell`): one instant or
-/// sorcery, of the required spell subtype if any, with at least one spell
-/// ability, whose every rule the runtime supports.
-pub(super) fn linked_spell_part_supported(spell: &Value, required_subtype: Option<&str>) -> bool {
-    // A missing mana cost is not a free spell.
-    if !spell["manaCost"].is_string() {
-        return false;
-    }
-    let Ok(spell) = serde_json::from_value::<CardDefinition>(spell.clone()) else {
-        return false;
-    };
-    (is_instant(&spell) || is_sorcery(&spell))
-        && required_subtype.is_none_or(|subtype| type_line_contains(&spell.type_line, subtype))
-        && spell
-            .rules
-            .iter()
-            .any(|rule| value_kind(rule) == Some("spellAbility"))
-        && spell.rules.iter().all(rule_supported)
-}
-
 pub(super) fn adventure_spell_rule_supported(rule: &Value) -> bool {
     value_kind(rule) == Some("adventureSpell")
-        && linked_spell_part_supported(&rule["spell"], Some("Adventure"))
+        && linked_spell_part::linked_spell_part_supported(&rule["spell"], Some("Adventure"))
 }
 
 /// The card as its Adventure (CR 716.3b): only the Adventure's name, mana cost,
