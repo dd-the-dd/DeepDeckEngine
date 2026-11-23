@@ -299,6 +299,34 @@ espace de choix est une preuve d'intégration ou de robustesse, même dans `--li
 | Validation approfondie | Avant acceptation de la fonctionnalité | Séquences longues, limites réelles d'exploration, interactions complexes et corpus affectés |
 | Régression principale par set | À la fin de chaque set implémenté | Set entier et tous les sets précédemment validés, préservation des anciens IR, contrats et comportements concernés, couverture et performance |
 
+### Preuve d'exécution des cartes supportées (smoke runtime, gate optionnel)
+
+Une carte « supportée » (canonique et exécutable) peut encore ne rien faire en
+jeu. `runtime_smoke` (`src/engine/tests/runtime_smoke.rs`) est une preuve de
+robustesse hors boucle rapide, exécutée explicitement à la validation
+approfondie et à la régression par set ; sans les variables `SMOKE_*`, le test
+rend la main immédiatement (`SMOKE_FILTER` restreint un diagnostic à quelques
+noms de cartes) :
+
+```text
+SMOKE_INPUT=.tmp/released-vs-main/corpus-input.jsonl SMOKE_PROBE=<sortie du probe de support> SMOKE_OUTPUT=<rapport jsonl> cargo test [--release] -p deepdeck-engine-runtime --lib runtime_smoke -- --nocapture
+```
+
+Pour chaque carte supportée du probe et chaque règle de sort, activée ou
+déclenchée, il construit un plateau synthétique (créatures, artefact,
+enchantement, terrain de chaque côté, cartes en main et au cimetière), prend la
+déclaration qui choisit le plus de cibles (événement synthétique pour un
+déclencheur, X = 2), résout la règle avec des décisions scriptées (première
+option, accepter l'optionnel) et classe le résultat : `error` (erreur ou
+panique), `noChange` (une primitive de premier niveau qui promet un changement
+observable — dégâts, vie, zones, marqueurs, jetons, engagement, F/E — n'a rien
+changé), `wrongCount` (le changement atteint un autre nombre d'objets que les
+cibles déclarées), `uncovered` (non installable : coût d'activation non payé,
+programme conditionnel ou à choix, règle statique ou de remplacement), `pass`.
+`uncovered` n'est jamais compté comme une réussite. Le rapport donne les
+comptes par classe et par primitive d'IR ; une hausse de `error`, `noChange`
+ou `wrongCount` bloque l'acceptation.
+
 La régression principale est pilotée par les cartes réelles, pas par une nouvelle
 suite unitaire compilée à chaque carte. Épingler les mêmes entrées avant/après et
 réutiliser les runners compilés tant que leur code ne change pas. Conserver les
