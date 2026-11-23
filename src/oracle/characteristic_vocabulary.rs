@@ -311,6 +311,16 @@ pub(in crate::oracle) fn lookup_creature_subtype(
         })
 }
 
+/// Whether Oracle prints a plural surface distinct from this creature
+/// subtype's singular (`Elves` for `Elf`). An invariant subtype (`Merfolk`,
+/// `Starfish`) has none, so its bare surface has no known number.
+pub(in crate::oracle) fn creature_subtype_has_distinct_plural(ir_name: &str) -> bool {
+    creature_subtype_vocabulary()
+        .aliases_by_surface
+        .values()
+        .any(|subtype| subtype.ir_name() == ir_name)
+}
+
 /// Matches the longest exact one- or two-token creature subtype. Oracle token
 /// grammars use this instead of joining arbitrary capitalized words.
 pub(in crate::oracle) fn lookup_creature_subtype_tokens(

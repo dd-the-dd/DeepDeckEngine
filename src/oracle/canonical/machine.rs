@@ -68,6 +68,10 @@ pub(super) struct OracleTokenCursor<'a> {
     /// (`binding_environment.rs`). The owning parent installs it for the
     /// child it calls; a child never infers or extends it.
     binding_environment: Option<std::sync::Arc<BindingEnvironment>>,
+    /// A child's deeper failure at the token it handed back: a list that
+    /// stopped at a comma it could not continue. A parent failing at that
+    /// same token reports the child's reason instead of its own shallower one.
+    deferred_failure: Option<(usize, Box<MachineFailure>)>,
     #[cfg(feature = "automata-trace")]
     trace_cursor: Option<CursorTraceHandle>,
 }
@@ -83,6 +87,7 @@ impl Clone for OracleTokenCursor<'_> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            deferred_failure: self.deferred_failure.clone(),
             trace_cursor: automata_trace::new_cursor(
                 self.trace_cursor,
                 self.automaton,
@@ -109,6 +114,7 @@ impl<'a> OracleTokenCursor<'a> {
             }],
             event_numeric_binding: None,
             binding_environment: None,
+            deferred_failure: None,
             #[cfg(feature = "automata-trace")]
             trace_cursor: automata_trace::new_cursor(
                 None,
@@ -163,9 +169,16 @@ impl<'a> OracleTokenCursor<'a> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            deferred_failure: self.deferred_failure.clone(),
             #[cfg(feature = "automata-trace")]
             trace_cursor: None,
         }
+    }
+
+    /// Records a child's failure for the token at the current position: the
+    /// child stopped there and handed the token back to its parent.
+    pub fn defer_failure(&mut self, failure: MachineFailure) {
+        self.deferred_failure = Some((self.position, Box::new(failure)));
     }
 
     /// Moves back to an earlier position of the same tokens (a parent that
@@ -387,6 +400,18 @@ impl<'a> OracleTokenCursor<'a> {
     }
 
     fn failure(&self, expected: &str) -> MachineFailure {
+        // The handed-back token itself, or the word right after it when the
+        // parent consumed that token as its own separator.
+        if let Some((position, deferred)) = &self.deferred_failure
+            && (*position == self.position
+                || (*position + 1 == self.position
+                    && self
+                        .tokens
+                        .get(*position)
+                        .is_some_and(|token| token.raw == ",")))
+        {
+            return (**deferred).clone();
+        }
         let (span_start, span_end) = self
             .peek_token()
             .map(|token| (token.span_start, token.span_end))

@@ -911,8 +911,10 @@ pub(super) enum NumericExpression {
     SacrificedCostObjectProperty(NumericObjectProperty),
     /// The greatest power or toughness among the ability controller's
     /// permanents matching the predicate (zero when there are none).
+    /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the
+    /// counted battlefield collection (power, toughness or mana value).
     GreatestPropertyAmong {
-        property: NumericObjectProperty,
+        property: SelectorNumericProperty,
         predicate: ObjectPredicate,
     },
     /// The number of objects an earlier action of the same program affected
@@ -962,6 +964,9 @@ pub(super) enum PermanentCountMeasure {
     DistinctColors,
     /// Distinct names among the counted permanents (`differently named`).
     DistinctNames,
+    /// Distinct basic land types among the counted lands (`basic land types
+    /// among lands you control`, the Domain count, CR 305.6).
+    DistinctBasicLandTypes,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

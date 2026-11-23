@@ -148,13 +148,15 @@ fn dangling_oxford_target_is_an_explicit_failure() {
     // `, or an opponent controls` does not continue the object list, so the
     // selector returns the comma (roadmap #12) and the effect parent fails
     // on it explicitly instead of the selector committing to a dangling `or`.
+    // The selector returns the comma, and the effect parent failing at it
+    // reports the list's own reason: the dangling `, or`.
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("effect.start"),
+        Some("selector.predicate.after-comma"),
         "{:#?}",
         ability.diagnostics
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("enchantment"));
+    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("an"));
 }
 
 #[test]
