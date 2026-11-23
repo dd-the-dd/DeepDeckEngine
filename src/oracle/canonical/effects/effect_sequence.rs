@@ -59,6 +59,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         } => return None,
         // No continuous-effect primitive reads the end-of-next-turn window.
         EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
+        // Only the keyword grant has an indefinite primitive so far.
+        EffectDurationNode::Indefinite => return None,
         EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
     })
 }
@@ -988,6 +990,14 @@ fn lower_local_effect_sequence_with_collections(
                     }),
                     "a power/toughness delta representable by runtime i32 quantities",
                 )?;
+                if modifier.duration == EffectDurationNode::Indefinite {
+                    // CR 611.2a: no stated duration; the stat change has no
+                    // indefinite primitive yet.
+                    cursor.enter("lower.modify-stats.indefinite-duration");
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("a stated duration for the power/toughness change"),
+                    ));
+                }
                 let duration = lower_duration(&modifier.duration)
                     .ok_or_else(|| cursor.fail("a duration independent of a target binding"))?;
                 let objects = lower_ordinary_permanent_subject(

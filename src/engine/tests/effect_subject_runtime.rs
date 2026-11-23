@@ -283,3 +283,54 @@ fn each_player_of_a_population_performs_the_action_with_their_own_cards() {
         );
     }
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_grant_without_a_duration_is_not_a_temporary_one() {
+    // CR 611.2a: `Target creature gains flying.` lasts indefinitely; the
+    // keyword is granted without the until-end-of-turn expiry.
+    let rule = parsed_rules("Sorcery", "Target creature gains flying.").remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-1",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    let stack = StackObject {
+        id: "stack:grant".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("grant", test_definition("grant", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    let granted = engine.state.players[1].battlefield[0]
+        .definition
+        .rules
+        .iter()
+        .find(|rule| rule["kind"] == "keywordAbility" && rule["ability"]["kind"] == "flying")
+        .cloned()
+        .expect("flying granted");
+    assert!(granted.get("temporaryUntilTurn").is_none(), "{granted:#}");
+}

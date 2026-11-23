@@ -588,3 +588,25 @@ fn a_later_verb_of_the_sentence_continues_the_performer() {
     );
     assert_ne!(status, "canonical");
 }
+
+/// CR 611.2a: a continuous-effect clause that states no duration lasts
+/// indefinitely; only primitives with an indefinite form accept it.
+#[test]
+fn a_clause_without_a_duration_is_indefinite() {
+    // Real card: Fated Return's sibling (`That creature gains haste.` after a
+    // return). Unused recombination: a targeted flying grant.
+    for oracle in [
+        "Return target creature card from your graveyard to the battlefield. That creature gains haste.",
+        "Target creature gains flying.",
+    ] {
+        let grants = effects(SORCERY, oracle)
+            .into_iter()
+            .filter(|effect| effect["kind"] == "grantKeyword")
+            .collect::<Vec<_>>();
+        assert_eq!(grants.len(), 1, "{oracle}");
+        assert_eq!(grants[0]["duration"]["kind"], "permanent", "{oracle}");
+    }
+    // Near miss: a stat change has no indefinite primitive yet.
+    let (status, _, _) = parse(SORCERY, "Target creature gets +2/+2.");
+    assert_ne!(status, "canonical");
+}

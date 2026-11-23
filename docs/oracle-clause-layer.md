@@ -412,3 +412,19 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Sonde : ligue 816 → 816, corpus 14780 → 14784 (+4 : Mirko Vosk, Clear the
   Land, Destroy the Evidence, Malboro), 0 perte, IR des cartes supportées
   inchangée.
+
+## Phase 8 : durées indéfinies, actions retardées sur objets liés
+
+### Étape 23 : durée indéfinie
+
+- `EffectDurationNode::Indefinite` (CR 611.2a) : une proposition d'effet
+  continu qui se termine sans durée (`That creature gains haste.`) a une
+  durée indéfinie, lue par la grammaire de durée partagée
+  (`recognize_trailing_or_supplied_duration`). Chaque abaissement décide :
+  l'octroi de mot-clé a la primitive moteur `duration: permanent`, attachée à
+  l'objet (un nouvel objet ne la garde pas, CR 400.7) ; les autres (`gets
+  +N/+N`, `becomes`) échouent explicitement.
+- Sonde : ligue 818 → 818, corpus 14825 → 14831 (+6 : Fated Return, Grave
+  Upheaval, les quatre Chimera), 0 perte, IR des cartes supportées
+  inchangée. Preuves : retour puis octroi, recombinaison ciblée, quasi-échec
+  (statistiques), exécution (le mot-clé n'a pas d'échéance).
