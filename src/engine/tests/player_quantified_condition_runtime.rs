@@ -229,8 +229,10 @@ fn filtered_spell_history_is_read_for_the_bound_player() {
     let noncreature = quantified(
         "some",
         opponents(),
-        json!({ "kind": "hasCastSpellThisTurn", "player": quantified_player(),
-            "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } } }),
+        json!({ "kind": "compare", "operator": ">=",
+            "left": { "kind": "countEventsThisTurn", "event": "spellCast", "player": quantified_player(),
+                "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } } },
+            "right": { "kind": "integer", "value": 1 } }),
     );
     let mut engine = engine_with_static_source(noncreature);
     let cast = |engine: &mut GameEngine, player: usize, id: &str, type_line: &str| {

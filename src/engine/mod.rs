@@ -157,6 +157,7 @@ mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
+mod event_history;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -190,7 +191,6 @@ mod player_damage_replacement_order;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
-mod previous_turn_events;
 mod quantity_preflight;
 mod quantity_replacement;
 mod rebound;
@@ -2695,12 +2695,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                 .is_none_or(player_reference_supported)
                 && card_filter_supported(&expression["where"])
         }
-        Some(
-            "countOpponents"
-            | "countOpponentsWhoLostLifeThisTurn"
-            | "countOpponentsDealtDamageThisTurn"
-            | "countOpponentsAttackedThisCombat",
-        ) => player_reference_supported(&expression["player"]),
+        Some("countOpponents" | "countOpponentsAttackedThisCombat") => {
+            player_reference_supported(&expression["player"])
+        }
         Some("countOpponentsWithPermanent") => {
             player_reference_supported(&expression["player"])
                 && card_filter_supported(&expression["where"])
@@ -2810,16 +2807,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                     Some("W" | "U" | "B" | "R" | "G" | "C")
                 )
         }
-        Some("countEvents" | "countEventsThisTurn") => {
-            expression["event"].is_string()
-                && expression
-                    .get("player")
-                    .is_none_or(player_reference_supported)
-                && expression.get("where").is_none_or(card_filter_supported)
-                && expression.get("fromZone").is_none_or(Value::is_string)
-        }
-        Some("countEventsPreviousTurn") => {
-            previous_turn_events::previous_turn_event_count_supported(expression)
+        Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn") => {
+            event_history::event_history_supported(expression)
         }
         Some("countTurnsTaken") => singular_player_reference_supported(&expression["player"]),
         Some("boundValue") => expression["id"].is_string(),
@@ -2975,28 +2964,6 @@ fn condition_supported(condition: &Value) -> bool {
         Some("objectIsAttacking") => target_reference_supported(&condition["object"]),
         Some("wasCastWithAlternativeCost") => condition["mode"].is_string(),
         Some("notYourTurn") => true,
-        Some("playedCardFromNonHandThisTurn") => true,
-        Some("controlledPermanentsEnteredThisTurn") => {
-            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-                && card_filter_supported(&condition["where"])
-        }
-        Some("castSpellManaValueAtLeastThisTurn") => {
-            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-        }
-        Some("opponentCastSpellsThisTurn") => {
-            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-        }
-        Some("opponentCardsEnteredGraveyardThisTurn") => {
-            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-        }
-        Some("opponentPermanentsEnteredThisTurn") => {
-            integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-                && card_filter_supported(&condition["where"])
-        }
-        Some("controlledSpellCounteredByOpponentThisTurn") => {
-            card_filter_supported(&condition["where"])
-        }
-        Some("opponentSearchedLibraryThisTurn") => true,
         Some("opponentCastSpellWithAnyColor") => {
             condition["colors"].as_array().is_some_and(|colors| {
                 !colors.is_empty()
@@ -3093,31 +3060,10 @@ fn condition_supported(condition: &Value) -> bool {
             object_condition::object_condition_reference_supported(&condition["object"])
                 && permanent_filter_supported(&condition["where"])
         }
-        Some("hasCastSpellThisTurn") => {
-            player_reference_supported(&condition["player"])
-                && card_filter_supported(&condition["where"])
-        }
-        Some("scriedOrSurveilledThisTurn" | "activatedLoyaltyAbilityThisTurn") => {
-            player_reference_supported(&condition["player"])
-        }
-        Some("sourceHasNotDealtCombatDamage") => true,
         Some("controllerIsBeingAttacked") => true,
-        Some("putCounterOnCreatureThisTurn") => player_reference_supported(&condition["player"]),
-        Some("sourceReceivedCountersThisTurn") => {
-            condition["counter"].is_string()
-                && integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-        }
-        Some("opponentDealtNoncombatDamage") => {
-            player_reference_supported(&condition["player"])
-                && matches!(condition["turn"].as_str(), Some("current" | "previous"))
-        }
         Some("sorceryTiming" | "ninjutsuTiming") => true,
         Some("duringControllerMainPhase") => player_reference_supported(&condition["player"]),
         Some("duringControllerTurn") => player_reference_supported(&condition["player"]),
-        Some("controlledPermanentLeftThisTurn") => {
-            player_reference_supported(&condition["player"])
-                && card_filter_supported(&condition["where"])
-        }
         Some("isTapped" | "isBlocking") => {
             matches!(
                 value_kind(&condition["object"]),
@@ -3130,7 +3076,6 @@ fn condition_supported(condition: &Value) -> bool {
                 Some("self" | "abilitySource")
             )
         }
-        Some("voidOccurredThisTurn") => player_reference_supported(&condition["player"]),
         Some("classLevelIs") => {
             matches!(
                 value_kind(&condition["object"]),
@@ -3145,17 +3090,11 @@ fn condition_supported(condition: &Value) -> bool {
         Some("targetsShareCreatureType") => condition["targets"]
             .as_array()
             .is_some_and(|targets| targets.len() == 2 && targets.iter().all(Value::is_string)),
-        Some("sourceAttackedThisTurn" | "sourceAttackingAlone") => true,
+        Some("sourceAttackingAlone") => true,
         Some("controlledCreatureAttackingAlone") => {
             player_reference_supported(&condition["player"])
         }
-        Some("attackedWithSubtypeThisTurn") => {
-            player_reference_supported(&condition["player"])
-                && condition["subtype"].is_string()
-                && integer_value(&condition["minimum"]).is_some_and(|minimum| minimum > 0)
-        }
         Some("sourceNeedsEcho") => true,
-        Some("sourceDidNotAddManaThisTurn") => true,
         _ => false,
     }
 }
@@ -8843,166 +8782,7 @@ impl GameEngine {
                     })
                     .unwrap_or(false)
             }),
-            Some("sourceHasNotDealtCombatDamage") => source.is_some_and(|source| {
-                !self.state.events.iter().any(|event| {
-                    event.kind == "damageDealt"
-                        && event.detail["combat"].as_bool() == Some(true)
-                        && event.detail["source"].as_str() == Some(source.instance_id.as_str())
-                })
-            }),
             Some("notYourTurn") => self.state.players[self.state.active_player].id != controller_id,
-            Some("scriedOrSurveilledThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && matches!(event.kind.as_str(), "scried" | "surveilled")
-                    && event.player_id.as_deref() == Some(controller_id)
-            }),
-            Some("activatedLoyaltyAbilityThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.kind == "activatedAbilityPutOnStack"
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && event.detail["loyalty"].as_bool() == Some(true)
-            }),
-            Some("opponentDealtNoncombatDamage") => {
-                let expected_turn = if condition["turn"].as_str() == Some("previous") {
-                    self.state.turn_number.saturating_sub(1)
-                } else {
-                    self.state.turn_number
-                };
-                self.state.events.iter().any(|event| {
-                    event.turn_number == expected_turn
-                        && event.kind == "damageDealt"
-                        && event.player_id.as_deref() != Some(controller_id)
-                        && event.detail["combat"].as_bool() == Some(false)
-                })
-            }
-            Some("opponentCastSpellsThisTurn") => {
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
-                let mut counts = BTreeMap::<&str, usize>::new();
-                for event in self.state.events.iter().filter(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "spellCast"
-                        && event.player_id.as_deref() != Some(controller_id)
-                }) {
-                    if let Some(player_id) = event.player_id.as_deref() {
-                        *counts.entry(player_id).or_default() += 1;
-                    }
-                }
-                counts.values().any(|count| *count >= minimum)
-            }
-            Some("playedCardFromNonHandThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && match event.kind.as_str() {
-                        "spellCast" => event.detail["decisions"]["castSourceZone"]
-                            .as_str()
-                            .is_some_and(|zone| zone != "hand"),
-                        "landPlayed" => event.detail["fromZone"]
-                            .as_str()
-                            .is_some_and(|zone| zone != "hand"),
-                        _ => false,
-                    }
-            }),
-            Some("controlledPermanentsEnteredThisTurn") => {
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
-                self.state
-                    .events
-                    .iter()
-                    .filter(|event| {
-                        event.turn_number == self.state.turn_number
-                            && event.kind == "permanentEnteredBattlefield"
-                            && event.player_id.as_deref() == Some(controller_id)
-                    })
-                    .filter_map(|event| event.card_instance_id.as_deref())
-                    .filter_map(|instance_id| {
-                        self.permanent_position(instance_id)
-                            .map(|(player_index, card_index)| {
-                                &self.state.players[player_index].battlefield[card_index].definition
-                            })
-                    })
-                    .filter(|definition| matches_card_filter(definition, &condition["where"]))
-                    .count()
-                    >= minimum
-            }
-            Some("castSpellManaValueAtLeastThisTurn") => {
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1);
-                self.state.events.iter().any(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "spellCast"
-                        && event.player_id.as_deref() == Some(controller_id)
-                        && event.detail["manaValue"]
-                            .as_i64()
-                            .is_some_and(|mana_value| mana_value >= i64::from(minimum))
-                })
-            }
-            Some("opponentCardsEnteredGraveyardThisTurn") => {
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
-                let mut counts = BTreeMap::<&str, usize>::new();
-                for event in self.state.events.iter().filter(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "cardsEnteredGraveyard"
-                        && event.player_id.as_deref() != Some(controller_id)
-                }) {
-                    if let Some(player_id) = event.player_id.as_deref() {
-                        let count = event.detail["cardIds"].as_array().map_or(0, Vec::len);
-                        *counts.entry(player_id).or_default() += count;
-                    }
-                }
-                counts.values().any(|count| *count >= minimum)
-            }
-            Some("opponentPermanentsEnteredThisTurn") => {
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
-                let mut counts = BTreeMap::<&str, usize>::new();
-                for event in self.state.events.iter().filter(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "permanentEnteredBattlefield"
-                        && event.player_id.as_deref() != Some(controller_id)
-                        && event
-                            .card_instance_id
-                            .as_deref()
-                            .and_then(|instance_id| {
-                                self.permanent_position(instance_id)
-                                    .map(|(player_index, card_index)| {
-                                        &self.state.players[player_index].battlefield[card_index]
-                                            .definition
-                                    })
-                                    .or_else(|| {
-                                        self.card_outside_battlefield(instance_id)
-                                            .map(|card| &card.definition)
-                                    })
-                            })
-                            .is_some_and(|definition| {
-                                matches_card_filter(definition, &condition["where"])
-                            })
-                }) {
-                    if let Some(player_id) = event.player_id.as_deref() {
-                        *counts.entry(player_id).or_default() += 1;
-                    }
-                }
-                counts.values().any(|count| *count >= minimum)
-            }
-            Some("controlledSpellCounteredByOpponentThisTurn") => {
-                self.state.events.iter().any(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "spellCountered"
-                        && event.player_id.as_deref() == Some(controller_id)
-                        && event.detail["objectKind"].as_str() == Some("spell")
-                        && event.detail["counterSourceControllerId"]
-                            .as_str()
-                            .is_some_and(|player_id| player_id != controller_id)
-                        && event
-                            .card_instance_id
-                            .as_deref()
-                            .and_then(|instance_id| self.card_outside_battlefield(instance_id))
-                            .is_some_and(|card| {
-                                matches_card_filter(&card.definition, &condition["where"])
-                            })
-                })
-            }
-            Some("opponentSearchedLibraryThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.kind == "librarySearched"
-                    && event.player_id.as_deref() != Some(controller_id)
-            }),
             Some("opponentCastSpellWithAnyColor") => {
                 let wanted = condition["colors"]
                     .as_array()
@@ -9224,13 +9004,6 @@ impl GameEngine {
                     })
                     .unwrap_or_else(|| source.flags.get(ECHO_UPKEEP_FLAG).copied().unwrap_or(false))
             }),
-            Some("sourceDidNotAddManaThisTurn") => source.is_some_and(|source| {
-                !self.state.events.iter().any(|event| {
-                    event.turn_number == self.state.turn_number
-                        && event.kind == "manaAdded"
-                        && event.card_instance_id.as_deref() == Some(source.instance_id.as_str())
-                })
-            }),
             Some("isPrepared") => source.is_some_and(|source| {
                 self.permanent_position(&source.instance_id)
                     .map(|(player_index, card_index)| {
@@ -9258,33 +9031,6 @@ impl GameEngine {
                         .unwrap_or_else(|| has_card_type(&source.definition, expected_type))
                 })
             }
-            Some("hasCastSpellThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.kind == "spellCast"
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && event
-                        .card_instance_id
-                        .as_deref()
-                        .and_then(|instance_id| {
-                            self.state
-                                .players
-                                .iter()
-                                .flat_map(|player| {
-                                    player
-                                        .library
-                                        .iter()
-                                        .chain(&player.hand)
-                                        .chain(&player.battlefield)
-                                        .chain(&player.graveyard)
-                                        .chain(&player.exile)
-                                })
-                                .chain(self.state.stack.iter().map(|object| &object.card))
-                                .find(|card| card.instance_id == instance_id)
-                        })
-                        .is_some_and(|card| {
-                            matches_card_filter(&card.definition, &condition["where"])
-                        })
-            }),
             Some("sorceryTiming") => {
                 let jace_instant_override = source.is_some_and(|source| {
                     source.controller == controller_id
@@ -9335,23 +9081,6 @@ impl GameEngine {
             Some("duringControllerTurn") => {
                 self.state.players[self.state.active_player].id == controller_id
             }
-            Some("controlledPermanentLeftThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.kind == "permanentLeftBattlefield"
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && match value_kind(&condition["where"]) {
-                        Some("cardTypeContains") => condition["where"]["value"]
-                            .as_str()
-                            .is_some_and(|card_type| {
-                                event.detail["typeLine"].as_str().is_some_and(|type_line| {
-                                    type_line
-                                        .to_ascii_lowercase()
-                                        .contains(&card_type.to_ascii_lowercase())
-                                })
-                            }),
-                        _ => true,
-                    }
-            }),
             Some("isTapped") => source.is_some_and(|source| {
                 self.permanent_position(&source.instance_id).is_some_and(
                     |(player_index, card_index)| {
@@ -9369,16 +9098,6 @@ impl GameEngine {
             Some("isAttacking") => {
                 source.is_some_and(|source| source.flags.get("attacking").copied().unwrap_or(false))
             }
-            Some("voidOccurredThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && ((event.kind == "permanentLeftBattlefield"
-                        && !event.detail["typeLine"].as_str().is_some_and(|type_line| {
-                            type_line.to_ascii_lowercase().contains("land")
-                        }))
-                        || (event.kind == "spellCast"
-                            && event.detail["decisions"]["useWarp"].as_bool() == Some(true)))
-            }),
             Some("classLevelIs") => {
                 let expected = integer_value(&condition["value"]).unwrap_or(1);
                 source.is_some_and(|source| {
@@ -9472,68 +9191,12 @@ impl GameEngine {
                     .collect::<Vec<_>>();
                 cards.len() == 2 && !cards[0].is_disjoint(&cards[1])
             }
-            Some("sourceAttackedThisTurn") => source.is_some_and(|source| {
-                self.state.events.iter().any(|event| {
-                    event.turn_number == self.state.turn_number
-                        && matches!(event.kind.as_str(), "declaredAttacker" | "attackerDeclared")
-                        && event.card_instance_id.as_deref() == Some(source.instance_id.as_str())
-                })
-            }),
-            Some("putCounterOnCreatureThisTurn") => self.state.events.iter().any(|event| {
-                event.turn_number == self.state.turn_number
-                    && event.kind == "countersPlaced"
-                    && event.player_id.as_deref() == Some(controller_id)
-                    && event.detail["typeLine"]
-                        .as_str()
-                        .is_some_and(|type_line| type_line_contains(type_line, "Creature"))
-            }),
-            Some("sourceReceivedCountersThisTurn") => source.is_some_and(|source| {
-                let expected_counter = condition["counter"].as_str().unwrap_or_default();
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1);
-                self.state
-                    .events
-                    .iter()
-                    .filter(|event| {
-                        event.turn_number == self.state.turn_number
-                            && event.kind == "countersPlaced"
-                            && event.card_instance_id.as_deref()
-                                == Some(source.instance_id.as_str())
-                            && event.detail["counter"].as_str() == Some(expected_counter)
-                    })
-                    .filter_map(|event| event.detail["count"].as_i64())
-                    .map(|count| count as i32)
-                    .sum::<i32>()
-                    >= minimum
-            }),
             Some("controllerIsBeingAttacked") => self.state.combat.attackers.iter().any(|attack| {
                 matches!(
                     &attack.defender,
                     TargetRef::Player { player_id } if player_id == controller_id
                 )
             }),
-            Some("attackedWithSubtypeThisTurn") => {
-                let subtype = condition["subtype"].as_str().unwrap_or_default();
-                let minimum = integer_value(&condition["minimum"]).unwrap_or(1).max(1) as usize;
-                self.state
-                    .events
-                    .iter()
-                    .filter(|event| {
-                        event.turn_number == self.state.turn_number
-                            && event.kind == "attackerDeclared"
-                            && event.player_id.as_deref() == Some(controller_id)
-                            && event.detail["typeLine"]
-                                .as_str()
-                                .and_then(|type_line| type_line.split(" - ").nth(1))
-                                .is_some_and(|subtypes| {
-                                    subtypes
-                                        .split_whitespace()
-                                        .any(|value| value.eq_ignore_ascii_case(subtype))
-                                })
-                    })
-                    .take(minimum)
-                    .count()
-                    >= minimum
-            }
             Some("sourceAttackingAlone") => {
                 source.is_some_and(|source| self.permanent_is_attacking_alone(source))
             }
@@ -9789,22 +9452,6 @@ impl GameEngine {
                     .filter(|player| !player.has_lost && player.id != controller_id)
                     .count() as i32,
             ),
-            Some("countOpponentsWhoLostLifeThisTurn") => Some(
-                self.state
-                    .players
-                    .iter()
-                    .filter(|player| !player.has_lost && player.id != controller_id)
-                    .filter(|player| {
-                        self.state.events.iter().any(|event| {
-                            event.turn_number == self.state.turn_number
-                                && event.kind == "lifeLost"
-                                && event.player_id.as_deref() == Some(player.id.as_str())
-                                && integer_value(&event.detail["amount"])
-                                    .is_some_and(|amount| amount > 0)
-                        })
-                    })
-                    .count() as i32,
-            ),
             // CR 506.2, 702.121a: the active player is the attacking player;
             // the opponents its declared attackers attacked this combat (a
             // player, not one of that player's planeswalkers or battles).
@@ -9831,24 +9478,6 @@ impl GameEngine {
                 } else {
                     0
                 },
-            ),
-            // CR 120.3: damage dealt to the player this turn, by any source.
-            Some("countOpponentsDealtDamageThisTurn") => Some(
-                self.state
-                    .players
-                    .iter()
-                    .filter(|player| !player.has_lost && player.id != controller_id)
-                    .filter(|player| {
-                        self.state.events.iter().any(|event| {
-                            event.turn_number == self.state.turn_number
-                                && event.kind == "damageDealt"
-                                && event.card_instance_id.is_none()
-                                && event.player_id.as_deref() == Some(player.id.as_str())
-                                && integer_value(&event.detail["amount"])
-                                    .is_some_and(|amount| amount > 0)
-                        })
-                    })
-                    .count() as i32,
             ),
             Some("greatestOpponentPermanentCount") => Some(
                 self.state
@@ -9953,61 +9582,9 @@ impl GameEngine {
                         .sum(),
                 )
             }
-            Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            expression.get("player").is_none()
-                                || event.player_id.as_deref() == Some(controller_id)
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .filter(|event| match value_kind(&expression["where"]) {
-                            Some("cardTypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|card_type| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&card_type.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("subtypeContains") => expression["where"]["value"]
-                                .as_str()
-                                .is_some_and(|subtype| {
-                                    event.detail["typeLine"].as_str().is_some_and(|value| {
-                                        value
-                                            .to_ascii_lowercase()
-                                            .contains(&subtype.to_ascii_lowercase())
-                                    })
-                                }),
-                            Some("not")
-                                if value_kind(&expression["where"]["operand"])
-                                    == Some("cardTypeContains")
-                                    && expression["where"]["operand"]["value"].as_str()
-                                        == Some("Land") =>
-                            {
-                                !event.detail["typeLine"].as_str().is_some_and(|value| {
-                                    value.to_ascii_lowercase().contains("land")
-                                })
-                            }
-                            _ => true,
-                        })
-                        .count() as i32,
-                )
+            Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn") => {
+                self.event_history_count(expression, controller_id, None)
             }
-            Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("devotion") => {
                 let symbol = match expression["color"].as_str()?.to_ascii_lowercase().as_str() {
                     "white" => "W",
@@ -10159,6 +9736,12 @@ impl GameEngine {
         controller_id: &str,
         source: Option<&CardInstance>,
     ) -> Option<i32> {
+        if matches!(
+            value_kind(expression),
+            Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn")
+        ) {
+            return self.event_history_count(expression, controller_id, source);
+        }
         if value_kind(expression) == Some("lifeTotal") {
             let player_id = numeric_evaluation::source_relative_numeric_player(
                 &expression["player"],
@@ -31847,34 +31430,9 @@ impl GameEngine {
                     )
                 }
             }
-            Some("countEvents" | "countEventsThisTurn") => {
-                let event_kind = expression["event"].as_str()?;
-                let current_turn_only = value_kind(expression) == Some("countEventsThisTurn");
-                let player_id = expression
-                    .get("player")
-                    .and_then(|player| self.resolve_player(player, stack_object, bindings));
-                Some(
-                    self.state
-                        .events
-                        .iter()
-                        .filter(|event| {
-                            (!current_turn_only || event.turn_number == self.state.turn_number)
-                                && event.kind == event_kind
-                        })
-                        .filter(|event| {
-                            player_id.as_ref().is_none_or(|player_id| {
-                                event.player_id.as_deref() == Some(player_id.as_str())
-                            })
-                        })
-                        .filter(|event| {
-                            expression["fromZone"].as_str().is_none_or(|from_zone| {
-                                event.detail["fromZone"].as_str() == Some(from_zone)
-                            })
-                        })
-                        .count() as i32,
-                )
+            Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn") => {
+                self.runtime_event_history_count(expression, stack_object, bindings)
             }
-            Some("countEventsPreviousTurn") => self.previous_turn_event_count(expression),
             Some("sumEventValuesThisTurn") => {
                 let player_id =
                     self.resolve_player(&expression["player"], stack_object, bindings)?;
@@ -32113,12 +31671,9 @@ impl GameEngine {
             Some("deadPermanentPower") => stack_object.decisions["deadPermanentPower"]
                 .as_i64()
                 .and_then(|value| i32::try_from(value).ok()),
-            Some(
-                "countOpponents"
-                | "countOpponentsWhoLostLifeThisTurn"
-                | "countOpponentsDealtDamageThisTurn"
-                | "countOpponentsAttackedThisCombat",
-            ) => self.numeric_expression(expression, &stack_object.controller),
+            Some("countOpponents" | "countOpponentsAttackedThisCombat") => {
+                self.numeric_expression(expression, &stack_object.controller)
+            }
             // CR 700.5: the devotion of the player the expression names.
             Some("devotion") => {
                 let player = self.resolve_player(&expression["player"], stack_object, bindings)?;

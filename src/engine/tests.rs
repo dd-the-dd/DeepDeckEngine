@@ -6248,10 +6248,24 @@ fn doomsday_exiles_each_library_except_its_bottom_cards() {
 #[test]
 fn trap_alternative_cost_conditions_use_turn_history() {
     let mut engine = test_engine(2);
+    // One opponent had three or more cards put into their graveyard: the
+    // greatest per-opponent sum of the generic event history.
     let ravenous_condition = json!({
-        "kind": "opponentCardsEnteredGraveyardThisTurn",
-        "minimum": { "kind": "integer", "value": 3 },
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+            "kind": "countEventsThisTurn",
+            "event": "cardsEnteredGraveyard",
+            "player": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "measure": "cards",
+            "aggregate": "greatestPerPlayer",
+        },
+        "right": { "kind": "integer", "value": 3 },
     });
+    assert!(condition_supported(&ravenous_condition));
     engine.record_event(
         "cardsEnteredGraveyard",
         Some("player-1".to_string()),
@@ -6273,10 +6287,27 @@ fn trap_alternative_cost_conditions_use_turn_history() {
         "player-0",
     );
     engine.state.players[0].graveyard.push(countered_creature);
+    // A creature spell of the controller countered by an opponent's object:
+    // the countered spell's record names the counter source's controller.
     let summoning_condition = json!({
-        "kind": "controlledSpellCounteredByOpponentThisTurn",
-        "where": { "kind": "cardTypeContains", "value": "Creature" },
+        "kind": "compare",
+        "operator": ">=",
+        "left": {
+            "kind": "countEventsThisTurn",
+            "event": "spellCountered",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": { "kind": "cardTypeContains", "value": "Creature" },
+            "detail": { "objectKind": "spell" },
+            "relatedPlayers": {
+                "counterSourceControllerId": {
+                    "kind": "opponentsOf",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                },
+            },
+        },
+        "right": { "kind": "integer", "value": 1 },
     });
+    assert!(condition_supported(&summoning_condition));
     engine.record_event(
         "spellCountered",
         Some("player-0".to_string()),
@@ -8072,7 +8103,21 @@ fn source_limited_variable_mana_counts_the_target_opponents_permanents() {
             },
         )]),
     };
-    let condition = json!({ "kind": "sourceDidNotAddManaThisTurn" });
+    // The source added no mana this turn: no `manaAdded` event of its own.
+    let condition = json!({
+        "kind": "not",
+        "operand": {
+            "kind": "compare",
+            "operator": ">=",
+            "left": {
+                "kind": "countEventsThisTurn",
+                "event": "manaAdded",
+                "object": { "kind": "self" },
+            },
+            "right": { "kind": "integer", "value": 1 },
+        },
+    });
+    assert!(condition_supported(&condition));
     assert!(engine.condition_value_with_source(
         &condition,
         "player-0",
