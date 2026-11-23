@@ -918,17 +918,29 @@ fn recognize_effect_sequence_attempt_scoped(
                                 ) || (matches!(
                                     antecedent.reference,
                                     super::PermanentEffectReference::Target(_)
-                                ) && antecedent.selector.is_some())
+                                ) && antecedent
+                                    .selector
+                                    .as_ref()
+                                    .is_some_and(selector_names_permanents))
                             });
-                        if permanent_antecedent
-                            && let Some(node) = super::recognize_referenced_permanent_zone_action(
+                        if permanent_antecedent {
+                            match super::recognize_referenced_permanent_zone_action(
                                 attempt,
                                 name_links,
                                 name_failure,
                                 &action_context,
-                            )
-                        {
-                            return node.map(LocalEffectNode::DestroyReference);
+                            ) {
+                                super::ReferencedPermanentActionAttempt::Parsed(node) => {
+                                    return Ok(LocalEffectNode::ReferencedPermanentAction(node));
+                                }
+                                super::ReferencedPermanentActionAttempt::FailedCommitted(
+                                    failure,
+                                ) => {
+                                    attempt_frame.commit();
+                                    return Err(failure);
+                                }
+                                super::ReferencedPermanentActionAttempt::NotClaimed => {}
+                            }
                         }
                         match super::try_recognize_target_card_action(attempt) {
                             super::CollectionOperandAttempt::Recognized(fragment) => {
@@ -1123,29 +1135,11 @@ fn recognize_effect_sequence_attempt_scoped(
                                         Ok(tokens) => {
                                             let mut shifted = head.with_tokens(&tokens);
                                             let controller = super::PlayerEffectSubject::Controller;
-                                            // `PLAYER may ...`: the performer's
-                                            // own optional sentence, read from
-                                            // the subject's last word as `you`.
-                                            let modal = head
-                                                .peek()
-                                                .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
-                                            let read = if modal {
-                                                let at = shifted.position() - 1;
-                                                shifted.rollback_to_position(at);
-                                                super::recognize_optional_sequence(
-                                                    &mut shifted,
-                                                    name_links,
-                                                    name_failure,
-                                                    &action_context,
-                                                )
-                                                .map(LocalEffectNode::OptionalSequence)
-                                            } else {
-                                                read_action(
-                                                    &mut shifted,
-                                                    Some(&controller),
-                                                    attempt_frame,
-                                                )
-                                            };
+                                            let read = read_action(
+                                                &mut shifted,
+                                                Some(&controller),
+                                                attempt_frame,
+                                            );
                                             match read {
                                                 Ok(effect) => {
                                                     let end = shifted.position();
@@ -2475,7 +2469,7 @@ fn recognize_effect(
             name_failure,
             context,
         )
-        .map(LocalEffectNode::DestroyReference);
+        .map(LocalEffectNode::ReferencedPermanentAction);
     }
     if cursor
         .peek()
@@ -2789,6 +2783,21 @@ fn player_iteration_failure(cursor: &OracleTokenCursor<'_>, width: usize) -> Mac
     } else {
         body.enter("sequence.for-each-player.body");
         body.fail("a player-iteration body with a lowering")
+    }
+}
+
+/// True when a declared target selector names battlefield objects (an
+/// object or controlled-object predicate, or a union of them), never a
+/// stack item, a player or `any target` (`Counter target spell. Exile it.`).
+fn selector_names_permanents(selector: &super::TargetSelector) -> bool {
+    match selector {
+        super::TargetSelector::Object(_) | super::TargetSelector::ControlledObject { .. } => true,
+        super::TargetSelector::Union(branches) => {
+            !branches.is_empty() && branches.iter().all(selector_names_permanents)
+        }
+        super::TargetSelector::Any
+        | super::TargetSelector::Player(_)
+        | super::TargetSelector::StackItem(_) => false,
     }
 }
 

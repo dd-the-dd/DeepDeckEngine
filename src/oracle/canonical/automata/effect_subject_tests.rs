@@ -789,3 +789,32 @@ fn indefinite_restrictions_and_the_spell_grant_refusal() {
     let (status, _, states) = parse(SORCERY, "Draw a card. This spell gains haste.");
     assert_ne!(status, "canonical", "{states:?}");
 }
+
+/// Near misses that stay non-canonical: a countered spell is no battlefield
+/// antecedent, a definite description with its own qualifier is no anaphor,
+/// and a delayed or conditional `it` without a proven permanent stays refused.
+#[test]
+fn zone_action_near_misses_stay_non_canonical() {
+    for (type_line, oracle) in [
+        ("Instant", "Counter target spell. Exile it."),
+        (
+            "Creature \u{2014} Goblin",
+            "{T}: Choose target creature an opponent controls. Destroy the creature you chose.",
+        ),
+        (
+            "Enchantment",
+            "At the beginning of your upkeep, destroy the creature with the least power.",
+        ),
+        (
+            "Enchantment",
+            "When this enchantment enters, return target creature card from your graveyard to the battlefield. When the creature put onto the battlefield with this enchantment dies, exile it and return this enchantment to its owner's hand.",
+        ),
+        (
+            SORCERY,
+            "Reorder your graveyard at random. An opponent chooses a card at random in your graveyard. If it's a creature card, put it onto the battlefield. Otherwise, exile it.",
+        ),
+    ] {
+        let (status, _, states) = parse(type_line, oracle);
+        assert_ne!(status, "canonical", "{oracle}: {states:?}");
+    }
+}

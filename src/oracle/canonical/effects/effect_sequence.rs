@@ -1455,7 +1455,7 @@ fn lower_local_effect_sequence_with_collections(
                     lower_bound_permanent_reference(cursor, untap.permanent, &target_bindings)?;
                 effects.push(json!({"kind":"untapPermanent", "permanent":reference}));
             }
-            LocalEffectNode::DestroyReference(destroy) => {
+            LocalEffectNode::ReferencedPermanentAction(destroy) => {
                 cursor.enter("lower.destroy-reference.permanent-binding");
                 let reference =
                     lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
@@ -3018,15 +3018,20 @@ fn apply_performer(
             )));
         }
         PerformerNode::Population {
-            players,
-            excluding_controller,
+            excluding_controller: true,
+            ..
         } => {
+            // CR 102.3: `each other player` includes a teammate, which the
+            // opponents set does not; no player set names it yet.
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail(
+                    "a player set of every player other than the controller, teammates included",
+                ),
+            ));
+        }
+        PerformerNode::Population { players, .. } => {
             let bind = format!("performer{effect_index}");
-            let players = if *excluding_controller {
-                lower_player_set_reference(PlayerSetReferenceNode::OpponentsOfAbilityController)
-            } else {
-                lower_player_set_reference(*players)
-            };
+            let players = lower_player_set_reference(*players);
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {

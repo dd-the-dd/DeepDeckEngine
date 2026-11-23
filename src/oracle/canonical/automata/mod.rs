@@ -2003,7 +2003,7 @@ pub(super) enum LocalEffectNode {
     LoseAbilities(SetAbilityLossEffectNode),
     DestroyReferencedSet(DestroyReferencedSetEffectNode),
     /// `destroy` a bound permanent reference (`destroy that creature`).
-    DestroyReference(DestroyReferenceEffectNode),
+    ReferencedPermanentAction(ReferencedPermanentActionNode),
     DestroyCollection(DestroyPermanentCollectionEffectNode),
     Sacrifice(SacrificeEffectNode),
     ModifyStats(TemporaryPowerToughnessNode<PermanentOperandNode>),
@@ -2336,10 +2336,16 @@ mod target_card_sequence_tests;
 
 mod performer;
 mod permanent_action;
+mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
     performer_description, person_shifted_tokens, recognize_performer,
+};
+pub(in crate::oracle::canonical) use referenced_permanent_action::{
+    ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
+    recognize_destroy_reference_effect, recognize_referenced_permanent_action,
+    recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,

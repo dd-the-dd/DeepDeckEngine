@@ -64,7 +64,7 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
-        | LocalEffectNode::DestroyReference(_)
+        | LocalEffectNode::ReferencedPermanentAction(_)
         | LocalEffectNode::UntapTarget(_)
         | LocalEffectNode::Fight(_) => false,
     }
@@ -211,7 +211,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
-        | LocalEffectNode::DestroyReference(_)
+        | LocalEffectNode::ReferencedPermanentAction(_)
         | LocalEffectNode::UntapTarget(_)
         | LocalEffectNode::Fight(_) => false,
     }

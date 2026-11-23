@@ -107,18 +107,40 @@ fn quoted_ability_grantable(rule: &Value, object: &Value, duration: &Value) -> b
         }
 }
 
+/// The object expressions whose referents are battlefield permanents.
+fn denotes_battlefield_permanent(object: &Value) -> bool {
+    match object["kind"].as_str() {
+        Some(
+            "chosenTarget"
+            | "triggeringPermanent"
+            | "attachedPermanent"
+            | "combatCounterpart"
+            | "eachPermanent"
+            | "self"
+            | "abilitySource",
+        ) => true,
+        Some("observedEventObject") => object["event"].as_str() == Some("permanentEntered"),
+        Some("singleBoundObject" | "boundObject" | "boundObjects") => matches!(
+            object["binding"].as_str(),
+            Some(MOVED_ONTO_BATTLEFIELD_BINDING | CREATED_TOKENS_BINDING)
+        ),
+        _ => false,
+    }
+}
+
 pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
     keywords: &[GrantedKeyword],
     abilities: &[QuotedAbilityNode],
     duration: &EffectDurationNode,
     object: &Value,
 ) -> Option<Vec<Value>> {
-    // An indefinite grant writes to a battlefield permanent; a stack object
-    // stays unsupported rather than writing nowhere (a spell's own source is
-    // refused by the spell program, which knows it is one).
-    if *duration == EffectDurationNode::Indefinite
-        && object["kind"].as_str() == Some("triggeringStackObject")
-    {
+    // An indefinite grant writes to a battlefield permanent (CR 611.2a,
+    // 400.7). Only object expressions that denote battlefield permanents
+    // take it; a card in exile, a graveyard or on the stack (`it gains
+    // suspend`) stays explicitly unsupported instead of writing nowhere. A
+    // spell's own source is refused by the spell program, which knows it is
+    // one.
+    if *duration == EffectDurationNode::Indefinite && !denotes_battlefield_permanent(object) {
         return None;
     }
     let duration = lower_keyword_grant_duration(duration.clone())?;

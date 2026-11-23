@@ -422,7 +422,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         | LocalEffectNode::BecomeTypes(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
-        | LocalEffectNode::DestroyReference(_)
+        | LocalEffectNode::ReferencedPermanentAction(_)
         | LocalEffectNode::UntapTarget(_)
         | LocalEffectNode::Fight(_) => Err(TargetlessLoweringError::RequiresTarget),
         LocalEffectNode::MoveCards(_)
