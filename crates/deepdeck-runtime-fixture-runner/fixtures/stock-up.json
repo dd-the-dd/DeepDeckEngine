@@ -115,7 +115,9 @@
     { "kind": "orderCards", "order": "reverse" }
   ],
   "assertions": [
-    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 3 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 2 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "stock-up", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "stock-up", "equals": true },
     { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 5 },
     { "kind": "decisionCount", "equals": 2 }
   ]

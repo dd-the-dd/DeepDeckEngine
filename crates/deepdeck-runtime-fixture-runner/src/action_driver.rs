@@ -129,7 +129,8 @@ pub(super) fn execute_plain<P: DecisionProvider>(
         FixtureAction::ExecuteRule {
             execution,
             rule: override_rule,
-        } => engine.execute_canonical_rule(
+        } => execute_rule(
+            engine,
             CanonicalRuleExecution {
                 controller_id: execution.controller_id.clone(),
                 source_definition_id: execution.source_definition_id.clone(),
@@ -142,5 +143,45 @@ pub(super) fn execute_plain<P: DecisionProvider>(
         FixtureAction::ProbeFailure { .. } => Err(EngineError::new(
             "nested probeFailure action is unsupported",
         )),
+    }
+}
+
+/// A spell rule whose source is an instant or sorcery card outside the
+/// battlefield resolves as that spell: the card is on the stack while it
+/// resolves (CR 601.2a) and then goes where the rules send it (CR 608.2n), so
+/// it can never choose or count itself in its old zone. Any other rule, and a
+/// spell rule hosted by a permanent or a permanent card, executes in place as
+/// an effect harness.
+pub(super) fn execute_rule<P: DecisionProvider>(
+    engine: &mut GameEngine,
+    execution: CanonicalRuleExecution,
+    provider: &mut P,
+) -> Result<(), EngineError> {
+    let is_spell_card = engine
+        .state()
+        .players
+        .iter()
+        .filter(|player| player.id == execution.controller_id)
+        .flat_map(|player| {
+            player
+                .library
+                .iter()
+                .chain(&player.hand)
+                .chain(&player.graveyard)
+                .chain(&player.exile)
+                .chain(&player.command_zone)
+        })
+        .any(|card| {
+            card.definition.id == execution.source_definition_id
+                && card
+                    .definition
+                    .type_line
+                    .split(|character: char| !character.is_alphanumeric())
+                    .any(|part| part == "Instant" || part == "Sorcery")
+        });
+    if is_spell_card && execution.rule.get("kind").and_then(Value::as_str) == Some("spellAbility") {
+        engine.resolve_canonical_spell(execution, provider)
+    } else {
+        engine.execute_canonical_rule(execution, provider)
     }
 }

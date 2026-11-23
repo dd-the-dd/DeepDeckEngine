@@ -141,8 +141,10 @@
     { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "card-b", "equals": true },
     { "kind": "zoneContains", "playerId": "player-0", "zone": "library", "definitionId": "card-e", "equals": true },
     { "kind": "zoneCount", "playerId": "player-0", "zone": "library", "equals": 3 },
-    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 4 },
-    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 3 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 3 },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "hand", "definitionId": "flow-state-direct", "equals": false },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "graveyard", "definitionId": "flow-state-direct", "equals": true },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "graveyard", "equals": 4 },
     { "kind": "decisionCount", "equals": 3 },
     { "kind": "stackDepth", "equals": 0 }
   ]

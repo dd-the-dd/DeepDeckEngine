@@ -178,10 +178,20 @@
         "fixture_id": "brainstorm/draw-select-order-move-is-executable",
         "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brainstorm.json"
       },
-      "runtime": {
-        "fixture_id": "brainstorm-draw-three-put-two-back-in-order",
-        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm.json"
-      }
+      "runtime": [
+        {
+          "fixture_id": "brainstorm-draw-three-put-two-back-in-order",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm.json"
+        },
+        {
+          "fixture_id": "brainstorm-short-library-puts-back-the-only-card",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-short-library.json"
+        },
+        {
+          "fixture_id": "brainstorm-empty-library-puts-back-nothing",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-empty-library.json"
+        }
+      ]
     },
     {
       "oracle_id": "eaf98e03-729b-4145-b2af-c910c415c15d",

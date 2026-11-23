@@ -595,7 +595,7 @@ pub fn run_fixture(fixture: RuntimeFixture) -> FixtureResult {
             decisions: execution.decisions,
             targets: execution.targets,
         };
-        if let Err(error) = engine.execute_canonical_rule(execution, &mut provider) {
+        if let Err(error) = action_driver::execute_rule(&mut engine, execution, &mut provider) {
             return failed_result(fixture_id, error.to_string());
         }
     }

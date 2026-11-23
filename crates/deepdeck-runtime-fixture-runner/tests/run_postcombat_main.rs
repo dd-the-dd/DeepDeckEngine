@@ -14,6 +14,7 @@ fn empty_player(id: &str) -> FixturePlayer {
         hand: Vec::new(),
         battlefield: Vec::new(),
         graveyard: Vec::new(),
+        command_zone: Vec::new(),
         mana_pool: Vec::new(),
     }
 }

@@ -174,7 +174,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "hand",
-      "equals": 2
+      "equals": 1
     },
     {
       "kind": "zoneCount",
@@ -218,6 +218,20 @@
       "kind": "libraryTopIs",
       "playerId": "player-0",
       "definitionId": "library-card-2"
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "brainstorm",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "brainstorm",
+      "equals": false
     }
   ]
 }

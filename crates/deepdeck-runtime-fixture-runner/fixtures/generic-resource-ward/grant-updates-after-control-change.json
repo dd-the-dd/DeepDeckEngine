@@ -44,6 +44,12 @@
         "life": 20,
         "hand": [
           {
+            "id": "control-setup-spell",
+            "name": "Control setup fixture spell",
+            "typeLine": "Sorcery",
+            "manaCost": "{0}"
+          },
+          {
             "id": "targeting-spell",
             "name": "Targeting fixture spell",
             "typeLine": "Instant",
@@ -228,7 +234,7 @@
       "kind": "executeRule",
       "execution": {
         "controllerId": "p0",
-        "sourceDefinitionId": "targeting-spell"
+        "sourceDefinitionId": "control-setup-spell"
       },
       "rule": {
         "kind": "spellAbility",

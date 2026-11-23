@@ -101,7 +101,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "hand",
-      "equals": 2
+      "equals": 1
     },
     {
       "kind": "zoneCount",
@@ -124,6 +124,20 @@
     {
       "kind": "decisionCount",
       "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "source",
+      "equals": false
     }
   ]
 }
