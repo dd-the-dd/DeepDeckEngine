@@ -168,7 +168,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(subject_after_operand(&node.recipient, effect_index))
         }
         LocalEffectNode::UntapTarget(node) => Local(Some(node.permanent)),
-        LocalEffectNode::DestroyReference(node) => Local(Some(node.object)),
+        LocalEffectNode::ReferencedPermanentAction(node) => Local(Some(node.object)),
         LocalEffectNode::CreateExplicitTokens(_) => Local(Some(
             PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
         )),

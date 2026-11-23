@@ -144,8 +144,7 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
         // primitive has an indefinite form.
         None if cursor
             .peek()
-            .is_none_or(|raw| matches!(raw, "." | ";" | "("))
-            && cursor.position() > 0 =>
+            .is_none_or(|raw| matches!(raw, "." | ";" | "(")) =>
         {
             cursor.enter("duration.indefinite");
             Ok(EffectDurationNode::Indefinite)

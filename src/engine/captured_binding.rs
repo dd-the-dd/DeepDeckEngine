@@ -41,7 +41,10 @@ impl GameEngine {
             .get(&captured_identities_key(binding_id))?
             .as_array()?
             .first()?;
-        (self.permanent_position(instance_id).is_some()
+        // An object captured without an identity cannot be told apart from a
+        // later incarnation: it is never found.
+        (!captured.is_null()
+            && self.permanent_position(instance_id).is_some()
             && &self.object_identity_value(instance_id) == captured)
             .then(|| instance_id.to_string())
     }

@@ -617,7 +617,134 @@ fn a_restriction_without_a_duration_still_applies() {
             },
         )]),
     );
+    assert_eq!(
+        rule["effects"][0]["duration"]["kind"], "permanent",
+        "{rule:#}"
+    );
     // The legal-block enumeration excludes a creature with `cantBlock`.
     let wall = engine.state.players[1].battlefield[0].clone();
     assert!(engine.permanent_has_keyword(&wall, "cantBlock"), "{rule:#}");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_captured_binding_without_an_identity_finds_nothing() {
+    // A captured object recorded without an identity cannot be told apart
+    // from a later incarnation (CR 400.7): the delayed trigger finds nothing.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    ));
+    let stack = StackObject {
+        id: "stack:delayed".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "source",
+            test_definition("source", "Enchantment"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: None,
+        decisions: BTreeMap::from([
+            ("captured".to_string(), json!(["bear"])),
+            ("captured#identities".to_string(), json!([null])),
+        ]),
+        targets: BTreeMap::new(),
+    };
+    assert_eq!(engine.captured_bound_object(&stack, "captured"), None);
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn sacrificing_an_opponents_target_does_nothing() {
+    // CR 701.21a: `Tap target creature. Sacrifice it.` on an opponent's
+    // creature taps it; the controller cannot sacrifice what it doesn't
+    // control.
+    let rule = parsed_rules("Instant", "Tap target creature. Sacrifice it.").remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-1",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    resolve_spell(
+        &mut engine,
+        &rule,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    );
+    assert!(
+        engine.permanent_position("bear").is_some(),
+        "not sacrificed"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn an_indefinite_grant_is_lost_when_the_permanent_changes_zones() {
+    // CR 400.7: the granted flying belongs to the object; after it dies and
+    // returns, the new object does not have it.
+    let rule = parsed_rules("Sorcery", "Target creature gains flying.").remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    resolve_spell(
+        &mut engine,
+        &rule,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    );
+    let bear = engine.state.players[0].battlefield[0].clone();
+    assert!(engine.permanent_has_keyword(&bear, "flying"), "granted");
+    engine
+        .move_permanent_to_graveyard_internal("bear", "destroyed")
+        .expect("dies");
+    let returned = parsed_rules(
+        "Sorcery",
+        "Return target creature card from your graveyard to the battlefield.",
+    )
+    .remove(0);
+    let target_id = returned["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    resolve_spell(
+        &mut engine,
+        &returned,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Card {
+                instance_id: "bear".to_string(),
+            },
+        )]),
+    );
+    let (player, index) = engine.permanent_position("bear").expect("returned");
+    let bear = engine.state.players[player].battlefield[index].clone();
+    assert!(
+        !engine.permanent_has_keyword(&bear, "flying"),
+        "a new object"
+    );
 }

@@ -531,3 +531,23 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Preuves : antécédent ciblé non différé (`exile|sacrifice it`, `the
   creature`), forme différée sur une cible refusée, déploiement vide sans
   effet à l'étape de fin.
+
+### Suites de la deuxième revue (#63)
+
+- Identité capturée non nulle exigée ; contrôle CR 701.21a étendu au
+  sacrifice de la source (`self`/`abilitySource`).
+- Code modal mort de l'étape 27 retiré (`person_shifted_tokens`,
+  séquence, `rollback_to_position`).
+- Lecteur d'action de zone : module `referenced_permanent_action.rs`, nœud
+  `ReferencedPermanentActionNode`, issue transactionnelle (non revendiqué
+  avant une référence liée non-source, échec engagé après) ; la porte exige
+  un sélecteur de permanents (`Counter target spell. Exile it.` reste
+  refusé).
+- Octroi indéfini : seules les expressions qui désignent un permanent du
+  champ de bataille le prennent ; une carte en exil, au cimetière ou sur la
+  pile reste refusée. La perte de l'octroi au changement de zone
+  (CR 400.7) est prouvée à l'exécution.
+- `each other player` comme exécutant échoue explicitement (CR 102.3 : un
+  coéquipier de Two-Headed Giant en fait partie, l'ensemble « adversaires »
+  non) : Haunted Angel perd son support, perte justifiée.
+- Seuil `position > 0` retiré de la durée indéfinie.

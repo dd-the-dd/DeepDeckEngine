@@ -168,12 +168,6 @@ impl<'a> OracleTokenCursor<'a> {
         }
     }
 
-    /// Moves back to an earlier position of the same tokens (a parent that
-    /// re-reads a word it already examined, such as a subject's last word).
-    pub fn rollback_to_position(&mut self, position: usize) {
-        self.position = position.min(self.position);
-    }
-
     pub fn set_event_numeric_binding(&mut self, binding: Option<EventNumericBinding>) {
         self.event_numeric_binding = binding;
     }
