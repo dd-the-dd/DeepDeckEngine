@@ -440,6 +440,20 @@
       "reminders": [
         "This creature can't block. When it attacks, sacrifice it at end of combat."
       ]
+    },
+    {
+      "canonicalId": "level-up",
+      "templateVersion": 1,
+      "lexeme": "level up",
+      "parameter": "manaCost",
+      "rulesClause": "level-up.cr-702-87a",
+      "rulesSection": "702.87a",
+      "abilities": [
+        "$cost: Put a level counter on this permanent. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost: Put a level counter on this. Level up only as a sorcery."
+      ]
     }
   ]
 }

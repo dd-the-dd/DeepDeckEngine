@@ -171,3 +171,105 @@ fn die_roll_result_rows_are_never_unconditional_abilities() {
         );
     }
 }
+
+fn parse_card(name: &str, type_line: &str, oracle_text: &str) -> OracleCardParseResult {
+    let request = OracleCardParseRequest {
+        card_name: name.to_string(),
+        type_line: type_line.to_string(),
+        mana_cost: Some("{U}".to_string()),
+        oracle_text: Some(oracle_text.to_string()),
+        layout: Some("leveler".to_string()),
+        faces: Vec::new(),
+    };
+    std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || parse_oracle_card(request))
+        .expect("parser thread")
+        .join()
+        .expect("parser")
+}
+
+#[test]
+fn band_bodies_are_never_accepted_without_their_gate() {
+    // Halimar Wavewatch (CR 711.2): the headers are introducers, not
+    // abilities; every body line, P/T boxes included, carries its gate.
+    let parsed = parse_card(
+        "Halimar Wavewatch",
+        "Creature \u{2014} Merfolk Wizard",
+        "Level up {2}\nLEVEL 1-4\n0/6\nLEVEL 5+\n6/6\nIslandwalk",
+    );
+    assert!(
+        parsed
+            .abilities
+            .iter()
+            .all(|ability| !ability.source.text.starts_with("LEVEL")),
+        "{:#?}",
+        parsed.abilities
+    );
+    for (text, minimum, maximum) in [
+        ("0/6", 1, Some(4)),
+        ("6/6", 5, None),
+        ("Islandwalk", 5, None),
+    ] {
+        let ability = parsed
+            .abilities
+            .iter()
+            .find(|ability| ability.source.text == text)
+            .unwrap_or_else(|| panic!("{text}: {:#?}", parsed.abilities));
+        let Some(rule) = &ability.rule else {
+            // An unsupported body keeps its own diagnostic; it is never
+            // accepted ungated.
+            assert_ne!(ability.status, "canonical", "{text}");
+            continue;
+        };
+        assert_eq!(rule["bandGate"]["kind"], "counterRange", "{text}");
+        assert_eq!(rule["bandGate"]["counter"], "level", "{text}");
+        assert_eq!(rule["bandGate"]["minimum"], minimum, "{text}");
+        match maximum {
+            Some(maximum) => assert_eq!(rule["bandGate"]["maximum"], maximum, "{text}"),
+            None => assert!(rule["bandGate"].get("maximum").is_none(), "{text}"),
+        }
+    }
+    let statistics = parsed
+        .abilities
+        .iter()
+        .find(|ability| ability.source.text == "6/6")
+        .and_then(|ability| ability.rule.as_ref())
+        .expect("a level P/T box is a gated static");
+    assert_eq!(
+        statistics["modifiers"][0]["kind"], "setBasePowerToughness",
+        "{statistics:#}"
+    );
+}
+
+#[test]
+fn station_and_solved_bodies_parse_without_their_introducer() {
+    // An unused combination: a station band body is an ordinary triggered
+    // ability once its `N+ |` introducer is removed.
+    let parsed = parse_card(
+        "Probe Spacecraft",
+        "Artifact \u{2014} Spacecraft",
+        "Station\n3+ | Whenever you cast an instant or sorcery spell, you gain 1 life.",
+    );
+    let body = parsed
+        .abilities
+        .iter()
+        .find(|ability| ability.source.text.starts_with("Whenever"))
+        .unwrap_or_else(|| panic!("{:#?}", parsed.abilities));
+    if let Some(rule) = &body.rule {
+        assert_eq!(
+            rule["bandGate"],
+            json!({ "kind": "counterRange", "counter": "charge", "minimum": 3 })
+        );
+    }
+    let parsed = parse_card(
+        "Probe Case",
+        "Enchantment \u{2014} Case",
+        "Solved \u{2014} Creatures you control get +1/+0.",
+    );
+    let body = &parsed.abilities[0];
+    assert_eq!(body.source.text, "Creatures you control get +1/+0.");
+    if let Some(rule) = &body.rule {
+        assert_eq!(rule["bandGate"]["kind"], "designation");
+    }
+}
