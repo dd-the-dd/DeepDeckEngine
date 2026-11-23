@@ -143,11 +143,11 @@ fn shockland_family_commits_a_structured_failure_for_the_wrong_payment_subject()
         .first()
         .expect("the promoted family must retain its structured failure");
     assert_eq!(diagnostic.automaton.as_deref(), Some("optional-life-entry"));
-    assert!(
-        diagnostic
-            .state
-            .as_deref()
-            .is_some_and(|state| state.contains("player"))
+    // `If they don't` is read by the shared condition language, which has
+    // no `they` performer for the paying player: it fails at the atom.
+    assert_eq!(
+        diagnostic.state.as_deref(),
+        Some("condition.envelope.atom-kind")
     );
     assert_eq!(diagnostic.found.as_deref(), Some("they"));
 }

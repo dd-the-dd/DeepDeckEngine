@@ -92,7 +92,7 @@
         "diagnostics": [{
           "abilityIndex": 0,
           "code": "oracle_machine_failure",
-          "automaton": "ordinal-spell-tax-draw",
+          "automaton": "generic-trigger-program",
           "state": "event.spell-cast.ordinal-period",
           "found": "game"
         }]

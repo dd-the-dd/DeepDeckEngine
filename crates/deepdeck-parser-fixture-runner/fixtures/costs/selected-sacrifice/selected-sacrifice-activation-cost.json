@@ -191,7 +191,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "cost.selected-sacrifice.permanent-domain",
+            "state": "cost.payment.sacrifice.permanent-domain",
             "found": ":"
           }
         ]
@@ -222,7 +222,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "cost.selected-sacrifice.controller",
+            "state": "cost.payment.sacrifice.controller",
             "found": ":"
           }
         ]

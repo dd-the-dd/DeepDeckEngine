@@ -18,8 +18,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "effect.life.action",
-            "found": "may"
+            "state": "effect.start",
+            "found": "you"
           }
         ]
       }

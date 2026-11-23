@@ -27,10 +27,7 @@
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "selector.predicate.complete",
-            "expected": "a selector that establishes the permanent domain",
-            "found": ",",
-            "tokenIndex": 15
+            "state": "trigger.program.guard-other-binding"
           }
         ]
       }

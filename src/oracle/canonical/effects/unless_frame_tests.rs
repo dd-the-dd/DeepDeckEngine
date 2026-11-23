@@ -226,7 +226,8 @@ fn unsupported_unless_shapes_stay_explicit_failures() {
         (
             "Creature — Zombie",
             "When this creature enters, sacrifice it unless it escaped.",
-            "sequence.unless.payer",
+            // Read as a state condition; its `it` has no proven antecedent.
+            "condition.sentence.object.antecedent",
         ),
         // `that player` is the triggering player, not a player declared by
         // the guarded action; never guessed.

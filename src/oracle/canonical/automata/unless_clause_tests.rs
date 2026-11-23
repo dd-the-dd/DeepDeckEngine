@@ -175,11 +175,11 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
             "destroy target artifact unless its owner pays {2}.",
             "sequence.unless.payer.binding",
         ),
-        // A state condition is not a payment. (`unless you attacked this
-        // turn` is now a history condition of the one condition language.)
+        // A state condition is read by the one condition language; a bare
+        // `it` there has no antecedent the unless frame proves.
         (
             "sacrifice this creature unless it escaped.",
-            "sequence.unless.payer",
+            "condition.sentence.object.antecedent",
         ),
         // `you control` names the ability controller, not this payer.
         (

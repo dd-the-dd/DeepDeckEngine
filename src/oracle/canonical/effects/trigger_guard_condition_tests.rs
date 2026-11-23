@@ -170,14 +170,14 @@ fn guard_atoms_that_cannot_be_resolved_stay_explicit_failures() {
         failure_state(
             "At the beginning of each end step, if a tapped creature died this turn, draw a card."
         ),
-        "condition.history.object.query"
+        "selector.predicate.complete"
     );
     // A player population's upper bound needs the least per-player count.
     assert_eq!(
         failure_state(
             "At the beginning of each end step, if an opponent cast two or fewer spells this turn, draw a card."
         ),
-        "condition.history.cast.query"
+        "selector.predicate.complete"
     );
 }
 

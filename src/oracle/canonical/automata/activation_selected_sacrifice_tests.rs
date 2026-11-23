@@ -201,9 +201,18 @@ fn nested_selected_cost_cannot_borrow_modal_or_printed_mana_x() {
             parse_oracle_card(request),
         ] {
             assert_eq!(parsed.status, "unsupported");
-            assert!(parsed.abilities[0].diagnostics.iter().any(|diagnostic| {
-                diagnostic.state.as_deref() == Some("activation.compound.selected-cost-x-producer")
-            }));
+            // The quote is compiled as its own ability: the grant fails at
+            // the quote and carries the inner X-producer failure.
+            assert!(
+                parsed.abilities[0].diagnostics.iter().any(|diagnostic| {
+                    diagnostic.state.as_deref() == Some("quoted-ability.body")
+                        && diagnostic
+                            .message
+                            .contains("activation.compound.selected-cost-x-producer")
+                }),
+                "{:#?}",
+                parsed.abilities[0].diagnostics
+            );
         }
     }
 }

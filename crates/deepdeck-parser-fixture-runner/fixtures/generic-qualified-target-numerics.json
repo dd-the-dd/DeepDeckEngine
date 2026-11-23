@@ -486,7 +486,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "numeric.expression.object-reference.nominal"
+            "state": "numeric.genitive.antecedent",
+            "found": "."
           }
         ]
       }

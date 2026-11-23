@@ -773,9 +773,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "program.optional.scope",
-            "expected": "one complete optional sentence without a later conditional or program continuation",
-            "found": "."
+            "state": "effect.start",
+            "found": "Do"
           }
         ]
       }

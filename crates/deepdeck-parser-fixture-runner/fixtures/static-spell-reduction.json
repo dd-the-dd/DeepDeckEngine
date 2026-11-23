@@ -337,8 +337,8 @@
           "abilityIndex": 0,
           "code": "oracle_machine_failure",
           "automaton": "static-spell-reduction",
-          "state": "casting-reduction.terminator",
-          "expected": ".",
+          "state": "casting-reduction.condition.subject",
+          "expected": "this spell as the subject of a conditional reduction",
           "found": "if"
         }]
       }
@@ -392,7 +392,7 @@
           "recognizer": "native",
           "abilityType": "triggeredAbility"
         }],
-        "diagnostics": [{ "abilityIndex": 0, "code": "oracle_machine_failure", "state": "ability-frame.trigger.event" }]
+        "diagnostics": [{ "abilityIndex": 0, "code": "oracle_machine_failure", "state": "selector.predicate.start", "found": "enters" }]
       }
     }
   ]

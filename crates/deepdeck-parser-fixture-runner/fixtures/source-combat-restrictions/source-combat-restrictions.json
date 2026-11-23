@@ -416,7 +416,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "selector.predicate.start"
+            "state": "static.combat-restriction.complete",
+            "found": "this"
           }
         ]
       }

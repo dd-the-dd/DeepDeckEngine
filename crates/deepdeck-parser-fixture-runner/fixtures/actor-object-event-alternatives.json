@@ -449,7 +449,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "event.actor-object.object-head",
+            "found": "and"
           }
         ]
       }
@@ -471,7 +472,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "event.actor-object.object-head",
+            "found": "one"
           }
         ]
       }
@@ -493,7 +495,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "trigger.envelope.separator",
+            "found": "or"
           }
         ]
       }
@@ -515,7 +518,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "event.actor-object.object-controller",
+            "found": ","
           }
         ]
       }

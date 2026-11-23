@@ -138,7 +138,7 @@ fn fabled_passage_followup_near_misses_fail_in_the_responsible_local_state() {
         ),
         (
             "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands untap that land.",
-            "condition.controlled-permanent-count.separator",
+            "condition.envelope.separator",
             "untap",
         ),
         (

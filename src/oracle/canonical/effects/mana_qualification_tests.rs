@@ -42,7 +42,8 @@ fn unnamed_mana_output_quantity_and_timing_are_preserved() {
     assert_eq!(rule["kind"], "manaAbility");
     assert_eq!(
         rule["effects"][0]["mana"]["amount"],
-        serde_json::json!({"kind":"integer","value":2})
+        // The shared mana lowering keeps a literal amount as a plain integer.
+        serde_json::json!(2)
     );
     assert_eq!(rule["costs"][0]["kind"], "sacrificePermanent");
     assert_eq!(rule["activationCondition"]["kind"], "sorceryTiming");

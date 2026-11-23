@@ -238,7 +238,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "effect.zone-change.target.validation"
+            "state": "selector.predicate.union",
+            "found": "."
           }
         ]
       }

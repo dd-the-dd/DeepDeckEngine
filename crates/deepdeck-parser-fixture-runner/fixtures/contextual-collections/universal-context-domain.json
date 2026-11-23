@@ -1048,7 +1048,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "object-set.complete"
+            "state": "static.continuous.connector",
+            "found": "until"
           }
         ]
       }
@@ -1077,7 +1078,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "object-set.complete"
+            "state": "static.continuous.connector",
+            "found": "Draw"
           }
         ]
       }
@@ -1105,10 +1107,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "automaton": "static-granted-activation",
-            "state": "static.granted-activation.permanent-domain",
-            "expected": "a bound static collection predicate"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }

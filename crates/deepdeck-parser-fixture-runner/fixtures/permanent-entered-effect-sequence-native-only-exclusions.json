@@ -232,7 +232,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "ability-frame.trigger.event"
+            "state": "selector.controller-qualifier.opponents",
+            "found": "team"
           }
         ]
       }
