@@ -47,7 +47,7 @@ fn any_other_chapter_body_is_the_shared_effect_program() {
     // native grant form.
     let tokens = recognize_entities("III \u{2014} Exile this Saga.");
     let mut cursor = OracleTokenCursor::new("saga-chapter-test", &tokens);
-    if let Ok(chapter) = recognize_saga_chapter(&mut cursor, &[], None) {
-        assert!(matches!(chapter.body, SagaChapterBodyNode::Program(_)));
-    }
+    let chapter = recognize_saga_chapter(&mut cursor, &[], None).expect("chapter parses");
+    assert!(matches!(chapter.body, SagaChapterBodyNode::Program(_)));
+    cursor.finish().expect("the whole chapter is read");
 }

@@ -93,22 +93,9 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     {
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
     }
-    let mut context = context
-        .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
-        .with_sentence_conditionals()
-        .with_unless_frames();
-    // This parent reads `This ability triggers only ...` after the body.
-    context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
-    context.source_attachment = source_attachment;
+    let mut context = triggered_body_context(context, source_attachment);
     context.frame = event_frame(&event.value);
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
-        && cursor
-            .peek_ahead(1)
-            .and_then(super::super::parse_number_word)
-            .is_some()
-    {
+    if modal_trigger_body_starts(cursor) {
         // Modes are declared with the trigger's other choices (CR 700.2b);
         // every bullet body is the shared effect sequence.
         let start = cursor.position();
@@ -176,6 +163,38 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         },
         once_each_turn,
     })
+}
+
+/// The context every triggered ability's program body is read with: the
+/// parent's source and event bindings, the spell-or-battlefield zone-change
+/// domains, sentence conditionals and `unless` frames lowered by the shared
+/// sequence, and `This ability triggers only ...` owned by the trigger.
+/// Saga chapters (CR 715.2b) and event triggers share it.
+pub(in crate::oracle::canonical) fn triggered_body_context(
+    context: EffectRecognitionContext,
+    source_attachment: Option<AttachedObjectRole>,
+) -> EffectRecognitionContext {
+    let mut context = context
+        .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
+        .with_sentence_conditionals()
+        .with_unless_frames();
+    context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
+    context.source_attachment = source_attachment;
+    context
+}
+
+/// `Choose one —` / `Choose two —` opens printed modes chosen as the trigger
+/// is put on the stack (CR 700.2b); any other body is one effect program.
+pub(in crate::oracle::canonical) fn modal_trigger_body_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("choose"))
+        && cursor
+            .peek_ahead(1)
+            .and_then(super::super::parse_number_word)
+            .is_some()
 }
 
 /// Events whose occurrence names exactly one player that the runtime records

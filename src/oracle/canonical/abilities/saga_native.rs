@@ -167,10 +167,13 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
             };
             lower_library_search_effects(&mut cursor, &search, controller())?
         }
-        SagaChapterBodyNode::Program(program) => {
+        SagaChapterBodyNode::Program(body) => {
             // The chapter body is lowered exactly as a triggered ability's
-            // program; its target declarations belong to the trigger.
-            let lowered = lower_effect_program(&mut cursor, &program)?;
+            // body; its target declarations and modes belong to the trigger.
+            let lowered = match &body {
+                TriggerBodyNode::Program(program) => lower_effect_program(&mut cursor, program)?,
+                TriggerBodyNode::Modal(modal) => lower_effect_sequence_modal(&mut cursor, modal)?,
+            };
             cursor.require(
                 !lowered.effects.is_empty(),
                 "at least one executable action",
