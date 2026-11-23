@@ -1,4 +1,4 @@
-use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
+use super::super::{ChildOutcome, MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     EffectDurationNode, GrantedKeyword, ResourcePaymentNode, TargetListNode,
     recognize_controlled_object_set, recognize_target_list,
@@ -208,15 +208,24 @@ fn recognize_keyword_atom(
         // A quote that holds one keyword grants that keyword (CR 702.21a
         // ward, CR 113.1): it shares the unquoted atom's grant instead of
         // being compiled as an opaque granted ability.
-        if let Some(atom) = recognize_quoted_single_item(cursor, |trial| {
-            recognize_keyword_atom(
-                trial,
-                allow_parameterized,
-                None,
-                &mut KeywordResourceCommitment::None,
-            )
+        match recognize_quoted_single_item(cursor, |trial| {
+            let mut commitment = KeywordResourceCommitment::None;
+            match recognize_keyword_atom(trial, allow_parameterized, None, &mut commitment) {
+                Ok(atom) => ChildOutcome::Matched(atom),
+                Err(failure) if matches!(commitment, KeywordResourceCommitment::Failed) => {
+                    ChildOutcome::Committed(failure)
+                }
+                Err(failure) => ChildOutcome::NoMatch(failure),
+            }
         }) {
-            return Ok(atom);
+            ChildOutcome::Matched(atom) => return Ok(atom),
+            // A parameterized keyword head committed inside the quote: its
+            // diagnostic is the quote's, not the opaque-ability fallback's.
+            ChildOutcome::Committed(failure) => {
+                *resource_commitment = KeywordResourceCommitment::Failed;
+                return Err(failure);
+            }
+            ChildOutcome::NoMatch(_) => {}
         }
         return recognize_quoted_ability(cursor, type_line).map(KeywordAtomNode::Quoted);
     }

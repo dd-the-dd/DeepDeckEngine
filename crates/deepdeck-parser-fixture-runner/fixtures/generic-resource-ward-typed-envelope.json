@@ -59,6 +59,27 @@
           }
         ]
       }
+    },
+    {
+      "id": "quoted-ward-unsupported-cost-keeps-the-ward-diagnostic",
+      "request": {
+        "cardName": "Quoted Ward Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Creatures you control have \"Ward—Exile a creature card from your graveyard and an artifact you control.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.ward.cost"
+          }
+        ]
+      }
     }
   ]
 }

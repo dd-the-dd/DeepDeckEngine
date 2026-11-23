@@ -17,7 +17,7 @@
 //! the quote is the granted object, never the granting source. The child is
 //! all-or-nothing; a quote with any non-canonical ability is a failure that
 //! carries the inner diagnostic.
-use super::super::super::{MachineResult, OracleTokenCursor};
+use super::super::super::{ChildOutcome, MachineResult, OracleTokenCursor};
 use super::super::source_text;
 use serde_json::Value;
 
@@ -54,28 +54,47 @@ pub(in crate::oracle::canonical) fn quoted_ability_starts(cursor: &OracleTokenCu
 /// Reads a quote that holds exactly one item of the caller's grammar
 /// (`"Ward—Pay 2 life."`): open mark, the item, an optional inner period,
 /// and the matching close mark. Transactional: on any mismatch the cursor is
-/// untouched and `None` lets the caller compile the quote as an ability.
+/// untouched and `NoMatch` lets the caller compile the quote as an ability.
+/// An item reader that committed (`"Ward—<unsupported cost>"`) owns the
+/// quote: its failure is returned as `Committed`, never swallowed.
 pub(in crate::oracle::canonical) fn recognize_quoted_single_item<T>(
     cursor: &mut OracleTokenCursor<'_>,
-    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> MachineResult<T>,
-) -> Option<T> {
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> ChildOutcome<T>,
+) -> ChildOutcome<T> {
     let mut trial = cursor.clone();
     trial.enter("quoted-item.open");
-    let open = trial.peek()?.to_string();
-    let closers = quote_closers(&open)?;
-    trial.consume(&open).ok()?;
-    let item = read(&mut trial).ok()?;
-    if trial.peek() == Some(".") {
-        trial.consume(".").ok()?;
+    let Some(open) = trial.peek().map(str::to_string) else {
+        return ChildOutcome::NoMatch(trial.fail("an opening quotation mark"));
+    };
+    let Some(closers) = quote_closers(&open) else {
+        return ChildOutcome::NoMatch(trial.fail("an opening quotation mark"));
+    };
+    if let Err(failure) = trial.consume(&open) {
+        return ChildOutcome::NoMatch(failure);
+    }
+    let item = match read(&mut trial) {
+        ChildOutcome::Matched(item) => item,
+        ChildOutcome::NoMatch(failure) => return ChildOutcome::NoMatch(failure),
+        ChildOutcome::Committed(failure) => return ChildOutcome::Committed(failure),
+    };
+    if trial.peek() == Some(".")
+        && let Err(failure) = trial.consume(".")
+    {
+        return ChildOutcome::NoMatch(failure);
     }
     trial.enter("quoted-item.close");
-    let close = trial
+    let Some(close) = trial
         .peek()
-        .filter(|word| closers.contains(word))?
-        .to_string();
-    trial.consume(&close).ok()?;
+        .filter(|word| closers.contains(word))
+        .map(str::to_string)
+    else {
+        return ChildOutcome::NoMatch(trial.fail("the closing quotation mark after one item"));
+    };
+    if let Err(failure) = trial.consume(&close) {
+        return ChildOutcome::NoMatch(failure);
+    }
     *cursor = trial;
-    Some(item)
+    ChildOutcome::Matched(item)
 }
 
 /// Compiles the quote opening at the cursor and consumes both quotation marks.
