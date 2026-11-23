@@ -122,6 +122,15 @@ pub struct FixtureExecution {
     pub decisions: BTreeMap<String, Value>,
     #[serde(default)]
     pub targets: BTreeMap<String, TargetRef>,
+    /// Which copy resolves when the controller holds several off-battlefield
+    /// cards of `source_definition_id`.
+    #[serde(default)]
+    pub source_instance_id: Option<String>,
+    /// Explicit effect harness: execute a spell rule in place on a card that
+    /// is not an instant or sorcery spell (for example a creature card that
+    /// moves itself). Without it such a rule is an error, never a fallback.
+    #[serde(default)]
+    pub execute_in_place: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -587,15 +596,10 @@ pub fn run_fixture(fixture: RuntimeFixture) -> FixtureResult {
         Ok(engine) => engine,
         Err(error) => return failed_result(fixture_id, error.to_string()),
     };
-    if let Some(execution) = fixture.execution {
-        let execution = CanonicalRuleExecution {
-            controller_id: execution.controller_id,
-            source_definition_id: execution.source_definition_id,
-            rule: fixture.rule.clone(),
-            decisions: execution.decisions,
-            targets: execution.targets,
-        };
-        if let Err(error) = action_driver::execute_rule(&mut engine, execution, &mut provider) {
+    if let Some(execution) = &fixture.execution {
+        if let Err(error) =
+            action_driver::execute_rule(&mut engine, execution, &fixture.rule, &mut provider)
+        {
             return failed_result(fixture_id, error.to_string());
         }
     }

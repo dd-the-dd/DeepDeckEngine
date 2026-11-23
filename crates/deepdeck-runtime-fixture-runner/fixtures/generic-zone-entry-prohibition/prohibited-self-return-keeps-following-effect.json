@@ -126,7 +126,8 @@
   },
   "execution": {
     "controllerId": "p0",
-    "sourceDefinitionId": "candidate"
+    "sourceDefinitionId": "candidate",
+    "executeInPlace": true
   },
   "assertions": [
     {

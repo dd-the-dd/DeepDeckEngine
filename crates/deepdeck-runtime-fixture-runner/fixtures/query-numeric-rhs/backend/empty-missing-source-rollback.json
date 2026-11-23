@@ -184,7 +184,8 @@
         "kind": "executeRule",
         "execution": {
           "controllerId": "p0",
-          "sourceDefinitionId": "synthetic-query-source"
+          "sourceDefinitionId": "synthetic-query-source",
+          "executeInPlace": true
         },
         "rule": {
           "kind": "spellAbility",
