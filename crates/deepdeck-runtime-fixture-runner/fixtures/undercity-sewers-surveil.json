@@ -355,7 +355,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "graveyard",
-      "equals": 1
+      "equals": 2
     },
     {
       "kind": "zoneContains",
@@ -412,6 +412,20 @@
       "kind": "eventCount",
       "eventKind": "cardsRevealed",
       "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "entry-driver",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "entry-driver",
+      "equals": false
     }
   ]
 }

@@ -1,0 +1,218 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "brainstorm-short-library-puts-back-the-only-card",
+  "seed": 1,
+  "rule": {
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 3
+        },
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 2
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "cardsInZone",
+                "where": null,
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "from": {
+          "kind": "cardsInZone",
+          "where": null,
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          }
+        },
+        "id": "chosenZoneCards",
+        "kind": "chooseCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "id": "remainderOrder",
+        "kind": "chooseOrder",
+        "objects": {
+          "decisionId": "chosenZoneCards",
+          "kind": "decisionResult"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "cards": {
+          "decisionId": "remainderOrder",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "order": {
+          "decisionId": "remainderOrder",
+          "kind": "decisionOrder"
+        },
+        "to": {
+          "kind": "library",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "position": "top"
+        }
+      }
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Brainstorm pilot",
+        "hand": [
+          {
+            "id": "brainstorm",
+            "name": "Brainstorm",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ],
+        "library": [
+          {
+            "id": "library-card-0",
+            "name": "Library Card 0",
+            "typeLine": "Sorcery"
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "loss-guard",
+            "name": "Loss guard",
+            "typeLine": "Artifact",
+            "rules": [
+              {
+                "kind": "staticAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "modifiers": [
+                  {
+                    "kind": "cantLoseGame",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ],
+                "activeWhile": {
+                  "kind": "inZone",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": {
+                    "kind": "battlefield"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "brainstorm"
+  },
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "libraryTopIs",
+      "playerId": "player-0",
+      "definitionId": "library-card-0"
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "brainstorm",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "playerLost",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

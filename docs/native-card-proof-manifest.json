@@ -178,10 +178,20 @@
         "fixture_id": "brainstorm/draw-select-order-move-is-executable",
         "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brainstorm.json"
       },
-      "runtime": {
-        "fixture_id": "brainstorm-draw-three-put-two-back-in-order",
-        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm.json"
-      }
+      "runtime": [
+        {
+          "fixture_id": "brainstorm-draw-three-put-two-back-in-order",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm.json"
+        },
+        {
+          "fixture_id": "brainstorm-short-library-puts-back-the-only-card",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-short-library.json"
+        },
+        {
+          "fixture_id": "brainstorm-empty-library-puts-back-nothing",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brainstorm-empty-library.json"
+        }
+      ]
     },
     {
       "oracle_id": "eaf98e03-729b-4145-b2af-c910c415c15d",
@@ -862,15 +872,21 @@
     {
       "oracle_id": "df20f85b-5f81-4ee4-8487-55d90109ac36",
       "name": "Restless Reef",
-      "expected_semantic_ir_digest": "8B88D4680A8AF60981F681A66C4E827FEF87B3CB8F5A53AD754B27E1D060D4DB",
+      "expected_semantic_ir_digest": "B6D3482D7F357E4852D53EEB16BB3C3D18D0D0BB05C08B028953DEFC970AEA07",
       "contract": {
         "fixture_id": "restless-reef/all-native-rules-are-executable",
         "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/restless-reef.json"
       },
-      "runtime": {
-        "fixture_id": "restless-reef-activation-pays-mana-and-temporarily-animates-source",
-        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-animation.json"
-      }
+      "runtime": [
+        {
+          "fixture_id": "restless-reef-activation-pays-mana-and-temporarily-animates-source",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-animation.json"
+        },
+        {
+          "fixture_id": "restless-reef-animation-and-keyword-expire-at-cleanup",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/restless-reef-animation-cleanup.json"
+        }
+      ]
     },
     {
       "oracle_id": "1ed9e351-0000-4b75-8ecb-d15bd88df68a",
@@ -1756,15 +1772,21 @@
     {
       "oracle_id": "3c0f99b8-0222-4fac-932a-eb5d77826564",
       "name": "Soulstone Sanctuary",
-      "expected_semantic_ir_digest": "B1C0CD711B42DEB045DF07F01670BE7D071F06763D3311F6EE268DB2FA1AD25A",
+      "expected_semantic_ir_digest": "36FD3A2EC6576B6D9089B187C2931B1CC007C1117EC2AC2634ECF21ADCF2B66E",
       "contract": {
         "fixture_id": "soulstone-sanctuary/all-native-rules-are-executable",
         "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/soulstone-sanctuary.json"
       },
-      "runtime": {
-        "fixture_id": "soulstone-sanctuary-becomes-a-vigilant-land-creature-with-subtype-domain",
-        "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary.json"
-      }
+      "runtime": [
+        {
+          "fixture_id": "soulstone-sanctuary-becomes-a-vigilant-land-creature-with-subtype-domain",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary.json"
+        },
+        {
+          "fixture_id": "soulstone-sanctuary-animation-persists-through-cleanup",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/soulstone-sanctuary-cleanup.json"
+        }
+      ]
     },
     {
       "oracle_id": "c7d8beb6-472c-4758-9876-e8cbf98f4f72",

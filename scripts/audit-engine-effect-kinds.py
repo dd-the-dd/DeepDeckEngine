@@ -121,6 +121,22 @@ def retired_list(path,raw=None):
     if len(values)!=len(set(values)):raise ValueError('duplicate retired kind')
     return values
 
+# Kinds the engine builds for itself and executes without any validator. No Oracle text lowers
+# to them, so no card contract may accept them: accepting one would let a parsed card claim an
+# engine-internal step as executable coverage. Any other executor without acceptance fails.
+ENGINE_SYNTHESIZED_EFFECTS={
+    # Paradigm: in its controller's precombat main phase, enqueue_paradigm_triggers (mod.rs) turns
+    # a `paradigmDelayedTrigger` rule modifier into a triggered ability whose only effect is
+    # castParadigmCopy and puts it on the stack itself.
+    'castParadigmCopy',
+}
+
+def engine_synthesized_executors(executor_only):
+    """The executor-only kinds, all of which must be registered engine-synthesized kinds."""
+    unexplained=sorted(set(executor_only)-ENGINE_SYNTHESIZED_EFFECTS)
+    if unexplained:raise ValueError(f'executor without any accepting validator: {unexplained}; add the validator arm, or register an engine-synthesized kind with its origin')
+    return sorted(set(executor_only))
+
 def census(sources):
     accepted=collections.defaultdict(list);executed=collections.defaultdict(list)
     def add(target,path,name,role):
@@ -167,24 +183,50 @@ KIND_READERS={'value_kind'}
 ROOT_FUNCTION_PATHS={'','super','crate::engine'}
 ROOT_METHOD_RECEIVERS={'self','Self','GameEngine','super::GameEngine','crate::engine::GameEngine'}
 # Value plumbing shared by both envelopes; none of these dispatches on an effect kind.
+# `get` and `remove` are only safe because their key must be a string literal other than
+# "kind" (see envelope_keys): `effect.get("kind")` or `effect.get(KIND_FIELD)` fails closed.
 ENVELOPE_VALUE_METHODS={'get','clone','as_object_mut','remove','is_ok_and'}
+KEYED_VALUE_METHODS={'get','remove'}
 TRANSPARENT_VALIDATORS={'effect_performer::performer_effect_supported':{
     'path':'src/engine/effect_performer.rs','function':'performer_effect_supported','reentry':('function','effect_supported'),
     'helpers':{('function','singular_player_reference_supported')}}}
 TRANSPARENT_EXECUTORS={'execute_performed_effect':{
     'path':'src/engine/effect_performer.rs','function':'execute_performed_effect','reentry':('method','execute_effect_in_batch'),
-    'helpers':{('method','resolve_player'),('method','player_index')}}}
+    'helpers':{('method','resolve_player'),('method','player_index')},
+    # `self.state.players[index]`: a player index from player_index, never an effect key.
+    'index_variables':{'index'}}}
 # Non-delegating calls the root executors make (the unsupported-effect error message).
-ROOT_EXECUTOR_HELPERS={('function','value_kind'),('function','EngineError::new'),('value','unwrap_or')}
+ROOT_EXECUTOR_HELPERS={('function','value_kind'),('function','EngineError::new'),('value','unwrap_or'),('macro','format')}
+
+def generic_end(tokens,i):
+    """Index after the `<...>` that starts at tokens[i], or None when unbalanced."""
+    depth=0
+    for j in range(i,len(tokens)):
+        if tokens[j].text=='<':depth+=1
+        elif tokens[j].text=='>':
+            depth-=1
+            if depth==0:return j+1
+        elif tokens[j].text in (';','{','}'):return None
+    return None
 
 def call_sites(tokens):
     """Every call in a body as (form, name): `method` for self/Self/GameEngine methods,
     `function` for free or path-qualified functions (root paths normalised away),
-    `value` for methods on any other receiver. Constructors (Some, Ok) are skipped."""
+    `value` for methods on any other receiver, `macro` for `name!(...)`. Turbofish calls
+    (`f::<P>(`, `self.f::<P>(`) count as calls to `f`. Constructors (Some, Ok) are skipped.
+    A turbofish the lexer cannot balance fails closed."""
     result=set()
     for i in range(len(tokens)-1):
         name=tokens[i].text
-        if tokens[i+1].text!='(' or not IDENT.fullmatch(name) or name[0].isupper():continue
+        if not IDENT.fullmatch(name) or name[0].isupper():continue
+        following=tokens[i+1].text
+        if following=='!' and i+2<len(tokens) and tokens[i+2].text in ('(','[','{'):
+            result.add(('macro',name));continue
+        if following==':' and i+3<len(tokens) and tokens[i+2].text==':' and tokens[i+3].text=='<':
+            end=generic_end(tokens,i+3)
+            if end is None:raise ValueError(f'unbalanced turbofish after {name}; the census cannot read this call')
+            if end>=len(tokens) or tokens[end].text!='(':continue
+        elif following!='(':continue
         before=tokens[i-1].text if i else ''
         if before=='fn':continue
         if before=='.':
@@ -198,12 +240,40 @@ def call_sites(tokens):
         else:result.add(('function',prefix+'::'+name))
     return result
 
+def bracket_contents(tokens,i,opening,closing):
+    depth=0
+    for j in range(i,len(tokens)):
+        if tokens[j].text==opening:depth+=1
+        elif tokens[j].text==closing:
+            depth-=1
+            if depth==0:return tokens[i+1:j]
+    raise ValueError('unbalanced delimiter in wrapper body')
+
+def envelope_keys(tokens,index_variables):
+    """Keys a wrapper reads from values: index keys and get/remove arguments. Only a string
+    literal other than "kind" (or an allowlisted index variable) is a known-safe key; a
+    constant such as `effect[KIND_FIELD]` could name the kind field and fails closed."""
+    opaque=[]
+    for i,token in enumerate(tokens):
+        if token.text=='[' and i and (IDENT.fullmatch(tokens[i-1].text) or tokens[i-1].text in (')',']')):
+            key=bracket_contents(tokens,i,'[',']')
+        elif token.text=='(' and i>=2 and tokens[i-2].text=='.' and tokens[i-1].text in KEYED_VALUE_METHODS:
+            key=bracket_contents(tokens,i,'(',')')
+        else:continue
+        text=' '.join(t.text for t in key)
+        literal=len(key)==1 and key[0].text.startswith('"')
+        if (literal and key[0].text!='"kind"') or (len(key)==1 and key[0].text in index_variables):continue
+        opaque.append(text)
+    return opaque
+
 def transparent_wrapper(sources,name,spec):
     path=spec['path']
     if path not in sources:raise ValueError(f'kind-transparent wrapper {name}: {path} is missing')
     body=lex(sources[path].whole_function(spec['function'],[],'transparent')['body'])
     if any(t.text in KIND_READERS or t.text=='"kind"' for t in body):
         raise ValueError(f'{path}:{spec["function"]} inspects effect kinds; register it as a validator/executor role instead')
+    opaque=envelope_keys(body,spec.get('index_variables',set()))
+    if opaque:raise ValueError(f'{path}:{spec["function"]} reads keys the census cannot prove are not the kind: {opaque}')
     found=call_sites(body);reentry=spec['reentry']
     if reentry not in found:raise ValueError(f'{path}:{spec["function"]} no longer re-enters {reentry[1]}; it is not kind-transparent')
     extra=sorted(f'{form}:{call}' for form,call in found-{reentry}-spec['helpers'] if not(form=='value' and call in ENVELOPE_VALUE_METHODS))
@@ -303,6 +373,7 @@ def main(argv=None):
     sources={p:RustSource(p,b) for p,b in raw.items()};conformance=role_conformance(sources);accepted,executed=census(sources)
     counts={'acceptedKinds':len(accepted),'executedKinds':len(executed),'both':len(accepted.keys()&executed.keys()),
             'acceptedWithoutExecutor':sorted(accepted.keys()-executed.keys()),'executorWithoutAcceptance':sorted(executed.keys()-accepted.keys())}
+    counts['engineSynthesizedWithoutValidator']=engine_synthesized_executors(counts['executorWithoutAcceptance'])
     retired_raw=args.retired_kinds_json.read_bytes() if args.retired_kinds_json else None
     retired=retired_list(args.retired_kinds_json,retired_raw) if args.retired_kinds_json else []
     guard={'checked':bool(args.retired_kinds_json),'retiredKinds':retired,

@@ -314,6 +314,14 @@ pub enum FixtureAssertion {
         symbol: String,
         equals: bool,
     },
+    /// The engine's effective-characteristic filter (CR 613): layered
+    /// colors, card types and subtypes, not the printed definition.
+    PermanentMatchesEffectiveFilter {
+        player_id: String,
+        definition_id: String,
+        filter: Value,
+        equals: bool,
+    },
     PermanentCounter {
         player_id: String,
         definition_id: String,
@@ -587,7 +595,7 @@ pub fn run_fixture(fixture: RuntimeFixture) -> FixtureResult {
             decisions: execution.decisions,
             targets: execution.targets,
         };
-        if let Err(error) = engine.execute_canonical_rule(execution, &mut provider) {
+        if let Err(error) = action_driver::execute_rule(&mut engine, execution, &mut provider) {
             return failed_result(fixture_id, error.to_string());
         }
     }
@@ -1422,6 +1430,23 @@ fn evaluate_assertion(
                 actual == Some(*equals),
                 format!(
                     "{player_id} permanent {definition_id} color indicator contains {symbol} expected {equals}, actual {actual:?}"
+                ),
+            )
+        }
+        FixtureAssertion::PermanentMatchesEffectiveFilter {
+            player_id,
+            definition_id,
+            filter,
+            equals,
+        } => {
+            let actual =
+                permanent_by_definition(state, player_id, definition_id).and_then(|permanent| {
+                    engine.permanent_matches_effective_filter_by_id(&permanent.instance_id, filter)
+                });
+            (
+                actual == Some(*equals),
+                format!(
+                    "{player_id} permanent {definition_id} effective filter {filter} expected {equals}, actual {actual:?}"
                 ),
             )
         }

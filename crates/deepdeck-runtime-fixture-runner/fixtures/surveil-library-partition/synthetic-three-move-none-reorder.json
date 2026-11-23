@@ -196,7 +196,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "graveyard",
-      "equals": 0
+      "equals": 1
     },
     {
       "kind": "zoneCount",
@@ -238,6 +238,20 @@
       "kind": "libraryTopIs",
       "playerId": "player-0",
       "definitionId": "looked-a"
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "surveil-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "surveil-source",
+      "equals": false
     }
   ]
 }

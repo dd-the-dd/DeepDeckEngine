@@ -42,6 +42,11 @@ fn keyword_metadata(effect: &Value) -> bool {
         }
         for path,functions in simple.items():
             self.write_source('src/engine/'+path,'\n'.join('fn '+fn+'(effect: &Value) -> bool { match value_kind(effect) { _ => false } }' for fn in functions))
+        # The census attributes gainLife/loseLife to the delegated life executor, so this validator
+        # accepts them as the real one does; an executor-only kind now fails the census.
+        self.write_source('src/engine/life.rs',
+            'fn direct_life_effect_supported(effect: &Value) -> bool { match value_kind(effect) { Some("gainLife" | "loseLife") => true, _ => false } }\n'
+            'fn execute_direct_life_effect(effect: &Value) -> bool { match value_kind(effect) { _ => false } }')
 
     def tearDown(self):
         self.temp.cleanup()

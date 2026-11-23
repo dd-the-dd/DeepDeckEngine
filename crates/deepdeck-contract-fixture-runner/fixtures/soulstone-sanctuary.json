@@ -6,10 +6,6 @@
   "expectedExecutable": true,
   "rules": [
     {
-      "kind": "manaAbility",
-      "source": {
-        "kind": "self"
-      },
       "costs": [
         {
           "kind": "tap",
@@ -21,73 +17,86 @@
       "effects": [
         {
           "kind": "addMana",
+          "mana": "{C}",
           "player": {
             "kind": "controllerOf",
             "object": {
               "kind": "self"
             }
-          },
-          "mana": "{C}"
+          }
         }
-      ]
-    },
-    {
-      "kind": "activatedAbility",
+      ],
+      "kind": "manaAbility",
       "source": {
         "kind": "self"
-      },
+      }
+    },
+    {
       "costs": [
         {
           "kind": "payMana",
           "manaCost": "{4}"
         }
       ],
+      "declaration": {
+        "decisions": [],
+        "kind": "castingDeclaration"
+      },
       "effects": [
         {
-          "kind": "becomeCreature",
+          "cardType": "Creature",
+          "duration": {
+            "kind": "permanent"
+          },
+          "kind": "addCardType",
           "object": {
             "kind": "self"
           },
-          "addTypes": [
-            "Creature"
-          ],
-          "addSubtypes": [],
-          "addColors": [],
-          "basePower": {
-            "kind": "integer",
-            "value": 3
-          },
-          "baseToughness": {
-            "kind": "integer",
-            "value": 3
-          },
-          "retainExistingTypes": true,
-          "duration": {
-            "kind": "permanent"
-          }
+          "retainExistingTypes": true
         },
         {
+          "duration": {
+            "kind": "permanent"
+          },
+          "kind": "modifySubtypeSet",
+          "mode": "all",
+          "object": {
+            "kind": "self"
+          },
+          "subtypeClass": "creature"
+        },
+        {
+          "duration": {
+            "kind": "permanent"
+          },
+          "keyword": "vigilance",
           "kind": "grantKeyword",
           "object": {
             "kind": "self"
-          },
-          "keyword": "vigilance",
-          "duration": {
-            "kind": "permanent"
           }
         },
         {
-          "kind": "modifySubtypeSet",
+          "duration": {
+            "kind": "permanent"
+          },
+          "kind": "setBasePowerToughness",
           "object": {
             "kind": "self"
           },
-          "subtypeClass": "creature",
-          "mode": "all",
-          "duration": {
-            "kind": "permanent"
+          "power": {
+            "kind": "integer",
+            "value": 3
+          },
+          "toughness": {
+            "kind": "integer",
+            "value": 3
           }
         }
-      ]
+      ],
+      "kind": "activatedAbility",
+      "source": {
+        "kind": "self"
+      }
     }
   ]
 }

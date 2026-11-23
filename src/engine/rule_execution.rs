@@ -640,4 +640,91 @@ impl GameEngine {
             )
         })
     }
+
+    /// Resolves an already-compiled spell rule as a spell. The source card
+    /// leaves its zone for the stack (CR 601.2a) without being cast or paid
+    /// for, `execution.rule` is its spell ability, and the ordinary stack
+    /// resolution applies it (CR 608.2) and then moves the card where the
+    /// rules send it (CR 608.2n: its owner's graveyard, or exile, library or
+    /// hand for spells that say so). A spell never counts or chooses itself in
+    /// the zone it was cast from. The source must be outside the battlefield.
+    pub fn resolve_canonical_spell<P: DecisionProvider>(
+        &mut self,
+        execution: CanonicalRuleExecution,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        if value_kind(&execution.rule) != Some("spellAbility") {
+            return Err(EngineError::new(
+                "canonical spell resolution requires a spellAbility rule",
+            ));
+        }
+        if !rule_is_executable(&execution.rule) {
+            return Err(EngineError::new(
+                "canonical spell resolution rejected an unexecutable rule",
+            ));
+        }
+        let controller_index = self.player_index(&execution.controller_id)?;
+        let player = &self.state.players[controller_index];
+        let matches = player
+            .library
+            .iter()
+            .chain(player.hand.iter())
+            .chain(player.graveyard.iter())
+            .chain(player.exile.iter())
+            .chain(player.command_zone.iter())
+            .filter(|card| card.definition.id == execution.source_definition_id)
+            .collect::<Vec<_>>();
+        let [source_card] = matches.as_slice() else {
+            return Err(EngineError::new(format!(
+                "spell source definition {} must be exactly one card outside player {}'s battlefield ({} found)",
+                execution.source_definition_id,
+                execution.controller_id,
+                matches.len()
+            )));
+        };
+        // Only an instant or sorcery resolves by applying its spell ability
+        // (CR 608.2); a permanent spell would enter the battlefield instead.
+        if !(has_card_type(&source_card.definition, "Instant")
+            || has_card_type(&source_card.definition, "Sorcery"))
+        {
+            return Err(EngineError::new(format!(
+                "spell source definition {} is not an instant or sorcery card",
+                execution.source_definition_id
+            )));
+        }
+        let instance_id = &source_card.instance_id.clone();
+        let source = self
+            .prepare_card_movement_source(instance_id, None)?
+            .ok_or_else(|| EngineError::new("spell source has no movable identity"))?;
+        let mut moved = self.take_prepared_movement_card(source)?;
+        // The fixture rule is the card's spell ability; its other rules stay.
+        moved
+            .card
+            .definition
+            .rules
+            .retain(|rule| value_kind(rule) != Some("spellAbility"));
+        moved.card.definition.rules.push(execution.rule.clone());
+        self.commit_movement_identity(
+            &mut moved,
+            &card_zone_transition::ObjectZone::Stack,
+            card_zone_transition::ObjectTransitionReason::Move,
+        )?;
+        let card = moved.card;
+        let mut decisions = execution.decisions;
+        for (id, target) in &execution.targets {
+            self.capture_target_incarnation(&mut decisions, id, target)?;
+        }
+        self.state.stack.push(StackObject {
+            id: format!("canonical-spell:{}", card.instance_id),
+            controller: execution.controller_id,
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: None,
+            ability_rule: None,
+            card,
+            decisions,
+            targets: execution.targets,
+        });
+        self.resolve_top_stack(provider)
+    }
 }

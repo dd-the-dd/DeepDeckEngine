@@ -170,7 +170,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "graveyard",
-      "equals": 0
+      "equals": 1
     },
     {
       "kind": "zoneCount",
@@ -207,6 +207,20 @@
     {
       "kind": "stackDepth",
       "equals": 0
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "surveil-source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "surveil-source",
+      "equals": false
     }
   ]
 }

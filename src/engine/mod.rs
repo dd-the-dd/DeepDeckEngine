@@ -102,6 +102,7 @@ mod card_zone_transition;
 mod cast_events;
 mod casting_cost;
 mod casting_permission_modes;
+mod characteristic_observation;
 mod copy_program;
 mod cost_payment;
 mod cost_query;

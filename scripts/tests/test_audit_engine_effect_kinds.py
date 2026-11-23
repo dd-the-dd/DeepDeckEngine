@@ -268,4 +268,80 @@ fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
         crate_path=qualified.replace(b'super::effect_supported',b'crate::engine::effect_supported')
         self.assertTrue(role_conformance(self.root_sources(self.ROUTED_PERFORMER,crate_path))['rootDelegationsRegistered'])
 
+    def test_turbofish_calls_are_calls(self):
+        wrapper=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    Some(hidden_kind_accepted::<Strict>(effect) || effect_supported(effect))
+}
+'''
+        with self.assertRaisesRegex(ValueError,r"\['function:hidden_kind_accepted'\]"):
+            role_conformance(self.root_sources(self.ROUTED_PERFORMER,wrapper+self.REENTERING_EXECUTOR))
+        routed=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    self.execute_hidden_domain::<P>(effect)?;
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    Ok(())
+}
+'''
+        with self.assertRaisesRegex(ValueError,r"unregistered root executor delegation: \['execute_hidden_domain'\]"):
+            role_conformance(self.root_sources(routed))
+        reentry=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> { Some(effect_supported(effect)) }
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
+    self.execute_effect_in_batch::<P>(effect)?;
+    Ok(true)
+}
+'''
+        self.assertTrue(role_conformance(self.root_sources(self.ROUTED_PERFORMER,reentry))['rootDelegationsRegistered'])
+
+    def test_macro_calls_fail_closed(self):
+        wrapper=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    Some(hidden_dispatch!(effect) && effect_supported(effect))
+}
+'''
+        with self.assertRaisesRegex(ValueError,r"\['macro:hidden_dispatch'\]"):
+            role_conformance(self.root_sources(self.ROUTED_PERFORMER,wrapper+self.REENTERING_EXECUTOR))
+        routed=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    dispatch_effect!(self, effect);
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    Ok(())
+}
+'''
+        with self.assertRaisesRegex(ValueError,r"unregistered root executor delegation: \['macro:dispatch_effect'\]"):
+            role_conformance(self.root_sources(routed))
+
+    def test_constant_keys_fail_closed(self):
+        for label,read in [('index',b'effect[KIND_FIELD] == "hidden"'),('get',b'effect.get(KIND_FIELD).is_some()'),
+                           ('variable key get',b'effect.get(&field).is_some()')]:
+            wrapper=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    Some('''+read+b''' || effect_supported(effect))
+}
+'''
+            with self.subTest(label),self.assertRaisesRegex(ValueError,'reads keys the census cannot prove'):
+                role_conformance(self.root_sources(self.ROUTED_PERFORMER,wrapper+self.REENTERING_EXECUTOR))
+        indexed=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    let performer = effect.get("performer")?;
+    Some(singular_player_reference_supported(performer) && effect_supported(effect))
+}
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
+    let player_id = self.resolve_player(effect)?;
+    if self.player_index(&player_id).is_ok_and(|index| self.state.players[index].has_lost) { return Ok(true); }
+    self.execute_effect_in_batch(effect)?;
+    Ok(true)
+}
+'''
+        self.assertTrue(role_conformance(self.root_sources(self.ROUTED_PERFORMER,indexed))['rootDelegationsRegistered'])
+        renamed=indexed.replace(b'players[index]',b'players[slot]').replace(b'|index|',b'|slot|')
+        with self.assertRaisesRegex(ValueError,r"reads keys the census cannot prove are not the kind: \['slot'\]"):
+            role_conformance(self.root_sources(self.ROUTED_PERFORMER,renamed))
+
+    def test_executor_without_validator_must_be_engine_synthesized(self):
+        self.assertEqual(MODULE.engine_synthesized_executors(['castParadigmCopy']),['castParadigmCopy'])
+        with self.assertRaisesRegex(ValueError,r"executor without any accepting validator: \['hiddenKind'\]"):
+            MODULE.engine_synthesized_executors(['castParadigmCopy','hiddenKind'])
+
 if __name__=='__main__':unittest.main(verbosity=2)

@@ -192,7 +192,7 @@
       "kind": "zoneCount",
       "playerId": "player-0",
       "zone": "graveyard",
-      "equals": 1
+      "equals": 2
     },
     {
       "kind": "eventCount",
@@ -211,6 +211,20 @@
       "eventKind": "triggeredAbilityPutOnStack",
       "playerId": "player-1",
       "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "source",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "source",
+      "equals": false
     }
   ]
 }

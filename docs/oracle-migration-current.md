@@ -47,6 +47,19 @@ exist before its entry is removed. This is the precedent for `recruit`
 (CR 701.70a) and `manifestDread` (CR 701.62a). Remove one entry with the commit
 that adds the primitive and its proofs. Never clear the list wholesale.
 
+Both carry a conditional part, and its runtime proof must exercise both branches.
+A proof of the unconditional path alone does not qualify:
+- `recruit` (CR 701.70a): draw, then discard. The 1/1 Human Soldier token is
+  created only if the discarded card was a nonland card. Needs one runtime test
+  that discards a nonland card (token created) and one that discards a land
+  (no token).
+- `manifestDread` (CR 701.62a): look at the top two cards and manifest one. The
+  card that was not manifested goes to the graveyard. Needs a runtime test that
+  checks both destinations: one face-down 2/2 on the battlefield and the other
+  card in the graveyard, neither left in the library. Per CR 701.62b, an
+  "whenever you manifest dread" trigger fires after the whole process, even when
+  parts of it were impossible (for example, a library with fewer than two cards).
+
 ## Historical handoff (superseded status and owners)
 
 Goal ACTIVE and unfinished: every Magic card through generic compositional typed
