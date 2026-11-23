@@ -551,3 +551,16 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   coéquipier de Two-Headed Giant en fait partie, l'ensemble « adversaires »
   non) : Haunted Angel perd son support, perte justifiée.
 - Seuil `position > 0` retiré de la durée indéfinie.
+
+### `each other player` : l'ensemble complémentaire du contrôleur (CR 102.3)
+
+- L'exécutant `each other player` se lit `playersExcept` du contrôleur
+  (coéquipiers compris), résolu par le moteur avec le même filtre que les
+  adversaires ; la boucle `forEachPlayer` accepte ce complément
+  (`player_iteration.rs`). Haunted Angel redevient supporté.
+- Le chemin quantifié (`lower_quantified_population`) abaisse encore
+  `each other player` vers les adversaires : ses actions en lot
+  (`loseLife.player`, `sacrificePermanents.player`) passent par
+  `player_reference_supported` (`mod.rs`, voie B). Le morceau moteur est
+  préparé dans `.tmp/staging/lane-a/players-except-support.md` ; le chemin
+  quantifié bascule dès qu'il est appliqué.

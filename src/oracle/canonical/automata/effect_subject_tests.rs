@@ -818,3 +818,15 @@ fn zone_action_near_misses_stay_non_canonical() {
         assert_ne!(status, "canonical", "{oracle}: {states:?}");
     }
 }
+
+/// CR 102.3: `each other player` is every player but the controller,
+/// teammates included, never the opponents set.
+#[test]
+fn each_other_player_is_the_controllers_complement() {
+    let effects = effects(SORCERY, "Each other player creates a Treasure token.");
+    assert_eq!(effects[0]["kind"], "forEachPlayer", "{effects:#?}");
+    assert_eq!(
+        effects[0]["players"]["kind"], "playersExcept",
+        "{effects:#?}"
+    );
+}

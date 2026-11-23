@@ -748,3 +748,19 @@ fn an_indefinite_grant_is_lost_when_the_permanent_changes_zones() {
         "a new object"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn each_other_player_performs_and_the_controller_does_not() {
+    // Haunted Angel's `each other player creates ...` with three players.
+    let rule = parsed_rules(
+        "Sorcery",
+        "Each other player creates a 1/1 white Spirit creature token with flying.",
+    )
+    .remove(0);
+    let mut engine = test_engine(3);
+    resolve_spell(&mut engine, &rule, BTreeMap::new());
+    assert!(engine.state.players[0].battlefield.is_empty(), "{rule:#}");
+    assert_eq!(engine.state.players[1].battlefield.len(), 1);
+    assert_eq!(engine.state.players[2].battlefield.len(), 1);
+}

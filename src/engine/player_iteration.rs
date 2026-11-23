@@ -11,7 +11,10 @@ pub(super) fn player_iteration_supported(effect: &Value) -> Option<bool> {
     }
     Some(
         effect["bind"].as_str().is_some_and(|id| !id.is_empty())
-            && player_set_reference_supported(&effect["players"])
+            // `each other player` (CR 102.3: teammates included) is the
+            // shared complement of the controller.
+            && (player_set_reference_supported(&effect["players"])
+                || player_complement_reference_supported(&effect["players"]))
             && effect["effects"]
                 .as_array()
                 .is_some_and(|effects| !effects.is_empty() && effects.iter().all(effect_supported))
@@ -35,7 +38,7 @@ impl GameEngine {
         // is valid, whereas an unresolved reference is not an empty set.
         let reference = match value_kind(selector) {
             Some("eachPlayer" | "randomPlayer") => None,
-            Some("opponentsOf" | "randomOpponentOf") => Some(&selector["player"]),
+            Some("opponentsOf" | "playersExcept" | "randomOpponentOf") => Some(&selector["player"]),
             _ => Some(selector),
         };
         if let Some(reference) = reference {

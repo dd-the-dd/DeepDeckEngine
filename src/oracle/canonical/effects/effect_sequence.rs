@@ -3018,20 +3018,17 @@ fn apply_performer(
             )));
         }
         PerformerNode::Population {
-            excluding_controller: true,
-            ..
+            players,
+            excluding_controller,
         } => {
-            // CR 102.3: `each other player` includes a teammate, which the
-            // opponents set does not; no player set names it yet.
-            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                cursor.fail(
-                    "a player set of every player other than the controller, teammates included",
-                ),
-            ));
-        }
-        PerformerNode::Population { players, .. } => {
             let bind = format!("performer{effect_index}");
-            let players = lower_player_set_reference(*players);
+            // CR 102.3: `each other player` is every player but the
+            // controller, teammates included, not the opponents set.
+            let players = if *excluding_controller {
+                json!({"kind": "playersExcept", "player": controller()})
+            } else {
+                lower_player_set_reference(*players)
+            };
             let body = effects
                 .drain(start..)
                 .map(|mut effect| {
