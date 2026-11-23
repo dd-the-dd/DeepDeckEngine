@@ -373,7 +373,7 @@ impl GameEngine {
                         && modifier_source.controller == *controller
                         && Self::chosen_creature_type_matches(
                             &modifier_source,
-                            &source_card.definition,
+                            object_predicate::DefinitionView::for_permanent(&source_card),
                             &json!({"decisionId":modifier["decisionId"]}),
                         )
                     {

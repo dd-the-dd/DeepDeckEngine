@@ -281,7 +281,7 @@ impl GameEngine {
             }
             return Ok(colors);
         }
-        if has_keyword(&permanent.definition, "devoid") {
+        if permanent_printed_has_keyword(permanent, "devoid") {
             return Ok(colors);
         }
         // Intentionally excludes rulesMarker.colorIdentity. Activated symbols,

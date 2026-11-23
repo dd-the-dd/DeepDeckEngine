@@ -202,7 +202,10 @@ impl GameEngine {
                                 })
                             })
                             && rule["event"].get("where").is_none_or(|filter| {
-                                matches_card_filter(&permanent.definition, filter)
+                                matches_card_filter(
+                                    object_predicate::DefinitionView::for_permanent(&permanent),
+                                    filter,
+                                )
                             })
                     })
                     .cloned()

@@ -8,6 +8,8 @@
 //! keywords, triggered abilities and battlefield activated abilities. Any
 //! other rule kind, and any gate kind without a runtime producer (the solved
 //! designation), is reported unsupported instead of running ungated.
+use std::collections::BTreeMap;
+
 use serde_json::Value;
 
 use super::{CardInstance, integer_value, value_kind};
@@ -50,6 +52,13 @@ pub(super) fn band_gate_supported(rule: &Value) -> bool {
 /// Whether the band containing this rule is currently open for `source`
 /// (CR 711.2a-b, 722.2a). A rule without a gate is always open.
 pub(super) fn band_gate_open(source: &CardInstance, rule: &Value) -> bool {
+    band_gate_open_for_counters(&source.counters, rule)
+}
+
+/// The same gate read against an object's counters. An object off the
+/// battlefield has no counters (CR 122.2), so its level and station bands
+/// with a positive threshold are closed.
+pub(super) fn band_gate_open_for_counters(counters: &BTreeMap<String, i32>, rule: &Value) -> bool {
     let Some(gate) = rule.get("bandGate") else {
         return true;
     };
@@ -58,7 +67,7 @@ pub(super) fn band_gate_open(source: &CardInstance, rule: &Value) -> bool {
             let Some((counter, minimum, maximum)) = counter_range(gate) else {
                 return false;
             };
-            let count = source.counters.get(counter).copied().unwrap_or(0);
+            let count = counters.get(counter).copied().unwrap_or(0);
             count >= minimum && maximum.is_none_or(|maximum| count <= maximum)
         }
         _ => false,

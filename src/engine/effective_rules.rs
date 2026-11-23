@@ -308,6 +308,18 @@ impl GameEngine {
             .unwrap_or(false)
     }
 
+    /// The same metadata read for an object that is not a permanent. It has
+    /// no counters (CR 122.2), so level and station bands with a positive
+    /// threshold are closed, and a Class is at its first level (CR 716.2a).
+    /// Room doors are battlefield designations (CR 709.5): off the
+    /// battlefield the card has the characteristics of both halves.
+    pub(super) fn rule_metadata_active_off_battlefield(rule: &Value) -> bool {
+        band_gate::band_gate_open_for_counters(&BTreeMap::new(), rule)
+            && rule["minimumClassLevel"]
+                .as_i64()
+                .is_none_or(|minimum| minimum <= 1)
+    }
+
     /// Ability loss is computed from the printed layer only: a granted rule
     /// can never remove abilities, and reading the effective layer here would
     /// make the layer depend on itself.

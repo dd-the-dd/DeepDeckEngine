@@ -406,9 +406,11 @@ impl GameEngine {
                     _ => false,
                 }
             }
-            Some("manaValueParity" | "chosenCreatureType") => {
-                matches_card_filter_with_decisions(&permanent.definition, filter, decisions)
-            }
+            Some("manaValueParity" | "chosenCreatureType") => matches_card_filter_with_decisions(
+                super::object_predicate::DefinitionView::for_permanent(permanent),
+                filter,
+                decisions,
+            ),
             _ => self.permanent_matches_target_filter(permanent, filter, controller_id),
         }
     }

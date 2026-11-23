@@ -33156,6 +33156,9 @@ mod event_replacement_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/intervening_if_condition_runtime.rs"]
 mod intervening_if_condition_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/leveler_band_runtime.rs"]
+mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;

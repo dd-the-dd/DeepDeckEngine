@@ -2049,19 +2049,25 @@ fn count_rule_kind(value: &Value, expected: &str) -> usize {
         }
 }
 
+/// Printed keyword count of an object off the battlefield (a spell).
 fn keyword_count(card: &CardDefinition, keyword: &str) -> usize {
-    card.printed_rules()
-        .iter()
-        .filter(|rule| keyword_rule_supported(rule))
+    object_predicate::DefinitionView::new(card)
+        .keyword_rules()
         .map(|rule| count_rule_kind(rule, keyword))
         .sum()
 }
 
+/// Printed keyword of an object off the battlefield: band gates are read at
+/// rest. A permanent's readers are `permanent_printed_has_keyword` and the
+/// effective `permanent_has_effective_keyword`.
 fn has_keyword(card: &CardDefinition, keyword: &str) -> bool {
-    card.printed_rules()
-        .iter()
-        .filter(|rule| keyword_rule_supported(rule))
-        .any(|rule| rule_contains_kind(rule, keyword))
+    object_predicate::DefinitionView::new(card).has_keyword(keyword)
+}
+
+/// Printed keyword of a permanent, behind its band gates. Characteristic
+/// readers that must not recurse into the effective layer use it.
+fn permanent_printed_has_keyword(permanent: &CardInstance, keyword: &str) -> bool {
+    object_predicate::DefinitionView::for_permanent(permanent).has_keyword(keyword)
 }
 
 fn stored_decision_value<'a>(card: &'a CardDefinition, decision_id: &str) -> Option<&'a str> {
@@ -2073,9 +2079,9 @@ fn stored_decision_value<'a>(card: &'a CardDefinition, decision_id: &str) -> Opt
     })
 }
 
-fn ward_costs(card: &CardDefinition) -> Vec<Value> {
-    card.printed_rules()
-        .iter()
+fn ward_costs<'a>(rules: impl IntoIterator<Item = &'a Value>) -> Vec<Value> {
+    rules
+        .into_iter()
         .filter_map(|rule| match value_kind(rule) {
             Some("keywordAbility") => {
                 ward_ability_supported(&rule["ability"]).then(|| rule["ability"]["cost"].clone())
@@ -2157,15 +2163,22 @@ fn basic_land_mana(card: &CardDefinition) -> Vec<Vec<String>> {
     .collect()
 }
 
-fn matches_card_filter(card: &CardDefinition, filter: &Value) -> bool {
-    object_predicate::matches_object_predicate(object_predicate::DefinitionView::new(card), filter)
+/// A definition predicate. A battlefield permanent passes
+/// `DefinitionView::for_permanent` so its band-gated printed abilities are read.
+fn matches_card_filter<'a>(
+    card: impl Into<object_predicate::DefinitionView<'a>>,
+    filter: &Value,
+) -> bool {
+    object_predicate::matches_object_predicate(card.into(), filter)
 }
 
-fn matches_card_filter_with_decisions(
-    card: &CardDefinition,
+fn matches_card_filter_with_decisions<'a>(
+    view: impl Into<object_predicate::DefinitionView<'a>>,
     filter: &Value,
     decisions: &BTreeMap<String, Value>,
 ) -> bool {
+    let view = view.into();
+    let card = view.definition();
     match value_kind(filter) {
         Some("manaValueParity") => filter["parity"]["decisionId"]
             .as_str()
@@ -2188,7 +2201,7 @@ fn matches_card_filter_with_decisions(
                 })
             })
             .is_some_and(|chosen_type| {
-                has_keyword(card, "changeling") || has_card_subtype(card, chosen_type)
+                view.has_keyword("changeling") || has_card_subtype(card, chosen_type)
             }),
         Some("compare")
             if matches!(
@@ -2235,15 +2248,15 @@ fn matches_card_filter_with_decisions(
         Some("or") => filter["operands"].as_array().is_some_and(|values| {
             values
                 .iter()
-                .any(|value| matches_card_filter_with_decisions(card, value, decisions))
+                .any(|value| matches_card_filter_with_decisions(view, value, decisions))
         }),
         Some("and") => filter["operands"].as_array().is_some_and(|values| {
             values
                 .iter()
-                .all(|value| matches_card_filter_with_decisions(card, value, decisions))
+                .all(|value| matches_card_filter_with_decisions(view, value, decisions))
         }),
-        Some("not") => !matches_card_filter_with_decisions(card, &filter["operand"], decisions),
-        _ => matches_card_filter(card, filter),
+        Some("not") => !matches_card_filter_with_decisions(view, &filter["operand"], decisions),
+        _ => matches_card_filter(view, filter),
     }
 }
 
@@ -2315,7 +2328,10 @@ fn matches_permanent_filter(card: &CardInstance, filter: &Value) -> bool {
                 .all(|value| matches_permanent_filter(card, value))
         }),
         Some("not") => !matches_permanent_filter(card, &filter["operand"]),
-        _ => matches_card_filter(&card.definition, filter),
+        _ => matches_card_filter(
+            object_predicate::DefinitionView::for_permanent(card),
+            filter,
+        ),
     }
 }
 
@@ -9837,7 +9853,10 @@ impl GameEngine {
                     .flat_map(|player| player.battlefield.iter())
                     .filter(|permanent| {
                         permanent.attached_to.as_deref() == Some(source.instance_id.as_str())
-                            && matches_card_filter(&permanent.definition, &expression["where"])
+                            && matches_card_filter(
+                                object_predicate::DefinitionView::for_permanent(permanent),
+                                &expression["where"],
+                            )
                     })
                     .count() as i32,
             );
@@ -10047,7 +10066,7 @@ impl GameEngine {
                 {
                     Self::chosen_creature_type_matches(
                         source,
-                        &permanent.definition,
+                        object_predicate::DefinitionView::for_permanent(permanent),
                         &selector["where"],
                     )
                 } else {
@@ -10106,7 +10125,10 @@ impl GameEngine {
                     .stack
                     .iter()
                     .any(|object| object.card.instance_id == permanent.instance_id)
-                && matches_card_filter(&permanent.definition, &selector["where"]);
+                && matches_card_filter(
+                    object_predicate::DefinitionView::for_permanent(permanent),
+                    &selector["where"],
+                );
         }
         if value_kind(selector) != Some("permanents")
             || !rule_contains_kind(&selector["where"], "isEquipped")
@@ -10161,17 +10183,18 @@ impl GameEngine {
         }
     }
 
-    fn chosen_creature_type_matches(
+    fn chosen_creature_type_matches<'a>(
         source: &CardInstance,
-        definition: &CardDefinition,
+        object: impl Into<object_predicate::DefinitionView<'a>>,
         filter: &Value,
     ) -> bool {
+        let object = object.into();
         let decision_id = filter["decisionId"]
             .as_str()
             .unwrap_or("chosenCreatureType");
         stored_decision_value(&source.definition, decision_id).is_some_and(|chosen_type| {
-            has_keyword(definition, "changeling")
-                || type_line_contains(&definition.type_line, chosen_type)
+            object.has_keyword("changeling")
+                || type_line_contains(&object.definition().type_line, chosen_type)
         })
     }
 
@@ -10294,7 +10317,10 @@ impl GameEngine {
             || self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("emblemPermanentModifier")
                     && modifier["playerId"].as_str() == Some(permanent.controller.as_str())
-                    && matches_card_filter(&permanent.definition, &modifier["where"])
+                    && matches_card_filter(
+                        object_predicate::DefinitionView::for_permanent(permanent),
+                        &modifier["where"],
+                    )
                     && modifier["keywords"].as_array().is_some_and(|keywords| {
                         keywords.iter().any(|value| value.as_str() == Some(keyword))
                     })
@@ -10917,7 +10943,10 @@ impl GameEngine {
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(permanent, kind),
-            _ => matches_card_filter(&permanent.definition, filter),
+            _ => matches_card_filter(
+                object_predicate::DefinitionView::for_permanent(permanent),
+                filter,
+            ),
         }
     }
 
@@ -11157,7 +11186,7 @@ impl GameEngine {
         }
         // Intrinsic characteristic-defining color precedes the explicit
         // layer-five color effects handled above, and layer-six ability loss.
-        if has_keyword(&permanent.definition, "devoid") {
+        if permanent_printed_has_keyword(permanent, "devoid") {
             return BTreeSet::new();
         }
         card_color_symbols(&permanent.definition)
@@ -11315,7 +11344,7 @@ impl GameEngine {
             })
             .map(|(_, modifier)| {
                 let maximum = integer_value(&modifier["maximum"]).unwrap_or(10).max(0);
-                if has_keyword(&permanent.definition, "changeling") {
+                if permanent_printed_has_keyword(permanent, "changeling") {
                     maximum
                 } else {
                     permanent
@@ -11335,7 +11364,10 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("emblemPermanentModifier")
                     && modifier["playerId"].as_str() == Some(permanent.controller.as_str())
-                    && matches_card_filter(&permanent.definition, &modifier["where"])
+                    && matches_card_filter(
+                        object_predicate::DefinitionView::for_permanent(permanent),
+                        &modifier["where"],
+                    )
             })
             .fold((0, 0), |(power, toughness), modifier| {
                 (
@@ -11603,7 +11635,13 @@ impl GameEngine {
         if self.ward_is_suppressed_for(permanent, targeting_player) {
             return Vec::new();
         }
-        let mut costs = ward_costs(&permanent.definition);
+        let mut costs = ward_costs(
+            permanent
+                .definition
+                .printed_rules()
+                .iter()
+                .filter(|rule| self.rule_active_for_source(permanent, rule)),
+        );
         costs.extend(
             self.battlefield_static_modifiers()
                 .iter()
@@ -28482,7 +28520,7 @@ impl GameEngine {
                         .filter(|permanent| {
                             permanent.controller == card.controller
                                 && self.permanent_is_creature(permanent)
-                                && (has_keyword(&permanent.definition, "changeling")
+                                && (self.permanent_has_keyword(permanent, "changeling")
                                     || type_line_contains(
                                         &permanent.definition.type_line,
                                         chosen_type,

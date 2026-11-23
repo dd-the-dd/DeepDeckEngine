@@ -525,7 +525,7 @@ impl GameEngine {
                                                 )
                                             },
                                             |creature_type| {
-                                                has_keyword(&permanent.definition, "changeling")
+                                                self.permanent_has_keyword(permanent, "changeling")
                                                     || type_line_contains(
                                                         &permanent.definition.type_line,
                                                         creature_type,
