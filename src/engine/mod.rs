@@ -2890,7 +2890,20 @@ fn object_expression_supported(expression: &Value) -> bool {
                 value_kind(&expression["zone"]),
                 Some("graveyard" | "hand" | "exile")
             ) && player_query::zone_holders_supported(&expression["zone"])
-                && expression.get("where").is_none_or(card_filter_supported)
+                && expression.get("where").is_none_or(|predicate| {
+                    // The card-zone domain evaluates definition data only
+                    // (runtime_collections); a battlefield-state atom there
+                    // is refused here, not at resolution.
+                    card_filter_supported(predicate)
+                        && object_predicate::try_map_predicate_leaves(predicate, 0, &mut |leaf| {
+                            if object_predicate::definition_atom_supported(leaf) {
+                                Ok(leaf.clone())
+                            } else {
+                                Err(EngineError::new("not a definition atom"))
+                            }
+                        })
+                        .is_ok()
+                })
         }
         Some("cardsDrawnThisTurn") => {
             player_reference_supported(&expression["player"])

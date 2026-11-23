@@ -4,6 +4,17 @@
 use super::*;
 
 fn compile(name: &str, type_line: &str, mana_cost: &str, text: &str) -> CardDefinition {
+    let (status, card) = compile_with_status(name, type_line, mana_cost, text);
+    assert_eq!(status, "executable", "{name}");
+    card
+}
+
+fn compile_with_status(
+    name: &str,
+    type_line: &str,
+    mana_cost: &str,
+    text: &str,
+) -> (String, CardDefinition) {
     let request = OracleCardParseRequest {
         card_name: name.to_string(),
         type_line: type_line.to_string(),
@@ -32,8 +43,7 @@ fn compile(name: &str, type_line: &str, mana_cost: &str, text: &str) -> CardDefi
         .join()
         .expect("compiler thread completes")
         .expect("the card compiles");
-    assert_eq!(compiled.engine_status, "executable", "{name}");
-    compiled.card
+    (compiled.engine_status, compiled.card)
 }
 
 fn creature(id: &str, controller: &str, cost: &str) -> CardInstance {
@@ -258,4 +268,26 @@ fn an_alternative_cost_condition_reads_absent_cast_decisions_as_not_paid() {
     cast_and_resolve(&mut engine, &card, &["opp-relic"]);
     assert!(engine.permanent_position("opp-relic").is_none());
     assert!(engine.permanent_position("own-relic").is_some());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_card_zone_query_reading_battlefield_state_is_refused_before_play() {
+    // The card-zone domain reads definition data: mana value is executable
+    // (Raise the Past); power, which the zone query cannot read, is refused
+    // by the validator instead of failing at resolution (Draw Team Lines).
+    let (status, _) = compile_with_status(
+        "Raise the Past",
+        "Sorcery",
+        "{2}{W}{W}",
+        "Return all creature cards with mana value 2 or less from your graveyard to the battlefield.",
+    );
+    assert_eq!(status, "executable");
+    let (status, _) = compile_with_status(
+        "Test Recall",
+        "Sorcery",
+        "{2}{W}{W}",
+        "Return all creature cards with power 3 or less from your graveyard to the battlefield.",
+    );
+    assert_ne!(status, "executable");
 }

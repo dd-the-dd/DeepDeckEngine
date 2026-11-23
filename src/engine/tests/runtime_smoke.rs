@@ -288,6 +288,46 @@ fn observe(before: &Snapshot, after: &Snapshot) -> Observed {
     observed
 }
 
+/// Context the synthetic board does not set up for an effect: a combat
+/// counterpart, an observed event object or spell, a paid cost's value, an
+/// earlier action's result, a declared slot left empty (`up to one`), a
+/// spell acting on its own card.
+fn unset_context(
+    effect: &Value,
+    targets: &BTreeMap<String, TargetRef>,
+    permanent_source: bool,
+) -> Option<&'static str> {
+    let text = effect.to_string();
+    for (marker, context) in [
+        ("\"combatCounterpart\"", "no combat counterpart"),
+        ("\"observedEventObject\"", "no observed event object"),
+        ("\"triggeringSpell", "no triggering spell"),
+        ("\"sacrificedPermanent", "unpaid sacrifice cost"),
+        ("\"boundObjects\"", "an earlier action's result"),
+    ] {
+        if text.contains(marker) {
+            return Some(context);
+        }
+    }
+    for slot in ["recipient", "permanent", "object", "cards"] {
+        let operand = &effect[slot];
+        match value_kind(operand) {
+            Some("chosenTarget" | "chosenTargets") => {
+                let id = operand["id"].as_str().unwrap_or_default();
+                let declared = targets
+                    .keys()
+                    .any(|target_id| target_id == id || target_id.starts_with(&format!("{id}:")));
+                if !declared {
+                    return Some("no target chosen for an optional slot");
+                }
+            }
+            Some("self") if !permanent_source => return Some("a spell acting on its own card"),
+            _ => {}
+        }
+    }
+    None
+}
+
 /// The top-level effects whose amount is zero or whose object collection is
 /// empty on this board (no Swamp to count, no attacking creature): their
 /// missing change says nothing about the engine. Unevaluable operands (an
@@ -341,7 +381,21 @@ fn empty_in_fixture(
                     )
                     .is_ok_and(|ids| ids.is_empty())
             });
-        if zero_amount || zero_stats || empty_collection {
+        let absent_counter = value_kind(effect) == Some("removeCounters")
+            && value_kind(&effect["permanent"]) == Some("self")
+            && effect["counter"].as_str().is_some_and(|counter| {
+                engine
+                    .permanent_position(&stack_object.card.instance_id)
+                    .is_none_or(|(player, index)| {
+                        engine.state.players[player].battlefield[index]
+                            .counters
+                            .get(counter)
+                            .copied()
+                            .unwrap_or(0)
+                            == 0
+                    })
+            });
+        if zero_amount || zero_stats || empty_collection || absent_counter {
             empty.insert(index);
         }
     }
@@ -361,6 +415,15 @@ fn observe_events(observed: &mut Observed, events: &[GameEvent]) {
             // A token that entered and died to state-based actions.
             "permanentEnteredBattlefield" | "tokenCreated" => {
                 observed.kinds.insert("entered");
+            }
+            // A permanent tapped, then destroyed by the same rule.
+            "permanentTapped" => {
+                observed.kinds.insert("tapped");
+                observed.tapped.insert(id);
+            }
+            // A discard after a return to hand leaves the hand size unchanged.
+            "cardDiscarded" => {
+                observed.kinds.insert("hand");
             }
             "lifeLost" | "lifeGained" => {
                 observed.kinds.insert("life");
@@ -495,6 +558,10 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
     {
         source.attached_to = Some("own-giant".to_string());
     }
+    // A Vanguard is neither cast nor put onto the battlefield.
+    if card.type_line.contains("Vanguard") {
+        return (Outcome::Uncovered("vanguard".to_string()), primitives);
+    }
     let permanent_source = card.type_line.split_whitespace().any(|word| {
         matches!(
             word,
@@ -620,7 +687,10 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
         // bindings empty: the rule was not set up, not wrong.
         Ok(Err(error))
             if error.message.contains("activationCost")
-                || error.message.contains("sacrificedPermanent") =>
+                || error.message.contains("sacrificedPermanent")
+                || rule["effects"]
+                    .to_string()
+                    .contains("\"sacrificedPermanent") =>
         {
             return (
                 Outcome::Uncovered("unpaid activation cost".to_string()),
@@ -685,6 +755,9 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
             continue;
         };
         if !expected.iter().any(|kind| observed.kinds.contains(kind)) {
+            if let Some(context) = unset_context(effect, &targets, permanent_source) {
+                return (Outcome::Uncovered(context.to_string()), primitives);
+            }
             if empty.contains(&index) {
                 return (
                     Outcome::Uncovered("empty amount or collection in the fixture".to_string()),

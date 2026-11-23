@@ -322,8 +322,15 @@ panique), `noChange` (une primitive de premier niveau qui promet un changement
 observable — dégâts, vie, zones, marqueurs, jetons, engagement, F/E — n'a rien
 changé), `wrongCount` (le changement atteint un autre nombre d'objets que les
 cibles déclarées), `uncovered` (non installable : coût d'activation non payé,
-programme conditionnel ou à choix, règle statique ou de remplacement), `pass`.
-`uncovered` n'est jamais compté comme une réussite. Le rapport donne les
+programme conditionnel ou à choix, règle statique ou de remplacement, contexte
+que le plateau synthétique ne fournit pas — contrepartie de combat, objet ou
+sort observé par l'événement, valeur d'un coût payé, emplacement optionnel
+laissé vide — ou montant/collection vide sur ce plateau), `pass`. Un sort non
+permanent se résout comme une carte lancée ; ses propres déplacements ne
+comptent pas comme l'effet. `uncovered` n'est jamais compté comme une réussite.
+Une règle que le runtime refuse à la résolution alors que le validateur
+l'accepte est un défaut d'alignement : le validateur doit la refuser avant le
+jeu (la carte cesse alors d'être supportée). Le rapport donne les
 comptes par classe et par primitive d'IR ; une hausse de `error`, `noChange`
 ou `wrongCount` bloque l'acceptation.
 
