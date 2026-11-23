@@ -623,6 +623,19 @@ fn recognize_referenced_object_atom(
         cursor.consume("that")?;
         cursor.consume("card")?;
         resolve_card_anaphor(cursor, context)?
+    } else if word_is(cursor, 0, "that") && bound_object_reference_starts(cursor) {
+        // A condition reads the object's last known information, so the
+        // nominal may name a departed event object (`If that creature was a
+        // Villain` after `another creature dies`).
+        cursor.enter("condition.sentence.object.nominal-anaphor");
+        let program = cursor.require_value(
+            context.program,
+            "a nominal anaphor of an effect program's proven antecedent",
+        )?;
+        ConditionObjectReference::Permanent(recognize_nominal_object_read(
+            cursor,
+            &BindingEnvironment::for_permanent_context(program.effects),
+        )?)
     } else {
         cursor.enter("condition.sentence.object.nominal-anaphor");
         let program = cursor.require_value(

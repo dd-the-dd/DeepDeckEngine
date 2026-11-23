@@ -271,6 +271,21 @@ fn it_names_the_object_that_is_the_event_subject() {
         "Whenever a creature you control dies, untap it.",
     );
     assert_ne!(status, "canonical");
+    // The same near miss through the nominal anaphor: `that creature` of a
+    // dying creature names no permanent either, for any operating action.
+    for oracle in [
+        "Whenever a creature you control dies, tap that creature.",
+        "Whenever a creature dies, this enchantment deals 1 damage to that creature.",
+    ] {
+        let (status, _, states) = parse(ENCHANTMENT, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+        assert!(
+            states
+                .iter()
+                .any(|state| state.contains("nominal-anaphor") || state.contains("reference")),
+            "{oracle}: {states:?}"
+        );
+    }
 }
 
 /// Every numeric leaf of the rules whose kind is a property read.

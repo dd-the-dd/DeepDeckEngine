@@ -694,7 +694,17 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<PermanentEffectReference> {
-    recognize_determined_object_reference(cursor, environment, "that")
+    recognize_determined_object_reference(cursor, environment, "that", false)
+}
+
+/// `that creature` read for its last known information (`If that creature
+/// was a Villain`, CR 608.2h): unlike an operand, it may name an event
+/// object that left the battlefield.
+pub(in crate::oracle::canonical) fn recognize_nominal_object_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<PermanentEffectReference> {
+    recognize_determined_object_reference(cursor, environment, "that", true)
 }
 
 /// `the creature` (a definite description, CR 702.32a style): it names the
@@ -704,13 +714,14 @@ pub(in crate::oracle::canonical) fn recognize_definite_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<PermanentEffectReference> {
-    recognize_determined_object_reference(cursor, environment, "the")
+    recognize_determined_object_reference(cursor, environment, "the", false)
 }
 
 fn recognize_determined_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
     determiner: &str,
+    departed_readable: bool,
 ) -> MachineResult<PermanentEffectReference> {
     cursor.enter("permanent.subject.nominal-anaphor");
     cursor.consume(determiner)?;
@@ -745,6 +756,15 @@ fn recognize_determined_object_reference(
             .as_ref()
             .filter(|slot| slot.implies(nominal))
     {
+        // An operand reader acts on the permanent (tap, destroy, deal damage
+        // to). A departed event object (`a creature dies`) is a new object in
+        // another zone (CR 400.7); only a read of its last known information
+        // (a condition, a property, its controller) may name it.
+        if slot.departed && !departed_readable {
+            return Err(cursor.fail(
+                "a permanent for the nominal anaphor; the event's object left the battlefield",
+            ));
+        }
         cursor.consume(&noun)?;
         return Ok(slot.reference);
     }
