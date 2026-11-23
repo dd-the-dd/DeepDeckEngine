@@ -192,4 +192,80 @@ fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> { 
         with self.assertRaisesRegex(ValueError,'no longer re-enters execute_effect_in_batch'):
             role_conformance(self.root_sources(routed,executor_no_reentry))
 
+    ROUTED_PERFORMER=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    Ok(())
+}
+'''
+    REENTERING_EXECUTOR=b'''
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> { self.execute_effect_in_batch(effect)?; Ok(true) }
+'''
+
+    def test_envelope_may_only_call_its_allowlisted_helpers(self):
+        cases={
+            'kind field literal':(b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    if effect["kind"] == "hiddenKind" { return Some(true); }
+    Some(effect_supported(effect))
+}
+''','inspects effect kinds'),
+            'unlisted kind-reading helper':(b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    Some(hidden_kind_accepted(effect) || effect_supported(effect))
+}
+''',r"calls outside its envelope allowlist: \['function:hidden_kind_accepted'\]"),
+            'other module helper':(b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    Some(subtypes::effect_supported(effect) && effect_supported(effect))
+}
+''',r"\['function:subtypes::effect_supported'\]"),
+        }
+        for label,(validator,message) in cases.items():
+            with self.subTest(label),self.assertRaisesRegex(ValueError,message):
+                role_conformance(self.root_sources(self.ROUTED_PERFORMER,validator+self.REENTERING_EXECUTOR))
+        mutating=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> { Some(effect_supported(effect)) }
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
+    self.hidden_mutation(effect)?;
+    self.execute_effect_in_batch(effect)?;
+    Ok(true)
+}
+'''
+        with self.assertRaisesRegex(ValueError,r"\['method:hidden_mutation'\]"):
+            role_conformance(self.root_sources(self.ROUTED_PERFORMER,mutating))
+
+    def test_root_executor_walk_sees_free_and_associated_calls(self):
+        for label,call,reported in [
+            ('free function',b'execute_hidden_domain(self, effect)?;','function:execute_hidden_domain'),
+            ('Self associated',b'Self::execute_hidden_domain(self, effect)?;','execute_hidden_domain'),
+            ('foreign path',b'hidden::execute(self, effect)?;','function:hidden::execute'),
+            ('other receiver',b'self.router.execute(effect)?;','value:execute'),
+        ]:
+            routed=b'''
+fn execute_effect_in_batch(&mut self, effect: &Value) -> Result<(), Error> {
+    '''+call+b'''
+    if self.execute_performed_effect(effect)? { return Ok(()); }
+    Ok(())
+}
+'''
+            with self.subTest(label),self.assertRaisesRegex(ValueError,'unregistered root executor delegation: .*'+reported):
+                role_conformance(self.root_sources(routed))
+
+    def test_qualified_root_reentry_is_accepted(self):
+        qualified=b'''
+fn performer_effect_supported(effect: &Value) -> Option<bool> {
+    let performer = effect.get("performer")?;
+    Some(singular_player_reference_supported(performer) && super::effect_supported(effect))
+}
+fn execute_performed_effect(&mut self, effect: &Value) -> Result<bool, Error> {
+    let Some(player_id) = self.resolve_player(effect) else { return Ok(true); };
+    Self::execute_effect_in_batch(self, effect)?;
+    Ok(true)
+}
+'''
+        self.assertTrue(role_conformance(self.root_sources(self.ROUTED_PERFORMER,qualified))['rootDelegationsRegistered'])
+        crate_path=qualified.replace(b'super::effect_supported',b'crate::engine::effect_supported')
+        self.assertTrue(role_conformance(self.root_sources(self.ROUTED_PERFORMER,crate_path))['rootDelegationsRegistered'])
+
 if __name__=='__main__':unittest.main(verbosity=2)

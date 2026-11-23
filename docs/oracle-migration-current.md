@@ -28,6 +28,25 @@ The parent eight tests passed on their earlier source. NTFS compression complete
 and reclaimed space without deleting dependency artifacts or sources. Recheck
 actual processes and fingerprints before any build; never call the ten tests green.
 
+## Retired-kind precedent: proliferate (#65)
+
+`retiredOracleKinds` in `scripts/card-migration-architecture-baseline.json` names
+kinds, not implementations. `proliferate` was retired in #26 because its archived
+form, `{kind, count}`, called the opaque `resolve_spell_instruction("proliferateOnce")`.
+#27 reintroduced the kind as the CR 701.34a keyword action: the player-action
+parser emits a typed `{kind: "proliferate", player}` node, and the engine executes
+it natively as an arm of the counters domain (`effect_domains/counters.rs`). This
+uses ordinary counter placement and a typed choice. #65 therefore removed the
+stale entry. The opaque resolver no longer exists, and `resolveSpellInstruction`
+stays forbidden.
+
+A retired kind may return only on the same terms. It must be a CR keyword action
+with its own typed IR fields. A shared domain validator and executor must handle
+it as an arm, with no resolver or card-specific op. Parser-to-runtime proofs must
+exist before its entry is removed. This is the precedent for `recruit`
+(CR 701.70a) and `manifestDread` (CR 701.62a). Remove one entry with the commit
+that adds the primitive and its proofs. Never clear the list wholesale.
+
 ## Historical handoff (superseded status and owners)
 
 Goal ACTIVE and unfinished: every Magic card through generic compositional typed
