@@ -164,6 +164,16 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
             "sacrifice this enchantment unless any player pays {3}.",
             "sequence.unless.payer.any-player",
         ),
+        // An indefinite payer with a payment is a payer clause, refused at
+        // the payer, never read as a state condition.
+        (
+            "sacrifice this enchantment unless an opponent pays {1}.",
+            "sequence.unless.payer.indefinite-player",
+        ),
+        (
+            "sacrifice this enchantment unless a player sacrifices a creature.",
+            "sequence.unless.payer.indefinite-player",
+        ),
         // `its` needs a target declared by the guarded action: the shared
         // performer grammar names the missing antecedent.
         (

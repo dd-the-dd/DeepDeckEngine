@@ -131,7 +131,18 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         trial.advance_to(trial.position() + length).is_ok()
             && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
     });
+    // `an opponent` / `a player` / `each opponent` followed by a payment
+    // conjugated for it is a payer clause too, never a state condition.
+    let indefinite_payer = ((word(cursor, 0, "an") && word(cursor, 1, "opponent"))
+        || (word(cursor, 0, "a") && word(cursor, 1, "player"))
+        || (word(cursor, 0, "each") && (word(cursor, 1, "opponent") || word(cursor, 1, "player"))))
+        && {
+            let mut trial = cursor.clone();
+            trial.advance_to(trial.position() + 2).is_ok()
+                && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
+        };
     let payer_starts = you_pay
+        || indefinite_payer
         || related_payer
         || (word(cursor, 0, "its") && word(cursor, 1, "controller"))
         || (word(cursor, 0, "that") && word(cursor, 1, "player"))
@@ -173,6 +184,11 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             UnlessPayerNode::QuantifiedPlayer,
             ActingSubject::THIRD_PLURAL,
         )
+    } else if indefinite_payer {
+        cursor.enter("sequence.unless.payer.indefinite-player");
+        return Err(cursor.fail(
+            "one payer (an indefinite player or opponent payer polls players in APNAP order, CR 101.4; unsupported)",
+        ));
     } else if word(cursor, 0, "any") && word(cursor, 1, "player") {
         cursor.enter("sequence.unless.payer.any-player");
         return Err(cursor.fail(
