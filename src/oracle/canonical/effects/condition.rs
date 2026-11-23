@@ -75,7 +75,7 @@ fn lower_condition_node(
             .iter()
             .map(|operand| lower_condition_node(operand, bindings))
             .collect::<Result<Vec<_>, _>>()?),
-        BooleanConditionNode::Not(operand) => not(lower_condition_node(operand, bindings)?),
+        BooleanConditionNode::Not(operand) => negation(lower_condition_node(operand, bindings)?),
     })
 }
 

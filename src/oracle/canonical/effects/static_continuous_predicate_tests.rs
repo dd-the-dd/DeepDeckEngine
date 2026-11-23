@@ -25,8 +25,10 @@ fn attached() -> Value {
     json!({"kind": "attachedPermanent", "attachment": {"kind": "self"}})
 }
 
+/// `during your turn` is the positive turn primitive (negation folds).
 fn your_turn() -> Value {
-    json!({"kind": "not", "operand": {"kind": "notYourTurn"}})
+    json!({"kind": "duringControllerTurn",
+        "player": {"kind": "controllerOf", "object": {"kind": "self"}}})
 }
 
 /// Real cards for each new predicate and the turn condition (CR 611.3a,

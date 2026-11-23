@@ -59,6 +59,21 @@ pub(super) fn not(operand: Value) -> Value {
     json!({ "kind": "not", "operand": operand })
 }
 
+/// Logical negation that keeps one IR per proposition: `not not P` is `P`,
+/// and the controller-turn proposition has a primitive for each polarity
+/// (`notYourTurn` and `duringControllerTurn` of the ability's controller), so
+/// `unless it's your turn` and `if it's not your turn` lower identically.
+pub(super) fn negation(operand: Value) -> Value {
+    match operand["kind"].as_str() {
+        Some("not") => operand["operand"].clone(),
+        Some("notYourTurn") => json!({ "kind": "duringControllerTurn", "player": controller() }),
+        Some("duringControllerTurn") if operand["player"] == controller() => {
+            json!({ "kind": "notYourTurn" })
+        }
+        _ => not(operand),
+    }
+}
+
 pub(super) fn selection(decision_id: &str, value: &str) -> Value {
     json!({
         "kind": "selectionContains",
