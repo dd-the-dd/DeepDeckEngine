@@ -1101,9 +1101,11 @@ fn recognize_effect_sequence_attempt_scoped(
                             match performer {
                                 None => Err(failure),
                                 Some(Err(subject)) => Err(furthest(failure, subject)),
-                                // A single player's permission (`that player may`)
-                                // is the program-level permission (one owner).
-                                Some(Ok((super::PerformerNode::Player(_), _)))
+                                // `PLAYER may ...` stays with the program-level
+                                // permission readers: a population's permission
+                                // is withdrawn until its simultaneous puts are
+                                // proved at runtime (CR 101.4).
+                                Some(Ok(_))
                                     if head
                                         .peek()
                                         .is_some_and(|raw| raw.eq_ignore_ascii_case("may")) =>

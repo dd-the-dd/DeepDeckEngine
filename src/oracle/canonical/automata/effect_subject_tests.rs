@@ -729,22 +729,6 @@ fn a_quoted_ability_inside_a_performed_clause_keeps_its_own_you() {
     assert_eq!(status, "canonical", "{states:?}");
 }
 
-/// `PLAYER may VERB`: the performer's own permission (CR 608.2d), the
-/// existing optional program run by each player of a population.
-#[test]
-fn a_population_permission_is_each_players_optional_program() {
-    // Real card: Fecundity's shape (`that player may draw a card`). Unused
-    // recombination: a population that may draw.
-    let effects = effects(SORCERY, "Each player may draw a card.");
-    assert_eq!(effects[0]["kind"], "forEachPlayer", "{effects:#?}");
-    let body = &effects[0]["effects"][0];
-    assert_eq!(body["kind"], "optionalEffects", "{body:#}");
-    assert_eq!(body["performer"]["kind"], "boundValue", "{body:#}");
-    // Near miss: a modal verb that agrees with the subject is not `may`.
-    let (status, _, _) = parse(SORCERY, "Each player mays draw a card.");
-    assert_ne!(status, "canonical");
-}
-
 /// The guard reads only the performed action's tokens: a later `you`
 /// clause of the same sentence is the controller's own action.
 #[test]

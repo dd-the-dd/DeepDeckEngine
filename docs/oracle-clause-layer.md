@@ -505,3 +505,11 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - La permission d'un joueur singulier (`that player may`) garde son lecteur
   de programme (étape 12) ; seule une population passe par l'exécutant :
   une seule représentation par forme.
+
+### Retrait de l'étape 27 (revue #63)
+
+- La permission d'une population (`each player|opponent may VERB …`) n'est
+  plus lue par l'emplacement d'exécutant : sa boucle met les cartes sur le
+  champ de bataille un joueur après l'autre, alors que CR 101.4 les rend
+  simultanées, et elle n'avait pas de preuve d'exécution. Elle revient en
+  échec explicite (`clause.verb.unsupported`) jusqu'à ces preuves.
