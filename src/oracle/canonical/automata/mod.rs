@@ -1176,6 +1176,10 @@ pub(super) enum ObjectControllerScope {
 pub(super) struct ObjectQueryNode {
     pub predicate: ObjectPredicate,
     pub controller: Option<ObjectControllerScope>,
+    /// `other` before a collection: the bound ability source is not a member.
+    /// Read once by the collection frame; a parent that cannot lower it
+    /// refuses the query instead of dropping the exclusion.
+    pub exclude_source: bool,
 }
 
 /// The player relation carried by an Oracle spell-casting subject. This is

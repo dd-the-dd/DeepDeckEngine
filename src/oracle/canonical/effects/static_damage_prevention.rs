@@ -93,7 +93,12 @@ fn read_static_damage_prevention(
     {
         cursor.consume("by")?;
         cursor.enter("static.prevent.source");
-        source = Some(recognize_object_collection(cursor)?);
+        let objects = recognize_object_collection(cursor)?;
+        cursor.require(
+            !objects.exclude_source,
+            "a damage-source collection without a source exclusion",
+        )?;
+        source = Some(objects);
     }
     cursor.enter("static.prevent.terminator");
     cursor.consume(".")?;

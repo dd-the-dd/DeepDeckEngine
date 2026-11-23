@@ -236,3 +236,47 @@ fn expression_rhs_visits_x_inside_qualified_nominal_predicates() {
         }
     ));
 }
+
+#[test]
+fn subtype_heads_denote_permanents_unless_a_card_or_spell_noun_is_present() {
+    let subtype = |name: &str| ObjectPredicate::Subtype(name.to_string());
+    // CR 109.2a: creature and permanent-family subtypes without `card` or
+    // `spell` name permanents (`Goblins`, `target Wall`, `Equipment`).
+    for name in ["Goblin", "Elf", "Vampire", "Wall", "Equipment", "Forest"] {
+        assert!(subtype(name).has_domain(ObjectKind::Permanent), "{name}");
+        assert!(
+            ObjectPredicate::Intersection(vec![characteristic(), subtype(name)])
+                .has_domain(ObjectKind::Permanent),
+            "{name}"
+        );
+    }
+    assert!(
+        ObjectPredicate::Union(vec![subtype("Elf"), subtype("Goblin")])
+            .has_domain(ObjectKind::Permanent)
+    );
+    // Spell subtypes never name permanents.
+    for name in ["Arcane", "Lesson"] {
+        assert!(!subtype(name).has_domain(ObjectKind::Permanent), "{name}");
+    }
+    // Near misses: `Elf card` and `Goblin spell` keep their explicit domain,
+    // and a negated subtype is not a head.
+    for (domain, kind) in [(ObjectKind::Card, "card"), (ObjectKind::Spell, "spell")] {
+        let qualified = ObjectPredicate::Intersection(vec![
+            subtype("Elf"),
+            ObjectPredicate::ObjectKind(domain),
+        ]);
+        assert!(!qualified.has_domain(ObjectKind::Permanent), "Elf {kind}");
+        assert!(qualified.has_domain(domain), "Elf {kind}");
+        let coordinated = ObjectPredicate::Intersection(vec![
+            ObjectPredicate::Union(vec![subtype("Elf"), subtype("Goblin")]),
+            ObjectPredicate::ObjectKind(domain),
+        ]);
+        assert!(
+            !coordinated.has_domain(ObjectKind::Permanent),
+            "Elf or Goblin {kind}"
+        );
+    }
+    assert!(!ObjectPredicate::Not(Box::new(subtype("Elf"))).has_domain(ObjectKind::Permanent));
+    // A noncreature permanent subtype keeps its former anchor (CR 205.3d).
+    assert!(ObjectPredicate::Not(Box::new(subtype("Equipment"))).has_domain(ObjectKind::Permanent));
+}

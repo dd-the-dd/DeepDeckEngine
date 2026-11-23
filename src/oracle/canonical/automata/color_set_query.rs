@@ -49,7 +49,8 @@ pub(in crate::oracle::canonical) fn recognize_color_set_query(
                 cursor.enter("query.colors.permanent-domain");
                 let objects = recognize_object_collection(cursor)?;
                 cursor.require(
-                    objects.predicate == ObjectPredicate::ObjectKind(ObjectKind::Permanent)
+                    !objects.exclude_source
+                        && objects.predicate == ObjectPredicate::ObjectKind(ObjectKind::Permanent)
                         && objects.controller == Some(ObjectControllerScope::AbilityController),
                     "the supported unfiltered permanent set controlled by the ability controller",
                 )?;

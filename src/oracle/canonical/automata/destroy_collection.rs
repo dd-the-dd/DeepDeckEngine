@@ -1,6 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DestroyPermanentCollectionEffectNode, ObjectKind, recognize_object_collection,
+    DestroyPermanentCollectionEffectNode, recognize_object_collection,
     recognize_object_query_before_separator_with_source, recognize_optional_source_exclusion,
 };
 
@@ -53,15 +53,20 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
             }
             DestroyCollectionState::ObjectCollection => {
                 cursor.enter("destroy.collection.objects");
-                exclude_source = recognize_optional_source_exclusion(cursor)?;
-                objects = Some(match cursor.attempt(recognize_object_collection) {
+                let collection = match cursor.attempt(recognize_object_collection) {
                     Ok(objects) => objects,
                     Err(_) if source_numeric_reads => {
                         cursor.enter("destroy.collection.source-numeric-objects");
-                        recognize_object_query_before_separator_with_source(cursor, true)?
+                        let excluded = recognize_optional_source_exclusion(cursor)?;
+                        let mut objects =
+                            recognize_object_query_before_separator_with_source(cursor, true)?;
+                        objects.exclude_source = excluded;
+                        objects
                     }
                     Err(failure) => return Err(failure),
-                });
+                };
+                exclude_source = collection.exclude_source;
+                objects = Some(collection);
                 DestroyCollectionState::PermanentDomain
             }
             DestroyCollectionState::PermanentDomain => {
@@ -70,8 +75,7 @@ pub(in crate::oracle::canonical) fn recognize_destroy_permanent_collection_effec
                     .as_ref()
                     .ok_or_else(|| cursor.fail("a populated object collection"))?;
                 cursor.require(
-                    query.predicate.supports_domain(ObjectKind::Permanent)
-                        && query.predicate.has_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "a collection explicitly anchored in the battlefield-permanent domain",
                 )?;
                 DestroyCollectionState::Complete

@@ -91,7 +91,7 @@ pub(in crate::oracle::canonical) fn recognize_action_result_reference(
     let end = cursor.position() + offset;
     let query = cursor.bounded(end, recognize_object_collection)?;
     cursor.require(
-        query.controller.is_none() && query.predicate.has_nominal_head(),
+        !query.exclude_source && query.controller.is_none() && query.predicate.has_nominal_head(),
         "a nominal object phrase without a controller relation",
     )?;
     cursor.enter("action-result.verb");

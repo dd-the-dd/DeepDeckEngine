@@ -106,6 +106,7 @@ pub(in crate::oracle::canonical) fn recognize_related_object_query_before_separa
         objects: super::ObjectQueryNode {
             predicate: query.predicate,
             controller: query.subject_scope.map(object_controller_scope),
+            exclude_source: false,
         },
         ownership: query.ownership_scope.map(|scope| match scope {
             QuerySubjectScope::AbilityController => ObjectOwnershipScope::AbilityController,
@@ -152,6 +153,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query(
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -165,6 +167,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_separator(
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -187,6 +190,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_separator_with
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -201,6 +205,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_cost_separator
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -229,6 +234,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_condition_conn
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -242,6 +248,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_before_effect_separat
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -276,6 +283,7 @@ pub(in crate::oracle::canonical) fn recognize_object_query_with_shared_cardinali
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: query.subject_scope.map(object_controller_scope),
+        exclude_source: false,
     })
 }
 
@@ -308,6 +316,7 @@ pub(in crate::oracle::canonical) fn recognize_resolution_card_query(
     Ok(super::ObjectQueryNode {
         predicate: query.predicate,
         controller: None,
+        exclude_source: false,
     })
 }
 

@@ -53,9 +53,10 @@ pub(in crate::oracle::canonical) fn project_object_query_domains(
                     }
                     explicit = Some(*domain);
                 }
-                ObjectPredicate::CardType(kind) if kind.is_permanent_type() => {
-                    permanent_nominal = true
-                }
+                // CR 109.2a, 205.3d: a permanent card type or a subtype only
+                // permanents carry names a permanent unless the branch also
+                // names `card` or `spell` (checked by `explicit` above).
+                atom if atom.denotes_permanent_head(true) => permanent_nominal = true,
                 ObjectPredicate::Not(child) if has_explicit_domain(child) => {
                     return Err(TargetDomainProjectionError::UnsupportedDomain);
                 }
@@ -130,8 +131,8 @@ fn validate_domain_atoms(
 fn positive_nominal(predicate: &ObjectPredicate, domain: ObjectKind) -> bool {
     match predicate {
         ObjectPredicate::ObjectKind(actual) => *actual == domain,
-        ObjectPredicate::CardType(kind) => {
-            domain == ObjectKind::Permanent && kind.is_permanent_type()
+        ObjectPredicate::CardType(_) | ObjectPredicate::Subtype(_) => {
+            domain == ObjectKind::Permanent && predicate.denotes_permanent_head(true)
         }
         ObjectPredicate::Intersection(children) => {
             children.iter().any(|child| positive_nominal(child, domain))

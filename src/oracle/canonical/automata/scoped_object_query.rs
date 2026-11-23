@@ -36,6 +36,10 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ScopedObjectQueryNode> {
     let objects = recognize_related_object_collection(cursor)?;
+    cursor.require(
+        !objects.objects.exclude_source,
+        "a zone collection without a source exclusion",
+    )?;
     cursor.enter("query.zone.relation");
     let (domain, zones, holders) = if cursor
         .peek()

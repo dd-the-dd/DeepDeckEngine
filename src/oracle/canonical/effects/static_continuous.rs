@@ -771,11 +771,10 @@ pub(in crate::oracle::canonical) fn read_static_subject(
         }
         _ => TypeChangeNumber::Plural,
     };
-    let exclude_source = recognize_optional_source_exclusion(cursor)?;
     let query = recognize_object_collection(cursor)?;
+    let exclude_source = query.exclude_source;
     cursor.require(
-        query.predicate.has_domain(ObjectKind::Permanent)
-            && query.predicate.supports_domain(ObjectKind::Permanent),
+        query.denotes_battlefield_permanents(),
         "a collection anchored in the battlefield-permanent domain",
     )?;
     let mut objects = cursor.require_value(

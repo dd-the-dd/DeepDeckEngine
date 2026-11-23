@@ -22,6 +22,7 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
             objects: ObjectQueryNode {
                 predicate: set.predicate,
                 controller: Some(set.controller),
+                exclude_source: false,
             },
             exclude_source: false,
         },
