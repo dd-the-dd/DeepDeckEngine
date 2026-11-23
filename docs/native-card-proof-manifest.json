@@ -1986,14 +1986,24 @@
       "oracle_id": "c7b044c3-3cfa-407e-bf20-2875e8e04b7b",
       "name": "Brazen Borrower // Petty Theft",
       "expected_semantic_ir_digest": "DB0DBD1127E3E64F04F933A7D3197828F11EE296B3EDD2A31208CACEF0761A90",
-      "contract": {
-        "fixture_id": "brazen-borrower/block-only-flying-is-primitive",
-        "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brazen-borrower-block-restriction.json"
-      },
+      "contract": [
+        {
+          "fixture_id": "brazen-borrower/block-only-flying-is-primitive",
+          "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brazen-borrower-block-restriction.json"
+        },
+        {
+          "fixture_id": "brazen-borrower/all-native-rules-are-executable",
+          "fixture_path": "crates/deepdeck-contract-fixture-runner/fixtures/brazen-borrower.json"
+        }
+      ],
       "runtime": [
         {
           "fixture_id": "brazen-borrower/block-restriction-effective-flying",
           "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/brazen-borrower-block-restriction.json"
+        },
+        {
+          "fixture_id": "adventure/brazen-borrower-end-to-end",
+          "fixture_path": "crates/deepdeck-runtime-fixture-runner/fixtures/adventure/brazen-borrower-end-to-end.json"
         }
       ]
     },

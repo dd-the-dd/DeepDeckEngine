@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "deepdeck-contract-fixture/v1",
+  "id": "brazen-borrower/all-native-rules-are-executable",
+  "cardName": "Brazen Borrower",
+  "oracleId": "c7b044c3-3cfa-407e-bf20-2875e8e04b7b",
+  "expectedExecutable": true,
+  "rules": [
+    {
+      "ability": {
+        "kind": "flash"
+      },
+      "kind": "keywordAbility",
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "ability": {
+        "kind": "flying"
+      },
+      "kind": "keywordAbility",
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "activeWhile": {
+        "kind": "inZone",
+        "object": {
+          "kind": "self"
+        },
+        "zone": {
+          "kind": "battlefield"
+        }
+      },
+      "kind": "staticAbility",
+      "modifiers": [
+        {
+          "attackers": {
+            "kind": "permanents",
+            "where": {
+              "kind": "and",
+              "operands": [
+                {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                },
+                {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "hasKeyword",
+                    "value": "flying"
+                  }
+                }
+              ]
+            }
+          },
+          "blockers": {
+            "kind": "self"
+          },
+          "kind": "blockRestriction"
+        }
+      ],
+      "source": {
+        "kind": "self"
+      }
+    },
+    {
+      "declaration": {
+        "decisions": [
+          {
+            "candidates": {
+              "controller": {
+                "kind": "opponentsOf",
+                "player": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              "kind": "permanents",
+              "where": {
+                "kind": "not",
+                "operand": {
+                  "kind": "cardTypeContains",
+                  "value": "Land"
+                }
+              }
+            },
+            "id": "targetPermanent",
+            "kind": "chooseTargets",
+            "maximum": 1,
+            "minimum": 1
+          }
+        ],
+        "kind": "castingDeclaration"
+      },
+      "effects": [
+        {
+          "kind": "returnToOwnersHand",
+          "object": {
+            "id": "targetPermanent",
+            "kind": "chosenTarget"
+          }
+        }
+      ],
+      "kind": "spellAbility",
+      "source": {
+        "kind": "self"
+      }
+    }
+  ]
+}
