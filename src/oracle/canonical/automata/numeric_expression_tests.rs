@@ -2,8 +2,9 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::super::{
     LocalPlayerReference, LocalZone, NumericAtom, NumericExpression, NumericRounding,
+    recognize_numeric_expression, recognize_query_numeric_expression, with_prior_number,
 };
-use super::{OracleTokenCursor, recognize_half_controller_library_count};
+use super::OracleTokenCursor;
 
 #[test]
 fn half_controller_library_count_retains_zone_and_rounding() {
@@ -13,8 +14,10 @@ fn half_controller_library_count_retains_zone_and_rounding() {
         ));
         let mut cursor = OracleTokenCursor::new("library-count-test", &tokens);
 
+        // `half` is the shared arithmetic operator; the library count is one
+        // of its operands, not a dedicated recipe.
         assert_eq!(
-            recognize_half_controller_library_count(&mut cursor).expect("expression parses"),
+            recognize_query_numeric_expression(&mut cursor).expect("expression parses"),
             NumericExpression::Divide {
                 left: Box::new(NumericExpression::CardsInZone {
                     player: LocalPlayerReference::Controller,
@@ -28,15 +31,50 @@ fn half_controller_library_count_retains_zone_and_rounding() {
 }
 
 #[test]
-fn a_different_zone_fails_at_the_zone_token() {
+fn a_different_zone_is_not_read_as_the_library_count() {
     let tokens = recognize_entities("half the number of cards in your hand, rounded up");
     let mut cursor = OracleTokenCursor::new("library-count-test", &tokens);
+    let read = recognize_query_numeric_expression(&mut cursor);
+    // Near miss: the hand count never silently becomes the library count.
+    assert!(!matches!(
+        read,
+        Ok(NumericExpression::Divide { ref left, .. })
+            if **left == NumericExpression::CardsInZone {
+                player: LocalPlayerReference::Controller,
+                zone: LocalZone::Library,
+            }
+    ));
+}
 
-    let failure = recognize_half_controller_library_count(&mut cursor)
-        .expect_err("the library expression must not silently widen to hand");
-
-    assert_eq!(failure.actual.as_deref(), Some("hand"));
-    assert_eq!(failure.expected, "library");
+#[test]
+fn that_number_reads_the_prior_number_of_the_binding_environment() {
+    let tokens = recognize_entities("that number plus 1");
+    let mut cursor = OracleTokenCursor::new("prior-number-test", &tokens);
+    let prior = NumericExpression::Atom(NumericAtom::VariableX);
+    let read = with_prior_number(&mut cursor, prior.clone(), |cursor| {
+        recognize_numeric_expression(cursor, None)
+    })
+    .expect("a bound prior number");
+    assert_eq!(
+        read,
+        NumericExpression::add(prior, NumericExpression::Atom(NumericAtom::Integer(1)))
+    );
+    // Unused combination: the prior number under a multiplicative operator.
+    let tokens = recognize_entities("twice that number");
+    let mut cursor = OracleTokenCursor::new("prior-number-test", &tokens);
+    assert!(
+        with_prior_number(
+            &mut cursor,
+            NumericExpression::Atom(NumericAtom::Integer(3)),
+            |cursor| recognize_numeric_expression(cursor, None),
+        )
+        .is_ok()
+    );
+    // Without a binding `that number` fails; it never becomes a literal.
+    let tokens = recognize_entities("that number plus 1");
+    let mut cursor = OracleTokenCursor::new("prior-number-test", &tokens);
+    let failure = recognize_numeric_expression(&mut cursor, None).unwrap_err();
+    assert_eq!(failure.state, "numeric.prior-number-anaphor.resolve");
 }
 
 #[test]
