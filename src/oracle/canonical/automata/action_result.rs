@@ -258,9 +258,7 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
         LocalEffectNode::PlayerAction(_) => {
             if reference.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
                 ActionResultFilter::All
-            } else if reference.predicate.has_domain(ObjectKind::Card)
-                && reference.predicate.supports_domain(ObjectKind::Card)
-            {
+            } else if reference.predicate.is_in_domain(ObjectKind::Card) {
                 ActionResultFilter::Cards(reference.predicate.clone())
             } else {
                 return None;

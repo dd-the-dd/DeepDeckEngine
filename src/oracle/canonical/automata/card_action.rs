@@ -250,9 +250,7 @@ fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<C
     cursor.enter("card-action.reveal-until.predicate");
     let query = recognize_object_query(cursor)?;
     cursor.require(
-        query.controller.is_none()
-            && query.predicate.has_domain(ObjectKind::Card)
-            && query.predicate.supports_domain(ObjectKind::Card),
+        query.controller.is_none() && query.predicate.is_in_domain(ObjectKind::Card),
         "an unscoped card-domain predicate for the revealed cards",
     )?;
     Ok(CardActionNode::RevealUntil {

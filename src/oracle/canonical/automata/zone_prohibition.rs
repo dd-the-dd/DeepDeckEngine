@@ -72,8 +72,7 @@ pub(in crate::oracle::canonical) fn try_recognize_zone_prohibition(
                     let cards = recognize_object_query(cursor)?;
                     cursor.enter("static.zone-prohibition.card-domain");
                     cursor.require(
-                        cards.predicate.has_domain(ObjectKind::Card)
-                            && cards.predicate.supports_domain(ObjectKind::Card),
+                        cards.predicate.is_in_domain(ObjectKind::Card),
                         "a collection explicitly anchored in the card domain",
                     )?;
                     frame.cards = Some(cards);

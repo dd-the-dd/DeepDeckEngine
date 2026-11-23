@@ -367,8 +367,7 @@ pub(in crate::oracle::canonical) fn recognize_cards_exist_in_controller_graveyar
                 cursor.enter("condition.zone-card-presence.predicate");
                 let predicate = recognize_card_type_union_selector(cursor)?;
                 cursor.require(
-                    predicate.supports_domain(ObjectKind::Card)
-                        && predicate.has_domain(ObjectKind::Card),
+                    predicate.is_in_domain(ObjectKind::Card),
                     "a selector in the card domain",
                 )?;
                 predicates.push(predicate);
