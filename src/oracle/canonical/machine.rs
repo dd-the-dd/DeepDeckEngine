@@ -87,18 +87,6 @@ pub(super) enum ChildOutcome<T> {
 }
 
 impl<T> ChildOutcome<T> {
-    pub fn map<U>(self, transform: impl FnOnce(T) -> U) -> ChildOutcome<U> {
-        match self {
-            Self::Matched(value) => ChildOutcome::Matched(transform(value)),
-            Self::NoMatch(failure) => ChildOutcome::NoMatch(failure),
-            Self::Committed(failure) => ChildOutcome::Committed(failure),
-        }
-    }
-
-    pub fn is_committed(&self) -> bool {
-        matches!(self, Self::Committed(_))
-    }
-
     /// A parent that has no sibling left turns `NoMatch` into its own frame
     /// diagnostic; a committed failure is reported unchanged.
     pub fn or_frame_failure(

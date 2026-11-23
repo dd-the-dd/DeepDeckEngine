@@ -7,7 +7,6 @@ fn every_engine_gap_has_a_distinct_reserved_state() {
         let state = gap.state();
         assert!(is_engine_gap_state(state), "{state}");
         assert!(seen.insert(state), "duplicate engine gap state {state}");
-        assert_eq!(EngineGap::from_state(state), Some(gap));
     }
 }
 
@@ -20,6 +19,5 @@ fn grammar_states_are_never_engine_gaps() {
         "keyword.unsupported",
     ] {
         assert!(!is_engine_gap_state(state), "{state}");
-        assert_eq!(EngineGap::from_state(state), None, "{state}");
     }
 }

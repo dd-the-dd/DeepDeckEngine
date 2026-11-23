@@ -61,6 +61,9 @@ pub(super) fn assign_failure_owner(
     failure: MachineFailure,
     tokens: &[RecognizedEntity],
 ) -> MachineFailure {
+    if failure.is_engine_gap() {
+        return failure;
+    }
     let owner = match failure.state {
         "effect.start" => {
             diagnose_clause_head(tokens, failure.token_index).state(EFFECT_CLAUSE_FRAME)

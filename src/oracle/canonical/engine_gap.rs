@@ -33,6 +33,7 @@ pub(crate) enum EngineGap {
 }
 
 impl EngineGap {
+    #[cfg(test)]
     pub(crate) const ALL: [Self; 7] = [
         Self::EventMatcher,
         Self::GrantedNonActivatedAbility,
@@ -54,11 +55,6 @@ impl EngineGap {
             Self::ResolutionCostAction => "engine.gap.resolution-cost-action",
             Self::ActivationCostAction => "engine.gap.activation-cost-action",
         }
-    }
-
-    /// The gap a reported state names, if it names one.
-    pub(crate) fn from_state(state: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|gap| gap.state() == state)
     }
 }
 
