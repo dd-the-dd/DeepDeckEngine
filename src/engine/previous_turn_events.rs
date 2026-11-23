@@ -10,9 +10,14 @@
 use super::*;
 
 /// Shape accepted by the executable engine: a named event and a known
-/// aggregate. Any other aggregate is refused rather than defaulted.
+/// aggregate. Any other aggregate is refused rather than defaulted, and a
+/// `where` or `player` filter, which this count does not read, is refused
+/// rather than ignored.
 pub(super) fn previous_turn_event_count_supported(expression: &Value) -> bool {
     expression["event"].is_string()
+        && expression.get("where").is_none_or(Value::is_null)
+        && expression.get("player").is_none()
+        && expression.get("fromZone").is_none()
         && matches!(
             expression["aggregate"].as_str(),
             Some("total" | "greatestPerPlayer")
