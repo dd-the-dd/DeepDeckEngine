@@ -77,6 +77,31 @@ fn declared_slots<'a>(stack: &'a StackObject, target_id: &str) -> Vec<TargetSlot
 /// Match a committed member to its owning declaration using the same longest
 /// binding rule as legality/retargeting. Explicit legacy map-only designations
 /// retain their established ordinal semantics; they do not prove an empty set.
+/// `distinctTargets`: each group of target ids of a rule names different
+/// objects (`another target creature` after `target creature`, CR 115.3).
+pub(super) fn declaration_respects_distinct_targets(
+    rule: &Value,
+    targets: &BTreeMap<String, TargetRef>,
+) -> bool {
+    rule["distinctTargets"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .all(|group| {
+            let values = group
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .filter_map(|target_id| targets.get(target_id))
+                .collect::<Vec<_>>();
+            values
+                .iter()
+                .enumerate()
+                .all(|(index, value)| !values[..index].contains(value))
+        })
+}
+
 pub(super) fn target_belongs_to_declaration(
     stack: &StackObject,
     declaration_id: &str,

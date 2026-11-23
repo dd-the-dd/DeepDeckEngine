@@ -291,3 +291,137 @@ fn a_card_zone_query_reading_battlefield_state_is_refused_before_play() {
     );
     assert_ne!(status, "executable");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn another_target_after_a_target_names_a_different_object() {
+    // Deadshot: the second slot is `another target creature`; the sibling
+    // with a single `another` slot keeps only its source exclusion.
+    let card = compile(
+        "Deadshot",
+        "Sorcery",
+        "{3}{R}",
+        "Tap target creature. It deals damage equal to its power to another target creature.",
+    );
+    let rule = &card.rules[0];
+    let decisions = rule["declaration"]["decisions"]
+        .as_array()
+        .expect("two target slots");
+    let ids = decisions
+        .iter()
+        .filter_map(|decision| decision["id"].as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(rule["distinctTargets"], json!([[ids[0], ids[1]]]));
+    let mut engine = board();
+    let mut free = card.clone();
+    free.mana_cost = "{0}".to_string();
+    engine.state.players[0]
+        .hand
+        .push(test_instance("subject-source", free, "player-0"));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let casts = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| action.kind == ActionKind::CastSpell)
+        .collect::<Vec<_>>();
+    assert!(!casts.is_empty());
+    for cast in &casts {
+        assert_ne!(cast.targets.get(ids[0]), cast.targets.get(ids[1]));
+    }
+
+    // Sibling: a slot of two `other` targets after a first target
+    // (Betrayal at the Vault) names neither object of the first slot.
+    let betrayal = compile(
+        "Betrayal at the Vault",
+        "Instant",
+        "{4}{G}{G}",
+        "Target creature you control deals damage equal to its power to each of two other target creatures.",
+    );
+    let rule = &betrayal.rules[0];
+    let decisions = rule["declaration"]["decisions"]
+        .as_array()
+        .expect("two target slots");
+    let (first, others) = (
+        decisions[0]["id"].as_str().expect("first slot"),
+        decisions[1]["id"].as_str().expect("second slot"),
+    );
+    assert_eq!(
+        rule["distinctTargets"],
+        json!([
+            [first, format!("{others}:0")],
+            [first, format!("{others}:1")]
+        ])
+    );
+
+    let single = compile(
+        "Test Rally",
+        "Creature \u{2014} Human",
+        "{1}{W}",
+        "When this creature enters, put a +1/+1 counter on another target creature you control.",
+    );
+    let trigger = single
+        .rules
+        .iter()
+        .find(|rule| value_kind(rule) == Some("triggeredAbility"))
+        .expect("the enter trigger");
+    assert!(trigger.get("distinctTargets").is_none());
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_tap_cost_beside_the_source_tap_names_another_permanent() {
+    // Munda's Vanguard: `{T}, Tap an untapped Ally you control`. Alone, the
+    // source cannot pay both; another Ally makes the activation legal.
+    let card = compile(
+        "Munda's Vanguard",
+        "Creature \u{2014} Kor Knight Ally",
+        "{4}{W}",
+        "Cohort \u{2014} {T}, Tap an untapped Ally you control: Put a +1/+1 counter on each creature you control.",
+    );
+    let activations = |with_ally: bool| {
+        let mut engine = board();
+        let mut source = test_instance("subject-source", card.clone(), "player-0");
+        source.summoning_sick = false;
+        engine.state.players[0].battlefield.push(source);
+        if with_ally {
+            let mut ally = test_instance(
+                "ally",
+                test_definition("ally", "Creature \u{2014} Kor Ally"),
+                "player-0",
+            );
+            ally.summoning_sick = false;
+            engine.state.players[0].battlefield.push(ally);
+        }
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let actions = engine
+            .legal_priority_actions(0)
+            .into_iter()
+            .filter(|action| {
+                action.kind == ActionKind::ActivateAbility
+                    && action.card_instance_id.as_deref() == Some("subject-source")
+            })
+            .collect::<Vec<_>>();
+        (engine, actions)
+    };
+    let (_, alone) = activations(false);
+    assert!(alone.is_empty(), "{alone:?}");
+    let (mut engine, with_ally) = activations(true);
+    let action = with_ally.first().expect("the activation with another Ally");
+    engine
+        .apply_priority_action(action, &mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the activation is paid: {}", error.message));
+    engine
+        .resolve_top_stack(&mut EmeritusDecisionProvider)
+        .unwrap_or_else(|error| panic!("the ability resolves: {}", error.message));
+    let (player, index) = engine.permanent_position("own-giant-a").expect("giant");
+    assert_eq!(
+        engine.state.players[player].battlefield[index]
+            .counters
+            .get("+1/+1"),
+        Some(&1)
+    );
+}

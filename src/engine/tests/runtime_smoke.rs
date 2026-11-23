@@ -31,7 +31,7 @@
 //! ```
 //!
 //! Without those variables the test returns at once, so the ordinary unit
-//! runs stay fast. `SMOKE_FILTER` (comma-separated card names) narrows a run
+//! runs stay fast. `SMOKE_FILTER` (card names separated by `|`) narrows a run
 //! to a few cards while diagnosing; a failing rule's IR is kept in the report.
 use super::*;
 use std::collections::{BTreeMap, BTreeSet};
@@ -48,6 +48,16 @@ impl DecisionProvider for SmokeProvider {
     ) -> Result<usize, EngineError> {
         if request.options.is_empty() {
             return Err(EngineError::new("smoke decision has no option"));
+        }
+        // A priority window inside a scenario ends: the harness casts and
+        // activates only through its own scripted actions.
+        if request.kind == DecisionKind::Priority
+            && let Some(pass) = request
+                .options
+                .iter()
+                .position(|option| option.kind == ActionKind::PassPriority)
+        {
+            return Ok(pass);
         }
         // Prefer doing something: never pick a decline when another exists.
         Ok(request
@@ -83,41 +93,93 @@ fn smoke_card(id: &str, type_line: &str, controller: &str, cost: &str) -> CardIn
     test_instance(id, definition, controller)
 }
 
-/// The synthetic board every rule is played on.
+/// The synthetic board every rule is played on. Each side has a green bear,
+/// a black giant, a white flyer, a creature token, an artifact, an
+/// enchantment, a basic and a nonbasic land; creature, instant and land
+/// cards in hand; creature, sorcery and artifact cards in the graveyard;
+/// a library of mixed card types.
 fn smoke_engine(source: Option<CardInstance>) -> GameEngine {
     let mut engine = test_engine(2);
     engine.state.active_player = 0;
     engine.state.step = GameStep::PrecombatMain;
     for (index, player) in ["player-0", "player-1"].iter().enumerate() {
         let tag = if index == 0 { "own" } else { "opp" };
+        let mut flyer = smoke_creature(&format!("{tag}-flyer"), player, "1", "1", "Bird");
+        flyer.definition.mana_cost = "{W}".to_string();
+        flyer.definition.rules = vec![json!({
+            "kind": "keywordAbility",
+            "ability": { "kind": "flying" },
+        })];
+        let mut token = smoke_creature(&format!("{tag}-token"), player, "1", "1", "Soldier");
+        token.definition.is_token = true;
+        token.definition.mana_cost = String::new();
         let mut battlefield = vec![
             smoke_creature(&format!("{tag}-bear"), player, "2", "2", "Bear"),
             smoke_creature(&format!("{tag}-giant"), player, "4", "5", "Giant"),
+            flyer,
+            token,
             smoke_card(&format!("{tag}-relic"), "Artifact", player, "{2}"),
             smoke_card(&format!("{tag}-charm"), "Enchantment", player, "{1}{W}"),
             mana_source(&format!("{tag}-forest"), "Basic Land - Forest", "{G}", None),
+            smoke_card(&format!("{tag}-mine"), "Land", player, ""),
         ];
         // The giant is black, so color-qualified effects find a member.
         battlefield[1].definition.mana_cost = "{3}{B}".to_string();
         for card in &mut battlefield {
             card.owner = player.to_string();
             card.controller = player.to_string();
+            card.summoning_sick = false;
         }
         engine.state.players[index].battlefield = battlefield;
+        // The instant is a castable spell (`you gain 1 life`), for cast
+        // triggers and for a spell to counter.
+        let mut instant = smoke_card(&format!("{tag}-hand-instant"), "Instant", player, "{R}");
+        instant.definition.rules = vec![json!({
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{
+                "kind": "gainLife",
+                "amount": { "kind": "integer", "value": 1 },
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            }],
+        })];
         engine.state.players[index].hand = vec![
             smoke_creature(&format!("{tag}-hand-creature"), player, "2", "2", "Elf"),
-            smoke_card(&format!("{tag}-hand-instant"), "Instant", player, "{R}"),
+            instant,
+            smoke_card(
+                &format!("{tag}-hand-land"),
+                "Basic Land - Forest",
+                player,
+                "",
+            ),
         ];
         engine.state.players[index].graveyard = vec![
             smoke_creature(&format!("{tag}-grave-creature"), player, "3", "3", "Zombie"),
             smoke_card(&format!("{tag}-grave-sorcery"), "Sorcery", player, "{B}"),
+            smoke_card(&format!("{tag}-grave-artifact"), "Artifact", player, "{1}"),
+        ];
+        engine.state.players[index].library = vec![
+            smoke_creature(&format!("{tag}-library-creature"), player, "2", "2", "Elf"),
+            smoke_card(
+                &format!("{tag}-library-land"),
+                "Basic Land - Forest",
+                player,
+                "",
+            ),
+            smoke_card(&format!("{tag}-library-instant"), "Instant", player, "{U}"),
+            smoke_creature(&format!("{tag}-library-beast"), player, "3", "3", "Beast"),
+            smoke_card(
+                &format!("{tag}-library-artifact"),
+                "Artifact",
+                player,
+                "{1}",
+            ),
+            smoke_card(&format!("{tag}-library-sorcery"), "Sorcery", player, "{B}"),
         ];
     }
     if let Some(source) = source {
         engine.state.players[0].battlefield.push(source);
     }
-    // Objects are admitted once the rule is on the stack, so the ability
-    // adopts its source's incarnation (see `admit_and_resolve`).
     engine
 }
 
@@ -395,7 +457,22 @@ fn empty_in_fixture(
                             == 0
                     })
             });
-        if zero_amount || zero_stats || empty_collection || absent_counter {
+        // A tap of a target the cost already tapped (`Tap an untapped
+        // creature you control: tap target creature`).
+        let already_tapped = value_kind(effect) == Some("tapPermanent")
+            && matches!(
+                value_kind(&effect["permanent"]),
+                Some("chosenTarget" | "chosenTargets")
+            )
+            && stack_object.targets.values().all(|target| match target {
+                TargetRef::Permanent { instance_id } => engine
+                    .permanent_position(instance_id)
+                    .is_some_and(|(player, index)| {
+                        engine.state.players[player].battlefield[index].tapped
+                    }),
+                _ => false,
+            });
+        if zero_amount || zero_stats || empty_collection || absent_counter || already_tapped {
             empty.insert(index);
         }
     }
@@ -427,6 +504,35 @@ fn observe_events(observed: &mut Observed, events: &[GameEvent]) {
             }
             "lifeLost" | "lifeGained" => {
                 observed.kinds.insert("life");
+            }
+            "damageDealt" => {
+                if id.is_empty() {
+                    observed.kinds.insert("life");
+                } else {
+                    observed.kinds.insert("damage");
+                    observed.damaged.insert(id);
+                }
+            }
+            // Damage prevented (protection) still reached its recipient.
+            "damagePrevented" => {
+                observed.kinds.insert("damage");
+                observed.damaged.insert(id);
+            }
+            "powerToughnessModified" => {
+                observed.kinds.insert("stats");
+                observed.stats.insert(id);
+            }
+            "permanentUntapped" => {
+                observed.kinds.insert("tapped");
+                observed.tapped.insert(id);
+            }
+            "cardDrawn" => {
+                observed.kinds.insert("hand");
+            }
+            "cardsMoved" | "cardExiled" | "cardsEnteredGraveyard" => {
+                for kind in ["graveyard", "exile", "hand", "library", "battlefield"] {
+                    observed.kinds.insert(kind);
+                }
             }
             "countersPlaced" | "countersRemoved" => {
                 observed.kinds.insert("counters");
@@ -491,6 +597,8 @@ fn declared_permanent_targets(targets: &BTreeMap<String, TargetRef>, id: &str) -
 enum Outcome {
     Pass,
     Uncovered(String),
+    /// The real triggering event happened; the source's trigger did not.
+    NoTrigger(String),
     NoChange(String),
     WrongCount(String),
     Error(String),
@@ -501,6 +609,7 @@ impl Outcome {
         match self {
             Self::Pass => "pass",
             Self::Uncovered(_) => "uncovered",
+            Self::NoTrigger(_) => "noTrigger",
             Self::NoChange(_) => "noChange",
             Self::WrongCount(_) => "wrongCount",
             Self::Error(_) => "error",
@@ -510,6 +619,7 @@ impl Outcome {
         match self {
             Self::Pass => "",
             Self::Uncovered(detail)
+            | Self::NoTrigger(detail)
             | Self::NoChange(detail)
             | Self::WrongCount(detail)
             | Self::Error(detail) => detail,
@@ -532,14 +642,505 @@ fn trigger_decisions() -> BTreeMap<String, Value> {
     ])
 }
 
+/// A player's floating mana for the costs the scenario will pay: each
+/// colored symbol of `costs`, their generic amount, and four more (X = 2,
+/// a fixture spell) of colorless mana. Sizing the pool to the costs keeps
+/// the engine's payment search, and the X values it offers, small.
+fn fill_mana_pool(engine: &mut GameEngine, player: usize, costs: &[&str]) {
+    let mut symbols = Vec::new();
+    let mut generic = 4;
+    for cost in costs {
+        for symbol in cost.split(['{', '}']).filter(|symbol| !symbol.is_empty()) {
+            if let Ok(amount) = symbol.parse::<usize>() {
+                generic += amount;
+                continue;
+            }
+            for part in symbol.split('/') {
+                if matches!(part, "W" | "U" | "B" | "R" | "G" | "C") {
+                    symbols.push(part.to_string());
+                } else if part == "2" {
+                    generic += 2;
+                }
+            }
+        }
+    }
+    symbols.extend(std::iter::repeat_n("C".to_string(), generic));
+    for symbol in symbols {
+        engine.state.players[player].mana_pool.push(FloatingMana {
+            symbol,
+            spend_restriction: None,
+        });
+    }
+}
+
+/// The mana costs a rule's scenario pays: the card's, its activation's, and
+/// those of the fixture spells an event scenario casts.
+fn scenario_costs(card: &CardDefinition, rule: &Value) -> Vec<String> {
+    let mut costs = vec![
+        card.mana_cost.clone(),
+        "{1}{G}".to_string(),
+        "{R}".to_string(),
+    ];
+    for cost in rule["costs"].as_array().into_iter().flatten() {
+        if let Some(mana) = cost["manaCost"].as_str() {
+            costs.push(mana.to_string());
+        }
+    }
+    costs
+}
+
+/// How the rule reached the stack: through the real cast or activation
+/// (costs paid by the engine), its real triggering event, a real combat,
+/// or the synthetic declaration fallback.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Path {
+    Cast,
+    Activate,
+    Event,
+    Combat,
+    Synthetic,
+}
+
+impl Path {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Cast => "cast",
+            Self::Activate => "activate",
+            Self::Event => "event",
+            Self::Combat => "combat",
+            Self::Synthetic => "synthetic",
+        }
+    }
+}
+
+/// The legal action of `player` that casts (or activates rule `rule_index`
+/// of) `card_id`: the one declaring X = 2 when X is declared, then the one
+/// with the most targets.
+fn real_action(
+    engine: &GameEngine,
+    player: usize,
+    action_kind: ActionKind,
+    card_id: &str,
+    rule_index: Option<usize>,
+) -> Result<Option<LegalAction>, EngineError> {
+    Ok(engine
+        .try_legal_priority_actions(player)?
+        .into_iter()
+        .filter(|action| action.kind == action_kind)
+        .filter(|action| action.card_instance_id.as_deref() == Some(card_id))
+        .filter(|action| match rule_index {
+            Some(index) => {
+                action
+                    .decisions
+                    .get("abilityRuleIndex")
+                    .and_then(Value::as_u64)
+                    == Some(index as u64)
+            }
+            // Alternative casts (flashback, foretell, …) are other rules.
+            None => !action.decisions.contains_key("abilityRuleIndex"),
+        })
+        .enumerate()
+        .max_by_key(|(index, action)| {
+            // A cost that sacrifices, returns or discards a declared target
+            // makes the rule fizzle: prefer a payment that spares targets.
+            let decisions = serde_json::to_string(&action.decisions).unwrap_or_default();
+            let spares_targets = action.targets.values().all(|target| match target {
+                TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                    !decisions.contains(&format!("\"{instance_id}\""))
+                }
+                _ => true,
+            });
+            (
+                spares_targets,
+                action.decisions.get("xValue").and_then(Value::as_i64) == Some(2),
+                action.targets.len(),
+                std::cmp::Reverse(*index),
+            )
+        })
+        .map(|(_, action)| action))
+}
+
+fn event_text(rule: &Value) -> String {
+    rule["event"].to_string()
+}
+
+fn is_combat_event(rule: &Value) -> bool {
+    let text = event_text(rule);
+    [
+        "\"declaredAttacker\"",
+        "\"controlledCreaturesAttacked\"",
+        "\"attackDeclared\"",
+        "\"block\"",
+        "\"combatDamageToPlayer\"",
+        "\"combatDamage",
+    ]
+    .iter()
+    .any(|marker| text.contains(marker))
+}
+
+/// Declares the scripted attack and block, then passes priority.
+struct CombatProvider {
+    attacker: String,
+    blocker: Option<String>,
+}
+
+impl DecisionProvider for CombatProvider {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        let position = |kind: ActionKind, matches: &dyn Fn(&LegalAction) -> bool| {
+            request
+                .options
+                .iter()
+                .position(|action| action.kind == kind && matches(action))
+        };
+        let chosen = match request.kind {
+            DecisionKind::Attackers => position(ActionKind::DeclareAttacker, &|action| {
+                action.attacker_id.as_deref() == Some(self.attacker.as_str())
+                    && action
+                        .targets
+                        .values()
+                        .all(|target| !matches!(target, TargetRef::Permanent { .. }))
+            })
+            .or_else(|| {
+                position(ActionKind::DeclareAttacker, &|action| {
+                    action.attacker_id.as_deref() == Some(self.attacker.as_str())
+                })
+            })
+            .or_else(|| position(ActionKind::FinishAttackers, &|_| true)),
+            DecisionKind::Blockers => self
+                .blocker
+                .as_deref()
+                .and_then(|blocker| {
+                    position(ActionKind::DeclareBlocker, &|action| {
+                        action.attacker_id.as_deref() == Some(self.attacker.as_str())
+                            && action.blocker_id.as_deref() == Some(blocker)
+                    })
+                })
+                .or_else(|| position(ActionKind::FinishBlockers, &|_| true)),
+            DecisionKind::Priority => position(ActionKind::PassPriority, &|_| true),
+            _ => None,
+        };
+        match chosen {
+            Some(index) => Ok(index),
+            None => SmokeProvider.choose(state, request),
+        }
+    }
+}
+
+/// The position of the smoke source's stack object for `rule`.
+fn rule_on_stack(engine: &GameEngine, rule: &Value) -> Option<usize> {
+    engine.state.stack.iter().rposition(|object| {
+        object.card.instance_id == "smoke-source" && object.ability_rule.as_ref() == Some(rule)
+    })
+}
+
+/// The fixture object an event scenario acts with: the entering permanent,
+/// the cast spell, the creature that dies.
+fn scenario_object(rule: &Value) -> Option<&'static str> {
+    let event = &rule["event"];
+    let names_opponent = event.to_string().contains("pponent");
+    match value_kind(event)? {
+        "permanentEntered" if event["where"].to_string().contains("\"Land\"") => {
+            Some("own-hand-land")
+        }
+        "permanentEntered" => Some("own-hand-creature"),
+        "spellCast" if names_opponent => Some("opp-hand-instant"),
+        "spellCast" => Some("own-hand-instant"),
+        "permanentDied" if value_kind(&event["object"]) == Some("self") => Some("smoke-source"),
+        "permanentDied" if names_opponent => Some("opp-bear"),
+        "permanentDied" => Some("own-bear"),
+        _ => None,
+    }
+}
+
+/// Whether the scenario's event meets every filter the rule's event names:
+/// only the event kind, its player relation and a `where` the scenario
+/// object satisfies. A trigger that does not fire on an event that misses
+/// a filter is not a defect.
+fn scenario_meets_event_filters(engine: &GameEngine, rule: &Value, card: &CardDefinition) -> bool {
+    let event = &rule["event"];
+    let Some(fields) = event.as_object() else {
+        return false;
+    };
+    let plain = fields.iter().all(|(key, value)| {
+        matches!(
+            key.as_str(),
+            "kind"
+                | "player"
+                | "object"
+                | "anyPlayer"
+                | "anyController"
+                | "opponentOfSourceController"
+        ) || (key == "where" && value.is_null())
+            || (key == "where" && !value.is_null())
+    });
+    if !plain {
+        return false;
+    }
+    let Some(predicate) = event.get("where").filter(|predicate| !predicate.is_null()) else {
+        return true;
+    };
+    let Some(object) = scenario_object(rule) else {
+        return false;
+    };
+    let definition = if object == "smoke-source" {
+        Some(card.clone())
+    } else {
+        engine
+            .state
+            .players
+            .iter()
+            .flat_map(|player| {
+                player
+                    .battlefield
+                    .iter()
+                    .chain(&player.graveyard)
+                    .chain(&player.hand)
+                    .chain(&player.exile)
+            })
+            .chain(engine.state.stack.iter().map(|object| &object.card))
+            .find(|candidate| candidate.instance_id == object)
+            .map(|candidate| candidate.definition.clone())
+    };
+    definition.is_some_and(|definition| matches_card_filter(&definition, predicate))
+}
+
+/// Produces the rule's real triggering event. `Ok(None)`: the harness has
+/// no scenario for this event (the synthetic fallback applies).
+fn fire_event(
+    engine: &mut GameEngine,
+    rule: &Value,
+    card: &CardDefinition,
+) -> Result<Option<Path>, EngineError> {
+    let event = &rule["event"];
+    let event_kind = value_kind(event).unwrap_or_default();
+    let object_is_self = value_kind(&event["object"]) == Some("self");
+    let is_creature = card.type_line.contains("Creature");
+    let names_opponent = event.to_string().contains("pponent");
+    match event_kind {
+        // The source enters: it is cast from hand (or played, a land).
+        "enterBattlefield" if object_is_self => {
+            let land = card.type_line.contains("Land");
+            let kind = if land {
+                ActionKind::PlayLand
+            } else {
+                ActionKind::CastSpell
+            };
+            let Some(action) = real_action(engine, 0, kind, "smoke-source", None)? else {
+                return Ok(None);
+            };
+            engine.apply_priority_action(&action, &mut SmokeProvider)?;
+            if !land {
+                engine.resolve_top_stack(&mut SmokeProvider)?;
+            }
+            Ok(Some(Path::Event))
+        }
+        // Another creature enters under its controller's control.
+        "permanentEntered" if !names_opponent => {
+            let entering = scenario_object(rule).unwrap_or("own-hand-creature");
+            let kind = if entering == "own-hand-land" {
+                ActionKind::PlayLand
+            } else {
+                ActionKind::CastSpell
+            };
+            let Some(action) = real_action(engine, 0, kind.clone(), entering, None)? else {
+                return Ok(None);
+            };
+            engine.apply_priority_action(&action, &mut SmokeProvider)?;
+            if kind == ActionKind::CastSpell {
+                engine.resolve_top_stack(&mut SmokeProvider)?;
+            }
+            Ok(Some(Path::Event))
+        }
+        // The source, or another creature, dies of lethal damage.
+        "permanentDied" => {
+            let victim = if object_is_self {
+                if !is_creature {
+                    return Ok(None);
+                }
+                "smoke-source"
+            } else if names_opponent {
+                "opp-bear"
+            } else {
+                "own-bear"
+            };
+            let (player, index) = engine
+                .permanent_position(victim)
+                .ok_or_else(|| EngineError::new("smoke victim is absent"))?;
+            let lethal = engine
+                .current_toughness(&engine.state.players[player].battlefield[index])
+                .max(1);
+            engine.state.players[player].battlefield[index].damage_marked = lethal;
+            engine.check_state_based_actions_with_provider(Some(&mut SmokeProvider))?;
+            Ok(Some(Path::Event))
+        }
+        // A step begins for the source's controller (or an opponent).
+        "stepBegan" => {
+            let Some(step) = event["step"].as_str() else {
+                return Ok(None);
+            };
+            engine.state.active_player = usize::from(names_opponent);
+            engine.enqueue_step_triggers(step);
+            Ok(Some(Path::Event))
+        }
+        // Its controller (or an opponent) casts an instant.
+        "spellCast" => {
+            let (player, spell) = if names_opponent {
+                (1, "opp-hand-instant")
+            } else {
+                (0, "own-hand-instant")
+            };
+            if names_opponent {
+                fill_mana_pool(engine, 1, &["{R}"]);
+            }
+            let Some(action) = real_action(engine, player, ActionKind::CastSpell, spell, None)?
+            else {
+                return Ok(None);
+            };
+            engine.apply_priority_action(&action, &mut SmokeProvider)?;
+            Ok(Some(Path::Event))
+        }
+        _ if is_combat_event(rule) => {
+            if !is_creature {
+                return Ok(None);
+            }
+            // The source attacks and the opponent's bear blocks when the
+            // event names a block; the source blocks when it is the blocker.
+            let text = event_text(rule);
+            let source_blocks =
+                text.contains("\"subject\":{\"object\":{\"kind\":\"self\"},\"role\":\"blocker\"");
+            let blocks = text.contains("\"block\"");
+            let mut provider = if source_blocks {
+                engine.state.active_player = 1;
+                CombatProvider {
+                    attacker: "opp-bear".to_string(),
+                    blocker: Some("smoke-source".to_string()),
+                }
+            } else {
+                CombatProvider {
+                    attacker: "smoke-source".to_string(),
+                    blocker: blocks.then(|| "opp-bear".to_string()),
+                }
+            };
+            engine.run_combat(&mut provider)?;
+            Ok(Some(Path::Combat))
+        }
+        _ => Ok(None),
+    }
+}
+
+/// Observations from the events of one stack object's resolution, with the
+/// state-based actions that follow it.
+fn observe_window(events: &[GameEvent], stack_id: &str) -> Option<Observed> {
+    let start = events.iter().position(|event| {
+        event.kind == "stackObjectStartedResolving" && event.detail["stackId"] == stack_id
+    })?;
+    let end = events[start..]
+        .iter()
+        .position(|event| event.kind.ends_with("Resolved") && event.detail["stackId"] == stack_id)
+        .map(|offset| start + offset)?;
+    let tail = events[end + 1..]
+        .iter()
+        .position(|event| event.kind == "stackObjectStartedResolving")
+        .map_or(events.len(), |offset| end + 1 + offset);
+    let mut observed = Observed::default();
+    observe_events(&mut observed, &events[start..tail]);
+    Some(observed)
+}
+
+/// The objects a collection effect must change: the shared object query's
+/// answer before resolution (the scope the collection names).
+fn expected_collection(
+    engine: &GameEngine,
+    effect: &Value,
+    stack_object: &StackObject,
+) -> Option<(&'static str, BTreeSet<String>)> {
+    let slot = ["recipient", "permanent", "object"]
+        .into_iter()
+        .find(|slot| value_kind(&effect[*slot]) == Some("eachPermanent"))?;
+    let ids = engine
+        .resolve_runtime_object_ids_checked(
+            &effect[slot],
+            stack_object,
+            &BTreeMap::new(),
+            &stack_object.decisions,
+        )
+        .ok()?;
+    let tapped = |id: &String| {
+        engine
+            .permanent_position(id)
+            .is_some_and(|(player, index)| engine.state.players[player].battlefield[index].tapped)
+    };
+    let ids = match value_kind(effect) {
+        // A tap or untap changes only the permanents not already so.
+        Some("tapPermanent") => ids.into_iter().filter(|id| !tapped(id)).collect(),
+        Some("untapPermanent") => ids.into_iter().filter(|id| tapped(id)).collect(),
+        Some(
+            "dealDamage" | "destroyPermanent" | "exilePermanent" | "returnToOwnersHand"
+            | "putCounters",
+        ) => ids.into_iter().collect(),
+        _ => return None,
+    };
+    Some((slot, ids))
+}
+
+fn reached_collection(effect: &Value, observed: &Observed) -> BTreeSet<String> {
+    match value_kind(effect).unwrap_or_default() {
+        "dealDamage" => observed.damaged.union(&observed.left).cloned().collect(),
+        "putCounters" => observed.countered.union(&observed.left).cloned().collect(),
+        "tapPermanent" | "untapPermanent" => observed.tapped.clone(),
+        _ => observed.left.clone(),
+    }
+}
+
+/// `another target`: a later target slot that excludes its source must not
+/// name a permanent an earlier slot of the same declaration names.
+fn reused_another_target(rule: &Value, targets: &BTreeMap<String, TargetRef>) -> Option<String> {
+    let decisions = rule["declaration"]["decisions"].as_array()?;
+    let slot_of = |target_id: &str| target_id.split(':').next().unwrap_or_default().to_string();
+    for (later_index, later) in decisions.iter().enumerate() {
+        if value_kind(later) != Some("chooseTargets")
+            || later["candidates"]["excludeSource"].as_bool() != Some(true)
+        {
+            continue;
+        }
+        let later_id = later["id"].as_str().unwrap_or_default();
+        for earlier in &decisions[..later_index] {
+            let earlier_id = earlier["id"].as_str().unwrap_or_default();
+            let reused = targets.iter().any(|(target_id, target)| {
+                slot_of(target_id) == later_id
+                    && matches!(target, TargetRef::Permanent { .. })
+                    && targets
+                        .iter()
+                        .any(|(other_id, other)| slot_of(other_id) == earlier_id && other == target)
+            });
+            if reused {
+                return Some(format!("{earlier_id} and {later_id} name the same object"));
+            }
+        }
+    }
+    None
+}
+
 /// Plays one rule of `card` and classifies the outcome.
-fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
+fn smoke_rule(
+    card: &CardDefinition,
+    rule: &Value,
+    rule_index: usize,
+) -> (Outcome, Vec<String>, Path) {
     let kind = value_kind(rule).unwrap_or_default().to_string();
     if !matches!(
         kind.as_str(),
         "spellAbility" | "activatedAbility" | "triggeredAbility"
     ) {
-        return (Outcome::Uncovered(format!("rule:{kind}")), Vec::new());
+        return (
+            Outcome::Uncovered(format!("rule:{kind}")),
+            Vec::new(),
+            Path::Synthetic,
+        );
     }
     let effects = rule["effects"].as_array().cloned().unwrap_or_default();
     let primitives = effects
@@ -547,8 +1148,85 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
         .filter_map(|effect| value_kind(effect).map(str::to_string))
         .collect::<Vec<_>>();
     if effects.is_empty() {
-        return (Outcome::Uncovered("no effects".to_string()), primitives);
+        return (
+            Outcome::Uncovered("no effects".to_string()),
+            primitives,
+            Path::Synthetic,
+        );
     }
+    // A Vanguard is neither cast nor put onto the battlefield.
+    if card.type_line.contains("Vanguard") {
+        return (
+            Outcome::Uncovered("vanguard".to_string()),
+            primitives,
+            Path::Synthetic,
+        );
+    }
+    // A cast instant or sorcery resolves all its spell abilities at once:
+    // they are judged together, on the first one.
+    let permanent_card = card.type_line.split_whitespace().any(|word| {
+        matches!(
+            word,
+            "Creature" | "Artifact" | "Enchantment" | "Land" | "Planeswalker" | "Battle"
+        )
+    });
+    let spell_rules = card
+        .rules
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| value_kind(rule) == Some("spellAbility"))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    let effects = if kind == "spellAbility" && !permanent_card && spell_rules.len() > 1 {
+        if spell_rules.first() != Some(&rule_index) {
+            return (
+                Outcome::Uncovered("judged with the card's first spell ability".to_string()),
+                primitives,
+                Path::Cast,
+            );
+        }
+        spell_rules
+            .iter()
+            .flat_map(|index| {
+                card.rules[*index]["effects"]
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default()
+            })
+            .collect::<Vec<_>>()
+    } else {
+        effects
+    };
+    let (outcome, path) = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        play_rule(card, rule, rule_index, &kind, &effects)
+    })) {
+        Ok(result) => result,
+        Err(payload) => {
+            let message = payload
+                .downcast_ref::<String>()
+                .cloned()
+                .or_else(|| payload.downcast_ref::<&str>().map(|text| text.to_string()))
+                .unwrap_or_default();
+            (Outcome::Error(format!("panic: {message}")), Path::Synthetic)
+        }
+    };
+    (outcome, primitives, path)
+}
+
+fn play_rule(
+    card: &CardDefinition,
+    rule: &Value,
+    rule_index: usize,
+    kind: &str,
+    effects: &[Value],
+) -> (Outcome, Path) {
+    let uncovered = |reason: &str, path: Path| (Outcome::Uncovered(reason.to_string()), path);
+    let permanent_source = card.type_line.split_whitespace().any(|word| {
+        matches!(
+            word,
+            "Creature" | "Artifact" | "Enchantment" | "Land" | "Planeswalker" | "Battle"
+        )
+    });
     let mut source = test_instance("smoke-source", card.clone(), "player-0");
     // An Aura or Equipment source is attached to its controller's giant.
     if card
@@ -558,168 +1236,315 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
     {
         source.attached_to = Some("own-giant".to_string());
     }
-    // A Vanguard is neither cast nor put onto the battlefield.
-    if card.type_line.contains("Vanguard") {
-        return (Outcome::Uncovered("vanguard".to_string()), primitives);
+    if card.type_line.contains("Planeswalker") {
+        source.counters.insert("loyalty".to_string(), 5);
     }
-    let permanent_source = card.type_line.split_whitespace().any(|word| {
-        matches!(
-            word,
-            "Creature" | "Artifact" | "Enchantment" | "Land" | "Planeswalker" | "Battle"
-        )
-    });
-    let mut engine = smoke_engine(permanent_source.then(|| source.clone()));
-    // A spell's card waits in hand so that it is admitted with the others.
-    if !permanent_source {
+    // The source has been under its controller's control since the turn
+    // began: it can pay a {T} cost.
+    source.summoning_sick = false;
+    let enters_from_hand = kind == "triggeredAbility"
+        && value_kind(&rule["event"]) == Some("enterBattlefield")
+        && value_kind(&rule["event"]["object"]) == Some("self");
+    let on_battlefield = permanent_source && !enters_from_hand;
+    let mut engine = smoke_engine(on_battlefield.then(|| source.clone()));
+    if !on_battlefield {
         engine.state.players[0].hand.push(source.clone());
     }
-    if let Err(error) = engine.admit_explicit_test_fixture_objects() {
-        return (
-            Outcome::Uncovered(format!("admission: {}", error.message)),
-            primitives,
-        );
-    }
-    let source = if permanent_source {
-        let (player, index) = engine
-            .permanent_position("smoke-source")
-            .expect("the source is on the battlefield");
-        engine.state.players[player].battlefield[index].clone()
-    } else {
-        let index = engine.state.players[0]
+    // A rule that targets a spell finds the opponent's instant on the stack.
+    let rule_text = rule.to_string();
+    if rule_text.contains("\"counterSpell\"") || rule_text.contains("\"spells\"") {
+        let index = engine.state.players[1]
             .hand
             .iter()
-            .position(|card| card.instance_id == "smoke-source")
-            .expect("the spell is in hand");
-        engine.state.players[0].hand.remove(index)
-    };
-    let mut decisions = if kind == "triggeredAbility" {
-        trigger_decisions()
-    } else {
-        BTreeMap::new()
-    };
-    // A declared X (CR 107.3) is 2, so an X-sized effect is observable.
-    decisions.insert("xValue".to_string(), json!(2));
+            .position(|card| card.instance_id == "opp-hand-instant")
+            .expect("the opponent's instant");
+        let spell = engine.state.players[1].hand.remove(index);
+        engine.state.stack.push(StackObject {
+            id: "stack:opponent".to_string(),
+            controller: "player-1".to_string(),
+            card: spell,
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: None,
+            ability_rule: None,
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        });
+    }
+    let costs = scenario_costs(card, rule);
+    fill_mana_pool(
+        &mut engine,
+        0,
+        &costs.iter().map(String::as_str).collect::<Vec<_>>(),
+    );
     // An untap is observable only on tapped permanents.
     let effects_text = rule["effects"].to_string();
     if effects_text.contains("\"untapPermanent") && !effects_text.contains("\"tapPermanent") {
         for player in &mut engine.state.players {
             for permanent in &mut player.battlefield {
-                permanent.tapped = true;
+                // The source too, unless tapping it pays the activation.
+                let pays_with_tap = rule["costs"]
+                    .as_array()
+                    .is_some_and(|costs| costs.iter().any(|cost| value_kind(cost) == Some("tap")));
+                if permanent.instance_id != "smoke-source" || !pays_with_tap {
+                    permanent.tapped = true;
+                }
             }
         }
     }
-    let declarations =
-        match engine.declarations_for_triggered_rule(rule, "player-0", &source, &decisions) {
-            Ok(Some(declarations)) => declarations,
-            // No declaration to make: the rule resolves with no choice.
-            Ok(None) if rule.get("declaration").is_none() => vec![CastingDeclaration {
-                decisions: BTreeMap::new(),
-                targets: BTreeMap::new(),
-                target_order: Vec::new(),
-            }],
-            Ok(None) => {
-                return (
-                    Outcome::Uncovered("declaration unavailable".to_string()),
-                    primitives,
-                );
+    if let Err(error) = engine.admit_explicit_test_fixture_objects() {
+        return uncovered(&format!("admission: {}", error.message), Path::Synthetic);
+    }
+    // The real path, when there is one: the engine pays the costs and
+    // makes the declaration.
+    let (real, mut path) = match kind {
+        "spellAbility" if !permanent_source => (
+            real_action(&engine, 0, ActionKind::CastSpell, "smoke-source", None),
+            Path::Cast,
+        ),
+        "activatedAbility" => (
+            real_action(
+                &engine,
+                0,
+                ActionKind::ActivateAbility,
+                "smoke-source",
+                Some(rule_index),
+            ),
+            Path::Activate,
+        ),
+        _ => (Ok(None), Path::Synthetic),
+    };
+    let real = match real {
+        Ok(real) => real,
+        Err(error) => return uncovered(&format!("legal actions: {}", error.message), path),
+    };
+    let mut combat_window = None;
+    if let Some(action) = &real {
+        if let Some(reused) = reused_another_target(rule, &action.targets) {
+            return (
+                Outcome::WrongCount(format!("another target: {reused}")),
+                path,
+            );
+        }
+        if let Err(error) = engine.apply_priority_action(action, &mut SmokeProvider) {
+            return (
+                Outcome::Error(format!("{}: {}", path.name(), error.message)),
+                path,
+            );
+        }
+    } else if kind == "triggeredAbility" {
+        if rule.get("condition").is_some() {
+            return uncovered("intervening condition", Path::Synthetic);
+        }
+        let first_event = engine.state.events.len();
+        match fire_event(&mut engine, rule, card) {
+            Ok(Some(fired)) => {
+                path = fired;
+                if fired == Path::Combat {
+                    combat_window = Some(first_event);
+                } else if rule_on_stack(&engine, rule).is_none() {
+                    let triggered = engine.state.events[first_event..].iter().any(|event| {
+                        event.kind == "triggeredAbilityPutOnStack"
+                            && event.card_instance_id.as_deref() == Some("smoke-source")
+                    });
+                    if !triggered {
+                        if !scenario_meets_event_filters(&engine, rule, card) {
+                            return uncovered(
+                                "the scenario event misses the event's filters",
+                                path,
+                            );
+                        }
+                        return (Outcome::NoTrigger(event_text(rule)), path);
+                    }
+                    return uncovered("trigger left the stack (no legal target)", path);
+                }
             }
+            Ok(None) => {}
             Err(error) => {
-                return (
-                    Outcome::Uncovered(format!("declaration: {}", error.message)),
-                    primitives,
+                return uncovered(&format!("event scenario: {}", error.message), Path::Event);
+            }
+        }
+    } else if kind == "activatedAbility" {
+        return uncovered("not activatable on the fixture", path);
+    } else if !permanent_source {
+        return uncovered("not castable on the fixture", path);
+    }
+    // A combat trigger resolved during combat: it is judged on the events
+    // of its resolution window.
+    if let Some(first_event) = combat_window {
+        let events = &engine.state.events[first_event..];
+        if std::env::var("SMOKE_TRACE").is_ok() {
+            eprintln!("trace {} (combat)", card.name);
+            for event in events {
+                eprintln!(
+                    "  event {} {:?} {}",
+                    event.kind,
+                    event.card_instance_id,
+                    serde_json::to_string(&event.detail).unwrap_or_default()
                 );
             }
-        };
-    // The declaration choosing the most targets exercises the rule most.
-    let Some(declaration) = declarations
-        .into_iter()
-        .enumerate()
-        .max_by_key(|(index, declaration)| (declaration.targets.len(), std::cmp::Reverse(*index)))
-        .map(|(_, declaration)| declaration)
-    else {
-        return (
-            Outcome::Uncovered("no legal declaration".to_string()),
-            primitives,
-        );
-    };
-    decisions.extend(declaration.decisions.clone());
-    // The declared X stays 2 whatever the scripted declaration chose.
-    decisions.insert("xValue".to_string(), json!(2));
-    let targets = declaration.targets.clone();
-    // A nonpermanent spell resolves as the cast card does (CR 608.2), its
-    // single spell ability read from the card; anything else is an ability.
-    let cast_spell = kind == "spellAbility"
-        && !permanent_source
-        && card
-            .rules
+        }
+        let Some(stack_id) = events
             .iter()
-            .filter(|rule| value_kind(rule) == Some("spellAbility"))
-            .count()
-            == 1;
-    let stack_object = StackObject {
-        id: "stack:smoke".to_string(),
-        controller: "player-0".to_string(),
-        card: source,
-        cant_be_countered: false,
-        exile_on_leave_stack: false,
-        ability_kind: (!cast_spell).then(|| kind.clone()),
-        ability_rule: (!cast_spell).then(|| rule.clone()),
-        decisions,
-        targets: targets.clone(),
+            .find(|event| {
+                event.kind == "triggeredAbilityPutOnStack"
+                    && event.card_instance_id.as_deref() == Some("smoke-source")
+            })
+            .and_then(|event| event.detail["stackId"].as_str())
+            .map(str::to_string)
+        else {
+            // Only an unfiltered event about the source itself is fully set
+            // up by the scripted combat (a counterpart filter may not match
+            // the fixture bear).
+            let plain = rule["event"].as_object().is_some_and(|fields| {
+                fields
+                    .keys()
+                    .all(|key| matches!(key.as_str(), "kind" | "object" | "source"))
+            });
+            if !plain {
+                return uncovered("the scenario combat misses the event's filters", path);
+            }
+            if !events.iter().any(|event| event.kind == "attackDeclared") {
+                return uncovered("the scripted attack was not declared", path);
+            }
+            return (Outcome::NoTrigger(event_text(rule)), path);
+        };
+        let Some(observed) = observe_window(events, &stack_id) else {
+            return uncovered("combat trigger did not resolve", path);
+        };
+        return judge_window(effects, &observed, rule, path);
+    }
+    let synthetic = path == Path::Synthetic;
+    if synthetic {
+        let mut decisions = if kind == "triggeredAbility" {
+            trigger_decisions()
+        } else {
+            BTreeMap::new()
+        };
+        decisions.insert("xValue".to_string(), json!(2));
+        // No real path: the declaration is made for the rule directly.
+        let source = if on_battlefield {
+            let (player, index) = engine
+                .permanent_position("smoke-source")
+                .expect("the source is on the battlefield");
+            engine.state.players[player].battlefield[index].clone()
+        } else {
+            let index = engine.state.players[0]
+                .hand
+                .iter()
+                .position(|card| card.instance_id == "smoke-source")
+                .expect("the source is in hand");
+            engine.state.players[0].hand.remove(index)
+        };
+        let declarations =
+            match engine.declarations_for_triggered_rule(rule, "player-0", &source, &decisions) {
+                Ok(Some(declarations)) => declarations,
+                Ok(None) if rule.get("declaration").is_none() => vec![CastingDeclaration {
+                    decisions: BTreeMap::new(),
+                    targets: BTreeMap::new(),
+                    target_order: Vec::new(),
+                }],
+                Ok(None) => return uncovered("declaration unavailable", path),
+                Err(error) => return uncovered(&format!("declaration: {}", error.message), path),
+            };
+        let Some(declaration) = declarations
+            .into_iter()
+            .enumerate()
+            .max_by_key(|(index, declaration)| {
+                (declaration.targets.len(), std::cmp::Reverse(*index))
+            })
+            .map(|(_, declaration)| declaration)
+        else {
+            return uncovered("no legal declaration", path);
+        };
+        decisions.extend(declaration.decisions.clone());
+        decisions.insert("xValue".to_string(), json!(2));
+        engine.state.stack.push(StackObject {
+            id: "stack:smoke".to_string(),
+            controller: "player-0".to_string(),
+            card: source,
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some(kind.to_string()),
+            ability_rule: Some(rule.clone()),
+            decisions,
+            targets: declaration.targets.clone(),
+        });
+    } else if kind == "triggeredAbility" {
+        // Resolve what stacked above the trigger, then commit its targets.
+        let mut resolved_above = 0;
+        while let Some(position) = rule_on_stack(&engine, rule) {
+            if position + 1 == engine.state.stack.len() {
+                break;
+            }
+            resolved_above += 1;
+            if resolved_above > 16 {
+                return uncovered(
+                    "event scenario: the stack above the trigger does not settle",
+                    path,
+                );
+            }
+            if let Err(error) = engine.resolve_top_stack(&mut SmokeProvider) {
+                return uncovered(&format!("event scenario: {}", error.message), path);
+            }
+        }
+        if let Err(error) = engine.commit_pending_triggered_targets(&mut SmokeProvider) {
+            return (
+                Outcome::Error(format!("trigger targets: {}", error.message)),
+                path,
+            );
+        }
+        if rule_on_stack(&engine, rule).map(|position| position + 1)
+            != Some(engine.state.stack.len())
+        {
+            return uncovered("trigger left the stack (no legal target)", path);
+        }
+    }
+    let Some(stack_object) = engine.state.stack.last().cloned() else {
+        return uncovered("nothing on the stack", path);
     };
-    let empty = empty_in_fixture(&engine, &effects, &stack_object);
-    engine.state.stack.push(stack_object);
+    if !synthetic && let Some(reused) = reused_another_target(rule, &stack_object.targets) {
+        return (
+            Outcome::WrongCount(format!("another target: {reused}")),
+            path,
+        );
+    }
+    let targets = stack_object.targets.clone();
+    let empty = empty_in_fixture(&engine, effects, &stack_object);
+    let collections = effects
+        .iter()
+        .map(|effect| expected_collection(&engine, effect, &stack_object))
+        .collect::<Vec<_>>();
     let before = snapshot(&engine);
     let first_event = engine.state.events.len();
-    let resolved = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        engine.resolve_top_stack(&mut SmokeProvider)
-    }));
-    match resolved {
-        Err(payload) => {
-            let message = payload
-                .downcast_ref::<String>()
-                .cloned()
-                .or_else(|| payload.downcast_ref::<&str>().map(|text| text.to_string()))
-                .unwrap_or_default();
-            return (Outcome::Error(format!("panic: {message}")), primitives);
-        }
-        // An activation cost the harness did not pay leaves its cost
-        // bindings empty: the rule was not set up, not wrong.
-        Ok(Err(error))
+    match engine.resolve_top_stack(&mut SmokeProvider) {
+        Ok(()) => {}
+        Err(error)
             if error.message.contains("activationCost")
                 || error.message.contains("sacrificedPermanent")
                 || rule["effects"]
                     .to_string()
                     .contains("\"sacrificedPermanent") =>
         {
-            return (
-                Outcome::Uncovered("unpaid activation cost".to_string()),
-                primitives,
-            );
+            return uncovered("unpaid activation cost", path);
         }
-        // The synthetic event binds no observed object or spell: a trigger
-        // reading one was not set up.
-        Ok(Err(error))
-            if kind == "triggeredAbility"
+        Err(error)
+            if synthetic
+                && kind == "triggeredAbility"
                 && (error.message.contains("observed event")
                     || error.message.contains("triggering")
                     || error.message.contains("whereX")) =>
         {
-            return (
-                Outcome::Uncovered("synthetic trigger context".to_string()),
-                primitives,
-            );
+            return uncovered("synthetic trigger context", path);
         }
-        Ok(Err(error)) => return (Outcome::Error(error.message), primitives),
-        Ok(Ok(_)) => {}
+        Err(error) => return (Outcome::Error(error.message), path),
     }
     let after = snapshot(&engine);
     if std::env::var("SMOKE_TRACE").is_ok() {
         eprintln!(
-            "trace {}: targets {:?}
-  before {:?}
-  after {:?}",
-            card.name, targets, before, after
+            "trace {} ({}): targets {targets:?}\n  before {before:?}\n  after {after:?}",
+            card.name,
+            path.name()
         );
         for event in &engine.state.events[first_event..] {
             eprintln!(
@@ -730,45 +1555,146 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
             );
         }
     }
+    // Targets that became illegal before resolution (a cost that sacrificed
+    // or tapped the declared target) prove nothing about the effect.
+    if engine.state.events[first_event..]
+        .iter()
+        .any(|event| matches!(event.kind.as_str(), "abilityFizzled" | "spellFizzled"))
+    {
+        return uncovered("fizzled: no legal target at resolution", path);
+    }
     let mut observed = observe(&before, &after);
     observe_events(&mut observed, &engine.state.events[first_event..]);
     // The source's own fate (a sacrifice cost, state-based actions) is not
     // the effect's change, unless the source is itself a declared target.
-    let source_targeted = targets
-        .values()
-        .any(|target| matches!(target, TargetRef::Permanent { instance_id } if instance_id == "smoke-source"));
+    let source_targeted = targets.values().any(|target| {
+        matches!(target, TargetRef::Permanent { instance_id } if instance_id == "smoke-source")
+    }) || collections.iter().flatten().any(|(_, ids)| ids.contains("smoke-source"))
+        || effects.iter().any(|effect| {
+            ["recipient", "permanent", "object"]
+                .iter()
+                .any(|slot| value_kind(&effect[*slot]) == Some("self"))
+        });
     if !source_targeted {
         observed.left.remove("smoke-source");
         observed.countered.remove("smoke-source");
+        observed.tapped.remove("smoke-source");
     }
     if effects.iter().any(contingent) || rule.get("condition").is_some() {
-        return (
-            Outcome::Uncovered("contingent program".to_string()),
-            primitives,
-        );
+        return judge_contingent(rule, &observed, path);
     }
     for (index, effect) in effects.iter().enumerate() {
-        let Some(kind) = value_kind(effect) else {
+        let Some(effect_kind) = value_kind(effect) else {
             continue;
         };
-        let Some(expected) = promised(kind) else {
+        let Some(expected) = promised(effect_kind) else {
             continue;
         };
         if !expected.iter().any(|kind| observed.kinds.contains(kind)) {
             if let Some(context) = unset_context(effect, &targets, permanent_source) {
-                return (Outcome::Uncovered(context.to_string()), primitives);
+                return uncovered(context, path);
             }
             if empty.contains(&index) {
-                return (
-                    Outcome::Uncovered("empty amount or collection in the fixture".to_string()),
-                    primitives,
-                );
+                return uncovered("empty amount or collection in the fixture", path);
             }
-            return (Outcome::NoChange(kind.to_string()), primitives);
+            return (Outcome::NoChange(effect_kind.to_string()), path);
         }
     }
-    // The declared targets of a single-primitive rule are each reached.
-    if let [effect] = effects.as_slice()
+    // A single-collection rule changes exactly the objects its query names.
+    if let [effect] = effects
+        && let Some(Some((slot, expected))) = collections.first()
+    {
+        let reached = reached_collection(effect, &observed);
+        if &reached != expected {
+            let missing = expected.difference(&reached).cloned().collect::<Vec<_>>();
+            let extra = reached.difference(expected).cloned().collect::<Vec<_>>();
+            return (
+                Outcome::WrongCount(format!(
+                    "{} {slot}: missing {missing:?}, extra {extra:?}",
+                    value_kind(effect).unwrap_or_default()
+                )),
+                path,
+            );
+        }
+    }
+    judge_targets(effects, &observed, &targets, path)
+}
+
+/// Every observation kind a contingent program could produce.
+fn contingent_promises(rule: &Value) -> BTreeSet<&'static str> {
+    let mut kinds = BTreeSet::new();
+    let mut pending = vec![&rule["effects"]];
+    while let Some(value) = pending.pop() {
+        match value {
+            Value::Array(items) => pending.extend(items.iter()),
+            Value::Object(map) => {
+                if let Some(kind) = map.get("kind").and_then(Value::as_str)
+                    && let Some(promised) = promised(kind)
+                {
+                    kinds.extend(promised.iter().copied());
+                }
+                pending.extend(map.values());
+            }
+            _ => {}
+        }
+    }
+    kinds
+}
+
+/// A contingent program (a choice, a condition, an earlier result) is
+/// judged on the whole: something it can do happened, or nothing did and
+/// the run proves nothing.
+fn judge_contingent(rule: &Value, observed: &Observed, path: Path) -> (Outcome, Path) {
+    let possible = contingent_promises(rule);
+    if possible.is_empty() {
+        return (
+            Outcome::Uncovered("contingent program with no observable primitive".to_string()),
+            path,
+        );
+    }
+    if possible.iter().any(|kind| observed.kinds.contains(kind)) {
+        (Outcome::Pass, path)
+    } else {
+        (
+            Outcome::Uncovered("contingent program changed nothing".to_string()),
+            path,
+        )
+    }
+}
+
+/// A combat trigger's resolution window: every promised primitive changed
+/// something.
+fn judge_window(
+    effects: &[Value],
+    observed: &Observed,
+    rule: &Value,
+    path: Path,
+) -> (Outcome, Path) {
+    if effects.iter().any(contingent) {
+        return judge_contingent(rule, observed, path);
+    }
+    for effect in effects {
+        let Some(effect_kind) = value_kind(effect) else {
+            continue;
+        };
+        let Some(expected) = promised(effect_kind) else {
+            continue;
+        };
+        if !expected.iter().any(|kind| observed.kinds.contains(kind)) {
+            return (Outcome::NoChange(effect_kind.to_string()), path);
+        }
+    }
+    (Outcome::Pass, path)
+}
+
+/// The declared targets of a single-primitive rule are each reached.
+fn judge_targets(
+    effects: &[Value],
+    observed: &Observed,
+    targets: &BTreeMap<String, TargetRef>,
+    path: Path,
+) -> (Outcome, Path) {
+    if let [effect] = effects
         && let Some(id) = ["recipient", "permanent", "object"]
             .iter()
             .find_map(|slot| {
@@ -780,7 +1706,7 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
                 .flatten()
             })
     {
-        let declared = declared_permanent_targets(&targets, id);
+        let declared = declared_permanent_targets(targets, id);
         let reached = match value_kind(effect).unwrap_or_default() {
             "dealDamage" => observed.damaged.union(&observed.left).count(),
             "putCounters" | "removeCounters" => observed.countered.union(&observed.left).count(),
@@ -794,11 +1720,11 @@ fn smoke_rule(card: &CardDefinition, rule: &Value) -> (Outcome, Vec<String>) {
                     "{}: {reached} of {declared} targets",
                     value_kind(effect).unwrap_or_default()
                 )),
-                primitives,
+                path,
             );
         }
     }
-    (Outcome::Pass, primitives)
+    (Outcome::Pass, path)
 }
 
 #[derive(serde::Deserialize)]
@@ -821,7 +1747,7 @@ fn runtime_smoke() {
     };
     let filter = std::env::var("SMOKE_FILTER").ok().map(|names| {
         names
-            .split(',')
+            .split('|')
             .map(|name| name.trim().to_string())
             .collect::<Vec<_>>()
     });
@@ -842,13 +1768,21 @@ fn runtime_smoke() {
                 .as_ref()
                 .is_none_or(|names| names.iter().any(|name| *name == row.name))
         })
+        .take(
+            std::env::var("SMOKE_LIMIT")
+                .ok()
+                .and_then(|limit| limit.parse().ok())
+                .unwrap_or(usize::MAX),
+        )
         .collect::<Vec<_>>();
+    let progress = std::env::var("SMOKE_PROGRESS").is_ok();
     let start = std::time::Instant::now();
     std::panic::set_hook(Box::new(|_| {}));
     let mut writer = std::io::BufWriter::new(std::fs::File::create(&output).expect("smoke output"));
     let mut by_class = BTreeMap::<&'static str, usize>::new();
     let mut by_primitive = BTreeMap::<(String, &'static str), usize>::new();
     let mut card_class = BTreeMap::<&'static str, usize>::new();
+    let mut by_path = BTreeMap::<(&'static str, &'static str), usize>::new();
     for row in &rows {
         let is_creature = row.request.type_line.contains("Creature");
         let compiled = std::panic::catch_unwind(|| {
@@ -871,12 +1805,17 @@ fn runtime_smoke() {
             *card_class.entry("uncovered").or_default() += 1;
             continue;
         }
+        let card_start = std::time::Instant::now();
         let mut worst = Outcome::Pass;
         let mut any_exercised = false;
         let mut rules = Vec::new();
-        for rule in &compilation.card.rules {
-            let (outcome, primitives) = smoke_rule(&compilation.card, rule);
+        for (rule_index, rule) in compilation.card.rules.iter().enumerate() {
+            if progress {
+                eprintln!("smoke: {} rule {rule_index}", row.name);
+            }
+            let (outcome, primitives, path) = smoke_rule(&compilation.card, rule, rule_index);
             *by_class.entry(outcome.class()).or_default() += 1;
+            *by_path.entry((path.name(), outcome.class())).or_default() += 1;
             for primitive in &primitives {
                 *by_primitive
                     .entry((primitive.clone(), outcome.class()))
@@ -890,10 +1829,14 @@ fn runtime_smoke() {
                 "class": outcome.class(),
                 "detail": outcome.detail(),
                 "primitives": primitives,
+                "path": path.name(),
             });
             if matches!(
                 outcome,
-                Outcome::Error(_) | Outcome::NoChange(_) | Outcome::WrongCount(_)
+                Outcome::Error(_)
+                    | Outcome::NoTrigger(_)
+                    | Outcome::NoChange(_)
+                    | Outcome::WrongCount(_)
             ) {
                 report["rule"] = rule.clone();
             }
@@ -911,9 +1854,16 @@ fn runtime_smoke() {
         writeln!(
             writer,
             "{}",
-            json!({"oracle_id": row.oracle_id, "name": row.name, "class": class, "rules": rules})
+            json!({
+                "oracle_id": row.oracle_id,
+                "name": row.name,
+                "class": class,
+                "ms": card_start.elapsed().as_millis() as u64,
+                "rules": rules,
+            })
         )
         .expect("smoke output line");
+        writer.flush().expect("smoke output flush");
     }
     let _ = std::panic::take_hook();
     eprintln!(
@@ -923,6 +1873,7 @@ fn runtime_smoke() {
     );
     eprintln!("cards by class: {card_class:?}");
     eprintln!("rules by class: {by_class:?}");
+    eprintln!("rules by path and class: {by_path:?}");
     let mut primitives = by_primitive.into_iter().collect::<Vec<_>>();
     primitives.sort_by(|a, b| b.1.cmp(&a.1));
     for ((primitive, class), count) in primitives.iter().take(60) {
