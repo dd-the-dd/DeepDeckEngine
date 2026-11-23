@@ -94,9 +94,9 @@ fn positive_integer_compositions(
 mod ability_signals;
 mod activated_rule_execution;
 mod adventure;
-mod band_gate;
 mod attack_defender_restriction;
 mod attack_tax;
+mod band_gate;
 mod battlefield_departure;
 mod battlefield_entry_batch;
 mod card_movement;
@@ -240,10 +240,10 @@ mod object_identity_initialization_tests;
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
 ))]
 mod object_identity_tests;
+mod object_lki;
 mod object_relation_lki;
 mod source_bound_operands;
 mod target_legality;
-mod object_lki;
 mod target_numeric_runtime;
 mod target_reassignment;
 mod targeting_triggers;
