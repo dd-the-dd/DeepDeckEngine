@@ -234,28 +234,30 @@ fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<C
     cursor.enter("card-action.reveal-until.condition");
     cursor.consume_phrase(&["until", "you", "reveal"])?;
     cursor.enter("card-action.reveal-until.quantity");
-    let quantity = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
-    {
-        let article = cursor.peek().unwrap_or("a").to_owned();
-        cursor.consume(&article)?;
-        NumericExpression::from(1)
-    } else {
-        recognize_numeric_expression(cursor, None)?
+    // One object noun phrase: its count and card query; this parent
+    // type-checks a chosen exact count of unscoped cards.
+    let phrase = recognize_object_noun_phrase(
+        cursor,
+        ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
+    )?;
+    let quantity = match phrase.determiner {
+        Some(ObjectDeterminer::Chosen {
+            quantity: ChosenObjectQuantity::Exactly(quantity),
+            another: false,
+        }) if !phrase.exclude_source => quantity,
+        _ => return Err(cursor.fail("`a` or a count of revealed cards")),
     };
     if let NumericExpression::Atom(NumericAtom::Integer(value)) = &quantity {
         cursor.require(*value > 0, "a positive reveal-until quantity")?;
     }
     cursor.enter("card-action.reveal-until.predicate");
-    let query = recognize_object_query(cursor)?;
     cursor.require(
-        query.controller.is_none() && query.predicate.is_in_domain(ObjectKind::Card),
+        phrase.query.relations().is_empty() && phrase.domain == Some(ObjectKind::Card),
         "an unscoped card-domain predicate for the revealed cards",
     )?;
     Ok(CardActionNode::RevealUntil {
         quantity,
-        predicate: query.predicate,
+        predicate: phrase.query.predicate().clone(),
         owner: LocalPlayerReference::Controller,
     })
 }
