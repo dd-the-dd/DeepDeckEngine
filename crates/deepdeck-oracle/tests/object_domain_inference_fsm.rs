@@ -128,12 +128,135 @@ fn explicit_card_and_spell_nouns_keep_their_own_domain() {
         "Creature \u{2014} Zombie",
         "Instant and sorcery spells you control have deathtouch.",
     );
-    if let Some(rule) = parsed
-        .abilities
-        .first()
-        .and_then(|ability| ability.rule.as_ref())
-    {
-        assert!(!rule.to_string().contains("\"permanents\""), "{rule:#}");
+    // The engine has no spell-collection keyword grant yet: the explicit
+    // failure stays, and no permanent reading is produced.
+    assert_eq!(parsed.status, "unsupported", "{:#?}", parsed.abilities);
+    assert!(
+        parsed
+            .abilities
+            .iter()
+            .all(|ability| ability.rule.is_none()),
+        "{:#?}",
+        parsed.abilities
+    );
+    // `Goblin permanent card` is a card, never a Goblin permanent.
+    let lackey = rule(
+        "Creature \u{2014} Goblin",
+        "Whenever this creature deals damage to a player, you may put a Goblin permanent card from your hand onto the battlefield.",
+    );
+    assert_eq!(
+        lackey["effects"][0]["candidates"]["kind"], "cards",
+        "{lackey:#}"
+    );
+    // `a Goblin source` is any object (CR 109.2): no permanent domain.
+    let prevention = rule(
+        "Enchantment",
+        "If a Goblin source would deal damage to you, prevent that damage.",
+    );
+    assert_eq!(
+        prevention["modifiers"][0]["event"]["source"],
+        json!({ "kind": "objects", "where": subtype("Goblin") })
+    );
+}
+
+#[test]
+fn damage_to_a_bare_subtype_collection_keeps_its_damageable_type_check() {
+    // A Goblin may be a noncreature Kindred permanent, which cannot be dealt
+    // damage (CR 120.1): the damage parent keeps requiring a damageable type.
+    let parsed = parse("Sorcery", "Probe deals 2 damage to each Goblin.");
+    assert_ne!(parsed.status, "canonical");
+    assert!(
+        parsed.diagnostics.iter().any(|diagnostic| {
+            diagnostic.state.as_deref() == Some("effect.damage.collection.validation")
+        }),
+        "{:#?}",
+        parsed.diagnostics
+    );
+    let creatures = rule("Sorcery", "Probe deals 2 damage to each Goblin creature.");
+    assert!(
+        filters(&creatures)
+            .iter()
+            .any(|filter| filter.to_string().contains("Goblin"))
+    );
+}
+
+#[test]
+fn a_noun_with_a_control_relation_names_permanents_and_a_bare_one_does_not() {
+    for (text, atom) in [
+        ("Tokens you control have haste.", "isToken"),
+        ("Commanders you control have hexproof.", "isCommander"),
+    ] {
+        let grant = rule("Creature \u{2014} Human", text);
+        assert_eq!(
+            grant["modifiers"][0]["objects"]["where"],
+            json!({ "kind": atom }),
+            "{text}"
+        );
+        assert_eq!(
+            grant["modifiers"][0]["objects"]["kind"], "permanents",
+            "{text}"
+        );
+    }
+    // The same relation in a count condition (an unused combination).
+    let count = rule(
+        "Sorcery",
+        "If you control three or more tokens, draw a card.",
+    );
+    assert_eq!(
+        count["effects"][0]["condition"]["left"]["where"],
+        json!({ "kind": "isToken" })
+    );
+    // Near miss: without a control relation `Commanders` is not anchored.
+    assert_ne!(
+        parse("Creature \u{2014} Human", "Commanders have hexproof.").status,
+        "canonical"
+    );
+}
+
+#[test]
+fn other_names_the_source_only_when_the_source_is_the_affected_object() {
+    // The source is the modified object: `other` excludes it.
+    let lord = rule(
+        "Creature \u{2014} Elf",
+        "This creature gets +1/+1 for each other Elf you control.",
+    );
+    assert_eq!(
+        lord["modifiers"][0]["power"]["excludeSource"], true,
+        "{lord:#}"
+    );
+    let rabble = rule(
+        "Creature \u{2014} Goblin",
+        "Whenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
+    );
+    assert_eq!(
+        rabble["effects"][0]["power"]["excludeSource"], true,
+        "{rabble:#}"
+    );
+    // Each modified object is the antecedent (Nephilim Epochal, Heroes'
+    // Podium, Bravado): refused until the affected object is bound.
+    for (type_line, text) in [
+        (
+            "Creature \u{2014} Nephilim",
+            "Nephilim you control get +1/+1 for each other Nephilim you control.",
+        ),
+        (
+            "Legendary Artifact",
+            "Each legendary creature you control gets +1/+1 for each other legendary creature you control.",
+        ),
+        (
+            "Enchantment \u{2014} Aura",
+            "Enchant creature\nEnchanted creature gets +1/+1 for each other creature you control.",
+        ),
+    ] {
+        let parsed = parse(type_line, text);
+        assert_ne!(parsed.status, "canonical", "{text}");
+        assert!(
+            parsed.diagnostics.iter().any(|diagnostic| {
+                diagnostic.state.as_deref() == Some("static.continuous.for-each.other-antecedent")
+            }),
+            "{text}: {:#?}",
+            parsed.diagnostics
+        );
     }
 }
 

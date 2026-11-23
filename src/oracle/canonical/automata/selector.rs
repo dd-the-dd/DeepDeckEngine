@@ -1060,7 +1060,12 @@ pub(in crate::oracle::canonical) fn lift_shared_trailing_domain(
         || !preceding
             .iter()
             .chain(last_characteristics.iter())
-            .all(|predicate| predicate.supports_domain(*domain) && !predicate.has_domain(*domain))
+            .all(|predicate| {
+                // The trailing noun owns the domain of the coordination
+                // (`Elf or Goblin permanent`): read the branches without the
+                // CR 109.2 subtype-head inference.
+                predicate.supports_domain(*domain) && !predicate.has_explicit_domain(*domain)
+            })
     {
         return fallback;
     }

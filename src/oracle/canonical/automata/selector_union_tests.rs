@@ -113,3 +113,22 @@ fn oxford_complex_branches_keep_intersections_and_share_controller_scope() {
     );
     assert_eq!(cursor.position(), tokens.len());
 }
+
+#[test]
+fn a_trailing_permanent_noun_keeps_owning_coordinated_subtype_heads() {
+    // CR 109.2 inference must not change the coordination shape: the
+    // trailing noun still scopes both subtypes.
+    let tokens = recognize_entities("Elf or Goblin permanent");
+    let mut cursor = OracleTokenCursor::new("selector", &tokens);
+    let query = super::recognize_object_query(&mut cursor).expect("query parses");
+    assert_eq!(
+        query.predicate,
+        ObjectPredicate::Intersection(vec![
+            ObjectPredicate::Union(vec![
+                ObjectPredicate::Subtype("Elf".to_string()),
+                ObjectPredicate::Subtype("Goblin".to_string()),
+            ]),
+            ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+        ])
+    );
+}

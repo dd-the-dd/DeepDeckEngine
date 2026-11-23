@@ -1,7 +1,6 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, ObjectKind, ObjectPredicate, recognize_effect_duration,
-    recognize_object_query,
+    EffectDurationNode, ObjectPredicate, recognize_effect_duration, recognize_object_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,8 +85,7 @@ pub(in crate::oracle::canonical) fn recognize_set_ability_loss_effect(
                 let query = recognize_object_query(cursor)?;
                 cursor.require(query.controller.is_none(), "an unscoped permanent set")?;
                 cursor.require(
-                    query.predicate.supports_domain(ObjectKind::Permanent)
-                        && query.predicate.has_domain(ObjectKind::Permanent),
+                    query.denotes_battlefield_permanents(),
                     "a battlefield-permanent predicate",
                 )?;
                 frame.predicate = Some(query.predicate);

@@ -6,8 +6,7 @@ use crate::oracle::{
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ChoiceBinding, LocalObjectReference, LocalPlayerReference, ManaCostNode, ObjectCardType,
-    ObjectKind, ObjectQueryNode, recognize_mana_cost, recognize_object_collection,
-    recognize_source_reference,
+    ObjectQueryNode, recognize_mana_cost, recognize_object_collection, recognize_source_reference,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -413,9 +412,7 @@ pub(in crate::oracle::canonical) fn recognize_activation_prohibition(
                     cursor.enter("static.activation-prohibition.source-collection");
                     let objects = recognize_object_collection(cursor)?;
                     cursor.require(
-                        !objects.exclude_source
-                            && objects.predicate.has_domain(ObjectKind::Permanent)
-                            && objects.predicate.supports_domain(ObjectKind::Permanent),
+                        !objects.exclude_source && objects.denotes_battlefield_permanents(),
                         "a source collection anchored in the battlefield-permanent domain",
                     )?;
                     sources = Some(ActivationSourcesNode::Permanents(objects));

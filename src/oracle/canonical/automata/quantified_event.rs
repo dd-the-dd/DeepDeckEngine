@@ -119,13 +119,9 @@ pub(in crate::oracle::canonical) fn recognize_quantified_event_subject(
             cursor.require(minimum >= 1, "a positive event threshold")?;
             cursor.consume_phrase(&["or", "more"])?;
             cursor.enter("event.quantified-subject.plural-query");
-            let exclude_source = cursor
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("other"));
-            if exclude_source {
-                cursor.consume("other")?;
-            }
+            // The collection frame reads `other` once.
             let query = recognize_object_collection(cursor)?;
+            let exclude_source = query.exclude_source;
             Ok(QuantifiedEventSubjectNode {
                 multiplicity: EventMultiplicity::PerEvent { minimum },
                 query,

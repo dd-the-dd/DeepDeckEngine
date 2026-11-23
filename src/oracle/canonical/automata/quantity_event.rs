@@ -3,7 +3,7 @@ use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    EventNumericBinding, NumericAtom, ObjectControllerScope, ObjectKind, ObjectPredicate,
+    EventNumericBinding, NumericAtom, ObjectControllerScope, ObjectPredicate,
     ReplacementObjectBinding, object_predicate_uses_x, recognize_counter_name,
     recognize_numeric_atom, recognize_object_query_before_separator,
 };
@@ -85,8 +85,7 @@ fn recognize_counter_recipient(
     let query = recognize_object_query_before_separator(cursor)?;
     cursor.enter("quantity-event.counter-recipient.domain");
     cursor.require(
-        query.predicate.supports_domain(ObjectKind::Permanent)
-            && query.predicate.has_domain(ObjectKind::Permanent),
+        query.denotes_battlefield_permanents(),
         "a shared permanent-domain object query",
     )?;
     cursor.enter("quantity-event.counter-recipient.controller");

@@ -1,5 +1,6 @@
 mod ability_catalog;
 mod audit;
+mod band_gate;
 mod canonical;
 mod card_structure;
 mod characteristic_vocabulary;

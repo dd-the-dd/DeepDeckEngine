@@ -410,6 +410,20 @@ fn recognize_damage_frame(
                                 .any(|group| matches!(group, DamageRecipientNode::Targets(_))),
                             "target-free recipient groups in a damage recipient conjunction",
                         )?;
+                        // `that creature and each other creature`: `other`
+                        // names the sibling group's object, not the source.
+                        let names_object = memory
+                            .recipients
+                            .iter()
+                            .any(|group| matches!(group, DamageRecipientNode::BoundObject(_)));
+                        let other_collection = memory.recipients.iter().any(|group| {
+                            matches!(group, DamageRecipientNode::EachPermanent(collection)
+                                if collection.exclude_source)
+                        });
+                        cursor.require(
+                            !(names_object && other_collection),
+                            "an `other` collection whose antecedent is the source, not a sibling recipient",
+                        )?;
                         DamageRecipientNode::All(memory.recipients)
                     }
                 };
@@ -853,7 +867,7 @@ pub(in crate::oracle::canonical) fn permanent_target_supported(selector: &Target
 
 fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut usize) -> bool {
     match predicate {
-        // CR 109.2a, 205.3d: `target Wall`, `target Goblin` name permanents.
+        // CR 109.2, 205.3d: `target Wall`, `target Goblin` name permanents.
         // Explicit card and spell nouns are refused below.
         SelectorPredicate::CardType(_) | SelectorPredicate::Subtype(_)
             if predicate.denotes_permanent_head(true) =>

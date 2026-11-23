@@ -149,6 +149,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
     let mut cursor = OracleTokenCursor::new("saga-chapter", input.tokens);
     let chapter =
         recognize_saga_chapter(&mut cursor, input.name_links, input.name_resolution_failure)?;
+    let mut decisions = Vec::new();
     let effects = match chapter.body {
         SagaChapterBodyNode::Grant(ability) => vec![json!({
             "kind": "grantAbility",
@@ -166,6 +167,17 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
             };
             lower_library_search_effects(&mut cursor, &search, controller())?
         }
+        SagaChapterBodyNode::Program(program) => {
+            // The chapter body is lowered exactly as a triggered ability's
+            // program; its target declarations belong to the trigger.
+            let lowered = lower_effect_program(&mut cursor, &program)?;
+            cursor.require(
+                !lowered.effects.is_empty(),
+                "at least one executable action",
+            )?;
+            decisions = lowered.decisions;
+            lowered.effects
+        }
     };
     let trace = cursor
         .transitions()
@@ -173,20 +185,24 @@ pub(in crate::oracle::canonical) fn parse_promoted_saga(
         .map(|transition| transition.state)
         .collect::<Vec<_>>()
         .join(" -> ");
+    let mut rule = json!({
+        "kind": "triggeredAbility",
+        "source": self_ref(),
+        "event": {
+            "kind": "sagaChapterReached",
+            "object": self_ref(),
+            "chapters": chapter.chapters.into_iter().map(integer).collect::<Vec<_>>(),
+        },
+        "effects": effects,
+    });
+    if !decisions.is_empty() {
+        rule["declaration"] = json!({ "kind": "castingDeclaration", "decisions": decisions });
+    }
     Ok(draft(
-        json!({
-            "kind": "triggeredAbility",
-            "source": self_ref(),
-            "event": {
-                "kind": "sagaChapterReached",
-                "object": self_ref(),
-                "chapters": chapter.chapters.into_iter().map(integer).collect::<Vec<_>>(),
-            },
-            "effects": effects,
-        }),
+        rule,
         &[
             "Recognize one or more Saga chapter numerals from the shared token stream",
-            "Delegate the chapter body to native quoted-ability or library-search children",
+            "Delegate the chapter body to the quoted-ability child or the shared effect program",
             "Lower the chapter event and body to reusable primitive IR",
             &trace,
         ],
