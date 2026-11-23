@@ -20,6 +20,9 @@ class ArchitectureCensusIntegrationTests(unittest.TestCase):
             shutil.copyfile(ROOT/'scripts/tests'/name,self.repo/'scripts/tests'/name)
         baseline=json.loads((self.repo/'scripts/card-migration-architecture-baseline.json').read_text(encoding='utf-8-sig'))
         self.retired=baseline['retiredOracleKinds'][0]
+        # The architecture fingerprint hashes the shared card-domain manifest and vocabulary data.
+        self.write_source('crates/deepdeck-card-domain/Cargo.toml','[package]\nname = "deepdeck-card-domain"\n')
+        self.write_source('data/oracle-vocabulary/fixture.json','{}\n')
         self.write_source('src/engine/mod.rs','''
 pub fn effect_supported(effect: &Value) -> bool { false }
 fn execute_effect(effect: &Value) -> Result<(), Error> { Ok(()) }
