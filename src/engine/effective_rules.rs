@@ -278,6 +278,10 @@ impl GameEngine {
     }
 
     pub(super) fn rule_metadata_active_for_source(source: &CardInstance, rule: &Value) -> bool {
+        // A level, station or Case band (S6) gates its rule on the source.
+        if !band_gate::band_gate_open(source, rule) {
+            return false;
+        }
         if rule["minimumClassLevel"].as_i64().is_some_and(|minimum| {
             i64::from(source.counters.get("classLevel").copied().unwrap_or(1)) < minimum
         }) {

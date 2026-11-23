@@ -37,10 +37,6 @@ use machine::*;
 use numeric::*;
 use primitive_helpers::*;
 
-pub(crate) fn compile_named_token_native_rule(oracle: &str) -> Option<Value> {
-    automata::compile_named_token_native_rule(oracle)
-}
-
 pub(crate) fn compile_named_token_catalog_rules(
     token_name: &str,
     type_line: &str,

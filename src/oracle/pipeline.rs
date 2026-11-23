@@ -202,6 +202,40 @@ fn prepare_ability(
     }
 }
 
+/// A band line whose meaning is structural rather than an ability: an empty
+/// body after its introducer, or a printed power/toughness box (CR 711.2,
+/// 722.2b). Any other band line is compiled by the ordinary parser.
+fn compile_band_structural_line(
+    source: AbilitySource,
+    body: &super::band_gate::BandBody,
+) -> Option<ParsedOracleAbility> {
+    use super::band_gate::{BandPowerToughness, band_power_toughness, empty_band_body_diagnostic};
+    let entities = recognize_oracle_entities(&source.text);
+    let (status, rule, diagnostics) = if source.text.trim().is_empty() {
+        ("unsupported", None, vec![empty_band_body_diagnostic(body)])
+    } else {
+        match band_power_toughness(&source.text, body) {
+            BandPowerToughness::NotPowerToughness => return None,
+            BandPowerToughness::Rule(rule) => ("canonical", Some(rule), Vec::new()),
+            BandPowerToughness::Unsupported(diagnostic) => ("unsupported", None, vec![diagnostic]),
+        }
+    };
+    Some(ParsedOracleAbility {
+        source,
+        ability_type: "staticAbility".to_string(),
+        status: status.to_string(),
+        recognizer: if rule.is_some() {
+            RecognizerProvenance::Native
+        } else {
+            RecognizerProvenance::Unclaimed
+        },
+        rule,
+        entities,
+        iterations: Vec::new(),
+        diagnostics,
+    })
+}
+
 /// Compiles exclusively through shared token automata and primitive IR.
 /// Unsupported grammar remains explicit; there is no legacy fallback.
 pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardParseResult {
@@ -249,7 +283,26 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
     for document in documents(&request, &card_structure) {
         let is_class = is_class_type_line(document.face_type_line);
         let mut minimum_class_level = 1_i64;
-        for source in split_abilities(&document) {
+        let sources = split_abilities(&document);
+        // Band introducers are typed containers of the boundary pass: a body
+        // is compiled by the ordinary parser and always carries its gate.
+        let band_slots = super::band_gate::plan_band_slots(document.face_type_line, &sources);
+        for (source, band_slot) in sources.into_iter().zip(band_slots) {
+            let band = match band_slot {
+                super::band_gate::BandSlot::Header => continue,
+                super::band_gate::BandSlot::Body(body) => Some(body),
+                super::band_gate::BandSlot::Outside => None,
+            };
+            let source = match &band {
+                Some(body) => super::band_gate::band_body_source(source, body),
+                None => source,
+            };
+            if let Some(body) = &band
+                && let Some(ability) = compile_band_structural_line(source.clone(), body)
+            {
+                abilities.push(ability);
+                continue;
+            }
             let ability_index = abilities.len();
             #[cfg(feature = "automata-trace")]
             let _trace_ability = super::automata_trace::scope_ability(ability_index);
@@ -332,6 +385,9 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
                 } => {
                     if announced_class_level.is_none() {
                         apply_class_level_requirement(&mut draft.rule, minimum_class_level);
+                    }
+                    if let Some(body) = &band {
+                        super::band_gate::apply_band_gate(&mut draft.rule, body);
                     }
                     apply_room_door_index(
                         &card_structure,
@@ -448,8 +504,6 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
             }
         }
     }
-    // A band body must not be composed or executed without its threshold.
-    super::band_gate::reject_ungated_band_bodies(&request, &mut abilities);
     compose_card_rules_native(&mut abilities);
     // Binding validity is checked after composition in the owning face context.
     validate_native_contextual_bindings(&request, &mut abilities);

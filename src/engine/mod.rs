@@ -94,6 +94,7 @@ fn positive_integer_compositions(
 mod ability_signals;
 mod activated_rule_execution;
 mod adventure;
+mod band_gate;
 mod attack_defender_restriction;
 mod attack_tax;
 mod battlefield_departure;
@@ -5892,7 +5893,8 @@ fn eminence_static_rule_supported(rule: &Value) -> bool {
 }
 
 fn rule_supported(rule: &Value) -> bool {
-    if !entry_observation::reference_scope_supported(rule) {
+    if !entry_observation::reference_scope_supported(rule) || !band_gate::band_gate_supported(rule)
+    {
         return false;
     }
     match value_kind(rule) {

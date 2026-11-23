@@ -1,5 +1,13 @@
 use super::*;
 
+/// The single rule a Map-like token's Oracle compiles to through the shared
+/// token grammar (no closed token vocabulary exists).
+fn token_rule(oracle: &str) -> Option<Value> {
+    let mut rules =
+        crate::oracle::compile_named_token_catalog_rules("Map", "Token Artifact - Map", oracle)?;
+    (rules.len() == 1).then(|| rules.remove(0))
+}
+
 fn kinds(value: &Value, result: &mut Vec<String>) {
     match value {
         Value::Object(object) => {
@@ -69,7 +77,7 @@ fn actual_map_compiler_keeps_costs_target_and_timing_but_emits_no_explore_opcode
     let source: Value =
         serde_json::from_str(include_str!("../../../../data/builtin-game-pieces.json")).unwrap();
     let oracle = source["cards"]["map"][0]["oracleText"].as_str().unwrap();
-    let rule = crate::oracle::compile_named_token_native_rule(oracle).expect("actual Map grammar");
+    let rule = token_rule(oracle).expect("actual Map grammar");
     assert_eq!(rule["activationCondition"]["kind"], "sorceryTiming");
     assert_eq!(rule["costs"].as_array().unwrap().len(), 3);
     assert_eq!(rule["costs"][2]["kind"], "sacrificePermanent");
@@ -85,27 +93,37 @@ fn actual_map_compiler_keeps_costs_target_and_timing_but_emits_no_explore_opcode
 
 #[test]
 fn unsupported_token_instructions_do_not_emit_a_partial_exploration_program() {
-    for oracle in [
-        "{1}, {T}, Sacrifice this token: Target creature you control explores and gains flying.",
-        "{1}, {T}, Sacrifice this token: Target creature you control explores. Gain 1 life.",
+    // The shared grammar either reads the whole envelope or nothing: a
+    // compiled rule always carries the trailing instruction too.
+    for (oracle, trailing) in [
+        (
+            "{1}, {T}, Sacrifice this token: Target creature you control explores and gains flying.",
+            "grantKeyword",
+        ),
+        (
+            "{1}, {T}, Sacrifice this token: Target creature you control explores. Gain 1 life.",
+            "gainLife",
+        ),
     ] {
-        assert!(
-            crate::oracle::compile_named_token_native_rule(oracle).is_none(),
-            "unsupported complete envelope must not produce a partial program: {oracle}"
-        );
+        if let Some(rule) = token_rule(oracle) {
+            let mut found = Vec::new();
+            kinds(&rule, &mut found);
+            assert!(
+                found.iter().any(|kind| kind == trailing),
+                "a compiled envelope must not drop its trailing instruction: {oracle}"
+            );
+        }
     }
 }
 
 #[test]
 fn another_permanent_type_reuses_the_complete_exploration_program() {
-    let creature = crate::oracle::compile_named_token_native_rule(
-        "{1}, {T}, Sacrifice this token: Target creature you control explores.",
-    )
-    .expect("the shared token instruction grammar accepts this permanent selector");
-    let artifact = crate::oracle::compile_named_token_native_rule(
-        "{1}, {T}, Sacrifice this token: Target artifact you control explores.",
-    )
-    .expect("exploration is not restricted to creature permanents");
+    let creature =
+        token_rule("{1}, {T}, Sacrifice this token: Target creature you control explores.")
+            .expect("the shared token instruction grammar accepts this permanent selector");
+    let artifact =
+        token_rule("{1}, {T}, Sacrifice this token: Target artifact you control explores.")
+            .expect("exploration is not restricted to creature permanents");
     let mut expected = creature;
     expected["declaration"]["decisions"][0]["candidates"]["where"]["value"] = json!("Artifact");
     assert_eq!(artifact, expected);

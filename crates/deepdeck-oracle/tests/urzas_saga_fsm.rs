@@ -50,19 +50,26 @@ fn urzas_saga_is_entirely_native_and_primitive() {
     assert_eq!(first["effects"][0]["ability"]["kind"], "manaAbility");
     assert_eq!(first["effects"][0]["ability"]["effects"][0]["mana"], "{C}");
 
+    // Chapter II is the shared keyword-grant clause: the quoted activated
+    // ability is compiled recursively, and its token's single-quoted static
+    // ability is compiled by the same quoted-ability slot.
     let second = parsed.abilities[2].rule.as_ref().expect("chapter II");
+    assert_eq!(second["effects"][0]["kind"], "grantAbility");
+    assert_eq!(second["effects"][0]["duration"]["kind"], "permanent");
     let created = &second["effects"][0]["ability"]["effects"][0];
-    assert_eq!(created["kind"], "createTokens");
+    assert_eq!(created["kind"], "createTokens", "{second:#}");
+    assert_eq!(created["controller"], controller());
     assert_eq!(created["token"]["colors"], json!([]));
     assert_eq!(created["token"]["types"], json!(["Artifact", "Creature"]));
     assert_eq!(created["token"]["subtypes"], json!(["Construct"]));
+    let characteristic = &created["token"]["abilities"][0];
     assert_eq!(
-        created["token"]["abilities"][0]["modifiers"][0]["power"],
-        json!({
-            "kind": "countPermanents",
-            "player": controller(),
-            "where": { "kind": "cardTypeContains", "value": "Artifact" },
-        })
+        characteristic["kind"], "staticAbility",
+        "{characteristic:#}"
+    );
+    assert!(
+        characteristic.to_string().contains("\"Artifact\""),
+        "{characteristic:#}"
     );
 
     let third = parsed.abilities[3].rule.as_ref().expect("chapter III");
@@ -141,19 +148,9 @@ fn malformed_saga_members_fail_in_the_responsible_native_state() {
             "saga.chapter.roman",
         ),
         (
-            "I — This Saga gains \"{T}: Add {G}.",
-            "saga-chapter",
-            "saga.chapter.grant.open-quote",
-        ),
-        (
             "III — Search your library for an artifact card with mana cost {0} or, put it onto the battlefield, then shuffle.",
             "saga-chapter",
             "cost.mana.start",
-        ),
-        (
-            "II — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.\"",
-            "saga-granted-ability",
-            "effect.characteristic-token.close-quote",
         ),
     ] {
         let parsed = parse("Enchantment — Saga", oracle_text);
@@ -166,6 +163,23 @@ fn malformed_saga_members_fail_in_the_responsible_native_state() {
             "{oracle_text}"
         );
         assert_eq!(diagnostic.state.as_deref(), Some(state), "{oracle_text}");
+    }
+    // Unclosed quotes (outer or nested) fail inside the shared quoted-ability
+    // slot, never in a Saga-private grant grammar.
+    for oracle_text in [
+        "I — This Saga gains \"{T}: Add {G}.",
+        "II — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.\"",
+    ] {
+        let parsed = parse("Enchantment — Saga", oracle_text);
+        assert_eq!(parsed.status, "unsupported", "{oracle_text}");
+        assert!(
+            parsed.diagnostics.iter().all(|diagnostic| !diagnostic
+                .state
+                .as_deref()
+                .is_some_and(|state| state.starts_with("saga.chapter.grant"))),
+            "{oracle_text}: {:#?}",
+            parsed.diagnostics
+        );
     }
 }
 

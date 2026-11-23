@@ -13,8 +13,8 @@ mod reminder;
 use reminder::recognize_optional_keyword_reminder;
 
 pub(in crate::oracle::canonical) use quoted_ability::{
-    GRANTED_OBJECT_TYPE_LINE, QuotedAbilityNode, quoted_sentence_just_closed,
-    recognize_quoted_ability,
+    GRANTED_OBJECT_TYPE_LINE, QuotedAbilityNode, quoted_ability_starts,
+    quoted_sentence_just_closed, recognize_quoted_ability,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -203,7 +203,7 @@ fn recognize_keyword_atom(
     resource_commitment: &mut KeywordResourceCommitment,
 ) -> MachineResult<KeywordAtomNode> {
     if let Some(type_line) = quoted_type_line
-        && cursor.peek() == Some("\"")
+        && quoted_ability_starts(cursor)
     {
         return recognize_quoted_ability(cursor, type_line).map(KeywordAtomNode::Quoted);
     }

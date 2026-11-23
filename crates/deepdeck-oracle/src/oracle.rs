@@ -64,7 +64,3 @@ pub fn compile_named_token_catalog_rules(
 pub fn keyword_expansion_rules(rule: &serde_json::Value) -> Vec<serde_json::Value> {
     canonical::keyword_expansion_rules(rule)
 }
-
-pub fn compile_named_token_native_rule(oracle: &str) -> Option<serde_json::Value> {
-    canonical::compile_named_token_native_rule(oracle)
-}
