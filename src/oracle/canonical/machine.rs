@@ -151,6 +151,23 @@ impl<'a> OracleTokenCursor<'a> {
         }
     }
 
+    /// The same reading state over another view of the same tokens (equal
+    /// length, indices and spans), such as a predicate read in another
+    /// grammatical person.
+    pub fn with_tokens<'b>(&self, tokens: &'b [RecognizedEntity]) -> OracleTokenCursor<'b> {
+        OracleTokenCursor {
+            automaton: self.automaton,
+            state: self.state,
+            tokens,
+            position: self.position,
+            transitions: self.transitions.clone(),
+            event_numeric_binding: self.event_numeric_binding,
+            binding_environment: self.binding_environment.clone(),
+            #[cfg(feature = "automata-trace")]
+            trace_cursor: None,
+        }
+    }
+
     pub fn set_event_numeric_binding(&mut self, binding: Option<EventNumericBinding>) {
         self.event_numeric_binding = binding;
     }

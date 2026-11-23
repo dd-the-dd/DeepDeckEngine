@@ -2005,6 +2005,8 @@ pub(super) enum LocalEffectNode {
     TapPermanents(TapPermanentsEffectNode),
     /// `OBJECTS don't untap during their controller's next untap step`.
     UntapRestriction(UntapRestrictionNode),
+    /// An action another player performs (`that player creates ...`).
+    Performed(PerformedEffectNode),
     PermanentKeywordAction(PermanentKeywordActionNode),
     /// `gain control of OBJECT` / `exchange control of OBJECT`.
     ControlChange(ControlChangeEffectNode),
@@ -2324,8 +2326,13 @@ pub(super) use unsupported_word::*;
 #[path = "target_card_sequence_tests.rs"]
 mod target_card_sequence_tests;
 
+mod performer;
 mod permanent_action;
 mod untap_restriction;
+pub(in crate::oracle::canonical) use performer::{
+    PerformedEffectNode, PerformerContext, PerformerNode, performer_description,
+    person_shifted_tokens, recognize_performer,
+};
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,
     untap_restriction_starts,

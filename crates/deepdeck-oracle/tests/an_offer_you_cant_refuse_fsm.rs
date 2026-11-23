@@ -110,31 +110,25 @@ fn target_predicate_quantity_and_optional_reminder_are_independent_children() {
 
 #[test]
 fn claimed_near_misses_report_the_responsible_local_state() {
-    for (oracle_text, state, found) in [
-        (
-            "Counter target noncreature spell. Its owner creates two Treasure tokens.",
-            "reference.player.controller-of-object",
-            "owner",
-        ),
-        (
-            "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add two mana of any color.\")",
-            "reminder.named-token.semantic-match",
-            "",
-        ),
-    ] {
-        let parsed = parse_offer(oracle_text);
-        let ability = &parsed.abilities[0];
-        assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-        assert_eq!(ability.status, "unsupported");
-        assert_eq!(
-            ability.diagnostics[0].automaton.as_deref(),
-            Some("counter-named-token-sequence")
-        );
-        assert_eq!(ability.diagnostics[0].state.as_deref(), Some(state));
-        if found.is_empty() {
-            assert_eq!(ability.diagnostics[0].found, None);
-        } else {
-            assert_eq!(ability.diagnostics[0].found.as_deref(), Some(found));
-        }
-    }
+    // The countered spell's owner is now the performer of the ordinary token
+    // creation (CR 608.2c), no longer a near miss of this family.
+    let owner =
+        parse_offer("Counter target noncreature spell. Its owner creates two Treasure tokens.");
+    assert_eq!(owner.status, "canonical");
+    let effects = &owner.abilities[0].rule.as_ref().unwrap()["effects"];
+    assert!(
+        effects
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|effect| effect["performer"]["kind"] == "ownerOf"),
+        "{effects:#}"
+    );
+    // The family's reminder check no longer decides the card: the shared
+    // sequence reads the performer's token creation and records reminder
+    // text without rules meaning (CR 207.2), as for every other sentence.
+    let reminder = parse_offer(
+        "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add two mana of any color.\")",
+    );
+    assert_eq!(reminder.status, "canonical");
 }

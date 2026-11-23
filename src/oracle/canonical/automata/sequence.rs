@@ -248,6 +248,10 @@ struct SequenceMemory {
     permanent_subject_scope: super::PermanentSubjectScope,
     last_player_target: Option<PlayerTargetBinding>,
     current_player_subject: Option<super::PlayerEffectSubject>,
+    /// The performer of the previous action and the sentence it opened: a
+    /// subjectless verb of the same sentence continues it (`each player
+    /// exiles ..., then sacrifices ...`).
+    current_performer: Option<(super::PerformerNode, super::VerbAgreement, usize)>,
     last_object_set: Option<BoundPermanentSetNode>,
     next_search_binding: usize,
     /// Preposed duration of the sentence being read (CR 611.2a). It scopes
@@ -1021,6 +1025,90 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         parsed => parsed,
                     };
+                    // `PLAYER VERBs ...`: another player performs the clause
+                    // (CR 608.2c). The clause reads the subject and checks the
+                    // verb's agreement; the ordinary readers read the predicate
+                    // as that player's own instruction.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && (!attempt_frame.is_committed()
+                                    || matches!(
+                                        failure.state,
+                                        "effect.quantified-player.action"
+                                            | "clause.verb.unsupported"
+                                    )) =>
+                        {
+                            let furthest = |first: super::super::MachineFailure,
+                                            second: super::super::MachineFailure| {
+                                if second.token_index > first.token_index {
+                                    second
+                                } else {
+                                    first
+                                }
+                            };
+                            let performer_context = super::PerformerContext {
+                                player_antecedent: memory
+                                    .last_player_target
+                                    .map(|binding| super::PlayerBinding(binding.effect_index)),
+                                event_player: base_action_context.frame.event_player,
+                                defending_player: base_action_context.frame.defending_player,
+                                object_antecedent: object_antecedent.clone(),
+                            };
+                            let mut head = cursor.clone();
+                            // A subjectless verb continues the performer of
+                            // the previous action of its sentence.
+                            let continued = memory
+                                .current_performer
+                                .clone()
+                                .filter(|(_, _, sentence)| *sentence == memory.sentence_start)
+                                .map(|(performer, agreement, _)| Ok((performer, agreement)));
+                            let performer =
+                                super::recognize_performer(&mut head, &performer_context).or_else(
+                                    || {
+                                        head = cursor.clone();
+                                        continued
+                                    },
+                                );
+                            match performer {
+                                None => Err(failure),
+                                Some(Err(subject)) => Err(furthest(failure, subject)),
+                                Some(Ok((performer, agreement))) => {
+                                    let description = super::performer_description(&performer);
+                                    match super::person_shifted_tokens(
+                                        &head,
+                                        agreement,
+                                        description,
+                                    ) {
+                                        Err(verb) => Err(furthest(failure, verb)),
+                                        Ok(tokens) => {
+                                            let mut shifted = head.with_tokens(&tokens);
+                                            let controller = super::PlayerEffectSubject::Controller;
+                                            match read_action(
+                                                &mut shifted,
+                                                Some(&controller),
+                                                attempt_frame,
+                                            ) {
+                                                Ok(effect) => {
+                                                    let end = shifted.position();
+                                                    cursor.advance_to(end).map(|()| {
+                                                        LocalEffectNode::Performed(
+                                                            super::PerformedEffectNode {
+                                                                performer,
+                                                                effect: Box::new(effect),
+                                                            },
+                                                        )
+                                                    })
+                                                }
+                                                Err(action) => Err(furthest(failure, action)),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        parsed => parsed,
+                    };
                     match parsed {
                         Ok(effect) => break effect,
                         Err(failure) => {
@@ -1340,6 +1428,38 @@ fn recognize_effect_sequence_attempt_scoped(
                 {
                     memory.last_player_target = Some(life.player);
                 }
+                memory.current_performer = match &effect {
+                    LocalEffectNode::Performed(node) => Some((
+                        node.performer.clone(),
+                        performed_agreement(&node.performer, cursor, effect_start),
+                        memory.sentence_start,
+                    )),
+                    // The ordinary readers of a player subject: its later
+                    // verbs of the sentence continue the same performer.
+                    LocalEffectNode::QuantifiedPlayerAction(node) => Some((
+                        super::PerformerNode::Population {
+                            players: node.players,
+                            excluding_controller: node.excluding_controller,
+                        },
+                        super::VerbAgreement::ThirdPersonSingular,
+                        memory.sentence_start,
+                    )),
+                    LocalEffectNode::PlayerAction(node)
+                        if matches!(
+                            node.player,
+                            super::PlayerEffectSubject::EventPlayer
+                                | super::PlayerEffectSubject::Bound(_)
+                                | super::PlayerEffectSubject::ObjectRelation { .. }
+                        ) =>
+                    {
+                        Some((
+                            super::PerformerNode::Player(node.player.clone()),
+                            performed_agreement_of_player(cursor, effect_start),
+                            memory.sentence_start,
+                        ))
+                    }
+                    _ => None,
+                };
                 memory.current_player_subject = match &effect {
                     LocalEffectNode::PlayerAction(action) => {
                         if let super::PlayerEffectSubject::DeclaredTarget { binding, .. } =
@@ -2526,6 +2646,39 @@ fn recognize_effect(
             .map(LocalEffectNode::OptionalCardDeployment);
     }
     Err(cursor.fail("a supported effect subject"))
+}
+
+/// The agreement of a performer's continued verb: plural after `they`, else
+/// third-person singular (read from the subject as written).
+fn performed_agreement(
+    performer: &super::PerformerNode,
+    cursor: &OracleTokenCursor<'_>,
+    effect_start: usize,
+) -> super::VerbAgreement {
+    let they = cursor
+        .token_slice(effect_start, effect_start + 1)
+        .first()
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("they"));
+    match performer {
+        super::PerformerNode::Player(_) if they => super::VerbAgreement::Base,
+        _ => super::VerbAgreement::ThirdPersonSingular,
+    }
+}
+
+/// The agreement a player subject read by an ordinary reader gave its verb.
+fn performed_agreement_of_player(
+    cursor: &OracleTokenCursor<'_>,
+    effect_start: usize,
+) -> super::VerbAgreement {
+    if cursor
+        .token_slice(effect_start, effect_start + 1)
+        .first()
+        .is_some_and(|token| token.raw.eq_ignore_ascii_case("they"))
+    {
+        super::VerbAgreement::Base
+    } else {
+        super::VerbAgreement::ThirdPersonSingular
+    }
 }
 
 /// Token width of `for each opponent|player|other player ,` at the cursor.

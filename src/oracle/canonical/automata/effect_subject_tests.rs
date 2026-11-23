@@ -504,3 +504,87 @@ fn a_player_population_is_a_distributive_frame() {
         "{states:?}"
     );
 }
+
+/// The performer slot (CR 608.2c): another player's clause is the ordinary
+/// instruction with that player as its performer; a population performs it
+/// in a player loop.
+#[test]
+fn another_player_performs_the_ordinary_instruction() {
+    use serde_json::json;
+    // Real cards: Goblin Spymaster (event player creates), Ulamog, the
+    // Ceaseless Hunger's sibling (its owner shuffles), Exhume (population).
+    let created = effects(
+        "Enchantment",
+        "At the beginning of each opponent's end step, that player creates a 1/1 red Goblin creature token.",
+    );
+    assert_eq!(created.len(), 1, "{created:#?}");
+    assert_eq!(created[0]["performer"], json!({"kind":"triggeringPlayer"}));
+    let imperative = effects(
+        "Enchantment",
+        "At the beginning of each opponent's end step, create a 1/1 red Goblin creature token.",
+    );
+    let mut without_performer = created[0].clone();
+    without_performer
+        .as_object_mut()
+        .expect("an effect object")
+        .remove("performer");
+    assert_eq!(without_performer, imperative[0], "the same instruction");
+    let exhumed = effects(
+        SORCERY,
+        "Each player puts a creature card from their graveyard onto the battlefield.",
+    );
+    assert_eq!(exhumed[0]["kind"], "forEachPlayer", "{exhumed:#?}");
+    let bind = exhumed[0]["bind"].clone();
+    assert!(
+        exhumed[0]["effects"]
+            .as_array()
+            .expect("a loop body")
+            .iter()
+            .all(|effect| effect["performer"] == json!({"kind":"boundValue","id":bind})),
+        "{exhumed:#?}"
+    );
+    // Unused recombination: an opponent population creating tokens.
+    let tokens = effects(SORCERY, "Each opponent creates a Treasure token.");
+    assert_eq!(tokens[0]["kind"], "forEachPlayer", "{tokens:#?}");
+}
+
+/// Near misses: the verb must agree with the performer, and a possessive
+/// performer needs its object.
+#[test]
+fn performer_near_misses() {
+    for oracle in [
+        "Each player create a 1/1 green Saproling creature token.",
+        "Its owner creates a 1/1 white Spirit creature token with flying.",
+    ] {
+        let (status, _, _) = parse(SORCERY, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+    }
+}
+
+/// A subjectless verb of the same sentence continues the performer of the
+/// previous action (CR 608.2c), whichever reader read that action.
+#[test]
+fn a_later_verb_of_the_sentence_continues_the_performer() {
+    // Real card shape: Mirko Vosk / Destroy the Evidence (`its controller
+    // reveals ..., then puts ...`). Unused recombination: a population that
+    // mills, then creates.
+    let effects = effects(
+        SORCERY,
+        "Each opponent mills two cards, then creates a Treasure token.",
+    );
+    let created = effects
+        .iter()
+        .find(|effect| {
+            effect["kind"] == "forEachPlayer"
+                && effect["effects"][0]["kind"] != "mill"
+                && effect["effects"][0]["performer"].is_object()
+        })
+        .unwrap_or_else(|| panic!("a performed creation: {effects:#?}"));
+    assert_eq!(created["players"]["kind"], "opponentsOf", "{created:#}");
+    // Near miss: the performer does not cross a sentence boundary.
+    let (status, _, _) = parse(
+        SORCERY,
+        "Each opponent mills two cards. Creates a Treasure token.",
+    );
+    assert_ne!(status, "canonical");
+}
