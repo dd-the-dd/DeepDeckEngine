@@ -75,7 +75,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_continuous_effect(
                 "modifiers": modifiers,
             });
             if let Some(condition) = &condition {
-                rule["condition"] = lower_static_condition(condition);
+                rule["condition"] = lower_condition(condition);
             }
             StaticContinuousParseAttempt::Parsed(draft(
                 rule,
@@ -477,8 +477,11 @@ fn recognize_optional_turn_condition(
         return Ok(None);
     }
     cursor.enter("static.continuous.turn-condition");
-    let not_your_turn =
-        BooleanConditionNode::Atom(StaticConditionAtom::Local(LocalConditionNode::NotYourTurn));
+    let not_your_turn = BooleanConditionNode::Atom(ConditionAtom::TurnOwnership(
+        ControllerTurnPropositionNode {
+            is_controller_turn: false,
+        },
+    ));
     if cursor
         .peek_ahead(1)
         .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))

@@ -757,7 +757,7 @@ fn lower_conditional_damage_effect(
     };
     let then_effects = lower_effects(node.then_effects)?;
     let else_effects = lower_effects(node.else_effects)?;
-    let condition = lower_local_condition(&node.condition);
+    let condition = lower_condition(&node.condition);
     let trace = transitions
         .iter()
         .map(|transition| transition.state)

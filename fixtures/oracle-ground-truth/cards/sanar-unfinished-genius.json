@@ -72,15 +72,21 @@
         "kind": "activatedAbility",
         "source": { "kind": "self" },
         "activationCondition": {
-          "kind": "hasCastSpellThisTurn",
-          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
-          "where": {
-            "kind": "or",
-            "operands": [
-              { "kind": "cardTypeContains", "value": "Instant" },
-              { "kind": "cardTypeContains", "value": "Sorcery" }
-            ]
-          }
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countEventsThisTurn",
+            "event": "spellCast",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "where": {
+              "kind": "or",
+              "operands": [
+                { "kind": "cardTypeContains", "value": "Instant" },
+                { "kind": "cardTypeContains", "value": "Sorcery" }
+              ]
+            }
+          },
+          "right": { "kind": "integer", "value": 1 }
         },
         "costs": [
           { "kind": "tap", "object": { "kind": "self" } }

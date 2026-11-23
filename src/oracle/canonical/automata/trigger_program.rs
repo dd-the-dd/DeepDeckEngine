@@ -124,12 +124,10 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     // enchantment`) makes it the body's lexical antecedent (`it becomes`).
     if let Some(SyntaxNode {
         value:
-            BooleanConditionNode::Atom(SentenceConditionAtom::ReferencedObject(
-                ReferencedObjectConditionNode {
-                    object: ConditionObjectReference::Permanent(reference),
-                    ..
-                },
-            )),
+            BooleanConditionNode::Atom(ConditionAtom::ObjectSatisfies(ReferencedObjectConditionNode {
+                object: ConditionObjectReference::Permanent(reference),
+                ..
+            })),
         ..
     }) = &guard
     {
@@ -468,7 +466,7 @@ fn event_frame(event: &GenericTriggerEventNode) -> super::FrameBindings {
 /// source permanent.
 fn guard_subject_is_source(guard: &SentenceConditionNode) -> bool {
     match guard {
-        super::BooleanConditionNode::Atom(super::SentenceConditionAtom::ReferencedObject(node)) => {
+        super::BooleanConditionNode::Atom(super::ConditionAtom::ObjectSatisfies(node)) => {
             node.object
                 == super::ConditionObjectReference::Permanent(
                     super::PermanentEffectReference::Source(LocalObjectReference::SourceSelf),

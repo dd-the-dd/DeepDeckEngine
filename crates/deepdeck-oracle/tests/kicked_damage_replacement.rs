@@ -265,9 +265,9 @@ fn unsupported_kicked_condition_is_reported_instead_of_approximated() {
     );
     assert_eq!(
         diagnostic.state.as_deref(),
-        Some("condition.kicked.predicate")
+        Some("condition.source.cast-origin")
     );
-    assert_eq!(diagnostic.found.as_deref(), Some("cast"));
+    assert_eq!(diagnostic.found.as_deref(), Some(","));
     assert!(
         diagnostic
             .expected

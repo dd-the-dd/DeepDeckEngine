@@ -84,7 +84,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_source_entry_counters(
         }));
     }
     if let Some(condition) = &node.condition {
-        conditions.push(lower_static_condition(condition));
+        conditions.push(lower_condition(condition));
     }
     match conditions.len() {
         0 => {}

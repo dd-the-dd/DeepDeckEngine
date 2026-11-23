@@ -1,9 +1,7 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::super::super::OracleTokenCursor;
-use super::super::{
-    ControlledCountDirection, LocalConditionNode, LocalPlayerReference, ObjectPredicate,
-};
+use super::super::{NumericComparisonOperator, ObjectPredicate, controlled_permanent_count};
 use super::*;
 
 #[test]
@@ -18,13 +16,14 @@ fn conditional_free_cast_keeps_condition_and_zero_cost_independent() {
 
     assert!(envelope.costs.costs.is_empty());
     assert!(envelope.costs.connectors.is_empty());
-    let Some(LocalConditionNode::ControlledPermanentCount(condition)) = envelope.condition else {
-        panic!("controlled commander condition remains typed");
-    };
-    assert_eq!(condition.player, LocalPlayerReference::Controller);
-    assert_eq!(condition.threshold, 1);
-    assert_eq!(condition.direction, ControlledCountDirection::OrMore);
-    assert_eq!(condition.predicate, ObjectPredicate::IsCommander);
-    assert!(!condition.exclude_source);
+    let condition = envelope
+        .condition
+        .expect("controlled commander condition remains typed");
+    let (predicate, operator, threshold, exclude_source) =
+        controlled_permanent_count(&condition).expect("a controlled permanent count");
+    assert_eq!(operator, NumericComparisonOperator::GreaterThanOrEqual);
+    assert_eq!(threshold, 1);
+    assert_eq!(*predicate, ObjectPredicate::IsCommander);
+    assert!(!exclude_source);
     assert_eq!(cursor.position(), tokens.len());
 }

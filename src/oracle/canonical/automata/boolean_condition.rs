@@ -1,11 +1,11 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ContextualListConnector, ContextualListPolicy, LocalConditionNode, recognize_contextual_list,
+    ConditionAtom, ContextualListConnector, ContextualListPolicy, recognize_contextual_list,
     recognize_contextual_list_before_separator, recognize_controlled_permanent_count_query,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum BooleanConditionNode<A = LocalConditionNode> {
+pub(in crate::oracle::canonical) enum BooleanConditionNode<A = ConditionAtom> {
     Atom(A),
     And(Vec<BooleanConditionNode<A>>),
     Or(Vec<BooleanConditionNode<A>>),
@@ -121,8 +121,7 @@ pub(in crate::oracle::canonical) fn recognize_controlled_count_boolean_condition
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<BooleanConditionNode> {
     recognize_boolean_condition_list(cursor, |cursor| {
-        recognize_controlled_permanent_count_query(cursor)
-            .map(LocalConditionNode::ControlledPermanentCount)
+        recognize_controlled_permanent_count_query(cursor).map(|query| query.into_atom())
     })
 }
 

@@ -57,7 +57,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_activated_library_search(
         )?;
         effects.push(json!({
             "kind": "conditionalEffect",
-            "condition": lower_local_condition(&followup.condition),
+            "condition": lower_condition(&followup.condition),
             "then": [{
                 "kind": "untapPermanents",
                 "objects": decision_result(&lower_collection_binding(followup.effect.binding)),

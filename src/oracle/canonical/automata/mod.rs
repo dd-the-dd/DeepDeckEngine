@@ -830,7 +830,7 @@ pub(in crate::oracle::canonical) struct ConditionalZoneChangeNode {
 pub(in crate::oracle::canonical) struct ConditionalZoneChangeAmendmentNode {
     pub action: ZoneChangeAction,
     pub target_condition: BoundObjectConditionNode,
-    pub amendment_condition: LocalConditionNode,
+    pub amendment_condition: ConditionNode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1696,7 +1696,7 @@ pub(super) struct CurrentSpellManaCostReferenceNode;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct AlternativeManaCostEnvelopeNode {
-    pub condition: Option<LocalConditionNode>,
+    pub condition: Option<ConditionNode>,
     pub costs: CostSequenceNode<CompoundCostNode>,
     pub replaces: CurrentSpellManaCostReferenceNode,
 }
@@ -1933,7 +1933,7 @@ pub(super) struct SetEnteringStateNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ConditionalEnteringStateNode {
-    pub condition: LocalConditionNode,
+    pub condition: ConditionNode,
     pub effect: SetEnteringStateNode,
 }
 

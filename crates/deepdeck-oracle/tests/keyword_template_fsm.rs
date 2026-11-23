@@ -459,11 +459,18 @@ fn bloodthirst_compiles_through_the_shared_conditional_entry_replacement() {
         TYPE_LINE,
         "Bloodthirst 2 (If an opponent was dealt damage this turn, this creature enters with two +1/+1 counters on it.)",
     );
+    // The generic event history: damage dealt to the opponents this turn.
     let condition = json!({
         "kind": "compare",
         "left": {
-            "kind": "countOpponentsDealtDamageThisTurn",
-            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "kind": "countEventsThisTurn",
+            "event": "damageDealt",
+            "player": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "where": null,
+            "measure": "amount",
         },
         "operator": ">=",
         "right": { "kind": "integer", "value": 1 },

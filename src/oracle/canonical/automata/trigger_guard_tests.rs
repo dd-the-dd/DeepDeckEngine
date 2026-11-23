@@ -2,7 +2,8 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::*;
 use crate::oracle::canonical::{
-    BooleanConditionNode, EffectRecognitionContext, SentenceConditionAtom,
+    BooleanConditionNode, EffectRecognitionContext, NumericComparisonOperator,
+    controlled_permanent_count,
 };
 
 fn guard(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Option<SentenceConditionNode>> {
@@ -37,17 +38,12 @@ fn presence_and_object_union_leave_the_parent_comma() {
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
-        let Some(BooleanConditionNode::Atom(SentenceConditionAtom::Local(
-            LocalConditionNode::ControlledPermanentCount(atom),
-        ))) = guard(&mut cursor).expect(text)
-        else {
+        let node = guard(&mut cursor).expect(text).expect(text);
+        let Some((_, operator, threshold, _)) = controlled_permanent_count(&node) else {
             panic!("one typed presence atom: {text}");
         };
-        assert_eq!(atom.threshold, 1);
-        assert_eq!(
-            atom.direction,
-            super::super::ControlledCountDirection::OrMore
-        );
+        assert_eq!(threshold, 1);
+        assert_eq!(operator, NumericComparisonOperator::GreaterThanOrEqual);
         assert_eq!(cursor.peek(), Some(","), "{text}");
         cursor.consume(",").unwrap();
         assert_eq!(cursor.peek(), Some("draw"), "{text}");
@@ -139,4 +135,34 @@ fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
         assert!(guard(&mut cursor).is_err(), "{text}");
     }
+}
+
+#[test]
+fn the_guard_allow_list_refuses_a_previous_action_outcome() {
+    // Near miss: `if you can't` is an action outcome of an effect program; an
+    // intervening `if` has no earlier action to read.
+    let tokens = recognize_entities("if you can't, draw a card.");
+    let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
+    let failure = guard(&mut cursor).expect_err("no earlier action exists");
+    assert_eq!(failure.state, "condition.allow-list");
+}
+
+#[test]
+fn a_history_with_an_opponent_actor_composes_in_a_guard() {
+    // Unprinted combination: the generic event history with a player
+    // relation, conjoined with a controlled-permanent comparison.
+    let tokens = recognize_entities(
+        "if an opponent searched their library this turn and you control an artifact, draw a card.",
+    );
+    let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
+    let Some(BooleanConditionNode::And(items)) = guard(&mut cursor).unwrap() else {
+        panic!("two atoms form one conjunction");
+    };
+    assert!(matches!(
+        &items[0],
+        BooleanConditionNode::Atom(super::super::ConditionAtom::EventHistory(history))
+            if history.pattern.event == super::super::HistoryEvent::LibrarySearched
+                && history.pattern.player == super::super::HistoryPlayer::Opponent
+    ));
+    assert_eq!(cursor.peek(), Some(","));
 }

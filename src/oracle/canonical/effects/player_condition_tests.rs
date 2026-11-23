@@ -215,8 +215,13 @@ fn the_controller_subject_shares_measures_without_a_quantifier() {
         "This creature has flying as long as you've cast an instant or sorcery spell this turn.",
         0,
     );
-    assert_eq!(history["condition"]["kind"], "hasCastSpellThisTurn");
-    assert_eq!(history["condition"]["player"], controller());
+    // The spells cast this turn are the generic spell-cast history.
+    assert_eq!(history["condition"]["operator"], ">=");
+    assert_eq!(history["condition"]["right"]["value"], 1);
+    assert_eq!(history["condition"]["left"]["kind"], "countEventsThisTurn");
+    assert_eq!(history["condition"]["left"]["event"], "spellCast");
+    assert_eq!(history["condition"]["left"]["player"], controller());
+    assert!(history["condition"]["left"]["where"].is_object());
 }
 
 #[test]
@@ -243,8 +248,12 @@ fn an_unused_combination_needs_no_new_production() {
         0,
     );
     assert_eq!(
-        static_rule["condition"]["condition"]["kind"],
-        "hasCastSpellThisTurn"
+        static_rule["condition"]["condition"]["left"]["kind"],
+        "countEventsThisTurn"
+    );
+    assert_eq!(
+        static_rule["condition"]["condition"]["left"]["player"],
+        quantified_player()
     );
 }
 
