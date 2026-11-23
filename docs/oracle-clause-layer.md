@@ -412,3 +412,122 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
 - Sonde : ligue 816 → 816, corpus 14780 → 14784 (+4 : Mirko Vosk, Clear the
   Land, Destroy the Evidence, Malboro), 0 perte, IR des cartes supportées
   inchangée.
+
+## Phase 8 : durées indéfinies, actions retardées sur objets liés
+
+### Étape 23 : durée indéfinie
+
+- `EffectDurationNode::Indefinite` (CR 611.2a) : une proposition d'effet
+  continu qui se termine sans durée (`That creature gains haste.`) a une
+  durée indéfinie, lue par la grammaire de durée partagée
+  (`recognize_trailing_or_supplied_duration`). Chaque abaissement décide :
+  l'octroi de mot-clé a la primitive moteur `duration: permanent`, attachée à
+  l'objet (un nouvel objet ne la garde pas, CR 400.7) ; les autres (`gets
+  +N/+N`, `becomes`) échouent explicitement.
+- Sonde : ligue 818 → 818, corpus 14825 → 14831 (+6 : Fated Return, Grave
+  Upheaval, les quatre Chimera), 0 perte, IR des cartes supportées
+  inchangée. Preuves : retour puis octroi, recombinaison ciblée, quasi-échec
+  (statistiques), exécution (le mot-clé n'a pas d'échéance).
+
+### Étape 24 : actions de zone sur un permanent lié, retardées
+
+- `exile|sacrifice it|that creature|the creature` sur un permanent lié autre
+  que la source (la carte qu'un déplacement a mise sur le champ de bataille,
+  une cible de permanent déclarée) est l'action de zone de ce permanent :
+  le nœud de référence de destruction porte désormais l'action
+  (`Destroy|Exile|Sacrifice`), abaissée vers `destroyPermanent`,
+  `exilePermanent`, `sacrificePermanent` (support moteur du `singleBoundObject`
+  ajouté pour le sacrifice). Ce n'est jamais une collection de cartes.
+- Une échéance différée (`at the beginning of the next end step`) déplace
+  l'action dans le déclencheur retardé existant, qui capture l'identité de
+  l'objet lié à sa création (CR 603.7c).
+- Moteur : `singleBoundObject`/`boundObject` lu par un déclencheur retardé
+  retrouve l'identité capturée dans ses décisions ; sans cela l'action
+  retardée ne faisait rien à l'exécution (règle faussement exécutable).
+- Sonde : ligue 818 → 819 (+1 : Goryo's Vengeance), corpus 14831 → 14840
+  (+9 : Apprentice Necromancer, Treacherous Urge, Footsteps of the Goryo,
+  Postmortem Lunge…), 0 perte, IR des cartes supportées inchangée. Preuves :
+  exil et sacrifice retardés avec capture, quasi-échec (carte rendue à la
+  main), exécution (la carte rendue est exilée à l'étape de fin).
+
+### Étape 25 : l'antécédent d'un déploiement facultatif traverse les phrases
+
+- Le déploiement facultatif (`you may put a creature card from your hand
+  onto the battlefield`) a le même antécédent `MovedOntoBattlefield` qu'une
+  carte choisie ou ciblée ; son prédicat de carte valide `that creature`.
+  Le sélecteur de l'antécédent est cherché vers l'arrière dans les actions
+  du programme (il survit à `That creature gains haste.`), et `the creature`
+  (description définie) se lit comme `that creature` dans l'action de zone
+  sur un permanent lié.
+- Le déplacement ne lie le résultat que si une primitive ultérieure le lit
+  (marqueur de lowering transitoire) : l'IR des déploiements sans
+  référence ultérieure est inchangée.
+- Sonde : ligue 819 → 820 (+1 : Sneak Attack), corpus 14840 → 14847 (+7 :
+  Through the Breach, Coalstoke Gearhulk, Arms Race, Incandescent
+  Soulstoke…), 0 perte, IR des cartes supportées inchangée. Preuves :
+  Sneak Attack (liaison, hâte, sacrifice retardé), recombinaison (compteur),
+  absence de liaison sans lecteur, exécution (hâte puis sacrifice à l'étape
+  de fin).
+
+### Étape 26 : garde du `you` écrit dans la proposition d'un exécutant
+
+- Un `you`/`your` écrit dans la proposition d'un autre joueur nomme le
+  contrôleur de la capacité ; la lecture comme instruction de l'exécutant le
+  lirait comme l'exécutant. Cette lecture ambiguë échoue en
+  `clause.performer.controller-reference`. Les capacités citées (CR 113.1)
+  sont leur propre portée : ni la garde ni le passage à la deuxième personne
+  ne s'y appliquent (Goblin Spymaster garde son `Creatures you control`).
+- Sonde : ligue 820 → 820, corpus 14847 → 14847, 0 perte, aucune IR
+  modifiée : aucune carte supportée ne contenait ce cas.
+
+### Étape 27 : permission d'un exécutant (`each opponent may …`)
+
+- `PLAYER may VERB …` est la permission propre de l'exécutant (CR 608.2d) :
+  le dernier mot du sujet se lit `you`, le verbe reste nu, et le programme
+  facultatif existant (`recognize_optional_sequence`) lit la phrase ;
+  l'exécutant (singulier ou boucle de population) est posé sur
+  `optionalEffects`, dont le moteur adresse déjà le choix au joueur résolu.
+- Sonde : ligue 826 → 827 (+1 : Fecundity), corpus 15080 → 15089 (+9 :
+  Hunted Wumpus, Harbor Guardian, Vex, Brood Sliver…), 0 perte, IR des
+  cartes supportées inchangée.
+
+### Corrections de revue (#63)
+
+- Déclencheur retardé : chaque objet capturé voyage avec l'identité de
+  l'objet qu'il nommait (`captured_binding.rs`, clé `BINDING#identities`) ;
+  le déclencheur ne le retrouve que tant qu'il est le même objet (CR 400.7,
+  603.7c), comme la contrepartie de combat. Le repli de `resolve_target` ne
+  lit que ce contexte de liaison capturée.
+- Sacrifice d'un permanent lié : seul son contrôleur le sacrifie
+  (CR 701.21a) ; un permanent volé n'est pas sacrifié par l'exécutant.
+- Garde du `you` : ne lit que les jetons consommés par l'action exécutée
+  (`, then you draw a card` reste l'action du contrôleur).
+- La permission d'un joueur singulier (`that player may`) garde son lecteur
+  de programme (étape 12) ; seule une population passe par l'exécutant :
+  une seule représentation par forme.
+
+### Retrait de l'étape 27 (revue #63)
+
+- La permission d'une population (`each player|opponent may VERB …`) n'est
+  plus lue par l'emplacement d'exécutant : sa boucle met les cartes sur le
+  champ de bataille un joueur après l'autre, alors que CR 101.4 les rend
+  simultanées, et elle n'avait pas de preuve d'exécution. Elle revient en
+  échec explicite (`clause.verb.unsupported`) jusqu'à ces preuves.
+
+### Suites de revue (#63, non bloquantes)
+
+- La liaison de la carte déployée passe par l'allocation unique de
+  `movedOntoBattlefield` (`CardCollectionMemory::allocate_moved_onto_battlefield`) ;
+  le marqueur transitoire a disparu ; un second producteur échoue en
+  `lower.optional-card-deployment.binding`.
+- Un seul lecteur pour `destroy|exile|sacrifice` d'une référence liée
+  (`recognize_referenced_permanent_action`) ; la description définie
+  (`the creature`) est lue par le résolveur partagé
+  (`recognize_definite_object_reference`), plus de réécriture de jetons.
+- Durée indéfinie : une restriction de combat sans durée (`Target creature
+  can't block.`) donne `cantBlock` permanent, appliqué par l'énumération des
+  bloqueurs ; `This creature can't block.` reste statique ; un octroi sans
+  durée au sort lui-même échoue en `lower.keyword-grant.indefinite-spell`.
+- Preuves : antécédent ciblé non différé (`exile|sacrifice it`, `the
+  creature`), forme différée sur une cible refusée, déploiement vide sans
+  effet à l'étape de fin.

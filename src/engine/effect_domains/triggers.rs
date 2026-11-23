@@ -541,6 +541,14 @@ impl GameEngine {
                             )));
                         }
                     };
+                    // An object binding travels with the identities of the
+                    // objects it named (CR 603.7c, 400.7).
+                    if let Some(RuntimeBinding::Objects(instance_ids)) = bindings.get(binding_id) {
+                        captured_bindings.insert(
+                            super::super::captured_binding::captured_identities_key(binding_id),
+                            self.captured_object_identities(instance_ids),
+                        );
+                    }
                     captured_bindings.insert(binding_id.to_string(), captured_value);
                 }
                 // An event reference bound when the ability resolved (the

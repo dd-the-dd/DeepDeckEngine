@@ -138,6 +138,19 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
 ) -> MachineResult<Vec<RecognizedEntity>> {
     let mut cursor = cursor.clone();
     cursor.enter("clause.performer.verb");
+    // `PLAYER may VERB`: the permission is the performer's own `you may`
+    // (CR 608.2d): the subject's last word reads `you`, the verb is bare.
+    let modal = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
+    if modal {
+        cursor.consume("may")?;
+    }
+    let agreement = if modal {
+        VerbAgreement::Base
+    } else {
+        agreement
+    };
     let raw = cursor
         .peek()
         .ok_or_else(|| cursor.fail("a verb after the performer"))?;
@@ -153,10 +166,17 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     )?;
     let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
     let verb = cursor.position();
-    replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
+    if modal {
+        replace_word(&mut tokens[verb - 2], "you");
+    } else {
+        replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
+    }
     let mut depth = 0usize;
+    let mut quoted = false;
     for token in tokens.iter_mut().skip(verb + 1) {
         match token.raw.as_str() {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
             "(" => depth += 1,
             ")" => depth = depth.saturating_sub(1),
             "." if depth == 0 => break,
@@ -185,4 +205,40 @@ pub(in crate::oracle::canonical) fn performer_description(
         PerformerNode::Population { .. } => "a player population (`each player`)",
         PerformerNode::Player(_) => "a player other than the controller",
     }
+}
+
+/// A written `you` in the tokens the performed action consumed
+/// (`from..to`) names the ability's controller, which the performer's
+/// instruction would read as the performer itself: that reading is
+/// ambiguous and fails explicitly. Quoted abilities (CR 113.1) are their own
+/// scope: their `you` is the controller of the object that has them.
+/// Tokens after the action (`, then you draw a card`) are not its own.
+pub(in crate::oracle::canonical) fn controller_reference_failure(
+    cursor: &OracleTokenCursor<'_>,
+    from: usize,
+    to: usize,
+) -> Option<super::super::MachineFailure> {
+    let mut quoted = false;
+    for token in cursor.token_slice(from, to) {
+        match token.raw.as_str() {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
+            raw if ["you", "your", "yours", "you've"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word)) =>
+            {
+                let mut at = cursor.clone();
+                at.enter("clause.performer.controller-reference");
+                return Some(at.fail_with_span(
+                    "a performer clause without `you`, which would name the performer instead of the ability's controller",
+                    token.index,
+                    token.span_start,
+                    token.span_end,
+                    token.raw.clone(),
+                ));
+            }
+            _ => {}
+        }
+    }
+    None
 }

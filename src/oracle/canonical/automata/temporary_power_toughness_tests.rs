@@ -53,14 +53,15 @@ fn another_target_retains_source_exclusion_as_target_metadata() {
 }
 
 #[test]
-fn missing_duration_fails_in_the_duration_child() {
+fn a_missing_duration_is_the_indefinite_one() {
+    // CR 611.2a: the clause states no duration; the lowering decides whether
+    // the stat change has an indefinite primitive.
     let tokens = recognize_entities("Target creature gets -2/-2.");
     let mut cursor = OracleTokenCursor::new("test.missing-modifier-duration", &tokens);
-    let failure = recognize_temporary_power_toughness(&mut cursor)
-        .expect_err("temporary modifier requires an explicit duration");
+    let fragment =
+        recognize_temporary_power_toughness(&mut cursor).expect("an indefinite duration");
 
-    assert_eq!(failure.state, "duration.until-end-of-turn.boundary");
-    assert_eq!(failure.actual.as_deref(), Some("."));
+    assert_eq!(fragment.node.duration, EffectDurationNode::Indefinite);
 }
 
 #[test]

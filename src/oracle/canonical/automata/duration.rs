@@ -139,6 +139,17 @@ pub(in crate::oracle::canonical) fn recognize_trailing_or_supplied_duration(
             )?;
             Ok(duration.clone())
         }
+        // A clause that ends without a duration states none: the effect
+        // lasts indefinitely (CR 611.2a). Each lowering decides whether its
+        // primitive has an indefinite form.
+        None if cursor
+            .peek()
+            .is_none_or(|raw| matches!(raw, "." | ";" | "("))
+            && cursor.position() > 0 =>
+        {
+            cursor.enter("duration.indefinite");
+            Ok(EffectDurationNode::Indefinite)
+        }
         None => recognize_effect_duration(cursor),
     }
 }

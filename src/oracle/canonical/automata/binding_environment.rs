@@ -461,8 +461,26 @@ pub(in crate::oracle::canonical) fn recognize_nominal_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<PermanentEffectReference> {
+    recognize_determined_object_reference(cursor, environment, "that")
+}
+
+/// `the creature` (a definite description, CR 702.32a style): it names the
+/// same antecedent `that creature` would, validated against the same
+/// declared selector; it never names a new object.
+pub(in crate::oracle::canonical) fn recognize_definite_object_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<PermanentEffectReference> {
+    recognize_determined_object_reference(cursor, environment, "the")
+}
+
+fn recognize_determined_object_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+    determiner: &str,
+) -> MachineResult<PermanentEffectReference> {
     cursor.enter("permanent.subject.nominal-anaphor");
-    cursor.consume("that")?;
+    cursor.consume(determiner)?;
     cursor.enter("permanent.subject.nominal-anaphor.nominal");
     let noun = cursor
         .peek()

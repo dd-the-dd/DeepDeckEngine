@@ -1343,6 +1343,10 @@ pub(super) enum EffectDurationNode {
     /// ability's controller no longer controls that source object. Produced
     /// only by `recognize_source_control_duration` for consumers opting in.
     WhileSourceControlled,
+    /// No stated duration (CR 611.2a): the effect lasts indefinitely, and an
+    /// effect on an object ends when that object becomes a new object
+    /// (CR 400.7). Produced only at the end of a continuous-effect clause.
+    Indefinite,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2334,8 +2338,8 @@ mod performer;
 mod permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
-    PerformedEffectNode, PerformerContext, PerformerNode, performer_description,
-    person_shifted_tokens, recognize_performer,
+    PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
+    performer_description, person_shifted_tokens, recognize_performer,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,

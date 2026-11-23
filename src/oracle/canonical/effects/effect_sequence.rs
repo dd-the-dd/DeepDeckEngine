@@ -59,6 +59,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Option<Value> {
         } => return None,
         // No continuous-effect primitive reads the end-of-next-turn window.
         EffectDurationNode::UntilEndOfNextTurn { .. } => return None,
+        // Only the keyword grant has an indefinite primitive so far.
+        EffectDurationNode::Indefinite => return None,
         EffectDurationNode::WhileSourceControlled => json!({ "kind": "whileSourceControlled" }),
     })
 }
@@ -197,6 +199,8 @@ fn lower_local_effect_sequence_with_collections(
         (sequence, Vec::new())
     };
     let mut pending_performer: Option<(usize, usize, PerformerNode)> = None;
+    // The choices of optional deployments onto the battlefield, in order.
+    let mut deployed_choices = Vec::<String>::new();
     let permanent_target_base_ids = sequence
         .effects
         .iter()
@@ -892,7 +896,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
-                let lowered = lower_optional_card_deployment(
+                let mut lowered = lower_optional_card_deployment(
                     deployment,
                     declarations,
                     &collections.allocate_selection_id("optionalCardDeployment"),
@@ -902,6 +906,16 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail(error.expectation()),
                     )
                 })?;
+                // The deployed card is the antecedent of a later reference
+                // (`that creature gains haste`); the move binds it only when
+                // such a reference reads it (resolved below).
+                if let Some(choice) = lowered
+                    .iter()
+                    .find(|effect| effect["kind"] == "chooseCards")
+                    .and_then(|effect| effect["id"].as_str())
+                {
+                    deployed_choices.push(choice.to_string());
+                }
                 effects.extend(lowered);
             }
             LocalEffectNode::OptionalDrawCards(draw) => {
@@ -988,6 +1002,14 @@ fn lower_local_effect_sequence_with_collections(
                     }),
                     "a power/toughness delta representable by runtime i32 quantities",
                 )?;
+                if modifier.duration == EffectDurationNode::Indefinite {
+                    // CR 611.2a: no stated duration; the stat change has no
+                    // indefinite primitive yet.
+                    cursor.enter("lower.modify-stats.indefinite-duration");
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                        cursor.fail("a stated duration for the power/toughness change"),
+                    ));
+                }
                 let duration = lower_duration(&modifier.duration)
                     .ok_or_else(|| cursor.fail("a duration independent of a target binding"))?;
                 let objects = lower_ordinary_permanent_subject(
@@ -1437,7 +1459,12 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.destroy-reference.permanent-binding");
                 let reference =
                     lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
-                let mut lowered = json!({"kind": "destroyPermanent", "permanent": reference});
+                let kind = match destroy.action {
+                    ReferencedPermanentAction::Destroy => "destroyPermanent",
+                    ReferencedPermanentAction::Exile => "exilePermanent",
+                    ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
+                };
+                let mut lowered = json!({"kind": kind, "permanent": reference});
                 if destroy.cannot_regenerate {
                     lowered["cannotRegenerate"] = json!(true);
                 }
@@ -1950,6 +1977,7 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
+    bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
@@ -3018,6 +3046,67 @@ fn apply_performer(
     for effect in &mut effects[start..] {
         effect["performer"] = player.clone();
     }
+    Ok(())
+}
+
+/// The deployed card's move binds the moved-onto-battlefield result only
+/// when a later primitive reads it, through the program's single allocation
+/// of that binding: a second producer fails explicitly.
+fn bind_deployed_card_when_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    deployed_choices: &[String],
+    collections: &mut CardCollectionMemory,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn reads(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(reads),
+            Value::Object(object) => {
+                object.get("binding").and_then(Value::as_str)
+                    == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(reads)
+            }
+            _ => false,
+        }
+    }
+    fn bind(value: &mut Value, choice: &str) -> bool {
+        match value {
+            Value::Array(values) => values.iter_mut().any(|value| bind(value, choice)),
+            Value::Object(object) => {
+                let deployment = object.get("kind").and_then(Value::as_str) == Some("moveCards")
+                    && object
+                        .get("cards")
+                        .and_then(|cards| cards.get("decisionId"))
+                        .and_then(Value::as_str)
+                        == Some(choice);
+                if deployment {
+                    object.insert("bind".to_string(), json!(MOVED_ONTO_BATTLEFIELD_BINDING));
+                    return true;
+                }
+                object.values_mut().any(|value| bind(value, choice))
+            }
+            _ => false,
+        }
+    }
+    if deployed_choices.is_empty() || !effects.iter().any(reads) {
+        return Ok(());
+    }
+    cursor.enter("lower.optional-card-deployment.binding");
+    let [choice] = deployed_choices else {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    };
+    if effects.iter().any(|effect| {
+        effect.get("bind").and_then(Value::as_str) == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+    }) || !collections.allocate_moved_onto_battlefield()
+    {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    }
+    let bound = effects.iter_mut().any(|effect| bind(effect, choice));
+    cursor.require(bound, "the deployment's move to bind")?;
     Ok(())
 }
 

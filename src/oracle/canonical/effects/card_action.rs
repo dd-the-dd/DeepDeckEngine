@@ -57,6 +57,14 @@ fn difference(left: Value, right: Value) -> Value {
 }
 
 impl CardCollectionMemory {
+    /// Claims the one moved-onto-battlefield binding of this program (the
+    /// same single allocation a battlefield-entry card move takes). `false`
+    /// when another producer already holds it.
+    pub(in crate::oracle::canonical) fn allocate_moved_onto_battlefield(&mut self) -> bool {
+        self.allocated_ids
+            .insert(MOVED_ONTO_BATTLEFIELD_BINDING.to_string())
+    }
+
     /// Selection bindings share one allocator across nested program scopes.
     pub(in crate::oracle::canonical) fn allocate_selection_id(&mut self, prefix: &str) -> String {
         let id = fresh(prefix, &mut self.next_selection);

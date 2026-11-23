@@ -127,8 +127,8 @@ fn promoted_family_reports_near_misses_without_legacy_fallback() {
     for (oracle, expected_state, expected_found) in [
         (
             "Target creature gets -2/-2.",
-            "duration.until-end-of-turn.boundary",
-            Some("."),
+            "lower.modify-stats.indefinite-duration",
+            None,
         ),
         (
             "Target creature gets -2/-2 until end of combat.",

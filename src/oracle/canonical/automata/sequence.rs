@@ -683,8 +683,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         ),
                     )) => memory
                         .effects
-                        .last()
-                        .and_then(super::permanent_subject::moved_onto_battlefield_selector)
+                        .iter()
+                        .rev()
+                        .find_map(super::permanent_subject::moved_onto_battlefield_selector)
                         .flatten(),
                     _ => None,
                 };
@@ -725,8 +726,9 @@ fn recognize_effect_sequence_attempt_scoped(
                                     super::TypedObservedEventObject::MovedOntoBattlefield,
                                 ) => memory
                                     .effects
-                                    .last()
-                                    .and_then(
+                                    .iter()
+                                    .rev()
+                                    .find_map(
                                         super::permanent_subject::moved_onto_battlefield_selector,
                                     )
                                     .flatten(),
@@ -902,6 +904,32 @@ fn recognize_effect_sequence_attempt_scoped(
                                 }
                             }
                         }
+                        // `exile|sacrifice it` on the permanent a move put
+                        // onto the battlefield or a declared permanent
+                        // target: the bound permanent, never a card
+                        // collection.
+                        let permanent_antecedent =
+                            object_antecedent.as_ref().is_some_and(|antecedent| {
+                                matches!(
+                                    antecedent.reference,
+                                    super::PermanentEffectReference::Observed(
+                                        super::TypedObservedEventObject::MovedOntoBattlefield,
+                                    )
+                                ) || (matches!(
+                                    antecedent.reference,
+                                    super::PermanentEffectReference::Target(_)
+                                ) && antecedent.selector.is_some())
+                            });
+                        if permanent_antecedent
+                            && let Some(node) = super::recognize_referenced_permanent_zone_action(
+                                attempt,
+                                name_links,
+                                name_failure,
+                                &action_context,
+                            )
+                        {
+                            return node.map(LocalEffectNode::DestroyReference);
+                        }
                         match super::try_recognize_target_card_action(attempt) {
                             super::CollectionOperandAttempt::Recognized(fragment) => {
                                 return Ok(
@@ -1073,6 +1101,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             match performer {
                                 None => Err(failure),
                                 Some(Err(subject)) => Err(furthest(failure, subject)),
+                                // `PLAYER may ...` stays with the program-level
+                                // permission readers: a population's permission
+                                // is withdrawn until its simultaneous puts are
+                                // proved at runtime (CR 101.4).
+                                Some(Ok(_))
+                                    if head
+                                        .peek()
+                                        .is_some_and(|raw| raw.eq_ignore_ascii_case("may")) =>
+                                {
+                                    Err(failure)
+                                }
                                 Some(Ok((performer, agreement))) => {
                                     let description = super::performer_description(&performer);
                                     match super::person_shifted_tokens(
@@ -1084,21 +1123,47 @@ fn recognize_effect_sequence_attempt_scoped(
                                         Ok(tokens) => {
                                             let mut shifted = head.with_tokens(&tokens);
                                             let controller = super::PlayerEffectSubject::Controller;
-                                            match read_action(
-                                                &mut shifted,
-                                                Some(&controller),
-                                                attempt_frame,
-                                            ) {
+                                            // `PLAYER may ...`: the performer's
+                                            // own optional sentence, read from
+                                            // the subject's last word as `you`.
+                                            let modal = head
+                                                .peek()
+                                                .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
+                                            let read = if modal {
+                                                let at = shifted.position() - 1;
+                                                shifted.rollback_to_position(at);
+                                                super::recognize_optional_sequence(
+                                                    &mut shifted,
+                                                    name_links,
+                                                    name_failure,
+                                                    &action_context,
+                                                )
+                                                .map(LocalEffectNode::OptionalSequence)
+                                            } else {
+                                                read_action(
+                                                    &mut shifted,
+                                                    Some(&controller),
+                                                    attempt_frame,
+                                                )
+                                            };
+                                            match read {
                                                 Ok(effect) => {
                                                     let end = shifted.position();
-                                                    cursor.advance_to(end).map(|()| {
-                                                        LocalEffectNode::Performed(
-                                                            super::PerformedEffectNode {
-                                                                performer,
-                                                                effect: Box::new(effect),
-                                                            },
-                                                        )
-                                                    })
+                                                    match super::controller_reference_failure(
+                                                        &head,
+                                                        head.position(),
+                                                        end,
+                                                    ) {
+                                                        Some(ambiguous) => Err(ambiguous),
+                                                        None => cursor.advance_to(end).map(|()| {
+                                                            LocalEffectNode::Performed(
+                                                                super::PerformedEffectNode {
+                                                                    performer,
+                                                                    effect: Box::new(effect),
+                                                                },
+                                                            )
+                                                        }),
+                                                    }
                                                 }
                                                 Err(action) => Err(furthest(failure, action)),
                                             }

@@ -588,3 +588,204 @@ fn a_later_verb_of_the_sentence_continues_the_performer() {
     );
     assert_ne!(status, "canonical");
 }
+
+/// CR 611.2a: a continuous-effect clause that states no duration lasts
+/// indefinitely; only primitives with an indefinite form accept it.
+#[test]
+fn a_clause_without_a_duration_is_indefinite() {
+    // Real card: Fated Return's sibling (`That creature gains haste.` after a
+    // return). Unused recombination: a targeted flying grant.
+    for oracle in [
+        "Return target creature card from your graveyard to the battlefield. That creature gains haste.",
+        "Target creature gains flying.",
+    ] {
+        let grants = effects(SORCERY, oracle)
+            .into_iter()
+            .filter(|effect| effect["kind"] == "grantKeyword")
+            .collect::<Vec<_>>();
+        assert_eq!(grants.len(), 1, "{oracle}");
+        assert_eq!(grants[0]["duration"]["kind"], "permanent", "{oracle}");
+    }
+    // Near miss: a stat change has no indefinite primitive yet.
+    let (status, _, _) = parse(SORCERY, "Target creature gets +2/+2.");
+    assert_ne!(status, "canonical");
+}
+
+/// `exile|sacrifice it` on the permanent a move put onto the battlefield is
+/// the bound permanent, and a delayed timing captures it (CR 603.7c).
+#[test]
+fn a_delayed_action_on_the_returned_permanent() {
+    // Real card: Goryo's Vengeance. Unused recombination: a sacrifice of the
+    // returned card at the end step.
+    for (oracle, kind) in [
+        (
+            "Return target legendary creature card from your graveyard to the battlefield. That creature gains haste. Exile it at the beginning of the next end step.",
+            "exilePermanent",
+        ),
+        (
+            "Return target creature card from your graveyard to the battlefield. Sacrifice it at the beginning of the next end step.",
+            "sacrificePermanent",
+        ),
+    ] {
+        let effects = effects("Instant", oracle);
+        let delayed = effects
+            .iter()
+            .find(|effect| effect["kind"] == "installDelayedStepTrigger")
+            .unwrap_or_else(|| panic!("a delayed trigger: {effects:#?}"));
+        assert_eq!(delayed["effects"][0]["kind"], kind, "{delayed:#}");
+        assert!(
+            delayed["captureBindings"]
+                .as_array()
+                .is_some_and(|bindings| !bindings.is_empty()),
+            "{delayed:#}"
+        );
+    }
+    // Near miss: a card returned to the hand is no permanent antecedent.
+    let (status, _, _) = parse(
+        "Instant",
+        "Return target creature card from your graveyard to your hand. Sacrifice it at the beginning of the next end step.",
+    );
+    assert_ne!(status, "canonical");
+}
+
+/// The card an optional deployment put onto the battlefield is the
+/// antecedent of the next sentences; the move binds it only when read.
+#[test]
+fn the_deployed_card_is_the_antecedent_across_sentences() {
+    // Real cards: Sneak Attack, Through the Breach (haste, then a delayed
+    // sacrifice). Unused recombination: a counter on the deployed card.
+    let sneak = effects(
+        "Enchantment",
+        "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+    );
+    let movement = sneak
+        .iter()
+        .find(|effect| effect["kind"] == "moveCards")
+        .unwrap_or_else(|| panic!("the deployment: {sneak:#?}"));
+    assert!(movement["bind"].is_string(), "{movement:#}");
+    assert!(movement.get("__deployedCard").is_none(), "{movement:#}");
+    assert!(
+        sneak
+            .iter()
+            .any(|effect| effect["kind"] == "installDelayedStepTrigger"),
+        "{sneak:#?}"
+    );
+    let counter = effects(
+        SORCERY,
+        "You may put a creature card from your hand onto the battlefield. Put a +1/+1 counter on it.",
+    );
+    assert!(
+        counter.iter().any(|effect| effect["kind"] == "putCounters"
+            && effect["permanent"]["kind"] == "singleBoundObject"),
+        "{counter:#?}"
+    );
+    // Without a later reader the move binds nothing (unchanged IR).
+    let alone = effects(
+        SORCERY,
+        "You may put a creature card from your hand onto the battlefield.",
+    );
+    assert!(
+        alone
+            .iter()
+            .all(|effect| effect.get("bind").is_none() && effect.get("__deployedCard").is_none()),
+        "{alone:#?}"
+    );
+}
+
+/// A written `you` inside another player's clause names the ability's
+/// controller; the performer's instruction would read it as the performer.
+/// That reading is ambiguous and fails explicitly.
+#[test]
+fn a_controller_reference_inside_a_performed_clause_fails_explicitly() {
+    for oracle in [
+        "Each opponent returns a creature you control to its owner's hand.",
+        "Each opponent puts a creature card from your graveyard onto the battlefield.",
+    ] {
+        let (status, _, states) = parse(SORCERY, oracle);
+        assert_ne!(status, "canonical", "{oracle}");
+        assert!(
+            states
+                .iter()
+                .any(|state| state == "clause.performer.controller-reference"),
+            "{oracle}: {states:?}"
+        );
+    }
+    // The performer's own pronouns are not controller references.
+    let (status, _, _) = parse(
+        SORCERY,
+        "Each player puts a creature card from their graveyard onto the battlefield.",
+    );
+    assert_eq!(status, "canonical");
+}
+
+/// A quoted ability is its own scope: its `you` is not a controller
+/// reference of the performed clause (Goblin Spymaster).
+#[test]
+fn a_quoted_ability_inside_a_performed_clause_keeps_its_own_you() {
+    let (status, _, states) = parse(
+        "Enchantment",
+        "At the beginning of each opponent's end step, that player creates a 1/1 red Goblin creature token with \"Creatures you control attack each combat if able.\"",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+}
+
+/// The guard reads only the performed action's tokens: a later `you`
+/// clause of the same sentence is the controller's own action.
+#[test]
+fn a_later_controller_clause_is_not_inside_the_performed_action() {
+    let (status, _, states) = parse(
+        SORCERY,
+        "Each opponent creates a Treasure token, then you draw a card.",
+    );
+    assert_eq!(status, "canonical", "{states:?}");
+}
+
+/// One reader for zone actions on a bound permanent; target antecedents.
+#[test]
+fn zone_actions_on_a_target_antecedent() {
+    // Non-delayed: the declared target is the permanent acted on.
+    for (oracle, kind) in [
+        ("Tap target creature. Exile it.", "exilePermanent"),
+        ("Tap target creature. Sacrifice it.", "sacrificePermanent"),
+        (
+            "Tap target creature. Sacrifice the creature.",
+            "sacrificePermanent",
+        ),
+    ] {
+        let effects = effects("Instant", oracle);
+        let action = effects
+            .iter()
+            .find(|effect| effect["kind"] == kind)
+            .unwrap_or_else(|| panic!("{oracle}: {effects:#?}"));
+        assert_eq!(action["permanent"]["kind"], "chosenTarget", "{oracle}");
+    }
+    // A delayed action on a declared target stays refused: the target is not
+    // transported into the delayed trigger.
+    let (status, _, states) = parse(
+        "Instant",
+        "Tap target creature. Exile it at the beginning of the next end step.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "lower.delayed.object-references"),
+        "{states:?}"
+    );
+    // The definite description follows the antecedent's selector.
+    let (status, _, _) = parse("Instant", "Tap target creature. Sacrifice the land.");
+    assert_ne!(status, "canonical");
+}
+
+/// Indefinite durations: a combat restriction without a duration, the
+/// static near miss, and the refusal of an indefinite grant to a spell.
+#[test]
+fn indefinite_restrictions_and_the_spell_grant_refusal() {
+    let restriction = effects("Instant", "Target creature can't block.");
+    assert!(!restriction.is_empty(), "{restriction:#?}");
+    let (status, rules, _) = parse("Creature \u{2014} Wall", "This creature can't block.");
+    assert_eq!(status, "canonical");
+    assert_eq!(rules[0]["kind"], "staticAbility", "{rules:#?}");
+    let (status, _, states) = parse(SORCERY, "Draw a card. This spell gains haste.");
+    assert_ne!(status, "canonical", "{states:?}");
+}

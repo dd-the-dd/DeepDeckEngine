@@ -32,6 +32,9 @@ fn lower_keyword_grant_duration(duration: EffectDurationNode) -> Option<Value> {
                 }
             },
         }),
+        // The engine's permanent grant belongs to the object it was granted
+        // to; a new object does not keep it (CR 400.7).
+        EffectDurationNode::Indefinite => json!({ "kind": "permanent" }),
         EffectDurationNode::UntilEndOfNextTurn { .. }
         | EffectDurationNode::WhileSourceControlled => return None,
     })
@@ -110,6 +113,14 @@ pub(in crate::oracle::canonical) fn lower_keyword_grant_to_object(
     duration: &EffectDurationNode,
     object: &Value,
 ) -> Option<Vec<Value>> {
+    // An indefinite grant writes to a battlefield permanent; a stack object
+    // stays unsupported rather than writing nowhere (a spell's own source is
+    // refused by the spell program, which knows it is one).
+    if *duration == EffectDurationNode::Indefinite
+        && object["kind"].as_str() == Some("triggeringStackObject")
+    {
+        return None;
+    }
     let duration = lower_keyword_grant_duration(duration.clone())?;
     let mut effects = keywords
         .iter()

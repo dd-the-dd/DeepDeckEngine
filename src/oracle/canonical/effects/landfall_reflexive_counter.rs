@@ -56,7 +56,8 @@ fn lower_duration(duration: &EffectDurationNode) -> Value {
                 | LocalPlayerReference::Bound(_),
         } => unreachable!("the bound keyword grant has no player-target duration"),
         EffectDurationNode::UntilEndOfNextTurn { .. }
-        | EffectDurationNode::WhileSourceControlled => {
+        | EffectDurationNode::WhileSourceControlled
+        | EffectDurationNode::Indefinite => {
             unreachable!("the bound keyword grant reads only the continuous-effect durations")
         }
     }

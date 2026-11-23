@@ -45,7 +45,11 @@ fn supports_known_effect(effect: &Value) -> bool {
             (matches!(
                 value_kind(&effect["permanent"]),
                 Some("self" | "abilitySource")
-            ) || target_reference_supported(&effect["permanent"]))
+            ) || target_reference_supported(&effect["permanent"])
+                || matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("singleBoundObject" | "boundObject")
+                ))
                 && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("sacrificePermanents") => {
@@ -257,11 +261,21 @@ impl GameEngine {
             Some("sacrificePermanent") => {
                 let instance_id = match value_kind(&effect["permanent"]) {
                     Some("self" | "abilitySource") => Some(stack_object.card.instance_id.clone()),
+                    // CR 701.21a: only the permanent's controller sacrifices
+                    // it; a permanent another player now controls is not
+                    // sacrificed by the instruction's performer.
                     _ => self
                         .resolve_target(&effect["permanent"], stack_object, bindings)
                         .and_then(|target| match target {
                             TargetRef::Permanent { instance_id } => Some(instance_id),
                             _ => None,
+                        })
+                        .filter(|instance_id| {
+                            self.permanent_position(instance_id)
+                                .is_some_and(|(player, index)| {
+                                    self.state.players[player].battlefield[index].controller
+                                        == stack_object.controller
+                                })
                         }),
                 };
                 let sacrificed = if let Some(instance_id) = instance_id {
