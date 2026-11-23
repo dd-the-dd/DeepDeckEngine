@@ -5,6 +5,8 @@ mod audit;
 #[cfg(feature = "automata-trace")]
 #[path = "../../../src/oracle/automata_trace.rs"]
 mod automata_trace;
+#[path = "../../../src/oracle/band_gate.rs"]
+mod band_gate;
 #[path = "../../../src/oracle/canonical/mod.rs"]
 mod canonical;
 #[path = "../../../src/oracle/card_structure.rs"]

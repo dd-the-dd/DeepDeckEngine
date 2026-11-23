@@ -35,3 +35,19 @@ fn malformed_chapter_list_fails_before_body_dispatch() {
     let failure = recognize_saga_chapter(&mut cursor, &[], None).expect_err("must fail");
     assert_eq!(failure.state, "saga.chapter.roman");
 }
+
+#[test]
+fn any_other_chapter_body_is_the_shared_effect_program() {
+    let tokens = recognize_entities("II \u{2014} Draw a card, then discard a card.");
+    let mut cursor = OracleTokenCursor::new("saga-chapter-test", &tokens);
+    let chapter = recognize_saga_chapter(&mut cursor, &[], None).expect("chapter parses");
+    assert_eq!(chapter.chapters, vec![2]);
+    assert!(matches!(chapter.body, SagaChapterBodyNode::Program(_)));
+    // `this Saga` without a quoted ability is an ordinary reference, not the
+    // native grant form.
+    let tokens = recognize_entities("III \u{2014} Exile this Saga.");
+    let mut cursor = OracleTokenCursor::new("saga-chapter-test", &tokens);
+    if let Ok(chapter) = recognize_saga_chapter(&mut cursor, &[], None) {
+        assert!(matches!(chapter.body, SagaChapterBodyNode::Program(_)));
+    }
+}

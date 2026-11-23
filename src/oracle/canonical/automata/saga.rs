@@ -3,9 +3,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ActivatedManaAbilityNode, CharacteristicTokenActivationNode, LibrarySearchEffectNode,
-    recognize_activated_mana_ability, recognize_characteristic_token_activation,
-    recognize_controller_library_search,
+    AbilityRestrictionOwner, ActivatedManaAbilityNode, CharacteristicTokenActivationNode,
+    EffectProgramNode, EffectRecognitionContext, LibrarySearchEffectNode, LocalObjectReference,
+    ZoneChangeDomains, recognize_activated_mana_ability, recognize_characteristic_token_activation,
+    recognize_controller_library_search, recognize_effect_program_with_context,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -19,13 +20,16 @@ pub(in crate::oracle::canonical) enum SagaGrantedAbilityNode {
     CharacteristicToken(CharacteristicTokenActivationNode),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(in crate::oracle::canonical) enum SagaChapterBodyNode {
     Grant(SagaGrantedAbilityNode),
     LibrarySearch(LibrarySearchEffectNode),
+    /// CR 714.2b: any other chapter ability is an ordinary triggered
+    /// ability whose effect is the shared effect program.
+    Program(EffectProgramNode),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub(in crate::oracle::canonical) struct SagaChapterNode {
     pub chapters: Vec<i64>,
     pub body: SagaChapterBodyNode,
@@ -164,25 +168,61 @@ pub(in crate::oracle::canonical) fn recognize_saga_chapter(
     cursor.consume(&dash)?;
 
     cursor.enter("saga.chapter.body-dispatch");
-    let body = if cursor
+    // The quoted grant is a structural form (`this Saga gains "..."`): the
+    // quote opens its own ability, so it is claimed only with its quote.
+    let grant = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
-    {
+        && cursor.peek_ahead(1).is_some_and(|raw| raw == "Saga")
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("gains"))
+        && cursor.peek_ahead(3) == Some("\"");
+    let body = if grant {
         SagaChapterBodyNode::Grant(recognize_granted_ability(cursor, name_links, name_failure)?)
-    } else if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("search"))
-    {
-        let search = recognize_controller_library_search(cursor)?;
-        cursor.enter("saga.chapter.search.terminator");
-        cursor.consume(".")?;
+    } else if let Ok(search) = cursor.attempt(|attempt| {
+        let search = recognize_controller_library_search(attempt)?;
+        // The native child lowers only the controller's search onto the
+        // battlefield; any other search is an ordinary program.
+        attempt.require(
+            search.player == super::LocalPlayerReference::Controller
+                && matches!(
+                    search.destination,
+                    super::SearchDestination::Battlefield { .. }
+                ),
+            "the controller's library search onto the battlefield",
+        )?;
+        attempt.enter("saga.chapter.search.terminator");
+        attempt.consume(".")?;
+        attempt.finish()?;
+        Ok(search)
+    }) {
         SagaChapterBodyNode::LibrarySearch(search)
     } else {
-        return Err(cursor.fail("a native Saga chapter body"));
+        cursor.enter("saga.chapter.program");
+        SagaChapterBodyNode::Program(recognize_effect_program_with_context(
+            cursor,
+            name_links,
+            name_failure,
+            &saga_chapter_body_context(),
+        )?)
     };
     cursor.enter("saga.chapter.complete");
     cursor.finish()?;
     Ok(SagaChapterNode { chapters, body })
+}
+
+/// A chapter ability triggers on its Saga permanent (CR 714.2b): the body
+/// reads the same context as any other battlefield-source triggered ability
+/// whose event names no other object. `this Saga` is the source; no event
+/// subject is bound, so `it` keeps its explicit failure.
+fn saga_chapter_body_context() -> EffectRecognitionContext {
+    let mut context = EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
+        .with_zone_change_domains(ZoneChangeDomains::SpellOrBattlefield)
+        .with_sentence_conditionals()
+        .with_unless_frames();
+    context.ability_restriction_owner = AbilityRestrictionOwner::Triggered;
+    context
 }
 
 #[cfg(test)]

@@ -208,6 +208,9 @@ mod characteristic_batch_runtime;
 #[path = "tests/object_domain_inference_runtime.rs"]
 mod object_domain_inference_runtime;
 
+#[path = "tests/saga_chapter_program_runtime.rs"]
+mod saga_chapter_program_runtime;
+
 #[path = "tests/barrowgoyf_runtime.rs"]
 mod barrowgoyf_runtime;
 

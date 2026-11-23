@@ -447,6 +447,8 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
             }
         }
     }
+    // A band body must not be composed or executed without its threshold.
+    super::band_gate::reject_ungated_band_bodies(&mut abilities);
     compose_card_rules_native(&mut abilities);
     // Binding validity is checked after composition in the owning face context.
     validate_native_contextual_bindings(&request, &mut abilities);
