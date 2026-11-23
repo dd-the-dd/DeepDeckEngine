@@ -5,69 +5,107 @@
   "oracleId": "36cd2364-d113-47d1-b2c4-b088d9eb88dd",
   "expectedExecutable": true,
   "rule": {
-    "kind": "spellAbility",
-    "source": { "kind": "self" },
     "effects": [
       {
+        "count": {
+          "kind": "integer",
+          "value": 3
+        },
         "kind": "drawCards",
         "player": {
           "kind": "controllerOf",
-          "object": { "kind": "self" }
-        },
-        "count": { "kind": "integer", "value": 3 }
+          "object": {
+            "kind": "self"
+          }
+        }
       },
       {
-        "kind": "chooseCards",
-        "id": "cardsForLibrary",
-        "player": {
-          "kind": "controllerOf",
-          "object": { "kind": "self" }
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 2
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "cardsInZone",
+                "where": null,
+                "zone": {
+                  "kind": "hand",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            }
+          ]
         },
-        "minimum": { "kind": "integer", "value": 2 },
-        "maximum": { "kind": "integer", "value": 2 },
-        "candidates": {
-          "kind": "cards",
+        "from": {
+          "kind": "cardsInZone",
+          "where": null,
           "zone": {
             "kind": "hand",
             "player": {
               "kind": "controllerOf",
-              "object": { "kind": "self" }
+              "object": {
+                "kind": "self"
+              }
             }
-          },
-          "where": null
-        }
-      },
-      {
-        "kind": "chooseOrder",
-        "id": "cardsForLibraryOrder",
+          }
+        },
+        "id": "chosenZoneCards",
+        "kind": "chooseCards",
         "player": {
           "kind": "controllerOf",
-          "object": { "kind": "self" }
-        },
-        "objects": {
-          "kind": "decisionResult",
-          "decisionId": "cardsForLibrary"
+          "object": {
+            "kind": "self"
+          }
         }
       },
       {
-        "kind": "moveCards",
+        "id": "remainderOrder",
+        "kind": "chooseOrder",
+        "objects": {
+          "decisionId": "chosenZoneCards",
+          "kind": "decisionResult"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
         "cards": {
-          "kind": "decisionResult",
-          "decisionId": "cardsForLibraryOrder"
+          "decisionId": "remainderOrder",
+          "kind": "decisionResult"
+        },
+        "kind": "moveCards",
+        "order": {
+          "decisionId": "remainderOrder",
+          "kind": "decisionOrder"
         },
         "to": {
           "kind": "library",
           "player": {
             "kind": "controllerOf",
-            "object": { "kind": "self" }
+            "object": {
+              "kind": "self"
+            }
           },
           "position": "top"
-        },
-        "order": {
-          "kind": "decisionOrder",
-          "decisionId": "cardsForLibraryOrder"
         }
       }
-    ]
+    ],
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    }
   }
 }
