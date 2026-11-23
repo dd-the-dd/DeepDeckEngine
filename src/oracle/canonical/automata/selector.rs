@@ -397,29 +397,6 @@ impl RecognizedObjectQuery {
             ownership: self.relations.owner_scope().map(object_ownership_scope),
         })
     }
-
-    /// An unscoped query in one domain, for a parent whose zone already
-    /// fixes the objects (the source zone of a resolution card choice).
-    pub(in crate::oracle::canonical) fn into_unscoped_in_domain(
-        self,
-        cursor: &mut OracleTokenCursor<'_>,
-        domain: ObjectKind,
-    ) -> MachineResult<super::ObjectQueryNode> {
-        cursor.enter("selector.domain");
-        cursor.require(
-            self.predicate.is_in_domain(domain),
-            "an explicit query in the parent's object domain",
-        )?;
-        cursor.require(
-            self.relations.is_empty(),
-            "an unscoped predicate in the parent's zone",
-        )?;
-        Ok(super::ObjectQueryNode {
-            predicate: self.predicate,
-            controller: None,
-            exclude_source: false,
-        })
-    }
 }
 
 /// Recognizes an object predicate plus every player relation it states,
