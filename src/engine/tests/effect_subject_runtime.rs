@@ -398,3 +398,56 @@ fn the_returned_card_is_exiled_by_the_delayed_action_that_captured_it() {
         "exiled at the end step"
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn the_deployed_creature_has_haste_and_is_sacrificed_at_the_end_step() {
+    // Sneak Attack's ability as a spell body: the deployed card keeps haste
+    // without a duration (CR 611.2a), and the delayed sacrifice finds the
+    // permanent it captured (CR 603.7c).
+    let rule = parsed_rules(
+        "Sorcery",
+        "You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].hand.push(test_instance(
+        "giant",
+        test_definition("giant", "Creature - Giant"),
+        "player-0",
+    ));
+    let stack = StackObject {
+        id: "stack:sneak".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("sneak", test_definition("sneak", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    let (player, index) = engine
+        .permanent_position("giant")
+        .unwrap_or_else(|| panic!("deployed: {rule:#}"));
+    assert!(
+        engine.state.players[player].battlefield[index]
+            .definition
+            .rules
+            .iter()
+            .any(|rule| rule["kind"] == "keywordAbility" && rule["ability"]["kind"] == "haste"),
+        "haste"
+    );
+    engine.enqueue_step_triggers("endStep");
+    resolve_stack(&mut engine);
+    assert!(engine.permanent_position("giant").is_none(), "sacrificed");
+}

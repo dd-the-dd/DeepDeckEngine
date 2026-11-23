@@ -56,6 +56,11 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
             .effects
             .last()
             .and_then(moved_onto_battlefield_selector),
+        // `you may put a creature card from your hand onto the battlefield`:
+        // the one card chosen, if any (an empty choice binds nothing).
+        LocalEffectNode::OptionalCardDeployment(deployment) => {
+            Some(Some(TargetSelector::Object(deployment.filter.clone())))
+        }
         _ => None,
     }
 }

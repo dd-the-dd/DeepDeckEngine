@@ -683,8 +683,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         ),
                     )) => memory
                         .effects
-                        .last()
-                        .and_then(super::permanent_subject::moved_onto_battlefield_selector)
+                        .iter()
+                        .rev()
+                        .find_map(super::permanent_subject::moved_onto_battlefield_selector)
                         .flatten(),
                     _ => None,
                 };
@@ -725,8 +726,9 @@ fn recognize_effect_sequence_attempt_scoped(
                                     super::TypedObservedEventObject::MovedOntoBattlefield,
                                 ) => memory
                                     .effects
-                                    .last()
-                                    .and_then(
+                                    .iter()
+                                    .rev()
+                                    .find_map(
                                         super::permanent_subject::moved_onto_battlefield_selector,
                                     )
                                     .flatten(),

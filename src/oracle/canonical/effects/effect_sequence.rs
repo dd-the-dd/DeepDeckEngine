@@ -894,7 +894,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
-                let lowered = lower_optional_card_deployment(
+                let mut lowered = lower_optional_card_deployment(
                     deployment,
                     declarations,
                     &collections.allocate_selection_id("optionalCardDeployment"),
@@ -904,6 +904,15 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail(error.expectation()),
                     )
                 })?;
+                // The deployed card is the antecedent of a later reference
+                // (`that creature gains haste`); the move binds it only when
+                // such a reference reads it (resolved below).
+                if let Some(movement) = lowered
+                    .iter_mut()
+                    .find(|effect| effect["kind"] == "moveCards")
+                {
+                    movement[DEPLOYED_CARD_MARKER] = json!(true);
+                }
                 effects.extend(lowered);
             }
             LocalEffectNode::OptionalDrawCards(draw) => {
@@ -1965,6 +1974,7 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
+    bind_deployed_card_when_read(&mut effects);
     apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
@@ -3034,6 +3044,39 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// Transient lowering marker on an optional deployment's move.
+const DEPLOYED_CARD_MARKER: &str = "__deployedCard";
+
+/// The deployed card's move binds the moved-onto-battlefield result only
+/// when a later primitive reads it; the marker never reaches the IR.
+fn bind_deployed_card_when_read(effects: &mut [Value]) {
+    fn reads(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(reads),
+            Value::Object(object) => {
+                object.get("binding").and_then(Value::as_str)
+                    == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(reads)
+            }
+            _ => false,
+        }
+    }
+    fn mark(value: &mut Value, bind: bool) {
+        match value {
+            Value::Array(values) => values.iter_mut().for_each(|value| mark(value, bind)),
+            Value::Object(object) => {
+                if object.remove(DEPLOYED_CARD_MARKER).is_some() && bind {
+                    object.insert("bind".to_string(), json!(MOVED_ONTO_BATTLEFIELD_BINDING));
+                }
+                object.values_mut().for_each(|value| mark(value, bind));
+            }
+            _ => {}
+        }
+    }
+    let bind = effects.iter().any(reads);
+    effects.iter_mut().for_each(|effect| mark(effect, bind));
 }
 
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {

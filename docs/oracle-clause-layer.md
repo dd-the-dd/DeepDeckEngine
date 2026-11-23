@@ -449,3 +449,22 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   Postmortem Lunge…), 0 perte, IR des cartes supportées inchangée. Preuves :
   exil et sacrifice retardés avec capture, quasi-échec (carte rendue à la
   main), exécution (la carte rendue est exilée à l'étape de fin).
+
+### Étape 25 : l'antécédent d'un déploiement facultatif traverse les phrases
+
+- Le déploiement facultatif (`you may put a creature card from your hand
+  onto the battlefield`) a le même antécédent `MovedOntoBattlefield` qu'une
+  carte choisie ou ciblée ; son prédicat de carte valide `that creature`.
+  Le sélecteur de l'antécédent est cherché vers l'arrière dans les actions
+  du programme (il survit à `That creature gains haste.`), et `the creature`
+  (description définie) se lit comme `that creature` dans l'action de zone
+  sur un permanent lié.
+- Le déplacement ne lie le résultat que si une primitive ultérieure le lit
+  (marqueur de lowering transitoire) : l'IR des déploiements sans
+  référence ultérieure est inchangée.
+- Sonde : ligue 819 → 820 (+1 : Sneak Attack), corpus 14840 → 14847 (+7 :
+  Through the Breach, Coalstoke Gearhulk, Arms Race, Incandescent
+  Soulstoke…), 0 perte, IR des cartes supportées inchangée. Preuves :
+  Sneak Attack (liaison, hâte, sacrifice retardé), recombinaison (compteur),
+  absence de liaison sans lecteur, exécution (hâte puis sacrifice à l'étape
+  de fin).

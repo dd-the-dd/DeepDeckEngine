@@ -269,16 +269,21 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
     trial.enter("effect.referenced-permanent.action");
     trial.advance_to(trial.position() + 1).ok()?;
     trial.enter("effect.referenced-permanent.object");
+    // `the creature` (a definite description) names the same antecedent
+    // `that creature` would, validated against the same declared selector.
+    let definite = super::definite_object_anaphor_starts(&trial);
+    let mut tokens = trial.token_slice(0, usize::MAX).to_vec();
+    if definite {
+        tokens[trial.position()].raw = "that".to_string();
+    }
+    let mut view = trial.with_tokens(&tokens);
     let Ok(super::PermanentOperandNode::BoundReference(object)) =
-        super::recognize_contextual_permanent_operand(
-            &mut trial,
-            name_links,
-            name_failure,
-            context,
-        )
+        super::recognize_contextual_permanent_operand(&mut view, name_links, name_failure, context)
     else {
         return None;
     };
+    let end = view.position();
+    trial.advance_to(end).ok()?;
     if matches!(object, super::PermanentEffectReference::Source(_)) {
         return None;
     }

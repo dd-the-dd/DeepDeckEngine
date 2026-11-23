@@ -647,3 +647,47 @@ fn a_delayed_action_on_the_returned_permanent() {
     );
     assert_ne!(status, "canonical");
 }
+
+/// The card an optional deployment put onto the battlefield is the
+/// antecedent of the next sentences; the move binds it only when read.
+#[test]
+fn the_deployed_card_is_the_antecedent_across_sentences() {
+    // Real cards: Sneak Attack, Through the Breach (haste, then a delayed
+    // sacrifice). Unused recombination: a counter on the deployed card.
+    let sneak = effects(
+        "Enchantment",
+        "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+    );
+    let movement = sneak
+        .iter()
+        .find(|effect| effect["kind"] == "moveCards")
+        .unwrap_or_else(|| panic!("the deployment: {sneak:#?}"));
+    assert!(movement["bind"].is_string(), "{movement:#}");
+    assert!(movement.get("__deployedCard").is_none(), "{movement:#}");
+    assert!(
+        sneak
+            .iter()
+            .any(|effect| effect["kind"] == "installDelayedStepTrigger"),
+        "{sneak:#?}"
+    );
+    let counter = effects(
+        SORCERY,
+        "You may put a creature card from your hand onto the battlefield. Put a +1/+1 counter on it.",
+    );
+    assert!(
+        counter.iter().any(|effect| effect["kind"] == "putCounters"
+            && effect["permanent"]["kind"] == "singleBoundObject"),
+        "{counter:#?}"
+    );
+    // Without a later reader the move binds nothing (unchanged IR).
+    let alone = effects(
+        SORCERY,
+        "You may put a creature card from your hand onto the battlefield.",
+    );
+    assert!(
+        alone
+            .iter()
+            .all(|effect| effect.get("bind").is_none() && effect.get("__deployedCard").is_none()),
+        "{alone:#?}"
+    );
+}
