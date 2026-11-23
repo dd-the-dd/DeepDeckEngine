@@ -47,46 +47,23 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
     } else {
         return ReferencedPermanentActionAttempt::NotClaimed;
     };
-    // The claim is the bound reference after the verb: before it nothing is
-    // committed; once a non-source reference is read, its failures are the
-    // action's (the regeneration clause, the trailing frame).
-    let mut probe = cursor.clone();
-    probe.enter("effect.referenced-permanent.claim");
-    if probe.advance_to(probe.position() + 1).is_err() {
-        return ReferencedPermanentActionAttempt::NotClaimed;
-    }
-    let reference = if super::definite_object_anaphor_starts(&probe) {
-        super::recognize_definite_object_reference(
-            &mut probe,
-            &super::BindingEnvironment::for_permanent_context(context),
-        )
-    } else {
-        super::recognize_contextual_permanent_operand(&mut probe, name_links, name_failure, context)
-            .and_then(|operand| match operand {
-                super::PermanentOperandNode::BoundReference(object) => Ok(object),
-                _ => Err(probe.fail("a bound permanent reference")),
-            })
-    };
-    match reference {
-        Ok(super::PermanentEffectReference::Source(_)) | Err(_) => {
-            ReferencedPermanentActionAttempt::NotClaimed
+    // One read into a trial: the verb, then the bound reference. Exile and
+    // sacrifice have no clause after their reference, so the claim is the
+    // whole action: a non-source bound reference is parsed; anything else is
+    // not claimed and leaves the other readers in charge.
+    let mut trial = cursor.clone();
+    match recognize_referenced_permanent_action(
+        &mut trial,
+        action,
+        name_links,
+        name_failure,
+        context,
+    ) {
+        Ok(node) if !matches!(node.object, super::PermanentEffectReference::Source(_)) => {
+            *cursor = trial;
+            ReferencedPermanentActionAttempt::Parsed(node)
         }
-        Ok(_) => {
-            let mut trial = cursor.clone();
-            match recognize_referenced_permanent_action(
-                &mut trial,
-                action,
-                name_links,
-                name_failure,
-                context,
-            ) {
-                Ok(node) => {
-                    *cursor = trial;
-                    ReferencedPermanentActionAttempt::Parsed(node)
-                }
-                Err(failure) => ReferencedPermanentActionAttempt::FailedCommitted(failure),
-            }
-        }
+        Ok(_) | Err(_) => ReferencedPermanentActionAttempt::NotClaimed,
     }
 }
 
@@ -94,8 +71,6 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
 pub(in crate::oracle::canonical) enum ReferencedPermanentActionAttempt {
     /// No verb of the family, or no non-source bound reference after it.
     NotClaimed,
-    /// The reference was claimed; the failure is the action's.
-    FailedCommitted(super::super::MachineFailure),
     Parsed(ReferencedPermanentActionNode),
 }
 
