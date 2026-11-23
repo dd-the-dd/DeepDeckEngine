@@ -240,7 +240,7 @@
       }
     },
     {
-      "id": "incompatible-prior-artifact-target-is-conservative-refusal",
+      "id": "spell-another-after-artifact-target-is-distinct-from-it",
       "request": {
         "cardName": "Synthetic Another Target Support Boundary",
         "typeLine": "Sorcery",
@@ -649,6 +649,110 @@
                 "equals": true
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "amy-rose-sibling-other-attacker-excludes-the-source",
+      "request": {
+        "cardName": "Equipment Sweeper",
+        "typeLine": "Creature — Hedgehog Warrior",
+        "manaCost": "{2}{R}{W}",
+        "oracleText": "Whenever this creature attacks, attach up to one target Equipment to it. Then up to one other target attacking creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "rule": {
+              "declaration": {
+                "decisions": [
+                  {
+                    "candidates": {
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "subtypeContains",
+                        "value": "Equipment"
+                      }
+                    },
+                    "id": "targetPermanent1",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  },
+                  {
+                    "candidates": {
+                      "excludeSource": true,
+                      "kind": "permanents",
+                      "where": {
+                        "kind": "and",
+                        "operands": [
+                          {
+                            "kind": "isAttacking"
+                          },
+                          {
+                            "kind": "cardTypeContains",
+                            "value": "Creature"
+                          }
+                        ]
+                      }
+                    },
+                    "id": "targetPermanent2",
+                    "kind": "chooseTargets",
+                    "maximum": 1,
+                    "minimum": 0
+                  }
+                ],
+                "kind": "castingDeclaration"
+              },
+              "effects": [
+                {
+                  "attachment": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  },
+                  "kind": "attachPermanent",
+                  "to": {
+                    "kind": "self"
+                  }
+                },
+                {
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  },
+                  "kind": "modifyPowerToughness",
+                  "object": {
+                    "id": "targetPermanent2",
+                    "kind": "chosenTarget"
+                  },
+                  "power": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "toughness": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              ],
+              "event": {
+                "kind": "declaredAttacker",
+                "object": {
+                  "kind": "self"
+                }
+              },
+              "kind": "triggeredAbility",
+              "source": {
+                "kind": "self"
+              }
+            }
           }
         ]
       }

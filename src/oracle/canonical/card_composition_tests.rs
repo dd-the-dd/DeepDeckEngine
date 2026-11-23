@@ -1,5 +1,5 @@
 //! The `another target` relation is resolved against the declaration: only
-//! earlier slots of the same mode whose domain can overlap make it a
+//! earlier slots of the same mode whose domain and type head can overlap make it a
 //! distinct-from relation; otherwise the slot keeps its source exclusion.
 use super::compose_other_target_relation;
 use serde_json::{Value, json};
@@ -83,4 +83,77 @@ fn a_nested_declaration_is_resolved_and_a_rule_without_one_gains_none() {
     let nested = &composed["effects"][0]["ability"]["declaration"]["decisions"][1];
     assert_eq!(nested["distinctFrom"], json!(["first"]));
     assert!(!composed.to_string().contains("otherThanEarlierTargets"));
+}
+
+fn triggered(decisions: Vec<Value>) -> Value {
+    let mut composed = rule(decisions);
+    composed["kind"] = json!("triggeredAbility");
+    composed
+}
+
+fn typed(mut decision: Value, where_: Value) -> Value {
+    decision["candidates"]["where"] = where_;
+    decision
+}
+
+fn card_type(value: &str) -> Value {
+    json!({ "kind": "cardTypeContains", "value": value })
+}
+
+#[test]
+fn another_contrasts_with_an_earlier_slot_only_through_a_shared_type_head() {
+    let attacking_creature = json!({ "kind": "and", "operands": [
+        card_type("Creature"), { "kind": "isAttacking" },
+    ] });
+    // Amy Rose: `attach up to one target Equipment to her. Then up to one
+    // other target attacking creature ...`; Rhino/Jaheira/Kinetic Ooze: an
+    // earlier artifact, enchantment or land slot. A bare earlier `permanent`
+    // proves no shared head either. `other` then names only the source.
+    for earlier in [
+        json!({ "kind": "subtypeContains", "value": "Equipment" }),
+        json!({ "kind": "or", "operands": [card_type("Artifact"), card_type("Enchantment")] }),
+        Value::Null,
+    ] {
+        let mut first = slot("first", "permanents", None, false);
+        if !earlier.is_null() {
+            first = typed(first, earlier);
+        }
+        let decisions = vec![
+            first,
+            typed(
+                slot("second", "permanents", None, true),
+                attacking_creature.clone(),
+            ),
+        ];
+        let mut composed = triggered(decisions.clone());
+        compose_other_target_relation(&mut composed);
+        let later = &composed["declaration"]["decisions"][1];
+        assert!(later.get("distinctFrom").is_none(), "{later}");
+        assert_eq!(later["candidates"]["excludeSource"], true, "{later}");
+        // A spell is no permanent target: its `another` contrasts with the
+        // earlier slot whatever its type heads.
+        let mut composed = rule(decisions);
+        compose_other_target_relation(&mut composed);
+        let later = &composed["declaration"]["decisions"][1];
+        assert_eq!(later["distinctFrom"], json!(["first"]), "{later}");
+    }
+    // An unused combination: an earlier `creature or planeswalker` slot
+    // shares the creature head, so `another target creature` contrasts with it.
+    let mut composed = triggered(vec![
+        typed(
+            slot("first", "permanents", None, false),
+            json!({ "kind": "or", "operands": [card_type("Creature"), card_type("Planeswalker")] }),
+        ),
+        typed(
+            slot("second", "permanents", None, true),
+            card_type("Creature"),
+        ),
+    ]);
+    compose_other_target_relation(&mut composed);
+    let later = &composed["declaration"]["decisions"][1];
+    assert_eq!(later["distinctFrom"], json!(["first"]), "{later}");
+    assert!(
+        later["candidates"].get("excludeSource").is_none(),
+        "{later}"
+    );
 }

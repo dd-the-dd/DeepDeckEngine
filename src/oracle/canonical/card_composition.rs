@@ -172,6 +172,33 @@ fn candidate_domains(candidates: &Value) -> Vec<&'static str> {
     }
 }
 
+/// The card types and subtypes a candidate query names positively (outside
+/// any negation): the nominal heads `another target NOUN` is read against.
+fn candidate_type_heads(candidates: &Value) -> std::collections::BTreeSet<String> {
+    fn collect(value: &Value, heads: &mut std::collections::BTreeSet<String>) {
+        match value {
+            Value::Object(map) => {
+                if map.get("kind").and_then(Value::as_str) == Some("not") {
+                    return;
+                }
+                if matches!(
+                    map.get("kind").and_then(Value::as_str),
+                    Some("cardTypeContains" | "subtypeContains")
+                ) && let Some(head) = map.get("value").and_then(Value::as_str)
+                {
+                    heads.insert(head.to_ascii_lowercase());
+                }
+                map.values().for_each(|child| collect(child, heads));
+            }
+            Value::Array(items) => items.iter().for_each(|child| collect(child, heads)),
+            _ => {}
+        }
+    }
+    let mut heads = std::collections::BTreeSet::new();
+    collect(candidates, &mut heads);
+    heads
+}
+
 /// Resolves the target-list child's typed `otherThanEarlierTargets` relation
 /// (`another target X`, `each of two other target X`) in one declaration.
 /// An earlier target slot counts when it is declared under the same mode
@@ -180,10 +207,16 @@ fn candidate_domains(candidates: &Value) -> Vec<&'static str> {
 /// such slots the relation records `distinctFrom` (compared by owning slot
 /// in the engine, whatever the slot sizes) and `another` names them, not
 /// the source (Wayta: `Target creature you control fights another target
-/// creature` may name Wayta). Without one the slot keeps its source
-/// exclusion (`another target creature you control`; Stiltzkin after a
-/// player slot; a mode-2 `another` when only mode 2 is chosen).
-fn resolve_other_target_relation(decisions: &mut [Value]) {
+/// creature` may name Wayta). When the source is a permanent that the later
+/// slot could name, an earlier slot also shares a type head with the later
+/// one (`target creature ... another target creature`): after `target
+/// artifact or enchantment`, `Equipment` or a bare `permanent`, `other
+/// target creatures` contrasts with the source (Rhino, Jaheira, Kinetic
+/// Ooze, Amy Rose). A spell is never a permanent target, so its `another`
+/// always contrasts with its earlier slots. Without such a slot the later one keeps its
+/// source exclusion (`another target creature you control`; Stiltzkin
+/// after a player slot; a mode-2 `another` when only mode 2 is chosen).
+fn resolve_other_target_relation(decisions: &mut [Value], permanent_source: bool) {
     for index in 0..decisions.len() {
         let later = &decisions[index];
         if later["kind"].as_str() != Some("chooseTargets")
@@ -192,6 +225,7 @@ fn resolve_other_target_relation(decisions: &mut [Value]) {
             continue;
         }
         let later_domains = candidate_domains(&later["candidates"]);
+        let later_heads = candidate_type_heads(&later["candidates"]);
         let condition = later.get("condition").cloned();
         let earlier = decisions[..index]
             .iter()
@@ -201,6 +235,9 @@ fn resolve_other_target_relation(decisions: &mut [Value]) {
                 candidate_domains(&earlier["candidates"])
                     .iter()
                     .any(|domain| later_domains.contains(domain))
+                    && (!permanent_source
+                        || later_heads.is_empty()
+                        || !later_heads.is_disjoint(&candidate_type_heads(&earlier["candidates"])))
             })
             .filter_map(|earlier| earlier["id"].as_str().map(str::to_string))
             .collect::<Vec<_>>();
@@ -222,12 +259,13 @@ fn resolve_other_target_relation(decisions: &mut [Value]) {
 fn mark_distinct_other_targets(rule: &mut Value) {
     match rule {
         Value::Object(map) => {
+            let permanent_source = map.get("kind").and_then(Value::as_str) != Some("spellAbility");
             if let Some(decisions) = map
                 .get_mut("declaration")
                 .and_then(|declaration| declaration.get_mut("decisions"))
                 .and_then(Value::as_array_mut)
             {
-                resolve_other_target_relation(decisions);
+                resolve_other_target_relation(decisions, permanent_source);
             }
             for (key, child) in map.iter_mut() {
                 if key != "declaration" {
