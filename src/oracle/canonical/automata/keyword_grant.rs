@@ -1,6 +1,6 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, GrantedKeyword, ObjectControllerScope, ResourcePaymentNode, TargetListNode,
+    EffectDurationNode, GrantedKeyword, ResourcePaymentNode, TargetListNode,
     recognize_controlled_object_set, recognize_target_list,
     recognize_trailing_or_supplied_duration,
 };
@@ -14,7 +14,7 @@ use reminder::recognize_optional_keyword_reminder;
 
 pub(in crate::oracle::canonical) use quoted_ability::{
     GRANTED_OBJECT_TYPE_LINE, QuotedAbilityNode, quoted_ability_starts,
-    quoted_sentence_just_closed, recognize_quoted_ability,
+    quoted_sentence_just_closed, recognize_quoted_ability, recognize_quoted_single_item,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -205,6 +205,19 @@ fn recognize_keyword_atom(
     if let Some(type_line) = quoted_type_line
         && quoted_ability_starts(cursor)
     {
+        // A quote that holds one keyword grants that keyword (CR 702.21a
+        // ward, CR 113.1): it shares the unquoted atom's grant instead of
+        // being compiled as an opaque granted ability.
+        if let Some(atom) = recognize_quoted_single_item(cursor, |trial| {
+            recognize_keyword_atom(
+                trial,
+                allow_parameterized,
+                None,
+                &mut KeywordResourceCommitment::None,
+            )
+        }) {
+            return Ok(atom);
+        }
         return recognize_quoted_ability(cursor, type_line).map(KeywordAtomNode::Quoted);
     }
     if allow_parameterized

@@ -51,6 +51,33 @@ pub(in crate::oracle::canonical) fn quoted_ability_starts(cursor: &OracleTokenCu
         .is_some_and(|raw| quote_closers(raw).is_some())
 }
 
+/// Reads a quote that holds exactly one item of the caller's grammar
+/// (`"Ward—Pay 2 life."`): open mark, the item, an optional inner period,
+/// and the matching close mark. Transactional: on any mismatch the cursor is
+/// untouched and `None` lets the caller compile the quote as an ability.
+pub(in crate::oracle::canonical) fn recognize_quoted_single_item<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> MachineResult<T>,
+) -> Option<T> {
+    let mut trial = cursor.clone();
+    trial.enter("quoted-item.open");
+    let open = trial.peek()?.to_string();
+    let closers = quote_closers(&open)?;
+    trial.consume(&open).ok()?;
+    let item = read(&mut trial).ok()?;
+    if trial.peek() == Some(".") {
+        trial.consume(".").ok()?;
+    }
+    trial.enter("quoted-item.close");
+    let close = trial
+        .peek()
+        .filter(|word| closers.contains(word))?
+        .to_string();
+    trial.consume(&close).ok()?;
+    *cursor = trial;
+    Some(item)
+}
+
 /// Compiles the quote opening at the cursor and consumes both quotation marks.
 pub(in crate::oracle::canonical) fn recognize_quoted_ability(
     cursor: &mut OracleTokenCursor<'_>,
