@@ -1,7 +1,7 @@
 use super::*;
 use crate::oracle::canonical::automata::{
-    EffectRecognitionContext, EffectSequenceNode, LocalConditionNode, ResourcePaymentNode,
-    recognize_effect_sequence_with_context,
+    BooleanConditionNode, ConditionAtom, EffectRecognitionContext, EffectSequenceNode,
+    ResourcePaymentNode, recognize_effect_sequence_with_context,
 };
 use crate::oracle::syntax::recognize_entities;
 
@@ -109,9 +109,41 @@ fn a_you_control_condition_is_the_shared_boolean_atom() {
     else {
         panic!("a condition clause");
     };
+    assert!(matches!(atom, ConditionAtom::Compare(_)));
+}
+
+#[test]
+fn any_state_condition_of_the_one_language_composes_after_unless() {
+    // Unprinted combinations: turn ownership and a this-turn history are
+    // `unless` conditions through the same atom reader as `if`.
+    for text in [
+        "you lose 2 life unless it's your turn.",
+        "you lose 2 life unless you gained life this turn.",
+        "you lose 4 life unless you attacked this turn.",
+    ] {
+        let UnlessClauseNode::Condition(BooleanConditionNode::Atom(atom)) = frame(text).clause
+        else {
+            panic!("{text}: a condition clause");
+        };
+        assert!(
+            matches!(
+                atom,
+                ConditionAtom::TurnOwnership(_) | ConditionAtom::EventHistory(_)
+            ),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn a_you_payment_is_not_read_as_a_condition() {
+    // Near miss: `you` followed by a payment action stays the payer branch.
     assert!(matches!(
-        atom,
-        LocalConditionNode::ControlledPermanentCount(_)
+        frame("sacrifice this creature unless you pay {1}.").clause,
+        UnlessClauseNode::Payment {
+            payer: UnlessPayerNode::Controller,
+            ..
+        }
     ));
 }
 
@@ -143,14 +175,11 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
             "destroy target artifact unless its owner pays {2}.",
             "sequence.unless.payer.binding",
         ),
-        // A state condition is not a payment.
+        // A state condition is not a payment. (`unless you attacked this
+        // turn` is now a history condition of the one condition language.)
         (
             "sacrifice this creature unless it escaped.",
             "sequence.unless.payer",
-        ),
-        (
-            "you lose 4 life unless you attacked this turn.",
-            "sequence.unless.payment-action",
         ),
         // `you control` names the ability controller, not this payer.
         (

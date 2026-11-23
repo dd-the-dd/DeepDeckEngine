@@ -180,23 +180,28 @@ fn unresolved_anaphor_is_not_silently_accepted() {
 }
 
 #[test]
-fn unsupported_event_controller_is_a_committed_amendment_failure() {
-    let parsed = parse(
-        "Revolt — Destroy that creature if it has mana value 4 or less instead if a permanent left the battlefield under an opponent's control this turn.",
-    );
-    let ability = &parsed.abilities[0];
-
-    assert_eq!(parsed.status, "unsupported");
-    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+fn an_opponent_control_relation_composes_with_the_amendment_history() {
+    // Previously unused combination: the one history reader composes the
+    // control relation of the departed permanent (`under an opponent's
+    // control`) with the same revolt amendment, without a new production.
+    let parsed =
+        parse(&FATAL_PUSH_ORACLE.replace("under your control", "under an opponent's control"));
+    let amendment = parsed.abilities[1]
+        .rule
+        .as_ref()
+        .expect("the opponent-control amendment emits primitive IR");
     assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("conditional-zone-change-amendment")
+        amendment["effects"][0]["condition"]["left"],
+        json!({
+            "kind": "countEventsThisTurn",
+            "event": "permanentLeftBattlefield",
+            "player": {
+                "kind": "opponentsOf",
+                "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            },
+            "where": null,
+        })
     );
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("condition.permanent-left-battlefield.player")
-    );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("an"));
 }
 
 #[test]

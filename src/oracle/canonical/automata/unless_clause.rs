@@ -7,7 +7,7 @@
 //!                 NOUN's controller`, `that player`, ...), bound by the
 //!                 guarded actions
 //! CostSequence := payment actions conjugated for the payer, joined by "and"
-//! Condition    := Boolean list of shared `you control …` atoms
+//! Condition    := Boolean list of the one condition language's atoms
 //! ```
 //!
 //! The sequence parent owns the frame: the guarded actions (those of the
@@ -20,13 +20,13 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::ActingSubject;
 use super::{
-    BooleanConditionNode, CostListGrammar, ObjectPlayerRelation, ObjectSubjectAntecedent,
-    PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode, PerformerContext, PerformerNode,
-    PermanentEffectReference, PlayerBinding, PlayerEffectSubject, PlayerTargetBinding,
-    ResolutionCostNode, TargetBinding, conjugated_payment_action_starts,
+    ConditionContext, ConditionNode, ConditionScope, CostListGrammar, ObjectPlayerRelation,
+    ObjectSubjectAntecedent, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode,
+    PerformerContext, PerformerNode, PermanentEffectReference, PlayerBinding, PlayerEffectSubject,
+    PlayerTargetBinding, ResolutionCostNode, TargetBinding, conjugated_payment_action_starts,
     object_related_player_head_length, project_resolution_cost_sequence,
-    recognize_boolean_condition_list_before_separator, recognize_conjugated_cost_sequence,
-    recognize_performer, recognize_trigger_guard_atom,
+    recognize_boolean_condition_list_before_separator, recognize_condition_atom,
+    recognize_conjugated_cost_sequence, recognize_performer,
 };
 
 /// The player who may pay. Each variant is a binding the guarded actions
@@ -53,7 +53,7 @@ pub(in crate::oracle::canonical) enum UnlessClauseNode {
         cost: ResolutionCostNode,
     },
     /// The guarded actions happen unless the condition holds at resolution.
-    Condition(BooleanConditionNode),
+    Condition(ConditionNode),
 }
 
 /// One `unless` frame over the actions `first_effect..end_effect` of the
@@ -117,12 +117,32 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    let (payer, form) = if word(cursor, 0, "you") && word(cursor, 1, "control") {
+    // `you` pays only when a payment action conjugated for it follows; any
+    // other clause is a state condition of the one condition language.
+    let you_pay = word(cursor, 0, "you") && {
+        let mut trial = cursor.clone();
+        trial.consume("you").is_ok()
+            && conjugated_payment_action_starts(&trial, ActingSubject::CONTROLLER)
+    };
+    // `that NOUN's controller` (S3's shared performer head) pays only when
+    // a payment action conjugated for it follows, like `you`.
+    let related_payer = object_related_player_head_length(cursor).is_some_and(|length| {
+        let mut trial = cursor.clone();
+        trial.advance_to(trial.position() + length).is_ok()
+            && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
+    });
+    let payer_starts = you_pay
+        || related_payer
+        || (word(cursor, 0, "its") && word(cursor, 1, "controller"))
+        || (word(cursor, 0, "that") && word(cursor, 1, "player"))
+        || word(cursor, 0, "they")
+        || (word(cursor, 0, "any") && word(cursor, 1, "player"));
+    let (payer, form) = if !payer_starts {
         cursor.enter("sequence.unless.condition");
-        let condition = recognize_boolean_condition_list_before_separator(
-            cursor,
-            recognize_trigger_guard_atom,
-        )?;
+        let context = ConditionContext::standalone(ConditionScope::Unless, &[], None, false);
+        let condition = recognize_boolean_condition_list_before_separator(cursor, |cursor| {
+            recognize_condition_atom(cursor, &context)
+        })?;
         return Ok(UnlessClauseNode::Condition(condition));
     } else if word(cursor, 0, "you") {
         cursor.consume("you")?;
@@ -160,7 +180,7 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         ));
     } else {
         return Err(cursor.fail(
-            "an `unless` payer (`you`, `its controller`, a bound `that player`) or a `you control` condition",
+            "an `unless` payer (`you`, `its controller`, a bound `that player`) or a state condition",
         ));
     };
     cursor.enter("sequence.unless.payment-action");

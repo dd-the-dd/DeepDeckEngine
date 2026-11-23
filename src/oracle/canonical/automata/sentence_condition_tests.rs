@@ -7,8 +7,8 @@ use super::super::{
     PermanentEffectReference, PermanentSubjectScope, TargetBinding,
 };
 use super::{
-    ConditionObjectReference, OracleTokenCursor, ReferencedObjectConditionNode,
-    SentenceConditionAtom, SentenceConditionContext, recognize_sentence_condition,
+    ConditionAtom, ConditionObjectReference, OracleTokenCursor, ReferencedObjectConditionNode,
+    SentenceConditionContext, recognize_sentence_condition,
 };
 
 const TARGET: TargetBinding = TargetBinding {
@@ -22,7 +22,7 @@ fn read(
     card_target: Option<TargetBinding>,
     card_focus: bool,
     departed: &[TargetBinding],
-) -> Result<BooleanConditionNode<SentenceConditionAtom>, (String, String)> {
+) -> Result<BooleanConditionNode<ConditionAtom>, (String, String)> {
     let tokens = recognize_entities(text);
     let mut cursor = OracleTokenCursor::new("sentence-condition-test", &tokens);
     let context = SentenceConditionContext {
@@ -60,12 +60,12 @@ fn the_pronoun_binds_the_single_proven_antecedent() {
             true,
             &[]
         ),
-        Ok(BooleanConditionNode::Atom(
-            SentenceConditionAtom::ReferencedObject(ReferencedObjectConditionNode {
+        Ok(BooleanConditionNode::Atom(ConditionAtom::ObjectSatisfies(
+            ReferencedObjectConditionNode {
                 object: ConditionObjectReference::CardFocus,
                 predicate: card,
-            })
-        ))
+            }
+        )))
     );
     let permanent = read(
         "If it's a creature,",
@@ -75,8 +75,7 @@ fn the_pronoun_binds_the_single_proven_antecedent() {
         &[],
     )
     .expect("the target is the only antecedent");
-    let BooleanConditionNode::Atom(SentenceConditionAtom::ReferencedObject(node)) = permanent
-    else {
+    let BooleanConditionNode::Atom(ConditionAtom::ObjectSatisfies(node)) = permanent else {
         panic!("a referenced-object atom");
     };
     assert_eq!(

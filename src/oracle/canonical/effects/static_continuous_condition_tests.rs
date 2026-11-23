@@ -148,7 +148,7 @@ fn unsupported_conditions_fail_at_a_precise_state() {
     // `it` is not the source when the subject is a collection.
     assert_eq!(
         rejected_state("Creatures you control get +1/+1 as long as it's untapped."),
-        "condition.static.source-state.subject"
+        "condition.sentence.object.antecedent"
     );
     assert_eq!(
         rejected_state("This creature gets +1/+1 as long as it's your upkeep."),

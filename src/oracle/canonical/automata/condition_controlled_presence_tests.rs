@@ -5,7 +5,7 @@ use super::super::{ObjectCardType, ObjectPredicate};
 use super::*;
 
 #[test]
-fn commander_presence_reuses_the_controlled_permanent_count_node() {
+fn commander_presence_is_the_shared_controlled_permanent_comparison() {
     let tokens = recognize_entities("If you control a commander,");
     let mut cursor = OracleTokenCursor::new("test.controlled-permanent-presence", &tokens);
 
@@ -14,13 +14,15 @@ fn commander_presence_reuses_the_controlled_permanent_count_node() {
 
     assert_eq!(
         condition,
-        LocalConditionNode::ControlledPermanentCount(ControlledPermanentCountConditionNode {
-            player: LocalPlayerReference::Controller,
-            threshold: 1,
-            direction: ControlledCountDirection::OrMore,
-            predicate: ObjectPredicate::IsCommander,
-            exclude_source: false,
-        })
+        BooleanConditionNode::Atom(ConditionAtom::Compare(ConditionComparison {
+            subject: ConditionPlayerSubject::Controller,
+            left: ConditionNumber::Player(PlayerStateMeasure::ControlledPermanents {
+                predicate: ObjectPredicate::IsCommander,
+                exclude_source: false,
+            }),
+            operator: NumericComparisonOperator::GreaterThanOrEqual,
+            right: ConditionNumber::Integer(1),
+        }))
     );
     assert_eq!(cursor.position(), tokens.len());
 }
@@ -32,14 +34,20 @@ fn legendary_creature_presence_is_a_distinct_composed_predicate() {
 
     let condition = recognize_controlled_permanent_presence_condition(&mut cursor)
         .expect("legendary creature presence condition parses");
-    let LocalConditionNode::ControlledPermanentCount(condition) = condition else {
-        panic!("presence lowers through the count primitive");
-    };
+    let (predicate, _, threshold, _) =
+        controlled_permanent_count(&condition).expect("presence is a controlled count");
 
-    assert_ne!(condition.predicate, ObjectPredicate::IsCommander);
-    assert!(
-        condition
-            .predicate
-            .guarantees_card_type(ObjectCardType::Creature)
-    );
+    assert_eq!(threshold, 1);
+    assert_ne!(*predicate, ObjectPredicate::IsCommander);
+    assert!(predicate.guarantees_card_type(ObjectCardType::Creature));
+}
+
+#[test]
+fn a_family_envelope_refuses_an_atom_outside_its_family() {
+    // Near miss: a supported atom of another family is not a presence.
+    let tokens = recognize_entities("If it's not your turn,");
+    let mut cursor = OracleTokenCursor::new("test.controlled-permanent-presence", &tokens);
+    let failure = recognize_controlled_permanent_presence_condition(&mut cursor)
+        .expect_err("turn ownership is not a controlled permanent presence");
+    assert_eq!(failure.state, "condition.allow-list");
 }

@@ -68,7 +68,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_conditional_top_cards_partiti
 
     let selection_count = json!({
         "kind": "conditionalValue",
-        "condition": lower_local_condition(&sequence.replacement_condition),
+        "condition": lower_condition(&sequence.replacement_condition),
         "ifTrue": minimum_selection_count(sequence.replacement_partition.chosen_count),
         "ifFalse": minimum_selection_count(sequence.default_partition.chosen_count),
     });

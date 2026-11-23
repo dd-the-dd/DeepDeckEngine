@@ -51,7 +51,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_conditional_free_cast(
             "ability": {
                 "kind": "alternativeCost",
                 "costs": [],
-                "condition": lower_local_condition(&condition),
+                "condition": lower_condition(&condition),
             },
         }),
         &[
@@ -170,7 +170,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_compound_alternative_cost(
         "costs": lowered_costs,
     });
     if let Some(condition) = condition.as_ref() {
-        ability["condition"] = lower_local_condition(condition);
+        ability["condition"] = lower_condition(condition);
     }
 
     Ok(draft(

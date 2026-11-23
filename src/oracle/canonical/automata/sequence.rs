@@ -2039,15 +2039,11 @@ fn guarded_singular_target(memory: &SequenceMemory, first_effect: usize) -> Opti
 /// (`if you can't`): its preposed form names the previous sentence's action,
 /// which a postposed condition would misread as its own.
 fn condition_reads_previous_action(condition: &super::SentenceConditionNode) -> bool {
-    match condition {
-        super::BooleanConditionNode::Atom(atom) => {
-            matches!(atom, super::SentenceConditionAtom::PreviousActionImpossible)
-        }
-        super::BooleanConditionNode::And(children) | super::BooleanConditionNode::Or(children) => {
-            children.iter().any(condition_reads_previous_action)
-        }
-        super::BooleanConditionNode::Not(child) => condition_reads_previous_action(child),
-    }
+    // An earlier action's or optional payment's outcome (`if you can't`,
+    // `if you don't`) is the one condition language's ActionOutcome family.
+    super::condition_any(condition, &|atom| {
+        matches!(atom, super::ConditionAtom::ActionOutcome(_))
+    })
 }
 
 /// Consumes one parenthetical, including nested parentheses and quoted text.

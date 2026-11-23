@@ -49,7 +49,7 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
         "modifiers":modifiers,
     });
     if let Some(condition) = &condition {
-        rule["condition"] = lower_static_condition(condition);
+        rule["condition"] = lower_condition(condition);
     }
     StaticSourceCombatRestrictionAttempt::Parsed(draft(
         rule,

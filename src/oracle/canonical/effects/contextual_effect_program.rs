@@ -431,7 +431,7 @@ fn apply_activation_restrictions(
     } else {
         None
     };
-    let condition = restrictions.condition.as_ref().map(lower_static_condition);
+    let condition = restrictions.condition.as_ref().map(lower_condition);
     match (timing, condition) {
         (Some(timing), Some(condition)) => {
             draft.rule["activationCondition"] = and(vec![timing, condition]);

@@ -2524,7 +2524,7 @@ fn apply_unless_frames(
             }
             UnlessClauseNode::Condition(condition) => vec![json!({
                 "kind": "conditional",
-                "condition": not(lower_trigger_guard(condition)),
+                "condition": not(lower_condition(condition)),
                 "then": guarded,
                 "else": [],
             })],

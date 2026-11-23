@@ -1,5 +1,6 @@
-//! The event count reads its type filter and player population, and refuses
-//! a filter it cannot read (`countEventsThisTurn`).
+//! The one event-history evaluator (`event_history.rs`) reads its type
+//! filter, its player relation and its owner relation, and refuses a filter
+//! it cannot answer (`countEventsThisTurn`).
 use super::*;
 
 fn died(engine: &mut GameEngine, id: &str, type_line: &str, player: &str) {
@@ -9,6 +10,14 @@ fn died(engine: &mut GameEngine, id: &str, type_line: &str, player: &str) {
         Some(id.to_string()),
         json!({ "typeLine": type_line, "wasCreature": type_line.contains("Creature") }),
     );
+}
+
+fn count(engine: &GameEngine, expression: &Value) -> Option<i32> {
+    assert!(
+        event_history::event_history_supported(expression),
+        "{expression}"
+    );
+    engine.event_history_count(expression, "player-0", None)
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
@@ -28,58 +37,67 @@ fn an_event_count_reads_its_type_filter_and_its_player_population() {
         "event": "permanentDied",
         "where": { "kind": "cardTypeContains", "value": "Creature" },
     });
-    assert_eq!(engine.count_matching_events(&creatures, None), Some(2));
+    assert_eq!(count(&engine, &creatures), Some(2));
     // Sibling: a negated type atom and an opponent population.
     let noncreature = json!({
         "kind": "countEventsThisTurn",
         "event": "permanentDied",
         "where": { "kind": "not", "operand": { "kind": "cardTypeContains", "value": "Creature" } },
     });
-    assert_eq!(engine.count_matching_events(&noncreature, None), Some(1));
-    let opponents = vec!["player-1".to_string()];
-    assert_eq!(
-        engine.count_matching_events(&creatures, Some(&opponents)),
-        Some(1)
-    );
+    assert_eq!(count(&engine, &noncreature), Some(1));
+    let mut opponents_creatures = creatures.clone();
+    opponents_creatures["player"] =
+        json!({ "kind": "opponentsOf", "player": { "kind": "abilityController" } });
+    assert_eq!(count(&engine, &opponents_creatures), Some(1));
+    // CR 102.3: the controller's complement reads like its opponents here.
+    let mut others_creatures = creatures.clone();
+    others_creatures["player"] =
+        json!({ "kind": "playersExcept", "player": { "kind": "abilityController" } });
+    assert_eq!(count(&engine, &others_creatures), Some(1));
     // `Creature` is a word of the type line, not a substring of a subtype.
     let subtype = json!({
         "kind": "countEventsThisTurn",
         "event": "permanentDied",
         "where": { "kind": "subtypeContains", "value": "Bea" },
     });
-    assert_eq!(engine.count_matching_events(&subtype, None), Some(0));
+    assert_eq!(count(&engine, &subtype), Some(0));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[test]
 fn an_event_count_refuses_a_filter_it_cannot_read() {
-    // Near misses: a non-type atom, a type filter on an event that records
-    // no type line, and a previous-turn count with a filter.
+    // Near misses: an unknown measure or aggregate, an owner relation on an
+    // event that records no owner, and an owner relation without a player.
     for expression in [
         json!({
             "kind": "countEventsThisTurn",
             "event": "permanentDied",
-            "where": { "kind": "isToken" },
+            "measure": "power",
+        }),
+        json!({
+            "kind": "countEventsPreviousTurn",
+            "event": "spellCast",
+            "aggregate": "average",
         }),
         json!({
             "kind": "countEventsThisTurn",
             "event": "spellCast",
-            "where": { "kind": "cardTypeContains", "value": "Instant" },
+            "player": { "kind": "abilityController" },
+            "relation": "owner",
+        }),
+        json!({
+            "kind": "countEventsThisTurn",
+            "event": "permanentDied",
+            "relation": "owner",
         }),
     ] {
         assert!(
-            !event_count::event_count_supported(&expression),
+            !event_history::event_history_supported(&expression),
             "{expression}"
         );
         assert!(!numeric_expression_supported(&expression), "{expression}");
     }
-    assert!(!numeric_expression_supported(&json!({
-        "kind": "countEventsPreviousTurn",
-        "event": "spellCast",
-        "aggregate": "total",
-        "where": { "kind": "cardTypeContains", "value": "Creature" },
-    })));
-    assert!(event_count::event_count_supported(&json!({
+    assert!(event_history::event_history_supported(&json!({
         "kind": "countEventsThisTurn",
         "event": "spellCast",
         "player": { "kind": "opponentsOf", "player": { "kind": "abilityController" } },
@@ -110,7 +128,7 @@ fn an_event_count_reads_phrases_last_known_status_and_the_owner_relation() {
         Some("manland".to_string()),
         json!({ "typeLine": "Land", "wasCreature": true, "owner": "player-0" }),
     );
-    let count = |where_: Value| json!({ "kind": "countEventsThisTurn", "event": "permanentDied", "where": where_ });
+    let died_where = |where_: Value| json!({ "kind": "countEventsThisTurn", "event": "permanentDied", "where": where_ });
     for (phrase, expected) in [
         ("Time Lord", 1),
         ("Assembly-Worker", 1),
@@ -118,56 +136,43 @@ fn an_event_count_reads_phrases_last_known_status_and_the_owner_relation() {
         ("Assembly", 0),
     ] {
         assert_eq!(
-            engine.count_matching_events(
-                &count(json!({ "kind": "subtypeContains", "value": phrase })),
-                None
+            count(
+                &engine,
+                &died_where(json!({ "kind": "subtypeContains", "value": phrase }))
             ),
             Some(expected),
             "{phrase}"
         );
     }
     assert_eq!(
-        engine.count_matching_events(
-            &count(json!({ "kind": "cardTypeContains", "value": "Creature" })),
-            None
+        count(
+            &engine,
+            &died_where(json!({ "kind": "cardTypeContains", "value": "Creature" }))
         ),
         Some(3)
     );
     // `relation: owner`: the manland belongs to player 0, its controller
     // was player 1; a player who has since lost is still counted.
     engine.state.players[1].has_lost = true;
-    let everyone = engine
-        .event_count_players(
-            player_query::PlayerQueryContext::source("player-0", None),
-            &json!({ "kind": "eachPlayer" }),
-        )
-        .expect("each player");
-    assert_eq!(everyone.len(), 2);
+    let everyone = json!({
+        "kind": "countEventsThisTurn",
+        "event": "permanentDied",
+        "player": { "kind": "eachPlayer" },
+    });
+    assert_eq!(count(&engine, &everyone), Some(3));
     let owned = json!({
         "kind": "countEventsThisTurn",
         "event": "permanentDied",
-        "player": { "kind": "controller" },
+        "player": { "kind": "abilityController" },
         "relation": "owner",
     });
-    assert!(event_count::event_count_supported(&owned));
-    let mine = vec!["player-0".to_string()];
-    assert_eq!(engine.count_matching_events(&owned, Some(&mine)), Some(1));
+    assert_eq!(count(&engine, &owned), Some(1));
     let controlled = json!({
         "kind": "countEventsThisTurn",
         "event": "permanentDied",
-        "player": { "kind": "controller" },
+        "player": { "kind": "abilityController" },
     });
-    assert_eq!(
-        engine.count_matching_events(&controlled, Some(&mine)),
-        Some(1)
-    );
-    // Near miss: an owner relation on an event that records no owner.
-    assert!(!event_count::event_count_supported(&json!({
-        "kind": "countEventsThisTurn",
-        "event": "spellCast",
-        "player": { "kind": "controller" },
-        "relation": "owner",
-    })));
+    assert_eq!(count(&engine, &controlled), Some(1));
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

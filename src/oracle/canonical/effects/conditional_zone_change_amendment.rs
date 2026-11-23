@@ -52,7 +52,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_conditional_zone_change_amend
             "source": self_ref(),
             "effects": [{
                 "kind": "conditionalEffect",
-                "condition": lower_local_condition(&node.amendment_condition),
+                "condition": lower_condition(&node.amendment_condition),
                 "then": [{
                     "kind": "conditionalEffect",
                     "condition": target_condition,

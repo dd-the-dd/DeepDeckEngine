@@ -1,3 +1,12 @@
+//! The one lowering of the condition language (`automata/condition.rs`) to
+//! the engine's condition IR.
+//!
+//! A program position (a sentence `If`, an intervening `if`) lowers with the
+//! object bindings proven at that position (`lower_sentence_condition`);
+//! every other parent lowers without them (`lower_condition`). An atom that
+//! needs a binding its parent cannot supply is an explicit failure (at a
+//! program position) or an `unsupportedCondition` the engine refuses (where
+//! the parent's allow-list should already have refused it).
 use super::super::*;
 
 pub(in crate::oracle::canonical) fn lower_choice_binding(binding: ChoiceBinding) -> &'static str {
@@ -11,69 +20,374 @@ pub(in crate::oracle::canonical) fn lower_choice_binding(binding: ChoiceBinding)
     }
 }
 
-pub(in crate::oracle::canonical) fn lower_local_condition(condition: &LocalConditionNode) -> Value {
-    match condition {
-        LocalConditionNode::WasKicked { spell } => json!({
-            "kind": "wasKicked",
-            "spell": match spell {
-                LocalObjectReference::SourceSelf => self_ref(),
-            },
+/// Object bindings visible at the condition's position in the sequence.
+pub(in crate::oracle::canonical) struct ConditionObjectBindings<'a> {
+    pub permanent_targets: &'a [(TargetBinding, String)],
+    pub card_targets: &'a [(TargetBinding, String)],
+    /// The singular card result of the current card-collection scope.
+    pub card_focus: Option<Value>,
+    /// The binding that records whether the instruction just before the
+    /// condition was performed (`If you can't`), when the program has one.
+    pub previous_action_result: Option<String>,
+}
+
+/// Whether the condition reads the result of the previous instruction.
+pub(in crate::oracle::canonical) fn sentence_condition_reads_previous_action(
+    condition: &ConditionNode,
+) -> bool {
+    condition_any(condition, &ConditionAtom::reads_previous_action)
+}
+
+/// Lowers a condition program of a parent without effect-program bindings
+/// (static abilities, restrictions, family envelopes, `unless`).
+pub(in crate::oracle::canonical) fn lower_condition(condition: &ConditionNode) -> Value {
+    lower_condition_node(condition, None)
+        .unwrap_or_else(|reason| json!({ "kind": "unsupportedCondition", "reason": reason }))
+}
+
+/// Lowers a condition program at an effect-program position, resolving
+/// referenced objects to the declarations or bound results its symbolic
+/// bindings name.
+pub(in crate::oracle::canonical) fn lower_sentence_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    condition: &ConditionNode,
+    bindings: &ConditionObjectBindings<'_>,
+) -> MachineResult<Value> {
+    lower_condition_node(condition, Some(bindings)).map_err(|reason| {
+        cursor.enter("lower.condition");
+        cursor.fail(reason)
+    })
+}
+
+type Lowered = Result<Value, &'static str>;
+
+fn lower_condition_node(
+    condition: &ConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    Ok(match condition {
+        BooleanConditionNode::Atom(atom) => lower_condition_atom(atom, bindings)?,
+        BooleanConditionNode::And(operands) => and(operands
+            .iter()
+            .map(|operand| lower_condition_node(operand, bindings))
+            .collect::<Result<Vec<_>, _>>()?),
+        BooleanConditionNode::Or(operands) => or(operands
+            .iter()
+            .map(|operand| lower_condition_node(operand, bindings))
+            .collect::<Result<Vec<_>, _>>()?),
+        BooleanConditionNode::Not(operand) => not(lower_condition_node(operand, bindings)?),
+    })
+}
+
+fn lower_condition_atom(
+    atom: &ConditionAtom,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    match atom {
+        ConditionAtom::Compare(comparison) => lower_comparison(comparison),
+        ConditionAtom::ObjectSatisfies(node) => lower_object_condition(node, bindings),
+        ConditionAtom::EventHistory(node) => Ok(lower_event_history(node)),
+        ConditionAtom::CastFact(node) => Ok(lower_cast_fact(node)),
+        ConditionAtom::ActionOutcome(ActionOutcomeNode::PreviousActionImpossible) => {
+            let binding = bindings
+                .and_then(|bindings| bindings.previous_action_result.clone())
+                .ok_or("a previous instruction whose action records whether it was performed")?;
+            Ok(not(
+                json!({ "kind": "bindingNotEmpty", "binding": binding }),
+            ))
+        }
+        ConditionAtom::ActionOutcome(ActionOutcomeNode::CostNotPaid { payment }) => {
+            Ok(not(json!({
+                "kind": "costWasPaid",
+                "decisionId": lower_choice_binding(*payment),
+            })))
+        }
+        ConditionAtom::TurnOwnership(proposition) => Ok(if proposition.is_controller_turn {
+            json!({ "kind": "duringControllerTurn", "player": controller() })
+        } else {
+            json!({ "kind": "notYourTurn" })
         }),
-        LocalConditionNode::NotYourTurn => json!({ "kind": "notYourTurn" }),
-        LocalConditionNode::CostNotPaid { payment } => not(json!({
-            "kind": "costWasPaid",
-            "decisionId": lower_choice_binding(*payment),
-        })),
-        LocalConditionNode::PermanentLeftBattlefieldThisTurn { player } => {
-            debug_assert_eq!(*player, LocalPlayerReference::Controller);
-            compare(
-                ">=",
-                json!({
-                    "kind": "countEventsThisTurn",
-                    "event": "permanentLeftBattlefield",
-                    "player": controller(),
-                    "where": Value::Null,
-                }),
-                integer(1),
-            )
+        ConditionAtom::PlayerDesignation(node) => Ok(lower_player_designation(node)),
+    }
+}
+
+fn lower_player_designation(node: &PlayerDesignationNode) -> Value {
+    let atom = match &node.designation {
+        PlayerDesignation::EnduringStory => {
+            json!({ "kind": "hasEnduringStory", "player": controller() })
         }
-        LocalConditionNode::CardsExistInZone {
-            player,
-            zone,
-            predicates,
-        } => {
-            debug_assert_eq!(*player, LocalPlayerReference::Controller);
-            debug_assert_eq!(*zone, PlayerZoneKind::Graveyard);
-            and(predicates
-                .iter()
-                .map(|predicate| {
-                    compare(
-                        ">=",
-                        json!({
-                            "kind": "countCards",
-                            "zone": graveyard(controller()),
-                            "where": lower_card_object_predicate(predicate),
-                        }),
-                        integer(1),
-                    )
-                })
-                .collect())
+        PlayerDesignation::CompletedDungeon { dungeon } => {
+            let mut atom = json!({ "kind": "completedDungeon", "player": controller() });
+            if let Some(dungeon) = dungeon {
+                atom["name"] = json!(dungeon);
+            }
+            atom
         }
-        LocalConditionNode::ControlledPermanentCount(condition) => {
-            debug_assert_eq!(condition.player, LocalPlayerReference::Controller);
-            compare(
-                match condition.direction {
-                    ControlledCountDirection::OrMore => ">=",
-                    ControlledCountDirection::OrFewer => "<=",
-                },
-                json!({
-                    "kind": "countPermanents",
-                    "player": controller(),
-                    "where": lower_permanent_object_predicate(&condition.predicate),
-                    "excludeSource": condition.exclude_source,
+    };
+    if node.held { atom } else { not(atom) }
+}
+
+/// A cast fact of the ability's own source (the only spell reference).
+fn lower_cast_fact(node: &CastFactNode) -> Value {
+    match node.fact {
+        CastFact::Kicked => json!({ "kind": "wasKicked", "spell": self_ref() }),
+        CastFact::Cast { zone, negated } => {
+            let fact = match zone {
+                None => json!({ "kind": "wasCast", "object": self_ref() }),
+                Some(SourceCastZone::Hand) => {
+                    json!({ "kind": "wasCastFromHand", "object": self_ref() })
+                }
+                Some(SourceCastZone::Graveyard) => json!({
+                    "kind": "wasCastFromZone", "object": self_ref(), "zone": "graveyard",
                 }),
-                integer(condition.threshold),
-            )
+                Some(SourceCastZone::Exile) => json!({
+                    "kind": "wasCastFromZone", "object": self_ref(), "zone": "exile",
+                }),
+            };
+            if negated { not(fact) } else { fact }
         }
     }
+}
+
+/// `Compare(left, op, right)` for its player subject. A quantified subject
+/// wraps the same comparison in `playerQuantifier`, whose inner condition
+/// names the member with `quantifiedPlayer` (CR 102.2-102.3).
+fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
+    let operator = comparison.operator.ir_operator();
+    match comparison.subject {
+        ConditionPlayerSubject::Controller => Ok(compare(
+            operator,
+            lower_condition_number(&comparison.left, controller())?,
+            lower_condition_number(&comparison.right, controller())?,
+        )),
+        ConditionPlayerSubject::OpponentsTogether => {
+            // `your opponents control N QUERY`: one count over every opponent.
+            let (
+                ConditionNumber::Player(PlayerStateMeasure::ControlledPermanents {
+                    predicate, ..
+                }),
+                ConditionNumber::Integer(value),
+            ) = (&comparison.left, &comparison.right)
+            else {
+                return Err("a controlled-permanent count of the opponents together");
+            };
+            Ok(compare(
+                operator,
+                json!({
+                    "kind": "countPermanentsControlledByOpponents",
+                    "player": controller(),
+                    "where": lower_permanent_object_predicate(predicate),
+                }),
+                integer(*value),
+            ))
+        }
+        ConditionPlayerSubject::Quantified {
+            quantifier,
+            population,
+        } => {
+            let players = match population {
+                PlayerPopulation::Opponents => {
+                    json!({ "kind": "opponentsOf", "player": controller() })
+                }
+                PlayerPopulation::Players => json!({ "kind": "eachPlayer" }),
+            };
+            let member = || json!({ "kind": "quantifiedPlayer" });
+            let inner = compare(
+                operator,
+                lower_condition_number(&comparison.left, member())?,
+                lower_condition_number(&comparison.right, member())?,
+            );
+            let quantified = |quantifier: &str| {
+                json!({
+                    "kind": "playerQuantifier",
+                    "quantifier": quantifier,
+                    "players": players,
+                    "condition": inner,
+                })
+            };
+            Ok(match quantifier {
+                PlayerQuantifier::Some => quantified("some"),
+                PlayerQuantifier::Every => quantified("every"),
+                // `no opponent ...` is the negation of `an opponent ...`.
+                PlayerQuantifier::None => not(quantified("some")),
+            })
+        }
+    }
+}
+
+fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
+    match number {
+        ConditionNumber::Integer(value) => Ok(integer(*value)),
+        ConditionNumber::Expression(expression) => lower_numeric_expression(expression)
+            .ok_or("a numeric expression without a target binding"),
+        ConditionNumber::Player(measure) => Ok(lower_player_measure(measure, player)),
+        ConditionNumber::GreatestOpponent(PlayerStateMeasure::ControlledPermanents {
+            predicate,
+            ..
+        }) => Ok(json!({
+            "kind": "greatestOpponentPermanentCount",
+            "player": player,
+            "where": lower_permanent_object_predicate(predicate),
+        })),
+        ConditionNumber::GreatestOpponent(_) => {
+            Err("the greatest opponent value of a measure other than controlled permanents")
+        }
+    }
+}
+
+/// The recorded event kind of a history pattern.
+fn history_event_kind(event: HistoryEvent) -> &'static str {
+    match event {
+        HistoryEvent::SpellCast => "spellCast",
+        HistoryEvent::CardDrawn => "cardDrawn",
+        HistoryEvent::LifeGained => "lifeGained",
+        HistoryEvent::LifeLost => "lifeLost",
+        HistoryEvent::DamageDealtToPlayer => "damageDealt",
+        HistoryEvent::AttackerDeclared => "attackerDeclared",
+        HistoryEvent::PermanentDied => "permanentDied",
+        HistoryEvent::PermanentLeftBattlefield => "permanentLeftBattlefield",
+        HistoryEvent::PermanentEntered => "permanentEnteredBattlefield",
+        HistoryEvent::LibrarySearched => "librarySearched",
+    }
+}
+
+/// `EventHistory(Pattern, scope)` as the generic event count of the engine
+/// (`countEventsThisTurn` / `countEventsPreviousTurn`) compared with its
+/// threshold. The controller's life this turn is the shared numeric fact of
+/// that player (`lifeGainedThisTurn`, `lifeLostThisTurn`).
+fn lower_event_history(node: &EventHistoryNode) -> Value {
+    let pattern = &node.pattern;
+    let operator = node.operator.ir_operator();
+    if pattern.player == HistoryPlayer::Controller
+        && pattern.object.is_none()
+        && pattern.measure == HistoryMeasure::Amount
+        && node.scope == HistoryScope::ThisTurn
+        && node.aggregate == HistoryAggregate::Total
+    {
+        let fact = match pattern.event {
+            HistoryEvent::LifeGained => Some("lifeGainedThisTurn"),
+            HistoryEvent::LifeLost => Some("lifeLostThisTurn"),
+            _ => None,
+        };
+        if let Some(fact) = fact {
+            return compare(
+                operator,
+                json!({ "kind": fact, "player": controller() }),
+                integer(node.threshold),
+            );
+        }
+    }
+    let mut count = json!({
+        "kind": match node.scope {
+            HistoryScope::ThisTurn => "countEventsThisTurn",
+            HistoryScope::LastTurn => "countEventsPreviousTurn",
+        },
+        "event": history_event_kind(pattern.event),
+    });
+    match pattern.player {
+        // Damage to a player: an event of any player, never of a creature.
+        HistoryPlayer::Any if pattern.event == HistoryEvent::DamageDealtToPlayer => {
+            count["player"] = json!({ "kind": "eachPlayer" });
+        }
+        HistoryPlayer::Any => {}
+        HistoryPlayer::Controller => count["player"] = controller(),
+        HistoryPlayer::Opponent => {
+            count["player"] = json!({ "kind": "opponentsOf", "player": controller() });
+        }
+    }
+    let filter = pattern
+        .object
+        .as_ref()
+        .map(|predicate| match pattern.event {
+            HistoryEvent::SpellCast => {
+                lower_spell_object_predicate(predicate).unwrap_or(Value::Null)
+            }
+            _ => lower_permanent_object_predicate(predicate),
+        });
+    match node.scope {
+        HistoryScope::ThisTurn => count["where"] = filter.unwrap_or(Value::Null),
+        HistoryScope::LastTurn => {
+            if let Some(filter) = filter {
+                count["where"] = filter;
+            }
+        }
+    }
+    if pattern.measure == HistoryMeasure::Amount {
+        count["measure"] = json!("amount");
+    }
+    if node.scope == HistoryScope::LastTurn || node.aggregate == HistoryAggregate::GreatestPerPlayer
+    {
+        count["aggregate"] = json!(match node.aggregate {
+            HistoryAggregate::Total => "total",
+            HistoryAggregate::GreatestPerPlayer => "greatestPerPlayer",
+        });
+    }
+    compare(operator, count, integer(node.threshold))
+}
+
+/// An object condition. Without program bindings, the only object is the
+/// ability's source; its tapped, combat, modified and designation states
+/// lower to the continuous evaluator's source-state kinds.
+fn lower_object_condition(
+    node: &ReferencedObjectConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let Some(bindings) = bindings else {
+        if node.object != ConditionObjectReference::SOURCE {
+            return Err("an object binding of an effect program");
+        }
+        let source = || json!({ "kind": "isTapped", "object": self_ref() });
+        let state = match &node.predicate {
+            ObjectPredicate::Status(ObjectStatus::Tapped) => Some(source()),
+            ObjectPredicate::Status(ObjectStatus::Untapped) => Some(not(source())),
+            ObjectPredicate::Status(ObjectStatus::Attacking) => {
+                Some(json!({ "kind": "isAttacking", "object": self_ref() }))
+            }
+            ObjectPredicate::Status(ObjectStatus::Blocking) => {
+                Some(json!({ "kind": "isBlocking", "object": self_ref() }))
+            }
+            ObjectPredicate::Status(ObjectStatus::Modified) => {
+                Some(json!({ "kind": "sourceIsModified" }))
+            }
+            ObjectPredicate::Designation(designation) => Some(json!({
+                "kind": "sourceFlagSet",
+                "flag": designation.flag(),
+            })),
+            _ => None,
+        };
+        if let Some(state) = state {
+            return Ok(state);
+        }
+        let filter = lower_permanent_object_predicate(&node.predicate);
+        if filter.is_null() {
+            return Err("a characteristic that lowers to a nonempty object filter");
+        }
+        return Ok(json!({ "kind": "objectMatchesFilter", "object": self_ref(), "where": filter }));
+    };
+    let (object, filter) = match node.object {
+        ConditionObjectReference::Permanent(reference) => (
+            bound_permanent_reference_value(reference, bindings.permanent_targets)
+                .ok_or("the previously declared permanent target slot in this lexical scope")?,
+            lower_permanent_object_predicate(&node.predicate),
+        ),
+        ConditionObjectReference::CardTarget(binding) => (
+            bindings
+                .card_targets
+                .iter()
+                .find_map(|(candidate, id)| (*candidate == binding).then(|| chosen_target(id)))
+                .ok_or("the singular card target declared earlier in this sequence")?,
+            lower_card_object_predicate(&node.predicate),
+        ),
+        ConditionObjectReference::CardFocus => (
+            bindings
+                .card_focus
+                .clone()
+                .ok_or("a singular card result in the current card-collection scope")?,
+            lower_card_object_predicate(&node.predicate),
+        ),
+    };
+    if filter.is_null() {
+        return Err("a characteristic that lowers to a nonempty object filter");
+    }
+    Ok(json!({ "kind": "objectMatchesFilter", "object": object, "where": filter }))
 }

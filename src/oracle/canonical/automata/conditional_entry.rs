@@ -5,7 +5,7 @@ use crate::oracle::{
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalConditionNode, LocalObjectReference, ObjectCardType, ObjectPredicate,
+    LocalObjectReference, ObjectCardType, ObjectPredicate,
     recognize_controlled_permanent_presence_query, recognize_source_reference,
 };
 
@@ -89,9 +89,6 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanent_conditional_e
             }
             State::Condition => {
                 let condition = recognize_controlled_permanent_presence_query(cursor)?;
-                let LocalConditionNode::ControlledPermanentCount(condition) = condition else {
-                    return Err(cursor.fail("a controlled permanent presence condition"));
-                };
                 frame.required_permanent = Some(condition.predicate);
                 State::Terminator
             }
