@@ -93,49 +93,83 @@ impl GameEngine {
                 request_prefix,
                 decision_key,
             } => {
-                let request = EngineDecisionRequest {
-                    id: format!(
-                        "{request_prefix}:{}:{}:{step}",
-                        self.state.turn_number,
-                        self.state.events.len(),
-                    ),
-                    kind: DecisionKind::ReplacementChoice,
-                    player_id: player_id.to_string(),
-                    source_card: None,
-                    source_card_instance_id: None,
-                    choice: None,
-                    options: applicable
-                        .iter()
-                        .map(|index| {
-                            let proposal = &proposals[*index];
-                            LegalAction {
-                                id: proposal.id.clone(),
-                                kind: ActionKind::ChooseResolution,
-                                player_id: player_id.to_string(),
-                                label: format!("Apply {}", proposal.source_name),
-                                card_instance_id: Some(proposal.source_id.clone()),
-                                payment_sources: Vec::new(),
-                                decisions: BTreeMap::from([(
-                                    decision_key.to_string(),
-                                    json!(proposal.id),
-                                )]),
-                                targets: BTreeMap::new(),
-                                target_order: Vec::new(),
-                                attacker_id: None,
-                                blocker_id: None,
-                            }
-                        })
-                        .collect(),
-                };
-                let choice = self.choose_action(provider, request)?;
+                let options = applicable
+                    .iter()
+                    .map(|index| {
+                        let proposal = &proposals[*index];
+                        ReplacementChoiceOption {
+                            id: &proposal.id,
+                            source_id: &proposal.source_id,
+                            source_name: &proposal.source_name,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                let chosen = self.choose_replacement(
+                    player_id,
+                    request_prefix,
+                    decision_key,
+                    step,
+                    &options,
+                    provider,
+                )?;
                 applicable
                     .iter()
                     .copied()
-                    .find(|index| proposals[*index].id == choice.id)
+                    .find(|index| proposals[*index].id == chosen)
                     .ok_or_else(|| EngineError::new("replacement choice has no matching proposal"))
             }
         }
     }
+
+    /// CR 616.1: ask the affected player which applicable replacement applies
+    /// next. Families with their own applicability rules (damage) reuse this
+    /// request instead of building another one. Returns the chosen id.
+    pub(super) fn choose_replacement<D: DecisionProvider>(
+        &self,
+        player_id: &str,
+        request_prefix: &str,
+        decision_key: &str,
+        step: usize,
+        options: &[ReplacementChoiceOption<'_>],
+        provider: &mut D,
+    ) -> Result<String, EngineError> {
+        let request = EngineDecisionRequest {
+            id: format!(
+                "{request_prefix}:{}:{}:{step}",
+                self.state.turn_number,
+                self.state.events.len(),
+            ),
+            kind: DecisionKind::ReplacementChoice,
+            player_id: player_id.to_string(),
+            source_card: None,
+            source_card_instance_id: None,
+            choice: None,
+            options: options
+                .iter()
+                .map(|option| LegalAction {
+                    id: option.id.to_string(),
+                    kind: ActionKind::ChooseResolution,
+                    player_id: player_id.to_string(),
+                    label: format!("Apply {}", option.source_name),
+                    card_instance_id: Some(option.source_id.to_string()),
+                    payment_sources: Vec::new(),
+                    decisions: BTreeMap::from([(decision_key.to_string(), json!(option.id))]),
+                    targets: BTreeMap::new(),
+                    target_order: Vec::new(),
+                    attacker_id: None,
+                    blocker_id: None,
+                })
+                .collect(),
+        };
+        Ok(self.choose_action(provider, request)?.id)
+    }
+}
+
+/// One option of a replacement-order decision.
+pub(super) struct ReplacementChoiceOption<'a> {
+    pub id: &'a str,
+    pub source_id: &'a str,
+    pub source_name: &'a str,
 }
 
 /// Origin of a proposed graveyard-destination replacement.
