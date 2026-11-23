@@ -191,6 +191,14 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
     if word_is(cursor, 0, "completed") {
         return recognize_completed_dungeon_atom(cursor, true);
     }
+    // `you've attacked this turn`, `you've searched your library this turn`:
+    // the perfect of a recorded action is the same player history.
+    if cursor.peek().is_some_and(|raw| {
+        lookup_verb(raw, &[VerbLemma::Search, VerbLemma::Attack])
+            .is_some_and(|(_, forms)| forms.contains(&VerbForm::PastParticiple))
+    }) {
+        return recognize_history_predicate(cursor, HistoryPlayer::Controller);
+    }
     cursor.enter("condition.static.controller-history.designation");
     cursor.consume("an")?;
     cursor.consume("enduring")?;
@@ -506,6 +514,15 @@ pub(in crate::oracle::canonical) fn recognize_actor_event_history_atom(
     for _ in 0..length {
         consume_current(cursor)?;
     }
+    recognize_history_predicate(cursor, player)
+}
+
+/// The verb phrase of a player-subject history after its subject (and after
+/// a perfect `have`, whose participle has the same surface).
+fn recognize_history_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: HistoryPlayer,
+) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.history.verb");
     if word_is(cursor, 0, "was") || word_is(cursor, 0, "were") {
         consume_current(cursor)?;
