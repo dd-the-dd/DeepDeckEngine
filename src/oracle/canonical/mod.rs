@@ -8,6 +8,8 @@ mod context;
 
 mod dispatch;
 mod effects;
+mod engine_gap;
+mod failure_owner;
 
 mod ir;
 mod machine;

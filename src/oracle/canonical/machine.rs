@@ -5,6 +5,7 @@ use crate::oracle::automata_trace::{self, AutomataTraceEventKind, CursorTraceHan
 use crate::oracle::model::RecognizedEntity;
 
 use super::automata::{BindingEnvironment, EventNumericBinding};
+use super::engine_gap::EngineGap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct MachineTransition {
@@ -47,7 +48,101 @@ impl fmt::Display for MachineFailure {
     }
 }
 
+impl MachineFailure {
+    /// Reports this failure as an engine gap: the reading was complete and
+    /// the runtime lacks `gap`. The frame state stays in the trace.
+    pub(crate) fn into_engine_gap(mut self, gap: EngineGap) -> Self {
+        self.trace.push(MachineTransition {
+            state: gap.state(),
+            token_index: self.token_index,
+        });
+        self.state = gap.state();
+        self
+    }
+
+    pub(crate) fn is_engine_gap(&self) -> bool {
+        super::engine_gap::is_engine_gap_state(self.state)
+    }
+}
+
 pub(super) type MachineResult<T> = Result<T, MachineFailure>;
+
+/// The transactional outcome of a child reader (roadmap S0).
+///
+/// A child that has not reached its commit point returns `NoMatch`: the parent
+/// may try a sibling, and must not report the child's failure as the owner of
+/// the clause merely because the child read further. A child that committed
+/// (its structural introducer, subject and lemma were read) returns
+/// `Committed`: that failure is the clause's diagnostic. Cursor advancement is
+/// never a commit; only `CommitPoint::commit` is.
+#[derive(Debug)]
+pub(super) enum ChildOutcome<T> {
+    Matched(T),
+    NoMatch(MachineFailure),
+    Committed(MachineFailure),
+}
+
+impl<T> ChildOutcome<T> {
+    pub fn map<U>(self, transform: impl FnOnce(T) -> U) -> ChildOutcome<U> {
+        match self {
+            Self::Matched(value) => ChildOutcome::Matched(transform(value)),
+            Self::NoMatch(failure) => ChildOutcome::NoMatch(failure),
+            Self::Committed(failure) => ChildOutcome::Committed(failure),
+        }
+    }
+
+    pub fn is_committed(&self) -> bool {
+        matches!(self, Self::Committed(_))
+    }
+
+    /// A parent that has no sibling left turns `NoMatch` into its own frame
+    /// diagnostic; a committed failure is reported unchanged.
+    pub fn or_frame_failure(
+        self,
+        frame_failure: impl FnOnce(MachineFailure) -> MachineFailure,
+    ) -> MachineResult<T> {
+        match self {
+            Self::Matched(value) => Ok(value),
+            Self::Committed(failure) => Err(failure),
+            Self::NoMatch(failure) => Err(frame_failure(failure)),
+        }
+    }
+}
+
+/// The commit point a transactional child marks once it owns its clause.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct CommitPoint {
+    committed: bool,
+}
+
+impl CommitPoint {
+    pub fn commit(&mut self) {
+        self.committed = true;
+    }
+
+    pub fn is_committed(&self) -> bool {
+        self.committed
+    }
+}
+
+/// Interns a composed diagnostic state. Composed states come from bounded
+/// parts (frame states, lexicon lemmas, token classes and sanitized words),
+/// so the table stays small; each distinct state is allocated once.
+pub(crate) fn intern_state(state: String) -> &'static str {
+    use std::collections::HashSet;
+    use std::sync::{Mutex, OnceLock};
+    static TABLE: OnceLock<Mutex<HashSet<&'static str>>> = OnceLock::new();
+    let table = TABLE.get_or_init(|| Mutex::new(HashSet::new()));
+    let mut states = table
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(&interned) = states.get(state.as_str()) {
+        return interned;
+    }
+    let interned: &'static str = Box::leak(state.into_boxed_str());
+    states.insert(interned);
+    interned
+}
 
 /// Token-driven cursor shared by the canonical sub-automata.
 ///
@@ -237,6 +332,31 @@ impl<'a> OracleTokenCursor<'a> {
                 Err(failure)
             }
         }
+    }
+
+    /// Runs `child` as a transaction on a trial cursor. Success advances this
+    /// cursor; any failure leaves it unchanged, as `Committed` when the child
+    /// marked its commit point and as `NoMatch` otherwise.
+    pub fn transaction<T>(
+        &mut self,
+        child: impl FnOnce(&mut Self, &mut CommitPoint) -> MachineResult<T>,
+    ) -> ChildOutcome<T> {
+        let mut trial = self.clone();
+        let mut commit = CommitPoint::default();
+        match child(&mut trial, &mut commit) {
+            Ok(value) => {
+                *self = trial;
+                ChildOutcome::Matched(value)
+            }
+            Err(failure) if commit.is_committed() => ChildOutcome::Committed(failure),
+            Err(failure) => ChildOutcome::NoMatch(failure),
+        }
+    }
+
+    /// A complete reading the runtime cannot execute (`engine_gap.rs`). The
+    /// current frame state stays in the trace; the state names the gap.
+    pub fn engine_gap(&self, gap: EngineGap, expected: &str) -> MachineFailure {
+        self.failure(expected).into_engine_gap(gap)
     }
 
     pub fn peek_token(&self) -> Option<&RecognizedEntity> {

@@ -255,8 +255,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "effect.start",
-            "expected": "a supported effect subject",
+            "state": "effect.clause/introducer.when",
+            "expectedContains": "a supported effect subject",
             "found": "When",
             "tokenIndex": 17
           },
@@ -297,8 +297,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "effect.start",
-            "expected": "a supported effect subject",
+            "state": "effect.clause/introducer.when",
+            "expectedContains": "a supported effect subject",
             "found": "When",
             "tokenIndex": 17
           },

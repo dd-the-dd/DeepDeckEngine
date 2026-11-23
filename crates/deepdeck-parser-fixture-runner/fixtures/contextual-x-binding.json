@@ -35,7 +35,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "effect.start",
+            "state": "effect.clause/introducer.as",
             "expectedContains": "a supported effect subject",
             "found": "As"
           },

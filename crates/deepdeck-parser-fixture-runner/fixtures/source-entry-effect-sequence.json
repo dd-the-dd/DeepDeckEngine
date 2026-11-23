@@ -219,8 +219,9 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "numeric.atom.start",
-            "expected": "integer, number word, or X",
+            "traceContainsState": "numeric.atom.start",
+            "messageContains": "/numeric.object-phrase",
+            "expectedContains": "integer, number word, or X",
             "found": "target",
             "tokenIndex": 6
           }

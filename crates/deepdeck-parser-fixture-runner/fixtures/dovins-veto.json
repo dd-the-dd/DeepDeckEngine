@@ -133,7 +133,8 @@
           "abilityIndex": 0,
           "code": "oracle_machine_failure",
           "automaton": "simple-counter",
-          "state": "selector.predicate.start",
+          "traceContainsState": "selector.predicate.start",
+          "messageContains": "/object-predicate.word",
           "found": "unregisteredtype"
         }]
       }

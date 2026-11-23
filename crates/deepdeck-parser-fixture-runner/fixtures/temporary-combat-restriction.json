@@ -320,7 +320,8 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "numeric.atom.start",
+            "traceContainsState": "numeric.atom.start",
+            "messageContains": "/numeric.word",
             "found": "enormous"
           }
         ]
@@ -402,9 +403,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "contextual-effect-program",
-            "state": "target-list.complete",
-            "expectedContains": "exactly one target player",
-            "found": "can't"
+            "messageContains": "verb-unknown.activate"
           }
         ]
       }

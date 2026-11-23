@@ -78,7 +78,8 @@
             "abilityIndex": 1,
             "code": "oracle_machine_failure",
             "automaton": "static-continuous-effect",
-            "state": "selector.predicate.start",
+            "traceContainsState": "selector.predicate.start",
+            "messageContains": "/object-predicate.property",
             "found": "color"
           }
         ],

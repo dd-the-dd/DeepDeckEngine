@@ -538,7 +538,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "numeric.atom.start",
+            "traceContainsState": "numeric.atom.start",
+            "messageContains": "/numeric.quantity",
             "found": "many"
           }
         ]

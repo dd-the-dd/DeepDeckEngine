@@ -8,7 +8,9 @@ fn generic_primary_and_specialized_candidate_are_both_exposed_with_distinct_role
                 "../../crates/deepdeck-parser-fixture-runner/fixtures/earthbender-ascension-landfall.json"
             ),
             "unsupported-reflexive-actor-near-miss",
-            "effect.start",
+            // The dispatcher owns the `effect.start` sink: the clause head is
+            // the reflexive introducer `When` (failure_owner.rs).
+            "effect.clause/introducer.when",
             "trigger.labeled-reflexive-counter.reflexive-player",
             "an",
         ),
@@ -17,7 +19,9 @@ fn generic_primary_and_specialized_candidate_are_both_exposed_with_distinct_role
                 "../../crates/deepdeck-parser-fixture-runner/fixtures/earthbender-ascension-landfall.json"
             ),
             "unsupported-source-counter-comparator-near-miss",
-            "effect.start",
+            // The dispatcher owns the `effect.start` sink: the clause head is
+            // the reflexive introducer `When` (failure_owner.rs).
+            "effect.clause/introducer.when",
             "condition.source-counter-threshold.comparator-direction",
             "exactly",
         ),

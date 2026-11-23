@@ -42,3 +42,36 @@ fn mill_card_noun_must_agree_with_literal_count() {
     assert_eq!(failure.actual.as_deref(), Some("cards"));
     assert!(failure.expected.contains("noun agreement"));
 }
+
+#[test]
+fn a_target_subject_with_another_verb_is_not_a_mill_clause() {
+    // Near miss: the target list reads further than any sibling, but the
+    // clause never commits to mill, so its requirement is not the diagnostic.
+    let tokens = recognize_entities("Target opponent reveals their hand.");
+    let mut cursor = OracleTokenCursor::new("test.mill-near-miss", &tokens);
+
+    let outcome = super::try_recognize_mill_cards_effect(&mut cursor);
+    assert!(matches!(outcome, super::ChildOutcome::NoMatch(_)));
+    assert_eq!(cursor.position(), 0, "a rejected transaction does not move");
+
+    let failure = super::recognize_mill_cards_effect(&mut cursor).unwrap_err();
+    assert_eq!(failure.state, "effect.clause/subject.target.verb.reveal");
+    assert_eq!(failure.actual.as_deref(), Some("reveals"));
+    assert!(!failure.expected.contains("exactly one target player"));
+}
+
+#[test]
+fn a_mill_clause_without_a_player_subject_is_committed() {
+    // Sibling: subject and lemma are read, so the mill frame owns the clause
+    // and reports its own requirement.
+    let tokens = recognize_entities("Target creature mills two cards.");
+    let mut cursor = OracleTokenCursor::new("test.mill-committed", &tokens);
+
+    let super::ChildOutcome::Committed(failure) =
+        super::try_recognize_mill_cards_effect(&mut cursor)
+    else {
+        panic!("subject and lemma commit the mill frame");
+    };
+    assert_eq!(failure.state, "effect.mill-cards.player");
+    assert_eq!(cursor.position(), 0);
+}
