@@ -7,8 +7,9 @@ use crate::oracle::syntax::recognize_entities;
 fn relative_characteristic_composes_with_the_base_query() {
     let tokens = recognize_entities("spell you cast that's red or green costs");
     let mut cursor = OracleTokenCursor::new("selector-relative-test", &tokens);
-    let query =
-        recognize_spell_cast_query(&mut cursor).expect("relative spell-caster query parses");
+    let query = recognize_object_noun_query(&mut cursor, ObjectQueryContext::ORDINARY)
+        .and_then(|query| query.into_spell_cast_query(&mut cursor))
+        .expect("relative spell-caster query parses");
 
     assert_eq!(query.caster, Some(SpellCasterScope::AbilityController));
     assert!(matches!(
@@ -48,7 +49,11 @@ fn empty_relative_and_second_controller_are_rejected() {
 
     let tokens = recognize_entities("spell you cast that's red you control costs");
     let mut cursor = OracleTokenCursor::new("selector-relative-caster-negative-test", &tokens);
-    assert!(recognize_spell_cast_query(&mut cursor).is_err());
+    assert!(
+        recognize_object_noun_query(&mut cursor, ObjectQueryContext::ORDINARY)
+            .and_then(|query| query.into_spell_cast_query(&mut cursor))
+            .is_err()
+    );
 }
 
 #[test]

@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ObjectKind, ObjectQueryNode, ObjectSetNode, SelectorPredicate, SpellCastQueryNode,
-    recognize_object_query, recognize_spell_cast_query,
+    ObjectKind, ObjectQueryContext, ObjectQueryNode, ObjectSetNode, RecognizedObjectQuery,
+    SelectorPredicate, SpellCastQueryNode, recognize_object_noun_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,9 +13,7 @@ enum ObjectSetState {
 
 #[derive(Default)]
 struct ObjectSetFrame {
-    predicates: Vec<SelectorPredicate>,
-    subject: Option<CollectionSubjectScope>,
-    ownership: Option<super::ObjectOwnershipScope>,
+    branches: Vec<RecognizedObjectQuery>,
     exclude_source: bool,
 }
 
@@ -37,13 +35,14 @@ pub(in crate::oracle::canonical) fn recognize_query_excluding_source(
     Ok(query)
 }
 
-/// The collection reading of one recognized object set: its composed
-/// predicate, its player relations and whether `other` excludes the source.
-struct RecognizedCollection {
-    predicate: SelectorPredicate,
-    subject: Option<CollectionSubjectScope>,
-    ownership: Option<super::ObjectOwnershipScope>,
-    exclude_source: bool,
+/// One recognized object set: the coordinated noun phrases composed into
+/// one query, and whether `other` excludes the source. Every player relation
+/// is read by the noun phrase itself; a relation ends the set. Parents
+/// type-check the query through its projections.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectSetQuery {
+    pub query: RecognizedObjectQuery,
+    pub exclude_source: bool,
 }
 
 impl ObjectQueryNode {
@@ -53,29 +52,11 @@ impl ObjectQueryNode {
     /// control relation names permanents too (CR 108.4, 110.2). This is the
     /// one permanent-domain check every collection parent shares.
     pub(in crate::oracle::canonical) fn denotes_battlefield_permanents(&self) -> bool {
-        self.predicate.supports_domain(ObjectKind::Permanent)
-            && (self.predicate.has_domain(ObjectKind::Permanent)
-                || (self.controller.is_some() && self.predicate.has_nominal_head()))
+        self.predicate.is_in_domain(ObjectKind::Permanent)
+            || (self.controller.is_some()
+                && self.predicate.supports_domain(ObjectKind::Permanent)
+                && self.predicate.has_nominal_head())
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CollectionRelationKind {
-    Control,
-    Cast,
-    Relations,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum CollectionSubjectScope {
-    Controller(super::ObjectControllerScope),
-    Caster(super::SpellCasterScope),
-}
-
-enum CollectionQueryNode {
-    Control(ObjectQueryNode),
-    Cast(SpellCastQueryNode),
-    Relations(super::RelatedObjectQueryNode),
 }
 
 fn is_shared_numeric_collection_qualifier(predicate: &SelectorPredicate) -> bool {
@@ -149,52 +130,9 @@ fn compose_collection_predicates(
     }
 }
 
-fn retain_query(
-    cursor: &mut OracleTokenCursor<'_>,
-    frame: &mut ObjectSetFrame,
-    query: CollectionQueryNode,
-) -> MachineResult<()> {
-    let (predicate, subject) = match query {
-        CollectionQueryNode::Relations(query) => {
-            if let Some(ownership) = query.ownership {
-                cursor.require(
-                    frame.ownership.is_none(),
-                    "one explicit owner relation at the end of the object set",
-                )?;
-                frame.ownership = Some(ownership);
-            }
-            (
-                query.objects.predicate,
-                query
-                    .objects
-                    .controller
-                    .map(CollectionSubjectScope::Controller),
-            )
-        }
-        CollectionQueryNode::Control(query) => (
-            query.predicate,
-            query.controller.map(CollectionSubjectScope::Controller),
-        ),
-        CollectionQueryNode::Cast(query) => (
-            query.predicate,
-            query.caster.map(CollectionSubjectScope::Caster),
-        ),
-    };
-    if let Some(subject) = subject {
-        cursor.require(
-            frame.subject.is_none(),
-            "one player relation at the end of the object set",
-        )?;
-        frame.subject = Some(subject);
-    }
-    frame.predicates.push(predicate);
-    Ok(())
-}
-
 fn recognize_collection_continuation(
     cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: CollectionRelationKind,
-) -> MachineResult<CollectionQueryNode> {
+) -> MachineResult<RecognizedObjectQuery> {
     if cursor.peek().is_some_and(|raw| raw == ",") {
         cursor.consume(",")?;
     }
@@ -205,17 +143,7 @@ fn recognize_collection_continuation(
         let connector = cursor.peek().expect("checked connector").to_string();
         cursor.consume(&connector)?;
     }
-    match relation_kind {
-        CollectionRelationKind::Relations => {
-            super::recognize_related_object_query(cursor).map(CollectionQueryNode::Relations)
-        }
-        CollectionRelationKind::Control => {
-            recognize_object_query(cursor).map(CollectionQueryNode::Control)
-        }
-        CollectionRelationKind::Cast => {
-            recognize_spell_cast_query(cursor).map(CollectionQueryNode::Cast)
-        }
-    }
+    recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)
 }
 
 /// Universal quantification is independent of a choice's min/max cardinality.
@@ -276,37 +204,17 @@ pub(in crate::oracle::canonical) fn recognize_object_collection_in_domain(
 pub(in crate::oracle::canonical) fn recognize_object_collection(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ObjectQueryNode> {
-    let collection = recognize_collection_internal(cursor, CollectionRelationKind::Control)?;
-    let controller = match collection.subject {
-        None => None,
-        Some(CollectionSubjectScope::Controller(controller)) => Some(controller),
-        Some(CollectionSubjectScope::Caster(_)) => {
-            unreachable!("control wrapper owns relation kind")
-        }
-    };
-    Ok(ObjectQueryNode {
-        predicate: collection.predicate,
-        controller,
-        exclude_source: collection.exclude_source,
-    })
+    let set = recognize_object_set_query(cursor)?;
+    let mut objects = set.query.into_object_query(cursor)?;
+    objects.exclude_source = set.exclude_source;
+    Ok(objects)
 }
 
-fn recognize_collection_internal(
+/// The one coordinated-set reader. Each branch is the shared object noun
+/// phrase; the set reads its branches and its source exclusion only.
+pub(in crate::oracle::canonical) fn recognize_object_set_query(
     cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: CollectionRelationKind,
-) -> MachineResult<RecognizedCollection> {
-    let collection = recognize_collection_with_relations(cursor, relation_kind)?;
-    cursor.require(
-        collection.ownership.is_none(),
-        "no owner relation discarded by this compatibility collection wrapper",
-    )?;
-    Ok(collection)
-}
-
-fn recognize_collection_with_relations(
-    cursor: &mut OracleTokenCursor<'_>,
-    relation_kind: CollectionRelationKind,
-) -> MachineResult<RecognizedCollection> {
+) -> MachineResult<ObjectSetQuery> {
     let mut state = ObjectSetState::Branch;
     let mut frame = ObjectSetFrame::default();
 
@@ -317,32 +225,28 @@ fn recognize_collection_with_relations(
                 // `other Elves you control`: the source exclusion scopes the
                 // whole coordinated collection and is read once, here.
                 frame.exclude_source = super::recognize_optional_source_exclusion(cursor)?;
-                let query = match relation_kind {
-                    CollectionRelationKind::Relations => CollectionQueryNode::Relations(
-                        super::recognize_related_object_query(cursor)?,
-                    ),
-                    CollectionRelationKind::Control => {
-                        CollectionQueryNode::Control(recognize_object_query(cursor)?)
-                    }
-                    CollectionRelationKind::Cast => {
-                        CollectionQueryNode::Cast(recognize_spell_cast_query(cursor)?)
-                    }
-                };
-                retain_query(cursor, &mut frame, query)?;
+                frame.branches.push(recognize_object_noun_query(
+                    cursor,
+                    ObjectQueryContext::ORDINARY,
+                )?);
                 ObjectSetState::ConnectorOrComplete
             }
             ObjectSetState::ConnectorOrComplete => {
                 cursor.enter("object-set.connector-or-complete");
-                if frame.subject.is_some() || frame.ownership.is_some() {
+                // A player relation closes the coordinated set: it relates
+                // the whole set, and no later branch may restate one.
+                if frame
+                    .branches
+                    .last()
+                    .is_some_and(|branch| !branch.relations().is_empty())
+                {
                     ObjectSetState::Complete
                 } else if cursor.peek().is_some_and(|raw| {
                     raw == "," || raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("or")
                 }) {
-                    match cursor
-                        .attempt(|cursor| recognize_collection_continuation(cursor, relation_kind))
-                    {
-                        Ok(query) => {
-                            retain_query(cursor, &mut frame, query)?;
+                    match cursor.attempt(recognize_collection_continuation) {
+                        Ok(branch) => {
+                            frame.branches.push(branch);
                             ObjectSetState::ConnectorOrComplete
                         }
                         Err(_) => ObjectSetState::Complete,
@@ -353,14 +257,15 @@ fn recognize_collection_with_relations(
             }
             ObjectSetState::Complete => {
                 cursor.enter("object-set.complete");
-                let predicate = cursor.require_value(
-                    compose_collection_predicates(frame.predicates),
+                let query = cursor.require_value(
+                    RecognizedObjectQuery::coordinate(
+                        frame.branches,
+                        compose_collection_predicates,
+                    ),
                     "one or more permanent-set predicates",
                 )?;
-                return Ok(RecognizedCollection {
-                    predicate,
-                    subject: frame.subject,
-                    ownership: frame.ownership,
+                return Ok(ObjectSetQuery {
+                    query,
                     exclude_source: frame.exclude_source,
                 });
             }
@@ -374,29 +279,18 @@ fn recognize_collection_with_relations(
 pub(in crate::oracle::canonical) fn recognize_spell_cast_collection(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<SpellCastQueryNode> {
-    let RecognizedCollection {
-        predicate,
-        subject,
-        exclude_source,
-        ..
-    } = recognize_collection_internal(cursor, CollectionRelationKind::Cast)?;
+    let set = recognize_object_set_query(cursor)?;
+    let query = set.query.into_spell_cast_query(cursor)?;
     cursor.enter("spell-cast-set.domain");
     cursor.require(
-        !exclude_source,
+        !set.exclude_source,
         "a spell collection without a source exclusion",
     )?;
     cursor.require(
-        predicate.has_domain(ObjectKind::Spell) && predicate.supports_domain(ObjectKind::Spell),
+        query.predicate.is_in_domain(ObjectKind::Spell),
         "a collection explicitly anchored in the spell domain",
     )?;
-    let caster = match subject {
-        None => None,
-        Some(CollectionSubjectScope::Caster(caster)) => Some(caster),
-        Some(CollectionSubjectScope::Controller(_)) => {
-            unreachable!("cast wrapper owns relation kind")
-        }
-    };
-    Ok(SpellCastQueryNode { predicate, caster })
+    Ok(query)
 }
 
 /// Recognizes a non-targeting set of battlefield permanents whose controller
@@ -426,29 +320,12 @@ pub(in crate::oracle::canonical) fn recognize_controlled_object_set(
 #[path = "object_collection_domain_tests.rs"]
 mod domain_tests;
 
+/// A coordinated set whose control and ownership stay relations.
 pub(in crate::oracle::canonical) fn recognize_related_object_collection(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<super::RelatedObjectQueryNode> {
-    let RecognizedCollection {
-        predicate,
-        subject,
-        ownership,
-        exclude_source,
-    } = recognize_collection_with_relations(cursor, CollectionRelationKind::Relations)?;
-    let controller = match subject {
-        None => None,
-        Some(CollectionSubjectScope::Controller(scope)) => Some(scope),
-        Some(CollectionSubjectScope::Caster(_)) => {
-            return Err(cursor
-                .fail("an object relationship, not a caster relation in a counted object query"));
-        }
-    };
-    Ok(super::RelatedObjectQueryNode {
-        objects: ObjectQueryNode {
-            predicate,
-            controller,
-            exclude_source,
-        },
-        ownership,
-    })
+    let set = recognize_object_set_query(cursor)?;
+    let mut related = set.query.into_related_query(cursor)?;
+    related.objects.exclude_source = set.exclude_source;
+    Ok(related)
 }

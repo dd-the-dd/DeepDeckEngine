@@ -100,63 +100,10 @@ pub(in crate::oracle::canonical) fn stack_domain_selector_supported(
     }
 }
 
+/// A spell target (CR 115.1): the shared domain authority, not a local
+/// whitelist of predicate atoms.
 fn spell_selector_supported(predicate: &SelectorPredicate) -> bool {
-    let mut spell_domains = 0;
-    let valid = spell_selector_component(predicate, &mut spell_domains);
-    valid && spell_domains == 1
-}
-
-fn spell_selector_component(predicate: &SelectorPredicate, spell_domains: &mut usize) -> bool {
-    match predicate {
-        SelectorPredicate::ObjectKind(ObjectKind::Spell) => {
-            *spell_domains += 1;
-            true
-        }
-        SelectorPredicate::IsCommander
-        | SelectorPredicate::IsToken
-        | SelectorPredicate::CardType(_)
-        | SelectorPredicate::Subtype(_)
-        | SelectorPredicate::CharacteristicBatch(_)
-        | SelectorPredicate::Color(_)
-        | SelectorPredicate::ColorQuantity(_)
-        | SelectorPredicate::Supertype(_)
-        | SelectorPredicate::ExactManaCost(_)
-        | SelectorPredicate::HasKeyword(_)
-        | SelectorPredicate::NumericComparison { .. } => true,
-        SelectorPredicate::Status(_)
-        | SelectorPredicate::Designation(_)
-        | SelectorPredicate::OwnedByAbilityController { .. }
-        | SelectorPredicate::HasCounter(_)
-        | SelectorPredicate::ChosenCreatureType => false,
-        SelectorPredicate::PermanentCard => true,
-        SelectorPredicate::Not(operand) => {
-            matches!(
-                operand.as_ref(),
-                SelectorPredicate::CardType(_)
-                    | SelectorPredicate::Subtype(_)
-                    | SelectorPredicate::CharacteristicBatch(_)
-                    | SelectorPredicate::Color(_)
-                    | SelectorPredicate::ColorQuantity(_)
-                    | SelectorPredicate::HasKeyword(_)
-                    | SelectorPredicate::Supertype(_)
-                    | SelectorPredicate::NumericComparison { .. }
-            )
-        }
-        SelectorPredicate::Intersection(operands) => {
-            !operands.is_empty()
-                && operands
-                    .iter()
-                    .all(|operand| spell_selector_component(operand, spell_domains))
-        }
-        SelectorPredicate::Union(operands) => {
-            !operands.is_empty()
-                && operands.iter().all(|operand| {
-                    let mut branch_domains = 0;
-                    spell_selector_component(operand, &mut branch_domains) && branch_domains == 0
-                })
-        }
-        SelectorPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Permanent) => false,
-    }
+    predicate.is_declarable_target_in(ObjectKind::Spell)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -718,7 +665,7 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                     )?;
                     // The spell/permanent union stays a single-slot form.
                     cursor.require(
-                        permanent_target_supported(&slot.selector),
+                        slot.selector.is_permanent_target(),
                         "a permanent target selector",
                     )?;
                 }
@@ -733,7 +680,7 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                 {
                     // Preserve the prior permanent-only language/IR fastpath.
                     // Only Return opts into the bounded spell/permanent union.
-                    if !permanent_target_supported(selector) {
+                    if !selector.is_permanent_target() {
                         super::validate_spell_or_permanent_target(selector).map_err(|error| {
                             cursor.enter(match error {
                                 super::TargetDomainProjectionError::UnprovedNumericStackFilter => "effect.zone-change.target.numeric-stack-support",
@@ -745,7 +692,7 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                     }
                 } else {
                     cursor.require(
-                        permanent_target_supported(selector),
+                        selector.is_permanent_target(),
                         "a permanent target selector",
                     )?;
                 }
@@ -852,81 +799,6 @@ fn target_collection_is_plural(target: Option<&super::TargetListNode>) -> bool {
     target.is_some_and(|target| {
         target.slots.len() > 1 || target.slots.iter().any(|slot| slot.cardinality.maximum > 1)
     })
-}
-
-pub(in crate::oracle::canonical) fn permanent_target_supported(selector: &TargetSelector) -> bool {
-    match selector {
-        TargetSelector::Union(_) => false,
-        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
-            let mut permanent_domains = 0;
-            permanent_predicate(predicate, &mut permanent_domains) && permanent_domains > 0
-        }
-        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
-    }
-}
-
-fn permanent_predicate(predicate: &SelectorPredicate, permanent_domains: &mut usize) -> bool {
-    match predicate {
-        // CR 109.2, 205.3d: `target Wall`, `target Goblin` name permanents.
-        // Explicit card and spell nouns are refused below.
-        SelectorPredicate::CardType(_) | SelectorPredicate::Subtype(_)
-            if predicate.denotes_permanent_head(true) =>
-        {
-            *permanent_domains += 1;
-            true
-        }
-        SelectorPredicate::IsCommander
-        | SelectorPredicate::IsToken
-        | SelectorPredicate::Color(_)
-        | SelectorPredicate::ColorQuantity(_)
-        | SelectorPredicate::Subtype(_)
-        | SelectorPredicate::CharacteristicBatch(_)
-        | SelectorPredicate::Supertype(_)
-        | SelectorPredicate::ExactManaCost(_)
-        | SelectorPredicate::Status(_)
-        | SelectorPredicate::Designation(_)
-        | SelectorPredicate::OwnedByAbilityController { .. }
-        | SelectorPredicate::HasCounter(_)
-        | SelectorPredicate::HasKeyword(_)
-        | SelectorPredicate::NumericComparison { .. } => true,
-        SelectorPredicate::ObjectKind(ObjectKind::Permanent) => {
-            *permanent_domains += 1;
-            true
-        }
-        // A target selector is declared before any resolution choice.
-        SelectorPredicate::CardType(_)
-        | SelectorPredicate::PermanentCard
-        | SelectorPredicate::ChosenCreatureType
-        | SelectorPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell) => false,
-        SelectorPredicate::Not(operand) => matches!(
-            operand.as_ref(),
-            SelectorPredicate::CardType(_)
-                | SelectorPredicate::Color(_)
-                | SelectorPredicate::ColorQuantity(_)
-                | SelectorPredicate::Supertype(_)
-                | SelectorPredicate::Subtype(_)
-                | SelectorPredicate::CharacteristicBatch(_)
-                | SelectorPredicate::HasKeyword(_)
-                | SelectorPredicate::HasCounter(_)
-                | SelectorPredicate::IsCommander
-                | SelectorPredicate::IsToken
-        ),
-        SelectorPredicate::Intersection(operands) => {
-            !operands.is_empty()
-                && operands
-                    .iter()
-                    .all(|operand| permanent_predicate(operand, permanent_domains))
-        }
-        SelectorPredicate::Union(operands) => {
-            !operands.is_empty()
-                && operands.iter().all(|operand| {
-                    let mut branch_domains = 0;
-                    let valid = permanent_predicate(operand, &mut branch_domains);
-                    *permanent_domains += branch_domains;
-                    valid && branch_domains > 0
-                })
-        }
-    }
 }
 
 #[cfg(test)]

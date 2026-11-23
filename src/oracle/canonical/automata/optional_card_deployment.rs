@@ -115,9 +115,11 @@ pub(in crate::oracle::canonical) fn recognize_optional_card_deployment_effect_wi
                 cursor.enter("effect.optional-card-deployment.filter");
                 frame.filter = Some(match cursor.attempt(|trial| recognize_search_card_selector(trial, false)) {
                     Ok(predicate) => predicate,
-                    Err(_) => super::recognize_resolution_card_query(cursor,
-                        context.activation_source_availability == super::ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
-                    )?.predicate,
+                    Err(_) => super::recognize_object_noun_query(cursor,
+                        super::ObjectQueryContext::resolution(
+                            context.activation_source_availability == super::ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
+                        ),
+                    )?.into_unscoped_in_domain(cursor, super::ObjectKind::Card)?.predicate,
                 });
                 OptionalCardDeploymentState::SourceRelation
             }

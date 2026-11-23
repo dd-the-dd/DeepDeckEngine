@@ -125,7 +125,8 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
     cursor.enter("effect.sacrifice.quantity");
     let count = recognize_numeric_expression(cursor, None)?;
     cursor.enter("effect.sacrifice.object-query");
-    let object = recognize_object_query_with_shared_cardinality(cursor, &count)?;
+    let object = recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count))?
+        .into_object_query(cursor)?;
     cursor.require(
         match owner {
             SacrificeOperandOwner::AbilityController => matches!(

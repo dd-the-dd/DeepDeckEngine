@@ -210,7 +210,7 @@ pub(in crate::oracle::canonical) fn lower_zone_change_slot_candidates(
     effect: &ZoneChangeEffectNode,
     slot: &TargetSlot,
 ) -> Option<(&'static str, Value, i64, i64)> {
-    let (id, mut candidates) = if permanent_target_supported(&slot.selector) {
+    let (id, mut candidates) = if slot.selector.is_permanent_target() {
         lower_target_selector_candidates(&slot.selector)?
     } else if effect.action == ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand)
         && effect.target.slots.len() == 1
