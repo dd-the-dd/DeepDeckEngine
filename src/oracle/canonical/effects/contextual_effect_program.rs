@@ -184,7 +184,49 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
         annotation,
     );
     let outcome = apply_activation_cost_reduction(&mut cursor, outcome, reduction);
+    let outcome = refuse_indefinite_grant_to_the_spell(&mut cursor, context, outcome);
     apply_activation_restrictions(outcome, restrictions)
+}
+
+/// A spell is not a battlefield permanent: an indefinite keyword grant to the
+/// spell itself (CR 611.2a, `this spell gains ...` with no duration) would
+/// write nowhere, so it stays explicitly unsupported.
+fn refuse_indefinite_grant_to_the_spell(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: EffectProgramContext,
+    outcome: EffectProgramParseAttempt,
+) -> EffectProgramParseAttempt {
+    fn grants_to_source(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(grants_to_source),
+            Value::Object(object) => {
+                (object.get("kind").and_then(Value::as_str) == Some("grantKeyword")
+                    && object
+                        .get("duration")
+                        .and_then(|duration| duration["kind"].as_str())
+                        == Some("permanent")
+                    && matches!(
+                        object
+                            .get("object")
+                            .and_then(|object| object["kind"].as_str()),
+                        Some("self" | "abilitySource")
+                    ))
+                    || object.values().any(grants_to_source)
+            }
+            _ => false,
+        }
+    }
+    match outcome {
+        EffectProgramParseAttempt::Parsed(draft)
+            if context == EffectProgramContext::Spell && grants_to_source(&draft.rule) =>
+        {
+            cursor.enter("lower.keyword-grant.indefinite-spell");
+            EffectProgramParseAttempt::FailedSupport(
+                cursor.fail("an indefinite grant to a battlefield permanent, not to this spell"),
+            )
+        }
+        outcome => outcome,
+    }
 }
 
 /// A generic activation-cost reduction is metadata of the activated ability

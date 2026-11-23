@@ -739,3 +739,53 @@ fn a_later_controller_clause_is_not_inside_the_performed_action() {
     );
     assert_eq!(status, "canonical", "{states:?}");
 }
+
+/// One reader for zone actions on a bound permanent; target antecedents.
+#[test]
+fn zone_actions_on_a_target_antecedent() {
+    // Non-delayed: the declared target is the permanent acted on.
+    for (oracle, kind) in [
+        ("Tap target creature. Exile it.", "exilePermanent"),
+        ("Tap target creature. Sacrifice it.", "sacrificePermanent"),
+        (
+            "Tap target creature. Sacrifice the creature.",
+            "sacrificePermanent",
+        ),
+    ] {
+        let effects = effects("Instant", oracle);
+        let action = effects
+            .iter()
+            .find(|effect| effect["kind"] == kind)
+            .unwrap_or_else(|| panic!("{oracle}: {effects:#?}"));
+        assert_eq!(action["permanent"]["kind"], "chosenTarget", "{oracle}");
+    }
+    // A delayed action on a declared target stays refused: the target is not
+    // transported into the delayed trigger.
+    let (status, _, states) = parse(
+        "Instant",
+        "Tap target creature. Exile it at the beginning of the next end step.",
+    );
+    assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "lower.delayed.object-references"),
+        "{states:?}"
+    );
+    // The definite description follows the antecedent's selector.
+    let (status, _, _) = parse("Instant", "Tap target creature. Sacrifice the land.");
+    assert_ne!(status, "canonical");
+}
+
+/// Indefinite durations: a combat restriction without a duration, the
+/// static near miss, and the refusal of an indefinite grant to a spell.
+#[test]
+fn indefinite_restrictions_and_the_spell_grant_refusal() {
+    let restriction = effects("Instant", "Target creature can't block.");
+    assert!(!restriction.is_empty(), "{restriction:#?}");
+    let (status, rules, _) = parse("Creature \u{2014} Wall", "This creature can't block.");
+    assert_eq!(status, "canonical");
+    assert_eq!(rules[0]["kind"], "staticAbility", "{rules:#?}");
+    let (status, _, states) = parse(SORCERY, "Draw a card. This spell gains haste.");
+    assert_ne!(status, "canonical", "{states:?}");
+}

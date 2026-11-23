@@ -513,3 +513,21 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   champ de bataille un joueur après l'autre, alors que CR 101.4 les rend
   simultanées, et elle n'avait pas de preuve d'exécution. Elle revient en
   échec explicite (`clause.verb.unsupported`) jusqu'à ces preuves.
+
+### Suites de revue (#63, non bloquantes)
+
+- La liaison de la carte déployée passe par l'allocation unique de
+  `movedOntoBattlefield` (`CardCollectionMemory::allocate_moved_onto_battlefield`) ;
+  le marqueur transitoire a disparu ; un second producteur échoue en
+  `lower.optional-card-deployment.binding`.
+- Un seul lecteur pour `destroy|exile|sacrifice` d'une référence liée
+  (`recognize_referenced_permanent_action`) ; la description définie
+  (`the creature`) est lue par le résolveur partagé
+  (`recognize_definite_object_reference`), plus de réécriture de jetons.
+- Durée indéfinie : une restriction de combat sans durée (`Target creature
+  can't block.`) donne `cantBlock` permanent, appliqué par l'énumération des
+  bloqueurs ; `This creature can't block.` reste statique ; un octroi sans
+  durée au sort lui-même échoue en `lower.keyword-grant.indefinite-spell`.
+- Preuves : antécédent ciblé non différé (`exile|sacrifice it`, `the
+  creature`), forme différée sur une cible refusée, déploiement vide sans
+  effet à l'étape de fin.

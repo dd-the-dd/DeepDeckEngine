@@ -538,3 +538,86 @@ fn a_returned_creature_another_player_controls_is_not_sacrificed() {
         "not the thief's sacrifice"
     );
 }
+
+fn resolve_spell(engine: &mut GameEngine, rule: &Value, targets: BTreeMap<String, TargetRef>) {
+    let stack = StackObject {
+        id: "stack:spell".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("spell", test_definition("spell", "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets,
+    };
+    execute_effects_at_resolution_start(
+        engine,
+        &rule["effects"],
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn an_empty_deployment_binds_nothing_and_its_delayed_sacrifice_does_nothing() {
+    // Sneak Attack with an empty hand: nothing is deployed, the haste grant
+    // and the delayed sacrifice read an empty capture and do nothing.
+    let rule = parsed_rules(
+        "Sorcery",
+        "You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+    )
+    .remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield.push(test_instance(
+        "bystander",
+        test_definition("bystander", "Creature - Bear"),
+        "player-0",
+    ));
+    resolve_spell(&mut engine, &rule, BTreeMap::new());
+    engine.enqueue_step_triggers("endStep");
+    resolve_stack(&mut engine);
+    assert!(
+        engine.permanent_position("bystander").is_some(),
+        "untouched"
+    );
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_restriction_without_a_duration_still_applies() {
+    // `Target creature can't block.` (CR 611.2a: no stated duration).
+    let rule = parsed_rules("Instant", "Target creature can't block.").remove(0);
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield.push(test_instance(
+        "wall",
+        test_definition("wall", "Creature - Wall"),
+        "player-1",
+    ));
+    engine.state.players[0].battlefield.push(test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    ));
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared target")
+        .to_string();
+    resolve_spell(
+        &mut engine,
+        &rule,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "wall".to_string(),
+            },
+        )]),
+    );
+    // The legal-block enumeration excludes a creature with `cantBlock`.
+    let wall = engine.state.players[1].battlefield[0].clone();
+    assert!(engine.permanent_has_keyword(&wall, "cantBlock"), "{rule:#}");
+}

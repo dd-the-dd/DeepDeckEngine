@@ -246,8 +246,9 @@ pub(in crate::oracle::canonical) enum ReferencedPermanentAction {
 
 /// `exile|sacrifice REFERENCE` on a permanent the program bound other than
 /// the ability's source (`exile it` after a card was returned to the
-/// battlefield, `sacrifice that creature`). Source references keep their
-/// own readers; anything else is not claimed.
+/// battlefield, `sacrifice the creature`): the shared reader below, claimed
+/// only when it reads such a reference. Source references keep their own
+/// readers; anything else is not claimed.
 pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[crate::oracle::syntax::ResolvedNameLink],
@@ -266,54 +267,96 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
         return None;
     };
     let mut trial = cursor.clone();
-    trial.enter("effect.referenced-permanent.action");
-    trial.advance_to(trial.position() + 1).ok()?;
-    trial.enter("effect.referenced-permanent.object");
-    // `the creature` (a definite description) names the same antecedent
-    // `that creature` would, validated against the same declared selector.
-    let definite = super::definite_object_anaphor_starts(&trial);
-    let mut tokens = trial.token_slice(0, usize::MAX).to_vec();
-    if definite {
-        tokens[trial.position()].raw = "that".to_string();
-    }
-    let mut view = trial.with_tokens(&tokens);
-    let Ok(super::PermanentOperandNode::BoundReference(object)) =
-        super::recognize_contextual_permanent_operand(&mut view, name_links, name_failure, context)
-    else {
-        return None;
-    };
-    let end = view.position();
-    trial.advance_to(end).ok()?;
-    if matches!(object, super::PermanentEffectReference::Source(_)) {
+    let node = recognize_referenced_permanent_action(
+        &mut trial,
+        action,
+        name_links,
+        name_failure,
+        context,
+    )
+    .ok()?;
+    if matches!(node.object, super::PermanentEffectReference::Source(_)) {
         return None;
     }
     *cursor = trial;
-    Some(Ok(DestroyReferenceEffectNode {
-        object,
-        cannot_regenerate: false,
-        action,
-    }))
+    Some(Ok(node))
 }
 
+/// `destroy REFERENCE` (the established destroy reader).
 pub(in crate::oracle::canonical) fn recognize_destroy_reference_effect(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[crate::oracle::syntax::ResolvedNameLink],
     name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
     context: &super::EffectRecognitionContext,
 ) -> MachineResult<DestroyReferenceEffectNode> {
-    cursor.enter("effect.destroy-reference.action");
-    cursor.consume("destroy")?;
-    cursor.enter("effect.destroy-reference.object");
-    let operand =
-        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
-    let super::PermanentOperandNode::BoundReference(object) = operand else {
-        return Err(cursor.fail("a bound permanent reference"));
+    recognize_referenced_permanent_action(
+        cursor,
+        ReferencedPermanentAction::Destroy,
+        name_links,
+        name_failure,
+        context,
+    )
+}
+
+/// One reader for the zone actions on one bound permanent reference
+/// (`destroy|exile|sacrifice it|that NOUN|the NOUN`): the verb, the shared
+/// reference operand (a definite description through the shared resolver),
+/// and destruction's regeneration prohibition (CR 701.19c).
+pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    action: ReferencedPermanentAction,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+    context: &super::EffectRecognitionContext,
+) -> MachineResult<DestroyReferenceEffectNode> {
+    let (verb_state, object_state) = match action {
+        ReferencedPermanentAction::Destroy => (
+            "effect.destroy-reference.action",
+            "effect.destroy-reference.object",
+        ),
+        ReferencedPermanentAction::Exile | ReferencedPermanentAction::Sacrifice => (
+            "effect.referenced-permanent.action",
+            "effect.referenced-permanent.object",
+        ),
     };
-    let cannot_regenerate = recognize_scalar_regeneration_amendment(cursor)?;
+    cursor.enter(verb_state);
+    match action {
+        ReferencedPermanentAction::Destroy => cursor.consume("destroy")?,
+        ReferencedPermanentAction::Exile => {
+            super::consume_lemma(cursor, super::VerbLemma::Exile, super::VerbAgreement::Base)?
+        }
+        ReferencedPermanentAction::Sacrifice => super::consume_lemma(
+            cursor,
+            super::VerbLemma::Sacrifice,
+            super::VerbAgreement::Base,
+        )?,
+    }
+    cursor.enter(object_state);
+    let object = if super::definite_object_anaphor_starts(cursor) {
+        super::recognize_definite_object_reference(
+            cursor,
+            &super::BindingEnvironment::for_permanent_context(context),
+        )?
+    } else {
+        let operand = super::recognize_contextual_permanent_operand(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )?;
+        let super::PermanentOperandNode::BoundReference(object) = operand else {
+            return Err(cursor.fail("a bound permanent reference"));
+        };
+        object
+    };
+    let cannot_regenerate = match action {
+        ReferencedPermanentAction::Destroy => recognize_scalar_regeneration_amendment(cursor)?,
+        ReferencedPermanentAction::Exile | ReferencedPermanentAction::Sacrifice => false,
+    };
     Ok(DestroyReferenceEffectNode {
         object,
         cannot_regenerate,
-        action: ReferencedPermanentAction::Destroy,
+        action,
     })
 }
 

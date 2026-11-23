@@ -199,6 +199,8 @@ fn lower_local_effect_sequence_with_collections(
         (sequence, Vec::new())
     };
     let mut pending_performer: Option<(usize, usize, PerformerNode)> = None;
+    // The choices of optional deployments onto the battlefield, in order.
+    let mut deployed_choices = Vec::<String>::new();
     let permanent_target_base_ids = sequence
         .effects
         .iter()
@@ -907,11 +909,12 @@ fn lower_local_effect_sequence_with_collections(
                 // The deployed card is the antecedent of a later reference
                 // (`that creature gains haste`); the move binds it only when
                 // such a reference reads it (resolved below).
-                if let Some(movement) = lowered
-                    .iter_mut()
-                    .find(|effect| effect["kind"] == "moveCards")
+                if let Some(choice) = lowered
+                    .iter()
+                    .find(|effect| effect["kind"] == "chooseCards")
+                    .and_then(|effect| effect["id"].as_str())
                 {
-                    movement[DEPLOYED_CARD_MARKER] = json!(true);
+                    deployed_choices.push(choice.to_string());
                 }
                 effects.extend(lowered);
             }
@@ -1974,7 +1977,7 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
-    bind_deployed_card_when_read(&mut effects);
+    bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
     apply_unless_frames(
         cursor,
@@ -3046,12 +3049,15 @@ fn apply_performer(
     Ok(())
 }
 
-/// Transient lowering marker on an optional deployment's move.
-const DEPLOYED_CARD_MARKER: &str = "__deployedCard";
-
 /// The deployed card's move binds the moved-onto-battlefield result only
-/// when a later primitive reads it; the marker never reaches the IR.
-fn bind_deployed_card_when_read(effects: &mut [Value]) {
+/// when a later primitive reads it, through the program's single allocation
+/// of that binding: a second producer fails explicitly.
+fn bind_deployed_card_when_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    deployed_choices: &[String],
+    collections: &mut CardCollectionMemory,
+) -> Result<(), EffectSequenceLoweringFailure> {
     fn reads(value: &Value) -> bool {
         match value {
             Value::Array(values) => values.iter().any(reads),
@@ -3063,20 +3069,45 @@ fn bind_deployed_card_when_read(effects: &mut [Value]) {
             _ => false,
         }
     }
-    fn mark(value: &mut Value, bind: bool) {
+    fn bind(value: &mut Value, choice: &str) -> bool {
         match value {
-            Value::Array(values) => values.iter_mut().for_each(|value| mark(value, bind)),
+            Value::Array(values) => values.iter_mut().any(|value| bind(value, choice)),
             Value::Object(object) => {
-                if object.remove(DEPLOYED_CARD_MARKER).is_some() && bind {
+                let deployment = object.get("kind").and_then(Value::as_str) == Some("moveCards")
+                    && object
+                        .get("cards")
+                        .and_then(|cards| cards.get("decisionId"))
+                        .and_then(Value::as_str)
+                        == Some(choice);
+                if deployment {
                     object.insert("bind".to_string(), json!(MOVED_ONTO_BATTLEFIELD_BINDING));
+                    return true;
                 }
-                object.values_mut().for_each(|value| mark(value, bind));
+                object.values_mut().any(|value| bind(value, choice))
             }
-            _ => {}
+            _ => false,
         }
     }
-    let bind = effects.iter().any(reads);
-    effects.iter_mut().for_each(|effect| mark(effect, bind));
+    if deployed_choices.is_empty() || !effects.iter().any(reads) {
+        return Ok(());
+    }
+    cursor.enter("lower.optional-card-deployment.binding");
+    let [choice] = deployed_choices else {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    };
+    if effects.iter().any(|effect| {
+        effect.get("bind").and_then(Value::as_str) == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+    }) || !collections.allocate_moved_onto_battlefield()
+    {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    }
+    let bound = effects.iter_mut().any(|effect| bind(effect, choice));
+    cursor.require(bound, "the deployment's move to bind")?;
+    Ok(())
 }
 
 fn drawn_cards_are_next_antecedent(sequence: &EffectSequenceNode, effect_index: usize) -> bool {
