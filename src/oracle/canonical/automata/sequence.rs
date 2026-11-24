@@ -16,7 +16,6 @@ use super::{
     recognize_effect_connector, recognize_empower_jace_effect, recognize_empower_jace_reminder,
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
-    recognize_named_token_creation_reminder,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
     recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
     recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
@@ -2028,10 +2027,12 @@ fn recognize_effect_sequence_attempt_scoped(
                             return Ok(memory.into_sequence());
                         }
                         if cursor.peek().is_some_and(|raw| raw == "(")
-                            && let Some(LocalEffectNode::CreateNamedTokens(creation)) =
-                                memory.effects.last()
+                            && let Some(creation) = memory
+                                .effects
+                                .last()
+                                .and_then(super::reminded_token_creation)
                         {
-                            recognize_named_token_creation_reminder(cursor, &creation.creation)?;
+                            super::recognize_token_creation_reminder(cursor, &creation)?;
                             cursor.enter("sequence.named-token.complete");
                             cursor.finish()?;
                             return Ok(memory.into_sequence());

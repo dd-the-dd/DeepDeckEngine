@@ -83,7 +83,8 @@ pub(in crate::oracle::canonical) fn parse_promoted_zone_change_token(
         // carry (`... token with flying`): the same shared body lowering,
         // created by the snapshot of the departed object's controller.
         LocalEffectNode::CreateExplicitTokens(create_tokens)
-            if create_tokens.additional.is_empty() && create_tokens.body.described().is_some() =>
+            if create_tokens.additional.is_empty()
+                && create_tokens.body.object_operand().is_none() =>
         {
             cursor.enter("sequence.zone-change-token.written-description");
             let quantity =

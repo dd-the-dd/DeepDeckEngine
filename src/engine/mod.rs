@@ -35948,6 +35948,7 @@ impl GameEngine {
         for instance_id in illegal_auras {
             self.move_permanent_to_graveyard(&instance_id, "illegalAuraAttachment")?;
         }
+        self.put_superseded_roles_into_graveyard()?;
         let mut vanished_tokens = Vec::new();
         for player in &mut self.state.players {
             for (zone_name, zone) in [

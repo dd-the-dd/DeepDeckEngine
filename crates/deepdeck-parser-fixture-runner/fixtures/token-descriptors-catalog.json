@@ -1,0 +1,644 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "token-descriptors-catalog",
+  "cardName": "Token Descriptor Probe",
+  "cases": [
+    {
+      "id": "slime-molding-symbolic-stats",
+      "request": {
+        "cardName": "Slime Molding",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}",
+        "oracleText": "Create an X/X green Ooze creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "gelatinous-genesis-x-symbolic-tokens",
+      "request": {
+        "cardName": "Gelatinous Genesis",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{X}{G}",
+        "oracleText": "Create X X/X green Ooze creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mystic-genesis-where-x-is-that-spells-mana-value",
+      "request": {
+        "cardName": "Mystic Genesis",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}{U}{U}",
+        "oracleText": "Counter target spell. Create an X/X green Ooze creature token, where X is that spell's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "metallurgic-summonings-cast-spell-x",
+      "request": {
+        "cardName": "Metallurgic Summonings",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, create an X/X colorless Construct artifact creature token, where X is that spell's mana value.\n{3}{U}{U}, Exile this enchantment: Return all instant and sorcery cards from your graveyard to your hand. Activate only if you control six or more artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "manaform-hellkite-where-x-mana-spent",
+      "request": {
+        "cardName": "Manaform Hellkite",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Flying\nWhenever you cast a noncreature spell, create an X/X red Dragon Illusion creature token with flying and haste, where X is the amount of mana spent to cast that spell. Exile that token at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mardu-ascendancy-tapped-and-attacking-clause",
+      "request": {
+        "cardName": "Mardu Ascendancy",
+        "typeLine": "Enchantment",
+        "manaCost": "{R}{W}{B}",
+        "oracleText": "Whenever a nontoken creature you control attacks, create a 1/1 red Goblin creature token that's tapped and attacking.\nSacrifice this enchantment: Creatures you control get +0/+3 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "hero-of-bladehold-plural-attacking-clause",
+      "request": {
+        "cardName": "Hero of Bladehold",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Battle cry (Whenever this creature attacks, each other attacking creature gets +1/+0 until end of turn.)\nWhenever this creature attacks, create two 1/1 white Soldier creature tokens that are tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sparkspitter-given-name",
+      "request": {
+        "cardName": "Sparkspitter",
+        "typeLine": "Creature — Elemental Spellshaper",
+        "manaCost": "{2}{R}",
+        "oracleText": "{R}, {T}, Discard a card: Create a 3/1 red Elemental creature token named Spark Elemental. It has trample, haste, and \"At the beginning of the end step, sacrifice this token.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "doctor-doom-plural-given-name",
+      "request": {
+        "cardName": "Doctor Doom",
+        "typeLine": "Legendary Creature — Human Scientist Villain",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "When Doctor Doom enters, create two 3/3 colorless Robot Villain artifact creature tokens named Doombot.\nAs long as you control an artifact creature or a Plan, Doctor Doom has indestructible.\nAt the beginning of your end step, you draw a card and lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "stable-wormhole-noncreature-named-land-token",
+      "request": {
+        "cardName": "Stable Wormhole",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever you attack, create a tapped Planet land token named New Planet with \"{T}: Add one mana of any color.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "voice-of-resurgence-characteristic-defining-token",
+      "request": {
+        "cardName": "Voice of Resurgence",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{G}{W}",
+        "oracleText": "Whenever an opponent casts a spell during your turn and when this creature dies, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "bestial-menace-coordinated-descriptions",
+      "request": {
+        "cardName": "Bestial Menace",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Create a 1/1 green Snake creature token, a 2/2 green Wolf creature token, and a 3/3 green Elephant creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wurmcoil-engine-coordinated-descriptions-after-keywords",
+      "request": {
+        "cardName": "Wurmcoil Engine",
+        "typeLine": "Artifact Creature — Phyrexian Wurm",
+        "manaCost": "{6}",
+        "oracleText": "Deathtouch, lifelink\nWhen this creature dies, create a 3/3 colorless Phyrexian Wurm artifact creature token with deathtouch and a 3/3 colorless Phyrexian Wurm artifact creature token with lifelink.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "trostanis-summoner-coordinated-descriptions",
+      "request": {
+        "cardName": "Trostani's Summoner",
+        "typeLine": "Creature — Elf Shaman",
+        "manaCost": "{5}{G}{W}",
+        "oracleText": "When this creature enters, create a 2/2 white Knight creature token with vigilance, a 3/3 green Centaur creature token, and a 4/4 green Rhino creature token with trample.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "tyranid-invasion-equal-to-after-modifiers",
+      "request": {
+        "cardName": "Tyranid Invasion",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Create a number of 3/3 green Tyranid Warrior creature tokens with trample equal to the number of opponents you have.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "militant-angel-equal-to-after-modifiers",
+      "request": {
+        "cardName": "Militant Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Flying, lifelink\nWhen this creature enters, create a number of 2/2 white Knight creature tokens with vigilance equal to the number of opponents you attacked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "godsire-color-clause",
+      "request": {
+        "cardName": "Godsire",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{4}{R}{G}{G}{W}",
+        "oracleText": "Vigilance\n{T}: Create an 8/8 Beast creature token that's red, green, and white.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "mu-yanling-vehicle-token",
+      "request": {
+        "cardName": "Mu Yanling, Wind Rider",
+        "typeLine": "Legendary Creature — Human Wizard Pilot",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "When Mu Yanling enters, create a 3/2 colorless Vehicle artifact token with crew 1.\nVehicles you control have flying.\nWhenever one or more creatures you control with flying deal combat damage to a player, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "awaken-the-woods-land-creature-token",
+      "request": {
+        "cardName": "Awaken the Woods",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}{G}",
+        "oracleText": "Create X 1/1 green Forest Dryad land creature tokens. (They're affected by summoning sickness.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "crib-swap-referenced-controller-with-keyword",
+      "request": {
+        "cardName": "Crib Swap",
+        "typeLine": "Kindred Instant — Shapeshifter",
+        "manaCost": "{2}{W}",
+        "oracleText": "Changeling (This card is every creature type.)\nExile target creature. Its controller creates a 1/1 colorless Shapeshifter creature token with changeling.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "break-down-junk",
+      "request": {
+        "cardName": "Break Down",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Destroy target artifact or enchantment. Create a Junk token. (It's an artifact with \"{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "gild-gold",
+      "request": {
+        "cardName": "Gild",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Exile target creature. Create a Gold token. (It's an artifact with \"Sacrifice this token: Add one mana of any color.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "repair-and-recharge-powerstone",
+      "request": {
+        "cardName": "Repair and Recharge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Return target artifact, enchantment, or planeswalker card from your graveyard to the battlefield. Create a tapped Powerstone token. (It's an artifact with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "geology-enthusiast-powerstone",
+      "request": {
+        "cardName": "Geology Enthusiast",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "At the beginning of your end step, create a tapped Powerstone token. (It's an artifact with \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")\n{6}: Draw a card and put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "the-great-mound-vibranium-keyword-reminder",
+      "request": {
+        "cardName": "The Great Mound",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{3}, {T}: Create a tapped Vibranium token. (It's an artifact with indestructible and \"{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.\")\n{6}, {T}: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "treasure-vault-declared-x-catalog-quantity",
+      "request": {
+        "cardName": "Treasure Vault",
+        "typeLine": "Artifact Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{X}{X}, {T}, Sacrifice this land: Create X Treasure tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "monstrous-rage-role-attached-to-bound-object",
+      "request": {
+        "cardName": "Monstrous Rage",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Target creature gets +2/+0 until end of turn. Create a Monster Role token attached to it. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has trample.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "royal-treatment-role-attached-to-that-creature",
+      "request": {
+        "cardName": "Royal Treatment",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature you control gains hexproof until end of turn. Create a Royal Role token attached to that creature. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has ward {1}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "charmed-clothier-role-attached-to-another-target",
+      "request": {
+        "cardName": "Charmed Clothier",
+        "typeLine": "Creature — Faerie Advisor",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flying\nWhen this creature enters, create a Royal Role token attached to another target creature you control. (If you control another Role on it, put that one into the graveyard. Enchanted creature gets +1/+1 and has ward {1}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-named-keyword-attacking",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a 2/2 red Elemental creature token named Ember with haste that's tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/token/name",
+                "equals": "Ember"
+              },
+              {
+                "pointer": "/effects/0/attacking",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-noncreature-artifact-token-with-quoted-mana",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a colorless artifact token named Lotus Petal with \"{T}, Sacrifice this token: Add one mana of any color.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/types",
+                "equals": [
+                  "Artifact"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-barred-mana-use-on-a-land",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/spendRestriction/kind",
+                "equals": "castSpellProhibited"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-a-number-of-predefined-tokens",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a number of Treasure tokens equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/kind",
+                "equals": "namedToken"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-creature-without-stats-or-definition",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a green Elemental creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "messageContains": "characteristic-defining power and toughness"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unsupported-conjunct-fails-the-list",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a 1/1 green Snake creature token, a 2/2 green Wolf creature token, and a 3/3 green Inventedling creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "messageContains": "subtype"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-tokens-with-singular-copula",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create two 1/1 red Goblin creature tokens that's tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "messageContains": "relative copula agreeing"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-role-attached-to-a-collection",
+      "request": {
+        "cardName": "Token Descriptor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Create a Monster Role token attached to each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "messageContains": "one object for the Aura token"
+          }
+        ]
+      }
+    }
+  ]
+}

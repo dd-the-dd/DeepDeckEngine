@@ -281,19 +281,6 @@
         "urlFront": ""
       }
     ],
-    "wicked role": [
-      {
-        "setCode": "builtin",
-        "collectorNumber": "wicked-role",
-        "isToken": true,
-        "isGamePiece": true,
-        "layout": "token",
-        "typeLine": "Token Enchantment - Aura Role",
-        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1.\nWhen this token is put into a graveyard, each opponent loses 1 life.",
-        "manaValue": 0,
-        "urlFront": ""
-      }
-    ],
     "young hero role": [
       {
         "setCode": "builtin",
@@ -303,19 +290,6 @@
         "layout": "token",
         "typeLine": "Token Enchantment - Aura Role",
         "oracleText": "Enchant creature\nEnchanted creature has \"Whenever this creature attacks, if its toughness is 3 or less, put a +1/+1 counter on it.\"",
-        "manaValue": 0,
-        "urlFront": ""
-      }
-    ],
-    "cursed role": [
-      {
-        "setCode": "builtin",
-        "collectorNumber": "cursed-role",
-        "isToken": true,
-        "isGamePiece": true,
-        "layout": "token",
-        "typeLine": "Token Enchantment - Aura Role",
-        "oracleText": "Enchant creature\nEnchanted creature has base power and toughness 1/1.",
         "manaValue": 0,
         "urlFront": ""
       }

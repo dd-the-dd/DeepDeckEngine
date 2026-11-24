@@ -153,6 +153,80 @@ pub(in crate::oracle::canonical) fn recognize_token_entry_clause(
     Ok(Some(state))
 }
 
+/// The colors written after the token noun (CR 105.1, 111.4): `that's all
+/// colors`, `that are red, green, and white`. `None` when no such relative
+/// clause starts; an entry-state clause is read by its own reader.
+pub(in crate::oracle::canonical) fn recognize_token_color_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+    singular: bool,
+) -> MachineResult<Option<Vec<CardColor>>> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let width = if word(cursor, 0, "that's") || word(cursor, 0, "that\u{2019}s") {
+        1
+    } else if word(cursor, 0, "that") && (word(cursor, 1, "are") || word(cursor, 1, "is")) {
+        2
+    } else {
+        return Ok(None);
+    };
+    let all_colors = word(cursor, width, "all") && word(cursor, width + 1, "colors");
+    let color_list = cursor
+        .peek_ahead(width)
+        .and_then(card_color_from_oracle_word)
+        .is_some();
+    if !(all_colors || color_list) {
+        return Ok(None);
+    }
+    cursor.enter("token.color-clause.copula");
+    let plural_copula = width == 2 && word(cursor, 1, "are");
+    cursor.require(
+        plural_copula != singular,
+        "a relative copula agreeing with the token quantity",
+    )?;
+    cursor.advance_to(cursor.position() + width)?;
+    cursor.enter("token.color-clause.colors");
+    if all_colors {
+        cursor.consume_phrase(&["all", "colors"])?;
+        return Ok(Some(vec![
+            CardColor::White,
+            CardColor::Blue,
+            CardColor::Black,
+            CardColor::Red,
+            CardColor::Green,
+        ]));
+    }
+    let mut colors = Vec::new();
+    loop {
+        let color = cursor
+            .peek()
+            .and_then(card_color_from_oracle_word)
+            .ok_or_else(|| cursor.fail("a registered Magic color"))?;
+        cursor.require(!colors.contains(&color), "distinct token colors")?;
+        colors.push(color);
+        cursor.advance_to(cursor.position() + 1)?;
+        let mut next = cursor.clone();
+        if next.peek() == Some(",") {
+            next.consume(",")?;
+        }
+        if next
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+        {
+            next.consume("and")?;
+        }
+        if next.position() == cursor.position()
+            || next.peek().and_then(card_color_from_oracle_word).is_none()
+        {
+            break;
+        }
+        *cursor = next;
+    }
+    Ok(Some(colors))
+}
+
 pub(in crate::oracle::canonical) enum TokenDescriptorAttempt {
     NotClaimed,
     Recognized(ExplicitTokenTemplateNode),

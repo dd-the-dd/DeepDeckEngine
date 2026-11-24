@@ -55,6 +55,11 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("tapped").is_none_or(Value::is_boolean)
                 // CR 508.4: tokens put onto the battlefield attacking.
                 && effect.get("attacking").is_none_or(Value::is_boolean)
+                // CR 111.3, 303.4f: an Aura token entering attached to one
+                // object (the source, a target, a bound or observed object).
+                && effect.get("attachTo").is_none_or(|object| {
+                    copied_object_supported(object) || object_expression_supported(object)
+                })
                 // CR 205.4: supertypes named by the effect precede the types.
                 && effect["token"].get("supertypes").is_none_or(|supertypes| {
                     supertypes.as_array().is_some_and(|supertypes| {

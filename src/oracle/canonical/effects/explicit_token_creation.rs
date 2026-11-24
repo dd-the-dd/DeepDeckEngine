@@ -36,26 +36,48 @@ pub(in crate::oracle::canonical) fn lower_explicit_token_creation(
         _ => return Err(TargetlessLoweringError::RequiresTarget),
     };
     let quantity = lower_targetless_numeric_expression(&node.body.quantity, declarations)?;
-    match &node.body.spec {
-        TokenSpecNode::Described(template) => {
-            // `X/X`: X needs the same declaration as a quantity X.
-            if let Some(statistics) = &template.statistics {
-                lower_targetless_numeric_expression(&statistics.power, declarations)?;
-                lower_targetless_numeric_expression(&statistics.toughness, declarations)?;
-            }
-            lower_token_creation_body(&node.body, player, quantity)
-                .map_err(|_| TargetlessLoweringError::UnsupportedEffect)
+    // The copied object or the object the tokens enter attached to: a
+    // bound or contextual object here; a target is declared by the program.
+    let object = match node.body.object_operand() {
+        Some(PermanentOperandNode::BoundReference(reference)) => Some(
+            bound_permanent_reference_value(*reference, &[])
+                .ok_or(TargetlessLoweringError::RequiresTarget)?,
+        ),
+        Some(operand) => Some(lower_nontargeted_permanent_operand(operand)?),
+        None => None,
+    };
+    if let TokenSpecNode::Described(template) = &node.body.spec
+        && let Some(statistics) = &template.statistics
+    {
+        // `X/X`: X needs the same declaration as a quantity X.
+        lower_targetless_numeric_expression(&statistics.power, declarations)?;
+        lower_targetless_numeric_expression(&statistics.toughness, declarations)?;
+    }
+    lower_token_creation_with_object(&node.body, object, player, quantity)
+        .map_err(|_| TargetlessLoweringError::UnsupportedEffect)
+}
+
+/// `createTokens` once the program lowered the object the body reads (the
+/// copied object, or the object an Aura token enters attached to).
+pub(in crate::oracle::canonical) fn lower_token_creation_with_object(
+    node: &TokenCreationBodyNode,
+    object: Option<Value>,
+    player: Value,
+    quantity: Value,
+) -> Result<Value, &'static str> {
+    match (&node.spec, object) {
+        (TokenSpecNode::CopyOf(copy), Some(object)) => {
+            lower_token_copy_creation(node, copy, object, player, quantity)
         }
-        TokenSpecNode::CopyOf(copy) => {
-            let object = match &copy.object {
-                PermanentOperandNode::BoundReference(reference) => {
-                    bound_permanent_reference_value(*reference, &[])
-                        .ok_or(TargetlessLoweringError::RequiresTarget)?
-                }
-                operand => lower_nontargeted_permanent_operand(operand)?,
-            };
-            lower_token_copy_creation(&node.body, copy, object, player, quantity)
-                .map_err(|_| TargetlessLoweringError::UnsupportedEffect)
+        (TokenSpecNode::CopyOf(_), None) => Err("the copied object of a token copy"),
+        (_, object) => {
+            let mut effect = lower_token_creation_body(node, player, quantity)?;
+            match (node.attached_to.is_some(), object) {
+                (true, Some(object)) => effect["attachTo"] = object,
+                (false, None) => {}
+                _ => return Err("the object an Aura token enters attached to"),
+            }
+            Ok(effect)
         }
     }
 }
@@ -67,8 +89,22 @@ pub(in crate::oracle::canonical) fn lower_token_creation_body(
     player: Value,
     quantity: Value,
 ) -> Result<Value, &'static str> {
-    let TokenSpecNode::Described(template) = &node.spec else {
-        return Err("a copied object lowered by the program that declares it");
+    let template = match &node.spec {
+        TokenSpecNode::Described(template) => template,
+        TokenSpecNode::CopyOf(_) => {
+            return Err("a copied object lowered by the program that declares it");
+        }
+        // CR 111.10: a predefined token is its catalog identity.
+        TokenSpecNode::Predefined(name) => {
+            let mut effect = json!({
+                "kind": "createTokens",
+                "controller": player,
+                "quantity": quantity,
+                "token": { "kind": "namedToken", "name": name },
+            });
+            lower_entry_state(&mut effect, node);
+            return Ok(effect);
+        }
     };
     let base = &template.creature;
     let stat = |expression: &NumericExpression| {

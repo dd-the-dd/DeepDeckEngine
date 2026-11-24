@@ -102,9 +102,13 @@ pub(in crate::oracle::canonical) fn recognize_owned_ability_reminder(
 ) -> MachineResult<AbilityReminderOwner> {
     let start = cursor.position();
     let before = cursor.token_slice(0, start);
-    if let Some(super::LocalEffectNode::CreateNamedTokens(creation)) = effects.effects.last() {
+    if let Some(creation) = effects
+        .effects
+        .last()
+        .and_then(super::reminded_token_creation)
+    {
         let checkpoint = cursor.checkpoint();
-        match super::recognize_named_token_creation_reminder(cursor, &creation.creation) {
+        match super::recognize_token_creation_reminder(cursor, &creation) {
             Ok(()) => return Ok(AbilityReminderOwner::NamedToken),
             Err(_) => cursor.rollback(checkpoint),
         }

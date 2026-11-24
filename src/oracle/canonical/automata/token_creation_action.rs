@@ -1,4 +1,5 @@
 use super::super::{MachineFailure, OracleTokenCursor};
+use super::counter_named_token::recognize_named_token_identity;
 use super::*;
 use crate::oracle::canonical::automata::VerbLemma;
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
@@ -22,12 +23,15 @@ impl ExplicitTokenCreationNode {
     }
 }
 
-/// What a created token is: a written description (CR 111.4) or a copy of
-/// an object with copiable-value exceptions (CR 111.8, 707.9).
+/// What a created token is: a written description (CR 111.4), a copy of
+/// an object with copiable-value exceptions (CR 111.8, 707.9), or a
+/// predefined catalog identity (CR 111.10) whose quantity or attachment the
+/// catalog-only reader cannot carry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum TokenSpecNode {
     Described(ExplicitTokenTemplateNode),
     CopyOf(TokenCopyNode),
+    Predefined(String),
 }
 
 /// `token(s) that's|that are a copy|copies of OBJECT[, except EXCEPTIONS]`.
@@ -66,6 +70,10 @@ pub(in crate::oracle::canonical) struct TokenCreationBodyNode {
     pub name: Option<String>,
     /// The `legendary` supertype of the created token (CR 205.4d).
     pub legendary: bool,
+    /// `attached to OBJECT`: an Aura token enters attached to that object
+    /// (CR 111.3, 303.4f), read by the shared contextual permanent operand
+    /// grammar (a target, the source, a bound reference).
+    pub attached_to: Option<PermanentOperandNode>,
 }
 
 impl TokenCreationBodyNode {
@@ -73,7 +81,7 @@ impl TokenCreationBodyNode {
     pub(in crate::oracle::canonical) fn described(&self) -> Option<&ExplicitTokenTemplateNode> {
         match &self.spec {
             TokenSpecNode::Described(template) => Some(template),
-            TokenSpecNode::CopyOf(_) => None,
+            TokenSpecNode::CopyOf(_) | TokenSpecNode::Predefined(_) => None,
         }
     }
 
@@ -81,8 +89,24 @@ impl TokenCreationBodyNode {
     pub(in crate::oracle::canonical) fn copy_of(&self) -> Option<&TokenCopyNode> {
         match &self.spec {
             TokenSpecNode::CopyOf(copy) => Some(copy),
-            TokenSpecNode::Described(_) => None,
+            TokenSpecNode::Described(_) | TokenSpecNode::Predefined(_) => None,
         }
+    }
+
+    /// The catalog identity, when the tokens are predefined (CR 111.10).
+    pub(in crate::oracle::canonical) fn predefined(&self) -> Option<&str> {
+        match &self.spec {
+            TokenSpecNode::Predefined(name) => Some(name),
+            TokenSpecNode::Described(_) | TokenSpecNode::CopyOf(_) => None,
+        }
+    }
+
+    /// The object operand the creation reads: the copied object or the
+    /// object the tokens enter attached to. A program declares its target.
+    pub(in crate::oracle::canonical) fn object_operand(&self) -> Option<&PermanentOperandNode> {
+        self.copy_of()
+            .map(|copy| &copy.object)
+            .or(self.attached_to.as_ref())
     }
 }
 
@@ -188,7 +212,12 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action_in_conte
     if let Err(f) = trial.consume(verb) {
         return TokenCreationAttempt::FailedCommitted(f);
     }
-    let head = match recognize_token_body_head(&mut trial, antecedent, objects) {
+    let head = match recognize_token_body_head(
+        &mut trial,
+        antecedent,
+        objects,
+        CatalogReader::Available,
+    ) {
         Ok(Some(head)) => head,
         Ok(None) => {
             // Reuse the complete catalog reader and all of its existing
@@ -203,7 +232,7 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action_in_conte
         }
         Err(f) => return TokenCreationAttempt::FailedCommitted(f),
     };
-    let body = match recognize_token_body_tail(&mut trial, head) {
+    let body = match recognize_token_body_tail(&mut trial, head, objects) {
         Ok(body) => body,
         Err(f) => return TokenCreationAttempt::FailedCommitted(f),
     };
@@ -340,13 +369,14 @@ fn recognize_token_conjuncts(
             break;
         }
         next.enter("token.coordination.description");
-        let head = recognize_token_body_head(&mut next, antecedent, None)?
-            .ok_or_else(|| next.fail("a written token description in the coordinated list"))?;
+        let head =
+            recognize_token_body_head(&mut next, antecedent, None, CatalogReader::Available)?
+                .ok_or_else(|| next.fail("a written token description in the coordinated list"))?;
         next.require(
-            head.copy_of().is_none(),
-            "a written description, not a copy, in a token list",
+            head.body.described().is_some(),
+            "a written description, not a copy or a catalog identity, in a token list",
         )?;
-        let body = recognize_token_body_tail(&mut next, head)?;
+        let body = recognize_token_body_tail(&mut next, head, None)?;
         additional.push(body);
         *trial = next;
         if and {
@@ -361,21 +391,21 @@ fn recognize_token_conjuncts(
     Ok(additional)
 }
 
-/// The written token description after a performer's `create(s)` verb
-/// (CR 111.1): quantity, characteristics and granted abilities. A catalog
-/// token (`a Treasure token`) is not an explicit description and is refused
-/// at the description state.
+/// The token description after a performer's `create(s)` verb (CR 111.1):
+/// quantity, characteristics and granted abilities, or a catalog identity
+/// (`a Treasure token`, CR 111.10) read as the same shared body.
 pub(in crate::oracle::canonical) fn recognize_performed_token_creation_body(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
 ) -> super::super::MachineResult<TokenCreationBodyNode> {
-    let Some(head) = recognize_token_body_head(cursor, antecedent, None)? else {
+    let Some(head) = recognize_token_body_head(cursor, antecedent, None, CatalogReader::Absent)?
+    else {
         cursor.enter("token.creation.performed.description");
         return Err(cursor.fail(
-            "an explicit token description after a player subject's verb (a catalog token is not read for a player subject)",
+            "a written token description or a catalog identity after a player subject's verb",
         ));
     };
-    recognize_token_body_tail(cursor, head)
+    recognize_token_body_tail(cursor, head, None)
 }
 
 /// Whether the token noun that opens a copy specification starts here.
@@ -397,13 +427,31 @@ enum TokenQuantity {
     EqualToAfterNoun,
 }
 
+/// The description up to its noun, and whether its `a number of ... equal
+/// to EXPR` amount follows the modifiers (`... tokens with flying equal to
+/// EXPR`): the tail then reads it.
+struct TokenBodyHead {
+    body: TokenCreationBodyNode,
+    amount_after_modifiers: bool,
+}
+
+impl From<TokenCreationBodyNode> for TokenBodyHead {
+    fn from(body: TokenCreationBodyNode) -> Self {
+        Self {
+            body,
+            amount_after_modifiers: false,
+        }
+    }
+}
+
 /// The description up to its `token(s)` noun; `Ok(None)` when no explicit
 /// descriptor starts (the catalog reader's input).
 fn recognize_token_body_head(
     trial: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
     objects: Option<TokenObjectContext<'_>>,
-) -> super::super::MachineResult<Option<TokenCreationBodyNode>> {
+    catalog_reader: CatalogReader,
+) -> super::super::MachineResult<Option<TokenBodyHead>> {
     let name = recognize_token_proper_name(trial)?;
     trial.enter("token.creation.quantity");
     let quantity = if name.is_some() {
@@ -440,7 +488,7 @@ fn recognize_token_body_head(
             return Err(trial.fail("a token copy without a given name"));
         }
         let copy = recognize_token_copy(trial, &quantity, objects)?;
-        return Ok(Some(TokenCreationBodyNode {
+        return Ok(Some(TokenBodyHead::from(TokenCreationBodyNode {
             quantity,
             spec: TokenSpecNode::CopyOf(copy),
             keywords: Vec::new(),
@@ -449,7 +497,8 @@ fn recognize_token_body_head(
             attacking: entry.attacking,
             name: None,
             legendary: false,
-        }));
+            attached_to: None,
+        })));
     }
     trial.enter("token.creation.supertype");
     // `legendary` is the description's supertype only before its stats or
@@ -478,13 +527,14 @@ fn recognize_token_body_head(
         TokenDescriptorAttempt::Recognized(node) => node,
         TokenDescriptorAttempt::FailedCommitted(f) => return Err(f),
         TokenDescriptorAttempt::NotClaimed => {
-            if matches!(quantity, TokenQuantity::EqualToAfterNoun) {
-                return Err(trial.fail("an explicit token description after `a number of`"));
+            if legendary || name.is_some() {
+                return Ok(None);
             }
-            return Ok(None);
+            return recognize_predefined_token_head(trial, quantity, entry, catalog_reader);
         }
     };
     trial.enter("token.creation.noun");
+    let mut amount_after_modifiers = false;
     let quantity = match quantity {
         TokenQuantity::Stated(quantity) => {
             let singular = matches!(quantity, NumericExpression::Atom(NumericAtom::Integer(1)));
@@ -493,11 +543,17 @@ fn recognize_token_body_head(
         }
         TokenQuantity::EqualToAfterNoun => {
             trial.consume("tokens")?;
-            trial.enter("token.creation.equal-to-quantity");
-            cursor_equal_to_quantity(trial)?
+            if word_at(trial, 0, "equal") {
+                trial.enter("token.creation.equal-to-quantity");
+                cursor_equal_to_quantity(trial)?
+            } else {
+                // Read by the tail after the modifiers; never lowered.
+                amount_after_modifiers = true;
+                NumericExpression::from(0)
+            }
         }
     };
-    Ok(Some(TokenCreationBodyNode {
+    let body = TokenCreationBodyNode {
         quantity,
         spec: TokenSpecNode::Described(template),
         keywords: Vec::new(),
@@ -506,7 +562,74 @@ fn recognize_token_body_head(
         attacking: entry.attacking,
         name,
         legendary,
+        attached_to: None,
+    };
+    Ok(Some(TokenBodyHead {
+        body,
+        amount_after_modifiers,
     }))
+}
+
+/// Whether the caller has the catalog-only creation reader as an
+/// alternative for a predefined identity with a positive literal quantity.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CatalogReader {
+    Available,
+    Absent,
+}
+
+/// A predefined catalog identity (CR 111.10) read as the shared body when
+/// the catalog-only reader cannot carry it: a quantity that is not a positive
+/// literal (`X Treasure tokens`, `a number of Food tokens equal to EXPR`) or
+/// an Aura entering attached (`a Monster Role token attached to ...`). Any
+/// other catalog creation stays the catalog reader's input (`Ok(None)`).
+fn recognize_predefined_token_head(
+    trial: &mut OracleTokenCursor<'_>,
+    quantity: TokenQuantity,
+    entry: TokenEntryStateNode,
+    catalog_reader: CatalogReader,
+) -> super::super::MachineResult<Option<TokenBodyHead>> {
+    let mut next = trial.clone();
+    let Ok(name) = recognize_named_token_identity(&mut next) else {
+        if matches!(quantity, TokenQuantity::EqualToAfterNoun) {
+            return Err(trial.fail("an explicit token description after `a number of`"));
+        }
+        return Ok(None);
+    };
+    let literal = matches!(
+        &quantity,
+        TokenQuantity::Stated(NumericExpression::Atom(NumericAtom::Integer(n))) if *n > 0
+    );
+    let singular = matches!(
+        &quantity,
+        TokenQuantity::Stated(NumericExpression::Atom(NumericAtom::Integer(1)))
+    );
+    let noun = if singular { "token" } else { "tokens" };
+    let attached = word_at(&next, 1, "attached") && word_at(&next, 2, "to");
+    if (catalog_reader == CatalogReader::Available && literal && !attached) || entry.attacking {
+        return Ok(None);
+    }
+    next.enter("token.predefined.noun");
+    next.consume(noun)?;
+    let quantity = match quantity {
+        TokenQuantity::Stated(quantity) => quantity,
+        TokenQuantity::EqualToAfterNoun => {
+            next.enter("token.creation.equal-to-quantity");
+            cursor_equal_to_quantity(&mut next)?
+        }
+    };
+    *trial = next;
+    Ok(Some(TokenBodyHead::from(TokenCreationBodyNode {
+        quantity,
+        spec: TokenSpecNode::Predefined(name),
+        keywords: Vec::new(),
+        abilities: Vec::new(),
+        tapped: entry.tapped,
+        attacking: false,
+        name: None,
+        legendary: false,
+        attached_to: None,
+    })))
 }
 
 /// `equal to EXPR` after `a number of SPEC tokens`: the shared definition
@@ -741,23 +864,37 @@ impl<Subject> BecomeTypesNode<Subject> {
 /// following `It has|They have` sentence states more of the same abilities.
 fn recognize_token_body_tail(
     trial: &mut OracleTokenCursor<'_>,
-    head: TokenCreationBodyNode,
+    head: TokenBodyHead,
+    objects: Option<TokenObjectContext<'_>>,
 ) -> super::super::MachineResult<TokenCreationBodyNode> {
-    let Some(template) = head.described().cloned() else {
+    let TokenBodyHead {
+        body: mut head,
+        amount_after_modifiers,
+    } = head;
+    if head.predefined().is_some() {
+        if word_at(trial, 0, "attached") && word_at(trial, 1, "to") {
+            head.attached_to = Some(recognize_token_attachment(trial, objects)?);
+        }
+        trial.enter("token.creation.complete");
+        return Ok(head);
+    }
+    let Some(mut template) = head.described().cloned() else {
         trial.enter("token.creation.complete");
         return Ok(head);
     };
     let type_line = template.granted_type_line();
-    let singular = matches!(
-        head.quantity,
-        NumericExpression::Atom(NumericAtom::Integer(1))
-    );
+    let singular = !amount_after_modifiers
+        && matches!(
+            head.quantity,
+            NumericExpression::Atom(NumericAtom::Integer(1))
+        );
     let mut granted = GrantedAbilityListNode {
         keywords: Vec::new(),
         abilities: Vec::new(),
     };
     let mut with_read = false;
     let mut entry_clause_read = false;
+    let mut color_clause_read = false;
     let mut name = head.name.clone();
     let mut tapped = head.tapped;
     let mut attacking = head.attacking;
@@ -788,7 +925,21 @@ fn recognize_token_body_tail(
             entry_clause_read = true;
             continue;
         }
+        if !color_clause_read && let Some(colors) = recognize_token_color_clause(trial, singular)? {
+            trial.enter("token.creation.color-clause");
+            trial.require(
+                template.creature.colors.is_empty(),
+                "one statement of the token's colors",
+            )?;
+            template.creature.colors = colors;
+            color_clause_read = true;
+            continue;
+        }
         break;
+    }
+    if amount_after_modifiers {
+        trial.enter("token.creation.equal-to-quantity");
+        head.quantity = cursor_equal_to_quantity(trial)?;
     }
     // `... tokens. They have ABILITIES` / `... token. It has ABILITIES`: the
     // next sentence states abilities the created tokens have, the same
@@ -827,6 +978,7 @@ fn recognize_token_body_tail(
     }
     trial.enter("token.creation.complete");
     Ok(TokenCreationBodyNode {
+        spec: TokenSpecNode::Described(template),
         keywords: granted.keywords,
         abilities: granted.abilities,
         name,
@@ -834,6 +986,32 @@ fn recognize_token_body_tail(
         attacking,
         ..head
     })
+}
+
+/// `attached to OBJECT`: the object an Aura token enters attached to
+/// (CR 111.3, 303.4f), read by the shared contextual permanent operand
+/// grammar. One object; a collection is not one attachment.
+fn recognize_token_attachment(
+    trial: &mut OracleTokenCursor<'_>,
+    objects: Option<TokenObjectContext<'_>>,
+) -> super::super::MachineResult<PermanentOperandNode> {
+    trial.enter("token.attachment.object");
+    trial.consume_phrase(&["attached", "to"])?;
+    let objects = trial.require_value(
+        objects,
+        "the effect context of the object an Aura token enters attached to",
+    )?;
+    let object = recognize_contextual_permanent_operand(
+        trial,
+        objects.name_links,
+        objects.name_failure,
+        objects.context,
+    )?;
+    trial.require(
+        !matches!(object, PermanentOperandNode::Collection { .. }),
+        "one object for the Aura token to enter attached to",
+    )?;
+    Ok(object)
 }
 
 /// Whether a compiled quoted ability is a characteristic-defining ability

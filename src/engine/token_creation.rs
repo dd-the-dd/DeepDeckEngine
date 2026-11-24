@@ -273,9 +273,24 @@ impl GameEngine {
                         .is_some_and(|id| id.starts_with(&token_prefix))
             })
             .count();
+        // CR 111.3, 303.4f: an Aura token created attached to an object
+        // enters attached to it; without a legal object it is not created.
+        let attach_host = match effect.get("attachTo") {
+            None => None,
+            Some(object) => {
+                let host = self.token_copy_source_id(object, stack_object, bindings, decisions)?;
+                match host.filter(|host| {
+                    self.aura_token_could_enchant(&created.definition, &token_controller, host)
+                }) {
+                    Some(host) => Some(host),
+                    None => return Ok(Vec::new()),
+                }
+            }
+        };
         let mut prepared = Vec::new();
         for _ in 0..quantity {
             let mut created = created.clone();
+            created.attached_to = attach_host.clone();
             let instance_id = format!("{token_prefix}{next_token_index}");
             next_token_index += 1;
             created.instance_id = instance_id.clone();
@@ -694,6 +709,70 @@ impl GameEngine {
             self.publish_prepared_enter_battlefield_triggers(&created);
         }
         Ok(created_ids)
+    }
+
+    /// Whether an Aura token with this definition could enchant the
+    /// battlefield object `host_id` (CR 303.4a): the object its `Enchant`
+    /// ability allows and is not protected from (CR 702.16c).
+    fn aura_token_could_enchant(
+        &self,
+        aura: &CardDefinition,
+        controller: &str,
+        host_id: &str,
+    ) -> bool {
+        let Some(enchant_ability) = enchant_ability_of(aura) else {
+            return false;
+        };
+        let Some((player_index, card_index)) = self.permanent_position(host_id) else {
+            return false;
+        };
+        let host = &self.state.players[player_index].battlefield[card_index];
+        !self.permanent_is_protected_from_card(host, aura)
+            && self
+                .selection_candidates_with_decisions(
+                    controller,
+                    &enchant_candidates_shape(enchant_ability),
+                    &BTreeMap::new(),
+                    false,
+                )
+                .is_some_and(|candidates| {
+                    candidates.contains(&TargetRef::Permanent {
+                        instance_id: host_id.to_string(),
+                    })
+                })
+    }
+
+    /// CR 704.5y, 303.7a: when a permanent has more than one Role attached
+    /// to it controlled by the same player, each of them except the one with
+    /// the latest timestamp is put into its owner's graveyard. A Role enters
+    /// attached (CR 111.3) and a controller's permanents are kept in entry
+    /// order, so the latest one of a controller is the last attached.
+    pub(super) fn put_superseded_roles_into_graveyard(&mut self) -> Result<(), EngineError> {
+        let mut latest = BTreeMap::<(String, String), String>::new();
+        let mut superseded = Vec::new();
+        for permanent in self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+        {
+            let Some(host) = permanent.attached_to.as_ref() else {
+                continue;
+            };
+            if !type_line_contains(&permanent.definition.type_line, "Role") {
+                continue;
+            }
+            if let Some(previous) = latest.insert(
+                (permanent.controller.clone(), host.clone()),
+                permanent.instance_id.clone(),
+            ) {
+                superseded.push(previous);
+            }
+        }
+        for instance_id in superseded {
+            self.move_permanent_to_graveyard(&instance_id, "roleUniqueness")?;
+        }
+        Ok(())
     }
 
     /// CR 508.4: a token put onto the battlefield attacking was never

@@ -1,8 +1,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CounterEffectNode, LocalEffectNode, LocalPlayerReference, NamedTokenCreationPattern,
-    NumericAtom, TargetBinding, recognize_counter_effect, recognize_named_token_coordination,
-    recognize_named_token_spec, recognize_player_reference,
+    NamedTokenSpec, NumericAtom, NumericExpression, TargetBinding, recognize_counter_effect,
+    recognize_named_token_coordination, recognize_named_token_spec, recognize_player_reference,
 };
 use crate::card_catalog::named_token_printing;
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
@@ -355,6 +355,188 @@ pub(in crate::oracle::canonical) fn compile_named_token_catalog_rules(
     oracle: &str,
 ) -> Option<Vec<serde_json::Value>> {
     compile_token_rules_with_shared_grammar(token_name, type_line, oracle)
+}
+
+/// The catalog identities a reminder after this action restates: a catalog
+/// creation, or a predefined identity read as the shared creation body.
+pub(in crate::oracle::canonical) fn reminded_token_creation(
+    effect: &LocalEffectNode,
+) -> Option<NamedTokenCreationPattern> {
+    match effect {
+        LocalEffectNode::CreateNamedTokens(creation) => Some(creation.creation.clone()),
+        LocalEffectNode::CreateExplicitTokens(node) if node.additional.is_empty() => {
+            predefined_creation(&node.body)
+        }
+        LocalEffectNode::PlayerAction(action) => match &action.action {
+            super::SingularPlayerAction::CreateTokens(body) => predefined_creation(body),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The catalog identity of a shared creation body, as the reminder reads it.
+fn predefined_creation(body: &super::TokenCreationBodyNode) -> Option<NamedTokenCreationPattern> {
+    let token_name = body.predefined()?.to_string();
+    // The reminder only reads the grammatical number.
+    let quantity = match body.quantity {
+        NumericExpression::Atom(NumericAtom::Integer(1)) => NumericAtom::Integer(1),
+        _ => NumericAtom::VariableX,
+    };
+    Some(NamedTokenCreationPattern::Single(NamedTokenSpec {
+        quantity,
+        token_name,
+        tapped: body.tapped,
+    }))
+}
+
+/// The reminder after a catalog creation: a Role restates its own rules and
+/// the Role uniqueness rule (CR 303.7); other identities are described as
+/// `It's a ... with "..."`.
+pub(in crate::oracle::canonical) fn recognize_token_creation_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    creation: &NamedTokenCreationPattern,
+) -> MachineResult<()> {
+    if let NamedTokenCreationPattern::Single(spec) = creation
+        && named_token_printing(&spec.token_name)
+            .ok()
+            .flatten()
+            .and_then(|printing| printing.type_line.as_deref())
+            .is_some_and(|type_line| {
+                type_line
+                    .split(|character: char| !character.is_alphanumeric())
+                    .any(|word| word == "Role")
+            })
+    {
+        return recognize_role_reminder(cursor, &spec.token_name);
+    }
+    recognize_named_token_creation_reminder(cursor, creation)
+}
+
+const ROLE_UNIQUENESS_REMINDER: [&str; 15] = [
+    "if",
+    "you",
+    "control",
+    "another",
+    "role",
+    "on",
+    "it",
+    ",",
+    "put",
+    "that",
+    "one",
+    "into",
+    "the",
+    "graveyard",
+    ".",
+];
+
+const LATER_ROLE_UNIQUENESS_REMINDER: [&str; 17] = [
+    "if",
+    "you",
+    "put",
+    "another",
+    "role",
+    "on",
+    "the",
+    "creature",
+    "later",
+    ",",
+    "put",
+    "this",
+    "one",
+    "into",
+    "the",
+    "graveyard",
+    ".",
+];
+
+/// `(If you control another Role on it, put that one into the graveyard.
+/// RULES)`: the restated Role uniqueness rule (CR 303.7a, before or after
+/// the rules) and the Role's own rules, compiled by the shared grammar and
+/// compared with the catalog rules other than its `Enchant` keyword.
+fn recognize_role_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    token_name: &str,
+) -> MachineResult<()> {
+    cursor.enter("reminder.role.open");
+    cursor.consume("(")?;
+    let phrase_at = |cursor: &OracleTokenCursor<'_>, position: usize, phrase: &[&str]| {
+        let tokens = cursor.token_slice(position, position + phrase.len());
+        tokens.len() == phrase.len()
+            && tokens
+                .iter()
+                .zip(phrase)
+                .all(|(token, word)| token.raw.eq_ignore_ascii_case(word))
+    };
+    if phrase_at(cursor, cursor.position(), &ROLE_UNIQUENESS_REMINDER) {
+        cursor.enter("reminder.role.uniqueness");
+        cursor.consume_phrase(&ROLE_UNIQUENESS_REMINDER)?;
+    }
+    cursor.enter("reminder.role.rules");
+    let rules_start = cursor.position();
+    let mut quoted = false;
+    let mut close = rules_start;
+    while let Some(token) = cursor.token_slice(close, close + 1).first() {
+        if token.raw == "\"" {
+            quoted = !quoted;
+        } else if token.raw == ")" && !quoted {
+            break;
+        }
+        close += 1;
+    }
+    let trailing = close >= rules_start + LATER_ROLE_UNIQUENESS_REMINDER.len()
+        && phrase_at(
+            cursor,
+            close - LATER_ROLE_UNIQUENESS_REMINDER.len(),
+            &LATER_ROLE_UNIQUENESS_REMINDER,
+        );
+    let rules_end = if trailing {
+        close - LATER_ROLE_UNIQUENESS_REMINDER.len()
+    } else {
+        close
+    };
+    cursor.require(rules_end > rules_start, "the restated rules of the Role")?;
+    let embedded = source_text(cursor.token_slice(rules_start, rules_end));
+    cursor.advance_to(rules_end)?;
+    if trailing {
+        cursor.enter("reminder.role.uniqueness");
+        cursor.consume_phrase(&LATER_ROLE_UNIQUENESS_REMINDER)?;
+    }
+    cursor.enter("reminder.role.close");
+    cursor.consume(")")?;
+    cursor.enter("reminder.role.semantic-match");
+    let Some(_guard) = ReminderCompilationGuard::enter(token_name) else {
+        return Err(cursor.fail("an acyclic named-token reminder reference"));
+    };
+    let printing = named_token_printing(token_name)
+        .ok()
+        .flatten()
+        .ok_or_else(|| cursor.fail("a catalog-backed Role definition"))?;
+    let type_line = printing
+        .type_line
+        .as_deref()
+        .ok_or_else(|| cursor.fail("a catalog Role type line"))?;
+    let catalog_oracle = printing
+        .oracle_text
+        .as_deref()
+        .ok_or_else(|| cursor.fail("catalog Role Oracle"))?;
+    let catalog_rules =
+        compile_token_rules_with_shared_grammar(token_name, type_line, catalog_oracle).map(
+            |rules| {
+                rules
+                    .into_iter()
+                    .filter(|rule| {
+                        !(rule["kind"] == "keywordAbility" && rule["ability"]["kind"] == "enchant")
+                    })
+                    .collect::<Vec<_>>()
+            },
+        );
+    let embedded_rules = compile_token_rules_with_shared_grammar(token_name, type_line, &embedded);
+    cursor.require(
+        embedded_rules.is_some() && embedded_rules == catalog_rules,
+        "the catalog Role rules other than its Enchant keyword",
+    )
 }
 
 pub(in crate::oracle::canonical) fn recognize_named_token_creation_reminder(
