@@ -95,6 +95,29 @@ pub(in crate::oracle::canonical) fn person_shifted_permission_tokens(
     Ok((tokens, may - 1))
 }
 
+/// The position of the period that ends the permission's sentence at the
+/// cursor; quoted abilities and reminder parentheses are nested scopes (CR
+/// 113.1, 207.2a). A permission owns its sentence only.
+pub(in crate::oracle::canonical) fn permission_sentence_end(
+    cursor: &OracleTokenCursor<'_>,
+) -> MachineResult<usize> {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => return Ok(cursor.position() + offset),
+            _ => {}
+        }
+        offset += 1;
+    }
+    Err(cursor.fail("a complete permission sentence"))
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PerformedEffectNode {
     pub performer: PerformerNode,

@@ -2358,8 +2358,9 @@ mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    performer_description, performer_modality, person_shifted_permission_tokens,
-    person_shifted_tokens, recognize_declaring_performer, recognize_performer,
+    performer_description, performer_modality, permission_sentence_end,
+    person_shifted_permission_tokens, person_shifted_tokens, recognize_declaring_performer,
+    recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,

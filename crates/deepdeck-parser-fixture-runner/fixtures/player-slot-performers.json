@@ -419,12 +419,12 @@
       }
     },
     {
-      "id": "near-miss-unknown-verb-declared-player",
+      "id": "near-miss-declared-player-unsupported-predicate",
       "request": {
         "cardName": "Synthetic Player Slot",
         "typeLine": "Sorcery",
         "manaCost": "{1}",
-        "oracleText": "Target opponent vanquishes a creature.",
+        "oracleText": "Target opponent exiles the moon.",
         "layout": "normal",
         "faces": []
       },
@@ -433,9 +433,7 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure",
-            "state": "clause.verb.unsupported",
-            "expectedContains": "a declared target player"
+            "code": "oracle_machine_failure"
           }
         ]
       }

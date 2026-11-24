@@ -1158,14 +1158,25 @@ fn recognize_effect_sequence_attempt_scoped(
                                             // keeps rejecting `unless`.
                                             permission_context.unless_frames =
                                                 super::UnlessFrameSupport::Unsupported;
-                                            match super::recognize_optional_sequence(
-                                                &mut shifted,
-                                                name_links,
-                                                name_failure,
-                                                &permission_context,
-                                            ) {
-                                                Ok(body) => {
-                                                    let end = shifted.position();
+                                            // The permission owns its sentence;
+                                            // the body keeps the original token
+                                            // positions for its diagnostics.
+                                            let body = shifted.attempt(|body| {
+                                                body.enter("clause.performer.may.permission");
+                                                body.consume_phrase(&["you", "may"])?;
+                                                let end = super::permission_sentence_end(body)?;
+                                                body.bounded(end + 1, |body| {
+                                                    recognize_effect_sequence_with_context(
+                                                        body,
+                                                        name_links,
+                                                        name_failure,
+                                                        &permission_context,
+                                                    )
+                                                })
+                                                .map(|sequence| (sequence, end))
+                                            });
+                                            match body {
+                                                Ok((body, end)) => {
                                                     match super::controller_reference_failure(
                                                         &head,
                                                         head.position(),

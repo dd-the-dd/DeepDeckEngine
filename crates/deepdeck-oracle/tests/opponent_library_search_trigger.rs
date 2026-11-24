@@ -148,12 +148,29 @@ fn a_different_named_source_is_not_treated_as_self() {
 
 #[test]
 fn an_explicit_different_draw_player_is_not_silently_changed_to_controller() {
+    // `an opponent draws` is a performer chosen on resolution by the
+    // controller (CR 608.2d): never the controller, never the triggering
+    // opponent by guess.
     let parsed = parse_card(
         "Test Archive",
         "Artifact",
         "Whenever an opponent searches their library, put a charge counter on this artifact and an opponent draws a card.",
     );
 
-    assert_eq!(parsed.status, "unsupported");
-    assert!(parsed.abilities[0].rule.is_none());
+    let rule = parsed.abilities[0]
+        .rule
+        .as_ref()
+        .expect("the chosen-opponent draw is a performer");
+    let draws = rule["effects"]
+        .as_array()
+        .expect("effects")
+        .iter()
+        .filter(|effect| effect["kind"] == "drawCards")
+        .collect::<Vec<_>>();
+    assert_eq!(draws.len(), 1, "{rule:#}");
+    assert_eq!(draws[0]["performer"]["kind"], "chosenPlayer", "{rule:#}");
+    assert_eq!(
+        draws[0]["performer"]["players"]["kind"], "opponentsOf",
+        "{rule:#}"
+    );
 }

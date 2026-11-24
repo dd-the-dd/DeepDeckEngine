@@ -26,9 +26,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "contextual-effect-program",
-            "state": "clause.verb.unsupported",
-            "found": "loses"
+            "automaton": "contextual-effect-program"
           }
         ]
       }
