@@ -98,6 +98,9 @@ mod kicked_damage_runtime;
 #[path = "tests/sentence_condition_runtime.rs"]
 mod sentence_condition_runtime;
 
+#[path = "tests/program_control_outcomes_runtime.rs"]
+mod program_control_outcomes_runtime;
+
 #[path = "tests/local_damage_life_fsm_runtime.rs"]
 mod local_damage_life_fsm_runtime;
 
