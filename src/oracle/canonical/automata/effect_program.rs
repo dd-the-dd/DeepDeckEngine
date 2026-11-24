@@ -23,6 +23,10 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         producer: OutcomeProducer,
         outcome: PerformanceOutcome,
         body: Box<EffectProgramNode>,
+        /// `If you do, A. If you don't, B.`: the complementary outcome's own
+        /// sentence, which resolves exactly when `body` does not (CR 608.2c).
+        /// Only an optional producer has one; a reflexive outcome never does.
+        otherwise: Option<Box<EffectProgramNode>>,
     },
     /// Independent sentence groups in written order. An outcome continuation
     /// conditions its own sentence only (CR 608.2c); later sentences are
@@ -81,17 +85,23 @@ impl EffectProgramNode {
     pub(in crate::oracle::canonical) fn action_count(&self) -> usize {
         match self {
             Self::Sequence(sequence) => sequence.effects.len(),
-            Self::Optional { body, .. }
-            | Self::Outcome {
+            Self::Optional { body, .. } => body.action_count(),
+            Self::Outcome {
                 producer: OutcomeProducer::Cost(_),
                 body,
+                otherwise,
                 ..
-            } => body.action_count(),
+            } => body.action_count() + otherwise.as_ref().map_or(0, |other| other.action_count()),
             Self::Outcome {
                 producer: OutcomeProducer::Action(action),
                 body,
+                otherwise,
                 ..
-            } => action.action_count() + body.action_count(),
+            } => {
+                action.action_count()
+                    + body.action_count()
+                    + otherwise.as_ref().map_or(0, |other| other.action_count())
+            }
             Self::Steps(steps) => steps.iter().map(Self::action_count).sum(),
             Self::Alternatives { options, .. } => options
                 .iter()
@@ -511,12 +521,54 @@ fn recognize_optional_cost_block(
         name_failure,
         context,
     )?;
+    let otherwise = recognize_complementary_outcome(
+        cursor,
+        permission_performer(player),
+        outcome,
+        name_links,
+        name_failure,
+        context,
+    )?;
     Ok(EffectProgramNode::Outcome {
         permission: Some(player),
         producer: OutcomeProducer::Cost(cost),
         outcome,
         body: Box::new(body),
+        otherwise,
     })
+}
+
+/// `If you don't, BODY.` directly after `If you do, BODY.` (or the reverse)
+/// of the same optional producer: the other branch of one outcome, read with
+/// the same ActionResult antecedent. A reflexive outcome has no complement.
+fn recognize_complementary_outcome(
+    cursor: &mut OracleTokenCursor<'_>,
+    slot: ActionResultSlot,
+    outcome: PerformanceOutcome,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<Box<EffectProgramNode>>> {
+    let complement = match outcome {
+        PerformanceOutcome::Performed => PerformanceOutcome::Declined,
+        PerformanceOutcome::Declined => PerformanceOutcome::Performed,
+        PerformanceOutcome::Reflexive => return Ok(None),
+    };
+    if !outcome_connector_at(cursor, 0).is_some_and(|(next, _)| next == complement) {
+        return Ok(None);
+    }
+    cursor.enter("program.outcome.complement");
+    let read = recognize_outcome_connector_after(cursor, slot)?;
+    cursor.require(read == complement, "the complementary outcome connector")?;
+    let body = recognize_outcome_body(
+        cursor,
+        "program.outcome.complement.body",
+        complement,
+        name_links,
+        name_failure,
+        context,
+    )?;
+    Ok(Some(Box::new(body)))
 }
 
 /// `ACTION. OUTCOME, BODY.` after `PLAYER may`. The action is the shared
@@ -544,11 +596,20 @@ fn recognize_optional_action_block(
         name_failure,
         context,
     )?;
+    let otherwise = recognize_complementary_outcome(
+        cursor,
+        permission_performer(player),
+        outcome,
+        name_links,
+        name_failure,
+        context,
+    )?;
     Ok(EffectProgramNode::Outcome {
         permission: Some(player),
         producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
+        otherwise,
     })
 }
 
@@ -666,6 +727,7 @@ fn recognize_mandatory_outcome_block(
         producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
+        otherwise: None,
     })
 }
 

@@ -61,12 +61,44 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         producer: OutcomeProducer::Action(action),
         outcome,
         body,
+        otherwise,
     } = step
     {
         let action = lower(cursor, action.inner_sequence())?;
         let body = lower(cursor, body.inner_sequence())?;
-        return lower_action_outcome(cursor, permission.as_ref(), action, *outcome, body)
-            .map_err(program_failure);
+        let otherwise = match otherwise {
+            Some(otherwise) => Some(lower(cursor, otherwise.inner_sequence())?),
+            None => None,
+        };
+        return lower_action_outcome(
+            cursor,
+            permission.as_ref(),
+            action,
+            *outcome,
+            body,
+            otherwise,
+        )
+        .map_err(program_failure);
+    }
+    if let EffectProgramNode::Outcome {
+        permission,
+        producer: OutcomeProducer::Cost(cost),
+        outcome,
+        body,
+        otherwise: Some(otherwise),
+    } = step
+    {
+        let body = lower(cursor, body.inner_sequence())?;
+        let otherwise = lower(cursor, otherwise.inner_sequence())?;
+        return lower_optional_cost_outcome(
+            cursor,
+            permission.as_ref(),
+            cost,
+            *outcome,
+            body,
+            Some(otherwise),
+        )
+        .map_err(program_failure);
     }
     if let EffectProgramNode::Alternatives { player, options } = step {
         let mut lowered = Vec::with_capacity(options.len());
@@ -183,10 +215,31 @@ fn lower_action_outcome(
     action: LoweredEffectSequence,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
+    otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
     match permission {
-        Some(player) => lower_optional_action(cursor, player, action, outcome, body),
-        None => lower_performed_action(cursor, action, outcome, body),
+        Some(player) => lower_optional_action(cursor, player, action, outcome, body, otherwise),
+        None => {
+            cursor.enter("lower.program.reflexive-action.complement");
+            cursor.require(
+                otherwise.is_none(),
+                "one outcome of a mandatory instruction (its complement has no witness)",
+            )?;
+            lower_performed_action(cursor, action, outcome, body)
+        }
+    }
+}
+
+/// The two complementary outcome programs in `onPerformed`/`onDeclined`
+/// order: `body` resolves for `outcome`, `otherwise` for its complement.
+fn complementary_effects(
+    outcome: PerformanceOutcome,
+    body: Vec<Value>,
+    otherwise: Option<Vec<Value>>,
+) -> (Vec<Value>, Option<Vec<Value>>) {
+    match outcome {
+        PerformanceOutcome::Declined => (otherwise.unwrap_or_default(), Some(body)),
+        PerformanceOutcome::Performed | PerformanceOutcome::Reflexive => (body, otherwise),
     }
 }
 
@@ -298,6 +351,7 @@ fn lower_optional_action(
     action: LoweredEffectSequence,
     outcome: PerformanceOutcome,
     body: LoweredEffectSequence,
+    otherwise: Option<LoweredEffectSequence>,
 ) -> MachineResult<LoweredEffectSequence> {
     cursor.enter("lower.program.optional-action.actor");
     let player = lower_optional_program_player(cursor, player)?;
@@ -306,15 +360,18 @@ fn lower_optional_action(
     // decision produced by the instruction must not be shadowed by its outcome.
     let instruction =
         measured_outcome_instruction(cursor, &action, &body, OutcomeInstructionRole::Optional)?;
+    if let Some(otherwise) = otherwise.as_ref() {
+        measured_outcome_instruction(cursor, &action, otherwise, OutcomeInstructionRole::Optional)?;
+    }
     let mut decisions = action.decisions;
     let (performed, declined) = match outcome {
-        PerformanceOutcome::Performed => {
+        PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
             decisions.extend(body.decisions);
-            (body.effects, None)
-        }
-        PerformanceOutcome::Declined => {
-            decisions.extend(body.decisions);
-            (vec![], Some(body.effects))
+            let otherwise = otherwise.map(|otherwise| {
+                decisions.extend(otherwise.decisions);
+                otherwise.effects
+            });
+            complementary_effects(outcome, body.effects, otherwise)
         }
         PerformanceOutcome::Reflexive => (vec![reflexive_trigger(&player, body)], None),
     };
@@ -446,40 +503,15 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             producer: OutcomeProducer::Cost(cost),
             outcome,
             body,
+            otherwise,
         } => {
-            cursor.enter("lower.program.optional-cost.actor");
-            let player = permission
-                .as_ref()
-                .ok_or_else(|| cursor.fail("a permission that offers the resolution cost"))?;
-            let player = lower_optional_program_player(cursor, player)?;
-            let lowered = wrap_lowered_effect_program(cursor, body, lowered)?;
-            cursor.enter("lower.program.optional-cost.effects");
+            cursor.enter("lower.program.optional-cost.complement");
             cursor.require(
-                !lowered.effects.is_empty(),
-                "a nonempty optional-cost outcome program",
+                otherwise.is_none(),
+                "a complementary outcome lowered with its own sentence",
             )?;
-            let cost = lower_resolution_cost(cost);
-            let (decisions, effects, decline) = match outcome {
-                // Targets of an ordinary outcome belong to the enclosing
-                // ability and are declared when it is put on the stack.
-                PerformanceOutcome::Performed => (lowered.decisions, lowered.effects, vec![]),
-                PerformanceOutcome::Declined => (lowered.decisions, vec![], lowered.effects),
-                // CR 603.12: the reflexive ability chooses its own targets
-                // when it is put on the stack after the cost is paid.
-                PerformanceOutcome::Reflexive => {
-                    (vec![], vec![reflexive_trigger(&player, lowered)], vec![])
-                }
-            };
-            Ok(LoweredEffectSequence {
-                decisions,
-                effects: vec![json!({
-                    "kind": "optionalPayCostPerformEffects",
-                    "player": player,
-                    "cost": cost,
-                    "effects": effects,
-                    "declineEffects": decline,
-                })],
-            })
+            let lowered = wrap_lowered_effect_program(cursor, body, lowered)?;
+            lower_optional_cost_outcome(cursor, permission.as_ref(), cost, *outcome, lowered, None)
         }
         EffectProgramNode::Optional { player, body } => {
             cursor.enter("lower.program.optional.actor");
@@ -501,6 +533,66 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             })
         }
     }
+}
+
+/// `optionalPayCostPerformEffects`: the payer may pay the resolution cost;
+/// the outcome program (and its complement, when written) runs on whether
+/// the cost was actually paid.
+fn lower_optional_cost_outcome(
+    cursor: &mut OracleTokenCursor<'_>,
+    permission: Option<&LocalPlayerReference>,
+    cost: &ResolutionCostNode,
+    outcome: PerformanceOutcome,
+    lowered: LoweredEffectSequence,
+    otherwise: Option<LoweredEffectSequence>,
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.optional-cost.actor");
+    let player =
+        permission.ok_or_else(|| cursor.fail("a permission that offers the resolution cost"))?;
+    let player = lower_optional_program_player(cursor, player)?;
+    cursor.enter("lower.program.optional-cost.effects");
+    cursor.require(
+        !lowered.effects.is_empty()
+            && otherwise
+                .as_ref()
+                .is_none_or(|otherwise| !otherwise.effects.is_empty()),
+        "a nonempty optional-cost outcome program",
+    )?;
+    let cost = lower_resolution_cost(cost);
+    let (decisions, effects, decline) = match outcome {
+        // Targets of an ordinary outcome belong to the enclosing ability
+        // and are declared when it is put on the stack.
+        PerformanceOutcome::Performed | PerformanceOutcome::Declined => {
+            let mut decisions = lowered.decisions;
+            let otherwise = otherwise.map(|otherwise| {
+                decisions.extend(otherwise.decisions);
+                otherwise.effects
+            });
+            let (effects, decline) = complementary_effects(outcome, lowered.effects, otherwise);
+            (decisions, effects, decline.unwrap_or_default())
+        }
+        // CR 603.12: the reflexive ability chooses its own targets when it
+        // is put on the stack after the cost is paid.
+        PerformanceOutcome::Reflexive => {
+            (vec![], vec![reflexive_trigger(&player, lowered)], vec![])
+        }
+    };
+    cursor.enter("lower.program.optional-cost.declarations");
+    require_distinct_declarations(
+        cursor,
+        &decisions,
+        "distinct declaration ids across the outcome and its complement",
+    )?;
+    Ok(LoweredEffectSequence {
+        decisions,
+        effects: vec![json!({
+            "kind": "optionalPayCostPerformEffects",
+            "player": player,
+            "cost": cost,
+            "effects": effects,
+            "declineEffects": decline,
+        })],
+    })
 }
 
 fn lower_optional_program_player(

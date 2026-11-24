@@ -457,6 +457,60 @@
       }
     },
     {
+      "id": "exact-crovax-complementary-outcomes",
+      "request": {
+        "cardName": "Crovax the Cursed",
+        "typeLine": "Legendary Creature — Vampire Noble",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Crovax enters with four +1/+1 counters on it.\nAt the beginning of your upkeep, you may sacrifice a creature. If you do, put a +1/+1 counter on Crovax. If you don't, remove a +1/+1 counter from Crovax.\n{B}: Crovax gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-ravenous-vampire-complementary-outcomes",
+      "request": {
+        "cardName": "Ravenous Vampire",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying\nAt the beginning of your upkeep, you may sacrifice a nonartifact creature. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-complement-after-reflexive",
+      "request": {
+        "cardName": "Synthetic Reflex",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, you may pay {1}. When you do, draw a card. If you don't, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-instead-without-replaced-sentence",
       "request": {
         "cardName": "Synthetic Lone Instead",

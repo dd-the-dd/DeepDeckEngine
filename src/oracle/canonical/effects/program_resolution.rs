@@ -238,6 +238,7 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
             permission: Some(player),
             producer: OutcomeProducer::Cost(_),
             body,
+            otherwise: None,
             ..
         } => *player == LocalPlayerReference::Controller && program_in_slice(body),
         // The checked scope walks one sequence; independent steps and the
