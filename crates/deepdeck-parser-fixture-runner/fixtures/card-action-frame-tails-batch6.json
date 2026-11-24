@@ -427,6 +427,68 @@
       }
     },
     {
+      "id": "exact-dream-pillager-from-among-those-exiled-cards",
+      "request": {
+        "cardName": "Dream Pillager",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, exile that many cards from the top of your library. Until end of turn, you may cast spells from among those exiled cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-lightning-security-sergeant-while-you-control-the-named-source",
+      "request": {
+        "cardName": "Lightning, Security Sergeant",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{2}{R}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lightning deals combat damage to a player, exile the top card of your library. You may play that card for as long as you control Lightning.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "whileSourceControlled"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-victor-mancha-while-you-control-the-named-source",
+      "request": {
+        "cardName": "Victor Mancha, Runaway",
+        "typeLine": "Legendary Artifact Creature — Human Hero",
+        "manaCost": "{5}",
+        "oracleText": "When Victor Mancha enters, exile target card from your graveyard. You may play it for as long as you control Victor Mancha.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "unused-combination-that-damage-and-life-cost-from-graveyard",
       "request": {
         "cardName": "Frame Tail Witness",
