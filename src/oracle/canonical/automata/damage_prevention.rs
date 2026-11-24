@@ -10,8 +10,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, EffectRecognitionContext, LocalPlayerReference, NumericAtom,
-    PermanentOperandNode, TargetListNode, TargetSelector, damage_target_supported,
+    DamageSourceNode, EffectDurationNode, EffectRecognitionContext, LocalPlayerReference,
+    NumericAtom, PermanentOperandNode, TargetListNode, TargetSelector, damage_target_supported,
     recognize_contextual_permanent_operand, recognize_effect_duration, recognize_numeric_atom,
     recognize_player_reference, recognize_target_list, selector_guarantees_permanent,
 };
@@ -34,6 +34,10 @@ pub(in crate::oracle::canonical) enum DamagePartyNode {
     Targets(TargetListNode),
     Player(LocalPlayerReference),
     Object(PermanentOperandNode),
+    /// `a [red] source of your choice` (CR 609.7a): a source the
+    /// controller chooses as the effect resolves, read by the shared
+    /// damage-source child; the shield applies to that chosen source.
+    ChosenSource(DamageSourceNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -75,6 +79,23 @@ fn starts_target_list(cursor: &OracleTokenCursor<'_>) -> bool {
         .is_some_and(|token| token.token_type == "quantity")
 }
 
+/// `a|an [QUALIFIERS] source of your choice` at the cursor: the chosen
+/// source of a prevention, a lexical probe within the clause.
+fn chosen_source_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    (word(0, "a") || word(0, "an"))
+        && (1..6).any(|offset| {
+            word(offset, "source")
+                && word(offset + 1, "of")
+                && word(offset + 2, "your")
+                && word(offset + 3, "choice")
+        })
+}
+
 fn recognize_party(
     cursor: &mut OracleTokenCursor<'_>,
     role: PartyRole,
@@ -94,6 +115,19 @@ fn recognize_party(
         return Ok(DamagePartyNode::Player(recognize_player_reference(
             cursor, None,
         )?));
+    }
+    if role == PartyRole::Source && chosen_source_follows(cursor) {
+        let source = super::recognize_damage_source(
+            cursor,
+            &super::DamageReplacementContext {
+                name_links,
+                name_failure,
+                attachment_word: None,
+            },
+        )?;
+        cursor.enter("effect.prevent.source.choice");
+        cursor.consume_phrase(&["of", "your", "choice"])?;
+        return Ok(DamagePartyNode::ChosenSource(source));
     }
     if starts_target_list(cursor) {
         let targets = recognize_target_list(cursor)?;
@@ -247,7 +281,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
                         selector_guarantees_permanent(&targets.slots[0].selector)
                     }
                     DamagePartyNode::Object(_) => true,
-                    DamagePartyNode::Player(_) => false,
+                    DamagePartyNode::Player(_) | DamagePartyNode::ChosenSource(_) => false,
                 },
                 "a permanent that is dealt damage and deals damage",
             )?;

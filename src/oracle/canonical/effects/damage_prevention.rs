@@ -20,8 +20,14 @@ pub(in crate::oracle::canonical) fn lower_prevent_damage_shield(
     if let Some(recipient) = recipient {
         shield["recipient"] = recipient;
     }
-    if let Some(source) = source {
-        shield["source"] = source;
+    match source {
+        // `a SOURCE of your choice` (CR 609.7a): chosen as the shield is
+        // created, by the shared resolution choice.
+        Some(source) if source["kind"] == "chosenSource" => {
+            shield["sourceChoice"] = json!({"where": source["where"].clone()});
+        }
+        Some(source) => shield["source"] = source,
+        None => {}
     }
     // `dealt to and dealt by PARTY`: a second filter over the same party as
     // the damage source (CR 615.1a).
@@ -60,6 +66,14 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_damage_party(
         )
         | DamagePartyNode::Targets(_) => Err(TargetlessLoweringError::RequiresTarget),
         DamagePartyNode::Object(operand) => lower_nontargeted_permanent_operand(operand),
+        // The choice is made on resolution; `lower_prevent_damage_shield`
+        // turns this placeholder into the shield's `sourceChoice`.
+        DamagePartyNode::ChosenSource(source) => {
+            let cursor = OracleTokenCursor::new("prevention.chosen-source.lowering", &[]);
+            let filter = lower_chosen_damage_source_filter(&cursor, source)
+                .map_err(|_| TargetlessLoweringError::UnsupportedEffect)?;
+            Ok(json!({"kind": "chosenSource", "where": filter}))
+        }
     }
 }
 

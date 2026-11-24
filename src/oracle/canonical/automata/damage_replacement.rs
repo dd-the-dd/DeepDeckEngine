@@ -300,7 +300,7 @@ pub(in crate::oracle::canonical) fn recognize_damage_threshold(
 /// spell`) or the event-supplied noun `source` after shared characteristics
 /// (`a red or artifact source you control`). A source is any object, so the
 /// event, not the query, supplies that head (CR 120.1, 609.7).
-fn recognize_damage_source(
+pub(in crate::oracle::canonical) fn recognize_damage_source(
     cursor: &mut OracleTokenCursor<'_>,
     context: &DamageReplacementContext<'_>,
 ) -> MachineResult<DamageSourceNode> {

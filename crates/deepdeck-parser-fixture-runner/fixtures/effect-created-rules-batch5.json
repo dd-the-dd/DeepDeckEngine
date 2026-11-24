@@ -296,6 +296,76 @@
       }
     },
     {
+      "id": "exact-pay-no-heed",
+      "request": {
+        "cardName": "Pay No Heed",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all damage a source of your choice would deal this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/sourceChoice/where",
+                "equals": null
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-colored-chosen-source-to-you",
+      "request": {
+        "cardName": "Test Ward Charm",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all damage that would be dealt to you this turn by a red source of your choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-created-trigger-over-an-event-union",
       "request": {
         "cardName": "Test Created Union",
