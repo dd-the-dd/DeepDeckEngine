@@ -273,6 +273,13 @@ fn read_condition_atom(
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_controlled_permanents_atom(cursor);
     }
+    // Compare: the state of the player the binding environment names.
+    if word_is(cursor, 0, "that")
+        && word_is(cursor, 1, "player")
+        && (word_is(cursor, 2, "controls") || word_is(cursor, 2, "has"))
+    {
+        return recognize_bound_player_state_atom(cursor);
+    }
     // Compare: a player population's state.
     if super::collective_opponents_condition_starts(cursor) {
         return super::recognize_collective_opponents_condition(cursor).map(player_state_atom);
@@ -303,6 +310,11 @@ fn read_condition_atom(
     // spells were cast last turn`.
     if super::object_event_history_starts(cursor) {
         return super::recognize_object_event_history_atom(cursor);
+    }
+    // ObjectSatisfies: `there are no KIND counters on OBJECT` (CR 122.1).
+    if existential_counter_follows(cursor) {
+        return recognize_existential_counter_atom(cursor, context)
+            .map(ConditionAtom::ObjectSatisfies);
     }
     // Compare: `there are N or more CARDS in your graveyard`.
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {
@@ -351,6 +363,11 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.controlled-permanents.kind");
+    // `you control no QUERY` / `you control exactly N QUERY`: the absence or
+    // exact count read by the shared threshold (CR 109.4 control).
+    if word_is(cursor, 2, "no") || word_is(cursor, 2, "exactly") {
+        return recognize_controlled_quantity_atom(cursor);
+    }
     let presence = cursor.peek_ahead(2).is_some_and(|word| {
         word.eq_ignore_ascii_case("a")
             || word.eq_ignore_ascii_case("an")
@@ -362,6 +379,110 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
         recognize_controlled_permanent_count_query(cursor)?
     };
     Ok(query.into_atom())
+}
+
+/// `you control THRESHOLD [other] QUERY` with a quantifier the fixed count
+/// query does not read (`no`, `exactly N`): the controller's count of the
+/// shared permanent query compared with the shared threshold.
+fn recognize_controlled_quantity_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.controlled-permanents.quantity.subject");
+    cursor.consume("you")?;
+    cursor.consume("control")?;
+    cursor.enter("condition.controlled-permanents.quantity.threshold");
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.enter("condition.controlled-permanents.quantity.query");
+    let query = super::recognize_query_excluding_source(cursor, recognize_object_query)?;
+    cursor.require(
+        query.controller.is_none(),
+        "an unscoped permanent selector after `you control`",
+    )?;
+    let exclude_source = query.exclude_source;
+    let controlled = ObjectQueryNode {
+        controller: Some(ObjectControllerScope::AbilityController),
+        ..query
+    };
+    cursor.require(
+        controlled.denotes_battlefield_permanents(),
+        "a selector that establishes the permanent domain",
+    )?;
+    Ok(ConditionAtom::Compare(ConditionComparison::measured(
+        ConditionPlayerSubject::Controller,
+        PlayerStateMeasure::ControlledPermanents {
+            predicate: controlled.predicate,
+            exclude_source,
+        },
+        threshold,
+    )))
+}
+
+/// `that player controls|has ...`: a player-state proposition whose subject
+/// is resolved by the one binding-environment resolver (`recognize_that_player`).
+/// Only the player the triggering event records has a condition lowering; a
+/// player declared by the program is refused instead of being re-read.
+fn recognize_bound_player_state_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.bound-player.subject");
+    let environment = installed_binding_environment(cursor);
+    let subject = match recognize_that_player(cursor, &environment)? {
+        BoundPlayerReference::EventPlayer => ConditionPlayerSubject::EventPlayer,
+        _ => {
+            cursor.enter("condition.bound-player.binding");
+            return Err(cursor.fail(
+                "the player the triggering event records; a declared player is not read by a condition",
+            ));
+        }
+    };
+    cursor.enter("condition.bound-player.verb");
+    if word_is(cursor, 0, "has") {
+        cursor.consume("has")?;
+        let proposition = recognize_player_possession_proposition(cursor, subject)?;
+        return Ok(player_state_atom(PlayerStateConditionNode {
+            subject,
+            proposition,
+        }));
+    }
+    cursor.consume("controls")?;
+    if word_is(cursor, 0, "more") || word_is(cursor, 0, "fewer") {
+        // `that player controls more QUERY than you`: two counts of one
+        // query, the bound player's and the controller's.
+        cursor.enter("condition.bound-player.comparative");
+        let more = word_is(cursor, 0, "more");
+        consume_current(cursor)?;
+        let query = recognize_object_query(cursor)?;
+        cursor.require(
+            query.controller.is_none(),
+            "a permanent query without its own controller relation",
+        )?;
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Permanent),
+            "a predicate valid for a battlefield permanent",
+        )?;
+        cursor.enter("condition.bound-player.comparative.than");
+        cursor.consume("than")?;
+        cursor.consume("you")?;
+        let measure = || PlayerStateMeasure::ControlledPermanents {
+            predicate: query.predicate.clone(),
+            exclude_source: false,
+        };
+        return Ok(ConditionAtom::Compare(ConditionComparison {
+            subject,
+            left: ConditionNumber::Player(measure()),
+            operator: if more {
+                NumericComparisonOperator::GreaterThan
+            } else {
+                NumericComparisonOperator::LessThan
+            },
+            right: ConditionNumber::ControllerMeasure(measure()),
+        }));
+    }
+    let proposition = recognize_controlled_permanents_proposition(cursor)?;
+    Ok(player_state_atom(PlayerStateConditionNode {
+        subject,
+        proposition,
+    }))
 }
 
 /// A player-state proposition is a comparison over a measure of its subject.
@@ -623,10 +744,12 @@ fn recognize_referenced_object_atom(
         cursor.consume("that")?;
         cursor.consume("card")?;
         resolve_card_anaphor(cursor, context)?
-    } else if word_is(cursor, 0, "that") && bound_object_reference_starts(cursor) {
-        // A condition reads the object's last known information, so the
-        // nominal may name a departed event object (`If that creature was a
-        // Villain` after `another creature dies`).
+    } else {
+        // `that NOUN`: the one nominal-anaphor resolver of the binding
+        // environment. A condition reads the object's last known
+        // information, so the nominal may name a departed event object (`If
+        // that creature was a Villain` after `another creature dies`); a
+        // nominal without an antecedent in scope fails there, never guessed.
         cursor.enter("condition.sentence.object.nominal-anaphor");
         let program = cursor.require_value(
             context.program,
@@ -636,26 +759,6 @@ fn recognize_referenced_object_atom(
             cursor,
             &BindingEnvironment::for_permanent_context(program.effects),
         )?)
-    } else {
-        cursor.enter("condition.sentence.object.nominal-anaphor");
-        let program = cursor.require_value(
-            context.program,
-            "a nominal anaphor of an effect program's proven antecedent",
-        )?;
-        match recognize_contextual_permanent_operand(
-            cursor,
-            context.name_links,
-            context.name_failure,
-            program.effects,
-        )? {
-            PermanentOperandNode::BoundReference(reference) => {
-                ConditionObjectReference::Permanent(reference)
-            }
-            _ => {
-                cursor.enter("condition.sentence.object.nominal-anaphor");
-                return Err(cursor.fail("a nominal anaphor of one proven permanent antecedent"));
-            }
-        }
     };
     let predicate = recognize_object_state_predicate(cursor, false)?;
     finish_referenced_object(cursor, context, object, predicate)
@@ -788,6 +891,94 @@ fn recognize_status_list(
         (_, Some("and")) => ObjectPredicate::Intersection(members),
         _ => ObjectPredicate::Union(members),
     }))
+}
+
+/// The width of `there is|are` / `there's` at the cursor, if present.
+fn existential_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    if contraction_is(cursor, 0, "there", "s") {
+        Some(1)
+    } else if word_is(cursor, 0, "there") && (word_is(cursor, 1, "is") || word_is(cursor, 1, "are"))
+    {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead: `there is|are QUANTITY [KIND] counter(s) on ...`, the
+/// existential form of a counter count on one object. A zone count (`there
+/// are N cards in your graveyard`) is not this form.
+fn existential_counter_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let Some(start) = existential_width(cursor) else {
+        return false;
+    };
+    for offset in start..start + 7 {
+        let Some(raw) = cursor.peek_ahead(offset) else {
+            return false;
+        };
+        if raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters") {
+            return word_is(cursor, offset + 1, "on");
+        }
+        if matches!(raw, "," | "." | ";") || raw.eq_ignore_ascii_case("in") {
+            return false;
+        }
+    }
+    false
+}
+
+/// `there are no KIND counters on OBJECT`, `there is a KIND counter on it`,
+/// `there are N or more counters on this permanent`: the number of counters
+/// on one referenced object (CR 122.1), read with the shared threshold and
+/// counter name, and tested with the shared object predicate. The object is
+/// resolved like the subject of any object condition; it is never guessed.
+fn recognize_existential_counter_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ReferencedObjectConditionNode> {
+    cursor.enter("condition.existential-counter.existential");
+    let width = existential_width(cursor).ok_or_else(|| cursor.fail("`there is|are`"))?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.existential-counter.quantity");
+    let threshold = recognize_count_threshold(cursor, true)?;
+    let (minimum, maximum) = match threshold.operator {
+        ThresholdOperator::AtLeast => (threshold.value, None),
+        ThresholdOperator::AtMost => (0, Some(threshold.value)),
+        ThresholdOperator::Exactly => (threshold.value, Some(threshold.value)),
+    };
+    cursor.enter("condition.existential-counter.kind");
+    let counter = if word_is(cursor, 0, "counter") || word_is(cursor, 0, "counters") {
+        None
+    } else {
+        Some(recognize_counter_name(cursor)?)
+    };
+    cursor.enter("condition.existential-counter.noun");
+    cursor.require(
+        word_is(cursor, 0, "counter") || word_is(cursor, 0, "counters"),
+        "`counter` or `counters`",
+    )?;
+    consume_current(cursor)?;
+    cursor.enter("condition.existential-counter.location");
+    cursor.consume("on")?;
+    cursor.enter("condition.existential-counter.object");
+    let object = if word_is(cursor, 0, "it") {
+        cursor.consume("it")?;
+        resolve_object_anaphor(cursor, context)?
+    } else {
+        recognize_source_reference(cursor, context.name_links, context.name_failure)?;
+        ConditionObjectReference::SOURCE
+    };
+    finish_referenced_object(
+        cursor,
+        context,
+        object,
+        ObjectPredicate::HasCounter(CounterPresence {
+            counter,
+            minimum,
+            maximum,
+        }),
+    )
 }
 
 /// `it` denotes exactly one proven singular antecedent: a permanent subject,

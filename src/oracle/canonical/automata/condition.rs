@@ -213,6 +213,7 @@ pub(in crate::oracle::canonical) fn threshold_comparison(
             threshold.value,
         ),
         ThresholdOperator::AtMost => (NumericComparisonOperator::LessThanOrEqual, threshold.value),
+        ThresholdOperator::Exactly => (NumericComparisonOperator::Equal, threshold.value),
     }
 }
 
@@ -226,6 +227,9 @@ pub(in crate::oracle::canonical) enum ConditionNumber {
     Player(PlayerStateMeasure),
     /// The greatest value of a measure among the opponents of the subject.
     GreatestOpponent(PlayerStateMeasure),
+    /// A measure of the ability's controller whatever the comparison's
+    /// subject (`that player controls more lands than you`).
+    ControllerMeasure(PlayerStateMeasure),
 }
 
 /// The object an object condition tests, with its predicate.

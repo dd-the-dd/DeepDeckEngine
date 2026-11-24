@@ -1561,12 +1561,13 @@ fn recognize_effect_sequence_attempt_scoped(
                                 slot_index: 0,
                             });
                         }
-                        super::ChoiceDomainNode::PlayerTarget(_) => {
+                        super::ChoiceDomainNode::PlayerTarget(_)
+                        | super::ChoiceDomainNode::Player(_) => {
                             memory.last_player_target = Some(PlayerTargetBinding { effect_index });
                         }
                         // A characteristic choice introduces no object or
                         // player antecedent; earlier antecedents remain.
-                        super::ChoiceDomainNode::CreatureType => {}
+                        super::ChoiceDomainNode::CreatureType | super::ChoiceDomainNode::Color => {}
                     }
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect

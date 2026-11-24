@@ -1,0 +1,568 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/binding-environment-choices",
+  "cases": [
+    {
+      "id": "sibling-color-chosen-on-resolution-group-pump",
+      "request": {
+        "cardName": "Generalized Color Rally",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Choose a color. Creatures of the chosen color get +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseColor"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "resolutionColor"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-controlled-group-of-the-chosen-color",
+      "request": {
+        "cardName": "Generalized Banner Call",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Choose a color. Creatures you control of the chosen color get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseColor"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-color-choice-without-consumer",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose a color. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.chosen-color.consumer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-chosen-color-without-producer",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Creatures of the chosen color get +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_context_binding_failure",
+            "state": "binding.chosen-color.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-chosen-on-resolution-is-that-player",
+      "request": {
+        "cardName": "Generalized Chosen Rival",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Choose an opponent. That player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/0/candidates/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/bindAs",
+                "equals": "resolutionPlayer0"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/1/player/id",
+                "equals": "resolutionPlayer0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-random-opponent-and-counter-absence-count",
+      "request": {
+        "cardName": "Generalized Random Reckoning",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Choose an opponent at random. That player loses life equal to the number of creatures you control with no counters on them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/0/selection/kind",
+                "equals": "random"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-qualified-player-choice",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Choose an opponent who controls a creature. That player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-demonic-rising-exact-count",
+      "request": {
+        "cardName": "Demonic Rising",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "At the beginning of your end step, if you control exactly one creature, create a 5/5 black Demon creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glimmervoid-absence",
+      "request": {
+        "cardName": "Glimmervoid",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "At the beginning of the end step, if you control no artifacts, sacrifice this land.\n{T}: Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exact-count-of-two-artifacts",
+      "request": {
+        "cardName": "Generalized Twin Sentinel",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, if you control exactly two artifacts, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-keeper-of-the-accord-event-player-comparison",
+      "request": {
+        "cardName": "Keeper of the Accord",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "At the beginning of each opponent's end step, if that player controls more creatures than you, create a 1/1 white Soldier creature token.\nAt the beginning of each opponent's end step, if that player controls more lands than you, you may search your library for a basic Plains card, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": ">"
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/left/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/condition/right/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/left/player/kind",
+                "equals": "triggeringPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lavaborn-muse-event-player-hand-count",
+      "request": {
+        "cardName": "Lavaborn Muse",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{R}",
+        "oracleText": "At the beginning of each opponent's upkeep, if that player has two or fewer cards in hand, this creature deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countCards"
+              },
+              {
+                "pointer": "/condition/left/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/condition/left/zone/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-event-player",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your upkeep, if that player controls more creatures than you, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "expectedContains": "prior player binding"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-nominal-anaphor-without-antecedent",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card. If that creature is tapped, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tezzerets-ambition-absence-in-program",
+      "request": {
+        "cardName": "Tezzeret's Ambition",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Draw three cards. If you control no artifacts, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-no-counters-on-the-source-guard",
+      "request": {
+        "cardName": "Generalized Spent Quiver",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your upkeep, if there are no arrowhead counters on this artifact, sacrifice it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "objectMatchesFilter"
+              },
+              {
+                "pointer": "/condition/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/condition/where/kind",
+                "equals": "hasCounter"
+              },
+              {
+                "pointer": "/condition/where/maximum",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-there-are-no-counters-without-object",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your upkeep, if there are no arrowhead counters on that creature, sacrifice this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

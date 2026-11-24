@@ -57,6 +57,7 @@ pub(in crate::oracle::canonical) fn object_predicate_uses_x(predicate: &ObjectPr
         | ObjectPredicate::PermanentCard
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor
         | ObjectPredicate::ObjectKind(_) => false,
     }
 }

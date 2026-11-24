@@ -127,26 +127,37 @@ pub(in crate::oracle::canonical) fn recognize_graveyard_count_atom(
         )?;
         cursor.consume(&copula)?;
     }
-    let (threshold, direction, singular) = recognize_count_comparison(cursor)?;
+    // `no` (none, CR 609.3-style absence) and `exactly N` read through the
+    // shared threshold; `a`, `N or more|fewer` keep the original reader.
+    let (threshold, singular) = if word_is(cursor, 0, "no") || word_is(cursor, 0, "exactly") {
+        let threshold = recognize_count_threshold(cursor, false)?;
+        let singular = threshold.value == 1 && threshold.operator == ThresholdOperator::Exactly;
+        (threshold, singular)
+    } else {
+        let (value, direction, singular) = recognize_count_comparison(cursor)?;
+        let operator = match direction {
+            ControlledCountDirection::OrMore => ThresholdOperator::AtLeast,
+            ControlledCountDirection::OrFewer => ThresholdOperator::AtMost,
+        };
+        (CountThreshold { operator, value }, singular)
+    };
     cursor.enter("condition.static.graveyard-count.cards");
     let predicate = recognize_search_card_selector(cursor, !singular)?;
     cursor.enter("condition.static.graveyard-count.zone");
     cursor.consume("in")?;
     cursor.consume("your")?;
-    cursor.consume("graveyard")?;
+    let zone = if word_is(cursor, 0, "hand") {
+        PlayerCardZone::Hand
+    } else if word_is(cursor, 0, "graveyard") {
+        PlayerCardZone::Graveyard
+    } else {
+        return Err(cursor.fail("`graveyard` or `hand`"));
+    };
+    consume_current(cursor)?;
     Ok(ConditionAtom::Compare(ConditionComparison::measured(
         ConditionPlayerSubject::Controller,
-        PlayerStateMeasure::CardsInZone {
-            zone: PlayerCardZone::Graveyard,
-            predicate,
-        },
-        CountThreshold {
-            operator: match direction {
-                ControlledCountDirection::OrMore => ThresholdOperator::AtLeast,
-                ControlledCountDirection::OrFewer => ThresholdOperator::AtMost,
-            },
-            value: threshold,
-        },
+        PlayerStateMeasure::CardsInZone { zone, predicate },
+        threshold,
     )))
 }
 
@@ -469,8 +480,8 @@ fn history_aggregate(
     match threshold.operator {
         ThresholdOperator::AtLeast if threshold.value <= 1 => Ok(HistoryAggregate::Total),
         ThresholdOperator::AtLeast => Ok(HistoryAggregate::GreatestPerPlayer),
-        ThresholdOperator::AtMost => Err(cursor.fail(
-            "a lower bound for a player population's history (an upper bound needs the least per-player count)",
+        ThresholdOperator::AtMost | ThresholdOperator::Exactly => Err(cursor.fail(
+            "a lower bound for a player population's history (an upper or exact bound needs every per-player count)",
         )),
     }
 }
@@ -712,7 +723,8 @@ fn predicate_reads_object_state(predicate: &ObjectPredicate) -> bool {
         ObjectPredicate::Status(_)
         | ObjectPredicate::Designation(_)
         | ObjectPredicate::HasCounter(_)
-        | ObjectPredicate::ChosenCreatureType => true,
+        | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor => true,
         ObjectPredicate::Not(operand) => predicate_reads_object_state(operand),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
             operands.iter().any(predicate_reads_object_state)

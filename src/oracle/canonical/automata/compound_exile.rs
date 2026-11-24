@@ -105,7 +105,8 @@ fn predicate_is_permanent_card_type(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::NumericComparison { .. } => true,
         SelectorPredicate::ObjectKind(_)
         | SelectorPredicate::Supertype(_)
-        | SelectorPredicate::ChosenCreatureType => false,
+        | SelectorPredicate::ChosenCreatureType
+        | SelectorPredicate::ChosenColor => false,
     }
 }
 

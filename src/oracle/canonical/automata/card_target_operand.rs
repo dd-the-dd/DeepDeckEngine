@@ -48,7 +48,8 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
         // A declaration cannot read a choice made later, on resolution.
         ObjectPredicate::Color(_)
         | ObjectPredicate::ColorQuantity(_)
-        | ObjectPredicate::ChosenCreatureType => false,
+        | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor => false,
         ObjectPredicate::Intersection(items) | ObjectPredicate::Union(items) => {
             items.iter().all(declaration_predicate_is_closed)
         }

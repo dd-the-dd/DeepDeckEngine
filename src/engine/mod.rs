@@ -2361,7 +2361,9 @@ fn card_filter_supported(filter: &Value) -> bool {
         Some("manaCostEquals") => filter["value"]
             .as_str()
             .is_some_and(|value| parse_mana_requirement(value).is_some()),
-        Some("chosenCreatureType" | "chosenCardType") => filter["decisionId"].is_string(),
+        Some("chosenCreatureType" | "chosenCardType" | "chosenColor") => {
+            filter["decisionId"].is_string()
+        }
         Some(
             "isToken"
             | "isCommander"
@@ -33380,6 +33382,8 @@ impl GameEngine {
         decisions: &mut BTreeMap<String, Value>,
         provider: &mut P,
     ) -> Result<(), EngineError> {
+        let materialized = self.materialize_resolution_choices(effect, decisions);
+        let effect = materialized.as_ref();
         // One instruction is one simultaneous event (CR 603.2c).
         let scope = self.begin_event_batch();
         let result = self.execute_effect_in_batch(

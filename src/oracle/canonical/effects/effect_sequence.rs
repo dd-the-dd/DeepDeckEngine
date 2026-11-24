@@ -354,6 +354,10 @@ fn lower_local_effect_sequence_with_collections(
     // choice in program order (CR 608.2d); it is never borrowed backwards.
     let mut creature_type_chosen = false;
     let mut unbound_creature_type_from = 0_usize;
+    // The same order holds for a color chosen on resolution, and every
+    // player chosen on resolution is lowered as the value its choice binds.
+    let mut color_chosen = false;
+    let mut resolution_players = Vec::<String>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
         apply_performer(
@@ -381,6 +385,16 @@ fn lower_local_effect_sequence_with_collections(
             cursor.enter("lower.choose.creature-type.binding");
             return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
                 "a `choose a creature type` action before the chosen-type reference",
+            )));
+        }
+        if !color_chosen
+            && effects[unbound_creature_type_from..]
+                .iter()
+                .any(super::resolution_choice::references_resolution_color)
+        {
+            cursor.enter("lower.choose.color.binding");
+            return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+                "a `choose a color` action before the chosen-color reference",
             )));
         }
         unbound_creature_type_from = effects.len();
@@ -1542,6 +1556,29 @@ fn lower_local_effect_sequence_with_collections(
                             "player": controller(),
                         }));
                     }
+                    ChoiceDomainNode::Color => {
+                        // CR 608.2d: one color decision per program, read
+                        // later as `the chosen color`.
+                        cursor.enter("lower.choose.color");
+                        if color_chosen {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail("one color choice per effect program"),
+                            ));
+                        }
+                        color_chosen = true;
+                        effects.push(super::resolution_choice::lower_color_choice());
+                    }
+                    ChoiceDomainNode::Player(node) => {
+                        // A player chosen on resolution, not a target (CR
+                        // 115.1): a later `that player` reads its binding.
+                        cursor.enter("lower.choose.player");
+                        let id =
+                            super::resolution_choice::resolution_player_choice_id(effect_index);
+                        effects.push(super::resolution_choice::lower_player_choice(*node, &id));
+                        declared_player_targets
+                            .push((PlayerTargetBinding { effect_index }, id.clone()));
+                        resolution_players.push(id);
+                    }
                 }
             }
             LocalEffectNode::UntapTarget(untap) => {
@@ -2105,6 +2142,15 @@ fn lower_local_effect_sequence_with_collections(
         &sequence_numeric_target_slots(sequence, &target_bindings),
         &mut effects,
     )?;
+    for effect in &mut effects {
+        super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
+    }
+    cursor.enter("lower.choose.player.consumer");
+    if !super::resolution_choice::every_resolution_player_is_read(&effects, &resolution_players) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "a later instruction of the program that reads the player chosen on resolution",
+        )));
+    }
     cursor.enter("lower.ability-loss.later-grant");
     if !super::become_types::no_grant_after_ability_loss(&effects) {
         return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(

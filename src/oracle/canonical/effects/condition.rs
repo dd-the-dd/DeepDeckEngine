@@ -160,6 +160,15 @@ fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
             lower_condition_number(&comparison.left, controller())?,
             lower_condition_number(&comparison.right, controller())?,
         )),
+        // `that player ...`: the player the triggering event records.
+        ConditionPlayerSubject::EventPlayer => {
+            let player = || json!({ "kind": "triggeringPlayer" });
+            Ok(compare(
+                operator,
+                lower_condition_number(&comparison.left, player())?,
+                lower_condition_number(&comparison.right, player())?,
+            ))
+        }
         ConditionPlayerSubject::OpponentsTogether => {
             // `your opponents control N QUERY`: one count over every opponent.
             let (
@@ -221,6 +230,9 @@ fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
         ConditionNumber::Expression(expression) => lower_numeric_expression(expression)
             .ok_or("a numeric expression without a target binding"),
         ConditionNumber::Player(measure) => Ok(lower_player_measure(measure, player)),
+        ConditionNumber::ControllerMeasure(measure) => {
+            Ok(lower_player_measure(measure, controller()))
+        }
         ConditionNumber::GreatestOpponent(PlayerStateMeasure::ControlledPermanents {
             predicate,
             ..

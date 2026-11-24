@@ -133,6 +133,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::OwnedByAbilityController { .. }
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor
         | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)
         | ObjectPredicate::NumericComparison { .. } => false,
     }

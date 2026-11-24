@@ -56,6 +56,7 @@ mod named_token_creation;
 mod player_condition;
 mod program_resolution;
 mod rebound;
+mod resolution_choice;
 mod sacrifice;
 mod sentence_condition;
 mod trigger_event;

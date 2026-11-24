@@ -129,6 +129,9 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     /// instruction of the same effect program (CR 608.2d). The binding is
     /// symbolic; the program lowering proves its producer.
     ChosenCreatureType,
+    /// Has the color chosen by an earlier `choose a color` instruction of the
+    /// same effect program (CR 608.2d, 105.1). Symbolic like the chosen type.
+    ChosenColor,
     NumericComparison {
         left: SelectorNumericProperty,
         operator: NumericComparisonOperator,
@@ -210,6 +213,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::ChosenColor
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
         }
@@ -236,6 +240,7 @@ impl ObjectPredicate {
             | Self::ExactManaCost(_)
             | Self::HasKeyword(_)
             | Self::ChosenCreatureType
+            | Self::ChosenColor
             | Self::NumericComparison { .. } => true,
             Self::ObjectKind(actual) => *actual == domain,
             Self::Status(_)
@@ -348,7 +353,7 @@ impl ObjectPredicate {
     /// type`, CR 608.2d), which a declaration-time filter cannot evaluate.
     pub(in crate::oracle::canonical) fn reads_resolution_choice(&self) -> bool {
         match self {
-            Self::ChosenCreatureType => true,
+            Self::ChosenCreatureType | Self::ChosenColor => true,
             Self::Not(operand) => operand.reads_resolution_choice(),
             Self::Intersection(operands) | Self::Union(operands) => {
                 operands.iter().any(Self::reads_resolution_choice)
@@ -433,6 +438,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::ChosenColor
             | Self::NumericComparison { .. } => false,
         }
     }
@@ -471,6 +477,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::ChosenColor
             | Self::NumericComparison { .. } => false,
         }
     }
