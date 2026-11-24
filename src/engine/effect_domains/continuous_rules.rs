@@ -82,6 +82,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                     effect.get("source").is_none() && card_filter_supported(&choice["where"])
                 })
                 && effect.get("nextTimeOnly").is_none_or(Value::is_boolean)
+                // `dealt to and dealt by PARTY` (CR 615.1a): one more shield
+                // with the recipient party as the damage source.
+                && effect.get("recipientAlsoSource").is_none_or(|also| {
+                    also.as_bool() == Some(true)
+                        && effect.get("recipient").is_some()
+                        && effect.get("source").is_none()
+                        && effect.get("sourceChoice").is_none()
+                })
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
         }
         Some("installCounterLinkedCharacteristics") => {
@@ -396,6 +404,11 @@ impl GameEngine {
                     .filter_map(|modifier| modifier["shieldId"].as_u64())
                     .max()
                     .map_or(1, |id| id + 1);
+                // `dealt to and dealt by PARTY`: the same permanent as the
+                // source of a second, independent shield.
+                let dealt_by_shield = (effect["recipientAlsoSource"].as_bool() == Some(true))
+                    .then(|| recipient["permanentId"].clone())
+                    .filter(Value::is_string);
                 self.state.rule_modifiers.push(json!({
                     "kind": "damagePreventionShield",
                     "shieldId": shield_id,
@@ -406,6 +419,18 @@ impl GameEngine {
                     "nextTimeOnly": effect["nextTimeOnly"].as_bool().unwrap_or(false),
                     "expiresAfterTurn": self.state.turn_number,
                 }));
+                if let Some(party) = dealt_by_shield {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "damagePreventionShield",
+                        "shieldId": shield_id + 1,
+                        "remaining": remaining,
+                        "combatOnly": effect["combatOnly"].as_bool().unwrap_or(false),
+                        "recipient": Value::Null,
+                        "sourcePermanentId": party,
+                        "nextTimeOnly": effect["nextTimeOnly"].as_bool().unwrap_or(false),
+                        "expiresAfterTurn": self.state.turn_number,
+                    }));
+                }
             }
             Some("installCounterLinkedCharacteristics") => {
                 let Some(TargetRef::Permanent { instance_id }) =

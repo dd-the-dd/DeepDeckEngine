@@ -30,15 +30,15 @@ fn temporary_allowance_is_an_ordinary_action_before_the_next_effect() {
             unreachable!()
         };
         assert_eq!(
-            permission.modifier,
-            PlayerModifierNode::AdditionalLandPlay {
+            permission.rule,
+            TemporaryRuleNode::Allowance(PlayerModifierNode::AdditionalLandPlay {
                 player: LocalPlayerReference::Controller,
                 count: NumericExpression::Atom(NumericAtom::Integer(2)),
-            }
+            })
         );
         assert_eq!(
             permission.duration,
-            EffectDurationNode::UntilEndOfCurrentTurn
+            TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn)
         );
         cursor.finish().unwrap();
     }

@@ -84,6 +84,7 @@ impl GameEngine {
                     .collect::<Vec<_>>()
             })
             .chain(self.card_zone_static_modifier_sites())
+            .chain(self.effect_created_static_modifier_sites())
             .collect()
     }
 

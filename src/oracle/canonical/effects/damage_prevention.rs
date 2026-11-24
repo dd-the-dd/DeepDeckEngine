@@ -23,6 +23,11 @@ pub(in crate::oracle::canonical) fn lower_prevent_damage_shield(
     if let Some(source) = source {
         shield["source"] = source;
     }
+    // `dealt to and dealt by PARTY`: a second filter over the same party as
+    // the damage source (CR 615.1a).
+    if node.recipient_also_source {
+        shield["recipientAlsoSource"] = json!(true);
+    }
     shield
 }
 

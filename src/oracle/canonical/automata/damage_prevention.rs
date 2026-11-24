@@ -42,6 +42,10 @@ pub(in crate::oracle::canonical) struct PreventDamageEffectNode {
     pub combat_only: bool,
     pub recipient: Option<DamagePartyNode>,
     pub source: Option<DamagePartyNode>,
+    /// `dealt to and dealt by PARTY`: the recipient party is also a source
+    /// whose damage is prevented, two filters over one declaration (CR
+    /// 615.1a): damage dealt to it, and damage it deals.
+    pub recipient_also_source: bool,
     pub duration: EffectDurationNode,
 }
 
@@ -156,6 +160,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             combat_only: false,
             recipient: None,
             source: None,
+            recipient_also_source: false,
             duration: EffectDurationNode::UntilEndOfCurrentTurn,
         });
     }
@@ -180,6 +185,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
 
     let mut recipient = None;
     let mut source = None;
+    let mut recipient_also_source = false;
     let mut duration = None;
     trial.enter("effect.prevent.frame");
     if trial
@@ -209,6 +215,44 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
         if is_this_turn(&trial) {
             trial.require(duration.is_none(), "exactly one duration")?;
             duration = Some(recognize_effect_duration(&mut trial)?);
+        } else if ["to", "and", "dealt", "by"]
+            .iter()
+            .enumerate()
+            .all(|(offset, word)| {
+                trial
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            })
+        {
+            // `dealt to and dealt by PARTY`: one party in both roles. Its
+            // source role needs an object, which the shield filter names by
+            // the same declaration.
+            trial.enter("effect.prevent.to-and-by");
+            trial.require(
+                recipient.is_none() && source.is_none(),
+                "one party both dealt and dealing the prevented damage",
+            )?;
+            trial.consume_phrase(&["to", "and", "dealt", "by"])?;
+            let party = recognize_party(
+                &mut trial,
+                PartyRole::Recipient,
+                name_links,
+                name_failure,
+                context,
+            )?;
+            trial.enter("effect.prevent.to-and-by.object");
+            trial.require(
+                match &party {
+                    DamagePartyNode::Targets(targets) => {
+                        selector_guarantees_permanent(&targets.slots[0].selector)
+                    }
+                    DamagePartyNode::Object(_) => true,
+                    DamagePartyNode::Player(_) => false,
+                },
+                "a permanent that is dealt damage and deals damage",
+            )?;
+            recipient = Some(party);
+            recipient_also_source = true;
         } else if trial
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("to"))
@@ -226,7 +270,10 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("by"))
         {
-            trial.require(source.is_none(), "exactly one damage source")?;
+            trial.require(
+                source.is_none() && !recipient_also_source,
+                "exactly one damage source",
+            )?;
             trial.consume("by")?;
             source = Some(recognize_party(
                 &mut trial,
@@ -262,6 +309,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
         combat_only,
         recipient,
         source,
+        recipient_also_source,
         duration,
     })
 }

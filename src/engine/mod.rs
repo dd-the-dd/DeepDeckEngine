@@ -164,6 +164,7 @@ mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
 mod captured_binding;
+mod effect_created_rules;
 mod effect_performer;
 mod event_history;
 mod extra_turn;
@@ -4598,6 +4599,9 @@ pub fn effect_supported(effect: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = sacrifice::explicit_object_sacrifice_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = effect_created_rules::created_rule_effect_supported(effect) {
         return supported;
     }
     if let Some(supported) = zone_change_triggers::zone_change_effect_supported(effect) {
@@ -12228,6 +12232,7 @@ impl GameEngine {
         });
         controlled_permanent_permission
             || attacking_legendary_permission
+            || self.one_shot_flash_permission(player_id, card)
             || self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("nextCreatureSpellModifier")
                     && modifier["playerId"].as_str() == Some(player_id)
@@ -21340,6 +21345,7 @@ impl GameEngine {
         }
         // The event object's incarnation and relations as the event saw them.
         let mut decisions = decisions;
+        Self::merge_created_trigger_decisions(&rule, &mut decisions);
         self.capture_event_object(&mut decisions);
         if rule["minimumClassLevel"].as_i64().is_some_and(|minimum| {
             i64::from(source.counters.get("classLevel").copied().unwrap_or(1)) < minimum
@@ -22742,6 +22748,11 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_created_zone_change_triggers(
+            zone_change_events::ZoneChangeGroup::Death,
+            &death_record,
+            &decisions,
+        );
         let death_life_gains = self
             .state
             .rule_modifiers
@@ -24279,6 +24290,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.publish_created_attack_triggers(&attack_records);
     }
 
     fn enqueue_controlled_combat_damage_draw_triggers(&mut self, source_id: &str, amount: i32) {
@@ -24766,6 +24778,7 @@ impl GameEngine {
                 ));
             }
         }
+        triggers.extend(self.take_created_spell_cast_triggers(&cast_record));
         let mut consumed_delayed = Vec::new();
         for (index, modifier) in self.state.rule_modifiers.iter().enumerate() {
             if value_kind(modifier) == Some("delayedSpellCastTrigger")
@@ -25192,6 +25205,9 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("delayedStepTrigger")
                     && modifier["step"].as_str() == Some(step)
+                    && modifier["expiresAfterTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| u64::from(self.state.turn_number) <= turn)
                     && modifier["notBeforeTurn"]
                         .as_u64()
                         .is_none_or(|turn| u64::from(self.state.turn_number) >= turn)
@@ -33466,6 +33482,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_explicit_object_sacrifice(effect, stack_object, bindings, decisions)? {
+            return Ok(());
+        }
+        if self.execute_created_rule_effect(effect, stack_object, bindings)? {
             return Ok(());
         }
         if self.execute_zone_change_effect(effect, stack_object, bindings, decisions, provider)? {

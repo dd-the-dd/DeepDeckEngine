@@ -1,13 +1,109 @@
-//! Lower a temporary allowance only within the existing primitive contract.
+//! Lowering of temporary rules (CR 611.2a). An allowance keeps its existing
+//! primitive; every other rule is the static modifier vocabulary of a player
+//! predicate or game rule, installed as one temporary continuous effect
+//! whose lifetime is explicit. No rule is approximated: a predicate without
+//! a static modifier fails.
 use super::super::*;
+
+/// The engine lifetime of a temporary rule.
+fn lower_temporary_rule_duration(
+    duration: &TemporaryRuleDuration,
+) -> Result<Value, TargetlessLoweringError> {
+    match duration {
+        TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn) => {
+            Ok(json!({"kind": "untilEndOfCurrentTurn"}))
+        }
+        TemporaryRuleDuration::Effect(EffectDurationNode::UntilNextTurn {
+            player: LocalPlayerReference::Controller,
+        }) => Ok(json!({"kind": "untilNextTurn", "player": controller()})),
+        TemporaryRuleDuration::RestOfGame => Ok(json!({"kind": "restOfGame"})),
+        TemporaryRuleDuration::Effect(_) => {
+            Err(TargetlessLoweringError::UnsupportedPermissionLifetime)
+        }
+    }
+}
+
+/// The static modifiers a temporary rule applies while it lasts.
+fn lower_temporary_rule_modifiers(
+    rule: &TemporaryRuleNode,
+) -> Result<Vec<Value>, TargetlessLoweringError> {
+    match rule {
+        TemporaryRuleNode::Allowance(_) | TemporaryRuleNode::NextSpell { .. } => {
+            Err(TargetlessLoweringError::UnsupportedEffect)
+        }
+        // CR 402.2: the ability controller has no maximum hand size.
+        TemporaryRuleNode::NoMaximumHandSize => Ok(vec![
+            json!({"kind": "noMaximumHandSize", "player": controller()}),
+        ]),
+        // CR 615.12: prevention effects don't apply to any damage.
+        TemporaryRuleNode::DamageCantBePrevented => Ok(vec![json!({
+            "kind": "eccStaticAbility",
+            "ability": "damageCannotBePrevented",
+        })]),
+        TemporaryRuleNode::Players { subject, predicate } => {
+            let players = match subject {
+                StaticPlayerSubjectNode::You => controller(),
+                StaticPlayerSubjectNode::Players(players) => lower_player_set_reference(*players),
+                StaticPlayerSubjectNode::AttachedPermanentController => {
+                    return Err(TargetlessLoweringError::UnsupportedEffect);
+                }
+            };
+            // The static lowering reports its failures through a cursor; a
+            // temporary rule only needs to know that the predicate has no
+            // static modifier.
+            let mut cursor = OracleTokenCursor::new("temporary-rule.lowering", &[]);
+            lower_static_player_predicate(&mut cursor, &players, predicate)
+                .map_err(|_| TargetlessLoweringError::UnsupportedEffect)
+        }
+    }
+}
+
+/// `the next SPELLS you cast this turn RULE` (CR 601.2i): a one-shot
+/// modifier matched by the controller's next cast of a matching spell,
+/// consumed by it, expiring with the turn.
+fn lower_next_spell_rule(spells: &ObjectPredicate, modification: NextSpellModification) -> Value {
+    let mut matcher = json!({"kind": "spellCast", "player": controller()});
+    if let Some(filter) = lower_spell_object_predicate(spells) {
+        matcher["where"] = filter;
+    }
+    let apply = match modification {
+        NextSpellModification::CantBeCountered => json!({
+            "kind": "modifyStackObject",
+            "object": {"kind": "eventSpell"},
+            "modifier": {"kind": "cantBeCountered"},
+        }),
+        NextSpellModification::CastAsThoughFlash => json!({"kind": "castAsThoughItHadFlash"}),
+    };
+    json!({
+        "kind": "installOneShotModifier",
+        "match": matcher,
+        "apply": apply,
+        "consume": {"kind": "firstMatchingEvent"},
+        "expires": {"kind": "endOfCurrentTurn"},
+    })
+}
 
 pub(in crate::oracle::canonical) fn lower_temporary_player_permission(
     node: &TemporaryPlayerPermissionNode,
 ) -> Result<Value, TargetlessLoweringError> {
-    if node.duration != EffectDurationNode::UntilEndOfCurrentTurn {
+    if let TemporaryRuleNode::NextSpell {
+        spells,
+        modification,
+    } = &node.rule
+    {
+        return Ok(lower_next_spell_rule(spells, *modification));
+    }
+    let TemporaryRuleNode::Allowance(modifier) = &node.rule else {
+        return Ok(json!({
+            "kind": "installTemporaryStaticModifiers",
+            "modifiers": lower_temporary_rule_modifiers(&node.rule)?,
+            "duration": lower_temporary_rule_duration(&node.duration)?,
+        }));
+    };
+    if node.duration != TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn) {
         return Err(TargetlessLoweringError::UnsupportedPermissionLifetime);
     }
-    match &node.modifier {
+    match modifier {
         PlayerModifierNode::AdditionalLandPlay { player, count } => {
             if *player != LocalPlayerReference::Controller {
                 return Err(TargetlessLoweringError::RequiresTarget);
