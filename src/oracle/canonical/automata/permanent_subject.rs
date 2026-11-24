@@ -522,7 +522,9 @@ fn collection_survives(effect: &LocalEffectNode, predicate: &ObjectPredicate) ->
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => operands
             .iter()
             .all(|operand| collection_survives(effect, operand)),
-        ObjectPredicate::Designation(_) | ObjectPredicate::Relation(_) => false,
+        ObjectPredicate::Designation(_)
+        | ObjectPredicate::Relation(_)
+        | ObjectPredicate::Qualifier(_) => false,
     }
 }
 

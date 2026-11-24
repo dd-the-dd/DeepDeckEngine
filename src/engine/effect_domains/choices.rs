@@ -32,6 +32,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("onePerControlledColor")
                     .is_none_or(Value::is_boolean)
                 && effect
+                    .get("extremum")
+                    .is_none_or(candidate_extremum_supported)
+                && effect
+                    .get("setConstraints")
+                    .is_none_or(set_constraints_supported)
+                && effect
                     .get("selection")
                     .is_none_or(|selection| value_kind(selection) == Some("random"))
                 && (bound_choice_supported || candidate_choice_supported)
@@ -707,6 +713,11 @@ impl GameEngine {
                             )
                         });
                     }
+                    // `with the greatest power among ...`: the candidates
+                    // ranked among themselves, ties kept (CR 107.1).
+                    if let Some(extremum) = effect.get("extremum") {
+                        objects = self.retain_candidate_extremum(objects, extremum);
+                    }
                     if effect.get("minimum").is_some() || effect.get("maximum").is_some() {
                         (
                             objects,
@@ -775,6 +786,29 @@ impl GameEngine {
                                 .is_empty()
                     });
                 }
+                // `with different names`, `with total mana value 8 or less`:
+                // a constraint over the whole selection, not one candidate.
+                let mut effective_minimum = effective_minimum;
+                if let Some(constraints) = effect.get("setConstraints") {
+                    values.retain(|selection| self.selection_satisfies(selection, constraints));
+                    // No legal selection of the required size: the choice
+                    // is made as far as possible (CR 609.3), with the
+                    // largest smaller selection the constraints admit.
+                    if values.is_empty() {
+                        for count in (0..effective_minimum).rev() {
+                            values = Self::resolution_selections(&objects, count, 128)
+                                .into_iter()
+                                .filter(|selection| {
+                                    self.selection_satisfies(selection, constraints)
+                                })
+                                .collect();
+                            if !values.is_empty() {
+                                effective_minimum = count;
+                                break;
+                            }
+                        }
+                    }
+                }
                 if effect["onePerControlledColor"].as_bool().unwrap_or(false) {
                     let choosing_player_index = self.player_index(&player_id)?;
                     let controlled_colors = self.state.players[choosing_player_index]
@@ -807,6 +841,26 @@ impl GameEngine {
                     decisions,
                     provider,
                 )?;
+                // The engine keeps the final authority over a set constraint:
+                // a selection returned outside the offered previews is checked
+                // as a whole before any effect reads it.
+                if let Some(constraints) = effect.get("setConstraints") {
+                    let selected = decisions
+                        .get(decision_id)
+                        .and_then(Value::as_array)
+                        .map(|ids| {
+                            ids.iter()
+                                .filter_map(Value::as_str)
+                                .map(ToOwned::to_owned)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    if !self.selection_satisfies(&selected, constraints) {
+                        return Err(EngineError::new(format!(
+                            "resolution decision {decision_id} violates its set constraint"
+                        )));
+                    }
+                }
             }
             Some("chooseOrder") => {
                 let Some(decision_id) = effect["id"].as_str() else {
@@ -993,8 +1047,23 @@ impl GameEngine {
 /// example bolster, CR 701.39a). It filters the candidate set; the player
 /// still chooses among the tied candidates.
 fn candidate_extremum_supported(extremum: &Value) -> bool {
-    matches!(extremum["property"].as_str(), Some("power" | "toughness"))
-        && matches!(extremum["direction"].as_str(), Some("least" | "greatest"))
+    matches!(
+        extremum["property"].as_str(),
+        Some("power" | "toughness" | "manaValue")
+    ) && matches!(extremum["direction"].as_str(), Some("least" | "greatest"))
+}
+
+/// `setConstraints`: the constraints a chosen set must satisfy as a whole
+/// (`distinctValues` of names, powers or mana values; `totalAtMost` of one
+/// numeric property with a literal bound). An unknown constraint refuses
+/// the choice rather than being skipped.
+fn set_constraints_supported(constraints: &Value) -> bool {
+    constraints.as_array().is_some_and(|constraints| {
+        !constraints.is_empty()
+            && constraints
+                .iter()
+                .all(object_predicate_eval::set_constraint_supported)
+    })
 }
 
 impl GameEngine {
@@ -1002,10 +1071,10 @@ impl GameEngine {
         let value_of = |instance_id: &String| {
             self.permanent_position(instance_id).map(|(player, index)| {
                 let card = &self.state.players[player].battlefield[index];
-                if extremum["property"].as_str() == Some("power") {
-                    self.current_power(card)
-                } else {
-                    self.current_toughness(card)
+                match extremum["property"].as_str() {
+                    Some("power") => self.current_power(card),
+                    Some("manaValue") => mana_value(&card.definition),
+                    _ => self.current_toughness(card),
                 }
             })
         };
@@ -1031,3 +1100,10 @@ impl GameEngine {
 ))]
 #[path = "choices_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "choices_set_constraint_tests.rs"]
+mod set_constraint_tests;

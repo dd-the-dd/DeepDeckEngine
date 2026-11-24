@@ -174,6 +174,7 @@ fn lower_object_predicate(
             "kind": "hasKeyword",
             "value": keyword.canonical_name(),
         })),
+        ObjectPredicate::Qualifier(qualifier) => Some(lower_object_qualifier(qualifier, domain)),
         ObjectPredicate::NumericComparison {
             left,
             operator,
@@ -205,6 +206,271 @@ fn lower_object_predicate(
             .collect::<Option<Vec<_>>>()
             .map(or),
     }
+}
+
+fn numeric_property_ir_name(property: SelectorNumericProperty) -> &'static str {
+    match property {
+        SelectorNumericProperty::ManaValue => "manaValue",
+        SelectorNumericProperty::Power => "power",
+        SelectorNumericProperty::Toughness => "toughness",
+    }
+}
+
+/// The qualifier atoms. A keyword ability is any of the rule kinds the
+/// runtime records for it; a set constraint and a superlative are atoms of
+/// their own that only their consumers' validators admit, so a consumer
+/// that cannot evaluate them refuses the filter instead of reading it as a
+/// candidate test.
+fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDomain) -> Value {
+    match qualifier {
+        ObjectQualifier::KeywordAbility(keyword) => {
+            let atoms = keyword
+                .ir_kinds()
+                .iter()
+                .map(|kind| json!({ "kind": "hasKeyword", "value": kind }))
+                .collect::<Vec<_>>();
+            if atoms.len() == 1 {
+                atoms.into_iter().next().expect("one keyword kind")
+            } else {
+                or(atoms)
+            }
+        }
+        ObjectQualifier::ManaCostSymbol(ManaCostSymbolClass::VariableX) => {
+            json!({ "kind": "manaCostContainsX" })
+        }
+        ObjectQualifier::DamagedBySourceThisTurn => {
+            json!({ "kind": "wasDealtDamageBySourceThisTurn" })
+        }
+        ObjectQualifier::DistinctValues(property) => {
+            json!({ "kind": "distinctValues", "property": property.ir_name() })
+        }
+        ObjectQualifier::TotalAtMost { property, maximum } => json!({
+            "kind": "totalAtMost",
+            "property": numeric_property_ir_name(*property),
+            "value": lower_numeric_expression(maximum).unwrap_or(Value::Null),
+        }),
+        ObjectQualifier::Extremum {
+            property,
+            extreme,
+            among,
+            population,
+        } => json!({
+            "kind": "extremumAmong",
+            "property": numeric_property_ir_name(*property),
+            "extreme": extreme.ir_name(),
+            "population": population.ir_name(),
+            "where": lower_object_predicate(among, domain).unwrap_or(Value::Null),
+        }),
+    }
+}
+
+/// The number of battlefield permanents a player controls matching
+/// `predicate` (`you control three or more creatures with different
+/// powers`). A count over a distinctness constraint counts the distinct
+/// values (the greatest subset whose members differ, CR 201.2 for names):
+/// the runtime's distinct-power and distinct-name counts. A constraint the
+/// runtime cannot count stays in the filter, which its validator refuses.
+pub(in crate::oracle::canonical) fn lower_controlled_permanent_count(
+    predicate: &ObjectPredicate,
+    player: Value,
+    exclude_source: bool,
+) -> Value {
+    if let Some((filter, constraints)) = predicate.split_set_constraints()
+        && let [ObjectQualifier::DistinctValues(property)] = constraints.as_slice()
+    {
+        let kind = match (property, exclude_source) {
+            (DistinctProperty::Power, _) => Some("countDistinctPowers"),
+            // The runtime's name count has no source exclusion.
+            (DistinctProperty::Name, false) => Some("countDistinctPermanentNames"),
+            _ => None,
+        };
+        if let Some(kind) = kind {
+            let mut count = json!({
+                "kind": kind,
+                "player": player,
+                "where": lower_permanent_object_predicate(&filter),
+            });
+            if exclude_source {
+                count["excludeSource"] = json!(true);
+            }
+            return count;
+        }
+    }
+    json!({
+        "kind": "countPermanents",
+        "player": player,
+        "where": lower_permanent_object_predicate(predicate),
+        "excludeSource": exclude_source,
+    })
+}
+
+/// Whether an IR atom is a set constraint of the shared query.
+fn is_set_constraint_atom(atom: &Value) -> bool {
+    matches!(
+        atom["kind"].as_str(),
+        Some("distinctValues" | "totalAtMost")
+    )
+}
+
+/// Moves the set constraints a declared target slot's candidate filter
+/// states (`any number of target creature cards with total mana value 8 or
+/// less`, `up to three target cards with different names`) to the slot's
+/// `selectionConstraint`, which the engine checks over the whole chosen
+/// target set (CR 601.2c). Only members of the filter's top-level
+/// conjunction move; a constraint nested elsewhere stays in the filter,
+/// where the candidate validator refuses it. An existing selection
+/// constraint is kept beside the new ones (`allOf`).
+pub(in crate::oracle::canonical) fn lift_target_set_constraints(value: &mut Value) {
+    match value {
+        Value::Object(map) => {
+            if map.get("kind").and_then(Value::as_str) == Some("chooseTargets") {
+                lift_slot_set_constraints(map);
+            }
+            map.values_mut().for_each(lift_target_set_constraints);
+        }
+        Value::Array(items) => items.iter_mut().for_each(lift_target_set_constraints),
+        _ => {}
+    }
+}
+
+/// The members of a conjunction, nested conjunctions flattened.
+fn conjunction_members(filter: &Value, members: &mut Vec<Value>) {
+    match filter["kind"].as_str() {
+        Some("and") if filter["operands"].is_array() => filter["operands"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .for_each(|operand| conjunction_members(operand, members)),
+        _ => members.push(filter.clone()),
+    }
+}
+
+fn lift_slot_set_constraints(decision: &mut serde_json::Map<String, Value>) {
+    let Some(filter) = decision
+        .get_mut("candidates")
+        .and_then(|candidates| candidates.get_mut("where"))
+    else {
+        return;
+    };
+    let mut members = Vec::new();
+    conjunction_members(filter, &mut members);
+    // A filter without a top-level set constraint keeps its exact IR.
+    if !members.iter().any(is_set_constraint_atom) {
+        return;
+    }
+    let (mut lifted, rest): (Vec<Value>, Vec<Value>) =
+        members.into_iter().partition(is_set_constraint_atom);
+    *filter = match rest.len() {
+        0 => Value::Null,
+        1 => rest.into_iter().next().expect("one remaining operand"),
+        _ => json!({ "kind": "and", "operands": rest }),
+    };
+    if let Some(existing) = decision.remove("selectionConstraint") {
+        lifted.insert(0, existing);
+    }
+    let constraint = if lifted.len() == 1 {
+        lifted.pop().expect("one constraint")
+    } else {
+        json!({ "kind": "allOf", "constraints": lifted })
+    };
+    decision.insert("selectionConstraint".to_string(), constraint);
+}
+
+/// Splits a superlative that ranks the candidates of a player's own choice
+/// (`sacrifices a creature with the greatest power among creatures they
+/// control`): the population is the chooser's permanents named by the same
+/// predicate as the candidates, so the ranking is the choice's `extremum`
+/// over its candidates (ties stay candidates, CR 107.1). Returns `None`
+/// without a superlative, `Some(None)` for a superlative whose population
+/// differs from the candidates or sits below the top-level conjunction.
+pub(in crate::oracle::canonical) fn split_candidate_extremum(
+    predicate: &ObjectPredicate,
+) -> Option<Option<(ObjectPredicate, Value)>> {
+    let is_extremum =
+        |qualifier: &ObjectQualifier| matches!(qualifier, ObjectQualifier::Extremum { .. });
+    if !predicate.contains_qualifier(&is_extremum) {
+        return None;
+    }
+    let ObjectPredicate::Intersection(members) = predicate else {
+        return Some(None);
+    };
+    let mut rest = Vec::new();
+    let mut extremum = None;
+    for member in members {
+        match member {
+            ObjectPredicate::Qualifier(ObjectQualifier::Extremum {
+                property,
+                extreme,
+                among,
+                population: ExtremumPopulation::CandidateController,
+            }) if extremum.is_none() => extremum = Some((*property, *extreme, among.as_ref())),
+            other if other.contains_qualifier(&is_extremum) => return Some(None),
+            other => rest.push(other.clone()),
+        }
+    }
+    let Some((property, extreme, among)) = extremum else {
+        return Some(None);
+    };
+    let rest = match rest.len() {
+        0 => return Some(None),
+        1 => rest.remove(0),
+        _ => ObjectPredicate::Intersection(rest),
+    };
+    if rest != *among {
+        return Some(None);
+    }
+    Some(Some((
+        rest,
+        json!({
+            "property": numeric_property_ir_name(property),
+            "direction": extreme.ir_name(),
+        }),
+    )))
+}
+
+/// Lifts the damage history relative to the ability source out of a
+/// zone-change subject filter (`a creature dealt damage by this creature
+/// this turn dies`): the zone-change matcher reads it on the departing
+/// object as `damagedBySourceThisTurn` (CR 603.10a). `None` when the atom
+/// is absent; `Some(None)` when it is present but not a member of the
+/// top-level conjunction, which the matcher cannot represent.
+pub(in crate::oracle::canonical) fn split_source_damage_history(
+    predicate: &ObjectPredicate,
+) -> Option<Option<ObjectPredicate>> {
+    let history = |member: &ObjectPredicate| {
+        matches!(
+            member,
+            ObjectPredicate::Qualifier(ObjectQualifier::DamagedBySourceThisTurn)
+        )
+    };
+    if !predicate.contains_qualifier(&|qualifier| {
+        matches!(qualifier, ObjectQualifier::DamagedBySourceThisTurn)
+    }) {
+        return None;
+    }
+    let ObjectPredicate::Intersection(members) = predicate else {
+        return Some(None);
+    };
+    if members.iter().filter(|member| history(*member)).count() != 1 {
+        return Some(None);
+    }
+    let mut rest = members
+        .iter()
+        .filter(|member| !history(*member))
+        .cloned()
+        .collect::<Vec<_>>();
+    if rest.iter().any(|member| {
+        member.contains_qualifier(&|qualifier| {
+            matches!(qualifier, ObjectQualifier::DamagedBySourceThisTurn)
+        })
+    }) {
+        return Some(None);
+    }
+    Some(Some(match rest.len() {
+        0 => return Some(None),
+        1 => rest.remove(0),
+        _ => ObjectPredicate::Intersection(rest),
+    }))
 }
 
 /// A permanent collection over `predicate`: its filter and, when the query

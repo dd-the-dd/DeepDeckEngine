@@ -1674,8 +1674,23 @@ fn lower_transition_branch(
                     "a zone-change object filter without an ownership relation",
                 ));
             }
+            // `dealt damage by this creature this turn`: the departing
+            // object's damage history, read by the zone-change matcher.
+            let (predicate, damaged_by_source) = match split_source_damage_history(predicate) {
+                None => (predicate.clone(), false),
+                Some(Some(rest)) if transition == PermanentTransitionKind::Died => (rest, true),
+                Some(_) => {
+                    return Err(engine_gap(
+                        cursor,
+                        "a dying object's damage history relative to the source",
+                    ));
+                }
+            };
             let mut lowered =
-                json!({"kind": kind, "where": lower_permanent_object_predicate(predicate)});
+                json!({"kind": kind, "where": lower_permanent_object_predicate(&predicate)});
+            if damaged_by_source {
+                lowered["damagedBySourceThisTurn"] = json!(true);
+            }
             match scope {
                 Some(ObjectControllerScope::AbilityController) => lowered["player"] = controller(),
                 Some(ObjectControllerScope::OpponentOfAbilityController) => {

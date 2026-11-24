@@ -827,6 +827,32 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(form) = qualifiers::with_qualifier_form(cursor) {
+                    // `with different names`, `with total mana value 8 or
+                    // less`, `with the greatest power among ...`, `with {X}
+                    // in its mana cost`, `with cycling`: the qualifier atoms
+                    // read beside the printed characteristics.
+                    let plural_head = frame.branch_has_plural_surface.last() == Some(&true);
+                    let predicate =
+                        qualifiers::recognize_with_qualifier(cursor, form, plural_head)?;
+                    let scope = if form == qualifiers::WithQualifierForm::KeywordAbility {
+                        PostnominalQualifierScope::LastCoordinatedHead
+                    } else {
+                        PostnominalQualifierScope::WholeQuery
+                    };
+                    frame
+                        .postnominal_qualifiers
+                        .push(PostnominalQualifier { predicate, scope });
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if qualifiers::damage_history_participle_starts(cursor) {
+                    // `a creature dealt damage by this creature this turn`:
+                    // the object's damage history of this turn (CR 120.1).
+                    let predicate = qualifiers::recognize_damage_history_participle(cursor)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if cursor
                     .peek()
                     .is_some_and(|token| token.eq_ignore_ascii_case("with"))
@@ -2622,6 +2648,13 @@ pub(in crate::oracle::canonical) fn recognize_object_type_union_list(
         };
     }
 }
+
+#[path = "selector_qualifiers.rs"]
+mod qualifiers;
+
+#[cfg(test)]
+#[path = "selector_qualifier_atom_tests.rs"]
+mod qualifier_atom_tests;
 
 #[cfg(test)]
 #[path = "selector_union_tests.rs"]

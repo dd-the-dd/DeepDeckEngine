@@ -4604,6 +4604,13 @@ fn target_selection_constraint_supported(constraint: &Value) -> bool {
         Some("distinctPermanentControllers") => true,
         Some("distinctCardNames") => true,
         Some("shareCardType") => true,
+        Some("allOf") => object_predicate_eval::all_of_supported(
+            constraint,
+            target_selection_constraint_supported,
+        ),
+        Some("distinctValues" | "totalAtMost") => {
+            object_predicate_eval::set_constraint_supported(constraint)
+        }
         _ => false,
     }
 }
@@ -8017,6 +8024,14 @@ impl GameEngine {
         assignment: &CastingDeclaration,
     ) -> bool {
         match value_kind(constraint) {
+            Some("allOf") => constraint["constraints"].as_array().is_some_and(|all| {
+                all.iter().all(|one| {
+                    self.target_selection_satisfies_constraint(selection, one, assignment)
+                })
+            }),
+            Some("distinctValues" | "totalAtMost") => {
+                self.target_selection_satisfies_set_constraint(selection, constraint)
+            }
             Some("sameZoneOwner") => {
                 let Some(zone_name) = constraint["zone"].as_str() else {
                     return false;
@@ -9350,6 +9365,7 @@ impl GameEngine {
                 }
                 Some(counts.values().copied().max().unwrap_or(0))
             }
+            Some("countDistinctPowers") => self.distinct_power_count(expression, controller_id),
             Some("countDistinctPermanentNames") => {
                 let player_index = self.player_index(controller_id).ok()?;
                 Some(
