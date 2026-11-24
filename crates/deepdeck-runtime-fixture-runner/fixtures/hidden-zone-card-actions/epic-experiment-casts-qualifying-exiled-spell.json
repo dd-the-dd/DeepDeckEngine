@@ -1,0 +1,287 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hidden-zone/epic-experiment-casts-qualifying-exiled-spell",
+  "seed": 31,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "topCards",
+        "value": {
+          "kind": "libraryTopCards",
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "count": {
+            "kind": "integer",
+            "value": 3
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "topCards"
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      },
+      {
+        "kind": "castAnyNumber",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "cards": {
+          "kind": "filterObjects",
+          "objects": {
+            "kind": "boundObjects",
+            "binding": "topCards"
+          },
+          "where": {
+            "kind": "and",
+            "operands": [
+              {
+                "kind": "or",
+                "operands": [
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Instant"
+                  },
+                  {
+                    "kind": "cardTypeContains",
+                    "value": "Sorcery"
+                  }
+                ]
+              },
+              {
+                "kind": "compare",
+                "operator": "<=",
+                "left": {
+                  "kind": "manaValueOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                },
+                "right": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            ]
+          }
+        },
+        "where": {
+          "kind": "canBeCastAsSpell"
+        },
+        "timing": {
+          "kind": "duringResolution"
+        },
+        "withoutPayingManaCost": true,
+        "alternativeCostsAllowed": false,
+        "additionalCostsApply": true,
+        "variableManaValue": {
+          "kind": "integer",
+          "value": 0
+        },
+        "sourceZone": "exile",
+        "bind": "castCards"
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "setDifference",
+          "left": {
+            "kind": "boundObjects",
+            "binding": "topCards"
+          },
+          "right": {
+            "kind": "boundObjects",
+            "binding": "castCards"
+          }
+        },
+        "to": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Experimenter",
+        "hand": [
+          {
+            "id": "epic-experiment",
+            "name": "Epic Experiment",
+            "typeLine": "Sorcery",
+            "manaCost": "{X}{U}{R}"
+          }
+        ],
+        "library": [
+          {
+            "id": "cheap-instant",
+            "name": "Cheap Instant",
+            "typeLine": "Instant",
+            "manaCost": "{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "costly-sorcery",
+            "name": "Costly Sorcery",
+            "typeLine": "Sorcery",
+            "manaCost": "{4}{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 5
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "cheap-creature",
+            "name": "Cheap Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "epic-experiment"
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 0
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "stackDepth",
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "cheap-instant",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "cheap-instant",
+      "equals": false
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "costly-sorcery",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "cheap-creature",
+      "equals": true
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "exile",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

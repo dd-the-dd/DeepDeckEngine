@@ -17,6 +17,9 @@ pub(in crate::oracle::canonical) enum CardCollectionReferenceNode {
     Exiled,
     /// `[each|all] card(s) exiled with this NOUN|it` (CR 607.2a).
     Linked,
+    /// `the revealed card(s)`: the cards the most recent reveal action of
+    /// this program revealed. The lowerer proves that reveal exists.
+    Revealed,
 }
 
 /// `card(s) exiled with this NOUN` / `with it` after the head the caller read.
@@ -168,6 +171,20 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
                         return CollectionOperandAttempt::RejectedCandidate(f);
                     }
                     CardCollectionReferenceNode::Antecedent
+                }
+                Some("revealed")
+                    if trial.peek_ahead(1).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("card") || raw.eq_ignore_ascii_case("cards")
+                    }) =>
+                {
+                    let noun = trial.peek_ahead(1).unwrap_or("cards").to_owned();
+                    if let Err(f) = trial
+                        .consume("revealed")
+                        .and_then(|()| trial.consume(&noun))
+                    {
+                        return CollectionOperandAttempt::FailedCommitted(f);
+                    }
+                    CardCollectionReferenceNode::Revealed
                 }
                 Some("exiled") => {
                     let noun = trial.peek_ahead(1).map(str::to_ascii_lowercase);

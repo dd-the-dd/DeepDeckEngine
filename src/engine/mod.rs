@@ -32831,9 +32831,11 @@ impl GameEngine {
                 break;
             }
             let cards = match source_zone {
-                "hand" => self.state.players[player_index]
-                    .hand
+                "hand" => self
+                    .state
+                    .players
                     .iter()
+                    .flat_map(|player| player.hand.iter())
                     .filter(|card| object_ids.contains(&card.instance_id))
                     .cloned()
                     .collect::<Vec<_>>(),

@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hidden-zone/cast-permission-spends-mana-of-any-type",
+  "seed": 53,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "topCards",
+        "value": {
+          "kind": "libraryTopCards",
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "chosenTarget",
+              "id": "targetZonePlayer"
+            }
+          },
+          "count": {
+            "kind": "integer",
+            "value": 1
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "topCards"
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      },
+      {
+        "kind": "grantPermission",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "action": {
+          "kind": "cast",
+          "card": {
+            "kind": "boundObject",
+            "binding": "topCards"
+          },
+          "normalTimingApplies": true,
+          "normalCostsApply": true,
+          "spendManaAsAnyType": true
+        },
+        "duration": {
+          "kind": "whileInExile"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Taker",
+        "manaPool": [
+          "G"
+        ],
+        "battlefield": [
+          {
+            "id": "taker-source",
+            "name": "Taker Source",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Victim",
+        "library": [
+          {
+            "id": "black-instant",
+            "name": "Black Instant",
+            "typeLine": "Instant",
+            "manaCost": "{B}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "taker-source",
+    "targets": {
+      "targetZonePlayer": {
+        "player": {
+          "playerId": "p1"
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "p0",
+      "sourceDefinitionId": "black-instant"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 22
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "graveyard",
+      "definitionId": "black-instant",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}
