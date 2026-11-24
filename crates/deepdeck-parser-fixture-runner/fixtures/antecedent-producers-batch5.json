@@ -437,7 +437,7 @@
       }
     },
     {
-      "id": "new-combination-damage-to-creature-or-planeswalker-that-permanent",
+      "id": "sibling-damage-to-creature-or-planeswalker-that-permanent",
       "request": {
         "cardName": "Damage Probe",
         "typeLine": "Creature — Elemental",
@@ -613,6 +613,39 @@
             "index": 1,
             "status": "canonical",
             "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-defending-player-comparative-gates-an-attack",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{2}",
+        "oracleText": "This creature can't attack unless defending player controls more creatures than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "defendingPlayerCombatRestriction"
+              },
+              {
+                "pointer": "/modifiers/0/condition/operand/operator",
+                "equals": ">"
+              }
+            ]
           }
         ]
       }
