@@ -1,5 +1,5 @@
 //! Relation atoms of the shared object query: a candidate related to another
-//! object, its anchor (`attachedTo`, `blocking`, `blockedBy`,
+//! object, its anchor (`attachedTo`, `blocking`, `blockedBy`, `convoked`,
 //! `sharesCharacteristic`).
 //!
 //! The parser lowers each relation with its anchor as an object expression
@@ -17,8 +17,10 @@
 //!    current combat (CR 509.1) or the candidate's own characteristics.
 //!
 //! Only consumers that prepare their filter accept a relation in their
-//! validator (`filter_supported_with_relations`); an unprepared atom never
-//! matches. Counts of related permanents are evaluated here too, for the
+//! validator (`filter_supported_with_relations`): collection destruction,
+//! damage to each permanent, counters on each permanent, permanent counts,
+//! and declared-target filters whose anchor the source binds
+//! (`bind_source_relations`). An unprepared atom never matches. Counts of related permanents are evaluated here too, for the
 //! resolving ability (`runtime_related_permanent_count`) and for a static
 //! source (`related_permanent_count_with_source`).
 
