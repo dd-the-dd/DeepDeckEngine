@@ -290,6 +290,51 @@ pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
         PermanentKeywordAction::RemoveFromCombat => for_each_object(object, scope, |object| {
             vec![json!({ "kind": "removeFromCombat", "permanent": object })]
         }),
+        // CR 122.1, 608.2h: each recipient gets as many counters of each
+        // kind as the source object has, or had as it last existed.
+        PermanentKeywordAction::PutCountersOf(reference) => {
+            let source = match reference {
+                PermanentEffectReference::Source(LocalObjectReference::SourceSelf) => self_ref(),
+                PermanentEffectReference::Observed(TypedObservedEventObject::EventPermanent) => {
+                    json!({ "kind": "triggeringPermanent" })
+                }
+                _ => {
+                    return Err(
+                        "the ability's source or the event's permanent as the object whose counters are put"
+                            .to_string(),
+                    );
+                }
+            };
+            for_each_object(object, scope, |object| {
+                vec![json!({ "kind": "putSameCountersAs", "permanent": object, "source": source })]
+            })
+        }
+        // CR 122.8: counters of any kinds leave each permanent; the ability
+        // controller chooses which while the action resolves.
+        PermanentKeywordAction::RemoveUnnamedCounters(removal) => {
+            let maximum = match removal {
+                UnnamedCounterRemoval::UpTo => Some(required()?),
+                UnnamedCounterRemoval::Every | UnnamedCounterRemoval::AnyNumber => None,
+            };
+            for_each_object(object, scope, |object| {
+                vec![match (removal, &maximum) {
+                    (UnnamedCounterRemoval::Every, _) => {
+                        json!({ "kind": "removeAllCounters", "permanent": object })
+                    }
+                    (UnnamedCounterRemoval::AnyNumber, _) => json!({
+                        "kind": "removeAnyNumberOfCounters",
+                        "permanent": object,
+                        "player": controller(),
+                    }),
+                    (UnnamedCounterRemoval::UpTo, maximum) => json!({
+                        "kind": "removeUpToCounters",
+                        "permanent": object,
+                        "player": controller(),
+                        "maximum": maximum,
+                    }),
+                }]
+            })
+        }
     })
 }
 

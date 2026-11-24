@@ -2818,8 +2818,7 @@ fn recognize_imperative_frame(
                 .map(LocalEffectNode::PermanentKeywordAction)
         }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
-            super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
-                .map(LocalEffectNode::PutCounters)
+            super::recognize_remove_counters_frame(cursor, name_links, name_failure, context)
         }
         VerbLemma::Put => recognize_put_frame(cursor, inputs),
         VerbLemma::Counter => recognize_counter_effect(cursor),
@@ -2936,6 +2935,15 @@ fn recognize_put_frame(
     if targeted_card_zone_move_starts(cursor) {
         return recognize_target_card_zone_change_effect(cursor)
             .map(LocalEffectNode::TargetCardZoneChange);
+    }
+    // `put its|those counters on X`: the counters of a bound object.
+    if super::counter_copy_starts(cursor) {
+        return super::recognize_put_object_counters_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        );
     }
     if claims_put_counters_effect(cursor) {
         // The effect sequence lowers listed and chosen counter kinds.

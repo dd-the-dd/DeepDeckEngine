@@ -517,6 +517,163 @@ pub(in crate::oracle::canonical) fn claims_remove_counters_effect(
     })
 }
 
+/// True at `put its counters`, `put those counters` or `put this NOUN's
+/// counters`: the counters of a bound object, with no count of their own.
+pub(in crate::oracle::canonical) fn counter_copy_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !super::lemma_at(cursor, super::VerbLemma::Put, super::VerbAgreement::Base) {
+        return false;
+    }
+    ((word(1, "its") || word(1, "those")) && word(2, "counters"))
+        || (word(1, "this")
+            && cursor
+                .peek_ahead(2)
+                .is_some_and(super::registered_possessive_object)
+            && word(3, "counters"))
+}
+
+/// `put its|those|this NOUN's counters on PERMANENT-OPERAND`: as many
+/// counters of each kind as the possessed object has, or had as it last
+/// existed (CR 608.2h), are put on the operand. `its` and `those` name the
+/// object the one possessive resolver binds (the clause subject, the
+/// program's antecedent, else the event's subject); `this NOUN's` the
+/// ability's source. A counter kind is not read: every kind is put.
+pub(in crate::oracle::canonical) fn recognize_put_object_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<super::LocalEffectNode> {
+    cursor.enter("effect.put-object-counters.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Put,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.put-object-counters.source");
+    let source = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    {
+        let noun = cursor.peek_ahead(1).unwrap_or_default().to_owned();
+        cursor.consume("this")?;
+        cursor.consume(&noun)?;
+        super::PermanentEffectReference::Source(super::LocalObjectReference::SourceSelf)
+    } else {
+        let pronoun = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&pronoun)?;
+        let environment = super::installed_binding_environment(cursor);
+        super::resolve_possessive_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?
+    };
+    cursor.enter("effect.put-object-counters.noun");
+    cursor.consume("counters")?;
+    cursor.enter("effect.put-object-counters.relation");
+    cursor.consume("on")?;
+    cursor.enter("effect.put-object-counters.recipient");
+    let targets =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(super::LocalEffectNode::PermanentKeywordAction(
+        super::PermanentKeywordActionNode {
+            action: super::PermanentKeywordAction::PutCountersOf(source),
+            targets,
+            quantity: None,
+        },
+    ))
+}
+
+/// How many counters of any kinds an unnamed removal takes (CR 122.8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum UnnamedCounterRemoval {
+    /// `all counters`: every counter of every kind.
+    Every,
+    /// `up to N counters`: at most N, the action's quantity.
+    UpTo,
+    /// `any number of counters`.
+    AnyNumber,
+}
+
+/// The unnamed quantity after `remove` (`all counters`, `up to N counters`,
+/// `any number of counters`) when no counter kind follows it. Pure.
+fn unnamed_counter_removal_at(cursor: &OracleTokenCursor<'_>) -> Option<UnnamedCounterRemoval> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(1, "all") && word(2, "counters") {
+        return Some(UnnamedCounterRemoval::Every);
+    }
+    if word(1, "any") && word(2, "number") && word(3, "of") && word(4, "counters") {
+        return Some(UnnamedCounterRemoval::AnyNumber);
+    }
+    if word(1, "up") && word(2, "to") && (word(4, "counters") || word(4, "counter")) {
+        return Some(UnnamedCounterRemoval::UpTo);
+    }
+    None
+}
+
+/// `remove COUNT [KIND] counter(s) from PERMANENT-OPERAND` in an effect: the
+/// named-kind removal (a counter action in the removal direction) or, when
+/// no kind is named after an unnamed quantity, a removal of counters of any
+/// kinds the remover chooses (CR 122.8). `remove a counter from X` keeps the
+/// named-kind reader and its diagnostic.
+pub(in crate::oracle::canonical) fn recognize_remove_counters_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<super::LocalEffectNode> {
+    let Some(removal) = unnamed_counter_removal_at(cursor) else {
+        return recognize_remove_counters_effect(cursor, name_links, name_failure, context)
+            .map(super::LocalEffectNode::PutCounters);
+    };
+    cursor.enter("effect.remove-counters.unnamed.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Remove,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.remove-counters.unnamed.quantity");
+    let quantity = match removal {
+        UnnamedCounterRemoval::Every => {
+            cursor.consume("all")?;
+            None
+        }
+        UnnamedCounterRemoval::AnyNumber => {
+            cursor.consume_phrase(&["any", "number", "of"])?;
+            None
+        }
+        UnnamedCounterRemoval::UpTo => {
+            cursor.consume_phrase(&["up", "to"])?;
+            let NumericAtom::Integer(maximum) = recognize_numeric_atom(cursor)? else {
+                return Err(cursor.fail("a literal maximum number of removed counters"));
+            };
+            cursor.require(maximum > 0, "a positive maximum number of removed counters")?;
+            Some(NumericExpression::from(maximum))
+        }
+    };
+    cursor.enter("effect.remove-counters.unnamed.noun");
+    let singular = quantity == Some(NumericExpression::from(1));
+    cursor.consume(if singular { "counter" } else { "counters" })?;
+    cursor.enter("effect.remove-counters.unnamed.relation");
+    cursor.consume("from")?;
+    cursor.enter("effect.remove-counters.unnamed.permanent");
+    let targets =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    Ok(super::LocalEffectNode::PermanentKeywordAction(
+        super::PermanentKeywordActionNode {
+            action: super::PermanentKeywordAction::RemoveUnnamedCounters(removal),
+            targets,
+            quantity,
+        },
+    ))
+}
+
 /// `remove COUNT KIND counter(s) from PERMANENT-OPERAND` (CR 122.8): the
 /// counter action of `put … on`, read with the same count, counter-name and
 /// permanent-operand children, in the removal direction.

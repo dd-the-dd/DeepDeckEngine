@@ -2238,6 +2238,12 @@ pub(super) enum PermanentKeywordAction {
     PhaseOut,
     /// `remove OBJECT from combat` (CR 506.4).
     RemoveFromCombat,
+    /// `remove all|up to N|any number of counters from OBJECT`: counters of
+    /// any kinds (CR 122.8), chosen by the remover while it resolves.
+    RemoveUnnamedCounters(UnnamedCounterRemoval),
+    /// `put its|those counters on OBJECT`: as many counters of each kind as
+    /// the referenced object has, or had as it last existed (CR 608.2h).
+    PutCountersOf(PermanentEffectReference),
 }
 
 impl PermanentKeywordAction {
@@ -2280,7 +2286,14 @@ impl PermanentKeywordAction {
             | Self::Explore
             | Self::BecomeDesignated(_)
             | Self::PhaseOut
-            | Self::RemoveFromCombat => KeywordQuantityPolicy::None,
+            | Self::RemoveFromCombat
+            | Self::RemoveUnnamedCounters(
+                UnnamedCounterRemoval::Every | UnnamedCounterRemoval::AnyNumber,
+            )
+            | Self::PutCountersOf(_) => KeywordQuantityPolicy::None,
+            Self::RemoveUnnamedCounters(UnnamedCounterRemoval::UpTo) => {
+                KeywordQuantityPolicy::Required
+            }
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2309,6 +2322,8 @@ impl PermanentKeywordAction {
             Self::BecomeDesignated(designation) => designation.flag(),
             Self::PhaseOut => "phase out",
             Self::RemoveFromCombat => "remove from combat",
+            Self::RemoveUnnamedCounters(_) => "remove counters",
+            Self::PutCountersOf(_) => "put counters of",
         }
     }
 }
