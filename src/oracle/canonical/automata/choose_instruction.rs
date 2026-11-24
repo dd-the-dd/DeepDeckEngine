@@ -15,8 +15,8 @@
 //! approximated. Mode choices (`choose one —`) belong to the modal parent.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    PlayerPredicate, TargetListNode, TargetSelector, recognize_target_list,
-    selector_guarantees_permanent,
+    PlayerPredicate, TargetCountSupport, TargetListNode, TargetSelector,
+    recognize_target_list_with_counts, selector_guarantees_permanent,
 };
 
 /// The chooser of a `choose` instruction. An imperative `choose` is the
@@ -272,17 +272,26 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
         word_at(&trial, offset, "target")
             || (word_at(&trial, offset, "other") && word_at(&trial, offset + 1, "target"))
     };
+    // A typed count (`any number of`, `X`, `that many`, `up to X`) heads a
+    // target list only when the `target` head follows it.
+    let expressed_count_width = {
+        let mut probe = trial.clone();
+        (super::expressed_target_count_starts(&probe)
+            && super::recognize_target_count(&mut probe).is_ok())
+        .then(|| probe.position() - trial.position())
+    };
     let explicit_target = trial.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("target")
             || raw.eq_ignore_ascii_case("another")
             || (raw.eq_ignore_ascii_case("any") && word_at(&trial, 1, "target"))
     }) || (quantity_head && target_after(1))
-        || (word_at(&trial, 0, "up") && word_at(&trial, 1, "to") && target_after(3));
+        || (word_at(&trial, 0, "up") && word_at(&trial, 1, "to") && target_after(3))
+        || expressed_count_width.is_some_and(target_after);
     if !explicit_target {
         if word_at(&trial, 0, "any") && word_at(&trial, 1, "number") && word_at(&trial, 2, "of") {
             *cursor = trial;
             cursor.enter("choose.domain.target.cardinality");
-            return Err(cursor.fail("a literal or `up to N` target cardinality"));
+            return Err(cursor.fail("a `target` head after the declared target count"));
         }
         if quantity_head
             || (word_at(&trial, 0, "any") && word_at(&trial, 1, "number"))
@@ -323,7 +332,9 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
         return Err(cursor.fail("a typed choice domain"));
     }
     cursor.enter("choose.domain.target");
-    let targets = recognize_target_list(&mut trial)?;
+    // The declared permanent slots are lowered by the shared permanent
+    // subject lowering, which reads a typed target count.
+    let targets = recognize_target_list_with_counts(&mut trial, TargetCountSupport::Expressed)?;
     let domain = if targets
         .slots
         .iter()

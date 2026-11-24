@@ -129,14 +129,15 @@ pub(in crate::oracle::canonical) fn expressed_target_count_starts(
     let variable =
         |offset: usize| at(offset, "x") || (at(offset, "that") && at(offset + 1, "many"));
     (at(0, "any") && at(1, "number") && at(2, "of"))
+        || (at(0, "one") && at(1, "or") && at(2, "more"))
         || variable(0)
         || (at(0, "up") && at(1, "to") && variable(2))
 }
 
 /// The shared declared-count child: `N`, `N or M`, `up to N`, `X`, `up to
-/// X`, `that many` and `any number of`. Amounts are the shared numeric
-/// expression; a literal must be positive (a zero upper bound declares no
-/// target). The caller owns the following `[other] target` head.
+/// X`, `that many`, `one or more` and `any number of`. Amounts are the shared
+/// numeric expression; a literal must be positive (a zero upper bound
+/// declares no target). The caller owns the following `[other] target` head.
 pub(in crate::oracle::canonical) fn recognize_target_count(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<TargetCount> {
@@ -149,6 +150,23 @@ pub(in crate::oracle::canonical) fn recognize_target_count(
         cursor.consume_phrase(&["any", "number", "of"])?;
         return Ok(TargetCount {
             minimum: NumericExpression::from(0),
+            maximum: TargetCountBound::Unbounded,
+        });
+    }
+    // `one or more target ...` (CR 601.2c): at least one, no upper bound.
+    if ["one", "or", "more"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+    {
+        cursor.enter("target-list.count.at-least-one");
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        return Ok(TargetCount {
+            minimum: NumericExpression::from(1),
             maximum: TargetCountBound::Unbounded,
         });
     }
