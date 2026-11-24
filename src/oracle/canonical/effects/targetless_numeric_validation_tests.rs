@@ -123,10 +123,10 @@ fn source_cast_values_and_unsupported_target_properties_keep_their_own_boundarie
 #[test]
 fn quantified_discard_keeps_actors_and_random_binding_ids_after_validation() {
     use super::super::{
-        CollectionSelectionMethod, PlayerDiscardEffectNode, PlayerDiscardLoweringIds,
-        PlayerEffectSubject, PlayerSetReferenceNode, QuantifiedPlayerAction,
-        QuantifiedPlayerActionNode, controller, lower_player_discard_action_for_player,
-        lower_quantified_player_action,
+        CollectionSelectionMethod, DiscardQuantity, PlayerDiscardEffectNode,
+        PlayerDiscardLoweringIds, PlayerEffectSubject, PlayerSetReferenceNode,
+        QuantifiedPlayerAction, QuantifiedPlayerActionNode, controller,
+        lower_player_discard_action_for_player, lower_quantified_player_action,
     };
     for selection in [
         CollectionSelectionMethod::Choice,
@@ -134,7 +134,7 @@ fn quantified_discard_keeps_actors_and_random_binding_ids_after_validation() {
     ] {
         let action = PlayerDiscardEffectNode {
             player: PlayerEffectSubject::Controller,
-            count: NumericExpression::add(literal(1), literal(2)),
+            quantity: DiscardQuantity::Count(NumericExpression::add(literal(1), literal(2))),
             selection,
         };
         let bound = serde_json::json!({"kind":"boundValue", "id":"quantifiedPlayer"});
