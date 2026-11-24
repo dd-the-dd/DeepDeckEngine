@@ -904,6 +904,11 @@ pub(super) enum NumericExpression {
     /// The number of the ability controller's opponents with one fact
     /// (`for each opponent you attacked with a creature this combat`).
     OpponentCount(OpponentFact),
+    /// The number (or total amount) of recorded game events matching one
+    /// history pattern (`spells you've cast this turn`, `creatures that died
+    /// this turn`): the same pattern the condition language's EventHistory
+    /// atom compares.
+    EventHistoryCount(Box<EventHistoryCountNode>),
     Add {
         left: Box<NumericExpression>,
         right: Box<NumericExpression>,
@@ -938,9 +943,13 @@ pub(super) enum NumericExpression {
     /// permanents matching the predicate (zero when there are none).
     /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the
     /// counted battlefield collection (power, toughness or mana value).
+    ///
+    /// With `aggregate: Sum` it is the total of that property instead (`creatures
+    /// you control have total power 8 or greater`), zero when there are none.
     GreatestPropertyAmong {
         property: SelectorNumericProperty,
         predicate: ObjectPredicate,
+        aggregate: PropertyAggregate,
     },
     /// The number of objects an earlier action of the same program affected
     /// (`for each creature destroyed this way`, CR 608.2c). Only the program
@@ -960,6 +969,15 @@ pub(super) enum NumericExpression {
     },
 }
 
+/// How a numeric property is aggregated over a collection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PropertyAggregate {
+    /// The greatest value (`the greatest power among`).
+    Greatest,
+    /// The sum of the values (`total power`).
+    Sum,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct PermanentCountNode {
     pub predicate: ObjectPredicate,
@@ -968,10 +986,13 @@ pub(super) struct PermanentCountNode {
     pub measure: PermanentCountMeasure,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum PlayerNumericFact {
     LifeGainedThisTurn,
     LifeTotal,
+    /// The counters of one kind the player has (CR 122.1: experience,
+    /// poison, energy).
+    Counters(crate::oracle::counter_name::CounterName),
 }
 
 /// A fact about one opponent of the ability controller that a count reads.
@@ -1120,6 +1141,7 @@ impl NumericExpression {
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
             | Self::OpponentCount(_)
+            | Self::EventHistoryCount(_)
             | Self::Devotion(_)
             | Self::ActionResultQuantity { .. }
             | Self::PlayerFact { .. }

@@ -611,6 +611,9 @@ fn recognize_effect_sequence_attempt_internal(
     attempt_frame: &mut SequenceAttemptFrame,
 ) -> MachineResult<EffectSequenceNode> {
     let enclosing = cursor.replace_binding_environment(None);
+    // The source's name links, for children that name the source (`the
+    // number of verse counters on NAME`).
+    let enclosing_names = cursor.replace_source_names(Some(name_links.into()));
     let result = recognize_effect_sequence_attempt_scoped(
         cursor,
         name_links,
@@ -620,6 +623,7 @@ fn recognize_effect_sequence_attempt_internal(
         stop_before_activation_annotation,
         attempt_frame,
     );
+    cursor.replace_source_names(enclosing_names);
     cursor.replace_binding_environment(enclosing);
     result
 }

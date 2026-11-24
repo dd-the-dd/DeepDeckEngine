@@ -305,8 +305,19 @@ pub(in crate::oracle::canonical) fn recognize_source_counter_count(
     recognize_source_counter_operand(cursor)
 }
 
-/// `COUNTER-NAME counter(s) on this NOUN`: the counted operand shared by the
-/// `the number of` quantity and the `for each` multiplier.
+/// `COUNTER-NAME counter(s) HOLDER`: the counted operand shared by the
+/// `the number of` quantity and the `for each` multiplier. The holder is one
+/// object or player:
+///
+/// ```text
+/// Holder := "on" "this" PermanentNoun        the source (`this Equipment`)
+///         | "on" SourceName                  the source by its name (CR 201.5)
+///         | "on" ("it" | "him" | "her")      the source, as the binding
+///                                            environment's antecedent
+///         | "you" "have"                     the controller's counters (CR 122.1)
+/// ```
+///
+/// Any other holder fails explicitly; a pronoun never mints a reference.
 pub(in crate::oracle::canonical) fn recognize_source_counter_operand(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
@@ -317,25 +328,77 @@ pub(in crate::oracle::canonical) fn recognize_source_counter_operand(
         .to_owned();
     cursor.consume(&noun)?;
     cursor.enter("numeric.source-counter.source");
-    cursor.consume_phrase(&["on", "this"])?;
-    let noun = cursor
-        .peek()
-        .ok_or_else(|| cursor.fail("a registered source object noun"))?
-        .to_owned();
-    cursor.require(
-        match lookup_object_selector_lexeme(&noun) {
-            Some(CharacteristicLexeme::CardType(kind)) => kind.may_appear_on_permanent(),
-            Some(CharacteristicLexeme::ObjectDomain(
-                crate::oracle::characteristic_vocabulary::ObjectDomain::Permanent
-                | crate::oracle::characteristic_vocabulary::ObjectDomain::Card,
-            )) => true,
-            _ => false,
-        },
-        "a source noun compatible with the proved battlefield information context",
-    )?;
-    cursor.consume(&noun)?;
+    if word_at(cursor, 0, "you") && word_at(cursor, 1, "have") {
+        cursor.enter("numeric.player-counter.holder");
+        cursor.consume_phrase(&["you", "have"])?;
+        return Ok(NumericExpression::PlayerFact {
+            player: super::LocalPlayerReference::Controller,
+            fact: super::PlayerNumericFact::Counters(counter),
+        });
+    }
+    cursor.consume("on")?;
+    if word_at(cursor, 0, "this") {
+        cursor.consume("this")?;
+        let noun = cursor
+            .peek()
+            .ok_or_else(|| cursor.fail("a registered source object noun"))?
+            .to_owned();
+        cursor.require(
+            source_noun_on_battlefield(&noun),
+            "a source noun compatible with the proved battlefield information context",
+        )?;
+        cursor.consume(&noun)?;
+    } else if ["it", "him", "her"]
+        .iter()
+        .any(|pronoun| word_at(cursor, 0, pronoun))
+    {
+        cursor.enter("numeric.source-counter.pronoun");
+        let environment = super::installed_binding_environment(cursor);
+        let antecedent = super::resolve_possessive_antecedent(&environment)
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.require(
+            antecedent == super::PermanentEffectReference::Source(LocalObjectReference::SourceSelf),
+            "a pronoun whose antecedent is the ability's source",
+        )?;
+        let pronoun = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&pronoun)?;
+    } else {
+        cursor.enter("numeric.source-counter.name");
+        let names = cursor.source_names().to_vec();
+        cursor.require(
+            !names.is_empty()
+                && super::source_reference_starts_at(cursor.position(), None, &names, None),
+            "`this`, the source's name, or a pronoun naming the source",
+        )?;
+        let reference = super::recognize_source_reference(cursor, &names, None)?;
+        cursor.require(
+            reference == LocalObjectReference::SourceSelf,
+            "the ability's own source",
+        )?;
+    }
     Ok(NumericExpression::CountCounters {
         object: LocalObjectReference::SourceSelf,
         counter,
     })
+}
+
+/// A noun naming the source as a permanent: a permanent card type, the
+/// permanent or card domain, or a subtype (`this Equipment`, `this Saga`).
+fn source_noun_on_battlefield(noun: &str) -> bool {
+    match lookup_object_selector_lexeme(noun) {
+        Some(CharacteristicLexeme::CardType(kind)) => kind.may_appear_on_permanent(),
+        Some(CharacteristicLexeme::ObjectDomain(
+            crate::oracle::characteristic_vocabulary::ObjectDomain::Permanent
+            | crate::oracle::characteristic_vocabulary::ObjectDomain::Card,
+        )) => true,
+        Some(_) => false,
+        None => crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(noun)
+            .is_some_and(|subtype| subtype == noun),
+    }
+}
+
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
 }
