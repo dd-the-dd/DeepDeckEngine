@@ -68,6 +68,13 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         return lower_action_outcome(cursor, permission.as_ref(), action, *outcome, body)
             .map_err(program_failure);
     }
+    if let EffectProgramNode::Alternatives { player, options } = step {
+        let mut lowered = Vec::with_capacity(options.len());
+        for (label, sequence) in options {
+            lowered.push((*label, lower(cursor, sequence)?));
+        }
+        return lower_alternatives(cursor, player, lowered).map_err(program_failure);
+    }
     let lowered = lower(cursor, step.inner_sequence())?;
     wrap_lowered_effect_program(cursor, step, lowered).map_err(program_failure)
 }
@@ -117,6 +124,47 @@ fn measured_outcome_instruction(
         names,
     )?;
     Ok(instruction.clone())
+}
+
+/// `optionalEffects{chooseOneEffect}`: the performer may perform one of the
+/// coordinated actions. Each option was lowered from the same written object,
+/// so their declarations must be the same one declaration.
+fn lower_alternatives(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: &LocalPlayerReference,
+    options: Vec<(&'static str, LoweredEffectSequence)>,
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.alternatives.actor");
+    let player = lower_optional_program_player(cursor, player)?;
+    cursor.enter("lower.program.alternatives.effects");
+    cursor.require(
+        options.len() >= 2 && options.iter().all(|(_, option)| !option.effects.is_empty()),
+        "two nonempty coordinated alternatives",
+    )?;
+    cursor.enter("lower.program.alternatives.declarations");
+    let decisions = options[0].1.decisions.clone();
+    cursor.require(
+        options
+            .iter()
+            .all(|(_, option)| option.decisions == decisions),
+        "one declaration of the object every alternative acts on",
+    )?;
+    let options = options
+        .into_iter()
+        .map(|(label, option)| json!({ "label": label, "effects": option.effects }))
+        .collect::<Vec<_>>();
+    Ok(LoweredEffectSequence {
+        decisions,
+        effects: vec![json!({
+            "kind": "optionalEffects",
+            "player": player.clone(),
+            "effects": [{
+                "kind": "chooseOneEffect",
+                "player": player,
+                "options": options,
+            }],
+        })],
+    })
 }
 
 #[derive(Clone, Copy)]
@@ -381,6 +429,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
         EffectProgramNode::Steps(_) => {
             cursor.enter("lower.program.steps");
             Err(cursor.fail("program steps lowered one step at a time"))
+        }
+        EffectProgramNode::Alternatives { .. } => {
+            cursor.enter("lower.program.alternatives");
+            Err(cursor.fail("coordinated alternatives lowered with their options"))
         }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),

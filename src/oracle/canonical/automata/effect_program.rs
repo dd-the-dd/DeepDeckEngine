@@ -28,6 +28,16 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
     /// conditions its own sentence only (CR 608.2c); later sentences are
     /// ordinary instructions. Steps are flat: no step is itself `Steps`.
     Steps(Vec<EffectProgramNode>),
+    /// `PLAYER may VERB or VERB OBJECT` (`You may tap or untap target
+    /// creature.`): the performer chooses one of the coordinated actions
+    /// over the same written object, or neither. Each option is the shared
+    /// sequence of its own verb over the same tokens, so the object is one
+    /// declaration whichever action is chosen (CR 601.2c, 608.2c).
+    Alternatives {
+        player: LocalPlayerReference,
+        /// The base verb of each option and its sequence, in written order.
+        options: Vec<(&'static str, EffectSequenceNode)>,
+    },
 }
 
 /// What an outcome block's connector observes.
@@ -52,6 +62,13 @@ impl EffectProgramNode {
                 .last()
                 .expect("a program has at least one step")
                 .inner_sequence(),
+            // Every option reads the same written sentence.
+            Self::Alternatives { options, .. } => {
+                &options
+                    .first()
+                    .expect("alternatives have at least two options")
+                    .1
+            }
         }
     }
     /// Program steps in written order; a single program is its own one step.
@@ -76,6 +93,11 @@ impl EffectProgramNode {
                 ..
             } => action.action_count() + body.action_count(),
             Self::Steps(steps) => steps.iter().map(Self::action_count).sum(),
+            Self::Alternatives { options, .. } => options
+                .iter()
+                .map(|(_, sequence)| sequence.effects.len())
+                .max()
+                .unwrap_or(0),
         }
     }
 }
@@ -289,6 +311,20 @@ fn recognize_permission_program(
     let player = player?;
     cursor.enter("program.optional.permission");
     cursor.consume("may")?;
+    if let Some(lemmas) = coordinated_alternative_verbs(cursor) {
+        let program = recognize_alternative_actions(
+            cursor,
+            player,
+            lemmas,
+            name_links,
+            name_failure,
+            context,
+        )?;
+        if cursor.peek().is_none() {
+            return Ok(program);
+        }
+        return complete_outcome_block(cursor, program, name_links, name_failure, context);
+    }
     if outcome_connector_follows_first_sentence(cursor) {
         // A payment head is first read as a resolution cost. Only when that
         // typed cost child rejects the sentence (for example a target or an
@@ -383,6 +419,62 @@ fn recognize_permission_program(
         return Ok(optional);
     }
     complete_outcome_block(cursor, optional, name_links, name_failure, context)
+}
+
+/// `VERB or VERB` at the cursor: two different effect verbs in their base
+/// form coordinated by `or`, whose shared object follows the second one.
+fn coordinated_alternative_verbs(cursor: &OracleTokenCursor<'_>) -> Option<(VerbLemma, VerbLemma)> {
+    let base = |offset: usize| {
+        cursor
+            .peek_ahead(offset)
+            .and_then(lookup_effect_verb)
+            .filter(|(_, forms)| forms.contains(&VerbForm::Base))
+            .map(|(entry, _)| entry.lemma)
+    };
+    let first = base(0)?;
+    cursor
+        .peek_ahead(1)
+        .filter(|raw| raw.eq_ignore_ascii_case("or"))?;
+    let second = base(2)?;
+    (first != second).then_some((first, second))
+}
+
+/// `PLAYER may V1 or V2 OBJECT.`: each verb reads the shared object from the
+/// second verb's slot (the first one through a view writing its own surface
+/// in that slot, every token keeping its index and span). The permission
+/// owns its sentence and directly following reminders only.
+fn recognize_alternative_actions(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: LocalPlayerReference,
+    (first, second): (VerbLemma, VerbLemma),
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.optional.alternatives");
+    let slot = cursor.position() + 2;
+    let end = sentence_end_with_reminders(cursor);
+    // CR 118.12: no `unless` payer is ordered with this choice.
+    let mut permission_context = context.clone();
+    permission_context.unless_frames = UnlessFrameSupport::Unsupported;
+    let mut options = Vec::new();
+    for lemma in [first, second] {
+        let tokens = elided_verb_tokens(cursor, slot, lemma);
+        let mut view = cursor.with_tokens(&tokens);
+        view.advance_to(slot)?;
+        let sequence = view.bounded(end, |view| {
+            recognize_effect_sequence_with_context(
+                view,
+                name_links,
+                name_failure,
+                &permission_context,
+            )
+        })?;
+        options.push((verb_entry(lemma).surface(VerbForm::Base), sequence));
+    }
+    cursor.advance_to(end)?;
+    cursor.enter("program.optional.alternatives.complete");
+    Ok(EffectProgramNode::Alternatives { player, options })
 }
 
 /// The ActionResult antecedent a permission's actor opens: `you may` is
