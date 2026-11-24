@@ -13,9 +13,8 @@ pub(in crate::oracle::canonical) fn lower_activation_cost_decisions(
 
 fn lower_activation_numeric_cost_decisions(costs: &ActivationCostSequenceNode) -> Vec<Value> {
     let mut decisions = Vec::new();
-    if costs.costs.iter().any(
-        |cost| matches!(cost, LocalActivationCostNode::PayMana(mana) if mana.contains_variable_x()),
-    ) {
+    // One announced X for every `{X}` symbol and X quantity slot.
+    if costs.declares_x() {
         decisions.push(x_value());
     }
     decisions

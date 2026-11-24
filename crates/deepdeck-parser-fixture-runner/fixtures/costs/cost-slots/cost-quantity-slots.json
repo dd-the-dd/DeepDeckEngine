@@ -447,6 +447,48 @@
       }
     },
     {
+      "id": "sibling-announced-x-without-a-mana-symbol",
+      "request": {
+        "cardName": "Generic Announced X",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Remove X charge counters from this artifact: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "xValue"
+              },
+              {
+                "pointer": "/effects/0/amount",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-remove-counters-and-sacrifice-it",
       "request": {
         "cardName": "Generic Quest Pronoun Cost",
@@ -523,9 +565,9 @@
       "id": "near-miss-x-sacrifice-without-x-producer",
       "request": {
         "cardName": "Generic Unbound X Sacrifice",
-        "typeLine": "Creature — Zombie",
-        "manaCost": "{X}{B}",
-        "oracleText": "{T}, Sacrifice X creatures: Draw a card.",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your upkeep, you may sacrifice X creatures. If you do, draw a card.",
         "layout": "normal",
         "faces": []
       },
@@ -536,7 +578,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "activation.compound.quantity-x-producer"
+            "code": "oracle_machine_failure"
           }
         ]
       }

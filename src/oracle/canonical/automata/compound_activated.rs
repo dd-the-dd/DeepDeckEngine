@@ -5,9 +5,11 @@
 //! ordinal of each declared choice and the X producer. An action without an
 //! activation representation fails here at its own state.
 //!
-//! Quantity slots are the shared numeric atom. A variable quantity is bound
-//! only by this activation's own `{X}` mana cost (CR 107.3, 601.2b via
-//! 602.2b): without it the activation fails binding before any lowering.
+//! Quantity slots are the shared numeric atom. X in an activation cost is the
+//! value the activating player announces (CR 107.3a, 601.2b via 602.2b): the
+//! activation itself is its producer (`xValue`), whether or not an `{X}` mana
+//! symbol also pays it (`{T}, Sacrifice X Goats`). Other cost parents
+//! (resolution, `unless`) have no announcement and fail binding instead.
 use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -161,6 +163,18 @@ pub(in crate::oracle::canonical) struct ActivationSourceZoneRequirements {
 }
 
 impl ActivationCostSequenceNode {
+    /// The activation announces X (CR 107.3a, 601.2b via 602.2b) when a cost
+    /// names it: an `{X}` mana symbol or an X quantity slot.
+    pub(in crate::oracle::canonical) fn declares_x(&self) -> bool {
+        self.costs.iter().any(|cost| match cost {
+            LocalActivationCostNode::PayMana(mana) => mana.contains_variable_x(),
+            LocalActivationCostNode::RemoveSourceCounters(removal) => {
+                removal.count == NumericAtom::VariableX
+            }
+            _ => false,
+        })
+    }
+
     pub(in crate::oracle::canonical) fn source_zone_requirements(
         &self,
     ) -> ActivationSourceZoneRequirements {
@@ -223,17 +237,6 @@ pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
             CostConnector::And => ActivationCostConnector::And,
         })
         .collect();
-    // X in a quantity slot is this activation's chosen X: its producer is the
-    // activation's own `{X}` mana cost, checked before any projection.
-    cursor.enter("activation.compound.quantity-x-producer");
-    cursor.require(
-        !sequence.costs.iter().any(payment_quantity_uses_x)
-            || sequence.costs.iter().any(|payment| {
-                matches!(payment, PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana))
-                    if mana.contains_variable_x())
-            }),
-        "an {X} mana cost in this activation producing X for its cost quantity",
-    )?;
     let costs = sequence
         .costs
         .into_iter()
@@ -590,29 +593,6 @@ fn activation_counter_removal(
             let count = literal_counter_count(cursor, count)?;
             controlled_counter_removal(cursor, object, counter, count)
         }
-    }
-}
-
-/// True when a payment action's quantity slot is the variable X.
-fn payment_quantity_uses_x(payment: &PaymentActionNode) -> bool {
-    match payment {
-        PaymentActionNode::Tap(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::Untap(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::Sacrifice(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::Discard(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::Exert(PaymentObjectsNode::Chosen(chosen))
-        | PaymentActionNode::Exile {
-            objects: PaymentObjectsNode::Chosen(chosen),
-            ..
-        }
-        | PaymentActionNode::Reveal {
-            objects: PaymentObjectsNode::Chosen(chosen),
-            ..
-        } => chosen.count == NumericAtom::VariableX,
-        PaymentActionNode::RemoveCounters(removal) => removal.count == NumericAtom::VariableX,
-        PaymentActionNode::PutCounters(placement) => placement.count == NumericAtom::VariableX,
-        _ => false,
     }
 }
 

@@ -345,12 +345,12 @@ fn resolution_gains_lower_to_the_engine_cost_program_schema() {
 fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
     for (text, state) in [
         ("{1}, Blight 1", "engine.gap.activation-cost-action"),
-        // X needs this activation's own {X} producer before any lowering.
+        // The activation announces X; a declaration of X chosen objects
+        // still has no engine schema.
         (
             "{1}, Sacrifice X creatures",
-            "activation.compound.quantity-x-producer",
+            "engine.gap.activation-cost-action",
         ),
-        // A declaration of X chosen objects has no engine schema.
         (
             "{X}, Sacrifice X creatures",
             "engine.gap.activation-cost-action",
@@ -370,6 +370,11 @@ fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
         ),
         (
             "you may sacrifice two creatures. If you do, draw a card.",
+            "cost.resolution.sacrifice.quantity",
+        ),
+        // No announcement binds X in a resolution cost.
+        (
+            "you may sacrifice X creatures. If you do, draw a card.",
             "cost.resolution.sacrifice.quantity",
         ),
         (

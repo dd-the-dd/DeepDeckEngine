@@ -148,11 +148,9 @@ fn unsupported_discard_shapes_fail_explicitly_at_their_own_state() {
             "Discard another card",
             "activation.discard-card.source-exclusion",
         ),
-        // X needs this activation's own {X} producer.
-        (
-            "{1}, Discard X cards",
-            "activation.compound.quantity-x-producer",
-        ),
+        // The activation announces X, but X declared cards have no
+        // declaration schema: a typed engine gap, never a guessed count.
+        ("{1}, Discard X cards", "engine.gap.activation-cost-action"),
         (
             "Discard a card with the same name as a permanent",
             "selector.search-card.basic-land-type",
