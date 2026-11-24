@@ -788,8 +788,26 @@ impl GameEngine {
                 }
                 // `with different names`, `with total mana value 8 or less`:
                 // a constraint over the whole selection, not one candidate.
+                let mut effective_minimum = effective_minimum;
                 if let Some(constraints) = effect.get("setConstraints") {
                     values.retain(|selection| self.selection_satisfies(selection, constraints));
+                    // No legal selection of the required size: the choice
+                    // is made as far as possible (CR 609.3), with the
+                    // largest smaller selection the constraints admit.
+                    if values.is_empty() {
+                        for count in (0..effective_minimum).rev() {
+                            values = Self::resolution_selections(&objects, count, 128)
+                                .into_iter()
+                                .filter(|selection| {
+                                    self.selection_satisfies(selection, constraints)
+                                })
+                                .collect();
+                            if !values.is_empty() {
+                                effective_minimum = count;
+                                break;
+                            }
+                        }
+                    }
                 }
                 if effect["onePerControlledColor"].as_bool().unwrap_or(false) {
                     let choosing_player_index = self.player_index(&player_id)?;
@@ -823,6 +841,26 @@ impl GameEngine {
                     decisions,
                     provider,
                 )?;
+                // The engine keeps the final authority over a set constraint:
+                // a selection returned outside the offered previews is checked
+                // as a whole before any effect reads it.
+                if let Some(constraints) = effect.get("setConstraints") {
+                    let selected = decisions
+                        .get(decision_id)
+                        .and_then(Value::as_array)
+                        .map(|ids| {
+                            ids.iter()
+                                .filter_map(Value::as_str)
+                                .map(ToOwned::to_owned)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    if !self.selection_satisfies(&selected, constraints) {
+                        return Err(EngineError::new(format!(
+                            "resolution decision {decision_id} violates its set constraint"
+                        )));
+                    }
+                }
             }
             Some("chooseOrder") => {
                 let Some(decision_id) = effect["id"].as_str() else {
@@ -1062,3 +1100,10 @@ impl GameEngine {
 ))]
 #[path = "choices_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "choices_set_constraint_tests.rs"]
+mod set_constraint_tests;
