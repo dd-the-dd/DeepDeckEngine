@@ -200,6 +200,9 @@ mod source_damage_event_runtime;
 #[path = "tests/counter_event_runtime.rs"]
 mod counter_event_runtime;
 
+#[path = "tests/shared_quantity_slots_runtime.rs"]
+mod shared_quantity_slots_runtime;
+
 #[path = "tests/ability_loss_then_destroy_runtime.rs"]
 mod ability_loss_then_destroy_runtime;
 

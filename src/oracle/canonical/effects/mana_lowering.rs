@@ -36,6 +36,11 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
             "kind": effect.runtime_mana_kind(),
             "amount": effect.amount,
         }),
+        AddManaEffectNode::AnyColorAmount(effect) => json!({
+            "kind": effect.runtime_mana_kind(),
+            "amount": lower_numeric_expression(&effect.amount)
+                .expect("an expression mana amount is admitted only when it lowers"),
+        }),
         AddManaEffectNode::EachColor(effect) => {
             let mut colors = lower_color_set_query(&effect.colors);
             if effect.amount != 1 {

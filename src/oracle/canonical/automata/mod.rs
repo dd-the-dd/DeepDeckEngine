@@ -991,6 +991,14 @@ pub(super) enum EventNumericBinding {
     /// The mana value of the spell a cast record binds (`that spell's mana
     /// value`, CR 202.3), as recorded when it was cast.
     CastSpellManaValue,
+    /// The life a life-gain event records (`whenever you gain life, ...
+    /// that many`, CR 119.10): the runtime's `lifeGainedAmount`.
+    LifeGained,
+    /// The life a life-loss event records (CR 119.3): `lifeLostAmount`.
+    LifeLost,
+    /// The counters one counter-placement event put (CR 122.6):
+    /// `counterCount`.
+    CountersPut,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1753,6 +1761,25 @@ pub(super) struct AddAnyColorManaEffectNode {
     pub distribution: ManaColorDistribution,
 }
 
+/// A color-choice production whose amount is a shared numeric expression
+/// (`X mana of any one color, where X is ...`, `that much mana of any one
+/// color`). A literal amount stays `AddAnyColorManaEffectNode`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddAnyColorAmountManaEffectNode {
+    pub amount: NumericExpression,
+    pub distribution: ManaColorDistribution,
+}
+
+impl AddAnyColorAmountManaEffectNode {
+    /// Runtime mana-value kind for this distribution.
+    pub(super) fn runtime_mana_kind(&self) -> &'static str {
+        match self.distribution {
+            ManaColorDistribution::OneColor => "chooseColor",
+            ManaColorDistribution::AnyCombination => "chooseColors",
+        }
+    }
+}
+
 /// How the colors of a multi-mana production are chosen (CR 106.1b wording):
 /// `of any [one] color` chooses one color for every mana, while `in any
 /// combination of colors` chooses a color independently for each mana.
@@ -1789,6 +1816,8 @@ pub(super) enum AddManaEffectNode {
     Counted(AddCountedManaEffectNode),
     Choice(AddManaChoiceEffectNode),
     AnyColor(AddAnyColorManaEffectNode),
+    /// A color choice whose amount is a shared numeric expression.
+    AnyColorAmount(AddAnyColorAmountManaEffectNode),
     ScopedColor(AddScopedManaEffectNode),
     EachColor(AddEachColorManaNode),
 }

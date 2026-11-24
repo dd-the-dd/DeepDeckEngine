@@ -470,12 +470,26 @@ mod surveil_tests;
 mod numeric_context_tests;
 
 /// CR 122.8: `remove N KIND counter(s) from OBJECT`, the runtime
-/// `removeCounters` of the ability's own object with a literal count. Any
-/// other object or count has no runtime and stays unsupported.
+/// `removeCounters` of the ability's own object with a literal count, and
+/// `remove all KIND counters from OBJECT`, whose count is that object's own
+/// count of the kind (any object the runtime resolves). Any other object or
+/// count has no runtime and stays unsupported.
 pub(in crate::oracle::canonical) fn lower_counter_removal(
     object: Value,
     effect: &PutCountersOnObjectEffectNode,
 ) -> Option<Value> {
+    if let NumericExpression::CountersOnRecipient { counter } = &effect.count {
+        return Some(json!({
+            "kind": "removeCounters",
+            "permanent": object.clone(),
+            "counter": effect.counter.as_str(),
+            "count": {
+                "kind": "counterCountOf",
+                "object": object,
+                "counter": counter.as_str(),
+            },
+        }));
+    }
     let NumericExpression::Atom(NumericAtom::Integer(count)) = effect.count else {
         return None;
     };

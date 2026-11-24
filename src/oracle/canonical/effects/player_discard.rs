@@ -103,6 +103,40 @@ pub(in crate::oracle::canonical) fn lower_player_discard_action_for_player(
         DiscardQuantity::WholeHand => {
             return Ok(vec![json!({ "kind": "discardHand", "player": player })]);
         }
+        // `up to N cards` / `any number of cards`: the discarding player
+        // chooses zero to N (or to every) card of their hand, then discards
+        // exactly the chosen cards (CR 701.9a).
+        DiscardQuantity::UpTo(_) | DiscardQuantity::AnyNumber => {
+            let maximum = match &node.quantity {
+                DiscardQuantity::UpTo(maximum) => lower_numeric_expression(maximum)
+                    .ok_or(PlayerDiscardLoweringError::UnsupportedNumericExpression)?,
+                _ => json!({
+                    "kind": "countCards",
+                    "zone": hand(player.clone()),
+                    "where": Value::Null,
+                }),
+            };
+            let selection_id = ids.random_selection;
+            return Ok(vec![
+                json!({
+                    "kind": "chooseCards",
+                    "id": selection_id,
+                    "player": player.clone(),
+                    "minimum": 0,
+                    "maximum": maximum,
+                    "candidates": {
+                        "kind": "cards",
+                        "zone": hand(player.clone()),
+                        "where": Value::Null,
+                    },
+                }),
+                json!({
+                    "kind": "discardCards",
+                    "player": player,
+                    "cards": decision_result(selection_id),
+                }),
+            ]);
+        }
         DiscardQuantity::Count(count) => lower_numeric_expression(count)
             .ok_or(PlayerDiscardLoweringError::UnsupportedNumericExpression)?,
     };
