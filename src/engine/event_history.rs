@@ -11,7 +11,10 @@
 //!   where?:   card filter                 the event object's characteristics
 //!   fromZone?: zone                       the recorded origin zone
 //!   object?:  { kind: self }              the event object is the source
-//!   detail?:  { FIELD: scalar, ... }      exact recorded detail values
+//!   excludeObject?: { kind: self }        the event object is not the source
+//!   detail?:  { FIELD: scalar, ... }      exact recorded detail values; a
+//!                                         FIELD starting with `/` is a JSON
+//!                                         pointer into the detail
 //!   relatedPlayers?: { FIELD: PlayerRelation }  detail fields naming players
 //!   measure?: events | amount | count | cards
 //!   aggregate?: total | greatestPerPlayer }
@@ -34,6 +37,10 @@
 //! that died).
 //!
 //! The previous turn of the first turn does not exist: its count is zero.
+//!
+//! `measure: cards` with a filter counts the cards of each arrival record
+//! that satisfy it, read on the type lines the record captured (a token is
+//! never a card).
 use super::*;
 
 /// Departures, which record the card's owner.
@@ -201,6 +208,9 @@ pub(super) fn event_history_supported(expression: &Value) -> bool {
         && expression
             .get("object")
             .is_none_or(|object| matches!(value_kind(object), Some("self" | "abilitySource")))
+        && expression
+            .get("excludeObject")
+            .is_none_or(|object| matches!(value_kind(object), Some("self" | "abilitySource")))
         && expression.get("detail").is_none_or(scalar_detail_supported)
         && expression.get("relatedPlayers").is_none_or(|related| {
             related.as_object().is_some_and(|fields| {
@@ -209,6 +219,36 @@ pub(super) fn event_history_supported(expression: &Value) -> bool {
                     .all(|relation| player_relation_supported(relation))
             })
         })
+}
+
+/// The recorded detail value a pattern field names: a top-level field, or a
+/// JSON pointer (`/decisions/useWarp`) into the recorded detail.
+fn recorded_detail<'a>(detail: &'a Value, field: &str) -> Option<&'a Value> {
+    if field.starts_with('/') {
+        detail.pointer(field)
+    } else {
+        detail.get(field)
+    }
+}
+
+/// The detail of one graveyard arrival: the card identities and, for each
+/// card, the type line and token status it had as it arrived, so that a
+/// later count reads them even after a token ceased to exist.
+pub(super) fn graveyard_arrival_detail(cards: &[CardInstance]) -> Value {
+    json!({
+        "cardIds": cards
+            .iter()
+            .map(|card| card.instance_id.clone())
+            .collect::<Vec<_>>(),
+        "cards": cards
+            .iter()
+            .map(|card| json!({
+                "id": card.instance_id,
+                "typeLine": card.definition.type_line,
+                "isToken": card.definition.is_token,
+            }))
+            .collect::<Vec<_>>(),
+    })
 }
 
 /// Lowercased words of a type line or a type phrase; a dash between types
@@ -236,7 +276,12 @@ fn type_line_contains_phrase(type_line: &str, phrase: &str) -> bool {
 /// type), evaluated for type atoms only; `was_creature` is the recorded
 /// last-known creature status, when the event has one. `None` for any other
 /// atom.
-fn type_line_filter(type_line: &str, was_creature: Option<bool>, filter: &Value) -> Option<bool> {
+fn type_line_filter(
+    type_line: &str,
+    was_creature: Option<bool>,
+    is_token: Option<bool>,
+    filter: &Value,
+) -> Option<bool> {
     match value_kind(filter) {
         None if filter.is_null() => Some(true),
         Some("cardTypeContains")
@@ -260,20 +305,34 @@ fn type_line_filter(type_line: &str, was_creature: Option<bool>, filter: &Value)
         }
         Some("isLegendary") => Some(type_line_contains(type_line, "Legendary")),
         Some("isBasic") => Some(type_line_contains(type_line, "Basic")),
-        Some("not") => {
-            type_line_filter(type_line, was_creature, &filter["operand"]).map(|value| !value)
-        }
+        Some("isToken") => is_token,
+        // CR 110.4b: a card with a permanent card type; a token is no card.
+        Some("isPermanentCard") => Some(
+            !is_token?
+                && [
+                    "Artifact",
+                    "Battle",
+                    "Creature",
+                    "Enchantment",
+                    "Land",
+                    "Planeswalker",
+                ]
+                .iter()
+                .any(|card_type| type_line_contains_phrase(type_line, card_type)),
+        ),
+        Some("not") => type_line_filter(type_line, was_creature, is_token, &filter["operand"])
+            .map(|value| !value),
         Some("and") => {
             let mut all = true;
             for operand in filter["operands"].as_array()? {
-                all &= type_line_filter(type_line, was_creature, operand)?;
+                all &= type_line_filter(type_line, was_creature, is_token, operand)?;
             }
             Some(all)
         }
         Some("or") => {
             let mut any = false;
             for operand in filter["operands"].as_array()? {
-                any |= type_line_filter(type_line, was_creature, operand)?;
+                any |= type_line_filter(type_line, was_creature, is_token, operand)?;
             }
             Some(any)
         }
@@ -305,13 +364,46 @@ impl GameEngine {
             return Some(true);
         }
         if let Some(type_line) = event.detail["typeLine"].as_str()
-            && let Some(matched) =
-                type_line_filter(type_line, event.detail["wasCreature"].as_bool(), filter)
+            && let Some(matched) = type_line_filter(
+                type_line,
+                event.detail["wasCreature"].as_bool(),
+                event.detail["wasToken"].as_bool(),
+                filter,
+            )
         {
             return Some(matched);
         }
         let definition = self.event_object_definition(event.card_instance_id.as_deref()?)?;
         Some(matches_card_filter(definition, filter))
+    }
+
+    /// The cards of one arrival record that satisfy `filter` (a token is
+    /// never a card): the captured type line of each card, else its card.
+    /// `None` when a card can be read neither way.
+    fn arrival_cards_matching(&self, event: &GameEvent, filter: &Value) -> Option<i32> {
+        let mut matched = 0_i32;
+        for card_id in event.detail["cardIds"].as_array()? {
+            let card_id = card_id.as_str()?;
+            let captured = event.detail["cards"].as_array().and_then(|cards| {
+                cards
+                    .iter()
+                    .find(|card| card["id"].as_str() == Some(card_id))
+            });
+            let matches = match captured {
+                Some(card) if card["isToken"].as_bool()? => false,
+                Some(card) => {
+                    match type_line_filter(card["typeLine"].as_str()?, None, Some(false), filter) {
+                        Some(matches) => matches,
+                        None => matches_card_filter(self.event_object_definition(card_id)?, filter),
+                    }
+                }
+                None => matches_card_filter(self.event_object_definition(card_id)?, filter),
+            };
+            if matches {
+                matched = matched.saturating_add(1);
+            }
+        }
+        Some(matched)
     }
 
     /// The per-event value of the measure; `None` when the event lacks the
@@ -372,6 +464,10 @@ impl GameEngine {
             None => None,
             Some(_) => Some(source?),
         };
+        let excluded = match expression.get("excludeObject") {
+            None => None,
+            Some(_) => Some(source?),
+        };
         let filter = expression.get("where").unwrap_or(&Value::Null);
         let detail = expression.get("detail").and_then(Value::as_object);
         let from_zone = expression.get("fromZone").and_then(Value::as_str);
@@ -389,11 +485,13 @@ impl GameEngine {
                     })
                 })
                 || object.is_some_and(|object| event.card_instance_id.as_deref() != Some(object))
+                || excluded
+                    .is_some_and(|excluded| event.card_instance_id.as_deref() == Some(excluded))
                 || from_zone.is_some_and(|zone| event.detail["fromZone"].as_str() != Some(zone))
                 || detail.is_some_and(|fields| {
-                    fields
-                        .iter()
-                        .any(|(field, expected)| event.detail.get(field) != Some(expected))
+                    fields.iter().any(|(field, expected)| {
+                        recorded_detail(&event.detail, field) != Some(expected)
+                    })
                 })
                 || related
                     .iter()
@@ -401,10 +499,14 @@ impl GameEngine {
             {
                 continue;
             }
-            if !self.event_object_matches(event, filter)? {
-                continue;
-            }
-            let value = Self::event_measure(event, measure)?;
+            let value = if measure == HistoryMeasure::Cards && !filter.is_null() {
+                self.arrival_cards_matching(event, filter)?
+            } else {
+                if !self.event_object_matches(event, filter)? {
+                    continue;
+                }
+                Self::event_measure(event, measure)?
+            };
             total = total.saturating_add(value);
             let tally = per_player
                 .entry(event.player_id.as_deref().unwrap_or(""))
@@ -449,6 +551,78 @@ impl GameEngine {
             Some(stack_object.card.instance_id.as_str()),
             &|reference| self.resolve_player(reference, stack_object, bindings),
         )
+    }
+}
+
+/// `departedObjectMatches { object, where }`: a target's type-line predicate
+/// read on its last known information (CR 608.2h). Only type-line atoms are
+/// recorded by a departure.
+pub(super) fn departed_object_condition_supported(condition: &Value) -> bool {
+    fn type_line_atoms(filter: &Value, depth: usize) -> bool {
+        depth < 32
+            && match value_kind(filter) {
+                Some(
+                    "cardTypeContains" | "subtypeContains" | "typeLineContains" | "isLegendary"
+                    | "isBasic",
+                ) => filter["value"].is_string() || filter.get("value").is_none(),
+                Some("not") => type_line_atoms(&filter["operand"], depth + 1),
+                Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
+                    !operands.is_empty()
+                        && operands
+                            .iter()
+                            .all(|operand| type_line_atoms(operand, depth + 1))
+                }),
+                _ => false,
+            }
+    }
+    target_reference_supported(&condition["object"]) && type_line_atoms(&condition["where"], 0)
+}
+
+impl GameEngine {
+    /// The target while it is still on the battlefield, else the type line
+    /// its latest departure from the battlefield recorded. A target without
+    /// either has no characteristic: the condition is false.
+    pub(super) fn departed_object_matches(
+        &self,
+        condition: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> bool {
+        let Some(TargetRef::Permanent { instance_id }) =
+            self.resolve_target(&condition["object"], stack_object, bindings)
+        else {
+            return false;
+        };
+        if self.permanent_position(&instance_id).is_some() {
+            let current = json!({
+                "kind": "objectMatchesFilter",
+                "object": condition["object"].clone(),
+                "where": condition["where"].clone(),
+            });
+            return self.object_condition_matches(
+                &current,
+                stack_object,
+                bindings,
+                &stack_object.decisions,
+            );
+        }
+        let Some(departure) = self.state.events.iter().rev().find(|event| {
+            event.kind == "permanentLeftBattlefield"
+                && event.card_instance_id.as_deref() == Some(instance_id.as_str())
+        }) else {
+            return false;
+        };
+        departure.detail["typeLine"]
+            .as_str()
+            .and_then(|type_line| {
+                type_line_filter(
+                    type_line,
+                    departure.detail["wasCreature"].as_bool(),
+                    None,
+                    &condition["where"],
+                )
+            })
+            .unwrap_or(false)
     }
 }
 

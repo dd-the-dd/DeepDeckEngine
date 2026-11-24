@@ -127,6 +127,10 @@ mod riot_runtime;
 mod conditional_static_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/condition_atom_language_runtime.rs"]
+mod condition_atom_language_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/static_characteristics_runtime.rs"]
 mod static_characteristics_runtime;
 

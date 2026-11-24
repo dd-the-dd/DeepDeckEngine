@@ -31,6 +31,11 @@ pub(in crate::oracle::canonical) enum ConditionObjectReference {
     /// The singular card result of the current card-collection scope (the
     /// looked-at, revealed or chosen card).
     CardFocus,
+    /// A declared permanent target that an earlier action of the program
+    /// moved off the battlefield, read with its last known information
+    /// (CR 608.2h): the numeric properties and the type line its departure
+    /// recorded.
+    DepartedTarget(TargetBinding),
 }
 
 impl ConditionObjectReference {
@@ -100,6 +105,12 @@ pub(in crate::oracle::canonical) struct ConditionContext<'a> {
     pub source_subject: bool,
     /// The optional payment whose omission `you don't` reads.
     pub payment: Option<ChoiceBinding>,
+    /// How the ability's source is attached, which `enchanted PERMANENT` /
+    /// `equipped creature` names (CR 301.5a, 303.4a).
+    pub source_attachment: Option<AttachedObjectRole>,
+    /// Outside a program, the object `it` denotes when it is not the source
+    /// (the attached permanent a static ability's subject names).
+    pub subject_object: Option<ConditionObjectReference>,
 }
 
 impl<'a> ConditionContext<'a> {
@@ -116,6 +127,8 @@ impl<'a> ConditionContext<'a> {
             program: None,
             source_subject,
             payment: None,
+            source_attachment: None,
+            subject_object: None,
         }
     }
 
@@ -130,6 +143,8 @@ impl<'a> ConditionContext<'a> {
             program: Some(context),
             source_subject: false,
             payment: None,
+            source_attachment: context.effects.source_attachment,
+            subject_object: None,
         }
     }
 
@@ -230,7 +245,7 @@ pub(in crate::oracle::canonical) fn recognize_condition_atom(
     cursor.enter(context.atom_kind_state());
     let atom = read_condition_atom(cursor, context)?;
     cursor.enter("condition.allow-list");
-    cursor.require(context.scope.allows(atom.family()), context.scope.refusal())?;
+    cursor.require(context.scope.allows_atom(&atom), context.scope.refusal())?;
     Ok(atom)
 }
 
@@ -282,6 +297,11 @@ fn read_condition_atom(
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_controlled_permanents_atom(cursor);
     }
+    // Compare: one measure of two players (`an opponent has more cards in
+    // hand than you`, `you have more life than each opponent`).
+    if super::player_comparative_starts(cursor) {
+        return super::recognize_player_comparative_atom(cursor);
+    }
     // Compare: the state of the player the binding environment names.
     if word_is(cursor, 0, "that")
         && word_is(cursor, 1, "player")
@@ -302,6 +322,11 @@ fn read_condition_atom(
         && cast_object_follows(cursor, context)
     {
         return recognize_controller_cast_source_atom(cursor, context);
+    }
+    // CastFact: `{R} was spent to cast this spell`, `at least three red mana
+    // was spent to cast it`, `no mana was spent to cast that spell`.
+    if mana_spent_atom_starts(cursor) {
+        return recognize_mana_spent_atom(cursor, context);
     }
     // EventHistory with a player actor: `an opponent searched their library
     // this turn`, `a player cast two or more spells last turn`.
@@ -342,6 +367,11 @@ fn read_condition_atom(
     {
         return recognize_controller_turn_proposition(cursor).map(ConditionAtom::TurnOwnership);
     }
+    // ObjectSatisfies with the attached permanent as subject (`equipped
+    // creature is a Human`, `enchanted creature is red`).
+    if super::attached_object_reference_starts(cursor) {
+        return recognize_attached_object_atom(cursor, context).map(ConditionAtom::ObjectSatisfies);
+    }
     // ObjectSatisfies / CastFact with the source as subject.
     if source_reference_starts_at(
         cursor.position(),
@@ -360,9 +390,119 @@ fn read_condition_atom(
         return recognize_referenced_object_atom(cursor, context)
             .map(ConditionAtom::ObjectSatisfies);
     }
+    // Compare: a numeric subject of the shared definition grammar (`your
+    // devotion to white is less than five`, `your life total is 5 or less`).
+    if let Some(atom) = try_numeric_subject_comparison(cursor)? {
+        return Ok(atom);
+    }
     Err(cursor.fail(
         "a supported condition: a player's state or history, a count comparison, an object's state, turn ownership, a cast fact of this spell, or the outcome of an earlier action",
     ))
+}
+
+/// `EXPRESSION is COMPARISON`, where EXPRESSION is any operand of the
+/// shared numeric definition grammar. The subject is read transactionally:
+/// only an expression followed by `is|was` commits this reader.
+fn try_numeric_subject_comparison(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ConditionAtom>> {
+    let mut trial = cursor.clone();
+    let Ok(left) = recognize_variable_definition_expression(&mut trial) else {
+        return Ok(None);
+    };
+    if !(word_is(&trial, 0, "is") || word_is(&trial, 0, "was")) {
+        return Ok(None);
+    }
+    *cursor = trial;
+    cursor.enter("condition.numeric-subject.copula");
+    consume_current(cursor)?;
+    let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+    // `L OP half R` is `2 * L OP R`: the comparison needs no rounding.
+    let left = if halved {
+        NumericExpression::multiply(NumericExpression::from(2), left)
+    } else {
+        left
+    };
+    Ok(Some(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(left),
+        operator,
+        right,
+    })))
+}
+
+/// After the copula: `less than [or equal to] R`, `greater than [or equal
+/// to] R`, `equal to R`, a threshold (`5 or less`, `at least 10`, `exactly
+/// 20`) or a bare number. R is a number or an expression of the shared
+/// definition grammar, optionally `half R` (returned as `true`).
+fn recognize_comparison_tail(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(NumericComparisonOperator, ConditionNumber, bool)> {
+    cursor.enter("condition.numeric-subject.operator");
+    let relation = if word_is(cursor, 0, "less") && word_is(cursor, 1, "than") {
+        Some(if word_is(cursor, 2, "or") {
+            NumericComparisonOperator::LessThanOrEqual
+        } else {
+            NumericComparisonOperator::LessThan
+        })
+    } else if word_is(cursor, 0, "greater") && word_is(cursor, 1, "than") {
+        Some(if word_is(cursor, 2, "or") {
+            NumericComparisonOperator::GreaterThanOrEqual
+        } else {
+            NumericComparisonOperator::GreaterThan
+        })
+    } else if word_is(cursor, 0, "equal") && word_is(cursor, 1, "to") {
+        Some(NumericComparisonOperator::Equal)
+    } else {
+        None
+    };
+    if let Some(operator) = relation {
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        if matches!(
+            operator,
+            NumericComparisonOperator::LessThanOrEqual
+                | NumericComparisonOperator::GreaterThanOrEqual
+        ) {
+            cursor.consume_phrase(&["or", "equal", "to"])?;
+        }
+        cursor.enter("condition.numeric-subject.right");
+        let halved = word_is(cursor, 0, "half");
+        if halved {
+            cursor.consume("half")?;
+        }
+        let number = cursor
+            .peek()
+            .and_then(|raw| raw.parse::<i64>().ok().or_else(|| parse_number_word(raw)))
+            .filter(|_| !word_is(cursor, 0, "a") && !word_is(cursor, 0, "an"));
+        let right = match number {
+            Some(value) if !halved => {
+                consume_current(cursor)?;
+                ConditionNumber::Integer(value)
+            }
+            _ => ConditionNumber::Expression(recognize_variable_definition_expression(cursor)?),
+        };
+        return Ok((operator, right, halved));
+    }
+    let bare = cursor
+        .peek()
+        .and_then(|raw| raw.parse::<i64>().ok().or_else(|| parse_number_word(raw)))
+        .filter(|_| !word_is(cursor, 1, "or"));
+    if let Some(value) = bare {
+        consume_current(cursor)?;
+        return Ok((
+            NumericComparisonOperator::Equal,
+            ConditionNumber::Integer(value),
+            false,
+        ));
+    }
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.require(
+        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        "a numeric threshold rather than `no`",
+    )?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok((operator, ConditionNumber::Integer(value), false))
 }
 
 /// `you control a|an|another PERMANENT` (at least one) or `you control N or
@@ -642,7 +782,7 @@ fn recognize_source_condition_atom(
         cursor.consume("was")?;
         cursor.consume("kicked")?;
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Kicked,
         }));
     }
@@ -657,7 +797,7 @@ fn recognize_source_condition_atom(
         cursor.consume("from")?;
         let (zone, negated) = recognize_cast_zone(cursor)?;
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Cast {
                 zone: Some(zone),
                 negated,
@@ -697,7 +837,7 @@ fn recognize_controller_cast_source_atom(
     };
     if !word_is(cursor, 0, "from") {
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Cast {
                 zone: None,
                 negated: false,
@@ -712,11 +852,183 @@ fn recognize_controller_cast_source_atom(
         "`from your hand`; a permanent does not remember another cast zone",
     )?;
     Ok(ConditionAtom::CastFact(CastFactNode {
-        spell,
+        spell: CastSpellReference::Source(spell),
         fact: CastFact::Cast {
             zone: Some(zone),
             negated,
         },
+    }))
+}
+
+/// Lexical lookahead: `AMOUNT was|were|wasn't spent to cast` before the end
+/// of the clause, where AMOUNT is the subject of the cast fact.
+fn mana_spent_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    (1..10)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "," | "." | ";" | ":"))
+        })
+        .any(|offset| {
+            word_is(cursor, offset, "spent")
+                && (word_is(cursor, offset - 1, "was")
+                    || word_is(cursor, offset - 1, "were")
+                    || contraction_is(cursor, offset - 1, "wasn", "t"))
+                && word_is(cursor, offset + 1, "to")
+                && word_is(cursor, offset + 2, "cast")
+        })
+}
+
+/// The color words of mana amounts, in `ManaSpentAmount::SYMBOLS` order.
+const MANA_AMOUNT_COLORS: [&str; 6] = ["white", "blue", "black", "red", "green", "colorless"];
+
+/// The mana symbol at the cursor without its braces (`{R}` is `R`).
+fn mana_symbol_at(cursor: &OracleTokenCursor<'_>) -> Option<String> {
+    cursor
+        .peek()
+        .filter(|raw| raw.starts_with('{') && raw.ends_with('}') && raw.len() > 2)
+        .map(|raw| raw[1..raw.len() - 1].to_ascii_uppercase())
+}
+
+/// `{R}`, `{U}{U}`, `{R}{G}` (each symbol at least its count), `at least
+/// three red mana`, `five or more mana`, `no mana`: the amount subject of a
+/// mana-spent fact. The source of spent mana (`mana from a Treasure`) and
+/// snow or hybrid symbols are not recorded and fail here.
+fn recognize_mana_spent_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ManaSpentAmount> {
+    cursor.enter("condition.cast.mana-spent.amount");
+    if mana_symbol_at(cursor).is_some() {
+        let mut counts = [0_u8; 6];
+        while let Some(symbol) = mana_symbol_at(cursor) {
+            cursor.enter("condition.cast.mana-spent.symbol");
+            let index = ManaSpentAmount::SYMBOLS
+                .iter()
+                .position(|known| *known == symbol)
+                .ok_or_else(|| {
+                    cursor.fail(
+                        "a colored or colorless mana symbol (snow, hybrid and generic mana are not recorded by symbol)",
+                    )
+                })?;
+            counts[index] = counts[index].saturating_add(1);
+            consume_current(cursor)?;
+        }
+        return Ok(ManaSpentAmount::Symbols(counts));
+    }
+    cursor.require(
+        !(word_is(cursor, 0, "mana") && word_is(cursor, 1, "from")),
+        "an amount of spent mana (the source that produced spent mana is not recorded)",
+    )?;
+    if word_is(cursor, 0, "no") && word_is(cursor, 1, "mana") {
+        cursor.consume_phrase(&["no", "mana"])?;
+        return Ok(ManaSpentAmount::Total {
+            operator: NumericComparisonOperator::Equal,
+            value: 0,
+        });
+    }
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.enter("condition.cast.mana-spent.color");
+    let color = cursor.peek().and_then(|raw| {
+        MANA_AMOUNT_COLORS
+            .iter()
+            .position(|color| raw.eq_ignore_ascii_case(color))
+    });
+    if color.is_some() {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.cast.mana-spent.noun");
+    cursor.consume("mana")?;
+    match color {
+        Some(index) => {
+            cursor.require(
+                threshold.operator == ThresholdOperator::AtLeast,
+                "a lower bound on the mana of one color",
+            )?;
+            let mut counts = [0_u8; 6];
+            counts[index] = u8::try_from(threshold.value)
+                .map_err(|_| cursor.fail("a bounded amount of mana of one color"))?;
+            Ok(ManaSpentAmount::Symbols(counts))
+        }
+        None => {
+            let (operator, value) = threshold_comparison(threshold);
+            Ok(ManaSpentAmount::Total { operator, value })
+        }
+    }
+}
+
+/// `this spell` (or the source's name), `that spell` (the spell a cast event
+/// observed) or `it`, which names the observed spell after a cast event and
+/// otherwise must denote the ability's own source.
+fn recognize_cast_spell_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<CastSpellReference> {
+    cursor.enter("condition.cast.mana-spent.spell");
+    let event_spell = context
+        .program
+        .is_some_and(|program| program.effects.frame.event_spell)
+        || cursor
+            .binding_environment()
+            .is_some_and(|environment| environment.frame.event_spell);
+    if word_is(cursor, 0, "that") && word_is(cursor, 1, "spell") {
+        cursor.require(
+            event_spell,
+            "a cast event that records the spell `that spell` names",
+        )?;
+        cursor.consume_phrase(&["that", "spell"])?;
+        return Ok(CastSpellReference::EventSpell);
+    }
+    if word_is(cursor, 0, "it") {
+        cursor.consume("it")?;
+        if event_spell {
+            return Ok(CastSpellReference::EventSpell);
+        }
+        // Outside a program (`sacrifice it unless {W} was spent to cast
+        // it`), the guarded action's own antecedent names the object.
+        let environment_object = cursor
+            .binding_environment()
+            .and_then(|environment| environment.object.as_ref())
+            .map(|antecedent| ConditionObjectReference::Permanent(antecedent.reference));
+        let reference = match environment_object {
+            Some(reference)
+                if context.program.is_none()
+                    && !context.source_subject
+                    && context.subject_object.is_none() =>
+            {
+                reference
+            }
+            _ => resolve_object_anaphor(cursor, context)?,
+        };
+        cursor.enter("condition.cast.mana-spent.source-pronoun");
+        cursor.require(
+            reference == ConditionObjectReference::SOURCE,
+            "a pronoun that denotes the ability's own source or the spell a cast event observed",
+        )?;
+        return Ok(CastSpellReference::Source(LocalObjectReference::SourceSelf));
+    }
+    recognize_source_reference(cursor, context.name_links, context.name_failure)
+        .map(CastSpellReference::Source)
+}
+
+/// `AMOUNT was|wasn't spent to cast SPELL` (CR 601.2h): the cast record of
+/// the ability's source or of the spell a cast event observed.
+fn recognize_mana_spent_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    let amount = recognize_mana_spent_amount(cursor)?;
+    cursor.enter("condition.cast.mana-spent.verb");
+    let negated = contraction_is(cursor, 0, "wasn", "t");
+    cursor.require(
+        negated || word_is(cursor, 0, "was") || word_is(cursor, 0, "were"),
+        "`was`, `were` or `wasn't` before `spent`",
+    )?;
+    consume_current(cursor)?;
+    cursor.consume_phrase(&["spent", "to", "cast"])?;
+    let spell = recognize_cast_spell_reference(cursor, context)?;
+    Ok(ConditionAtom::CastFact(CastFactNode {
+        spell,
+        fact: CastFact::ManaSpent { amount, negated },
     }))
 }
 
@@ -756,6 +1068,58 @@ fn recognize_cast_zone(
         "`anywhere other than your hand`; another complement has no cast record",
     )?;
     Ok((zone, negated))
+}
+
+/// `enchanted PERMANENT` / `equipped creature` followed by the shared object
+/// state predicate: the permanent the source is attached to, which the
+/// runtime binds (CR 301.5a, 303.4a). The role must match the source face.
+fn recognize_attached_object_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ReferencedObjectConditionNode> {
+    cursor.enter("condition.attached-object.subject");
+    if contraction_is(cursor, 1, "creature", "s") {
+        // `equipped creature's power is greater than EXPR`: a property of the
+        // attached permanent compared with the shared numeric grammar.
+        cursor.enter("condition.attached-object.possessive");
+        let role = if word_is(cursor, 0, "equipped") {
+            AttachedObjectRole::Equipped
+        } else {
+            AttachedObjectRole::Enchanted
+        };
+        cursor.require(
+            context.source_attachment == Some(role),
+            "the attachment relation of the source face",
+        )?;
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        let object = ConditionObjectReference::Permanent(PermanentEffectReference::Attached(role));
+        cursor.enter("condition.attached-object.property");
+        let property = recognize_selector_numeric_property(cursor)?;
+        cursor.enter("condition.attached-object.copula");
+        cursor.require(
+            word_is(cursor, 0, "is") || word_is(cursor, 0, "was"),
+            "`is` or `was` after the possessed property",
+        )?;
+        consume_current(cursor)?;
+        let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+        cursor.require(!halved, "a whole operand of the property comparison")?;
+        let right = match right {
+            ConditionNumber::Integer(value) => NumericExpression::from(value),
+            ConditionNumber::Expression(expression) => expression,
+            _ => return Err(cursor.fail("a numeric operand of the property comparison")),
+        };
+        let predicate = ObjectPredicate::NumericComparison {
+            left: property,
+            operator,
+            right: Box::new(right),
+        };
+        return finish_referenced_object(cursor, context, object, predicate);
+    }
+    let role = recognize_attached_object_reference(cursor, context.source_attachment)?;
+    let object = ConditionObjectReference::Permanent(PermanentEffectReference::Attached(role));
+    let predicate = recognize_object_state_predicate(cursor, false)?;
+    finish_referenced_object(cursor, context, object, predicate)
 }
 
 /// `it's a CHARACTERISTIC`, `it isn't …`, `that NOUN is …`, `it has mana
@@ -1040,6 +1404,9 @@ fn resolve_object_anaphor(
 ) -> MachineResult<ConditionObjectReference> {
     cursor.enter("condition.sentence.object.antecedent");
     let Some(program) = context.program else {
+        if let Some(subject) = context.subject_object {
+            return Ok(subject);
+        }
         cursor.require(
             context.source_subject,
             "`it` that denotes the ability's own source",
@@ -1089,22 +1456,29 @@ fn finish_referenced_object(
     predicate: ObjectPredicate,
 ) -> MachineResult<ReferencedObjectConditionNode> {
     cursor.enter("condition.sentence.object.last-known-information");
-    if let (
-        ConditionObjectReference::Permanent(PermanentEffectReference::Target(binding)),
-        Some(program),
-    ) = (object, context.program)
-    {
-        // CR 608.2h: an object moved out of the battlefield by an earlier
-        // instruction is tested with its last known information, which this
-        // condition does not capture. Refuse instead of reading the new object.
-        cursor.require(
-            !program.departed_targets.contains(&binding),
-            "a referenced permanent still on the battlefield; last-known information of a moved object is not captured",
-        )?;
-    }
+    let object = match (object, context.program) {
+        (
+            ConditionObjectReference::Permanent(PermanentEffectReference::Target(binding)),
+            Some(program),
+        ) if program.departed_targets.contains(&binding) => {
+            // CR 608.2h: an object moved out of the battlefield by an earlier
+            // instruction is tested with its last known information: the
+            // numeric properties and the type line its departure recorded.
+            // Any other characteristic is not captured and is refused
+            // instead of being read on the new object.
+            cursor.require(
+                last_known_information_answers(&predicate),
+                "a mana value, power, toughness or type-line characteristic of a moved permanent (its other last-known information is not captured)",
+            )?;
+            ConditionObjectReference::DepartedTarget(binding)
+        }
+        _ => object,
+    };
     cursor.enter("condition.sentence.object.domain");
     let domain = match object {
-        ConditionObjectReference::Permanent(_) => ObjectKind::Permanent,
+        ConditionObjectReference::Permanent(_) | ConditionObjectReference::DepartedTarget(_) => {
+            ObjectKind::Permanent
+        }
         ConditionObjectReference::CardTarget(_) | ConditionObjectReference::CardFocus => {
             ObjectKind::Card
         }
@@ -1114,6 +1488,25 @@ fn finish_referenced_object(
         "a characteristic evaluable in the referenced object's domain",
     )?;
     Ok(ReferencedObjectConditionNode { object, predicate })
+}
+
+/// Whether a departed permanent's recorded last known information answers
+/// the predicate: one numeric property comparison (the captured mana value,
+/// power or toughness), or a predicate over the recorded type line.
+fn last_known_information_answers(predicate: &ObjectPredicate) -> bool {
+    fn type_line(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::CardType(_)
+            | ObjectPredicate::Subtype(_)
+            | ObjectPredicate::Supertype(_) => true,
+            ObjectPredicate::Not(operand) => type_line(operand),
+            ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(type_line)
+            }
+            _ => false,
+        }
+    }
+    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || type_line(predicate)
 }
 
 pub(in crate::oracle::canonical) fn sentence_condition_depends_on_cast_choice(

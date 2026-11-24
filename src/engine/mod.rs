@@ -187,6 +187,7 @@ mod object_identity_test_setup;
 mod object_predicate;
 mod object_snapshot;
 mod one_shot_modifier;
+mod opponent_extremum;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -2860,6 +2861,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("triggeringSpellManaValue" | "triggeringSpellManaSpent") => true,
         Some("manaSpentToCastSource" | "colorsOfManaSpentToCastSource") => true,
+        Some("manaSpentToCast") => mana_payment::mana_spent_to_cast_supported(expression),
+        Some("opponentExtremum") => opponent_extremum::opponent_extremum_supported(expression),
         Some("sourceCastXValue") => true,
         Some("countObjects") => object_expression_supported(&expression["objects"]),
         Some("maximumManaValue") => {
@@ -3021,6 +3024,9 @@ fn condition_supported(condition: &Value) -> bool {
             })
         }
         Some("noManaSpentToCastTargetSpell") => target_reference_supported(&condition["spell"]),
+        Some("departedObjectMatches") => {
+            event_history::departed_object_condition_supported(condition)
+        }
         Some("not") => condition_supported(&condition["operand"]),
         Some("or" | "and") => condition["operands"]
             .as_array()
@@ -8636,6 +8642,9 @@ impl GameEngine {
                     | RuntimeBinding::Target(_)
                     | RuntimeBinding::Integer(_) => true,
                 }),
+            Some("departedObjectMatches") => {
+                self.departed_object_matches(condition, stack_object, bindings)
+            }
             Some("noManaSpentToCastTargetSpell") => self
                 .resolve_target(&condition["spell"], stack_object, bindings)
                 .and_then(|target| match target {
@@ -9247,6 +9256,7 @@ impl GameEngine {
             return Some(value);
         }
         match value_kind(expression) {
+            Some("opponentExtremum") => self.opponent_extremum(expression, controller_id),
             Some("cardsDiscardedThisTurn") => Some(
                 self.state
                     .events
@@ -9947,6 +9957,7 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.mana_spent_to_cast(expression, source, decisions),
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }
@@ -23252,15 +23263,11 @@ impl GameEngine {
         if cards.is_empty() {
             return;
         }
-        let card_ids = cards
-            .iter()
-            .map(|card| card.instance_id.clone())
-            .collect::<Vec<_>>();
         self.record_event(
             "cardsEnteredGraveyard",
             Some(player_id.to_string()),
             None,
-            json!({"cardIds":card_ids}),
+            event_history::graveyard_arrival_detail(cards),
         );
     }
 
@@ -24802,6 +24809,10 @@ impl GameEngine {
             (
                 "triggeringSpellManaSpent".to_string(),
                 Value::from(mana_spent_from_cast_decisions(cast_decisions)),
+            ),
+            (
+                "triggeringSpellManaSpentBySymbol".to_string(),
+                mana_payment::triggering_spell_mana_spent_record(cast_decisions),
             ),
             (
                 "triggeringSpellTypeLine".to_string(),
@@ -30027,13 +30038,7 @@ impl GameEngine {
             for flag in casting_cost::CastingMode::of(&stack_object.decisions).follow_up_flags() {
                 card.flags.insert(flag, true);
             }
-            for symbol in ["W", "U", "B", "R", "G"] {
-                let count = mana_symbol_spent_count(&stack_object.decisions, symbol);
-                for threshold in 1..=count {
-                    card.flags
-                        .insert(format!("manaSpent:{symbol}:{threshold}"), true);
-                }
-            }
+            mana_payment::record_mana_spent_flags(&mut card.flags, &stack_object.decisions);
             let was_warped = stack_object
                 .decisions
                 .get("useWarp")
@@ -31518,6 +31523,10 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.runtime_mana_spent_to_cast(expression, stack_object),
+            Some("opponentExtremum") => {
+                self.opponent_extremum(expression, &stack_object.controller)
+            }
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }

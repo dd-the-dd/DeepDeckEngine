@@ -65,6 +65,14 @@ pub(in crate::oracle::canonical) enum ConditionScope {
 }
 
 impl ConditionScope {
+    /// Whether the scope resolves `atom`: its family, or a cast record the
+    /// source permanent keeps (the mana spent to cast it, CR 601.2h), which
+    /// a continuously evaluated or `unless` condition can still read.
+    pub(in crate::oracle::canonical) fn allows_atom(self, atom: &ConditionAtom) -> bool {
+        self.allows(atom.family())
+            || (matches!(self, Self::Static | Self::Unless) && atom.is_source_cast_record())
+    }
+
     pub(in crate::oracle::canonical) fn allows(self, family: ConditionFamily) -> bool {
         match self {
             Self::Program => true,
@@ -153,6 +161,18 @@ impl ConditionAtom {
         }
     }
 
+    /// A cast fact the source keeps after it resolved: the mana spent to
+    /// cast the ability's own source.
+    pub(in crate::oracle::canonical) fn is_source_cast_record(&self) -> bool {
+        matches!(
+            self,
+            Self::CastFact(CastFactNode {
+                spell: CastSpellReference::Source(_),
+                fact: CastFact::ManaSpent { .. },
+            })
+        )
+    }
+
     /// Whether the atom reads the result of the instruction before it.
     pub(in crate::oracle::canonical) fn reads_previous_action(&self) -> bool {
         matches!(
@@ -227,6 +247,8 @@ pub(in crate::oracle::canonical) enum ConditionNumber {
     Player(PlayerStateMeasure),
     /// The greatest value of a measure among the opponents of the subject.
     GreatestOpponent(PlayerStateMeasure),
+    /// The least value of a measure among the opponents of the subject.
+    LeastOpponent(PlayerStateMeasure),
     /// A measure of the ability's controller whatever the comparison's
     /// subject (`that player controls more lands than you`).
     ControllerMeasure(PlayerStateMeasure),
@@ -262,6 +284,56 @@ pub(in crate::oracle::canonical) enum HistoryEvent {
     PermanentEntered,
     /// CR 701.23.
     LibrarySearched,
+    /// CR 119.3: a life gain or a life loss (`gained or lost life`).
+    LifeChanged,
+    /// CR 701.21: the sacrifice record keeps the permanent's type line.
+    PermanentSacrificed,
+    /// CR 701.9.
+    CardDiscarded,
+    /// CR 702.29: cycling a card.
+    CardCycled,
+    /// CR 111.1: the creation record keeps the token's type line.
+    TokenCreated,
+    /// CR 122.1: counters put on a permanent; the event's player is the
+    /// permanent's controller, the actor a related player.
+    CountersPlaced,
+    /// CR 305.1.
+    LandPlayed,
+    /// Cards put into a graveyard from anywhere (one arrival record per
+    /// move, with each card's type line). Descending reads this record.
+    CardsPutIntoGraveyard,
+}
+
+/// The casting mode a cast record keeps (`a spell was warped`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum HistoryCastMode {
+    Warp,
+}
+
+/// The zone a departing permanent was put into.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum HistoryDestination {
+    Hand,
+}
+
+/// Qualifiers of a history pattern beyond its player and object: each one
+/// is an exact recorded field of the event, never inferred.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct HistoryQualifiers {
+    /// `another`: the event object is not the ability's source.
+    pub exclude_source: bool,
+    /// The counter kind of a counter placement.
+    pub counter: Option<crate::oracle::counter_name::CounterName>,
+    /// The control relation of the permanent that received counters (the
+    /// pattern's player is then the player who put them).
+    pub recipient_controller: Option<HistoryPlayer>,
+    /// The casting mode of a cast record.
+    pub cast_mode: Option<HistoryCastMode>,
+    /// The pattern's player reads a departing card's owner (`put into your
+    /// graveyard`, CR 404.2), not the permanent's controller.
+    pub zone_owner: bool,
+    /// The recorded destination of a departure.
+    pub destination: Option<HistoryDestination>,
 }
 
 /// The player relation of the event's player (the actor, the recipient of
@@ -280,6 +352,8 @@ pub(in crate::oracle::canonical) enum HistoryMeasure {
     Occurrences,
     /// The event's amount (life, damage).
     Amount,
+    /// The cards of one arrival record that satisfy the object predicate.
+    Cards,
 }
 
 /// The turn a history pattern reads.
@@ -307,6 +381,7 @@ pub(in crate::oracle::canonical) struct EventHistoryPattern {
     /// The event object's predicate; `None` for every object of the event.
     pub object: Option<ObjectPredicate>,
     pub measure: HistoryMeasure,
+    pub qualifiers: HistoryQualifiers,
 }
 
 /// `EventHistory(Pattern, scope)` compared with a fixed count.
@@ -327,10 +402,47 @@ pub(in crate::oracle::canonical) enum SourceCastZone {
     Exile,
 }
 
+/// How much mana was spent to cast a spell (CR 601.2h).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ManaSpentAmount {
+    /// Each listed mana was spent at least its count of times (`{R}{R}`,
+    /// `{R}{G}`, `at least three red mana`), in `ManaSpentAmount::SYMBOLS`
+    /// order.
+    Symbols([u8; 6]),
+    /// The total mana spent compared with a fixed value (`five or more
+    /// mana`, `no mana`).
+    Total {
+        operator: NumericComparisonOperator,
+        value: i64,
+    },
+}
+
+impl ManaSpentAmount {
+    /// The mana a cast record distinguishes: the five colors and colorless.
+    pub(in crate::oracle::canonical) const SYMBOLS: [&'static str; 6] =
+        ["W", "U", "B", "R", "G", "C"];
+}
+
+/// The spell a cast fact is about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CastSpellReference {
+    /// The ability's own source (`this spell`, `it` denoting the source).
+    Source(LocalObjectReference),
+    /// The spell a cast event observed (`that spell`, `it` after `Whenever
+    /// you cast a spell`).
+    EventSpell,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CastFact {
     /// CR 702.33d.
     Kicked,
+    /// CR 601.2h: the mana spent to cast the spell; `negated` reads
+    /// `wasn't spent`.
+    ManaSpent {
+        amount: ManaSpentAmount,
+        negated: bool,
+    },
     /// The source was cast; from `zone` when present. `negated` reads
     /// `anywhere other than ZONE`.
     Cast {
@@ -341,7 +453,7 @@ pub(in crate::oracle::canonical) enum CastFact {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CastFactNode {
-    pub spell: LocalObjectReference,
+    pub spell: CastSpellReference,
     pub fact: CastFact,
 }
 
