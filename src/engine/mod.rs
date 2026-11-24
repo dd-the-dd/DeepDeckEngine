@@ -262,6 +262,9 @@ mod zone_change_triggers;
 mod zone_entry;
 
 pub use activated_rule_execution::{CanonicalActivatedAbilityActivation, CanonicalTargetSelection};
+use activated_rule_execution::{
+    activation_limit_flag, activation_limit_use_count, activation_limit_use_prefix,
+};
 use invariants::LoopResourceSnapshot;
 use mana::*;
 pub use rule_execution::{
@@ -1890,35 +1893,6 @@ fn card_matches_protection_quality(card: &CardDefinition, quality: &str) -> bool
     has_card_type(card, quality) || type_line_contains(&card.type_line, quality)
 }
 
-fn activation_limit_flag(limit: &Value, turn_number: u32, _rule_index: usize) -> Option<String> {
-    let id = limit["id"].as_str()?;
-    Some(match value_kind(limit) {
-        Some("oncePerTurn") => format!("{id}:turn:{turn_number}"),
-        Some("oncePerGameObject") => id.to_string(),
-        _ => return None,
-    })
-}
-
-fn activation_limit_use_prefix(limit: &Value, rule_index: usize) -> Option<String> {
-    if value_kind(limit) != Some("oncePerGameObjectAbility") {
-        return None;
-    }
-    Some(format!(
-        "{}:ability:{rule_index}:use:",
-        limit["id"].as_str()?
-    ))
-}
-
-fn activation_limit_use_count(permanent: &CardInstance, limit: &Value, rule_index: usize) -> usize {
-    activation_limit_use_prefix(limit, rule_index).map_or(0, |prefix| {
-        permanent
-            .flags
-            .iter()
-            .filter(|(flag, used)| **used && flag.starts_with(&prefix))
-            .count()
-    })
-}
-
 fn phyrexian_life_payment(
     mana: &[(String, bool)],
     requirement: &ManaRequirement,
@@ -3097,6 +3071,7 @@ fn condition_supported(condition: &Value) -> bool {
         Some("sorceryTiming" | "ninjutsuTiming") => true,
         Some("duringControllerMainPhase") => player_reference_supported(&condition["player"]),
         Some("duringControllerTurn") => player_reference_supported(&condition["player"]),
+        Some("duringSteps") => activated_rule_execution::during_steps_supported(condition),
         Some("isTapped" | "isBlocking") => {
             matches!(
                 value_kind(&condition["object"]),
@@ -4808,12 +4783,7 @@ fn activated_rule_supported(rule: &Value) -> bool {
                 !modifiers.is_empty() && modifiers.iter().all(activation_cost_modifier_supported)
             })
         })
-        && rule.get("activationLimit").is_none_or(|limit| {
-            matches!(
-                value_kind(limit),
-                Some("oncePerGameObject" | "oncePerGameObjectAbility" | "oncePerTurn")
-            ) && limit["id"].is_string()
-        })
+        && activated_rule_execution::activated_rule_limit_supported(rule)
         && rule["effects"]
             .as_array()
             .is_some_and(|effects| !effects.is_empty() && effects.iter().all(effect_supported))
@@ -5991,6 +5961,7 @@ fn rule_supported(rule: &Value) -> bool {
         Some("staticAbility") => {
             battlefield_static_rule_supported(rule)
                 || casting_static_rule_supported(rule)
+                || activated_rule_execution::cast_restriction_rule_supported(rule)
                 || eminence_static_rule_supported(rule)
                 // CR 604.3: statics that say they function from a graveyard,
                 // hand or exile join the continuous-effect collector there.
@@ -9099,6 +9070,9 @@ impl GameEngine {
             }
             Some("duringControllerTurn") => {
                 self.state.players[self.state.active_player].id == controller_id
+            }
+            Some("duringSteps") => {
+                activated_rule_execution::during_steps_holds(&self.state.step, condition)
             }
             Some("isTapped") => source.is_some_and(|source| {
                 self.permanent_position(&source.instance_id).is_some_and(
@@ -12519,27 +12493,6 @@ impl GameEngine {
             .filter_map(|(_, modifier)| integer_value(&modifier["amount"]))
             .sum::<i32>()
             .max(0)
-    }
-
-    fn activation_limit_reached(
-        &self,
-        permanent: &CardInstance,
-        rule: &Value,
-        rule_index: usize,
-    ) -> bool {
-        let Some(limit) = rule.get("activationLimit") else {
-            return false;
-        };
-        if value_kind(limit) == Some("oncePerGameObjectAbility") {
-            let maximum = 1_i32.saturating_add(self.activation_class_modifier_amount(
-                "additionalActivation",
-                permanent,
-                rule,
-            )) as usize;
-            return activation_limit_use_count(permanent, limit, rule_index) >= maximum;
-        }
-        activation_limit_flag(limit, self.state.turn_number, rule_index)
-            .is_none_or(|flag| permanent.flags.get(&flag) == Some(&true))
     }
 
     fn ability_class_activation_prohibited(&self, rule: &Value) -> bool {
@@ -17559,6 +17512,9 @@ impl GameEngine {
                 continue;
             }
             if self.spell_cast_from_zone_prohibited(&player.id, source_zone, &card.definition) {
+                continue;
+            }
+            if !self.spell_cast_restrictions_allow(&player.id, card) {
                 continue;
             }
             // The permission behind this cast, evaluated on the characteristics
@@ -27163,10 +27119,15 @@ impl GameEngine {
                 let prepared_cost_payment = self.prepare_activated_cost_payment(action, &rule)?;
                 let mut tapped_sources = self.apply_payment(player_index, action)?;
                 let activation_limit = &rule["activationLimit"];
-                if let Some(prefix) = activation_limit_use_prefix(activation_limit, rule_index) {
+                if let Some(prefix) = activation_limit_use_prefix(
+                    activation_limit,
+                    self.state.turn_number,
+                    rule_index,
+                ) {
                     let use_count = activation_limit_use_count(
                         &self.state.players[controller_index].battlefield[card_index],
                         activation_limit,
+                        self.state.turn_number,
                         rule_index,
                     );
                     self.state.players[controller_index].battlefield[card_index]

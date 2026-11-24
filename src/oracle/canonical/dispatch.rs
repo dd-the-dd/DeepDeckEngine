@@ -306,6 +306,20 @@ fn parse_existing_native_rule(
     input: &AbilityInput<'_>,
     ability_kind: AbilityKindConstraint<'_>,
 ) -> CanonicalParseOutcome {
+    // CR 601.3: `Cast this spell only ...` restricts casting, whatever the
+    // face; it is never a static subject or an effect.
+    if claims_spell_cast_restriction_family(input) {
+        return match parse_spell_cast_restriction(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
     if ability_kind == "staticAbility" && claims_promoted_attack_tax_family(input) {
         return match parse_promoted_attack_tax(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

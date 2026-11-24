@@ -52,3 +52,44 @@ pub(in crate::oracle::canonical) fn rules_free_label_body_start(
         .all(|token| token.raw == "," || super::roman_chapter_value(&token.raw).is_some());
     (!chapter_symbols).then_some(start)
 }
+
+/// The label of an activated ability, read before its costs. An ability or
+/// flavor word (CR 207.2c) has no rules meaning and yields `None`; an
+/// activation keyword (`Boast —`, `Exhaust —`, `Forecast —`, `Power-up —`)
+/// adds the rules of its definition and is returned to the activated parent.
+/// Any other catalog mechanic label is left unread, so its costs reader
+/// reports it explicitly instead of silently dropping its rules.
+pub(in crate::oracle::canonical) fn recognize_activation_label(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<super::ActivationKeyword>> {
+    let tokens = cursor.token_slice(cursor.position(), usize::MAX);
+    let words = tokens
+        .iter()
+        .take_while(|token| token.token_type == "abilityWord")
+        .count();
+    if words > 0
+        && tokens
+            .get(words)
+            .is_some_and(|token| token.raw == "\u{2014}")
+    {
+        cursor.enter("activation.effect-sequence.label");
+        cursor.advance_to(cursor.position() + words + 1)?;
+        return Ok(None);
+    }
+    let keyword =
+        crate::oracle::ability_catalog::match_catalog_mechanic(tokens, 0).and_then(|matched| {
+            super::ActivationKeyword::from_canonical_id(matched.canonical_id)
+                .filter(|_| {
+                    tokens
+                        .get(matched.end_token)
+                        .is_some_and(|token| token.raw == "\u{2014}")
+                })
+                .map(|keyword| (keyword, matched.end_token))
+        });
+    if let Some((keyword, width)) = keyword {
+        cursor.enter("activation.effect-sequence.keyword-label");
+        cursor.advance_to(cursor.position() + width + 1)?;
+        return Ok(Some(keyword));
+    }
+    Ok(None)
+}
