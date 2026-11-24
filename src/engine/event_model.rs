@@ -267,6 +267,80 @@ fn optional_filter<'a>(event: &'a Value, field: &str) -> Option<Option<&'a Value
     }
 }
 
+/// The object predicate of an event subject read on the permanent itself
+/// (the effective view, or the last-known information of a departed
+/// permanent, CR 603.10a): the card predicate plus the permanent-state atoms
+/// the battlefield matcher answers, counters (CR 122.1) and designations.
+pub(super) fn event_subject_filter_supported(filter: &Value) -> bool {
+    permanent_filter_supported(filter)
+}
+
+/// Whether a predicate reads permanent state (counters, designations) that
+/// a printed-definition view cannot answer.
+pub(super) fn filter_reads_permanent_state(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some("hasCounter" | "hasDesignation") => true,
+        Some("and" | "or") => filter["operands"]
+            .as_array()
+            .is_some_and(|operands| operands.iter().any(filter_reads_permanent_state)),
+        Some("not") => filter_reads_permanent_state(&filter["operand"]),
+        _ => false,
+    }
+}
+
+/// [`optional_filter`] for a subject matched in the effective view, which
+/// also reads permanent state.
+fn optional_state_filter<'a>(event: &'a Value, field: &str) -> Option<Option<&'a Value>> {
+    match event.get(field) {
+        None | Some(Value::Null) => Some(None),
+        Some(filter) => event_subject_filter_supported(filter).then_some(Some(filter)),
+    }
+}
+
+/// Support of the controlled-creature aggregate kinds whose subject
+/// predicate is matched on each attacking or damage-dealing permanent with
+/// the effective matcher, so it may read permanent state: `whenever you
+/// attack with one or more creatures with counters on them`, `whenever one
+/// or more creatures you control with +1/+1 counters on them deal combat
+/// damage to a player`. `None` for every other kind and for a predicate
+/// without state atoms, whose historical arm keeps validating it.
+pub(super) fn controlled_creature_state_event_supported(event: &Value) -> Option<bool> {
+    let filter = event.get("where").filter(|filter| !filter.is_null())?;
+    if !filter_reads_permanent_state(filter) {
+        return None;
+    }
+    match value_kind(event)? {
+        "controlledCreaturesAttacked" => Some(
+            (event["anyPlayer"].as_bool() == Some(true)
+                || player_reference_supported(&event["player"])
+                || event["opponentOfSourceController"].as_bool() == Some(true))
+                && event.get("anyPlayer").is_none_or(Value::is_boolean)
+                && event
+                    .get("duringOpponentTurn")
+                    .is_none_or(Value::is_boolean)
+                && event.get("sourceMustAttack").is_none_or(Value::is_boolean)
+                && event
+                    .get("totalPowerAtLeast")
+                    .is_none_or(|value| integer_value(value).is_some_and(|value| value > 0))
+                && event_subject_filter_supported(filter)
+                && event.get("drawOrdinal").is_none()
+                && event.get("exceptFirstInDrawStep").is_none(),
+        ),
+        "controlledCreaturesCombatDamageToPlayer" => Some(
+            player_reference_supported(
+                event
+                    .get("player")
+                    .or_else(|| event.get("sourceController"))
+                    .unwrap_or(&Value::Null),
+            ) && event_subject_filter_supported(filter)
+                && event
+                    .get("greatestPowerAmongControllerCreatures")
+                    .is_none_or(Value::is_boolean),
+        ),
+        _ => None,
+    }
+}
+
 /// `{"kind":"controllerOf","object":{"kind":"self"}}`: the only player
 /// relation the controlled-subject kinds are emitted with.
 fn is_source_controller(player: &Value) -> bool {
@@ -461,7 +535,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
         }
         "controlledPermanent" if is_source_controller(&object["player"]) => (
             SubjectRelation::ControlledBySourceController,
-            optional_filter(object, "where")?,
+            optional_state_filter(object, "where")?,
         ),
         "permanents"
             if has_only_fields(object, &["kind", "controller", "where", "excludeSource"]) =>
@@ -482,7 +556,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
                     scope,
                     exclude_source: optional_flag(object, "excludeSource")?,
                 },
-                optional_filter(object, "where")?,
+                optional_state_filter(object, "where")?,
             )
         }
         _ => return None,
@@ -503,7 +577,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             }
             Some((
                 ObjectFilter {
-                    predicate: optional_filter(counterpart, "where")?.unwrap_or(&Value::Null),
+                    predicate: optional_state_filter(counterpart, "where")?.unwrap_or(&Value::Null),
                     view: ObjectView::Effective,
                 },
                 optional_flag(counterpart, "oneOrMore")?,
@@ -1467,3 +1541,10 @@ impl GameEngine {
 ))]
 #[path = "trigger_condition_runtime_tests.rs"]
 mod trigger_condition_runtime_tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "event_subject_state_tests.rs"]
+mod event_subject_state_tests;

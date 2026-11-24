@@ -124,7 +124,18 @@ impl CardDefinition {
 pub(super) struct EffectiveRules<'a> {
     object: &'a CardInstance,
     functioning: bool,
+    /// CR 305.7: an effect set this land's subtype to basic land types, so
+    /// the abilities of its rules text are gone. What resolved effects
+    /// recorded on the object (characteristic markers, until-end-of-turn
+    /// grants) is not rules text and stays.
+    rules_text_lost: bool,
     granted: Vec<Value>,
+}
+
+/// Whether a printed-layer entry survives the loss of the rules text: only
+/// what a resolved effect recorded on the object.
+fn survives_rules_text_loss(rules_text_lost: bool, rule: &Value) -> bool {
+    !rules_text_lost || GameEngine::is_resolved_characteristic_marker(rule)
 }
 
 impl<'a> EffectiveRules<'a> {
@@ -134,13 +145,16 @@ impl<'a> EffectiveRules<'a> {
     pub(super) fn printed(&self) -> impl Iterator<Item = (usize, &'a Value)> + use<'a> {
         let object = self.object;
         let functioning = self.functioning;
+        let rules_text_lost = self.rules_text_lost;
         object
             .definition
             .rules
             .iter()
             .enumerate()
             .filter(move |(_, rule)| {
-                functioning && GameEngine::rule_metadata_active_for_source(object, rule)
+                functioning
+                    && survives_rules_text_loss(rules_text_lost, rule)
+                    && GameEngine::rule_metadata_active_for_source(object, rule)
             })
     }
 
@@ -150,10 +164,13 @@ impl<'a> EffectiveRules<'a> {
         let object: &CardInstance = self.object;
         let printed: &[Value] = &object.definition.rules;
         let functioning = self.functioning;
+        let rules_text_lost = self.rules_text_lost;
         printed
             .iter()
             .filter(move |rule| {
-                functioning && GameEngine::rule_metadata_active_for_source(object, rule)
+                functioning
+                    && survives_rules_text_loss(rules_text_lost, rule)
+                    && GameEngine::rule_metadata_active_for_source(object, rule)
             })
             .chain(self.granted.iter())
     }
@@ -185,6 +202,7 @@ impl GameEngine {
             return EffectiveRules {
                 object,
                 functioning: true,
+                rules_text_lost: false,
                 granted: Vec::new(),
             };
         }
@@ -204,6 +222,8 @@ impl GameEngine {
         EffectiveRules {
             object,
             functioning,
+            rules_text_lost: on_battlefield
+                && subtypes::land_rules_text_replaced(&object.definition),
             granted,
         }
     }
@@ -225,6 +245,8 @@ impl GameEngine {
         EffectiveRules {
             object,
             functioning,
+            rules_text_lost: on_battlefield
+                && subtypes::land_rules_text_replaced(&object.definition),
             granted,
         }
     }

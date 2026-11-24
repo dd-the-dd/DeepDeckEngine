@@ -10,11 +10,15 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("installUntapRestriction") => {
-            target_reference_supported(&effect["permanent"])
+            (target_reference_supported(&effect["permanent"])
                 && matches!(
                     value_kind(&effect["duration"]),
                     Some("nextUntapStep" | "whileSourceControlled")
-                )
+                ))
+                || (matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("self" | "abilitySource")
+                ) && value_kind(&effect["duration"]) == Some("nextUntapStep"))
         }
         Some("installRegenerationShield") => {
             (matches!(
@@ -170,9 +174,18 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
             Some("installUntapRestriction") => {
-                if let Some(TargetRef::Permanent { instance_id }) =
+                let permanent = if matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("self" | "abilitySource")
+                ) {
+                    self.permanent_position(&stack_object.card.instance_id)
+                        .map(|_| TargetRef::Permanent {
+                            instance_id: stack_object.card.instance_id.clone(),
+                        })
+                } else {
                     self.resolve_target(&effect["permanent"], stack_object, bindings)
-                {
+                };
+                if let Some(TargetRef::Permanent { instance_id }) = permanent {
                     let kind = if value_kind(&effect["duration"]) == Some("nextUntapStep") {
                         "skipNextUntap"
                     } else {

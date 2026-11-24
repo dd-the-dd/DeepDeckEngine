@@ -38,7 +38,8 @@ mod triggers;
 mod type_modification;
 
 pub(super) use characteristic_layers::{
-    characteristic_object_supported, marker_base_power_toughness, marker_card_types, marker_colors,
+    battlefield_object_operand_supported, characteristic_object_supported,
+    marker_base_power_toughness, marker_card_types, marker_colors,
 };
 
 pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
@@ -107,8 +108,16 @@ fn domain(effect: &Value) -> Option<Domain> {
         Some("optionalPayCostCreateReflexiveTrigger") => Some(Domain::ReflexiveCostTransactions),
 
         Some(
-            "choosePlayers" | "chooseNumber" | "chooseCardName" | "chooseCreatureType"
-            | "chooseColor" | "choosePermanents" | "chooseCards" | "chooseOrder",
+            "choosePlayers"
+            | "chooseNumber"
+            | "chooseCardName"
+            | "chooseCreatureType"
+            | "chooseColor"
+            | "chooseColors"
+            | "chooseBasicLandType"
+            | "choosePermanents"
+            | "chooseCards"
+            | "chooseOrder",
         ) => Some(Domain::Choices),
         Some(
             "drawCards"

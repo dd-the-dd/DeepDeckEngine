@@ -19,8 +19,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                     value_kind(&effect["object"]),
                     Some("chosenTargets" | "chosenObjects")
                 ) && effect["object"]["id"].is_string())
+                // The set is matched on battlefield state (counters too).
                 || (value_kind(&effect["object"]) == Some("eachPermanent")
-                    && card_filter_supported(&effect["object"]["where"])
+                    && permanent_filter_supported(&effect["object"]["where"])
                     && effect["object"]
                         .get("player")
                         .is_none_or(player_reference_supported)))
