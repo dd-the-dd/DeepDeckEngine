@@ -5,8 +5,23 @@ use crate::oracle::characteristic_vocabulary::{AcceptedForms, lookup_card_type};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ExplicitTokenTemplateNode {
+    /// The literal creature specification shared with the older token
+    /// parents. When `statistics` is not a literal pair, its power and
+    /// toughness are not read: every consumer of a variable pair reads
+    /// `statistics` (see [`Self::literal_statistics`]).
     pub creature: CreatureTokenSpecNode,
     pub types: Vec<ObjectCardType>,
+    /// The token's power and toughness as shared numeric expressions
+    /// (`X/X`, with a sequence-owned `where X is EXPR`, CR 107.3).
+    pub statistics: BasePowerToughnessNode,
+}
+
+impl ExplicitTokenTemplateNode {
+    /// Whether the stated power and toughness are literal integers, the only
+    /// form `creature` represents.
+    pub(in crate::oracle::canonical) fn literal_statistics(&self) -> bool {
+        self.statistics.literal().is_some()
+    }
 }
 
 /// Battlefield entry state attached to a token phrase. Only the tapped state
@@ -47,9 +62,10 @@ enum DescriptorState {
 pub(in crate::oracle::canonical) fn try_recognize_token_descriptor(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> TokenDescriptorAttempt {
-    if !cursor
+    if !(cursor
         .peek_token()
         .is_some_and(|token| token.token_type == "counterValue")
+        || numeric_power_toughness_starts(cursor))
     {
         return TokenDescriptorAttempt::NotClaimed;
     }
@@ -65,10 +81,18 @@ pub(in crate::oracle::canonical) fn recognize_token_descriptor(
     recognize_token_descriptor_in_context(cursor, true)
 }
 
+/// The descriptor of the older creature-token parents, which represent only
+/// a literal power and toughness.
 pub(in crate::oracle::canonical) fn recognize_creature_token_descriptor(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ExplicitTokenTemplateNode> {
-    recognize_token_descriptor_in_context(cursor, false)
+    let node = recognize_token_descriptor_in_context(cursor, false)?;
+    cursor.enter("token.descriptor.literal-statistics");
+    cursor.require(
+        node.literal_statistics(),
+        "a literal power and toughness for this token parent",
+    )?;
+    Ok(node)
 }
 
 fn recognize_token_descriptor_in_context(
@@ -84,9 +108,12 @@ fn recognize_token_descriptor_in_context(
         state = match state {
             DescriptorState::Statistics => {
                 let literal_index = cursor.position();
-                let value = recognize_literal_power_toughness(cursor)?;
+                let value = recognize_numeric_power_toughness(cursor)?;
                 cursor.enter("token.descriptor.statistics-range");
-                if i32::try_from(value.power).is_err() || i32::try_from(value.toughness).is_err() {
+                if let Some(literal) = value.literal()
+                    && (i32::try_from(literal.power).is_err()
+                        || i32::try_from(literal.toughness).is_err())
+                {
                     let token = &cursor.token_slice(literal_index, literal_index + 1)[0];
                     return Err(cursor.fail_with_span(
                         "token power and toughness representable as i32",
@@ -174,14 +201,21 @@ fn recognize_token_descriptor_in_context(
             DescriptorState::Complete => {
                 cursor.enter("token.descriptor.complete");
                 let stats = cursor.require_value(statistics, "token statistics")?;
+                // A variable pair keeps zero placeholders in the literal spec;
+                // `literal_statistics` guards every reader of those fields.
+                let literal = stats.literal().unwrap_or(PowerToughnessNode {
+                    power: 0,
+                    toughness: 0,
+                });
                 return Ok(ExplicitTokenTemplateNode {
                     creature: CreatureTokenSpecNode {
-                        power: stats.power,
-                        toughness: stats.toughness,
+                        power: literal.power,
+                        toughness: literal.toughness,
                         colors,
                         subtypes,
                     },
                     types,
+                    statistics: stats,
                 });
             }
         };

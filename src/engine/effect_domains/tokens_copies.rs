@@ -413,15 +413,6 @@ impl GameEngine {
                     bindings.insert(binding.to_string(), RuntimeBinding::Objects(created_ids));
                 }
             }
-            Some("createTokenCopy") => {
-                self.create_token_copy(effect, stack_object, provider)?;
-            }
-            Some("createTokenCopyOfPermanent") => {
-                self.create_token_copy_of_permanent(effect, stack_object, bindings, provider)?;
-            }
-            Some("createModifiedTokenCopy") => {
-                self.create_modified_token_copy(effect, stack_object, bindings, provider)?;
-            }
             _ => {
                 return Err(EngineError::new(format!(
                     "unsupported effect reached execution: {}",

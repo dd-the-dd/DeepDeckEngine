@@ -14856,9 +14856,13 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
             "source": { "kind": "self" },
             "effects": [
                 {
-                    "kind": "createModifiedTokenCopy",
-                    "object": { "kind": "chosenTarget", "id": "targetEnchantment" },
-                    "removeLegendary": true,
+                    "kind": "createTokens",
+                    "quantity": { "kind": "integer", "value": 1 },
+                    "token": {
+                        "kind": "copyOf",
+                        "object": { "kind": "chosenTarget", "id": "targetEnchantment" },
+                        "except": [{ "kind": "removeSupertype", "supertype": "Legendary" }],
+                    },
                 },
                 {
                     "kind": "conditionalEffect",
@@ -15760,14 +15764,21 @@ fn engine_with_offspring_creature() -> GameEngine {
                         "spell": { "kind": "self" },
                     },
                     "effects": [{
-                        "kind": "createTokenCopy",
+                        "kind": "createTokens",
                         "controller": {
                             "kind": "controllerOf",
                             "object": { "kind": "self" },
                         },
-                        "object": { "kind": "self" },
-                        "basePower": { "kind": "integer", "value": 1 },
-                        "baseToughness": { "kind": "integer", "value": 1 },
+                        "quantity": { "kind": "integer", "value": 1 },
+                        "token": {
+                            "kind": "copyOf",
+                            "object": { "kind": "self" },
+                            "except": [{
+                                "kind": "setBasePowerToughness",
+                                "power": { "kind": "integer", "value": 1 },
+                                "toughness": { "kind": "integer", "value": 1 },
+                            }],
+                        },
                     }],
                 },
             },
@@ -17280,7 +17291,7 @@ fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
             .ability_rule
             .as_ref()
             .map(|rule| &rule["effects"][0]["kind"]),
-        Some(&Value::String("createTokenCopy".to_string()))
+        Some(&Value::String("createTokens".to_string()))
     );
     paid_engine
         .resolve_top_stack(&mut RandomAi::seeded(1))

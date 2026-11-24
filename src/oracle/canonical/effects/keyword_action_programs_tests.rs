@@ -85,7 +85,7 @@ fn real_keyword_action_cards_lower_to_primitive_programs() {
         (
             "Enchantment",
             "At the beginning of your upkeep, populate. (Create a token that's a copy of a creature token you control.)",
-            &["choosePermanents", "createTokenCopyOfPermanent"][..],
+            &["choosePermanents", "createTokens"][..],
         ),
         (
             "Creature - Human Scout",

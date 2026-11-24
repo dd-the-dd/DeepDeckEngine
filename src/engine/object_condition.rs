@@ -25,6 +25,9 @@ pub(super) fn object_condition_reference_supported(reference: &Value) -> bool {
 
 enum ConditionSubject<'a> {
     View(ObjectFilterView<'a>),
+    /// A card outside the battlefield: its printed definition, and the card
+    /// itself as the source of its characteristic-defining abilities.
+    Card(&'a CardInstance),
     /// The event's permanent after it left the battlefield, as the event
     /// record last saw it (CR 603.10a, 608.2h): its counters, combat state
     /// and power/toughness captured when it died.
@@ -82,9 +85,7 @@ impl GameEngine {
             ));
         }
         match self.card_outside_battlefield(instance_id) {
-            Some(card) => ConditionSubject::View(ObjectFilterView::Definition(
-                DefinitionView::new(&card.definition),
-            )),
+            Some(card) => ConditionSubject::Card(card),
             None => ConditionSubject::Absent,
         }
     }
@@ -114,9 +115,7 @@ impl GameEngine {
                         &stack_object.card,
                     )));
                 }
-                Ok(ConditionSubject::View(ObjectFilterView::Definition(
-                    DefinitionView::new(&stack_object.card.definition),
-                )))
+                Ok(ConditionSubject::Card(&stack_object.card))
             }
             Some("observedEventObject") => Ok(
                 match self.resolve_observed_event_permanent(reference, stack_object)? {
@@ -201,8 +200,12 @@ impl GameEngine {
     ) -> Result<bool, EngineError> {
         let subject =
             self.object_condition_subject(&condition["object"], stack_object, bindings, decisions)?;
-        let view = match &subject {
-            ConditionSubject::View(view) => *view,
+        let (view, card) = match &subject {
+            ConditionSubject::View(view) => (*view, None),
+            ConditionSubject::Card(card) => (
+                ObjectFilterView::Definition(DefinitionView::new(&card.definition)),
+                Some(*card),
+            ),
             ConditionSubject::LastKnown(object) => {
                 return try_evaluate_predicate(&condition["where"], &mut |leaf| {
                     self.last_known_condition_leaf(object, leaf, stack_object, bindings, decisions)
@@ -211,7 +214,7 @@ impl GameEngine {
             ConditionSubject::Absent => return Ok(false),
         };
         try_evaluate_predicate(&condition["where"], &mut |leaf| {
-            self.object_condition_leaf(view, leaf, stack_object, bindings, decisions)
+            self.object_condition_leaf(view, card, leaf, stack_object, bindings, decisions)
         })
     }
 
@@ -248,6 +251,7 @@ impl GameEngine {
         }
         self.object_condition_leaf(
             ObjectFilterView::Permanent(&object.card),
+            None,
             leaf,
             stack_object,
             bindings,
@@ -258,6 +262,7 @@ impl GameEngine {
     fn object_condition_leaf(
         &self,
         view: ObjectFilterView<'_>,
+        card: Option<&CardInstance>,
         leaf: &Value,
         stack_object: &StackObject,
         bindings: &BTreeMap<String, RuntimeBinding>,
@@ -304,13 +309,23 @@ impl GameEngine {
                         let Some(printed) = printed.as_deref() else {
                             return Ok(false);
                         };
-                        // A characteristic-defining P/T outside the battlefield
-                        // has no evaluator here; never read it as zero.
-                        printed.parse::<i32>().map_err(|_| {
-                            EngineError::new(
-                                "an object condition over a non-numeric printed power or toughness",
-                            )
-                        })?
+                        // CR 604.3: a characteristic-defining P/T functions in
+                        // every zone (layer 7a); a non-numeric printed value
+                        // without one is never read as zero.
+                        match card.and_then(|card| self.characteristic_defining_power_toughness(card)) {
+                            Some((cda_power, cda_toughness)) => {
+                                if power {
+                                    cda_power
+                                } else {
+                                    cda_toughness
+                                }
+                            }
+                            None => printed.parse::<i32>().map_err(|_| {
+                                EngineError::new(
+                                    "an object condition over a non-numeric printed power or toughness without a characteristic-defining ability",
+                                )
+                            })?,
+                        }
                     }
                 };
                 return Ok(compare_integers(left, leaf["operator"].as_str(), right));

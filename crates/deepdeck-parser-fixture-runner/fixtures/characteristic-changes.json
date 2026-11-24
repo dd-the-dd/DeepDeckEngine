@@ -1,0 +1,784 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "characteristic-change-frame",
+  "cases": [
+    {
+      "id": "real-niveous-wisps-bare-color-complement",
+      "request": {
+        "cardName": "Niveous Wisps",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Target creature becomes white until end of turn. Tap that creature.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setColors"
+              },
+              {
+                "pointer": "/effects/0/colors",
+                "equals": [
+                  "W"
+                ]
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-lhurgoyf-power-and-dependent-toughness",
+      "request": {
+        "cardName": "Lhurgoyf",
+        "typeLine": "Creature — Lhurgoyf",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Lhurgoyf's power is equal to the number of creature cards in all graveyards and its toughness is equal to that number plus 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/0/layer",
+                "equals": "7a"
+              },
+              {
+                "pointer": "/modifiers/0/toughness/kind",
+                "equals": "add"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-tarmogoyf-keeps-the-distinct-card-type-count",
+      "request": {
+        "cardName": "Tarmogoyf",
+        "typeLine": "Creature — Lhurgoyf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Tarmogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/0/layer",
+                "equals": "7a"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-enigma-drake-power-only",
+      "request": {
+        "cardName": "Enigma Drake",
+        "typeLine": "Creature — Drake",
+        "manaCost": "{1}{U}{R}",
+        "oracleText": "Flying\nEnigma Drake's power is equal to the number of instant and sorcery cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setPower"
+              },
+              {
+                "pointer": "/modifiers/0/layer",
+                "equals": "7a"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "real-crusader-of-odric-both-stats-each-equal",
+      "request": {
+        "cardName": "Crusader of Odric",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "Crusader of Odric's power and toughness are each equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/0/layer",
+                "equals": "7a"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-quickchange-chosen-colors",
+      "request": {
+        "cardName": "Quickchange",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Target creature becomes the color or colors of your choice until end of turn.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseColors"
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 5
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "setColors"
+              },
+              {
+                "pointer": "/effects/1/colors/kind",
+                "equals": "decisionResult"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-reptilian-reflection-causative-become",
+      "request": {
+        "cardName": "Reptilian Reflection",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you cycle a card, you may have this enchantment become a 5/4 Dinosaur creature with trample and haste in addition to its other types until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "downdraft-ability-loses-keyword",
+      "request": {
+        "cardName": "Downdraft Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "{G}: Target creature loses flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "removeKeywordsFromPermanents"
+              },
+              {
+                "pointer": "/effects/0/keywords",
+                "equals": [
+                  "flying"
+                ]
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "cyclopean-titan-ability-plural-become-land-subtype",
+      "request": {
+        "cardName": "Cyclopean Probe",
+        "typeLine": "Creature — Zombie Giant",
+        "manaCost": "{4}{B}{B}{B}{B}",
+        "oracleText": "When this creature dies, two target lands become Swamps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "modifySubtypeSet"
+              },
+              {
+                "pointer": "/effects/1/subtypeClass",
+                "equals": "land"
+              },
+              {
+                "pointer": "/effects/1/mode",
+                "equals": "replace"
+              },
+              {
+                "pointer": "/effects/1/subtypes",
+                "equals": [
+                  "Swamp"
+                ]
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "daxos-ability-toughness-only-with-reminder",
+      "request": {
+        "cardName": "Daxos Probe",
+        "typeLine": "Legendary Enchantment Creature — Demigod",
+        "manaCost": "{W}{W}",
+        "oracleText": "This creature's toughness is equal to your devotion to white. (Each {W} in the mana costs of permanents you control counts toward your devotion to white.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setToughness"
+              },
+              {
+                "pointer": "/modifiers/0/layer",
+                "equals": "7a"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "rite-of-replication-ability-copy-of-target",
+      "request": {
+        "cardName": "Replication Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Create a token that's a copy of target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/token/kind",
+                "equals": "copyOf"
+              },
+              {
+                "pointer": "/effects/0/token/object/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/token/except",
+                "equals": []
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "kiki-jiki-ability-copy-except-haste",
+      "request": {
+        "cardName": "Mirror Probe",
+        "typeLine": "Creature — Goblin Shaman",
+        "manaCost": "{2}{R}{R}{R}",
+        "oracleText": "{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/token/except/0/keyword",
+                "equals": "haste"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "nightmare-shepherd-exceptions-share-the-change-children",
+      "request": {
+        "cardName": "Shepherd Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Create a token that's a copy of target creature you control, except it's 1/1 and it's a Nightmare in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/except/0/kind",
+                "equals": "addSubtypes"
+              },
+              {
+                "pointer": "/effects/0/token/except/0/subtypes",
+                "equals": [
+                  "Nightmare"
+                ]
+              },
+              {
+                "pointer": "/effects/0/token/except/1/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/effects/0/token/except/1/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "enduring-innocence-ability-reference-copula",
+      "request": {
+        "cardName": "Enduring Probe",
+        "typeLine": "Enchantment Creature — Sheep Glimmer",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "When this creature dies, if it was a creature, return it to the battlefield under its owner's control. It's an enchantment. (It's not a creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "manaform-shaped-variable-token-statistics",
+      "request": {
+        "cardName": "Variable Token Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Create an X/X green Ooze creature token, where X is the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/1/token/power/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/1/token/toughness/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "a-number-of-tokens-equal-to",
+      "request": {
+        "cardName": "Number Token Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Create a number of 1/1 white Soldier creature tokens equal to the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "createTokens"
+              },
+              {
+                "pointer": "/effects/0/token/power",
+                "equals": 1
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-land-becomes-forest-until-end-of-turn",
+      "request": {
+        "cardName": "Forest Probe",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target land becomes a Forest until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifySubtypeSet"
+              },
+              {
+                "pointer": "/effects/0/subtypeClass",
+                "equals": "land"
+              },
+              {
+                "pointer": "/effects/0/subtypes",
+                "equals": [
+                  "Forest"
+                ]
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-copy-of-target-artifact-you-control",
+      "request": {
+        "cardName": "Artifact Copy Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Create a token that's a copy of target artifact you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/kind",
+                "equals": "copyOf"
+              },
+              {
+                "pointer": "/effects/0/token/object/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-color-keyword-loss-and-where-x-base-power-toughness",
+      "request": {
+        "cardName": "Combination Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Target creature becomes blue and loses flying until end of turn, and its base power and toughness become X/X, where X is the number of Islands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "removeKeywordsFromPermanents"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "setColors"
+              },
+              {
+                "pointer": "/effects/2/colors",
+                "equals": [
+                  "U"
+                ]
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/effects/3/power/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/3/duration/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-becomes-the-target-of-is-not-a-characteristic",
+      "request": {
+        "cardName": "Target Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target creature becomes the target of all spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cda-amount-without-shared-numeric-reading",
+      "request": {
+        "cardName": "Amount Probe",
+        "typeLine": "Creature — Lhurgoyf",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature's power is equal to the number of frobnications you remember.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "traceContainsState": "characteristic.power-toughness.amount"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-exception-replacing-types-has-no-primitive",
+      "request": {
+        "cardName": "Exception Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Create a token that's a copy of target creature, except it's a Bird.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "traceContainsState": "token.copy.except.retention"
+          }
+        ]
+      }
+    }
+  ]
+}

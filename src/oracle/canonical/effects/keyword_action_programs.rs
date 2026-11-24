@@ -298,10 +298,10 @@ fn lower_populate_program(scope: &str) -> Vec<Value> {
                 "kind": "forEachObject", "objects": decision_result(&choice_id),
                 "bind": object_id,
                 "effects": [{
-                    "kind": "createTokenCopyOfPermanent",
-                    "object": bound(&object_id),
+                    "kind": "createTokens",
                     "controller": controller(),
-                    "exileAtNextEndStep": false,
+                    "quantity": integer(1),
+                    "token": { "kind": "copyOf", "object": bound(&object_id), "except": [] },
                 }],
             },
         ],

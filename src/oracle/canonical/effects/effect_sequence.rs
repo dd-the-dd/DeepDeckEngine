@@ -605,7 +605,10 @@ fn lower_local_effect_sequence_with_collections(
                             &target_bindings,
                             context,
                         )?;
-                        effects.push(lower_token_creation_body(body, lowered.player, quantity));
+                        effects.push(
+                            lower_token_creation_body(body, lowered.player, quantity)
+                                .map_err(|expected| cursor.fail(expected))?,
+                        );
                         continue;
                     }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
@@ -1089,11 +1092,33 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                // `becomes a copy of OBJECT`: the copied object is one more
+                // operand of the same shared permanent-subject lowering.
+                let copy = match &change.copy_of {
+                    Some(copied) => {
+                        cursor.enter("lower.become-types.copy");
+                        let copied = lower_ordinary_permanent_subject(
+                            cursor,
+                            copied,
+                            effect_index,
+                            false,
+                            &permanent_target_base_ids,
+                            &mut used_target_base_ids,
+                            &mut decisions,
+                            &mut target_bindings,
+                        )?;
+                        let [copied] = <[Value; 1]>::try_from(copied)
+                            .map_err(|_| cursor.fail("one copied object"))?;
+                        Some(copied)
+                    }
+                    None => None,
+                };
                 for object in objects {
                     effects.extend(
                         lower_become_types_to_object(
                             change,
                             &object,
+                            copy.as_ref(),
                             &format!("characteristicObjects{effect_index}"),
                         )
                         .map_err(|expected| cursor.fail(expected))?,
@@ -2051,6 +2076,53 @@ fn lower_local_effect_sequence_with_collections(
                 );
                 decisions.push(lowered.decision);
                 effects.extend(lowered.effects);
+            }
+            LocalEffectNode::CreateExplicitTokens(node) if node.body.copy_of().is_some() => {
+                // `create a token that's a copy of OBJECT`: the copied object
+                // is an operand of the shared permanent-subject lowering, so
+                // a target is declared like any other action's target.
+                let copy = node.body.copy_of().expect("a copy specification");
+                cursor.enter("lower.token-copy.player");
+                cursor.require(
+                    node.player == LocalPlayerReference::Controller,
+                    "the controller creating the token copies",
+                )?;
+                cursor.enter("lower.token-copy.quantity");
+                let declarations = match context {
+                    EffectSequenceLoweringContext::NoExternalX => {
+                        TargetlessDeclarationSupport::None
+                    }
+                    EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                        TargetlessDeclarationSupport::XValue
+                    }
+                };
+                let quantity =
+                    lower_targetless_numeric_expression(&node.body.quantity, declarations)
+                        .map_err(|error| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(error.expectation()),
+                            )
+                        })?;
+                cursor.enter("lower.token-copy.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &copy.object,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [object] = <[Value; 1]>::try_from(objects)
+                    .map_err(|_| cursor.fail("one copied object"))?;
+                let mut creation =
+                    lower_token_copy_creation(&node.body, copy, object, controller(), quantity)
+                        .map_err(|expected| cursor.fail(expected))?;
+                if created_tokens_are_next_antecedent(sequence, effect_index) {
+                    creation["bind"] = json!(CREATED_TOKENS_BINDING);
+                }
+                effects.push(creation);
             }
             effect => {
                 let declarations = match context {
