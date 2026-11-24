@@ -98,6 +98,26 @@ fn intrinsic_casting_keywords_lower_to_their_runtime_kinds() {
             json!({ "kind": "entwine", "cost": pay("{1}") }),
         ),
         (
+            "Raven's Crime",
+            "Sorcery",
+            "Retrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+            json!({
+                "kind": "graveyardCastWithDiscard",
+                "keyword": "retrace",
+                "where": { "kind": "cardTypeContains", "value": "Land" },
+            }),
+        ),
+        (
+            "Radical Idea",
+            "Instant",
+            "Jump-start (You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card.)",
+            json!({
+                "kind": "graveyardCastWithDiscard",
+                "keyword": "jumpStart",
+                "exileOnLeaveStack": true,
+            }),
+        ),
+        (
             "Ultramarines Honour Guard",
             "Creature — Astartes Warrior",
             "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)",

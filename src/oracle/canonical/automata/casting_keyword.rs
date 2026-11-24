@@ -5,7 +5,8 @@
 //!
 //! ```text
 //! Line      := LEXEME Parameter ["."] [ "(" Reminder ")" ]
-//! Parameter := ε                         (conspire, gravestorm, paradigm)
+//! Parameter := ε                         (conspire, gravestorm, paradigm,
+//!                                          retrace, jump-start)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine)
@@ -49,12 +50,16 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Escape,
     Gravestorm,
     Impending,
+    /// CR 702.133a.
+    JumpStart,
     /// CR 702.33a with a nonmana cost (`Kicker—Sacrifice a land.`); a mana
     /// kicker cost is read by `keyword.rs`.
     Kicker,
     Mayhem,
     Paradigm,
     Prototype,
+    /// CR 702.81a.
+    Retrace,
     Spectacle,
     Surge,
     Teamwork,
@@ -168,6 +173,15 @@ const DEFINITIONS: &[Definition] = &[
         ],
     },
     Definition {
+        keyword: CastingKeyword::JumpStart,
+        lexeme: "jump-start",
+        rules_section: "702.133a",
+        parameter: Parameter::None,
+        reminders: &[
+            "You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card.",
+        ],
+    },
+    Definition {
         keyword: CastingKeyword::Kicker,
         lexeme: "kicker",
         rules_section: "702.33a",
@@ -200,6 +214,15 @@ const DEFINITIONS: &[Definition] = &[
         parameter: Parameter::ManaThenCharacteristics,
         reminders: &[
             "You may cast this spell with different mana cost, color, and size. It keeps its abilities and types.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Retrace,
+        lexeme: "retrace",
+        rules_section: "702.81a",
+        parameter: Parameter::None,
+        reminders: &[
+            "You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.",
         ],
     },
     Definition {

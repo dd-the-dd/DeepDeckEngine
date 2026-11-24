@@ -334,6 +334,7 @@ fn lower_casting_keyword(
     cursor: &OracleTokenCursor<'_>,
     node: &CastingKeywordNode,
     face_name: &str,
+    face_type_line: &str,
 ) -> MachineResult<Value> {
     Ok(match node.keyword {
         // CR 702.137a: pay [cost] rather than the mana cost if an opponent
@@ -424,6 +425,25 @@ fn lower_casting_keyword(
             "minimumPower": integer(keyword_count(cursor, node)?),
         }),
         CastingKeyword::Conspire => json!({ "kind": "conspire" }),
+        // CR 702.81a: cast from the graveyard by also discarding a land card.
+        CastingKeyword::Retrace => json!({
+            "kind": "graveyardCastWithDiscard",
+            "keyword": "retrace",
+            "where": lower_card_object_predicate(&ObjectPredicate::CardType(ObjectCardType::Land)),
+        }),
+        // CR 702.133a: cast from the graveyard by also discarding a card;
+        // the spell is exiled when it leaves the stack.
+        CastingKeyword::JumpStart => {
+            cursor.require(
+                spell_face(face_type_line),
+                "an instant or sorcery face for jump-start",
+            )?;
+            json!({
+                "kind": "graveyardCastWithDiscard",
+                "keyword": "jumpStart",
+                "exileOnLeaveStack": true,
+            })
+        }
         CastingKeyword::Gravestorm => json!({ "kind": "gravestorm" }),
         // CR 702.192a: the spell's own name identifies its later copies.
         CastingKeyword::Paradigm => {
@@ -439,7 +459,7 @@ pub(in crate::oracle::canonical) fn parse_casting_keyword(
     let mut cursor = OracleTokenCursor::new("casting-keyword", input.tokens);
     let node = recognize_casting_keyword(&mut cursor)?;
     cursor.enter("keyword.casting.lowering");
-    let ability = lower_casting_keyword(&cursor, &node, input.face_name)?;
+    let ability = lower_casting_keyword(&cursor, &node, input.face_name, input.face_type_line)?;
     let trace = cursor
         .transitions()
         .iter()

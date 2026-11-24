@@ -7,8 +7,8 @@ use std::collections::BTreeMap;
 use super::{
     CardDefinition, CardInstance, CastingDeclaration, DecisionProvider, EngineError, GameEngine,
     LegalAction, card_filter_supported, card_matches_protection_quality, cost_supported,
-    distinct_card_types, integer_value, kicker_ability_supported, player_reference_supported,
-    value_kind,
+    distinct_card_types, integer_value, kicker_ability_supported, matches_card_filter,
+    player_reference_supported, value_kind,
 };
 
 /// The declared choice of a kicker cost that is not mana (CR 702.33a).
@@ -119,6 +119,48 @@ pub(super) fn printed_hexproof_from(permanent: &CardInstance, source: &CardDefin
                     .any(|quality| card_matches_protection_quality(source, quality))
         })
     })
+}
+
+/// The ability that lets a card be cast from its owner's graveyard by
+/// discarding a card in addition to its other costs: retrace (CR 702.81a,
+/// a land card) and jump-start (CR 702.133a, any card, then exiled when it
+/// leaves the stack).
+fn graveyard_discard_cast(card: &CardDefinition) -> Option<&Value> {
+    card.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("keywordAbility")
+            && value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard"))
+        .then_some(&rule["ability"])
+    })
+}
+
+/// Whether `candidate` may be discarded to cast `card` from its graveyard.
+pub(super) fn graveyard_discard_candidate(
+    card: &CardDefinition,
+    candidate: &CardDefinition,
+) -> bool {
+    graveyard_discard_cast(card).is_some_and(|ability| {
+        ability
+            .get("where")
+            .is_none_or(|filter| filter.is_null() || matches_card_filter(candidate, filter))
+    })
+}
+
+/// CR 702.133a: a spell cast with jump-start is exiled instead of going
+/// anywhere else when it leaves the stack.
+pub(super) fn mark_graveyard_discard_cast_exile(
+    card: &CardDefinition,
+    declarations: &mut [CastingDeclaration],
+) {
+    if !graveyard_discard_cast(card)
+        .is_some_and(|ability| ability["exileOnLeaveStack"].as_bool() == Some(true))
+    {
+        return;
+    }
+    for declaration in declarations {
+        declaration
+            .decisions
+            .insert("exileOnLeaveStack".to_string(), Value::Bool(true));
+    }
 }
 
 /// CR 702.42a: `Entwine [mana cost]`.

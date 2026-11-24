@@ -17610,6 +17610,12 @@ impl GameEngine {
                 let discard_candidates = player
                     .hand
                     .iter()
+                    .filter(|candidate| {
+                        keyword_programs::graveyard_discard_candidate(
+                            &card.definition,
+                            &candidate.definition,
+                        )
+                    })
                     .map(|candidate| candidate.instance_id.clone())
                     .collect::<Vec<_>>();
                 declarations = declarations
@@ -17626,6 +17632,10 @@ impl GameEngine {
                     })
                     .take(MAX_DECLARATION_OPTIONS)
                     .collect();
+                keyword_programs::mark_graveyard_discard_cast_exile(
+                    &card.definition,
+                    &mut declarations,
+                );
                 if declarations.is_empty() {
                     continue;
                 }
@@ -25568,7 +25578,13 @@ impl GameEngine {
                     let discard_index = self.state.players[player_index]
                         .hand
                         .iter()
-                        .position(|card| card.instance_id == discard_id)
+                        .position(|card| {
+                            card.instance_id == discard_id
+                                && keyword_programs::graveyard_discard_candidate(
+                                    &source_definition,
+                                    &card.definition,
+                                )
+                        })
                         .ok_or_else(|| EngineError::new("additional discard card left the hand"))?;
                     let (discarded, graveyard_destination) =
                         self.take_zone_card_for_graveyard(player_index, "hand", discard_index)?;
