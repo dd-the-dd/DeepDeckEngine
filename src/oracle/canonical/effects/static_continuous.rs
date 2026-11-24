@@ -176,9 +176,21 @@ fn read_static_continuous_effect(
     if let [subject] = subjects.as_slice() {
         return read_subject_predicates(cursor, input, subject, condition, committed);
     }
-    // Coordinated subjects share one predicate list (`Goblins you control and
-    // Elementals you control have menace`): each subject keeps its own
-    // qualifiers, and the same predicates lower once per subject.
+    // Coordinated subjects share one predicate list and form one continuous
+    // effect over the union of their populations (CR 604.1, 611.3): an object
+    // in two subjects is affected once. Subjects of one selector shape merge
+    // into one population whose filter is the disjunction of the branches;
+    // other subjects lower separately only when their populations are
+    // provably disjoint.
+    cursor.enter("static.continuous.subject.union");
+    let subjects = merge_coordinated_object_subjects(subjects);
+    if let [subject] = subjects.as_slice() {
+        return read_subject_predicates(cursor, input, subject, condition, committed);
+    }
+    cursor.require(
+        coordinated_subjects_disjoint(&subjects),
+        "coordinated subjects forming one population or provably disjoint populations",
+    )?;
     let start = cursor.clone();
     let mut end: Option<OracleTokenCursor<'_>> = None;
     let mut modifiers = Vec::new();
@@ -204,6 +216,125 @@ fn read_static_continuous_effect(
     }
     *cursor = end.expect("a coordinated subject list has at least one subject");
     Ok((modifiers, shared_condition))
+}
+
+/// Merges the coordinated `permanents` subjects that differ only by their
+/// filter (`Goblins you control and Elementals you control`) into one
+/// collection whose filter is the disjunction of the branch filters. Every
+/// other relation (controller, ownership, source exclusion) must be equal, so
+/// each branch keeps its own local qualifiers inside its filter.
+fn merge_coordinated_object_subjects(subjects: Vec<StaticSubjectItem>) -> Vec<StaticSubjectItem> {
+    let mergeable = |subject: &StaticObjectSubject| {
+        subject.objects["kind"] == "permanents"
+            && !subject.objects["where"]["kind"]
+                .as_str()
+                .is_some_and(|kind| kind.starts_with("chosen"))
+    };
+    let relations = |subject: &StaticObjectSubject| {
+        let mut relations = subject.objects.clone();
+        if let Some(map) = relations.as_object_mut() {
+            map.remove("where");
+        }
+        relations
+    };
+    let mut merged: Vec<StaticSubjectItem> = Vec::new();
+    for subject in subjects {
+        let StaticSubjectItem::Objects(object) = &subject else {
+            merged.push(subject);
+            continue;
+        };
+        let into = merged.iter_mut().find_map(|item| match item {
+            StaticSubjectItem::Objects(existing)
+                if mergeable(existing)
+                    && mergeable(object)
+                    && relations(existing) == relations(object) =>
+            {
+                Some(existing)
+            }
+            _ => None,
+        });
+        let Some(existing) = into else {
+            merged.push(subject);
+            continue;
+        };
+        let branch = |objects: &Value| objects.get("where").cloned();
+        match (branch(&existing.objects), branch(&object.objects)) {
+            // A branch without a filter is the whole collection already.
+            (None, _) => {}
+            (Some(_), None) => {
+                if let Some(map) = existing.objects.as_object_mut() {
+                    map.remove("where");
+                }
+            }
+            (Some(left), Some(right)) => {
+                // `or` is associative: an earlier union extends in place.
+                let mut operands = if left["kind"] == "or" {
+                    left["operands"].as_array().cloned().unwrap_or_default()
+                } else {
+                    vec![left]
+                };
+                if !operands.contains(&right) {
+                    operands.push(right);
+                }
+                existing.objects["where"] = if operands.len() == 1 {
+                    operands.remove(0)
+                } else {
+                    json!({ "kind": "or", "operands": operands })
+                };
+            }
+        }
+        if existing.predicate != object.predicate {
+            // The union guarantees no single branch characteristic.
+            existing.predicate = None;
+        }
+    }
+    merged
+}
+
+/// Coordinated subjects that lower separately must not share a member, or a
+/// shared member would receive the same continuous effect twice. Players
+/// never overlap objects; a source subject is disjoint from a collection that
+/// excludes the source; a collection you control is disjoint from one your
+/// opponents control (CR 108.4, each permanent has one controller).
+fn coordinated_subjects_disjoint(subjects: &[StaticSubjectItem]) -> bool {
+    let players = subjects
+        .iter()
+        .filter(|subject| matches!(subject, StaticSubjectItem::Player(_)))
+        .count();
+    if players > 1 {
+        return false;
+    }
+    let objects = subjects
+        .iter()
+        .filter_map(|subject| match subject {
+            StaticSubjectItem::Objects(object) => Some(&object.objects),
+            StaticSubjectItem::Player(_) => None,
+        })
+        .collect::<Vec<_>>();
+    let you = controller();
+    let opponents = json!({ "kind": "opponentsOf", "player": controller() });
+    let disjoint = |left: &Value, right: &Value| {
+        let source_and_others = |source: &Value, others: &Value| {
+            *source == self_ref()
+                && others["kind"] == "permanents"
+                && others["excludeSource"].as_bool() == Some(true)
+        };
+        let split_control = |a: &Value, b: &Value| {
+            a["kind"] == "permanents"
+                && b["kind"] == "permanents"
+                && a["controller"] == you
+                && b["controller"] == opponents
+        };
+        source_and_others(left, right)
+            || source_and_others(right, left)
+            || split_control(left, right)
+            || split_control(right, left)
+    };
+    objects.iter().enumerate().all(|(index, left)| {
+        objects[index + 1..]
+            .iter()
+            .all(|right| disjoint(left, right))
+    })
 }
 
 /// One coordinated subject of a static ability (CR 604.1): an object

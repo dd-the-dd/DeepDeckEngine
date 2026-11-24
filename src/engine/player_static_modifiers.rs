@@ -10,7 +10,7 @@ use super::*;
 
 /// Player populations a static player modifier may name, relative to its
 /// source.
-fn static_player_population_supported(reference: &Value) -> bool {
+pub(super) fn static_player_population_supported(reference: &Value) -> bool {
     match value_kind(reference) {
         Some("abilityController" | "eachPlayer") => true,
         Some("controllerOf") => matches!(

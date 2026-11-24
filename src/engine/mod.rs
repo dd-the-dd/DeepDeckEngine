@@ -5664,7 +5664,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     })
         }
         Some("additionalLandPlay") => {
-            player_reference_supported(&modifier["player"])
+            player_static_modifiers::static_player_population_supported(&modifier["player"])
                 && integer_value(&modifier["count"]).is_some_and(|count| count > 0)
         }
         Some("increaseDrawReplacementCount") => {
@@ -5748,7 +5748,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
 
         Some("castOnlyDuringOwnTurn") => value_kind(&modifier["players"]) == Some("eachPlayer"),
         Some("castLimitPerTurn") => {
-            player_reference_supported(&modifier["players"])
+            player_static_modifiers::static_player_population_supported(&modifier["players"])
                 && card_filter_supported(&modifier["where"])
                 && integer_value(&modifier["maximum"]).is_some_and(|maximum| maximum > 0)
         }
@@ -14118,7 +14118,7 @@ impl GameEngine {
             .filter_map(|cost| integer_value(&cost["amount"]))
             .sum::<i32>();
         let player_index = self.player_index(&action.player_id)?;
-        if self.state.players[player_index].life <= life_payment {
+        if self.state.players[player_index].life < life_payment {
             return Err(EngineError::new("not enough life for the alternative cost"));
         }
         self.state.players[player_index].life -= life_payment;
@@ -16042,7 +16042,7 @@ impl GameEngine {
             };
             let can_pay_life = self
                 .player_index(controller_id)
-                .is_ok_and(|player_index| self.state.players[player_index].life > life_payment);
+                .is_ok_and(|player_index| self.state.players[player_index].life >= life_payment);
             let condition_met = ability.get("condition").is_none_or(|condition| {
                 self.condition_value(condition, controller_id, &BTreeMap::new())
             });
