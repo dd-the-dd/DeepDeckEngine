@@ -99,8 +99,15 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amen
     support: ZoneChangeTargetSupport,
 ) -> MachineResult<LocalEffectNode> {
     let parsed = recognize_zone_change_effect_with_support(cursor, support)?;
+    // The shared verb operand may yield a reference or collection action;
+    // its reader already consumed that action's own regeneration amendment.
     let LocalEffectNode::ZoneChange(mut zone_change) = parsed else {
-        return Err(cursor.fail("an atomic targeted zone change"));
+        cursor.enter("sequence.destroy-regeneration.untargeted-operand");
+        cursor.require(
+            support == ZoneChangeTargetSupport::TargetCollection,
+            "an atomic targeted zone change",
+        )?;
+        return Ok(parsed);
     };
     if zone_change.action != ZoneChangeAction::Destroy || !amendment_starts(cursor) {
         return Ok(LocalEffectNode::ZoneChange(zone_change));

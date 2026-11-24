@@ -246,6 +246,28 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
     }
 }
 
+/// A destination written before the moved object (`return to the
+/// battlefield all creature cards ...`, `put onto the battlefield ...`).
+/// An object operand never begins with `to`/`onto`, so this claims only a
+/// preposed destination; once claimed, a malformed destination fails.
+pub(in crate::oracle::canonical) fn try_recognize_preposed_card_move_destination(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardMoveDestinationNode>> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("to") || raw.eq_ignore_ascii_case("onto"))
+    {
+        return Ok(None);
+    }
+    cursor.enter("collection.destination.preposed");
+    match try_recognize_card_move_destination(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => Ok(Some(fragment.node)),
+        CollectionOperandAttempt::NotClaimed => Ok(None),
+        CollectionOperandAttempt::RejectedCandidate(failure)
+        | CollectionOperandAttempt::FailedCommitted(failure) => Err(failure),
+    }
+}
+
 #[cfg(test)]
 #[path = "card_move_destination_tests.rs"]
 mod tests;

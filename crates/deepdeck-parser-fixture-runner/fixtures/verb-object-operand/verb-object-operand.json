@@ -1,0 +1,344 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "composable-verb-object-operand",
+  "cases": [
+    {
+      "id": "real-scourge-of-fleets-opponent-collection-with-where-x",
+      "request": {
+        "cardName": "Scourge of Fleets",
+        "typeLine": "Creature — Kraken",
+        "manaCost": "{5}{U}{U}",
+        "oracleText": "When this creature enters, return each creature your opponents control with toughness X or less to its owner's hand, where X is the number of Islands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/kind", "equals": "triggeredAbility" },
+              { "pointer": "/effects/0/kind", "equals": "bind" },
+              { "pointer": "/effects/1/kind", "equals": "returnToOwnersHand" },
+              { "pointer": "/effects/1/object/kind", "equals": "eachPermanent" },
+              {
+                "pointer": "/effects/1/object/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-yaroks-wavecrasher-another-is-a-resolution-choice",
+      "request": {
+        "cardName": "Yarok's Wavecrasher",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, return another creature you control to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "choosePermanents" },
+              { "pointer": "/effects/0/candidates/excludeSource", "equals": true },
+              {
+                "pointer": "/effects/0/candidates/controller",
+                "equals": { "kind": "controllerOf", "object": { "kind": "self" } }
+              },
+              { "pointer": "/effects/1/kind", "equals": "returnToOwnersHand" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-return-each-other-creature-you-control-no-new-code",
+      "request": {
+        "cardName": "Operand Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Return each other creature you control to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "returnToOwnersHand" },
+              { "pointer": "/effects/0/object/excludeSource", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "clause-probe-ashiok-plus-two-declared-library-owner",
+      "request": {
+        "cardName": "Ashiok Plus Two Probe",
+        "typeLine": "Legendary Planeswalker — Ashiok",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "+2: Exile the top three cards of target opponent's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/kind", "equals": "chooseTargets" },
+              { "pointer": "/effects/0/kind", "equals": "bind" },
+              { "pointer": "/effects/0/value/kind", "equals": "libraryTopCards" },
+              { "pointer": "/effects/0/value/zone/player/kind", "equals": "chosenTarget" },
+              { "pointer": "/effects/1/kind", "equals": "moveCards" },
+              { "pointer": "/effects/1/to/kind", "equals": "exile" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "clause-probe-volcanic-eruption-x-target-declaration",
+      "request": {
+        "cardName": "Volcanic Eruption Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}{U}{U}",
+        "oracleText": "Destroy X target Mountains.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": { "kind": "decisionResult", "decisionId": "xValue" }
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": { "kind": "decisionResult", "decisionId": "xValue" }
+              },
+              { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/0/permanent/kind", "equals": "chosenTargets" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "clause-probe-brago-unbounded-target-declaration",
+      "request": {
+        "cardName": "Brago Probe",
+        "typeLine": "Legendary Creature — Spirit Noble",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Whenever Brago Probe deals combat damage to a player, exile any number of target nonland permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/minimum", "equals": 0 },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": { "kind": "countPermanents", "allPlayers": true }
+              },
+              { "pointer": "/effects/0/kind", "equals": "exilePermanent" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-unbounded-graveyard-card-targets-with-numeric-predicate",
+      "request": {
+        "cardName": "Unused Combination",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Exile any number of target creature cards with mana value 2 or less from graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/minimum", "equals": 0 },
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "countCards"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/zone",
+                "equals": { "kind": "anyGraveyard" }
+              },
+              { "pointer": "/effects/0/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/to/kind", "equals": "exile" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-morcants-loyalist-another-target-card-excludes-source",
+      "request": {
+        "cardName": "Morcant's Loyalist",
+        "typeLine": "Creature — Elf Warrior",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "Other Elves you control get +1/+1.\nWhen this creature dies, return another target Elf card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/excludeSource",
+                "equals": true
+              },
+              { "pointer": "/effects/0/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/to/kind", "equals": "hand" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-destroy-it-reads-the-bound-target",
+      "request": {
+        "cardName": "Reference Sibling",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Tap target creature. Destroy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/1/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/1/permanent/kind", "equals": "chosenTarget" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-target-without-x-producer-fails-binding",
+      "request": {
+        "cardName": "No X Producer",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Destroy X target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [{ "index": 0, "status": "unsupported" }],
+        "diagnostics": [{ "abilityIndex": 0 }]
+      }
+    },
+    {
+      "id": "near-miss-qualified-card-target-with-trailing-text",
+      "request": {
+        "cardName": "Trailing Near Miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target creature card with flying from a graveyard swiftly.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [{ "index": 0, "status": "unsupported" }],
+        "diagnostics": [{ "abilityIndex": 0, "code": "oracle_machine_failure" }]
+      }
+    },
+    {
+      "id": "real-vesperlark-card-power-is-an-explicit-capability-failure",
+      "request": {
+        "cardName": "Vesperlark",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{W}",
+        "oracleText": "Flying\nWhen this creature leaves the battlefield, return target creature card with power 1 or less from your graveyard to the battlefield.\nEvoke {1}{W} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          { "abilityIndex": 1, "state": "card-target.query-capability" }
+        ]
+      }
+    }
+  ]
+}

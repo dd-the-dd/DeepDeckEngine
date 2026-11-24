@@ -25,6 +25,7 @@ fn one_target(selector: TargetSelector) -> TargetListNode {
             selector,
             cardinality: TargetCardinality::EXACTLY_ONE,
             exclude_source: false,
+            count: None,
         }],
     }
 }
@@ -237,11 +238,13 @@ fn repeated_target_head_opens_two_independent_slots() {
                     selector: TargetSelector::Object(card_type(ObjectCardType::Creature)),
                     cardinality: TargetCardinality::EXACTLY_ONE,
                     exclude_source: false,
+                    count: None,
                 },
                 TargetSlot {
                     selector: TargetSelector::Object(card_type(ObjectCardType::Artifact)),
                     cardinality: TargetCardinality::EXACTLY_ONE,
                     exclude_source: false,
+                    count: None,
                 },
             ],
         }
@@ -263,6 +266,7 @@ fn determined_player_noun_opens_a_second_target_domain() {
             selector: TargetSelector::Player(PlayerPredicate::Opponent),
             cardinality: TargetCardinality::EXACTLY_ONE,
             exclude_source: false,
+            count: None,
         }
     );
 }
@@ -312,6 +316,7 @@ fn cardinalized_and_or_forms_one_bounded_union_collection() {
                 maximum: 2,
             },
             exclude_source: false,
+            count: None,
         }
     );
 }
@@ -327,6 +332,7 @@ fn any_target_uses_the_same_one_slot_contract() {
                 selector: TargetSelector::Any,
                 cardinality: TargetCardinality::EXACTLY_ONE,
                 exclude_source: false,
+                count: None,
             }],
         }
     );

@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "verb-operand-nontarget-choice-to-owner-hand-excludes-source",
+  "seed": 41,
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Chooser",
+        "battlefield": [
+          {
+            "id": "bouncer",
+            "name": "Bouncer",
+            "typeLine": "Creature - Elemental",
+            "manaCost": "{3}{U}",
+            "power": "2",
+            "toughness": "3",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "effects": [
+                  {
+                    "kind": "choosePermanents",
+                    "id": "selectedPermanents",
+                    "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                    "candidates": {
+                      "kind": "permanents",
+                      "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                      "excludeSource": true,
+                      "where": { "kind": "cardTypeContains", "value": "Creature" }
+                    },
+                    "minimum": { "kind": "integer", "value": 1 },
+                    "maximum": { "kind": "integer", "value": 1 }
+                  },
+                  {
+                    "kind": "returnToOwnersHand",
+                    "object": { "kind": "decisionResult", "decisionId": "selectedPermanents" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "ally-a",
+            "name": "Ally A",
+            "typeLine": "Creature - Elf",
+            "power": "1",
+            "toughness": "1"
+          },
+          {
+            "id": "ally-b",
+            "name": "Ally B",
+            "typeLine": "Creature - Elf",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opposing-creature",
+            "name": "Opposing Creature",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "bouncer",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "decisions": [{ "kind": "selectCards", "count": 1, "take": "forward" }],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "bouncer",
+      "equals": true
+    },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "hand", "equals": 1 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 2 },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opposing-creature",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}
