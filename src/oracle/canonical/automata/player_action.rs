@@ -808,6 +808,29 @@ pub(in crate::oracle::canonical) fn recognize_venture_action_fragment(
     })
 }
 
+/// The printed reminder of `venture into the dungeon` restates CR 701.49a:
+/// `(Enter the first room or advance to the next room.)`. A named Dungeon
+/// has its own entry rules and no reminder grammar here. Owns both
+/// parentheses.
+pub(in crate::oracle::canonical) fn recognize_venture_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    venture: &VentureActionNode,
+) -> MachineResult<()> {
+    cursor.enter("player-action.venture.reminder.open");
+    cursor.consume("(")?;
+    cursor.enter("player-action.venture.reminder.dungeon");
+    cursor.require(
+        venture.dungeon.is_none(),
+        "the reminder of venturing into any dungeon",
+    )?;
+    cursor.enter("player-action.venture.reminder.body");
+    cursor.consume_phrase(&[
+        "Enter", "the", "first", "room", "or", "advance", "to", "the", "next", "room", ".",
+    ])?;
+    cursor.enter("player-action.venture.reminder.close");
+    cursor.consume(")")
+}
+
 /// Declarations become bound uses in grammatical memory, never cloned targets.
 pub(in crate::oracle::canonical) fn continuing_player_subject(
     player: &PlayerEffectSubject,

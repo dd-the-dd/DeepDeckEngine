@@ -134,3 +134,67 @@ fn an_untapped_graveyard_return_enters_untapped() {
     assert!(!returned.tapped);
     assert!(engine.state.players[0].graveyard.is_empty());
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[test]
+fn an_aura_returned_to_the_battlefield_enchants_a_chosen_object_or_stays() {
+    // CR 303.4f: an Aura put onto the battlefield without being cast is
+    // attached to an object it could enchant; with none it stays put.
+    let aura = compiled(
+        "Generic Grave Aura",
+        "Enchantment \u{2014} Aura",
+        "Enchant creature\n{1}{B}: Return this card from your graveyard to the battlefield.",
+    );
+    let creature = || {
+        let mut definition = test_definition("host", "Creature \u{2014} Test");
+        definition.power = Some("2".to_string());
+        definition.toughness = Some("2".to_string());
+        test_instance("host", definition, "player-1")
+    };
+    let swamps = || {
+        vec![
+            mana_source("swamp-a", "Basic Land - Swamp", "{B}", None),
+            mana_source("swamp-b", "Basic Land - Swamp", "{B}", None),
+        ]
+    };
+
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].battlefield = swamps();
+    engine.state.players[1].battlefield = vec![creature()];
+    engine.state.players[0].graveyard = vec![test_instance("aura", aura.clone(), "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert!(activate(&mut engine, "aura"));
+    engine.check_state_based_actions();
+    let returned = engine.state.players[0]
+        .battlefield
+        .iter()
+        .find(|card| card.definition.name == "Generic Grave Aura")
+        .expect("the Aura stays on the battlefield, attached");
+    assert_eq!(returned.attached_to.as_deref(), Some("host"));
+    assert!(engine.state.players[0].graveyard.is_empty());
+
+    // Near miss: with no creature to enchant, the Aura stays in the graveyard.
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].battlefield = swamps();
+    engine.state.players[0].graveyard = vec![test_instance("aura", aura, "player-0")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert!(activate(&mut engine, "aura"));
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.definition.name == "Generic Grave Aura")
+    );
+    assert!(
+        !engine.state.players[0]
+            .battlefield
+            .iter()
+            .any(|card| card.definition.name == "Generic Grave Aura")
+    );
+}

@@ -8,9 +8,9 @@ $partitionCounts = [ordered]@{
     "ci-unit-tests-4" = 0
 }
 $expectedPartitionCounts = [ordered]@{
-    "ci-unit-tests-1" = 301
-    "ci-unit-tests-2" = 188
-    "ci-unit-tests-3" = 904
+    "ci-unit-tests-1" = 302
+    "ci-unit-tests-2" = 189
+    "ci-unit-tests-3" = 908
     "ci-unit-tests-4" = 301
 }
 $expectedDedicatedEngineTestFileCount = 246

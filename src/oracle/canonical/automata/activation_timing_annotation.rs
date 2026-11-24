@@ -83,8 +83,8 @@ pub(in crate::oracle::canonical) enum AbilityReminderOwner {
     ManaSymbol,
     /// The named token the ability creates, validated by its reminder child.
     NamedToken,
-    /// A keyword action the program performs, or a catalog keyword whose
-    /// reminder grammar is registered and which the ability names.
+    /// The program's last keyword action (earthbend, scry, surveil,
+    /// venture), validated by that action's typed reminder grammar.
     Mechanic,
 }
 
@@ -111,9 +111,26 @@ pub(in crate::oracle::canonical) fn recognize_owned_ability_reminder(
     }
     // A keyword action with a typed reminder grammar validates its reminder
     // against the action it explains, instead of being skipped as text.
-    if let Some(super::LocalEffectNode::Earthbend(action)) = effects.effects.last() {
-        return super::recognize_earthbend_action_reminder(cursor, &action.quantity)
-            .map(|_| AbilityReminderOwner::Mechanic);
+    match effects.effects.last() {
+        Some(super::LocalEffectNode::Earthbend(action)) => {
+            return super::recognize_earthbend_action_reminder(cursor, &action.quantity)
+                .map(|_| AbilityReminderOwner::Mechanic);
+        }
+        Some(super::LocalEffectNode::Scry(action)) => {
+            return super::recognize_scry_reminder(cursor, &action.count)
+                .map(|_| AbilityReminderOwner::Mechanic);
+        }
+        Some(super::LocalEffectNode::Surveil(action)) => {
+            return super::recognize_surveil_reminder(cursor, &action.count)
+                .map(|_| AbilityReminderOwner::Mechanic);
+        }
+        Some(super::LocalEffectNode::PlayerAction(action)) => {
+            if let super::SingularPlayerAction::Venture(venture) = &action.action {
+                return super::recognize_venture_reminder(cursor, venture)
+                    .map(|_| AbilityReminderOwner::Mechanic);
+            }
+        }
+        _ => {}
     }
     cursor.enter("activation.reminder.open");
     cursor.consume("(")?;
@@ -134,59 +151,14 @@ pub(in crate::oracle::canonical) fn recognize_owned_ability_reminder(
         cursor.consume(")")?;
         return Ok(AbilityReminderOwner::ManaSymbol);
     }
+    // Any other parenthetical would have to be read by the reminder grammar
+    // of a mechanic the program performs or grants. Without that typed
+    // grammar the text is refused, never skipped (CR 207.2 does not make an
+    // unread parenthetical safe: it may carry rules text).
     cursor.enter("activation.reminder.mechanic");
-    cursor.require(
-        effects.effects.iter().any(performs_reminded_keyword_action)
-            || names_reminded_catalog_mechanic(before),
-        "a reminder explaining a symbol, token or keyword this ability uses",
-    )?;
-    let mut depth = 1usize;
-    while depth > 0 {
-        match cursor.peek() {
-            None => return Err(cursor.fail("a closing parenthesis for the reminder text")),
-            Some("(") => depth += 1,
-            Some(")") => depth -= 1,
-            Some(_) => {}
-        }
-        cursor.advance_to(cursor.position() + 1)?;
-    }
-    Ok(AbilityReminderOwner::Mechanic)
-}
-
-/// A keyword action of the program whose definition the printed reminder
-/// restates (CR 701.49 venture, 701.57 discover, 701.44 explore, 701.50
-/// connive, 701.25 surveil, ...): the typed action itself is the evidence.
-fn performs_reminded_keyword_action(effect: &super::LocalEffectNode) -> bool {
-    use super::LocalEffectNode as Effect;
-    match effect {
-        Effect::Surveil(_)
-        | Effect::ControllerKeywordAction(_)
-        | Effect::PermanentKeywordAction(_) => true,
-        Effect::PlayerAction(action) => {
-            matches!(action.action, super::SingularPlayerAction::Venture(_))
-        }
-        _ => false,
-    }
-}
-
-/// A keyword ability or keyword action named in the ability whose catalog
-/// entry registers a reminder grammar (`fear`, `menace`, `vigilance`,
-/// `indestructible`, `exalted`, `investigate`, ...). Ordinary actions such as
-/// `destroy` or `exile` have no reminder and are never evidence.
-fn names_reminded_catalog_mechanic(tokens: &[crate::oracle::model::RecognizedEntity]) -> bool {
-    use crate::oracle::ability_catalog::{
-        AbilityGrammarRole, lookup_registry, match_catalog_mechanic,
-    };
-    (0..tokens.len()).any(|position| {
-        match_catalog_mechanic(tokens, position)
-            .and_then(|matched| lookup_registry(matched.canonical_id))
-            .is_some_and(|entry| {
-                entry
-                    .grammar
-                    .iter()
-                    .any(|grammar| grammar.role == AbilityGrammarRole::Reminder)
-            })
-    })
+    Err(cursor.fail(
+        "a reminder read by the typed reminder grammar of a symbol, token or keyword action this ability uses",
+    ))
 }
 
 /// `{C} represents colorless mana.` (CR 107.4c), `{S} can be paid with one

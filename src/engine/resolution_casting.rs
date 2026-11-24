@@ -48,7 +48,6 @@ impl GameEngine {
         normal_costs_apply: bool,
         spell_where: Option<&Value>,
     ) -> Result<Vec<LegalAction>, EngineError> {
-        let player_id = &self.state.players[player_index].id;
         let mut actions = Vec::new();
         for original in cards {
             // This is the same face preparation used by normal priority casts.
@@ -76,15 +75,9 @@ impl GameEngine {
                 variants.push((casting_card, None, true));
             }
             for (casting_card, face_index, fused) in variants {
-                if is_land(&casting_card.definition)
-                    || self.card_casting_prohibited(player_id, &casting_card.definition)
-                    || self.spell_casting_prohibited(player_id)
-                    || self.spell_cast_from_zone_prohibited(
-                        player_id,
-                        source_zone,
-                        &casting_card.definition,
-                    )
-                {
+                // Cast legality (prohibitions and the card's own cast
+                // restrictions) is checked by the shared cast-action builder.
+                if is_land(&casting_card.definition) {
                     continue;
                 }
                 for mut action in self.cast_actions_from_zone(

@@ -1594,6 +1594,148 @@
           }
         ]
       }
+    },
+    {
+      "id": "sibling-surveil-reminder-after-restriction-is-read-by-the-surveil-grammar",
+      "request": {
+        "cardName": "Generic Lens",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Surveil 1. Activate only as a sorcery. (Look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-surveil-reminder-with-another-count",
+      "request": {
+        "cardName": "Generic Lens",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Surveil 1. Activate only as a sorcery. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "effect.surveil.reminder.cards"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-keyword-in-target-qualifier-does-not-own-a-parenthetical",
+      "request": {
+        "cardName": "Generic Ballista",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, {T}: Destroy target creature with flying. Activate only as a sorcery. (Then this artifact deals 2 damage to each player.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.reminder.mechanic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-keyword-action-without-typed-reminder-grammar",
+      "request": {
+        "cardName": "Generic Scout",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Target creature you control explores. Activate only as a sorcery. (It deals 2 damage to each opponent.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.reminder.mechanic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-trigger-limit-followed-by-a-keyword-parenthetical",
+      "request": {
+        "cardName": "Generic Skyguard",
+        "typeLine": "Creature — Bird Soldier",
+        "manaCost": "{2}",
+        "oracleText": "Flying\nWhenever you cast a spell, target creature with flying gets +1/+0 until end of turn. This ability triggers only once each turn. (Then each opponent loses 2 life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

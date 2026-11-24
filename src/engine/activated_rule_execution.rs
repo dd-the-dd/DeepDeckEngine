@@ -415,6 +415,24 @@ impl GameEngine {
             .is_none_or(|flag| permanent.flags.get(&flag) == Some(&true))
     }
 
+    /// Whether `player_id` may begin to cast `card` from `source_zone` at
+    /// all (CR 601.3): no effect prohibits the card, spell casting or casting
+    /// from that zone, and the card's own `Cast this spell only ...`
+    /// restrictions hold. Every cast path (priority, prototype, casts during
+    /// resolution and free casts) asks this one question. A face-down spell
+    /// has no abilities, so it never carries the card's restrictions.
+    pub(super) fn spell_cast_legality_allows(
+        &self,
+        player_id: &str,
+        card: &CardInstance,
+        source_zone: &str,
+    ) -> bool {
+        !self.card_casting_prohibited(player_id, &card.definition)
+            && !self.spell_casting_prohibited(player_id)
+            && !self.spell_cast_from_zone_prohibited(player_id, source_zone, &card.definition)
+            && self.spell_cast_restrictions_allow(player_id, card)
+    }
+
     /// Whether `player_id` may begin to cast `card` now under the card's own
     /// cast restrictions (CR 601.3). `your` in the condition names the caster.
     pub(super) fn spell_cast_restrictions_allow(

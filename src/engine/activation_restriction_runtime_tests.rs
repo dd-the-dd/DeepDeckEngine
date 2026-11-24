@@ -231,3 +231,49 @@ fn spell_cast_restriction_withholds_the_cast_outside_its_window() {
     engine.state.step = GameStep::DeclareAttackers;
     assert!(offered(&engine), "legal in the declare attackers step");
 }
+
+/// CR 601.3: a cast during resolution (Epic Experiment, cascade-like free
+/// casts) still obeys the card's own `Cast this spell only ...` restriction.
+#[test]
+fn spell_cast_restriction_applies_to_casts_during_resolution() {
+    let mut engine = test_engine();
+    let mut spell = test_definition("windowed-instant", "Instant");
+    spell.mana_cost = "{0}".to_string();
+    spell.rules = vec![
+        json!({
+            "kind": "spellAbility",
+            "source": { "kind": "self" },
+            "effects": [{ "kind": "gainLife", "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+                          "amount": { "kind": "integer", "value": 1 } }],
+        }),
+        json!({
+            "kind": "staticAbility",
+            "source": { "kind": "self" },
+            "activeWhile": { "kind": "inZone", "object": { "kind": "self" },
+                             "zone": { "kind": "stackOrCast" } },
+            "modifiers": [{ "kind": "castOnlyIf", "object": { "kind": "self" },
+                            "condition": { "kind": "duringSteps", "steps": ["declareAttackers"] } }],
+        }),
+    ];
+    let exiled = test_instance("windowed-instant", spell, "player-0");
+    engine.state.players[0].exile = vec![exiled.clone()];
+    engine.state.active_player = 0;
+    let offered = |engine: &GameEngine| {
+        !engine
+            .cast_without_paying_actions_from_zone(
+                0,
+                std::slice::from_ref(&exiled),
+                "duringResolution",
+                "exile",
+            )
+            .expect("cast options are computed")
+            .is_empty()
+    };
+    engine.state.step = GameStep::PrecombatMain;
+    assert!(!offered(&engine), "a free cast in a main phase is withheld");
+    engine.state.step = GameStep::DeclareAttackers;
+    assert!(
+        offered(&engine),
+        "the same free cast is legal while attacking"
+    );
+}

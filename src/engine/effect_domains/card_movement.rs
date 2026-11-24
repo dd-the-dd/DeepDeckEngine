@@ -283,6 +283,7 @@ impl GameEngine {
                 let entry_policy =
                     (destination == "battlefield").then(|| self.capture_zone_entry_policy());
                 let mut controllers_by_card = BTreeMap::<String, String>::new();
+                let mut aura_hosts = BTreeMap::<String, String>::new();
                 let mut exile_origins = BTreeMap::<String, CardMovementOrigin>::new();
                 let mut moved = Vec::new();
                 let mut moved_ids = Vec::new();
@@ -383,6 +384,36 @@ impl GameEngine {
                                 self.state.players[owner_index].exile.push(card.card);
                             }
                             continue;
+                        }
+                        // CR 303.4f: an Aura chooses what it enchants as it
+                        // enters; with nothing legal it stays where it is.
+                        if effect["to"]["faceDown"].as_bool() != Some(true)
+                            && let Some(card) = self.card_outside_battlefield(object)
+                        {
+                            let mut entering_card = card.clone();
+                            if value_kind(&effect["to"]["faceChange"]) == Some("transformFace") {
+                                apply_card_face(&mut entering_card, 1);
+                            }
+                            let chooser = if destination_uses_each_owner {
+                                entering_card.owner.clone()
+                            } else {
+                                player_id.clone()
+                            };
+                            match self.choose_entering_aura_host(
+                                &entering_card.definition,
+                                &chooser,
+                                stack_object,
+                                provider,
+                                "auraEntryAttachment",
+                            )? {
+                                super::super::aura_entry::EnteringAuraHost::NotAnAura => {}
+                                super::super::aura_entry::EnteringAuraHost::Host(host) => {
+                                    aura_hosts.insert(object.clone(), host);
+                                }
+                                super::super::aura_entry::EnteringAuraHost::NoLegalHost => {
+                                    continue;
+                                }
+                            }
                         }
                     }
                     let card = self
@@ -509,6 +540,9 @@ impl GameEngine {
                             };
                             card.tapped = tapped;
                             card.summoning_sick = true;
+                            if let Some(host) = aura_hosts.remove(&card.instance_id) {
+                                card.attached_to = Some(host);
+                            }
                             if value_kind(&effect["to"]["faceChange"]) == Some("transformFace")
                                 && !apply_card_face(&mut card, 1)
                             {

@@ -162,6 +162,7 @@ mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
+mod aura_entry;
 mod captured_binding;
 mod effect_performer;
 mod event_history;
@@ -17071,6 +17072,9 @@ impl GameEngine {
             {
                 continue;
             }
+            if !self.spell_cast_legality_allows(&player_id, card, source_zone) {
+                continue;
+            }
             let Some(declarations) =
                 session.declarations_for_card_source(&card.definition, &player_id, Some(card))?
             else {
@@ -17524,16 +17528,7 @@ impl GameEngine {
             .iter()
             .filter(|(card, _, _, _)| !is_land(&card.definition))
         {
-            if self.card_casting_prohibited(&player.id, &card.definition) {
-                continue;
-            }
-            if self.spell_casting_prohibited(&player.id) {
-                continue;
-            }
-            if self.spell_cast_from_zone_prohibited(&player.id, source_zone, &card.definition) {
-                continue;
-            }
-            if !self.spell_cast_restrictions_allow(&player.id, card) {
+            if !self.spell_cast_legality_allows(&player.id, card, source_zone) {
                 continue;
             }
             // The permission behind this cast, evaluated on the characteristics
@@ -18264,7 +18259,9 @@ impl GameEngine {
                 prototype_definition.mana_cost = prototype_cost.to_string();
                 prototype_definition.power = Some(prototype_power.to_string());
                 prototype_definition.toughness = Some(prototype_toughness.to_string());
-                if self.card_casting_prohibited(&player.id, &prototype_definition) {
+                let mut prototype_card = card.clone();
+                prototype_card.definition = prototype_definition.clone();
+                if !self.spell_cast_legality_allows(&player.id, &prototype_card, "hand") {
                     continue;
                 }
                 let Some(declarations) = session.declarations_for_card_source(
