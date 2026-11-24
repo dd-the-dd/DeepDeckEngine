@@ -448,9 +448,42 @@ impl GameEngine {
         })
     }
 
+    /// The controllers a static anchor query names relative to the source's
+    /// controller: every player, the controller, or the controller's
+    /// opponents. `None` for any other player reference.
+    fn static_anchor_controllers(
+        &self,
+        player: Option<&Value>,
+        controller: &str,
+    ) -> Option<Vec<String>> {
+        let source_controller = |reference: &Value| {
+            value_kind(reference) == Some("controllerOf")
+                && matches!(
+                    value_kind(&reference["object"]),
+                    Some("self" | "abilitySource")
+                )
+        };
+        let players = self.state.players.iter().filter(|player| !player.has_lost);
+        Some(match player {
+            None => players.map(|player| player.id.clone()).collect(),
+            Some(reference) if source_controller(reference) => vec![controller.to_string()],
+            Some(reference)
+                if value_kind(reference) == Some("opponentsOf")
+                    && source_controller(&reference["player"]) =>
+            {
+                players
+                    .filter(|player| player.id != controller)
+                    .map(|player| player.id.clone())
+                    .collect()
+            }
+            Some(_) => return None,
+        })
+    }
+
     /// Resolves the anchor of a relation for a static source, which has no
-    /// resolving ability: the source itself or the permanent it is attached
-    /// to. Any other anchor is `None` (undefined, never empty).
+    /// resolving ability: the source itself, the permanent it is attached
+    /// to, or a query whose filter and controllers need no binding (`attached
+    /// to a creature`). Any other anchor is `None` (undefined, never empty).
     fn prepare_object_relation_for_source(
         &self,
         atom: &Value,
@@ -461,22 +494,43 @@ impl GameEngine {
         }
         let source = source?;
         let anchor = &atom["object"];
-        let anchor_id = match value_kind(anchor) {
-            Some("self" | "abilitySource") => Some(source.instance_id.clone()),
-            Some("attachedPermanent") => source.attached_to.clone(),
+        let anchor_ids = match value_kind(anchor) {
+            Some("self" | "abilitySource") => vec![source.instance_id.clone()],
+            Some("attachedPermanent") => source.attached_to.clone().into_iter().collect(),
+            Some("eachPermanent") => {
+                let filter = anchor.get("where").cloned().unwrap_or(Value::Null);
+                if filter_has_relation(&filter) {
+                    return None;
+                }
+                let controllers =
+                    self.static_anchor_controllers(anchor.get("player"), &source.controller)?;
+                self.state
+                    .players
+                    .iter()
+                    .flat_map(|player| player.battlefield.iter())
+                    .filter(|permanent| !permanent.flags.get("phasedOut").copied().unwrap_or(false))
+                    .filter(|permanent| controllers.contains(&permanent.controller))
+                    .filter(|permanent| {
+                        filter.is_null() || self.permanent_state_matches(permanent, &filter)
+                    })
+                    .map(|permanent| permanent.instance_id.clone())
+                    .collect()
+            }
             _ => return None,
         };
         let mut prepared = atom.clone();
         if value_kind(atom) == Some("sharesCharacteristic") {
             let characteristic = atom["characteristic"].as_str().unwrap_or_default();
-            let values = match &anchor_id {
-                Some(id) => self.object_values(id, characteristic)?,
-                None => CharacteristicValues::default(),
-            };
-            prepared["anchorValues"] = json!(values.values);
-            prepared["anchorAllCreatureTypes"] = json!(values.all_creature_types);
+            let mut shared = CharacteristicValues::default();
+            for id in &anchor_ids {
+                let values = self.object_values(id, characteristic)?;
+                shared.values.extend(values.values);
+                shared.all_creature_types |= values.all_creature_types;
+            }
+            prepared["anchorValues"] = json!(shared.values);
+            prepared["anchorAllCreatureTypes"] = json!(shared.all_creature_types);
         }
-        prepared["anchorIds"] = json!(anchor_id.into_iter().collect::<Vec<_>>());
+        prepared["anchorIds"] = json!(anchor_ids);
         Some(prepared)
     }
 

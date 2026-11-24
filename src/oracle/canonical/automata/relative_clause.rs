@@ -35,6 +35,7 @@
 //! ```text
 //! Relation   := Participle Anchor                      reduced relative
 //!             | Pronoun ("is" | "are") Participle Anchor
+//!             | "that's" Participle Anchor
 //!             | Pronoun Share
 //!             | Pronoun "convoked" Anchor                CR 702.51c
 //! Participle := "attached" "to"                        CR 301.5, 303.4
@@ -174,7 +175,7 @@ pub(in crate::oracle::canonical) fn relative_clause_starts_in(
 
 /// True when a relative clause of every query starts at the cursor.
 pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    if participial_relation_starts(cursor) {
+    if participial_relation_starts(cursor) || contracted_copular_participle(cursor) {
         return true;
     }
     if is_relative_pronoun(cursor)
@@ -323,6 +324,12 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
     if participial_relation_at(cursor, 0).is_some() {
         // `Equipment attached to that creature`, `each creature blocking
         // it`: a reduced relative clause, the participle with no pronoun.
+        return recognize_participial_relation(cursor);
+    }
+    if contracted_copular_participle(cursor) {
+        // `each Aura you control that's attached to a creature`.
+        cursor.enter("selector.relative-clause.copular-relation");
+        consume_words(cursor, 1)?;
         return recognize_participial_relation(cursor);
     }
     cursor.enter("selector.relative-clause.pronoun");
@@ -820,6 +827,19 @@ fn copular_participle_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Optio
         }
     }
     Some(1)
+}
+
+/// `that's` before a participle (`that's attached to a creature`): the
+/// contracted present copula of the same relation.
+fn contracted_copular_participle(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !(word_at(cursor, 0, "that's") || word_at(cursor, 0, "that\u{2019}s")) {
+        return false;
+    }
+    let Some((kinds, width)) = participial_relation_at(cursor, 1) else {
+        return false;
+    };
+    !definite_anchor_only(kinds)
+        || cursor_after(cursor, 1 + width).is_some_and(|anchor| definite_anchor_starts(&anchor))
 }
 
 /// `share` / `shares` / `doesn't share` / `do not share` at `offset`: the

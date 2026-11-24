@@ -652,6 +652,78 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-sages-reverie-auras-that-are-attached-to-a-creature",
+      "request": {
+        "cardName": "Sage's Reverie",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{3}{W}",
+        "oracleText": "Enchant creature\nWhen this Aura enters, draw a card for each Aura you control that's attached to a creature.\nEnchanted creature gets +1/+1 for each Aura you control that's attached to a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          },
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ],
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-treefolk-mystic-auras-attached-to-the-combat-counterpart",
+      "request": {
+        "cardName": "Treefolk Mystic",
+        "typeLine": "Creature — Treefolk",
+        "manaCost": "{3}{G}",
+        "oracleText": "Whenever this creature blocks or becomes blocked by a creature, destroy all Auras attached to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-general-marhault-elsdragon-count-blocking-the-event-creature",
+      "request": {
+        "cardName": "General Marhault Elsdragon",
+        "typeLine": "Legendary Creature — Elf Warrior",
+        "manaCost": "{2}{R}{G}",
+        "oracleText": "Whenever a creature you control becomes blocked, it gets +3/+3 until end of turn for each creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }
