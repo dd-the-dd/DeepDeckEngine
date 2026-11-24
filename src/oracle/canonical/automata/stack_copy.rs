@@ -19,6 +19,45 @@ pub(in crate::oracle::canonical) struct CopyStackObjectEffectNode {
     pub event_spell: bool,
     /// Set only by the following new-targets sentence (CR 707.10c).
     pub may_choose_new_targets: bool,
+    /// `twice`, `three times`: how many copies one instruction creates,
+    /// each an ordinary copy of the same object (CR 707.10).
+    pub count: i64,
+}
+
+/// The largest literal number of copies one copy instruction creates.
+const MAXIMUM_STACK_COPIES: i64 = 10;
+
+/// `twice` / `thrice` / `N times` after the copied object; absent is one
+/// copy. Only a literal count is read here: a variable count (`X times`,
+/// `for each ...`) has no repetition program on this primitive yet.
+fn recognize_copy_count(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<i64> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let count = if word(0, "twice") {
+        Some((1, 2))
+    } else if word(0, "thrice") {
+        Some((1, 3))
+    } else if word(1, "times") {
+        cursor
+            .peek()
+            .and_then(super::super::parse_number_word)
+            .map(|count| (2, count))
+    } else {
+        None
+    };
+    let Some((width, count)) = count else {
+        return Ok(1);
+    };
+    cursor.enter("effect.copy-stack-object.count");
+    cursor.require(
+        (2..=MAXIMUM_STACK_COPIES).contains(&count),
+        "a literal number of copies within the copy bound",
+    )?;
+    cursor.advance_to(cursor.position() + width)?;
+    Ok(count)
 }
 
 /// `that spell` / `it` naming the spell a cast record binds. An object
@@ -62,10 +101,12 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
     if let Some(width) = event_spell_object_at(cursor, 0) {
         cursor.enter("effect.copy-stack-object.event-spell");
         cursor.advance_to(cursor.position() + width)?;
+        let count = recognize_copy_count(cursor)?;
         return Ok(CopyStackObjectEffectNode {
             target: TargetListNode { slots: Vec::new() },
             event_spell: true,
             may_choose_new_targets: false,
+            count,
         });
     }
     cursor.enter("effect.copy-stack-object.target");
@@ -82,10 +123,12 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
         stack_domain_selector_supported(&slot.selector),
         "a spell or stack-item selector",
     )?;
+    let count = recognize_copy_count(cursor)?;
     Ok(CopyStackObjectEffectNode {
         target,
         event_spell: false,
         may_choose_new_targets: false,
+        count,
     })
 }
 
@@ -103,9 +146,10 @@ pub(in crate::oracle::canonical) fn copy_new_targets_amendment_starts(
         })
 }
 
-/// Reads `you may choose new targets for the copy.` and applies it to the copy
-/// instruction it follows. The noun is singular because exactly one copy is
-/// created; the sentence terminator stays with the enclosing sequence.
+/// Reads `you may choose new targets for the copy|copies.` and applies it to
+/// the copy instruction it follows. The noun agrees with the number of copies
+/// the instruction creates; the sentence terminator stays with the enclosing
+/// sequence.
 pub(in crate::oracle::canonical) fn recognize_copy_new_targets_amendment(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<&mut CopyStackObjectEffectNode>,
@@ -120,7 +164,11 @@ pub(in crate::oracle::canonical) fn recognize_copy_new_targets_amendment(
     )?;
     cursor.consume_phrase(&["you", "may", "choose", "new", "targets", "for", "the"])?;
     cursor.enter("effect.copy-stack-object.new-targets.object");
-    cursor.consume("copy")?;
+    cursor.consume(if antecedent.count == 1 {
+        "copy"
+    } else {
+        "copies"
+    })?;
     antecedent.may_choose_new_targets = true;
     Ok(())
 }

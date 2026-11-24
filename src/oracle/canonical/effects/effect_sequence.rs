@@ -167,6 +167,7 @@ fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
         LocalEffectNode::CardAction(
             CardActionNode::Move { cards, .. }
             | CardActionNode::Reveal(cards)
+            | CardActionNode::Copy { cards, .. }
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
         ) => Some(matches!(cards, CardOperandNode::Reference(_))),
         LocalEffectNode::CardAction(_) => Some(false),
@@ -1460,13 +1461,16 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
-                // The spell the triggering cast record binds (CR 707.10).
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": {"kind": "triggeringStackObject"},
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                // The spell the triggering cast record binds (CR 707.10);
+                // `twice` is two ordinary copies of it.
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": {"kind": "triggeringStackObject"},
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -1492,12 +1496,14 @@ fn lower_local_effect_sequence_with_collections(
                     i64::from(slot.cardinality.minimum),
                     i64::from(slot.cardinality.maximum),
                 ));
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": chosen_target(target_id),
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": chosen_target(target_id),
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
                 let quantity = match &keyword_action.quantity {
@@ -2149,10 +2155,22 @@ fn lower_local_effect_sequence_with_collections(
                     });
                 }
                 decisions.push(decision);
-                effects.push(
-                    lower_target_card_move_effect(zone_change, &target_id)
-                        .ok_or_else(|| cursor.fail("a supported targeted card move"))?,
-                );
+                let mut operation = lower_target_card_move_effect(zone_change, &target_id)
+                    .ok_or_else(|| cursor.fail("a supported targeted card move"))?;
+                // A later card action reading `it`/`that card` names the card
+                // this exile produced (CR 400.7); bound only when read.
+                if zone_change.action == CardZoneChangeAction::Exile
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                {
+                    operation["bind"] = json!(match zone_change.cardinality.maximum {
+                        NumericAtom::Integer(1) => collections.observe_exiled_object(),
+                        NumericAtom::Integer(maximum) => {
+                            collections.observe_exiled_objects(Some(maximum))
+                        }
+                        NumericAtom::VariableX => collections.observe_exiled_objects(None),
+                    });
+                }
+                effects.push(operation);
                 if zone_change.cardinality == ExpressedTargetCardinality::EXACTLY_ONE {
                     card_target_bindings.push((
                         TargetBinding {

@@ -861,7 +861,7 @@
       }
     },
     {
-      "id": "near-miss-golden-wish-outside-the-game",
+      "id": "exact-golden-wish-outside-the-game",
       "request": {
         "cardName": "Golden Wish",
         "typeLine": "Sorcery",
@@ -871,14 +871,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     },
     {

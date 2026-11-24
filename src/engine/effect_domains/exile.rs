@@ -38,7 +38,10 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("exileChosenPlayersGraveyards") => effect["targetsDecisionId"].is_string(),
 
         Some("exileTogether") => object_expression_supported(&effect["objects"]),
-        Some("exileTargetCards") => object_expression_supported(&effect["cards"]),
+        Some("exileTargetCards") => {
+            object_expression_supported(&effect["cards"])
+                && effect.get("bind").is_none_or(Value::is_string)
+        }
         Some("exileCards") => {
             matches!(integer_value(&effect["count"]), Some(count) if count >= 0)
                 && value_kind(&effect["from"]) == Some("graveyard")
@@ -346,6 +349,8 @@ impl GameEngine {
                 let object_ids = self
                     .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
                     .unwrap_or_default();
+                // The exiled cards a later `it` / `that card` names (CR 400.7).
+                let mut exiled_card_ids = Vec::new();
                 for instance_id in object_ids {
                     if let Some(stack_index) = self
                         .state
@@ -404,6 +409,7 @@ impl GameEngine {
                             super::super::card_zone_transition::ObjectTransitionReason::Reexile,
                         )?;
                         self.state.players[owner_index].exile.push(card.card);
+                        exiled_card_ids.push(instance_id.clone());
                         self.record_event(
                             "cardExiled",
                             Some(stack_object.controller.clone()),
@@ -411,6 +417,12 @@ impl GameEngine {
                             json!({ "source": stack_object.card.instance_id }),
                         );
                     }
+                }
+                if let Some(binding) = effect["bind"].as_str() {
+                    bindings.insert(
+                        binding.to_string(),
+                        RuntimeBinding::Objects(exiled_card_ids),
+                    );
                 }
             }
             _ => {

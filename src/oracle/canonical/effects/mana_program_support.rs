@@ -105,6 +105,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
+            | CardActionNode::Copy { .. }
             | CardActionNode::Permit(_) => false,
             CardActionNode::Shuffle { .. } => true,
             CardActionNode::Move { destination, .. } => destination.zone != CardZoneName::Library,
