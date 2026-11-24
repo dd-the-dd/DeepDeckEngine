@@ -457,13 +457,18 @@ fn is_spell_face_created_rule_sentence(input: &AbilityInput<'_>) -> bool {
             .get(index)
             .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
     };
-    if !word(0, "when") {
+    if !word(0, "when") && !word(0, "whenever") {
         return false;
     }
     let next_spell = word(1, "you")
         && (word(2, "next") || (word(2, "cast") && word(3, "your") && word(4, "next")));
     let bound_object = word(1, "it") || word(1, "that");
-    next_spell || bound_object
+    // `Whenever EVENT this turn,`: an event bounded by the created
+    // trigger's own lifetime (CR 603.7, 611.2a).
+    let lifetime = (1..tokens.len())
+        .take_while(|index| tokens[*index].raw != ".")
+        .any(|index| word(index, "this") && word(index + 1, "turn") && word(index + 2, ","));
+    (word(0, "when") && (next_spell || bound_object)) || lifetime
 }
 
 /// Supplies a token-only dispatch hint for promoted envelopes. `None` leaves
