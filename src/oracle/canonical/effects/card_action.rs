@@ -1257,6 +1257,11 @@ impl CardCollectionMemory {
             cast["exileInsteadOfGraveyard"] = lowered;
         }
         effects.push(cast);
+        if matches!(permit.cards, CardOperandNode::Selection(_)) {
+            // `Then put the rest ...`: the observed cards this cast did not
+            // cast (CR 608.2c), like the remainder of any other selection.
+            self.complement_exclusions.push(bound(&id));
+        }
         if let Some(copies) = uncast_copies {
             // CR 707.10a: a copy of a card outside the stack and the
             // battlefield ceases to exist.

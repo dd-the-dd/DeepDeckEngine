@@ -333,6 +333,51 @@
       }
     },
     {
+      "id": "exact-practiced-scrollsmith",
+      "request": {
+        "cardName": "Practiced Scrollsmith",
+        "typeLine": "Creature — Dwarf Cleric",
+        "manaCost": "{R}{R/W}{W}",
+        "oracleText": "First strike\nWhen this creature enters, exile target noncreature, nonland card from your graveyard. Until the end of your next turn, you may cast that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-scholar-of-combustion",
+      "request": {
+        "cardName": "Scholar of Combustion",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{R}",
+        "oracleText": "When this creature enters, exile up to one target instant or sorcery card from your graveyard. You may cast that card until the end of your next turn. (You still pay its costs. Timing rules still apply.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-herald-of-amity",
+      "request": {
+        "cardName": "Herald of Amity",
+        "typeLine": "Creature — Griffin",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\nWhen this creature enters, exile the top eight cards of your library. You may cast an Aura spell from among them without paying its mana cost. Then put the rest on the bottom of your library in a random order.\nWhenever this creature attacks, it gets +X/+X until end of turn, where X is the number of Auras you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "sibling-printed-cost-target-cast-any-graveyard-exile",
       "request": {
         "cardName": "Frame Witness",
