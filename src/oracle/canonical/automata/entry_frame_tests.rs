@@ -121,7 +121,35 @@ fn reveal_or_tapped_reads_the_card_query_and_the_fallback() {
         "As this land enters, you may reveal a Plains or Island card from your hand. If you don't, this land enters tapped.",
     );
     assert!(!node.tapped);
-    assert!(node.reveal.is_some());
+    let cost = node.optional_cost.expect("optional entry cost");
+    assert!(matches!(cost.cost, PaymentActionNode::Reveal { .. }));
+    assert_eq!(cost.outcome, PerformanceOutcome::Declined);
+    assert!(cost.state.tapped && cost.state.counters.is_empty());
+}
+
+#[test]
+fn an_optional_entry_cost_reuses_the_shared_cost_outcome_and_state_children() {
+    // Never-before-used combinations: the `If you do` outcome, a counter
+    // fallback, and a payment other than a reveal all read without a new
+    // production path; the lowering decides what the runtime applies.
+    let counters = matched(
+        "As this creature enters, you may reveal a Dragon card from your hand. If you don't, this creature enters tapped with a -1/-1 counter on it.",
+    )
+    .optional_cost
+    .expect("optional entry cost");
+    assert!(counters.state.tapped);
+    assert_eq!(counters.state.counters[0].counter.as_str(), "-1/-1");
+    let performed = matched(
+        "As this creature enters, you may reveal a Dragon card from your hand. If you do, this creature enters with two +1/+1 counters on it.",
+    )
+    .optional_cost
+    .expect("optional entry cost");
+    assert_eq!(performed.outcome, PerformanceOutcome::Performed);
+    let life =
+        matched("As this land enters, you may pay 2 life. If you don't, this land enters tapped.")
+            .optional_cost
+            .expect("optional entry cost");
+    assert!(matches!(life.cost, PaymentActionNode::Pay(_)));
 }
 
 #[test]
@@ -141,7 +169,11 @@ fn unsupported_entry_elements_fail_after_the_frame_committed() {
         ),
         (
             "As this land enters, you may reveal a Plains card from your hand. If you don't, this land enters untapped.",
-            "replacement.entry-reveal.fallback-state",
+            "replacement.entry-frame.state.complete",
+        ),
+        (
+            "As this land enters, you may reveal a Plains card from your hand. If they don't, this land enters tapped.",
+            "binding.action-result.performer",
         ),
     ] {
         match read(text) {

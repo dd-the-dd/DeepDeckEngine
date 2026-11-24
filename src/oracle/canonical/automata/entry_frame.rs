@@ -9,16 +9,19 @@
 //!                   ["as" "a" "copy" "of" QUERY ["on" "the" "battlefield"]
 //!                    ["," "except" EXCEPTIONS]]
 //! BODY := CHOICE "."
-//!       | "you" "may" "reveal" CARD-QUERY "from" "your" "hand" "."
-//!         "If" "you" "don't" "," SOURCE "enters" "tapped" "."
+//!       | "you" "may" COST "." OUTCOME SOURCE "enters" ENTERING-STATE
+//!         [CONDITION] "."
 //! CHOICE := "choose" DOMAIN
 //! ```
 //!
 //! Every element is an independent typed child: the source is the shared
 //! source reference, counters reuse the shared counter name and numeric atom,
-//! the copied object and the revealed card are shared object queries, the
-//! copy exceptions are the shared copiable-value exception list, and the
-//! condition is the shared sentence condition program. The choice domain is
+//! the copied object is a shared object query, the copy exceptions are the
+//! shared copiable-value exception list, and the condition is the shared
+//! sentence condition program. An optional cost made as the source enters is
+//! the shared payment-action list, its `If you do` / `If you don't` is the
+//! shared outcome connector, and the state it decides is the same
+//! entering-state reader the plain frame uses. The choice domain is
 //! one typed binding (`CharacteristicChoiceBinding`) whose stored value later
 //! abilities of the same permanent read (CR 614.12). The frame commits once
 //! it has read its source and its entry verb; before that it leaves the
@@ -28,6 +31,10 @@ use crate::oracle::counter_name::CounterName;
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{ChildOutcome, CommitPoint, MachineResult, OracleTokenCursor};
+use super::{
+    ActionResultSlot, CostListGrammar, OutcomePerformer, PaymentActionNode, PerformanceOutcome,
+    recognize_cost_sequence, recognize_outcome_connector_after,
+};
 use super::{
     CharacteristicChoiceBinding, EffectRecognitionContext, LocalObjectReference,
     LocalPlayerReference, NumericAtom, NumericExpression, ObjectPredicate, ObjectQueryNode,
@@ -84,11 +91,31 @@ pub(in crate::oracle::canonical) struct EntryChoiceNode {
     pub domain: EntryChoiceDomain,
 }
 
-/// `you may reveal CARD from your hand. If you don't, SOURCE enters tapped.`
-/// The reveal is optional; not revealing applies the tapped state.
+/// What a permanent enters with (CR 614.1c): the state shared by an entry
+/// frame and by the outcome of an optional entry cost.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EnteringStateNode {
+    pub tapped: bool,
+    pub counters: Vec<EntryCounterNode>,
+    pub copy: Option<EntryCopyNode>,
+    /// `if` / `unless` checked as the permanent enters.
+    pub condition: Option<SourceEntryConditionNode>,
+}
+
+impl EnteringStateNode {
+    fn modifies_entry(&self) -> bool {
+        self.tapped || !self.counters.is_empty() || self.copy.is_some()
+    }
+}
+
+/// `you may COST. If you do|don't, SOURCE enters STATE.` read as the source
+/// enters (CR 614.12): the cost is the shared payment action, the outcome is
+/// the shared connector, and the state applies on that outcome.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) struct EntryRevealNode {
-    pub card: ObjectPredicate,
+pub(in crate::oracle::canonical) struct EntryOptionalCostNode {
+    pub cost: PaymentActionNode,
+    pub outcome: PerformanceOutcome,
+    pub state: EnteringStateNode,
 }
 
 /// One complete entry replacement of the current source.
@@ -102,7 +129,7 @@ pub(in crate::oracle::canonical) struct EntryFrameNode {
     /// `if` / `unless` checked as the permanent enters.
     pub condition: Option<SourceEntryConditionNode>,
     pub choice: Option<EntryChoiceNode>,
-    pub reveal: Option<EntryRevealNode>,
+    pub optional_cost: Option<EntryOptionalCostNode>,
 }
 
 impl EntryFrameNode {
@@ -114,17 +141,8 @@ impl EntryFrameNode {
             copy: None,
             condition: None,
             choice: None,
-            reveal: None,
+            optional_cost: None,
         }
-    }
-
-    /// Whether the frame states anything the permanent enters with.
-    fn modifies_entry(&self) -> bool {
-        self.tapped
-            || !self.counters.is_empty()
-            || self.copy.is_some()
-            || self.choice.is_some()
-            || self.reveal.is_some()
     }
 }
 
@@ -412,6 +430,43 @@ fn recognize_trailing_entry_choice(
     Ok(Some(choice))
 }
 
+/// `ENTERING-STATE [CONDITION]` after `SOURCE enter(s)`: the one reader of
+/// what a permanent enters with, shared by every entry frame.
+fn recognize_entering_state(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<EnteringStateNode> {
+    let mut state = EnteringStateNode::default();
+    cursor.enter("replacement.entry-frame.state");
+    if word_at(cursor, 0, "tapped") {
+        cursor.consume("tapped")?;
+        state.tapped = true;
+    }
+    if word_at(cursor, 0, "with") {
+        state.counters = recognize_entry_counters(cursor)?;
+    }
+    if word_at(cursor, 0, "as") && word_at(cursor, 1, "a") && word_at(cursor, 2, "copy") {
+        state.copy = Some(recognize_entry_copy(cursor)?);
+    }
+    cursor.enter("replacement.entry-frame.state.coordination");
+    cursor.require(
+        !(word_at(cursor, 0, "and") && word_at(cursor, 1, "doesn't")),
+        "an entering state without a coordinated untap restriction, which is a separate static ability (CR 302.6)",
+    )?;
+    cursor.require(
+        !word_at(cursor, 0, "under"),
+        "an entering state without a controller on entry",
+    )?;
+    state.condition = recognize_entry_condition(cursor, name_links, name_failure)?;
+    cursor.enter("replacement.entry-frame.state.complete");
+    cursor.require(
+        state.modifies_entry(),
+        "an entering state: `tapped`, counters or a copy (CR 614.1c)",
+    )?;
+    Ok(state)
+}
+
 /// `[You may have] SOURCE enter(s) STATE [CONDITION].` followed by an
 /// optional `As it enters, choose DOMAIN.`
 fn recognize_entering_state_frame(
@@ -433,32 +488,11 @@ fn recognize_entering_state_frame(
     )?;
     recognize_entry_verb(cursor, frame.optional)?;
     commit.commit();
-    cursor.enter("replacement.entry-frame.state");
-    if word_at(cursor, 0, "tapped") {
-        cursor.consume("tapped")?;
-        frame.tapped = true;
-    }
-    if word_at(cursor, 0, "with") {
-        frame.counters = recognize_entry_counters(cursor)?;
-    }
-    if word_at(cursor, 0, "as") && word_at(cursor, 1, "a") && word_at(cursor, 2, "copy") {
-        frame.copy = Some(recognize_entry_copy(cursor)?);
-    }
-    cursor.enter("replacement.entry-frame.state.coordination");
-    cursor.require(
-        !(word_at(cursor, 0, "and") && word_at(cursor, 1, "doesn't")),
-        "an entering state without a coordinated untap restriction, which is a separate static ability (CR 302.6)",
-    )?;
-    cursor.require(
-        !word_at(cursor, 0, "under"),
-        "an entering state without a controller on entry",
-    )?;
-    frame.condition = recognize_entry_condition(cursor, name_links, name_failure)?;
-    cursor.enter("replacement.entry-frame.state.complete");
-    cursor.require(
-        frame.modifies_entry(),
-        "an entering state: `tapped`, counters or a copy (CR 614.1c)",
-    )?;
+    let state = recognize_entering_state(cursor, name_links, name_failure)?;
+    frame.tapped = state.tapped;
+    frame.counters = state.counters;
+    frame.copy = state.copy;
+    frame.condition = state.condition;
     cursor.require(
         !(frame.optional && frame.condition.is_some()),
         "one applicability for an optional entry replacement",
@@ -476,50 +510,55 @@ fn recognize_entering_state_frame(
     Ok(frame)
 }
 
-/// `you may reveal CARD from your hand. If you don't, SOURCE enters tapped.`
-fn recognize_reveal_or_tapped(
+/// `you may COST. OUTCOME, SOURCE enters STATE [CONDITION].`: the optional
+/// cost is the shared payment-action list bounded to its sentence, the
+/// outcome is the shared connector with the controller as its performer, and
+/// the state is the shared entering-state reader. The parent's lowering
+/// decides which costs the entry replacement can apply.
+fn recognize_optional_entry_cost(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
-) -> MachineResult<EntryRevealNode> {
-    cursor.enter("replacement.entry-reveal.action");
-    cursor.consume_phrase(&["you", "may", "reveal"])?;
-    cursor.enter("replacement.entry-reveal.card");
-    consume_choice_determiner(cursor)?;
-    let end = query_end(cursor);
-    let query = cursor.bounded(end, recognize_object_query)?;
-    cursor.require(
-        query.controller.is_none() && !query.exclude_source,
-        "a card predicate without a controller relation",
+) -> MachineResult<EntryOptionalCostNode> {
+    cursor.enter("replacement.entry-cost.permission");
+    cursor.consume_phrase(&["you", "may"])?;
+    cursor.enter("replacement.entry-cost.cost");
+    let mut sequence = recognize_cost_sequence(
+        cursor,
+        CostListGrammar {
+            comma: false,
+            and: false,
+        },
     )?;
-    cursor.enter("replacement.entry-reveal.zone");
-    cursor.consume_phrase(&["from", "your", "hand", "."])?;
-    cursor.enter("replacement.entry-reveal.fallback");
-    cursor.consume_phrase(&["if", "you"])?;
-    if word_at(cursor, 0, "do") {
-        cursor.consume_phrase(&["do", "not"])?;
-    } else {
-        let negation = cursor
-            .peek()
-            .filter(|raw| {
-                raw.eq_ignore_ascii_case("don't") || raw.eq_ignore_ascii_case("don\u{2019}t")
-            })
-            .map(str::to_string);
-        let negation = cursor.require_value(negation, "`don't` after the optional reveal")?;
-        cursor.consume(&negation)?;
-    }
-    cursor.consume(",")?;
-    cursor.enter("replacement.entry-reveal.fallback-source");
+    cursor.require(sequence.costs.len() == 1, "one optional entry cost")?;
+    let cost = sequence.costs.remove(0);
+    cursor.enter("replacement.entry-cost.terminator");
+    cursor.consume(".")?;
+    cursor.enter("replacement.entry-cost.outcome");
+    let outcome = recognize_outcome_connector_after(
+        cursor,
+        ActionResultSlot {
+            performer: OutcomePerformer::Controller,
+        },
+    )?;
+    cursor.require(
+        outcome != PerformanceOutcome::Reflexive,
+        "`If you do` or `If you don't` deciding the entering state",
+    )?;
+    cursor.enter("replacement.entry-cost.outcome-source");
     let source = recognize_entering_source(cursor, name_links, name_failure)?;
     cursor.require(
         source == LocalObjectReference::SourceSelf,
         "the same entering source",
     )?;
     recognize_entry_verb(cursor, false)?;
-    cursor.enter("replacement.entry-reveal.fallback-state");
-    cursor.consume_phrase(&["tapped", "."])?;
-    Ok(EntryRevealNode {
-        card: query.predicate,
+    let state = recognize_entering_state(cursor, name_links, name_failure)?;
+    cursor.enter("replacement.entry-cost.outcome-terminator");
+    cursor.consume(".")?;
+    Ok(EntryOptionalCostNode {
+        cost,
+        outcome,
+        state,
     })
 }
 
@@ -547,16 +586,15 @@ fn recognize_as_enters_frame(
         frame.choice = Some(recognize_entry_choice(cursor)?);
         cursor.enter("replacement.entry-choice.terminator");
         cursor.consume(".")?;
-    } else if word_at(cursor, 0, "you") && word_at(cursor, 1, "may") && word_at(cursor, 2, "reveal")
-    {
-        frame.reveal = Some(recognize_reveal_or_tapped(
+    } else if word_at(cursor, 0, "you") && word_at(cursor, 1, "may") {
+        frame.optional_cost = Some(recognize_optional_entry_cost(
             cursor,
             name_links,
             name_failure,
         )?);
     } else {
         return Err(
-            cursor.fail("a choice or an optional reveal made as the source enters (CR 614.12)")
+            cursor.fail("a choice or an optional cost made as the source enters (CR 614.12)")
         );
     }
     cursor.enter("replacement.entry-frame.complete");

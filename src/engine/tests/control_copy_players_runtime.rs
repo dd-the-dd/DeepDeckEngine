@@ -282,3 +282,89 @@ fn parsed_copy_target_spell_puts_a_copy_controlled_by_the_copier() {
     );
     assert_eq!(copy.card.flags.get("isSpellCopy"), Some(&true));
 }
+
+#[test]
+fn parsed_addendum_bonus_belongs_to_the_cast_spell_not_its_copy() {
+    // CR 707.10: a copy copies the spell's choices but is not cast, so a
+    // cast-history condition such as Addendum is false for the copy.
+    let spell_rule = last_rule(
+        "Sphinx's Insight",
+        "Instant",
+        "Draw two cards.\nAddendum — If you cast this spell during your main phase, you gain 2 life.",
+    );
+    let copier = last_rule(
+        "Dualcaster Mage",
+        "Creature — Human Wizard",
+        "Flash\nWhen this creature enters, copy target instant or sorcery spell. You may choose new targets for the copy.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].library = (0..6)
+        .map(|index| {
+            test_instance(
+                &format!("library-{index}"),
+                test_definition("Card", "Instant"),
+                "player-0",
+            )
+        })
+        .collect();
+    let mut spell = test_instance(
+        "insight",
+        test_definition("Sphinx's Insight", "Instant"),
+        "player-0",
+    );
+    for flag in ["wasCast", "wasCastFromHand", "wasCastDuringMainPhase"] {
+        spell.flags.insert(flag.to_string(), true);
+    }
+    let original = StackObject {
+        id: "stack:insight".to_string(),
+        controller: "player-0".to_string(),
+        card: spell,
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: None,
+        ability_rule: Some(spell_rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine.state.stack.push(original.clone());
+    let mut trigger = stack_object(&copier, BTreeMap::new());
+    trigger.targets = BTreeMap::from([(
+        "targetSpell".to_string(),
+        TargetRef::StackObject {
+            stack_id: "stack:insight".to_string(),
+        },
+    )]);
+    engine
+        .execute_effects(
+            &copier["effects"],
+            &trigger,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the copy resolves");
+    let copy = engine.state.stack.pop().expect("the copy is on the stack");
+    for flag in ["wasCast", "wasCastFromHand", "wasCastDuringMainPhase"] {
+        assert_eq!(copy.card.flags.get(flag), None, "{flag} is not copied");
+    }
+    let life = engine.state.players[0].life;
+    for (object, bonus) in [(&copy, 0), (&original, 2)] {
+        let before = engine.state.players[0].life;
+        execute_effects_at_resolution_start(
+            &mut engine,
+            &spell_rule["effects"],
+            object,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the spell resolves");
+        assert_eq!(
+            engine.state.players[0].life - before,
+            bonus,
+            "{}",
+            object.id
+        );
+    }
+    assert_eq!(engine.state.players[0].life, life + 2);
+}

@@ -1797,6 +1797,15 @@ impl CardCollectionMemory {
                         to["cardsAbove"] = lower_numeric_atom(above);
                     }
                 }
+                // The card-movement runtime places a card into a library only
+                // at a stated position (CR 401.4); `into your library` with no
+                // position fails here instead of emitting a refused move.
+                cursor.require(
+                    destination.zone != CardZoneName::Library
+                        || destination.position.is_some()
+                        || destination.shuffle,
+                    "a library placement on the top or bottom (no runtime places a card at an unstated library position)",
+                )?;
                 if matches!(operand, CardOperandNode::Targets(_))
                     && destination.zone == CardZoneName::Library
                     && destination.position == Some(LibraryPosition::Top)

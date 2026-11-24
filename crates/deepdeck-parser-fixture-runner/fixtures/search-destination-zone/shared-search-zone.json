@@ -450,6 +450,27 @@
       }
     },
     {
+      "id": "other-player-possessive-not-guessed",
+      "request": {
+        "cardName": "Search Zone Proof",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card, put that card into an opponent's graveyard, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "plural-destination-not-one-zone",
       "request": {
         "cardName": "Search Zone Proof",
@@ -499,7 +520,7 @@
       }
     },
     {
-      "id": "library-destination-then-shuffle",
+      "id": "library-destination-without-position-is-refused",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -509,23 +530,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/2/to/kind",
-                "equals": "library"
-              },
-              {
-                "pointer": "/effects/3/kind",
-                "equals": "shuffleZone"
-              }
-            ]
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "a library placement on the top or bottom"
           }
         ]
       }

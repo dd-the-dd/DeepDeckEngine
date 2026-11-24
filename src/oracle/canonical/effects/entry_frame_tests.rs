@@ -154,6 +154,39 @@ fn reveal_or_tapped_land_counts_the_revealed_card() {
 }
 
 #[test]
+fn an_optional_entry_cost_outcome_lowers_through_the_shared_entering_state() {
+    // A fallback with a counter and an `If you do` outcome compose through
+    // the same entering-state operations as the plain entry frame.
+    let declined = rule(
+        "Creature - Dragon",
+        "As this creature enters, you may reveal a Dragon card from your hand. If you don't, this creature enters tapped with a -1/-1 counter on it.",
+    );
+    let conditional = &declined["replacement"][0];
+    assert_eq!(conditional["condition"]["operator"], "==");
+    assert_eq!(conditional["then"][0]["kind"], "setEnteringState");
+    assert_eq!(conditional["then"][1]["kind"], "putEnteringCounters");
+    assert_eq!(conditional["then"][1]["counter"], "-1/-1");
+    let performed = rule(
+        "Creature - Dragon",
+        "As this creature enters, you may reveal a Dragon card from your hand. If you do, this creature enters with two +1/+1 counters on it.",
+    );
+    let conditional = &performed["replacement"][0];
+    assert_eq!(conditional["condition"]["operator"], ">");
+    assert_eq!(conditional["then"][0]["kind"], "putEnteringCounters");
+}
+
+#[test]
+fn an_optional_entry_cost_without_an_entry_runtime_fails_explicitly() {
+    assert_eq!(
+        failure_state(
+            "Creature - Dragon",
+            "As this creature enters, you may discard a Dragon card. If you don't, this creature enters tapped.",
+        ),
+        "engine.gap.resolution-cost-action"
+    );
+}
+
+#[test]
 fn a_copy_exception_without_a_runtime_primitive_fails_explicitly() {
     assert_eq!(
         failure_state(
