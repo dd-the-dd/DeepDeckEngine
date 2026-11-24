@@ -11,6 +11,9 @@
 //!              | "up" "to" Number             zero to N
 //!              | "any" "number"               zero to every mode
 //! RepeatPermission := "you may choose the same mode more than once" "."   (CR 700.2d)
+//!              | "if" Condition ["as" "you" "cast" "this" "spell"] ","
+//!                "you" "may" "choose" UpgradedCount "instead" "."
+//! UpgradedCount := "both" | Number | "one" "or" "more"
 //! Mode        := "•" [FlavorWord "—"] EffectProgram
 //!
 //! SpreeBody   := "Spree" [Reminder] SpreeMode{2,}                    (CR 702.172)
@@ -30,9 +33,10 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    EffectProgramNode, EffectRecognitionContext, ManaCostNode, rebase_machine_failure,
-    rebase_name_failure, rebase_name_link, recognize_effect_program_with_context,
-    recognize_mana_cost,
+    ConditionNode, EffectProgramNode, EffectRecognitionContext, ManaCostNode,
+    SentenceConditionContext, rebase_machine_failure, rebase_name_failure, rebase_name_link,
+    recognize_effect_program_with_context, recognize_mana_cost,
+    recognize_postposed_sentence_condition,
 };
 
 const MODE_BULLET: &str = "\u{2022}";
@@ -46,6 +50,25 @@ pub(in crate::oracle::canonical) struct EffectSequenceModalNode {
     /// Spree (CR 702.172a): the additional cost of each mode, in mode order.
     /// Empty for a bulleted modal ability.
     pub mode_costs: Vec<ManaCostNode>,
+    /// `If CONDITION, you may choose both instead.`: a larger maximum the
+    /// chooser may use when the condition holds as the modes are chosen
+    /// (CR 700.2, 601.2b). The minimum never changes.
+    pub upgrade: Option<ModeCountUpgradeNode>,
+}
+
+/// A conditional permission to choose more modes. `maximum` is resolved
+/// against the printed modes and always exceeds the header's maximum.
+#[derive(Clone, Debug)]
+pub(in crate::oracle::canonical) struct ModeCountUpgradeNode {
+    pub condition: ConditionNode,
+    pub maximum: u32,
+}
+
+/// The printed count of a mode-count upgrade, before the modes are counted.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum UpgradedModeCount {
+    Exactly(u32),
+    OneOrMore,
 }
 
 impl EffectSequenceModalNode {
@@ -300,7 +323,22 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_header_
     context: &EffectRecognitionContext,
     header_sentence: &mut dyn FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<bool>,
 ) -> MachineResult<EffectSequenceModalNode> {
-    let header = recognize_modal_header_with_sentence(cursor, header_sentence)?;
+    let mut upgrade = None;
+    let header = recognize_modal_header_with_sentence(cursor, &mut |cursor| {
+        if header_sentence(cursor)? {
+            return Ok(true);
+        }
+        if !word_at(cursor, 0, "if") {
+            return Ok(false);
+        }
+        upgrade = Some(recognize_mode_count_upgrade(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )?);
+        Ok(true)
+    })?;
 
     let mut modes = Vec::new();
     while cursor.peek() == Some(MODE_BULLET) {
@@ -325,12 +363,128 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_header_
 
     cursor.enter("modal.effect-sequence.complete");
     let cardinality = resolve_cardinality(cursor, header, modes.len())?;
+    let upgrade = match upgrade {
+        Some((condition, count)) => Some(ModeCountUpgradeNode {
+            condition,
+            maximum: resolve_upgraded_maximum(cursor, header, cardinality, count, modes.len())?,
+        }),
+        None => None,
+    };
     cursor.finish()?;
     Ok(EffectSequenceModalNode {
         cardinality,
         modes,
         mode_costs: Vec::new(),
+        upgrade,
     })
+}
+
+/// The timing words of a mode-count condition: stated `as you cast this
+/// spell`, it is evaluated when the modes are chosen (CR 601.2b), the only
+/// time the header's count is ever read.
+const CAST_TIMING: [&str; 5] = ["as", "you", "cast", "this", "spell"];
+
+/// Reads `If CONDITION [as you cast this spell], you may choose COUNT
+/// instead.` after the header's period. The condition is the shared
+/// sentence-condition program, bounded to its own tokens; a mandatory
+/// upgrade (`choose both instead`) would raise the minimum too and fails.
+fn recognize_mode_count_upgrade(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<(ConditionNode, UpgradedModeCount)> {
+    cursor.enter("modal.header.upgrade.condition");
+    let start = cursor.position();
+    let tokens = cursor.token_slice(start, usize::MAX);
+    let comma = tokens
+        .iter()
+        .take_while(|token| token.raw != "." && token.raw != MODE_BULLET)
+        .position(|token| token.raw == ",")
+        .ok_or_else(|| cursor.fail("a comma closing the mode-count condition"))?;
+    let timed = comma > CAST_TIMING.len()
+        && CAST_TIMING.iter().enumerate().all(|(offset, word)| {
+            tokens[comma - CAST_TIMING.len() + offset]
+                .raw
+                .eq_ignore_ascii_case(word)
+        });
+    let end = start
+        + if timed {
+            comma - CAST_TIMING.len()
+        } else {
+            comma
+        };
+    let links = name_links
+        .iter()
+        .filter_map(|link| rebase_name_link(link, start, end))
+        .collect::<Vec<_>>();
+    let failure = name_failure.and_then(|failure| rebase_name_failure(failure, start, end));
+    let mut condition_cursor =
+        OracleTokenCursor::new("modal-mode-count-condition", cursor.token_slice(start, end));
+    let condition = recognize_postposed_sentence_condition(
+        &mut condition_cursor,
+        &SentenceConditionContext {
+            name_links: &links,
+            name_failure: failure.as_ref(),
+            effects: context,
+            card_target: None,
+            card_focus: false,
+            departed_targets: &[],
+        },
+    )
+    .and_then(|condition| {
+        condition_cursor.enter("modal.header.upgrade.condition-complete");
+        condition_cursor.finish()?;
+        Ok(condition)
+    })
+    .map_err(|failure| rebase_machine_failure(failure, start))?;
+    cursor.advance_to(start + comma + 1)?;
+    cursor.enter("modal.header.upgrade.permission");
+    cursor.require(
+        word_at(cursor, 0, "you") && word_at(cursor, 1, "may"),
+        "`you may choose ... instead`; a mandatory mode-count upgrade also raises the minimum and is not lowered",
+    )?;
+    cursor.consume_phrase(&["you", "may", "choose"])?;
+    cursor.enter("modal.header.upgrade.count");
+    let count = if word_at(cursor, 0, "both") {
+        cursor.consume("both")?;
+        UpgradedModeCount::Exactly(2)
+    } else if word_at(cursor, 0, "one") && word_at(cursor, 1, "or") && word_at(cursor, 2, "more") {
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        UpgradedModeCount::OneOrMore
+    } else {
+        UpgradedModeCount::Exactly(recognize_mode_count_number(cursor)?)
+    };
+    cursor.enter("modal.header.upgrade.terminator");
+    cursor.consume("instead")?;
+    cursor.consume(".")?;
+    Ok((condition, count))
+}
+
+/// The upgraded maximum against the printed modes: `both` names two modes,
+/// `one or more` every mode. It must exceed the header's own count, which
+/// must be an exact count without repetition.
+fn resolve_upgraded_maximum(
+    cursor: &OracleTokenCursor<'_>,
+    header: ModalHeaderNode,
+    cardinality: ModalCardinalityNode,
+    count: UpgradedModeCount,
+    mode_count: usize,
+) -> MachineResult<u32> {
+    let modes = u32::try_from(mode_count).map_err(|_| cursor.fail("a bounded mode count"))?;
+    cursor.require(
+        matches!(header.count, ModeCountNode::Exactly(_)) && !header.allow_repeated,
+        "an exact, non-repeating header count before a mode-count upgrade",
+    )?;
+    let maximum = match count {
+        UpgradedModeCount::Exactly(count) => count,
+        UpgradedModeCount::OneOrMore => modes,
+    };
+    cursor.require(
+        maximum <= modes && maximum > cardinality.maximum,
+        "an upgraded mode count above the header's and within the printed modes",
+    )?;
+    Ok(maximum)
 }
 
 /// Reads one mode body from the cursor up to the next mode marker (as
@@ -451,6 +605,7 @@ pub(in crate::oracle::canonical) fn recognize_spree_modal(
         cardinality,
         modes,
         mode_costs,
+        upgrade: None,
     })
 }
 
@@ -479,3 +634,7 @@ fn flavor_word_label_width(tokens: &[crate::oracle::model::RecognizedEntity]) ->
 #[cfg(test)]
 #[path = "modal_spell_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "modal_mode_count_upgrade_tests.rs"]
+mod mode_count_upgrade_tests;
