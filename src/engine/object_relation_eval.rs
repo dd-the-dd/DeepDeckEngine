@@ -534,6 +534,53 @@ impl GameEngine {
         Some(prepared)
     }
 
+    /// The block pairs of an anchor that left the battlefield (CR 506.4: it
+    /// was removed from combat), read from this turn's block declarations as
+    /// its last known information (CR 608.2h). The candidate must still be
+    /// the incarnation that blocked (`candidate_blocks`) or was blocked, and
+    /// still be in combat.
+    fn blocked_departed_anchor(
+        &self,
+        candidate: &CardInstance,
+        anchor_ids: &[Value],
+        candidate_blocks: bool,
+    ) -> bool {
+        let in_combat = if candidate_blocks {
+            candidate.flags.get("blocking").copied().unwrap_or(false)
+        } else {
+            candidate.flags.get("attacking").copied().unwrap_or(false)
+        };
+        if !in_combat {
+            return false;
+        }
+        let candidate_identity = self.object_identity_value(&candidate.instance_id);
+        anchor_ids
+            .iter()
+            .filter_map(Value::as_str)
+            .filter(|anchor| self.permanent_position(anchor).is_none())
+            .any(|anchor| {
+                self.state.events.iter().any(|event| {
+                    if event.turn_number != self.state.turn_number
+                        || event.kind != "blockerDeclared"
+                    {
+                        return false;
+                    }
+                    let attacker = event.detail["attackerId"].as_str();
+                    let blocker = event.card_instance_id.as_deref();
+                    let (pair_candidate, pair_anchor, identity_field) = if candidate_blocks {
+                        (blocker, attacker, "objectIdentity")
+                    } else {
+                        (attacker, blocker, "attackerIdentity")
+                    };
+                    pair_candidate == Some(candidate.instance_id.as_str())
+                        && pair_anchor == Some(anchor)
+                        && event.detail.get(identity_field).is_none_or(|recorded| {
+                            recorded.is_null() || *recorded == candidate_identity
+                        })
+                })
+            })
+    }
+
     /// Tests one candidate against a prepared relation atom. An unprepared
     /// atom (no `anchorIds`) never matches; its consumers refuse it first.
     pub(super) fn eval_object_relation(
@@ -553,12 +600,12 @@ impl GameEngine {
             (Some("blocking"), ObjectFilterView::Permanent(permanent)) => {
                 self.state.combat.blockers.iter().any(|block| {
                     block.blocker_id == permanent.instance_id && anchored(&block.attacker_id)
-                })
+                }) || self.blocked_departed_anchor(permanent, anchor_ids, true)
             }
             (Some("blockedBy"), ObjectFilterView::Permanent(permanent)) => {
                 self.state.combat.blockers.iter().any(|block| {
                     block.attacker_id == permanent.instance_id && anchored(&block.blocker_id)
-                })
+                }) || self.blocked_departed_anchor(permanent, anchor_ids, false)
             }
             // CR 702.51c: the creatures tapped to pay the convoke cost of
             // the anchor, recorded with the anchor's latest cast.
