@@ -206,6 +206,17 @@ pub(in crate::oracle::canonical) fn recognize_numeric_primary_expression(
                         &environment,
                     )?);
                     NumericExpressionState::Complete
+                } else if antecedent.is_none()
+                    && super::environment_possessive_property_starts(cursor)
+                {
+                    // `its power` without a parent target: the binding
+                    // environment's possessive antecedent.
+                    let environment = super::installed_binding_environment(cursor);
+                    expression = Some(super::recognize_environment_possessive_property(
+                        cursor,
+                        &environment,
+                    )?);
+                    NumericExpressionState::Complete
                 } else {
                     object = Some(recognize_numeric_object_reference(cursor, antecedent)?);
                     NumericExpressionState::Property

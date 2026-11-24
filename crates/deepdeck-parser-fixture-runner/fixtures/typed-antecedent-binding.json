@@ -550,6 +550,73 @@
         "cardStatus": "canonical",
         "abilityCount": 1
       }
+    },
+    {
+      "id": "exact-bottle-golems-its-power-of-the-dying-source",
+      "request": {
+        "cardName": "Bottle Golems",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{4}",
+        "oracleText": "Trample\nWhen this creature dies, you gain life equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-angelic-chorus-its-toughness-of-the-entering-creature",
+      "request": {
+        "cardName": "Angelic Chorus",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Whenever a creature you control enters, you gain life equal to its toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-its-power-without-any-antecedent",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain life equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.possessive.antecedent"
+          }
+        ]
+      }
     }
   ]
 }
