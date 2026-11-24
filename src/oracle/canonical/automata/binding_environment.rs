@@ -912,6 +912,20 @@ pub(in crate::oracle::canonical) fn damage_source_subject(
     }
 }
 
+/// Whether the cursor reads an action of an effect program, where an
+/// earlier `choose` instruction of the same program may produce the value a
+/// `the chosen ...` reference reads (CR 608.2d). The program lowering and
+/// `contextual_binding` prove that producer. Outside a program (a static
+/// ability, a trigger event pattern) such a reference has no resolution
+/// producer, so its readers do not claim it.
+pub(in crate::oracle::canonical) fn resolution_choice_in_scope(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .binding_environment()
+        .is_some_and(|environment| environment.effect_index.is_some())
+}
+
 /// The environment the parent installed. A parent that installs none binds
 /// nothing, so every reference then fails explicitly.
 pub(in crate::oracle::canonical) fn installed_binding_environment(
