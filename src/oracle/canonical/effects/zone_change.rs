@@ -236,3 +236,38 @@ fn target_contains_batch(target: &TargetListNode, expected: CharacteristicBatch)
 #[cfg(test)]
 #[path = "plural_zone_change_tests.rs"]
 mod plural_tests;
+
+/// `exile all graveyards`, `exile each opponent's graveyard`: every card in
+/// the graveyards of the scoped players moves to exile, each to its owner's
+/// (CR 400.3, 406.2). The shared card mover and zone query carry it; the
+/// population is the shared player-set reference, read on resolution.
+pub(in crate::oracle::canonical) fn lower_zone_batch_effect(effect: &ZoneBatchEffectNode) -> Value {
+    let players = lower_player_set_reference(match effect.collection {
+        ZoneCollectionNode::AllGraveyards => PlayerSetReferenceNode::EachPlayer,
+        ZoneCollectionNode::OpponentGraveyards => {
+            PlayerSetReferenceNode::OpponentsOfAbilityController
+        }
+    });
+    let cards = json!({
+        "kind": "cardsInZone",
+        "zone": { "kind": "graveyard", "players": players },
+    });
+    match effect.action {
+        ZoneBatchActionNode::Exile => json!({
+            "kind": "moveCards",
+            "cards": cards,
+            "to": {
+                "kind": "exile",
+                "player": { "kind": "ownerOf", "object": { "kind": "candidate" } },
+                "faceDown": false,
+            },
+        }),
+    }
+}
+
+/// `shuffle X into a library` puts X into that library, then shuffles it
+/// (CR 701.24b). The shuffle names the moved cards, not a player: each
+/// library that received one of them is shuffled once, whoever owns it.
+pub(in crate::oracle::canonical) fn lower_shuffle_libraries_holding(cards: Value) -> Value {
+    json!({ "kind": "shuffleLibrariesHolding", "cards": cards })
+}

@@ -179,6 +179,8 @@ impl GameEngine {
                     .into_iter()
                     .filter(|id| self.nonbattlefield_card_can_change_zone(id))
                     .collect::<Vec<_>>();
+                let objects =
+                    self.claim_resolving_spell_movement(&effect["to"], stack_object, objects);
                 let source_constraint = if let Some(from) = effect.get("from") {
                     let zone_name = value_kind(from)
                         .ok_or_else(|| EngineError::new("missing movement source zone"))?;

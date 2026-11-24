@@ -30382,7 +30382,8 @@ impl GameEngine {
             let suspend_after_resolution =
                 spell_suspend_after_resolution(&stack_object.card.definition);
             let shuffle_into_library =
-                spell_shuffles_into_library_after_resolution(&stack_object.card.definition);
+                spell_shuffles_into_library_after_resolution(&stack_object.card.definition)
+                    | self.take_resolving_spell_library_move(&stack_object.card.instance_id);
             let library_position_from_top = resolution_decisions
                 .get("resolutionLibraryPositionFromTop")
                 .and_then(Value::as_u64)

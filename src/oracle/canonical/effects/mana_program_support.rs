@@ -154,11 +154,13 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
                 SourceZone::Battlefield
                 | SourceZone::Exile
                 | SourceZone::Graveyard
-                | SourceZone::Hand,
+                | SourceZone::Hand
+                | SourceZone::Library,
                 SourceZone::Battlefield
                 | SourceZone::Exile
                 | SourceZone::Graveyard
-                | SourceZone::Hand,
+                | SourceZone::Hand
+                | SourceZone::Library,
             ) => false,
         },
         LocalEffectNode::OptionalCardDeployment(deployment) => {

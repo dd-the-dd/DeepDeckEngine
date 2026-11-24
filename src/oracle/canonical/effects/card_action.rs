@@ -493,9 +493,9 @@ impl CardCollectionMemory {
                 CardTargetZoneOwner::Player(LocalPlayerReference::Controller) => {
                     graveyard(controller())
                 }
-                CardTargetZoneOwner::AnyPlayer | CardTargetZoneOwner::OnePlayer => {
-                    json!({"kind":"anyGraveyard"})
-                }
+                CardTargetZoneOwner::AnyPlayer
+                | CardTargetZoneOwner::OnePlayer
+                | CardTargetZoneOwner::Opponent => json!({"kind":"anyGraveyard"}),
                 _ => return Err(cursor.fail("a bound target-card zone owner")),
             };
             let id = fresh("targetCardOperand", &mut self.next_card_target);
@@ -508,15 +508,22 @@ impl CardCollectionMemory {
             if target.exclude_source {
                 decision["candidates"]["excludeSource"] = json!(true);
             }
+            // `from an opponent's graveyard`: cards an opponent owns.
+            if target.owner == CardTargetZoneOwner::Opponent {
+                decision["candidates"]["owner"] =
+                    json!({"kind":"opponentsOf", "player":controller()});
+            }
             // `any number of target ... cards` (CR 601.2c): the shared count.
             if target.unbounded {
                 let applied = apply_target_count_to_decision(&mut decision, &target.count());
                 cursor
                     .require_value(applied, "an unbounded card-target count the IR represents")?;
             }
-            if target.owner == CardTargetZoneOwner::OnePlayer
-                && (target.unbounded
-                    || target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE)
+            if matches!(
+                target.owner,
+                CardTargetZoneOwner::OnePlayer | CardTargetZoneOwner::Opponent
+            ) && (target.unbounded
+                || target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE)
             {
                 decision["selectionConstraint"] =
                     json!({"kind":"sameZoneOwner","zone":target.zone.ir_name()});
@@ -1265,7 +1272,8 @@ impl CardCollectionMemory {
                 };
                 let mut to = json!({"kind":destination.zone.ir_name(), "player":player});
                 if destination.zone == CardZoneName::Exile {
-                    to["faceDown"] = json!(false)
+                    // `exile ... face down` (CR 406.3): hidden in exile.
+                    to["faceDown"] = json!(destination.face_down)
                 }
                 if let Some(position) = destination.position {
                     to["position"] = json!(match position {
@@ -1332,6 +1340,13 @@ impl CardCollectionMemory {
                         "one battlefield entry of chosen, targeted, exiled or zone-queried cards",
                     )?;
                     to["tapped"] = json!(destination.tapped);
+                    // The shared entry modifiers (CR 712.14a, 708.2).
+                    if destination.transformed {
+                        to["faceChange"] = json!({"kind":"transformFace"});
+                    }
+                    if destination.face_down {
+                        to["faceDown"] = json!(true);
+                    }
                     if let Some(counters) = &destination.entering_counters {
                         let count =
                             lower_targetless_numeric_expression(&counters.count, declarations)
@@ -1346,8 +1361,11 @@ impl CardCollectionMemory {
                     return Ok(effects);
                 }
                 cursor.require(
-                    !destination.tapped && destination.entering_counters.is_none(),
-                    "an untapped, counterless nonbattlefield destination",
+                    !destination.tapped
+                        && destination.entering_counters.is_none()
+                        && !destination.transformed
+                        && (!destination.face_down || destination.zone == CardZoneName::Exile),
+                    "an untapped, counterless, untransformed nonbattlefield destination, face down only in exile",
                 )?;
                 if matches!(operand, CardOperandNode::LibraryTop(_))
                     && destination.zone == CardZoneName::Exile
@@ -1378,7 +1396,23 @@ impl CardCollectionMemory {
                 if let Some(order) = order {
                     movement["order"] = order;
                 }
-                effects.push(movement);
+                if destination.shuffle {
+                    // `shuffle X into a library` (CR 701.24b): the moved
+                    // cards name each library to shuffle. Shuffled cards
+                    // are no later antecedent.
+                    cursor.require(
+                        destination.zone == CardZoneName::Library,
+                        "a shuffle only after a library placement",
+                    )?;
+                    let id = fresh("shuffledCards", &mut self.next_selection);
+                    self.allocated_ids.insert(id.clone());
+                    movement["bind"] = json!(id);
+                    effects.push(movement);
+                    effects.push(lower_shuffle_libraries_holding(bound(&id)));
+                    self.clear_antecedent();
+                } else {
+                    effects.push(movement);
+                }
             }
         }
         Ok(effects)

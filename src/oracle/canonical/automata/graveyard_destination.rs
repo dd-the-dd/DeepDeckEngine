@@ -103,6 +103,9 @@ pub(in crate::oracle::canonical) fn recognize_exile_graveyard_collection_effect(
 ) -> MachineResult<ZoneBatchEffectNode> {
     let mut state = ZoneBatchState::Action;
     let mut collection = None;
+    // `all [your] opponents' graveyards` names the same opponent scope as
+    // `each opponent's graveyard`, with the plural zone noun.
+    let mut plural_zone = false;
     loop {
         state = match state {
             ZoneBatchState::Action => {
@@ -118,7 +121,31 @@ pub(in crate::oracle::canonical) fn recognize_exile_graveyard_collection_effect(
                 cursor.enter("effect.zone-batch.quantifier");
                 let quantifier = cursor.consume_type("quantifierWord")?;
                 if quantifier.raw.eq_ignore_ascii_case("all") {
-                    collection = Some(ZoneCollectionNode::AllGraveyards);
+                    plural_zone = true;
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+                        && cursor.peek_ahead(1).is_some_and(|raw| {
+                            raw.eq_ignore_ascii_case("opponents'")
+                                || raw.eq_ignore_ascii_case("opponents\u{2019}")
+                        })
+                    {
+                        cursor.consume("your")?;
+                    }
+                    let opponents = cursor
+                        .peek()
+                        .filter(|raw| {
+                            raw.eq_ignore_ascii_case("opponents'")
+                                || raw.eq_ignore_ascii_case("opponents\u{2019}")
+                        })
+                        .map(str::to_owned);
+                    if let Some(opponents) = opponents {
+                        cursor.enter("effect.zone-batch.possessive-owner");
+                        cursor.consume(&opponents)?;
+                        collection = Some(ZoneCollectionNode::OpponentGraveyards);
+                    } else {
+                        collection = Some(ZoneCollectionNode::AllGraveyards);
+                    }
                     ZoneBatchState::Collection
                 } else {
                     cursor.require(
@@ -142,6 +169,7 @@ pub(in crate::oracle::canonical) fn recognize_exile_graveyard_collection_effect(
             ZoneBatchState::Collection => {
                 cursor.enter("effect.zone-batch.collection");
                 let expected = match collection {
+                    Some(_) if plural_zone => "graveyards",
                     Some(ZoneCollectionNode::AllGraveyards) => "graveyards",
                     Some(ZoneCollectionNode::OpponentGraveyards) => "graveyard",
                     None => return Err(cursor.fail("a populated graveyard collection scope")),

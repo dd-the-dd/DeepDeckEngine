@@ -1646,6 +1646,8 @@ pub(in crate::oracle::canonical) enum SourceZone {
     Exile,
     Graveyard,
     Hand,
+    /// Its owner's library, shuffled after the move (CR 701.24b).
+    Library,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

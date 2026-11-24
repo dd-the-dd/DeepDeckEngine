@@ -748,6 +748,46 @@ fn lower_local_effect_sequence_with_collections(
                         .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                 );
             }
+            // `exile all graveyards`: the shared card mover over a zone query.
+            LocalEffectNode::ZoneBatch(batch) => {
+                cursor.enter("lower.zone-batch");
+                effects.push(lower_zone_batch_effect(batch));
+            }
+            // `exile this creature|Saga|NAME`: the source object moves to
+            // exile wherever it is (a permanent, or the resolving spell,
+            // CR 608.2n). A later card action reading `it` names the object
+            // it became in exile (CR 400.7), recorded only when read.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.from == SourceZone::Battlefield
+                    && movement.to == SourceZone::Exile
+                    && movement.face_change == SourceFaceChange::Preserve =>
+            {
+                cursor.enter("lower.move-source.exile");
+                let bind = reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    .then(|| collections.observe_exiled_object());
+                effects.push(lower_source_move_effect(
+                    movement,
+                    self_ref(),
+                    bind.as_deref(),
+                ));
+            }
+            // `shuffle NAME into its owner's library` (CR 701.24b): the move
+            // into its owner's library, then the shuffle of the library that
+            // received it. A resolving spell's own move is recorded for its
+            // finishing step (CR 608.2n), which shuffles that library.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.to == SourceZone::Library =>
+            {
+                cursor.enter("lower.move-source.shuffle-into-library");
+                let id = collections.allocate_selection_id("shuffledSource");
+                effects.push(lower_source_move_effect(movement, self_ref(), Some(&id)));
+                effects.push(lower_shuffle_libraries_holding(json!({
+                    "kind": "boundObjects",
+                    "binding": id,
+                })));
+            }
             LocalEffectNode::OptionalSequence(body) => {
                 let before = collections.clone();
                 let mut lowered = lower_local_effect_sequence_with_collections(

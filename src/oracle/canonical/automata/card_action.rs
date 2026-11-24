@@ -208,6 +208,14 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     if head.eq_ignore_ascii_case("shuffle") {
         cursor.enter("card-action.shuffle");
         cursor.consume("shuffle")?;
+        if super::shuffle_object_follows(cursor) {
+            // `shuffle OBJECT into LIBRARY` (CR 701.24b): the shared card
+            // operand, then the library destination that owns the shuffle.
+            cursor.enter("card-action.shuffle.object");
+            let cards = operand(cursor)?;
+            let destination = super::recognize_shuffle_library_destination(cursor)?;
+            return Ok(Some(CardActionNode::Move { cards, destination }));
+        }
         if cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
@@ -804,6 +812,10 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
     verb: &str,
 ) -> MachineResult<CardMoveDestinationNode> {
     if is_verb_form(&verb, VerbLemma::Exile, VerbForm::Base) {
+        // `exile OBJECT face down`: the shared entry-modifier list of the
+        // exile destination (CR 406.3).
+        let mut modifiers = EntryModifiers::new(CardMoveOwnerNode::EachCardOwner);
+        recognize_entry_modifiers(cursor, CardZoneName::Exile, &mut modifiers)?;
         return Ok(CardMoveDestinationNode {
             zone: CardZoneName::Exile,
             owner: CardMoveOwnerNode::EachCardOwner,
@@ -811,6 +823,9 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             order: None,
             tapped: false,
             entering_counters: None,
+            face_down: modifiers.face_down,
+            transformed: false,
+            shuffle: false,
         });
     }
     cursor.enter("card-action.move.destination");

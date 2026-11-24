@@ -907,6 +907,29 @@ fn recognize_untargeted_zone_change(
                 },
             ))
         }
+        // `exile all|each QUERY` and `exile a|N|up to N QUERY`: the same
+        // selection operand as return/untap, with the exile action.
+        (ZoneChangeAction::Exile, VerbObjectOperandNode::Collection { objects, .. }) => {
+            cursor.enter("effect.zone-change.collection.exile");
+            Ok(LocalEffectNode::SelectedPermanents(
+                super::SelectedPermanentsEffectNode {
+                    action: super::SelectedPermanentAction::Exile,
+                    operand: super::PermanentSelectionOperandNode {
+                        bounds: None,
+                        query: objects,
+                    },
+                },
+            ))
+        }
+        (ZoneChangeAction::Exile, VerbObjectOperandNode::Selection(operand)) => {
+            cursor.enter("effect.zone-change.selection.exile");
+            Ok(LocalEffectNode::SelectedPermanents(
+                super::SelectedPermanentsEffectNode {
+                    action: super::SelectedPermanentAction::Exile,
+                    operand,
+                },
+            ))
+        }
         (
             ZoneChangeAction::Exile | ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand),
             VerbObjectOperandNode::CardTargets(target),

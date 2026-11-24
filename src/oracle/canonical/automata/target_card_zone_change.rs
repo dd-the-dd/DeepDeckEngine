@@ -74,6 +74,8 @@ pub(in crate::oracle::canonical) fn legacy_target_card_move(
     if target.zone != CardZoneName::Graveyard
         || destination.order.is_some()
         || destination.tapped
+        || destination.face_down
+        || destination.transformed
         || target.exclude_source
         || target.unbounded
     {
