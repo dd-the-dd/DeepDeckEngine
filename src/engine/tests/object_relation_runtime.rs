@@ -322,3 +322,71 @@ fn counted_cards_from_the_top_of_the_library_are_exiled() {
     assert_eq!(engine.state.players[0].library.len(), 3);
     assert_eq!(engine.state.players[0].exile.len(), exiled + 2);
 }
+
+#[test]
+fn the_creatures_that_convoked_the_source_receive_its_counters() {
+    // Venerated Loxodon (CR 702.51c): the creatures tapped to pay the
+    // convoke cost are recorded with the cast; another creature is not one.
+    parsed_rules(
+        "Venerated Loxodon",
+        "Creature \u{2014} Elephant Cleric",
+        "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, put a +1/+1 counter on each creature that convoked it.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent(
+            "loxodon",
+            "Creature \u{2014} Elephant Cleric",
+            "player-0",
+            None,
+        ),
+        permanent("elf-a", "Creature \u{2014} Elf", "player-0", None),
+        permanent("elf-b", "Creature \u{2014} Elf", "player-0", None),
+        permanent("bear", "Creature \u{2014} Bear", "player-0", None),
+    ];
+    engine.record_event(
+        "spellCast",
+        Some("player-0".to_string()),
+        Some("loxodon".to_string()),
+        json!({ "decisions": { "convokeSources": ["elf-a", "elf-b"] } }),
+    );
+    let effect = json!([{
+        "kind": "putCounters",
+        "counter": "+1/+1",
+        "count": { "kind": "integer", "value": 1 },
+        "permanent": {
+            "kind": "eachPermanent",
+            "where": {
+                "kind": "and",
+                "operands": [
+                    { "kind": "cardTypeContains", "value": "Creature" },
+                    { "kind": "convoked", "object": { "kind": "self" } },
+                ],
+            },
+        },
+    }]);
+    assert!(effect_supported(&effect[0]), "{effect:#}");
+    let loxodon = engine.state.players[0].battlefield[0].clone();
+    let source = stack_source(loxodon, "player-0", "triggeredAbility");
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &effect,
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the counters are placed");
+    let counters = |id: &str| {
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .find(|permanent| permanent.instance_id == id)
+            .and_then(|permanent| permanent.counters.get("+1/+1").copied())
+            .unwrap_or(0)
+    };
+    assert_eq!(
+        ["loxodon", "elf-a", "elf-b", "bear"].map(counters),
+        [0, 1, 1, 0]
+    );
+}

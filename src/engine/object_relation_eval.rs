@@ -57,7 +57,7 @@ const CARD_TYPES: [&str; 9] = [
 pub(super) fn is_relation_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "attachedTo" | "blocking" | "blockedBy" | "sharesCharacteristic"
+        "attachedTo" | "blocking" | "blockedBy" | "convoked" | "sharesCharacteristic"
     )
 }
 
@@ -83,7 +83,7 @@ fn anchor_supported(anchor: &Value) -> bool {
 /// an anchor this module resolves.
 pub(super) fn relation_atom_supported(atom: &Value) -> bool {
     let kind = match value_kind(atom) {
-        Some("attachedTo" | "blocking" | "blockedBy") => true,
+        Some("attachedTo" | "blocking" | "blockedBy" | "convoked") => true,
         Some("sharesCharacteristic") => matches!(
             atom["characteristic"].as_str(),
             Some("creatureType" | "cardType" | "permanentType" | "landType" | "color")
@@ -425,6 +425,29 @@ impl GameEngine {
         Ok(prepared)
     }
 
+    /// Prepares only the relation leaves of `filter` for the resolving
+    /// ability, for a consumer whose own matcher reads every other leaf
+    /// (`permanent_matches_effective_filter` evaluates a prepared relation).
+    pub(super) fn prepare_relation_leaves(
+        &self,
+        filter: &Value,
+        source: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Result<Value, EngineError> {
+        if !filter_has_relation(filter) {
+            return Ok(filter.clone());
+        }
+        let decisions = BTreeMap::new();
+        super::object_predicate::try_map_predicate_leaves(filter, 0, &mut |leaf| match value_kind(
+            leaf,
+        ) {
+            Some(kind) if is_relation_kind(kind) => {
+                self.prepare_object_relation(leaf, source, bindings, &decisions)
+            }
+            _ => Ok(leaf.clone()),
+        })
+    }
+
     /// Resolves the anchor of a relation for a static source, which has no
     /// resolving ability: the source itself or the permanent it is attached
     /// to. Any other anchor is `None` (undefined, never empty).
@@ -481,6 +504,29 @@ impl GameEngine {
             (Some("blockedBy"), ObjectFilterView::Permanent(permanent)) => {
                 self.state.combat.blockers.iter().any(|block| {
                     block.attacker_id == permanent.instance_id && anchored(&block.blocker_id)
+                })
+            }
+            // CR 702.51c: the creatures tapped to pay the convoke cost of
+            // the anchor, recorded with the anchor's latest cast.
+            (Some("convoked"), ObjectFilterView::Permanent(permanent)) => {
+                anchor_ids.iter().filter_map(Value::as_str).any(|anchor| {
+                    self.state
+                        .events
+                        .iter()
+                        .rev()
+                        .find(|event| {
+                            event.kind == "spellCast"
+                                && event.card_instance_id.as_deref() == Some(anchor)
+                        })
+                        .is_some_and(|cast| {
+                            cast.detail["decisions"]["convokeSources"]
+                                .as_array()
+                                .is_some_and(|sources| {
+                                    sources.iter().any(|source| {
+                                        source.as_str() == Some(permanent.instance_id.as_str())
+                                    })
+                                })
+                        })
                 })
             }
             (Some("sharesCharacteristic"), view) => {

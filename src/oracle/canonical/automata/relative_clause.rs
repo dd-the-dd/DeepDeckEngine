@@ -36,6 +36,7 @@
 //! Relation   := Participle Anchor                      reduced relative
 //!             | Pronoun ("is" | "are") Participle Anchor
 //!             | Pronoun Share
+//!             | Pronoun "convoked" Anchor                CR 702.51c
 //! Participle := "attached" "to"                        CR 301.5, 303.4
 //!             | "blocking" ["or" "blocked" "by"]        CR 509.1
 //!             | "blocked" "by"
@@ -177,7 +178,9 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
         return true;
     }
     if is_relative_pronoun(cursor)
-        && (copular_participle_at(cursor, 1).is_some() || share_verb_at(cursor, 1).is_some())
+        && (copular_participle_at(cursor, 1).is_some()
+            || share_verb_at(cursor, 1).is_some()
+            || word_at(cursor, 1, "convoked"))
     {
         return true;
     }
@@ -338,6 +341,19 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
     }
     if share_verb_at(cursor, 0).is_some() {
         return recognize_share_clause(cursor);
+    }
+    if word_at(cursor, 0, "convoked") {
+        // `each creature that convoked it|this spell` (CR 702.51c): the
+        // creatures tapped to pay the anchor's convoke cost.
+        cursor.enter("selector.relative-clause.convoked");
+        consume_words(cursor, 1)?;
+        let anchor = recognize_relation_anchor(cursor, true)?;
+        return Ok(ObjectPredicate::Relation(ObjectRelation::Related(
+            RelatedObject {
+                kind: ObjectRelationKind::Convoked,
+                anchor,
+            },
+        )));
     }
     if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
         cursor.enter("selector.relative-clause.possession");
@@ -673,6 +689,9 @@ pub(in crate::oracle::canonical) enum ObjectRelationKind {
     /// The candidate and the anchor have at least one value of the
     /// characteristic in common.
     Shares(SharedCharacteristic),
+    /// The candidate is a creature tapped to pay the convoke cost of the
+    /// anchor when it was cast (CR 702.51a, 702.51c).
+    Convoked,
 }
 
 impl ObjectRelationKind {
@@ -682,6 +701,7 @@ impl ObjectRelationKind {
             Self::Blocking => "blocking",
             Self::BlockedBy => "blockedBy",
             Self::Shares(_) => "sharesCharacteristic",
+            Self::Convoked => "convoked",
         }
     }
 }
@@ -701,7 +721,8 @@ impl RelatedObject {
         match self.kind {
             ObjectRelationKind::AttachedTo
             | ObjectRelationKind::Blocking
-            | ObjectRelationKind::BlockedBy => domain == ObjectKind::Permanent,
+            | ObjectRelationKind::BlockedBy
+            | ObjectRelationKind::Convoked => domain == ObjectKind::Permanent,
             ObjectRelationKind::Shares(_) => {
                 matches!(domain, ObjectKind::Permanent | ObjectKind::Card)
             }

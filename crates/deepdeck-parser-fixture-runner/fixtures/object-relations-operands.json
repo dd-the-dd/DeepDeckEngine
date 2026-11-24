@@ -608,6 +608,50 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-venerated-loxodon-counters-on-each-creature-that-convoked-it",
+      "request": {
+        "cardName": "Venerated Loxodon",
+        "typeLine": "Creature — Elephant Cleric",
+        "manaCost": "{4}{W}",
+        "oracleText": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, put a +1/+1 counter on each creature that convoked it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zephyr-singer-flying-counter-on-each-creature-that-convoked-it",
+      "request": {
+        "cardName": "Zephyr Singer",
+        "typeLine": "Creature — Siren Pirate",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nFlying, vigilance\nWhen this creature enters, put a flying counter on each creature that convoked it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }

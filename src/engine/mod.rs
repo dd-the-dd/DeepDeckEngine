@@ -10750,6 +10750,11 @@ impl GameEngine {
 
     fn permanent_matches_effective_filter(&self, permanent: &CardInstance, filter: &Value) -> bool {
         match value_kind(filter) {
+            Some(kind) if object_relation_eval::is_relation_kind(kind) => self
+                .eval_object_relation(
+                    filter,
+                    runtime_object_filter::ObjectFilterView::Permanent(permanent),
+                ),
             Some("nameEquals") => filter["value"].as_str().is_some_and(|name| {
                 let effective_name = self
                     .battlefield_static_modifiers()
