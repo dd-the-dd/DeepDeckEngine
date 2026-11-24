@@ -154,3 +154,45 @@ fn event_quantity_cannot_escape_its_producer_during_lowering() {
     assert_eq!(valid["left"]["kind"], "eventQuantity");
     assert_eq!(valid["right"]["value"], 1);
 }
+
+#[test]
+fn passive_token_creation_is_the_same_quantity_event() {
+    for (text, object) in [
+        (
+            "If one or more tokens would be created under your control, twice that many of those tokens are created instead.",
+            None,
+        ),
+        (
+            "If one or more creature tokens would be created under your control, twice that many of those tokens are created instead.",
+            Some(ObjectPredicate::CardType(ObjectCardType::Creature)),
+        ),
+    ] {
+        let node = parse(text).unwrap();
+        assert_eq!(
+            node.event.domain,
+            QuantityEventDomain::TokenCreation,
+            "{text}"
+        );
+        assert_eq!(node.event.origin, QuantityEventOrigin::Any, "{text}");
+        assert_eq!(node.event.voice, QuantityEventVoice::Passive, "{text}");
+        assert_eq!(node.event.object, object, "{text}");
+        assert_eq!(
+            node.quantity,
+            NumericExpression::multiply(
+                NumericExpression::from(2),
+                NumericExpression::EventValue(EventNumericBinding::ReplacementQuantity)
+            )
+        );
+    }
+}
+
+#[test]
+fn passive_token_creation_needs_the_controller_and_the_same_tokens() {
+    // Every player's tokens, or other tokens created instead, are other events.
+    for text in [
+        "If one or more tokens would be created, twice that many of those tokens are created instead.",
+        "If one or more tokens would be created under your control, those tokens plus a Clue token are created instead.",
+    ] {
+        assert!(parse(text).is_err(), "{text}");
+    }
+}

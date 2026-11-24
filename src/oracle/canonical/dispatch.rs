@@ -243,9 +243,9 @@ fn parse_ability_body(
     } else {
         existing
     };
-    // CR 614.1c-e, 614.12: the shared entry-replacement frame reads what no
-    // historical family completed. A family's own failure keeps priority
-    // unless the frame completes the ability.
+    // CR 614.1a, 614.1c-e, 614.12: the shared entry and replaced-event frames
+    // read what no historical family completed. A family's own failure keeps
+    // priority unless a frame completes the ability.
     let existing = match existing {
         parsed @ CanonicalParseOutcome::Parsed { .. } => parsed,
         existing => match (existing, try_parse_replacement_frame(input)) {

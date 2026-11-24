@@ -258,7 +258,7 @@ fn reveal_or_tapped_land_enters_tapped_only_without_a_revealed_card() {
 }
 
 #[test]
-fn draw_replacement_turns_each_draw_into_two_except_the_first_in_the_draw_step() {
+fn draw_replacement_turns_a_draw_outside_the_draw_step_into_two() {
     let mut engine = test_engine(2);
     let mut archive = test_definition("archive", "Artifact");
     archive.rules = vec![json!({

@@ -53,7 +53,9 @@ fn lower_entry_choice_decision(choice: &EntryChoiceNode) -> Value {
     let mut decision = json!({
         "id": binding.decision_id(),
         "kind": binding.decision_kind(),
-        "player": lower_player(&choice.player),
+        // The entering permanent's controller chooses (CR 614.12); the
+        // entry choice reader produces no other chooser.
+        "player": controller(),
     });
     match &choice.domain {
         EntryChoiceDomain::Color { excluded } => {
@@ -253,6 +255,11 @@ fn lower_entry_frame(
         replacement.push(operation);
     }
     if let Some(choice) = &node.choice {
+        cursor.enter("replacement.entry-choice.lowering");
+        cursor.require(
+            choice.player == LocalPlayerReference::Controller,
+            "the entering permanent's controller as the chooser (CR 614.12)",
+        )?;
         decisions.push(lower_entry_choice_decision(choice));
         replacement.push(json!({
             "kind": "storeDecision",
