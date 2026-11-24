@@ -21,8 +21,17 @@
 //! $N                 the printed count, in digits        (+$N/+$N, loses $N life)
 //! $Nw                the printed count as a number word  (two)
 //! $N{ONE|MANY}       ONE when the count is 1, MANY otherwise (number agreement)
+//! $Nrepeat[TEXT]     TEXT written N times               ({R}{R}; CR form `N TEXT`)
+//! $Ntimes[TEXT]      TEXT, `twice TEXT`, `three times TEXT`, ... (a multiple)
 //! $cost              the printed mana cost, as printed
+//! $subtypes          the face's subtypes, in printed order      (reminders only)
+//! $subtypeAlternatives  the face's subtypes joined by `and/or`  (reminders only)
 //! ```
+//!
+//! A reminder may restate a definition with the card's own subtypes (Embalm's
+//! `a white Zombie Human Warrior`, Amplify's `each Bird and/or Soldier card`):
+//! those placeholders read the face type line and never occur in a
+//! definition, which quotes the CR's symbolic form.
 use std::sync::OnceLock;
 
 use serde::Deserialize;
@@ -153,6 +162,17 @@ pub(in crate::oracle::canonical) struct KeywordTemplateArguments {
     pub count: Option<i64>,
     /// The printed mana cost, exactly as printed.
     pub cost: Option<String>,
+    /// The subtypes of the face's type line, in printed order.
+    pub subtypes: Vec<String>,
+}
+
+/// The subtypes after the type line's dash (CR 205.3a), in printed order.
+fn face_subtypes(face_type_line: &str) -> Vec<String> {
+    face_type_line
+        .split_once('\u{2014}')
+        .or_else(|| face_type_line.split_once(" - "))
+        .map(|(_, subtypes)| subtypes.split_whitespace().map(str::to_string).collect())
+        .unwrap_or_default()
 }
 
 /// One keyword line read against its template, with the definition already
@@ -266,7 +286,10 @@ fn read_line(
         cursor.consume(word)?;
     }
     cursor.enter("keyword.template.parameter");
-    let mut arguments = KeywordTemplateArguments::default();
+    let mut arguments = KeywordTemplateArguments {
+        subtypes: face_subtypes(face_type_line),
+        ..KeywordTemplateArguments::default()
+    };
     match template.parameter {
         KeywordTemplateParameter::None => {}
         KeywordTemplateParameter::Count => arguments.count = Some(read_count(cursor)?),
@@ -385,6 +408,37 @@ pub(in crate::oracle::canonical) fn instantiate(
             .cost
             .clone()
             .ok_or_else(|| "a printed keyword cost for `$cost`".to_string()),
+        Placeholder::CountRepeat { text } => {
+            let count = arguments
+                .count
+                .ok_or_else(|| "a printed keyword count for `$Nrepeat[...]`".to_string())?;
+            let times = usize::try_from(count)
+                .ok()
+                .filter(|times| *times > 0)
+                .ok_or_else(|| format!("a positive repetition count, got {count}"))?;
+            Ok(text.repeat(times))
+        }
+        Placeholder::CountMultiple { text } => {
+            let count = arguments
+                .count
+                .ok_or_else(|| "a printed keyword count for `$Ntimes[...]`".to_string())?;
+            match count {
+                1 => Ok(text.to_string()),
+                2 => Ok(format!("twice {text}")),
+                _ => number_word(count)
+                    .map(|word| format!("{word} times {text}"))
+                    .ok_or_else(|| format!("an Oracle number word for the keyword count {count}")),
+            }
+        }
+        Placeholder::Subtypes => (!arguments.subtypes.is_empty())
+            .then(|| arguments.subtypes.join(" "))
+            .ok_or_else(|| "a face subtype for `$subtypes`".to_string()),
+        Placeholder::SubtypeAlternatives => match arguments.subtypes.as_slice() {
+            [] => Err("a face subtype for `$subtypeAlternatives`".to_string()),
+            [only] => Ok(only.clone()),
+            [first, second] => Ok(format!("{first} and/or {second}")),
+            [init @ .., last] => Ok(format!("{}, and/or {last}", init.join(", "))),
+        },
     })
 }
 
@@ -396,7 +450,14 @@ pub(in crate::oracle::canonical) fn render_rules_form(template: &str) -> Result<
         Ok(match placeholder {
             Placeholder::Count | Placeholder::CountWord => "N".to_string(),
             Placeholder::CountAgreement { many, .. } => many.to_string(),
+            Placeholder::CountRepeat { text } => format!("N {text}"),
+            Placeholder::CountMultiple { text } => format!("N times {text}"),
             Placeholder::Cost => "[cost]".to_string(),
+            // A definition quotes the CR's symbolic form: a face's own
+            // subtypes occur only in reminders.
+            Placeholder::Subtypes | Placeholder::SubtypeAlternatives => {
+                return Err("no face-subtype placeholder in a rules definition".to_string());
+            }
         })
     })
 }
@@ -404,8 +465,21 @@ pub(in crate::oracle::canonical) fn render_rules_form(template: &str) -> Result<
 enum Placeholder<'a> {
     Count,
     CountWord,
-    CountAgreement { one: &'a str, many: &'a str },
+    CountAgreement {
+        one: &'a str,
+        many: &'a str,
+    },
+    /// `$Nrepeat[TEXT]`: TEXT written N times.
+    CountRepeat {
+        text: &'a str,
+    },
+    /// `$Ntimes[TEXT]`: TEXT, `twice TEXT`, `three times TEXT`, ...
+    CountMultiple {
+        text: &'a str,
+    },
     Cost,
+    Subtypes,
+    SubtypeAlternatives,
 }
 
 fn render(
@@ -443,6 +517,27 @@ fn render(
             }
             "Nw" => {
                 output.push_str(&resolve(Placeholder::CountWord)?);
+                tail
+            }
+            "Nrepeat" | "Ntimes" => {
+                let close = tail
+                    .strip_prefix('[')
+                    .and_then(|inner| inner.find(']'))
+                    .ok_or_else(|| format!("`${name}[TEXT]` with a bracketed text"))?;
+                let text = render(&tail[1..=close], resolve)?;
+                output.push_str(&resolve(if name == "Nrepeat" {
+                    Placeholder::CountRepeat { text: &text }
+                } else {
+                    Placeholder::CountMultiple { text: &text }
+                })?);
+                &tail[close + 2..]
+            }
+            "subtypes" => {
+                output.push_str(&resolve(Placeholder::Subtypes)?);
+                tail
+            }
+            "subtypeAlternatives" => {
+                output.push_str(&resolve(Placeholder::SubtypeAlternatives)?);
                 tail
             }
             "cost" => {

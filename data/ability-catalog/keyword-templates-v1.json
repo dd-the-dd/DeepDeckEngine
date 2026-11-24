@@ -442,6 +442,207 @@
       ]
     },
     {
+      "canonicalId": "unearth",
+      "templateVersion": 1,
+      "lexeme": "unearth",
+      "parameter": "manaCost",
+      "rulesClause": "unearth.cr-702-84a",
+      "rulesSection": "702.84a",
+      "abilities": [
+        "$cost: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere else. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "scavenge",
+      "templateVersion": 1,
+      "lexeme": "scavenge",
+      "parameter": "manaCost",
+      "rulesClause": "scavenge.cr-702-97a",
+      "rulesSection": "702.97a",
+      "abilities": [
+        "$cost, Exile this card from your graveyard: Put a number of +1/+1 counters equal to the power of the card you exiled on target creature. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, Exile this card from your graveyard: Put a number of +1/+1 counters equal to this card's power on target creature. Scavenge only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "embalm",
+      "templateVersion": 1,
+      "lexeme": "embalm",
+      "parameter": "manaCost",
+      "rulesClause": "embalm.cr-702-128a",
+      "rulesSection": "702.128a",
+      "abilities": [
+        "$cost, Exile this card from your graveyard: Create a token that's a copy of this card, except it's white, it has no mana cost, and it's a Zombie in addition to its other types. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie $subtypes with no mana cost. Embalm only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "eternalize",
+      "templateVersion": 1,
+      "lexeme": "eternalize",
+      "parameter": "manaCost",
+      "rulesClause": "eternalize.cr-702-129a",
+      "rulesSection": "702.129a",
+      "abilities": [
+        "$cost, Exile this card from your graveyard: Create a token that's a copy of this card, except it's black, it's 4/4, it has no mana cost, and it's a Zombie in addition to its other types. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, Exile this card from your graveyard: Create a token that's a copy of it, except it's a 4/4 black Zombie $subtypes with no mana cost. Eternalize only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "transmute",
+      "templateVersion": 1,
+      "lexeme": "transmute",
+      "parameter": "manaCost",
+      "rulesClause": "transmute.cr-702-53a",
+      "rulesSection": "702.53a",
+      "abilities": [
+        "$cost, Discard this card: Search your library for a card with the same mana value as the discarded card, reveal that card, and put it into your hand. Then shuffle your library. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, Discard this card: Search your library for a card with the same mana value as this card, reveal it, put it into your hand, then shuffle. Transmute only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "encore",
+      "templateVersion": 1,
+      "lexeme": "encore",
+      "parameter": "manaCost",
+      "rulesClause": "encore.cr-702-141a",
+      "rulesSection": "702.141a",
+      "abilities": [
+        "$cost, Exile this card from your graveyard: For each opponent, create a token that's a copy of this card that attacks that opponent this turn if able. The tokens gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "$cost, Exile this card from your graveyard: For each opponent, create a token copy that attacks that opponent this turn if able. They gain haste. Sacrifice them at the beginning of the next end step. Activate only as a sorcery."
+      ]
+    },
+    {
+      "canonicalId": "firebending",
+      "templateVersion": 1,
+      "lexeme": "firebending",
+      "parameter": "count",
+      "rulesClause": "firebending.cr-702-189a",
+      "rulesSection": "702.189a",
+      "abilities": [
+        "Whenever this creature attacks, add $Nrepeat[{R}]. Until end of combat, you don't lose this mana as steps and phases end."
+      ],
+      "reminders": [
+        "Whenever this creature attacks, add $Nrepeat[{R}]. This mana lasts until end of combat."
+      ]
+    },
+    {
+      "canonicalId": "devour",
+      "templateVersion": 1,
+      "lexeme": "devour",
+      "parameter": "count",
+      "rulesClause": "devour.cr-702-82a",
+      "rulesSection": "702.82a",
+      "abilities": [
+        "As this object enters, you may sacrifice any number of creatures. This permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it for each creature sacrificed this way."
+      ],
+      "reminders": [
+        "As this creature enters, you may sacrifice any number of creatures. It enters with $Ntimes[that many] +1/+1 counters on it.",
+        "As this creature enters, you may sacrifice any number of creatures. This creature enters with $Ntimes[that many] +1/+1 counters on it."
+      ]
+    },
+    {
+      "canonicalId": "amplify",
+      "templateVersion": 1,
+      "lexeme": "amplify",
+      "parameter": "count",
+      "rulesClause": "amplify.cr-702-38a",
+      "rulesSection": "702.38a",
+      "abilities": [
+        "As this object enters, reveal any number of cards from your hand that share a creature type with it. This permanent enters with $N{a +1/+1 counter|$Nw +1/+1 counters} on it for each card revealed this way. You can't reveal this card or any other cards that are entering the battlefield at the same time as this card."
+      ],
+      "reminders": [
+        "As this creature enters, put $N{a +1/+1 counter|$Nw +1/+1 counters} on it for each $subtypeAlternatives card you reveal in your hand."
+      ]
+    },
+    {
+      "canonicalId": "enlist",
+      "templateVersion": 1,
+      "lexeme": "enlist",
+      "parameter": "none",
+      "rulesClause": "enlist.cr-702-154a",
+      "rulesSection": "702.154a",
+      "abilities": [
+        "As this creature attacks, you may tap up to one untapped creature you control that you didn't choose to attack with and that either has haste or has been under your control continuously since this turn began. When you do, this creature gets +X/+0 until end of turn, where X is the tapped creature's power."
+      ],
+      "reminders": [
+        "As this creature attacks, you may tap a nonattacking creature you control without summoning sickness. When you do, add its power to this creature's until end of turn."
+      ]
+    },
+    {
+      "canonicalId": "backup",
+      "templateVersion": 1,
+      "lexeme": "backup",
+      "parameter": "count",
+      "rulesClause": "backup.cr-702-165a",
+      "rulesSection": "702.165a",
+      "abilities": [
+        "When this creature enters, put $N{a +1/+1 counter|$Nw +1/+1 counters} on target creature. If that's another creature, it also gains the non-backup abilities of this creature printed below this one until end of turn."
+      ],
+      "reminders": [
+        "When this creature enters, put $N{a +1/+1 counter|$Nw +1/+1 counters} on target creature. If that's another creature, it gains the following ability until end of turn.",
+        "When this creature enters, put $N{a +1/+1 counter|$Nw +1/+1 counters} on target creature. If that's another creature, it gains the following abilities until end of turn."
+      ]
+    },
+    {
+      "canonicalId": "ravenous",
+      "templateVersion": 1,
+      "lexeme": "ravenous",
+      "parameter": "none",
+      "rulesClause": "ravenous.cr-702-156a",
+      "rulesSection": "702.156a",
+      "abilities": [
+        "This permanent enters with X +1/+1 counters on it.",
+        "When this permanent enters, if X is 5 or more, draw a card."
+      ],
+      "reminders": [
+        "This creature enters with X +1/+1 counters on it. If X is 5 or more, draw a card when it enters."
+      ]
+    },
+    {
+      "canonicalId": "squad",
+      "templateVersion": 1,
+      "lexeme": "squad",
+      "parameter": "manaCost",
+      "rulesClause": "squad.cr-702-157a",
+      "rulesSection": "702.157a",
+      "abilities": [
+        "As an additional cost to cast this spell, you may pay $cost any number of times.",
+        "When this creature enters, if its squad cost was paid, create a token that's a copy of it for each time its squad cost was paid."
+      ],
+      "reminders": [
+        "As an additional cost to cast this spell, you may pay $cost any number of times. When this creature enters, create that many tokens that are copies of it.",
+        "As an additional cost to cast this spell, you may pay $cost any number of times. When this enchantment enters, create that many tokens that are copies of it."
+      ]
+    },
+    {
+      "canonicalId": "saddle",
+      "templateVersion": 1,
+      "lexeme": "saddle",
+      "parameter": "count",
+      "rulesClause": "saddle.cr-702-171a",
+      "rulesSection": "702.171a",
+      "abilities": [
+        "Tap any number of other untapped creatures you control with total power $N or greater: This permanent becomes saddled until end of turn. Activate only as a sorcery."
+      ],
+      "reminders": [
+        "Tap any number of other creatures you control with total power $N or more: This Mount becomes saddled until end of turn. Saddle only as a sorcery."
+      ]
+    },
+    {
       "canonicalId": "crew",
       "templateVersion": 1,
       "lexeme": "crew",

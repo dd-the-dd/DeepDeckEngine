@@ -90,6 +90,7 @@ fn every_reminder_and_definition_instantiates_with_each_parameter_shape() {
                 KeywordTemplateParameter::ManaCost | KeywordTemplateParameter::CountThenManaCost
             )
             .then(|| "{1}{G}".to_string()),
+            subtypes: vec!["Human".to_string(), "Warrior".to_string()],
         };
         for text in template.abilities.iter().chain(&template.reminders) {
             let rendered = instantiate(text, &arguments)
@@ -108,10 +109,11 @@ fn placeholders_render_digits_number_words_agreement_and_the_printed_cost() {
     let one = KeywordTemplateArguments {
         count: Some(1),
         cost: Some("{2}{W}".to_string()),
+        ..KeywordTemplateArguments::default()
     };
     let three = KeywordTemplateArguments {
         count: Some(3),
-        cost: None,
+        ..KeywordTemplateArguments::default()
     };
     let template = "gets +$N/+$N, put $N{a +1/+1 counter|$Nw +1/+1 counters} on it";
     assert_eq!(
@@ -139,7 +141,7 @@ fn placeholders_render_digits_number_words_agreement_and_the_printed_cost() {
             "$Nw",
             &KeywordTemplateArguments {
                 count: Some(21),
-                cost: None
+                ..KeywordTemplateArguments::default()
             }
         )
         .is_err()
@@ -185,4 +187,82 @@ fn only_the_lexeme_followed_by_its_parameter_start_is_claimed() {
     assert!(line("Battle cry creatures get +1/+0.").is_none());
     assert!(line("Battlecry").is_none());
     assert!(line("Flying, battle cry").is_none());
+}
+
+#[test]
+fn repetition_multiple_and_face_subtype_placeholders_render_their_forms() {
+    let one = KeywordTemplateArguments {
+        count: Some(1),
+        ..KeywordTemplateArguments::default()
+    };
+    let two = KeywordTemplateArguments {
+        count: Some(2),
+        subtypes: vec!["Bird".to_string(), "Soldier".to_string()],
+        ..KeywordTemplateArguments::default()
+    };
+    let three = KeywordTemplateArguments {
+        count: Some(3),
+        subtypes: vec![
+            "Human".to_string(),
+            "Cleric".to_string(),
+            "Rogue".to_string(),
+        ],
+        ..KeywordTemplateArguments::default()
+    };
+    // Firebending's mana: N repeated symbols, quoted as `N {R}` in the CR.
+    assert_eq!(
+        instantiate("add $Nrepeat[{R}].", &two).unwrap(),
+        "add {R}{R}."
+    );
+    assert_eq!(
+        render_rules_form("add $Nrepeat[{R}].").unwrap(),
+        "add N {R}."
+    );
+    // Devour's reminder multiple.
+    let multiple = "with $Ntimes[that many] counters";
+    assert_eq!(
+        instantiate(multiple, &one).unwrap(),
+        "with that many counters"
+    );
+    assert_eq!(
+        instantiate(multiple, &two).unwrap(),
+        "with twice that many counters"
+    );
+    assert_eq!(
+        instantiate(multiple, &three).unwrap(),
+        "with three times that many counters"
+    );
+    // Reminder-only subtype renderings (Embalm, Amplify).
+    assert_eq!(
+        instantiate("a white Zombie $subtypes", &three).unwrap(),
+        "a white Zombie Human Cleric Rogue"
+    );
+    assert_eq!(
+        instantiate("each $subtypeAlternatives card", &two).unwrap(),
+        "each Bird and/or Soldier card"
+    );
+    assert_eq!(
+        instantiate("each $subtypeAlternatives card", &three).unwrap(),
+        "each Human, Cleric, and/or Rogue card"
+    );
+    // A definition never names a face's subtypes, a face without subtypes
+    // renders no subtype reminder, and a repetition needs its brackets.
+    assert!(render_rules_form("a white Zombie $subtypes").is_err());
+    assert!(instantiate("$subtypes", &one).is_err());
+    assert!(instantiate("$Nrepeat{R}", &two).is_err());
+}
+
+#[test]
+fn a_reminder_restates_the_definition_with_the_face_subtypes() {
+    let text = "Embalm {W} ({W}, Exile this card from your graveyard: Create a token that's a copy of it, except it's a white Zombie Cat with no mana cost. Embalm only as a sorcery.)";
+    let tokens = recognize_oracle_entities(text);
+    let read = recognize_keyword_template_line(&tokens, text, "Creature \u{2014} Cat")
+        .expect("claimed")
+        .expect("the reminder names the face's subtype");
+    assert_eq!(read.arguments.subtypes, ["Cat"]);
+    // Near miss: the same reminder on a face of another subtype.
+    let wrong = recognize_keyword_template_line(&tokens, text, "Creature \u{2014} Dog")
+        .expect("claimed")
+        .expect_err("a reminder naming another subtype");
+    assert_eq!(wrong.state, "keyword.template.reminder.body");
 }

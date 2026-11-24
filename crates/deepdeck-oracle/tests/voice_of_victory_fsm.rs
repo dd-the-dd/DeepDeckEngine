@@ -171,11 +171,8 @@ fn adjacent_keyword_and_player_restriction_families_are_not_stolen() {
     // Structural frames now claim every ability explicitly: the near-miss is
     // a committed ability-frame failure, never stolen by the adjacent family.
     for (oracle, state, found) in [
-        (
-            "Firebending 2",
-            "ability-frame.keyword.expansion",
-            "Firebending",
-        ),
+        // (Firebending is a keyword template row; Absorb has no expansion.)
+        ("Absorb 2", "ability-frame.keyword.expansion", "Absorb"),
         (
             "Your opponents can't activate abilities during your turn.",
             "ability-frame.static.subject",
