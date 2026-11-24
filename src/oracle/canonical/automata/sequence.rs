@@ -751,6 +751,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             .map(|binding| super::PlayerBinding(binding.effect_index)),
                         subject: None,
                         effect_index: Some(effect_index),
+                        objects: super::permanent_subject::prior_object_set(&memory.effects),
                         ..super::BindingEnvironment::default()
                     },
                 )));
@@ -1699,7 +1700,17 @@ fn recognize_effect_sequence_attempt_scoped(
                     Some(",") if super::where_x_definition_starts(cursor) => {
                         // CR 107.3: the sentence parent owns the scope of X;
                         // the child only reads the postposed definition.
-                        let expression = super::recognize_where_x_definition(cursor)?;
+                        // `where X is its power`: the object of the clause it closes.
+                        let antecedent = super::permanent_subject::object_antecedent_after(
+                            &memory.effects,
+                            memory.permanent_subject_scope,
+                            context,
+                        );
+                        let expression = super::with_object_antecedent(
+                            cursor,
+                            antecedent,
+                            super::recognize_where_x_definition,
+                        )?;
                         cursor.enter("sequence.where-x.scope");
                         cursor.require(
                             memory.sentence_start < memory.effects.len()

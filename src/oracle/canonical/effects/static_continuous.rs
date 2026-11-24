@@ -138,7 +138,19 @@ fn read_static_continuous_effect(
         )?;
         return Ok((vec![modifier], None));
     }
-    let (objects, subject_predicate, subject_number) = read_static_subject(cursor, input)?;
+    // `As long as this creature is equipped, it ...`: the condition's object.
+    let (objects, subject_predicate, subject_number) =
+        match recognize_condition_pronoun_subject(cursor, condition.as_ref())? {
+            Some(reference) => (
+                cursor.require_value(
+                    bound_permanent_reference_value(reference, &[]),
+                    "a static subject the condition's object lowers to",
+                )?,
+                None,
+                TypeChangeNumber::Singular,
+            ),
+            None => read_static_subject(cursor, input)?,
+        };
     let source_subject = objects == self_ref();
     let mut modifiers = Vec::new();
     let mut granted = Vec::new();

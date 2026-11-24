@@ -9,13 +9,15 @@
 //! Nothing is guessed: an absent slot is a committed diagnostic.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CardZoneName, EffectRecognitionContext, NumericExpression, ObjectPlayerRelation,
-    ObjectPredicate, ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope,
-    PlayerBinding, PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
+    AttachedObjectRole, CardZoneName, EffectRecognitionContext, GrammaticalNumber,
+    NumericExpression, ObjectCardType, ObjectKind, ObjectPlayerRelation, ObjectPredicate,
+    ObjectSubjectAntecedent, PermanentEffectReference, PermanentSubjectScope, PlayerBinding,
+    PlayerEffectSubject, SelectorNumericProperty, TargetNominal, TargetSelector,
     TypedObservedEventObject, selector_implies_nominal,
 };
 use crate::oracle::characteristic_vocabulary::{
-    CharacteristicLexeme, lookup_object_selector_lexeme,
+    AcceptedForms, CharacteristicLexeme, ObjectCharacteristic, lookup_card_type,
+    lookup_object_characteristic, lookup_object_domain, lookup_object_selector_lexeme,
 };
 use crate::oracle::model::RecognizedEntity;
 
@@ -38,10 +40,11 @@ pub(in crate::oracle::canonical) struct EventObjectSlot {
 
 impl EventObjectSlot {
     fn implies(&self, nominal: TargetNominal) -> bool {
-        selector_implies_nominal(
-            &TargetSelector::Object(self.predicate.clone()),
-            &nominal.as_predicate(),
-        )
+        predicate_names_nominal(&self.predicate, nominal)
+    }
+
+    fn names(&self, nominals: &[TargetNominal]) -> bool {
+        predicate_names_nominals(&self.predicate, nominals)
     }
 }
 
@@ -99,6 +102,31 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// clause of the same frame); the arithmetic grammar reads it as a
     /// primary.
     pub number: Option<NumericExpression>,
+    /// The object set the immediately preceding action of the program
+    /// declared or produced (`those creatures`, `they`, `that token`). The
+    /// program parent installs it from its earlier actions
+    /// (`permanent_subject::prior_object_set`); it is never guessed.
+    pub objects: Option<ObjectSetAntecedent>,
+}
+
+/// An object set an earlier action of the same program declared or produced
+/// (CR 608.2c): every object of one plural target slot, or the tokens one
+/// creation action created. Its number is the one the producer stated, so a
+/// singular anaphor never names several objects and a plural one never
+/// names a single declared object.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectSetAntecedent {
+    /// `TargetSet(slot)` or `Observed(CreatedTokens)`.
+    pub reference: PermanentEffectReference,
+    /// The declared selector, or the card types the created tokens have, a
+    /// nominal anaphor must follow from. `None` when the producer states no
+    /// type (a token copy of an object).
+    pub selector: Option<TargetSelector>,
+    /// `Singular` only when the producer stated exactly one object (`create a
+    /// token`); a declared slot of several targets is `Plural`.
+    pub number: GrammaticalNumber,
+    /// The set is created tokens, so `token`/`tokens` names it.
+    pub tokens: bool,
 }
 
 impl BindingEnvironment {
@@ -130,6 +158,7 @@ impl BindingEnvironment {
             effect_index: context.current_effect_index,
             action_result: None,
             number: None,
+            objects: None,
         }
     }
 }
@@ -627,6 +656,8 @@ fn relation_supported(reference: PermanentEffectReference) -> bool {
             observed,
             TypedObservedEventObject::EventPermanent | TypedObservedEventObject::EnteringPermanent
         ),
+        // A set of declared targets has no single controller or owner.
+        PermanentEffectReference::TargetSet(_) => false,
         _ => true,
     }
 }
@@ -635,10 +666,7 @@ fn lexical_antecedent_implies(
     antecedent: &ObjectSubjectAntecedent,
     nominal: TargetNominal,
 ) -> bool {
-    antecedent
-        .selector
-        .as_ref()
-        .is_some_and(|selector| selector_implies_nominal(selector, &nominal.as_predicate()))
+    antecedent_names(antecedent, &[nominal])
 }
 
 /// Lexical lookahead for `it` / `that NOUN` (a registered nominal that is
@@ -670,15 +698,8 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_reference(
         .peek()
         .is_some_and(super::reference::is_source_anaphor)
     {
-        let reference = environment
-            .object
-            .as_ref()
-            .map(|object| object.reference)
-            .ok_or_else(|| {
-                cursor.fail(
-                "a source binding or preceding singular permanent subject in this lexical scope",
-            )
-            })?;
+        let reference =
+            resolve_pronoun_antecedent(environment).map_err(|expected| cursor.fail(expected))?;
         let pronoun = cursor.peek().expect("checked object anaphor").to_owned();
         cursor.consume(&pronoun)?;
         return Ok(reference);
@@ -717,6 +738,34 @@ pub(in crate::oracle::canonical) fn recognize_definite_object_reference(
     recognize_determined_object_reference(cursor, environment, "the", false)
 }
 
+/// The registered nominals of a disjunctive nominal phrase starting `offset`
+/// tokens after the cursor (`creature`, `creature or planeswalker`), with
+/// its token width. Lexical lookahead only; it proves no binding.
+fn nominal_disjunction_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(Vec<TargetNominal>, usize)> {
+    let nominal_at = |index: usize| {
+        cursor
+            .token_slice(cursor.position() + index, cursor.position() + index + 1)
+            .first()
+            .filter(|token| token.token_type != "possessiveTypeWord")
+            .and_then(|token| registered_nominal(&token.raw))
+    };
+    let mut nominals = vec![nominal_at(offset)?];
+    let mut width = 1;
+    // `that creature or planeswalker`: each further nominal follows `or`.
+    while cursor
+        .peek_ahead(offset + width)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && let Some(next) = nominal_at(offset + width + 1)
+    {
+        nominals.push(next);
+        width += 2;
+    }
+    Some((nominals, width))
+}
+
 fn recognize_determined_object_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
@@ -726,19 +775,128 @@ fn recognize_determined_object_reference(
     cursor.enter("permanent.subject.nominal-anaphor");
     cursor.consume(determiner)?;
     cursor.enter("permanent.subject.nominal-anaphor.nominal");
-    let noun = cursor
-        .peek()
-        .ok_or_else(|| cursor.fail("a registered card type or permanent nominal"))?
-        .to_owned();
-    let nominal = registered_nominal(&noun)
+    let (nominals, width) = nominal_disjunction_at(cursor, 0)
         .ok_or_else(|| cursor.fail("a registered card type or permanent nominal"))?;
     cursor.enter("permanent.subject.nominal-anaphor.antecedent");
+    let reference = resolve_nominal_antecedent(environment, &nominals, departed_readable)
+        .map_err(|expected| cursor.fail(expected))?;
+    cursor.advance_to(cursor.position() + width)?;
+    Ok(reference)
+}
+
+/// A registered nominal names a predicate when the predicate guarantees it,
+/// or, for `creature`, when every branch heads with a creature subtype
+/// (`a Knight you control`, `another Ally`): a creature type is carried only
+/// by creatures and Kindred permanents (CR 205.3m), and the anaphor names the
+/// same object either way.
+pub(in crate::oracle::canonical) fn predicate_names_nominal(
+    predicate: &ObjectPredicate,
+    nominal: TargetNominal,
+) -> bool {
+    selector_implies_nominal(
+        &TargetSelector::Object(predicate.clone()),
+        &nominal.as_predicate(),
+    ) || (nominal == TargetNominal::CardType(ObjectCardType::Creature)
+        && predicate.has_creature_subtype_head()
+        && predicate.supports_domain(ObjectKind::Permanent))
+}
+
+/// A disjunctive nominal (`creature or planeswalker`) names a predicate when
+/// one of its nominals does, or when every branch of a disjunctive predicate
+/// is named by one of them (`target creature or planeswalker`).
+fn predicate_names_nominals(predicate: &ObjectPredicate, nominals: &[TargetNominal]) -> bool {
+    nominals
+        .iter()
+        .any(|nominal| predicate_names_nominal(predicate, *nominal))
+        || (nominals.len() > 1
+            && matches!(
+                predicate,
+                ObjectPredicate::Union(branches)
+                    if !branches.is_empty()
+                        && branches
+                            .iter()
+                            .all(|branch| predicate_names_nominals(branch, nominals))
+            ))
+}
+
+/// The selector form of [`predicate_names_nominals`]: each branch of a
+/// selector union must be named.
+pub(in crate::oracle::canonical) fn selector_names_nominals(
+    selector: &TargetSelector,
+    nominals: &[TargetNominal],
+) -> bool {
+    match selector {
+        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
+            predicate_names_nominals(predicate, nominals)
+        }
+        TargetSelector::Union(branches) => {
+            !branches.is_empty()
+                && branches
+                    .iter()
+                    .all(|branch| selector_names_nominals(branch, nominals))
+        }
+        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
+    }
+}
+
+fn antecedent_names(antecedent: &ObjectSubjectAntecedent, nominals: &[TargetNominal]) -> bool {
+    antecedent
+        .selector
+        .as_ref()
+        .is_some_and(|selector| selector_names_nominals(selector, nominals))
+}
+
+/// A reference that denotes one object. A declared set and the tokens of a
+/// creation action are object sets, never a singular antecedent.
+fn singular_reference(reference: PermanentEffectReference) -> bool {
+    !matches!(
+        reference,
+        PermanentEffectReference::TargetSet(_)
+            | PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens)
+    )
+}
+
+const PLURAL_SET_FOR_SINGULAR: &str =
+    "a singular antecedent; the preceding action declared or produced several objects";
+
+/// The one resolver of a singular object pronoun (`it`, `he`, `she`): the
+/// proven lexical antecedent of the position being read. A preceding plural
+/// set is a number mismatch, not an antecedent.
+pub(in crate::oracle::canonical) fn resolve_pronoun_antecedent(
+    environment: &BindingEnvironment,
+) -> Result<PermanentEffectReference, &'static str> {
+    if let Some(object) = environment.object.as_ref() {
+        return Ok(object.reference);
+    }
+    if environment
+        .objects
+        .as_ref()
+        .is_some_and(|set| set.number == GrammaticalNumber::Plural)
+    {
+        return Err(PLURAL_SET_FOR_SINGULAR);
+    }
+    Err("a source binding or preceding singular permanent subject in this lexical scope")
+}
+
+/// The one resolver of a singular nominal anaphor (`that creature`, `the
+/// permanent`, `that creature or planeswalker`, CR 608.2c). In order: a
+/// block event's other combatant; a lexical target whose declared selector
+/// names the nominal; the event's object when the event wrote that nominal
+/// for it; the program's singular antecedent (a declared target, the card a
+/// move put onto the battlefield, an equipped creature); the one token the
+/// preceding action created. `departed_readable` admits an event object that
+/// left the battlefield, for a read of its last known information only
+/// (CR 400.7, 608.2h). Anything else is a committed diagnostic.
+pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
+    environment: &BindingEnvironment,
+    nominals: &[TargetNominal],
+    departed_readable: bool,
+) -> Result<PermanentEffectReference, &'static str> {
+    let creature = TargetNominal::CardType(ObjectCardType::Creature);
     if environment.frame.combat_counterpart
         && !environment.local_object_scope
-        && nominal.as_predicate()
-            == super::ObjectPredicate::CardType(super::ObjectCardType::Creature)
+        && nominals == [creature]
     {
-        cursor.consume(&noun)?;
         return Ok(PermanentEffectReference::Observed(
             TypedObservedEventObject::CombatCounterpart,
         ));
@@ -747,55 +905,376 @@ fn recognize_determined_object_reference(
     // when the event wrote this nominal for it.
     let lexical = environment.object.as_ref().filter(|antecedent| {
         matches!(antecedent.reference, PermanentEffectReference::Target(_))
-            && lexical_antecedent_implies(antecedent, nominal)
+            && antecedent_names(antecedent, nominals)
     });
     if lexical.is_none()
         && let Some(slot) = environment
             .frame
             .event_object
             .as_ref()
-            .filter(|slot| slot.implies(nominal))
+            .filter(|slot| slot.names(nominals))
     {
         // An operand reader acts on the permanent (tap, destroy, deal damage
         // to). A departed event object (`a creature dies`) is a new object in
         // another zone (CR 400.7); only a read of its last known information
         // (a condition, a property, its controller) may name it.
         if slot.departed && !departed_readable {
-            return Err(cursor.fail(
+            return Err(
                 "a permanent for the nominal anaphor; the event's object left the battlefield",
-            ));
+            );
         }
-        cursor.consume(&noun)?;
         return Ok(slot.reference);
     }
-    let antecedent = environment.object.as_ref().ok_or_else(|| {
-        cursor.fail("a preceding singular permanent subject in this lexical scope")
-    })?;
-    // A declared target, or the card a move put onto the battlefield (its
-    // declared card predicate is the selector the nominal must follow from).
-    if !matches!(
-        antecedent.reference,
-        PermanentEffectReference::Target(_)
-            | PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield)
-    ) {
-        return Err(cursor.fail("a declared target as the nominal anaphor antecedent"));
+    if let Some(antecedent) = environment.object.as_ref() {
+        match antecedent.reference {
+            // A declared target, or the card a move put onto the battlefield
+            // (its declared card predicate is the selector the nominal must
+            // follow from).
+            PermanentEffectReference::Target(_)
+            | PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield) => {
+                let selector = antecedent
+                    .selector
+                    .as_ref()
+                    .ok_or("the declared selector of the preceding permanent target")?;
+                return if selector_names_nominals(selector, nominals) {
+                    Ok(antecedent.reference)
+                } else {
+                    Err("a nominal implied by the preceding target's declared selector")
+                };
+            }
+            // An Equipment equips only a creature (CR 301.5).
+            PermanentEffectReference::Attached(AttachedObjectRole::Equipped)
+                if nominals == [creature] =>
+            {
+                return Ok(antecedent.reference);
+            }
+            _ => {}
+        }
     }
-    let selector = antecedent
-        .selector
-        .as_ref()
-        .ok_or_else(|| cursor.fail("the declared selector of the preceding permanent target"))?;
-    cursor.require(
-        selector_implies_nominal(selector, &nominal.as_predicate()),
-        "a nominal implied by the preceding target's declared selector",
-    )?;
-    cursor.consume(&noun)?;
-    Ok(antecedent.reference)
+    // `Create a 1/1 Otter creature token. ... that creature`: the one token
+    // the preceding action created, with the types it was created with.
+    if let Some(set) = environment.objects.as_ref() {
+        match set.number {
+            GrammaticalNumber::Singular
+                if set
+                    .selector
+                    .as_ref()
+                    .is_some_and(|selector| selector_names_nominals(selector, nominals)) =>
+            {
+                return Ok(set.reference);
+            }
+            GrammaticalNumber::Plural if environment.object.is_none() => {
+                return Err(PLURAL_SET_FOR_SINGULAR);
+            }
+            _ => {}
+        }
+    }
+    Err(match environment.object {
+        None => "a preceding singular permanent subject in this lexical scope",
+        Some(_) => "a declared target as the nominal anaphor antecedent",
+    })
 }
 
-/// Lexical lookahead for `that NOUN's power|toughness|mana value`.
+/// The one resolver of a possessive `its` in a numeric or condition read
+/// (`its power`, `its mana value`): the subject of the clause being read
+/// (`it deals damage equal to its power`), else the program's singular
+/// antecedent, else the event's grammatical subject, whose last known
+/// information still answers the read (CR 608.2h). A set of objects is a
+/// number mismatch; nothing is guessed.
+pub(in crate::oracle::canonical) fn resolve_possessive_antecedent(
+    environment: &BindingEnvironment,
+) -> Result<PermanentEffectReference, &'static str> {
+    if let Some(subject) = environment.subject {
+        return singular_reference(subject)
+            .then_some(subject)
+            .ok_or(PLURAL_SET_FOR_SINGULAR);
+    }
+    if let Some(object) = environment.object.as_ref() {
+        return singular_reference(object.reference)
+            .then_some(object.reference)
+            .ok_or(PLURAL_SET_FOR_SINGULAR);
+    }
+    if let Some(slot) = environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| slot.subject && relation_supported(slot.reference))
+    {
+        return Ok(slot.reference);
+    }
+    if environment
+        .objects
+        .as_ref()
+        .is_some_and(|set| set.number == GrammaticalNumber::Plural)
+    {
+        return Err(PLURAL_SET_FOR_SINGULAR);
+    }
+    Err("an event subject or a preceding target that `its` names")
+}
+
+/// The object a condition reads (`If it's a creature`, `if its mana value is
+/// 2 or less`, `If that creature was a Villain`): the possessive antecedent
+/// for a pronoun (empty `nominals`), else the nominal antecedent read for its
+/// last known information (CR 608.2h). The sentence-condition grammar calls
+/// this resolver instead of guessing a target or an event object.
+pub(in crate::oracle::canonical) fn resolve_condition_antecedent(
+    environment: &BindingEnvironment,
+    nominals: &[TargetNominal],
+) -> Result<PermanentEffectReference, &'static str> {
+    if nominals.is_empty() {
+        resolve_possessive_antecedent(environment)
+    } else {
+        resolve_nominal_antecedent(environment, nominals, true)
+    }
+}
+
+/// The one object every atom of a condition is about, when they share it
+/// (`As long as this creature is enchanted or equipped`): the antecedent a
+/// following `it` names in the same sentence. `None` when an atom is about
+/// another object, a player or no object.
+pub(in crate::oracle::canonical) fn condition_object_antecedent(
+    condition: &super::ConditionNode,
+) -> Option<PermanentEffectReference> {
+    match condition {
+        super::BooleanConditionNode::Atom(super::ConditionAtom::ObjectSatisfies(node)) => {
+            match node.object {
+                super::ConditionObjectReference::Permanent(reference)
+                    if singular_reference(reference) =>
+                {
+                    Some(reference)
+                }
+                _ => None,
+            }
+        }
+        super::BooleanConditionNode::Atom(_) => None,
+        super::BooleanConditionNode::Not(inner) => condition_object_antecedent(inner),
+        super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
+            let (first, rest) = operands.split_first()?;
+            let reference = condition_object_antecedent(first)?;
+            rest.iter()
+                .all(|operand| condition_object_antecedent(operand) == Some(reference))
+                .then_some(reference)
+        }
+    }
+}
+
+/// `it` as the subject after a leading condition about one object (`As long
+/// as this creature is equipped, it gets +1/+1`; `As long as enchanted
+/// creature is red, it has ...`): the source or the permanent it is attached
+/// to that every atom of the condition reads. `Ok(None)` when no pronoun
+/// subject starts; a pronoun without such a condition antecedent is a
+/// committed diagnostic, never the source by default.
+pub(in crate::oracle::canonical) fn recognize_condition_pronoun_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+    condition: Option<&super::ConditionNode>,
+) -> MachineResult<Option<PermanentEffectReference>> {
+    let Some(condition) = condition else {
+        return Ok(None);
+    };
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+    {
+        return Ok(None);
+    }
+    cursor.enter("static.condition-antecedent.pronoun");
+    let reference = condition_object_antecedent(condition)
+        .filter(|reference| {
+            matches!(
+                reference,
+                PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_)
+            )
+        })
+        .ok_or_else(|| {
+            cursor.fail("a leading condition about the source or its attached permanent for `it`")
+        })?;
+    cursor.consume("it")?;
+    Ok(Some(reference))
+}
+
+/// The nominal and number of an object nominal surface, or `None` when it
+/// is not a registered nominal (`creatures` is plural, `creature` singular).
+fn nominal_number(raw: &str) -> Option<(TargetNominal, GrammaticalNumber)> {
+    let nominal = registered_nominal(raw)?;
+    let singular = lookup_card_type(raw, AcceptedForms::SingularOnly).is_some()
+        || lookup_object_domain(raw, AcceptedForms::SingularOnly).is_some();
+    Some((
+        nominal,
+        if singular {
+            GrammaticalNumber::Singular
+        } else {
+            GrammaticalNumber::Plural
+        },
+    ))
+}
+
+/// `token` / `tokens`: the created-token nominal and its number.
+fn token_nominal_number(raw: &str) -> Option<GrammaticalNumber> {
+    if lookup_object_characteristic(raw, AcceptedForms::SingularOnly)
+        == Some(ObjectCharacteristic::Token)
+    {
+        Some(GrammaticalNumber::Singular)
+    } else if lookup_object_characteristic(raw, AcceptedForms::SingularOrPlural)
+        == Some(ObjectCharacteristic::Token)
+    {
+        Some(GrammaticalNumber::Plural)
+    } else {
+        None
+    }
+}
+
+/// The head of an object-set reference at the cursor: its token width, the
+/// number it states, the nominal it names (`None` for a pronoun or the token
+/// noun) and whether it is the created-token noun.
+struct ObjectSetHead {
+    width: usize,
+    number: GrammaticalNumber,
+    nominal: Option<TargetNominal>,
+    tokens: bool,
+}
+
+fn object_set_head(cursor: &OracleTokenCursor<'_>) -> Option<ObjectSetHead> {
+    let word = |offset: usize| {
+        cursor
+            .peek_ahead(offset)
+            .map(|raw| raw.to_ascii_lowercase())
+    };
+    let plural_pronoun = |width: usize| ObjectSetHead {
+        width,
+        number: GrammaticalNumber::Plural,
+        nominal: None,
+        tokens: false,
+    };
+    // `each of them` / `each of those NOUNs`: each member of the same set
+    // (CR 608.2c); an action on a set already acts on each member.
+    let first = word(0)?;
+    let (prefix, determiner) = match (first.as_str(), word(1).as_deref(), word(2).as_deref()) {
+        ("each", Some("of"), Some("them")) => return Some(plural_pronoun(3)),
+        ("each", Some("of"), Some("those")) => (2, "those"),
+        ("they", _, _) => return Some(plural_pronoun(1)),
+        ("those", _, _) => (0, "those"),
+        ("that", _, _) => (0, "that"),
+        ("the", _, _) => (0, "the"),
+        _ => return None,
+    };
+    let noun = cursor
+        .token_slice(
+            cursor.position() + prefix + 1,
+            cursor.position() + prefix + 2,
+        )
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")?
+        .raw
+        .clone();
+    if let Some(number) = token_nominal_number(&noun) {
+        // `that token` / `the token` / `those tokens` / `the tokens`.
+        let agrees = match determiner {
+            "that" => number == GrammaticalNumber::Singular,
+            "those" => number == GrammaticalNumber::Plural,
+            _ => true,
+        };
+        return agrees.then_some(ObjectSetHead {
+            width: prefix + 2,
+            number,
+            nominal: None,
+            tokens: true,
+        });
+    }
+    // `those creatures`: only the plural demonstrative opens a nominal set
+    // reference; `that creature` / `the creature` stay singular anaphors.
+    let (nominal, number) = nominal_number(&noun)?;
+    (determiner == "those" && number == GrammaticalNumber::Plural).then_some(ObjectSetHead {
+        width: prefix + 2,
+        number,
+        nominal: Some(nominal),
+        tokens: false,
+    })
+}
+
+/// True when `failure` is an unresolved antecedent of a demonstrative
+/// object reference (`that creature`, `those creatures`, `that token`): the
+/// reference was read and no proven antecedent has its nominal or number.
+pub(in crate::oracle::canonical) fn demonstrative_binding_failure(
+    failure: &super::super::MachineFailure,
+) -> bool {
+    matches!(
+        failure.state,
+        "permanent.subject.nominal-anaphor.antecedent"
+            | "permanent.subject.object-set-anaphor.antecedent"
+            | "permanent.subject.object-set-anaphor.nominal"
+    )
+}
+
+/// Lexical lookahead for an object-set reference (`they`, `those
+/// creatures`, `each of them`, `that token`, `the tokens`). It proves no
+/// binding.
+pub(in crate::oracle::canonical) fn object_set_reference_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    object_set_head(cursor).is_some()
+}
+
+/// Resolves an object-set reference against the set the preceding action
+/// declared or produced (CR 608.2c). The stated number must be the
+/// producer's: `those creatures` never names one declared target, `that
+/// token` never names several created tokens. The nominal must follow from
+/// the declared selector, or name the created tokens.
+pub(in crate::oracle::canonical) fn recognize_object_set_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<PermanentEffectReference> {
+    cursor.enter("permanent.subject.object-set-anaphor");
+    let head = object_set_head(cursor)
+        .ok_or_else(|| cursor.fail("`they`, `those NOUNs`, `each of them` or `that token`"))?;
+    cursor.enter("permanent.subject.object-set-anaphor.antecedent");
+    let set = environment
+        .objects
+        .as_ref()
+        .ok_or_else(|| cursor.fail("an object set the preceding action declared or produced"))?;
+    cursor.require(
+        set.number == head.number,
+        match head.number {
+            GrammaticalNumber::Singular => PLURAL_SET_FOR_SINGULAR,
+            _ => "a plural antecedent; the preceding action declared or produced one object",
+        },
+    )?;
+    cursor.enter("permanent.subject.object-set-anaphor.nominal");
+    cursor.require(
+        !head.tokens || set.tokens,
+        "tokens the preceding action created for `token`",
+    )?;
+    if let Some(nominal) = head.nominal {
+        cursor.require(
+            set.selector
+                .as_ref()
+                .is_some_and(|selector| selector_names_nominals(selector, &[nominal])),
+            "a nominal implied by the declared selector of the preceding object set",
+        )?;
+    }
+    cursor.advance_to(cursor.position() + head.width)?;
+    Ok(set.reference)
+}
+
+/// Lexical lookahead for `that NOUN's power|toughness|mana value` and the
+/// source's own `this NOUN's power|toughness`.
 pub(in crate::oracle::canonical) fn bound_object_property_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
+    let possessive_property = |offset: usize| {
+        cursor
+            .token_slice(cursor.position() + offset, cursor.position() + offset + 1)
+            .first()
+            .is_some_and(|token| token.token_type == "possessiveTypeWord")
+            && cursor.peek_ahead(offset + 1).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("power") || raw.eq_ignore_ascii_case("toughness")
+            })
+    };
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    {
+        return possessive_property(1);
+    }
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
@@ -810,21 +1289,80 @@ pub(in crate::oracle::canonical) fn bound_object_property_starts(
         })
 }
 
+/// The numeric read of one property of a singular bound object (CR 208,
+/// 202.3). A declared target keeps the declared-slot property, validated
+/// against its selector when lowered (`required_nominal`); the ability source
+/// reads its own power and toughness; any other singular object the binding
+/// environment names is read live while it is the same object, else as last
+/// known information (CR 400.7, 608.2h).
+pub(in crate::oracle::canonical) fn bound_object_numeric_property(
+    reference: PermanentEffectReference,
+    property: SelectorNumericProperty,
+    required_nominal: ObjectPredicate,
+) -> Result<NumericExpression, &'static str> {
+    if !singular_reference(reference) {
+        return Err(PLURAL_SET_FOR_SINGULAR);
+    }
+    Ok(match (reference, property) {
+        (PermanentEffectReference::Target(binding), _) => {
+            NumericExpression::QualifiedTargetProperty {
+                object: binding,
+                required_nominal,
+                property,
+            }
+        }
+        (PermanentEffectReference::Source(source), SelectorNumericProperty::Power) => {
+            NumericExpression::ObjectProperty {
+                object: source,
+                property: super::NumericObjectProperty::Power,
+            }
+        }
+        (PermanentEffectReference::Source(source), SelectorNumericProperty::Toughness) => {
+            NumericExpression::ObjectProperty {
+                object: source,
+                property: super::NumericObjectProperty::Toughness,
+            }
+        }
+        (PermanentEffectReference::Source(_), SelectorNumericProperty::ManaValue) => {
+            return Err("a mana-value read the runtime records for this object");
+        }
+        (object, property) => NumericExpression::BoundObjectProperty { object, property },
+    })
+}
+
 /// The genitive `that NOUN's power|toughness|mana value` (CR 208, 202.3):
-/// the property of the object the environment names with that nominal. A
-/// lexical target keeps the declared-slot property (validated against its
-/// selector when lowered); otherwise the event's object when the event wrote
-/// that nominal for it.
+/// the property of the object the environment names with that nominal,
+/// resolved by the shared nominal resolver for its last known information.
+/// `that spell's mana value` in a cast trigger is the cast record's value.
 pub(in crate::oracle::canonical) fn recognize_bound_object_property(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.genitive.reference");
-    cursor.consume("that")?;
+    let source = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"));
+    cursor.consume(if source { "this" } else { "that" })?;
     cursor.enter("numeric.genitive.nominal");
     let possessive = cursor.consume_type("possessiveTypeWord")?;
     let nominal = possessive_nominal(&possessive.raw)
         .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    if source {
+        // `this creature's power`: the ability source's own power or
+        // toughness, live or as last known information (CR 608.2h).
+        cursor.enter("numeric.genitive.source-property");
+        let property = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+            Some("power") => super::NumericObjectProperty::Power,
+            Some("toughness") => super::NumericObjectProperty::Toughness,
+            _ => return Err(cursor.fail("`power` or `toughness` of the ability source")),
+        };
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        return Ok(NumericExpression::ObjectProperty {
+            object: super::LocalObjectReference::SourceSelf,
+            property,
+        });
+    }
     cursor.enter("numeric.genitive.property");
     let property = if cursor
         .peek()
@@ -843,35 +1381,37 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_property(
         SelectorNumericProperty::ManaValue
     };
     cursor.enter("numeric.genitive.antecedent");
-    if let Some(antecedent) = environment.object.as_ref()
-        && let PermanentEffectReference::Target(binding) = antecedent.reference
-        && lexical_antecedent_implies(antecedent, nominal)
-    {
-        return Ok(NumericExpression::QualifiedTargetProperty {
-            object: binding,
-            required_nominal: nominal.as_predicate(),
-            property,
-        });
-    }
-    // `that spell's mana value`: the spell the cast record binds.
+    // `that spell's mana value`: the spell the cast record binds, unless a
+    // lexical spell target of the program has that nominal.
     if environment.frame.event_spell
-        && nominal == TargetNominal::Domain(super::ObjectKind::Spell)
+        && nominal == TargetNominal::Domain(ObjectKind::Spell)
         && property == SelectorNumericProperty::ManaValue
+        && !environment.object.as_ref().is_some_and(|antecedent| {
+            matches!(antecedent.reference, PermanentEffectReference::Target(_))
+                && antecedent_names(antecedent, &[nominal])
+        })
     {
         return Ok(NumericExpression::EventValue(
             super::EventNumericBinding::CastSpellManaValue,
         ));
     }
-    let slot = environment
-        .frame
-        .event_object
-        .as_ref()
-        .filter(|slot| slot.implies(nominal) && relation_supported(slot.reference))
-        .ok_or_else(|| cursor.fail("a preceding target or an event object with this nominal"))?;
-    Ok(NumericExpression::BoundObjectProperty {
-        object: slot.reference,
-        property,
-    })
+    let reference = resolve_condition_antecedent(environment, &[nominal])
+        .map_err(|_| cursor.fail("a preceding target or an event object with this nominal"))?;
+    // An event's observed object is read only where the runtime records it.
+    if let PermanentEffectReference::Observed(observed) = reference {
+        cursor.require(
+            matches!(
+                observed,
+                TypedObservedEventObject::EventPermanent
+                    | TypedObservedEventObject::EnteringPermanent
+                    | TypedObservedEventObject::MovedOntoBattlefield
+                    | TypedObservedEventObject::CombatCounterpart
+            ),
+            "a preceding target or an event object with this nominal",
+        )?;
+    }
+    bound_object_numeric_property(reference, property, nominal.as_predicate())
+        .map_err(|expected| cursor.fail(expected))
 }
 
 /// Reads a clause's arguments with `subject` as the clause subject of the
@@ -886,8 +1426,24 @@ pub(in crate::oracle::canonical) fn with_clause_subject<T>(
     with_installed_environment(cursor, environment, read)
 }
 
+/// Reads with `antecedent` as the singular object antecedent when one is
+/// proven, else with the installed environment unchanged. A postposed
+/// `where X is its power` reads the object of the clause it closes.
+pub(in crate::oracle::canonical) fn with_object_antecedent<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<ObjectSubjectAntecedent>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let Some(antecedent) = antecedent else {
+        return read(cursor);
+    };
+    let mut environment = installed_binding_environment(cursor);
+    environment.object = Some(antecedent);
+    with_installed_environment(cursor, environment, read)
+}
+
 /// The clause subject a damage source operand denotes: the ability source,
-/// a bound target, or the single target this action declares.
+/// a bound singular object, or the single target this action declares.
 pub(in crate::oracle::canonical) fn damage_source_subject(
     cursor: &OracleTokenCursor<'_>,
     source: &super::PermanentOperandNode,
@@ -896,18 +1452,24 @@ pub(in crate::oracle::canonical) fn damage_source_subject(
         super::PermanentOperandNode::Reference(reference) => {
             Some(PermanentEffectReference::Source(*reference))
         }
-        super::PermanentOperandNode::BoundReference(
-            reference @ PermanentEffectReference::Target(_),
-        ) => Some(*reference),
-        super::PermanentOperandNode::Targets(targets) if targets.slots.len() == 1 => cursor
-            .binding_environment()
-            .and_then(|environment| environment.effect_index)
-            .map(|effect_index| {
-                PermanentEffectReference::Target(super::TargetBinding {
-                    effect_index,
-                    slot_index: 0,
+        super::PermanentOperandNode::BoundReference(reference)
+            if singular_reference(*reference) =>
+        {
+            Some(*reference)
+        }
+        super::PermanentOperandNode::Targets(targets)
+            if targets.slots.len() == 1 && targets.slots[0].cardinality.maximum == 1 =>
+        {
+            cursor
+                .binding_environment()
+                .and_then(|environment| environment.effect_index)
+                .map(|effect_index| {
+                    PermanentEffectReference::Target(super::TargetBinding {
+                        effect_index,
+                        slot_index: 0,
+                    })
                 })
-            }),
+        }
         _ => None,
     }
 }

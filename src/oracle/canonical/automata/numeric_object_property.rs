@@ -142,29 +142,34 @@ pub(in crate::oracle::canonical) fn recognize_environment_possessive_property(
     cursor.enter("numeric.possessive.property");
     let property = super::recognize_selector_numeric_property(cursor)?;
     cursor.enter("numeric.possessive.antecedent");
-    // A lexical antecedent of the program (a declared target) keeps the
-    // declared-slot property, validated against its selector on lowering.
-    if let Some(antecedent) = environment.object.as_ref()
-        && let super::PermanentEffectReference::Target(binding) = antecedent.reference
-    {
+    // The one possessive resolver: the clause subject, else the program's
+    // singular antecedent, else the event's grammatical subject.
+    let reference = super::resolve_possessive_antecedent(environment)
+        .map_err(|expected| cursor.fail(expected))?;
+    // A declared target keeps the declared-slot property, validated against
+    // its selector on lowering; a toughness read requires the creature
+    // nominal its power and toughness are a creature's (CR 208.3).
+    if let super::PermanentEffectReference::Target(binding) = reference {
         return Ok(match property {
             super::SelectorNumericProperty::Power => NumericExpression::PowerOf(binding),
             super::SelectorNumericProperty::ManaValue => NumericExpression::ManaValueOf(binding),
             super::SelectorNumericProperty::Toughness => {
-                return Err(cursor.fail("a declared-target toughness read with its nominal"));
+                NumericExpression::QualifiedTargetProperty {
+                    object: binding,
+                    required_nominal: super::ObjectPredicate::CardType(
+                        super::ObjectCardType::Creature,
+                    ),
+                    property,
+                }
             }
         });
     }
-    let slot = environment
-        .frame
-        .event_object
-        .as_ref()
-        .filter(|slot| slot.subject && environment.object.is_none())
-        .ok_or_else(|| cursor.fail("an event subject or a preceding target that `its` names"))?;
-    Ok(NumericExpression::BoundObjectProperty {
-        object: slot.reference,
+    super::bound_object_numeric_property(
+        reference,
         property,
-    })
+        super::ObjectPredicate::ObjectKind(super::ObjectKind::Permanent),
+    )
+    .map_err(|expected| cursor.fail(expected))
 }
 
 /// Lexical lookahead for `the sacrificed NOUN's ...`.
