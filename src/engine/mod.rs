@@ -197,6 +197,7 @@ mod object_relation_eval;
 mod object_snapshot;
 mod one_shot_modifier;
 mod opponent_extremum;
+mod offered_action;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -4559,6 +4560,9 @@ fn permanent_attacks_event_supported(event: &Value) -> bool {
 
 pub fn effect_supported(effect: &Value) -> bool {
     if let Some(supported) = effect_performer::performer_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = offered_action::offered_action_supported(effect) {
         return supported;
     }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
@@ -33330,6 +33334,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {
             return Ok(());
         }
         if self.execute_ability_signal_effect(effect, stack_object, bindings)? {

@@ -459,7 +459,20 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     let mut depth = 0usize;
     let mut quoted = false;
     let mut after_coordinator = false;
-    for token in tokens.iter_mut().skip(verb + 1) {
+    // `of their choice` already names the acting player as the chooser
+    // (CR 101.4); the shared choice marker reads it as written.
+    let chooser_marker = tokens
+        .windows(2)
+        .enumerate()
+        .filter(|(_, pair)| {
+            pair[0].raw.eq_ignore_ascii_case("their") && pair[1].raw.eq_ignore_ascii_case("choice")
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    for (index, token) in tokens.iter_mut().enumerate().skip(verb + 1) {
+        if chooser_marker.contains(&index) {
+            continue;
+        }
         // A verb coordinated with the performer's verb (`searches ..., then
         // shuffles and puts ...`, `searches ..., puts it ...`) has the same
         // subject and agreement; it is read in the base form like the head

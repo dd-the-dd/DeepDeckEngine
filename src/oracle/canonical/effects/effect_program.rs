@@ -100,6 +100,32 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         )
         .map_err(program_failure);
     }
+    if let EffectProgramNode::Offer {
+        players,
+        excluding_controller,
+        producer,
+        performed,
+        declined,
+    } = step
+    {
+        let action = lower(cursor, producer)?;
+        let performed = match performed {
+            Some(body) => Some(lower(cursor, body)?),
+            None => None,
+        };
+        let declined = match declined {
+            Some(body) => Some(lower(cursor, body)?),
+            None => None,
+        };
+        return lower_offered_action(
+            cursor,
+            *players,
+            *excluding_controller,
+            action,
+            [performed, declined],
+        )
+        .map_err(program_failure);
+    }
     if let EffectProgramNode::Alternatives { player, options } = step {
         let mut lowered = Vec::with_capacity(options.len());
         for (label, sequence) in options {
@@ -396,6 +422,86 @@ fn lower_optional_action(
     })
 }
 
+/// `offerAction{players, action, onPerformed, onDeclined}` (CR 608.2d,
+/// 101.4): the runtime offers the one instruction to each player of the
+/// population in turn order, running it as that player's own, until one
+/// actually performs it (measured like `optionalAction`); `onPerformed`
+/// then resolves, else `onDeclined`, both as the controller's instructions.
+/// The instruction declares nothing: a target declared while the ability is
+/// put on the stack would be the controller's, never the offered player's.
+fn lower_offered_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    players: PlayerSetReferenceNode,
+    excluding_controller: bool,
+    action: LoweredEffectSequence,
+    outcomes: [Option<LoweredEffectSequence>; 2],
+) -> MachineResult<LoweredEffectSequence> {
+    cursor.enter("lower.program.offer.action");
+    let [instruction] = action.effects.as_slice() else {
+        return Err(cursor.fail("exactly one offered instruction"));
+    };
+    cursor.require(
+        action.decisions.is_empty() && instruction.get("performer").is_none(),
+        "an offered instruction without declarations, performed by the offered player",
+    )?;
+    if !optional_action_measured(instruction) {
+        return Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::MeasuredPerformance,
+            "an offered instruction whose performance the runtime measures",
+        ));
+    }
+    cursor.enter("lower.program.offer.outcomes");
+    cursor.require(
+        outcomes.iter().any(Option::is_some),
+        "an outcome of the offer (`If a player does` or `If no one does`)",
+    )?;
+    let instruction_names = local_result_names(instruction);
+    let mut decisions = Vec::new();
+    let mut branches = Vec::with_capacity(2);
+    for outcome in outcomes {
+        let Some(body) = outcome else {
+            branches.push(None);
+            continue;
+        };
+        cursor.require(
+            !body.effects.is_empty()
+                && body
+                    .effects
+                    .iter()
+                    .all(|effect| local_result_names(effect).is_disjoint(&instruction_names)),
+            "a nonempty offer outcome with local results distinct from the instruction's",
+        )?;
+        decisions.extend(body.decisions);
+        branches.push(Some(body.effects));
+    }
+    cursor.enter("lower.program.offer.declarations");
+    require_distinct_declarations(
+        cursor,
+        &decisions,
+        "distinct declaration ids across the offer's outcomes",
+    )?;
+    // CR 102.3: `any other player` is every player but the controller.
+    let players = if excluding_controller {
+        json!({"kind": "playersExcept", "player": controller()})
+    } else {
+        lower_player_set_reference(players)
+    };
+    let mut effect = json!({
+        "kind": "offerAction",
+        "players": players,
+        "action": instruction,
+    });
+    for (key, branch) in ["onPerformed", "onDeclined"].into_iter().zip(branches) {
+        if let Some(effects) = branch {
+            effect[key] = Value::Array(effects);
+        }
+    }
+    Ok(LoweredEffectSequence {
+        decisions,
+        effects: vec![effect],
+    })
+}
+
 /// Runtime binding and decision names (`bind`, `id`) produced inside an
 /// effect. A declared-target reference names its declaration; it produces none.
 fn local_result_names(effect: &Value) -> std::collections::BTreeSet<String> {
@@ -490,6 +596,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
         EffectProgramNode::Alternatives { .. } => {
             cursor.enter("lower.program.alternatives");
             Err(cursor.fail("coordinated alternatives lowered with their options"))
+        }
+        EffectProgramNode::Offer { .. } => {
+            cursor.enter("lower.program.offer");
+            Err(cursor.fail("an offer lowered with its outcome sentences"))
         }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),
