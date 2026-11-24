@@ -137,6 +137,14 @@ pub(in crate::oracle::canonical) fn recognize_verb_object_operand(
         return recognize_target_list_with_counts(cursor, expectation.counts)
             .map(VerbObjectOperandNode::Targets);
     }
+    // An attached-object reference (`enchanted creature`) names one object
+    // through the source's attachment; it is never a collection query.
+    if attached_object_reference_starts(cursor) {
+        cursor.enter("verb-operand.attached-reference");
+        return Err(cursor.fail(
+            "an attached-object reference read by the permanent subject frame, not a query",
+        ));
+    }
     // (4) A quantified non-target query: a universal collection or a
     // resolution choice.
     cursor.enter("verb-operand.query");
@@ -209,7 +217,15 @@ fn recognize_quantified_permanent_operand(
     let mut objects = phrase.query.into_object_query(cursor)?;
     objects.exclude_source = exclude_source;
     match determiner {
-        None | Some(ObjectDeterminer::Universal { .. }) => {
+        // A bare plural is not an operand quantifier of an action verb:
+        // its universal reading is not proved for these frames.
+        None => {
+            cursor.enter("verb-operand.query.determiner");
+            Err(cursor.fail(
+                "a quantifier (`each`, `all`, `a`, `an`, `another`, a count or `up to` a count)",
+            ))
+        }
+        Some(ObjectDeterminer::Universal { .. }) => {
             cursor.enter("verb-operand.query.collection");
             Ok(VerbObjectOperandNode::Collection {
                 objects,
