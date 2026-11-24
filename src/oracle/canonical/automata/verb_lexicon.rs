@@ -117,6 +117,12 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Have,
     /// `assign` (combat damage assignment, CR 510.1).
     Assign,
+    /// `activate` (CR 602.2: activating an activated ability), an event verb.
+    Activate,
+    /// `turn` in `is turned face up` (CR 708.8), an event verb.
+    Turn,
+    /// `commit` in `commit a crime` (CR 700.13), an event verb.
+    Commit,
 }
 
 /// One inflected form of a lemma.
@@ -916,6 +922,53 @@ const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
     },
 ];
 
+/// Lemmas read only by event clauses (player actions and object state
+/// changes a trigger observes). They are full lexicon rows, so their forms
+/// are lexicon data, but the effect clause does not dispatch on them: no
+/// instruction of the effect language performs them yet.
+const EVENT_VERB_LEXICON: &[VerbEntry] = &[
+    VerbEntry {
+        lemma: VerbLemma::Activate,
+        forms: VerbForms {
+            base: "activate",
+            third_person_singular: "activates",
+            past: "activated",
+            past_participle: "activated",
+            present_participle: "activating",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Turn,
+        forms: VerbForms {
+            base: "turn",
+            third_person_singular: "turns",
+            past: "turned",
+            past_participle: "turned",
+            present_participle: "turning",
+        },
+        frames: &[ArgumentFrame::StateChange],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Commit,
+        forms: VerbForms {
+            base: "commit",
+            third_person_singular: "commits",
+            past: "committed",
+            past_participle: "committed",
+            present_participle: "committing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+];
+
+/// The event-only lemmas, in entry order.
+pub(in crate::oracle::canonical) static EVENT_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
+    std::sync::LazyLock::new(|| EVENT_VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
+
 /// Every lemma a performer may take, in entry order.
 pub(in crate::oracle::canonical) static ALL_LEMMAS: std::sync::LazyLock<Vec<VerbLemma>> =
     std::sync::LazyLock::new(|| VERB_LEXICON.iter().map(|entry| entry.lemma).collect());
@@ -935,6 +988,7 @@ pub(in crate::oracle::canonical) fn verb_entry(lemma: VerbLemma) -> &'static Ver
     VERB_LEXICON
         .iter()
         .chain(NON_PERFORMED_LEXICON)
+        .chain(EVENT_VERB_LEXICON)
         .find(|entry| entry.lemma == lemma)
         .expect("every VerbLemma has one lexicon entry")
 }

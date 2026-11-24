@@ -73,6 +73,8 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         actions: Vec<super::PlayerEventAction>,
         one_or_more: bool,
         card: Option<super::PlayerEventCardObject>,
+        /// The permanent of `tap PERMANENT for mana`.
+        permanent: Option<super::PlayerEventCardObject>,
     },
     /// `equipped|enchanted creature VERB`: the event subject is the object the
     /// ability source is attached to (CR 301.5a, 303.4a), not the source.
@@ -80,6 +82,21 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         role: AttachedObjectRole,
         action: AttachedObjectEventAction,
     },
+    /// `enchanted creature becomes the target of STACK-OBJECT` (CR 115.1):
+    /// the targeting frame of `become` with the attached object as subject.
+    AttachedObjectTargeted {
+        role: AttachedObjectRole,
+        stack: super::TargetingStackSelectorNode,
+    },
+    /// `enchanted creature is dealt [combat|noncombat] damage` (CR 120.3):
+    /// the passive damage clause with the attached object as recipient.
+    AttachedObjectDealtDamage {
+        role: AttachedObjectRole,
+        damage: DamageKind,
+    },
+    /// `SOURCE and at least N other ATTACKERS attack`, `ACTOR attack(s) with
+    /// N or more ATTACKERS`: one attack declaration (CR 508.1).
+    AttackDeclaration(super::AttackDeclarationNode),
     /// `SUBJECT deals [combat|noncombat] damage [to RECIPIENT]` (CR 120.1)
     /// for the source or its attached object, beyond the established
     /// `combat damage to a player` atoms.
@@ -114,6 +131,9 @@ pub(in crate::oracle::canonical) enum AttachedObjectEventAction {
     Die,
     BecomeTapped,
     BecomeBlocked,
+    /// `is tapped for mana` (CR 106.11a): a mana ability of the attached
+    /// permanent with {T} in its cost was activated.
+    TappedForMana,
 }
 
 /// Recognizes `equipped|enchanted creature VERB` after the trigger word. The
@@ -143,6 +163,29 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
         .ok_or_else(|| cursor.fail("an attached permanent noun"))?;
     cursor.consume(&noun)?;
     cursor.enter("event.attached-object.action");
+    // `is tapped for mana` (CR 106.11a): the passive of the `tap` lemma with
+    // the mana purpose, for any attached permanent.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("is"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            super::is_verb_form(raw, super::VerbLemma::Tap, super::VerbForm::PastParticiple)
+        })
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("for"))
+    {
+        cursor.enter("event.attached-object.tapped-for-mana");
+        cursor.consume("is")?;
+        let participle = cursor.peek().map(str::to_string).unwrap_or_default();
+        cursor.consume(&participle)?;
+        cursor.consume_phrase(&["for", "mana"])?;
+        cursor.enter("event.attached-object.complete");
+        return Ok(LocalTriggerEventNode::AttachedObjectEvent {
+            role,
+            action: AttachedObjectEventAction::TappedForMana,
+        });
+    }
     if noun != "creature" {
         cursor.consume_phrase(&["becomes", "tapped"])?;
         cursor.enter("event.attached-object.complete");
@@ -150,6 +193,41 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
             role,
             action: AttachedObjectEventAction::BecomeTapped,
         });
+    }
+    // The targeting frame of `become` (CR 115.1) with the attached object as
+    // the targeted subject; the stack object is the shared selector.
+    if cursor.peek().is_some_and(|raw| {
+        super::is_verb_form(
+            raw,
+            super::VerbLemma::Become,
+            super::VerbForm::ThirdPersonSingular,
+        )
+    }) && super::targeting_frame_starts(cursor, 1)
+    {
+        cursor.enter("event.attached-object.became-target");
+        cursor.consume("becomes")?;
+        super::consume_targeting_relation(cursor)?;
+        let stack = super::recognize_targeting_stack_selector(
+            cursor,
+            super::TargetingControllerPolicy::Optional,
+        )?;
+        cursor.enter("event.attached-object.complete");
+        return Ok(LocalTriggerEventNode::AttachedObjectTargeted { role, stack });
+    }
+    // `is dealt [combat|noncombat] damage`: the shared passive damage
+    // clause with the attached object as recipient.
+    let passive = super::supplied_damage_frame(
+        super::VerbAgreement::ThirdPersonSingular,
+        super::Voice::Passive,
+        super::ClauseModality::Indicative,
+        super::DamageArguments::PassiveKind,
+    );
+    if let Some(arguments) = super::recognize_supplied_damage_clause(cursor, &passive)? {
+        let super::DamageClauseArguments::Kind(damage) = arguments else {
+            return Err(cursor.fail("the kind of damage the attached object is dealt"));
+        };
+        cursor.enter("event.attached-object.complete");
+        return Ok(LocalTriggerEventNode::AttachedObjectDealtDamage { role, damage });
     }
     let action = if let Some(complement) = recognize_dealt_event_complement(cursor)? {
         if !complement.is_combat_damage_to_any_player() {

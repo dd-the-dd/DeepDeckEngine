@@ -52,6 +52,13 @@ fn compile_recognized_trigger_program(
         "a permanent source face for this battlefield triggered ability",
     )?;
     let event = lower_generic_trigger_event(cursor, &envelope.event)?;
+    // `while CONDITION` / an unmatched turn owner: checked as the event
+    // occurs (CR 603.2), never on resolution like the intervening `if`.
+    let event_condition = envelope
+        .event_condition
+        .as_ref()
+        .map(|condition| lower_event_time_condition(cursor, condition))
+        .transpose()?;
     let mut construction = vec![(
         "Resolve the event envelope; leave the guard and body pending".into(),
         json!({"syntax":"triggeredProgram", "event":event,
@@ -126,6 +133,9 @@ fn compile_recognized_trigger_program(
     let mut rule = json!({"kind":"triggeredAbility", "source":self_ref(), "event":event, "effects":lowered.effects});
     if let Some(condition) = condition {
         rule["condition"] = condition;
+    }
+    if let Some(event_condition) = event_condition {
+        rule["eventCondition"] = event_condition;
     }
     if !lowered.decisions.is_empty() {
         rule["declaration"] = json!({"kind":"castingDeclaration", "decisions":lowered.decisions});

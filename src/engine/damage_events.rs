@@ -57,6 +57,9 @@ enum DamageRecipientPattern<'a> {
     Source,
     /// A permanent its controller controls, with the effective filter.
     ControlledBySourceController(&'a Value),
+    /// The permanent the trigger source is attached to (`enchanted creature
+    /// is dealt damage`).
+    AttachedTo,
 }
 
 /// The established publication point of a damage pattern.
@@ -134,6 +137,9 @@ fn damage_recipient_pattern(recipient: &Value) -> Option<DamageRecipientPattern<
         Some("permanent") if damage_permanent_query_supported(recipient) => {
             Some(DamageRecipientPattern::Permanents(recipient))
         }
+        Some("attachedPermanent") if value_kind(&recipient["attachment"]) == Some("self") => {
+            Some(DamageRecipientPattern::AttachedTo)
+        }
         _ => None,
     }
 }
@@ -174,8 +180,16 @@ pub(super) fn damage_event_pattern(event: &Value) -> Option<Result<DamageEventPa
                 None => DamageRecipientPattern::Any,
                 Some(recipient) => damage_recipient_pattern(recipient)?,
             };
+            // A received-damage pattern may omit the source: damage from
+            // any source to the recipient (CR 120.3). A whole-event pattern
+            // always names its source.
+            let source = match event.get("source") {
+                None if recipient != DamageRecipientPattern::Any => None,
+                None => return None,
+                Some(source) => Some(damage_source_pattern(source)?),
+            };
             Some(DamageEventPattern {
-                source: Some(damage_source_pattern(&event["source"])?),
+                source,
                 aggregated: recipient == DamageRecipientPattern::Any,
                 recipient,
                 combat: damage_kind_flags(event)?,
@@ -294,6 +308,9 @@ impl GameEngine {
                     .is_some_and(|permanent| self.damage_query_matches(query, observer, permanent)),
                 (DamageRecipientPattern::Source, DamageRecipientRecord::Permanent(id)) => {
                     observer.instance_id == *id
+                }
+                (DamageRecipientPattern::AttachedTo, DamageRecipientRecord::Permanent(id)) => {
+                    observer.attached_to.as_deref() == Some(id.as_str())
                 }
                 (
                     DamageRecipientPattern::ControlledBySourceController(filter),
