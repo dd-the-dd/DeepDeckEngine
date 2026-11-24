@@ -401,7 +401,9 @@ pub(in crate::oracle::canonical) fn prior_object_set(
     let effect = &effects[effect_index];
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
         return Some(ObjectSetAntecedent {
-            reference: PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens),
+            denotes: ObjectSetDenotation::Bound(PermanentEffectReference::Observed(
+                TypedObservedEventObject::CreatedTokens,
+            )),
             selector: node.body.described().and_then(created_token_selector),
             number: if node.body.quantity == NumericExpression::from(1) {
                 GrammaticalNumber::Singular
@@ -411,17 +413,30 @@ pub(in crate::oracle::canonical) fn prior_object_set(
             tokens: true,
         });
     }
-    match ordinary_permanent_operand(effect)? {
+    let operand = ordinary_permanent_operand(effect)?;
+    if matches!(operand, PermanentOperandNode::Collection { .. })
+        && matches!(
+            effect,
+            LocalEffectNode::BecomeTypes(_)
+                | LocalEffectNode::ControlChange(_)
+                | LocalEffectNode::PermanentKeywordAction(_)
+        )
+    {
+        return None;
+    }
+    match operand {
         PermanentOperandNode::Targets(targets) => {
             let [slot] = targets.slots.as_slice() else {
                 return None;
             };
             (slot.cardinality.maximum > 1 && selector_guarantees_permanent(&slot.selector)).then(
                 || ObjectSetAntecedent {
-                    reference: PermanentEffectReference::TargetSet(TargetBinding {
-                        effect_index,
-                        slot_index: 0,
-                    }),
+                    denotes: ObjectSetDenotation::Bound(PermanentEffectReference::TargetSet(
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                    )),
                     selector: Some(slot.selector.clone()),
                     number: GrammaticalNumber::Plural,
                     tokens: false,
@@ -431,12 +446,66 @@ pub(in crate::oracle::canonical) fn prior_object_set(
         PermanentOperandNode::BoundReference(
             reference @ PermanentEffectReference::TargetSet(binding),
         ) => Some(ObjectSetAntecedent {
-            reference: *reference,
+            denotes: ObjectSetDenotation::Bound(*reference),
             selector: target_set_selector(effects, *binding),
             number: GrammaticalNumber::Plural,
             tokens: false,
         }),
+        // `Untap all creatures you control. They gain flying`: the same
+        // collection, when the action changes nothing its query tests.
+        PermanentOperandNode::Collection {
+            objects,
+            exclude_source,
+        } if collection_survives(effect, &objects.predicate) => Some(ObjectSetAntecedent {
+            denotes: ObjectSetDenotation::Collection {
+                query: objects.clone(),
+                exclude_source: *exclude_source,
+            },
+            selector: Some(TargetSelector::Object(objects.predicate.clone())),
+            number: GrammaticalNumber::Plural,
+            tokens: false,
+        }),
         _ => None,
+    }
+}
+
+/// True when `effect` leaves every characteristic `predicate` tests
+/// unchanged, so the collection it acted on is exactly the collection the
+/// same query reads after it (CR 608.2c, 611.2c). Types, colors, names,
+/// supertypes, control and ownership are never changed by these actions;
+/// the tapped status, counters, power and toughness, and keywords are each
+/// changed by one of them and admitted only when that action is absent.
+/// Anything else (a designation, a relation, a history) is refused.
+fn collection_survives(effect: &LocalEffectNode, predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::IsCommander
+        | ObjectPredicate::IsToken
+        | ObjectPredicate::CardType(_)
+        | ObjectPredicate::Subtype(_)
+        | ObjectPredicate::CharacteristicBatch(_)
+        | ObjectPredicate::Color(_)
+        | ObjectPredicate::ColorQuantity(_)
+        | ObjectPredicate::Supertype(_)
+        | ObjectPredicate::ExactManaCost(_)
+        | ObjectPredicate::ObjectKind(_)
+        | ObjectPredicate::OwnedByAbilityController { .. }
+        | ObjectPredicate::PermanentCard
+        | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor => true,
+        ObjectPredicate::Status(_) => !matches!(effect, LocalEffectNode::TapPermanents(_)),
+        ObjectPredicate::HasCounter(_) => !matches!(effect, LocalEffectNode::PutCounters(_)),
+        ObjectPredicate::HasKeyword(_) => {
+            !matches!(effect, LocalEffectNode::TemporaryKeywordGrant(_))
+        }
+        ObjectPredicate::NumericComparison { .. } => !matches!(
+            effect,
+            LocalEffectNode::ModifyStats(_) | LocalEffectNode::PutCounters(_)
+        ),
+        ObjectPredicate::Not(operand) => collection_survives(effect, operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => operands
+            .iter()
+            .all(|operand| collection_survives(effect, operand)),
+        ObjectPredicate::Designation(_) | ObjectPredicate::Relation(_) => false,
     }
 }
 
@@ -613,8 +682,7 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
                 .peek()
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
         {
-            return recognize_object_set_reference(cursor, &environment)
-                .map(PermanentOperandNode::BoundReference);
+            return recognize_object_set_reference(cursor, &environment);
         }
     }
     if cursor

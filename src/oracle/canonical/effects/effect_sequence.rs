@@ -1214,8 +1214,12 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 for object in objects {
                     // A plural operand (`those creatures`, `up to two target
-                    // creatures`) restricts each of its permanents.
-                    if object["kind"].as_str() == Some("chosenTargets") {
+                    // creatures`, `all nonblue creatures`) restricts each of
+                    // its permanents.
+                    if matches!(
+                        object["kind"].as_str(),
+                        Some("chosenTargets" | "eachPermanent")
+                    ) {
                         let id = format!("effect{effect_index}:untapRestricted");
                         effects.push(json!({
                             "kind": "forEachObject",

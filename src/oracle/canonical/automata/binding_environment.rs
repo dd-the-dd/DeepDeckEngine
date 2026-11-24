@@ -119,8 +119,8 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
 /// names a single declared object.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ObjectSetAntecedent {
-    /// `TargetSet(slot)` or `Observed(CreatedTokens)`.
-    pub reference: PermanentEffectReference,
+    /// What the set denotes when a later reference names it.
+    pub denotes: ObjectSetDenotation,
     /// The declared selector, or the card types the created tokens have, a
     /// nominal anaphor must follow from. `None` when the producer states no
     /// type (a token copy of an object).
@@ -130,6 +130,46 @@ pub(in crate::oracle::canonical) struct ObjectSetAntecedent {
     pub number: GrammaticalNumber,
     /// The set is created tokens, so `token`/`tokens` names it.
     pub tokens: bool,
+}
+
+/// What an object set denotes when a later reference names it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectSetDenotation {
+    /// A declared target set (`TargetSet(slot)`) or the created tokens
+    /// (`Observed(CreatedTokens)`), recorded by the runtime.
+    Bound(PermanentEffectReference),
+    /// The members of a battlefield collection an action just affected,
+    /// read again by the same query: the preceding action changes none of
+    /// the characteristics the query tests (`prior_object_set` proves it),
+    /// so no object joins or leaves the set between the two actions
+    /// (CR 608.2c; nothing else happens during the resolution).
+    Collection {
+        query: super::ObjectQueryNode,
+        exclude_source: bool,
+    },
+}
+
+impl ObjectSetDenotation {
+    fn bound(&self) -> Option<PermanentEffectReference> {
+        match self {
+            Self::Bound(reference) => Some(*reference),
+            Self::Collection { .. } => None,
+        }
+    }
+
+    /// The permanent operand a reference to the set reads.
+    fn operand(&self) -> super::PermanentOperandNode {
+        match self {
+            Self::Bound(reference) => super::PermanentOperandNode::BoundReference(*reference),
+            Self::Collection {
+                query,
+                exclude_source,
+            } => super::PermanentOperandNode::Collection {
+                objects: query.clone(),
+                exclude_source: *exclude_source,
+            },
+        }
+    }
 }
 
 impl BindingEnvironment {
@@ -1008,16 +1048,16 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
     // `Create a 1/1 Otter creature token. ... that creature`: the one token
     // the preceding action created, with the types it was created with.
     if let Some(set) = environment.objects.as_ref() {
-        match set.number {
-            GrammaticalNumber::Singular
+        match (set.number, set.denotes.bound()) {
+            (GrammaticalNumber::Singular, Some(reference))
                 if set
                     .selector
                     .as_ref()
                     .is_some_and(|selector| selector_names_nominals(selector, nominals)) =>
             {
-                return Ok(set.reference);
+                return Ok(reference);
             }
-            GrammaticalNumber::Plural if environment.object.is_none() => {
+            (GrammaticalNumber::Plural, _) if environment.object.is_none() => {
                 return Err(PLURAL_SET_FOR_SINGULAR);
             }
             _ => {}
@@ -1276,7 +1316,7 @@ pub(in crate::oracle::canonical) fn object_set_reference_starts(
 pub(in crate::oracle::canonical) fn recognize_object_set_reference(
     cursor: &mut OracleTokenCursor<'_>,
     environment: &BindingEnvironment,
-) -> MachineResult<PermanentEffectReference> {
+) -> MachineResult<super::PermanentOperandNode> {
     cursor.enter("permanent.subject.object-set-anaphor");
     let head = object_set_head(cursor)
         .ok_or_else(|| cursor.fail("`they`, `those NOUNs`, `each of them` or `that token`"))?;
@@ -1306,7 +1346,7 @@ pub(in crate::oracle::canonical) fn recognize_object_set_reference(
         )?;
     }
     cursor.advance_to(cursor.position() + head.width)?;
-    Ok(set.reference)
+    Ok(set.denotes.operand())
 }
 
 /// Lexical lookahead for `that NOUN's power|toughness|mana value` and the

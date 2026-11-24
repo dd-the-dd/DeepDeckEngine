@@ -640,6 +640,90 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-flying-crane-technique-they-reread-the-untapped-collection",
+      "request": {
+        "cardName": "Flying Crane Technique",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}{R}{W}",
+        "oracleText": "Untap all creatures you control. They gain flying and double strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-breaching-leviathan-those-creatures-after-tapping-a-color-collection",
+      "request": {
+        "cardName": "Breaching Leviathan",
+        "typeLine": "Creature — Leviathan",
+        "manaCost": "{7}{U}{U}",
+        "oracleText": "When this creature enters, if you cast it from your hand, tap all nonblue creatures. Those creatures don't untap during their controllers' next untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-counters-then-those-creatures-gain-a-keyword",
+      "request": {
+        "cardName": "Generalized Rally Banner",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-tapping-changes-the-untapped-collection",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Tap all untapped creatures. Those creatures don't untap during their controllers' next untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
+      }
     }
   ]
 }
