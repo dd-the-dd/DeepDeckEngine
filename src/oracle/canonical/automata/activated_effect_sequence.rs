@@ -3,9 +3,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     ActivationCostSequenceNode, ActivationTimingAnnotation, EffectRecognitionContext,
-    EffectSequenceNode, EffectSequenceParseAttempt, recognize_activation_cost_sequence,
-    recognize_activation_timing_annotation, recognize_effect_sequence,
-    try_recognize_effect_sequence_before_activation_annotation,
+    EffectSequenceNode, EffectSequenceParseAttempt, recognize_activation_timing_annotation,
+    recognize_effect_sequence, try_recognize_effect_sequence_before_activation_annotation,
     try_recognize_effect_sequence_with_context,
 };
 
@@ -120,12 +119,7 @@ fn recognize_activation_prefix(
         cursor.advance_to(cursor.position() + label_width + 1)?;
     }
     cursor.enter("activation.effect-sequence.costs");
-    // The cost list names its source by the card's name as well as by
-    // `this NOUN` (`Sacrifice Mindslaver:`); its children read the links.
-    let previous = cursor.replace_source_names(Some(name_links.into()));
-    let costs = recognize_activation_cost_sequence(cursor);
-    cursor.replace_source_names(previous);
-    let costs = costs?;
+    let costs = super::recognize_named_activation_cost_sequence(cursor, name_links)?;
     cursor.enter("activation.effect-sequence.separator");
     cursor.consume(":")?;
     Ok(costs)

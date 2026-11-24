@@ -11,6 +11,7 @@
 //! symbol also pays it (`{T}, Sacrifice X Goats`). Other cost parents
 //! (resolution, `unless`) have no announcement and fail binding instead.
 use crate::oracle::counter_name::CounterName;
+use crate::oracle::syntax::ResolvedNameLink;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
@@ -211,6 +212,20 @@ impl ActivationCostSequenceNode {
         }
         requirements
     }
+}
+
+/// The activation cost list of an ability whose name links are known: the
+/// cost children may name the source by the card's name (`Sacrifice Major
+/// Teroh:`, CR 201.5). The links are installed for the list only and the
+/// enclosing ones restored, whatever the outcome.
+pub(in crate::oracle::canonical) fn recognize_named_activation_cost_sequence(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+) -> MachineResult<ActivationCostSequenceNode> {
+    let previous = cursor.replace_source_names(Some(name_links.into()));
+    let costs = recognize_activation_cost_sequence(cursor);
+    cursor.replace_source_names(previous);
+    costs
 }
 
 pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
