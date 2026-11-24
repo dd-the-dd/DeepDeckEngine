@@ -390,3 +390,41 @@ fn the_creatures_that_convoked_the_source_receive_its_counters() {
         [0, 1, 1, 0]
     );
 }
+
+#[test]
+fn a_static_bonus_counts_the_equipment_attached_to_its_source() {
+    // Myr Adapter: `it` names the modified source; each Equipment attached
+    // to it, and no other Equipment, adds +1/+1.
+    let rules = parsed_rules(
+        "Myr Adapter",
+        "Artifact Creature \u{2014} Myr",
+        "This creature gets +1/+1 for each Equipment attached to it.",
+    );
+    let mut engine = test_engine(2);
+    let mut adapter = permanent(
+        "adapter",
+        "Artifact Creature \u{2014} Myr",
+        "player-0",
+        None,
+    );
+    adapter.definition.rules = rules;
+    engine.state.players[0].battlefield = vec![
+        adapter,
+        permanent(
+            "blade",
+            "Artifact \u{2014} Equipment",
+            "player-0",
+            Some("adapter"),
+        ),
+        permanent(
+            "mail",
+            "Artifact \u{2014} Equipment",
+            "player-0",
+            Some("adapter"),
+        ),
+        permanent("loose", "Artifact \u{2014} Equipment", "player-0", None),
+    ];
+    let adapter = engine.state.players[0].battlefield[0].clone();
+    assert_eq!(engine.current_power(&adapter), 4, "2 printed + 2 attached");
+    assert_eq!(engine.current_toughness(&adapter), 4);
+}

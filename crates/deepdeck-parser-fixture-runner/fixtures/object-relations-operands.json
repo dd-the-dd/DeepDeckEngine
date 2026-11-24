@@ -724,6 +724,72 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-myr-adapter-static-count-of-equipment-attached-to-it",
+      "request": {
+        "cardName": "Myr Adapter",
+        "typeLine": "Artifact Creature — Myr",
+        "manaCost": "{3}",
+        "oracleText": "This creature gets +1/+1 for each Equipment attached to it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-champion-of-the-flame-relation-scopes-the-coordinated-heads",
+      "request": {
+        "cardName": "Champion of the Flame",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{1}{R}",
+        "oracleText": "Trample\nThis creature gets +2/+2 for each Aura and Equipment attached to it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-uril-named-subject-count-of-auras-attached-to-it",
+      "request": {
+        "cardName": "Uril, the Miststalker",
+        "typeLine": "Legendary Creature — Beast",
+        "manaCost": "{2}{R}{G}{W}",
+        "oracleText": "Hexproof (This creature can't be the target of spells or abilities your opponents control.)\nUril gets +2/+2 for each Aura attached to it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }

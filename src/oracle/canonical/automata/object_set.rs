@@ -57,15 +57,27 @@ impl ObjectQueryNode {
     }
 }
 
+/// A trailing qualifier of the last coordinated head that scopes the whole
+/// coordinated noun phrase: a numeric comparison, or a relation to another
+/// object (`Auras and Equipment attached to it`: both are attached).
 fn is_shared_numeric_collection_qualifier(predicate: &SelectorPredicate) -> bool {
-    matches!(predicate, SelectorPredicate::NumericComparison { .. })
+    match predicate {
+        SelectorPredicate::NumericComparison { .. }
+        | SelectorPredicate::Relation(super::ObjectRelation::Related(_)) => true,
+        SelectorPredicate::Not(operand) => matches!(
+            operand.as_ref(),
+            SelectorPredicate::Relation(super::ObjectRelation::Related(_))
+        ),
+        _ => false,
+    }
 }
 
 fn has_branch_local_postnominal_qualifier(predicate: &SelectorPredicate) -> bool {
     match predicate {
         SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::HasCounter(_)
-        | SelectorPredicate::NumericComparison { .. } => true,
+        | SelectorPredicate::NumericComparison { .. }
+        | SelectorPredicate::Relation(super::ObjectRelation::Related(_)) => true,
         SelectorPredicate::Intersection(operands) | SelectorPredicate::Union(operands) => {
             operands.iter().any(has_branch_local_postnominal_qualifier)
         }
