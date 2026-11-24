@@ -158,10 +158,7 @@ fn claimed_malformed_members_fail_at_the_responsible_cost_state() {
         );
         assert_eq!(ability.status, "unsupported", "{oracle_text}");
         let diagnostic = ability.diagnostics.first().unwrap();
-        assert_eq!(
-            diagnostic.automaton.as_deref(),
-            Some("additional-cost")
-        );
+        assert_eq!(diagnostic.automaton.as_deref(), Some("additional-cost"));
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.found.as_deref(), Some(found));
     }

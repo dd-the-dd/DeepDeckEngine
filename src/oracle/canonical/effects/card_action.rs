@@ -1773,7 +1773,15 @@ impl CardCollectionMemory {
                                 || (self.view_from_library_top
                                     && self.view.as_ref() == Some(&cards))
                         }
-                        CardOperandNode::LibraryTop(_) => false,
+                        // A card chosen (or chosen at random) from a hidden
+                        // zone or from outside the game: the choice fixed
+                        // its identity (CR 400.11, 608.2c).
+                        CardOperandNode::HiddenChoice(_) => is_choice_result(&cards),
+                        // Card copies are refused by `operand` before this
+                        // point; they exist only to be cast (CR 707.12).
+                        CardOperandNode::LibraryTop(_) | CardOperandNode::CardCopies { .. } => {
+                            false
+                        }
                     };
                     cursor.require(
                         proved_operand

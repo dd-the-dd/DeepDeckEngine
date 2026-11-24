@@ -88,6 +88,9 @@ pub(in crate::oracle::canonical) fn bound_player_reference_value(
                 "object": object,
             }))
         }
+        // The defending player of a combat check is bound only while a
+        // static combat restriction is checked, never in an effect program.
+        BoundPlayerReference::DefendingPlayer => None,
     }
 }
 

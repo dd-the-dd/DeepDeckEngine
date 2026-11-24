@@ -129,7 +129,8 @@ fn a_superlative_population_unites_its_coordinated_nouns() {
         "creature or planeswalker with the greatest mana value among creatures and planeswalkers they control",
     )
     .expect("a coordinated population parses");
-    let [ObjectQualifier::Extremum { among, .. }] = qualifiers(&parsed.predicate).as_slice() else {
+    let found = qualifiers(&parsed.predicate);
+    let [ObjectQualifier::Extremum { among, .. }] = found.as_slice() else {
         panic!("one superlative: {:?}", parsed.predicate);
     };
     assert_eq!(
