@@ -588,6 +588,59 @@ tests et les sondes se font sur le lot intégré.
   `sacrifice_trigger_program`, `permanent_entered_effect_sequence`,
   `phase_trigger_sequence`) qui lisent encore leur propre mot déclencheur.
 
+## Étape 17 (lot 2, thème triggerevents) : langage des conditions de déclenchement
+
+Écrite sans compilation ; compilation et tests sur le lot intégré.
+
+- **Liste de conditions** (CR 603.2) : `EVENT [,] and when|whenever|at the
+  beginning of EVENT ...`. Chaque membre est une clause complète lue par
+  `read_event_clause` avec son propre introducteur ; la clause ne consomme
+  la frontière qu'après le dernier membre (`compound_continuation_at`). Le
+  nœud `GenericTriggerEventNode::Compound` s'abaisse en un `oneOf` aplati
+  dans l'ordre écrit ; la règle se déclenche une fois par occurrence d'un
+  membre (les sites moteur testent `any` sur les variantes). `enters and
+  attacks` (pas d'introducteur après `and`) n'est pas une liste et échoue à
+  la frontière.
+- **Condition au moment de l'événement** : `while CONDITION` (le lecteur de
+  conditions partagé, portée `Static`) et un propriétaire du tour qu'aucun
+  motif n'évalue deviennent `EventTimeConditionNode`. Pour une occurrence
+  seule, l'enveloppe la hisse en `rule.eventCondition`, vérifiée à la
+  publication (`event_condition_suppresses`, jamais à la résolution, à la
+  différence du `if` intercalé). Pour un membre de liste, elle reste
+  `eventCondition` du membre, évaluée par le matcher de ce `kind`
+  (`controlledCreaturesAttacked`, `turnedFaceUp`) ; ailleurs c'est un
+  `engine.gap.event-matcher` (la publication d'une liste ne sait pas quel
+  membre a correspondu).
+- **Déclaration d'attaque** : `ACTOR attack(s) with N or more QUERY` et
+  `SOURCE and at least N other QUERY attack` (bataillon, Odric) donnent
+  `AttackDeclarationNode`, abaissé en `controlledCreaturesAttacked` avec
+  `minimum` et `sourceMustAttack`. `N or more QUERY you control attack`
+  emprunte le même matcher. Les compagnons filtrés autrement que `creatures`
+  restent un `engine-gap` (le matcher filtre aussi la source).
+- **Objet attaqué** : `attacks you or a planeswalker you control` est un
+  attribut `attacked: {anyOf: [...]}` du motif d'attaque par attaquant ;
+  l'enregistrement porte `attacked_permanent` (CR 506.2).
+- **Verbes de la source et de l'objet attaché** : `is turned face up`
+  (lemme `turn`, `turnedFaceUp` avec objet `self` ou requête `permanents`),
+  `becomes untapped` (`permanentUntapped`, publié par la tentative de
+  dégagement partagée ; un marqueur d'étourdissement n'est pas un
+  dégagement), `enchanted creature becomes the target of` (sélecteur
+  `attachedPermanent` du matcher de ciblage générique), `is dealt damage`
+  (motif `dealDamage` sans source, destinataire `attachedPermanent`), `is
+  tapped for mana`.
+- **Verbes d'action du joueur** (lemmes `activate`, `tap`, `commit`, table
+  `EVENT_VERB_LEXICON` hors dispatch des effets) : `activate an ability that
+  isn't a mana ability` / `a loyalty ability` (`nonManaAbilityActivated`),
+  `tap PERMANENT for mana` (`controlledPermanentManaAbilityActivated`),
+  `commit a crime` (reconnu, `engine-gap`).
+- **Déclencheur d'état** (CR 603.8) : `SOURCE has no|N or more COUNTERS on
+  it` → `stateConditionMet` sur `countCounters`.
+- Restent : condition de membre pour les autres `kind`, objet attaqué d'un
+  lot d'attaquants, `the player with the most life`, `an opponent attacks
+  with creatures` (Mangara), `enters from ZONE`, fenêtre `this turn` des
+  déclencheurs créés par effet, `first time each turn` hors combat et
+  ciblage, `leaves` de l'objet attaché, `dies` d'un `this or another`.
+
 ## Familles suivantes
 
 1. **Marqueurs** : `countersPlaced`, `counterRemoved` → lemme `putCounters`,

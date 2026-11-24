@@ -315,3 +315,23 @@ fn a_counter_threshold_on_the_source_is_a_state_trigger() {
         ">="
     );
 }
+
+#[test]
+fn an_entry_origin_is_an_attribute_of_the_entry_pattern() {
+    assert_eq!(
+        event("When this creature enters from your graveyard, draw a card."),
+        json!({"kind": "enterBattlefield", "object": self_ref(), "fromZone": "graveyard"})
+    );
+    let lowered = event("Whenever a creature enters from a graveyard, draw a card.");
+    assert_eq!(lowered["kind"], "permanentEntered");
+    assert_eq!(lowered["fromZone"], "graveyard");
+    assert_eq!(
+        event("Whenever a creature you control enters from exile, draw a card.")["fromZone"],
+        "exile"
+    );
+    // Another permanent's owner relation is not recorded with the origin.
+    assert_eq!(
+        failure("Whenever a creature enters from your graveyard, draw a card.").state,
+        "trigger.envelope.entry-origin-owner"
+    );
+}

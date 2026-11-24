@@ -143,6 +143,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             kind,
             subjects,
             entry_state,
+            origin,
             union_kind,
         } => {
             cursor.require(
@@ -158,6 +159,11 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                     {
                         lowered["entryState"] =
                             json!({"tapped":*state==EntryStatePredicate::Tapped});
+                    }
+                    if let Some(origin) = origin
+                        && transition == PermanentTransitionKind::Entered
+                    {
+                        lowered["fromZone"] = json!(origin.zone);
                     }
                     events.push(lowered);
                 }
@@ -541,6 +547,27 @@ fn lower_source_event_patterns(
     }
     let mut events = Vec::new();
     for verb in &event.verbs {
+        // The source entering from a written zone: the entry matcher reads
+        // the origin the engine recorded on the entering object.
+        if *verb == SourceEventVerb::Entered
+            && let Some(origin) = event.modifiers.iter().find_map(|modifier| match modifier {
+                SourceEventModifier::EnteredFrom(origin) => Some(origin),
+                _ => None,
+            })
+        {
+            if first_time {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an entry",
+                ));
+            }
+            events.push(json!({
+                "kind": "enterBattlefield",
+                "object": self_ref(),
+                "fromZone": origin.zone,
+            }));
+            continue;
+        }
         // CR 115.1: the source as the targeted object, observed by the
         // generic targeting matcher with the stack-object selector.
         if *verb == SourceEventVerb::BecameTarget {

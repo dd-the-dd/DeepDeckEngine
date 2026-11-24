@@ -141,6 +141,52 @@ fn duplicate(cursor: &OracleTokenCursor<'_>) -> MachineFailure {
     cursor.fail("each event modifier at most once")
 }
 
+/// The zone an entering object comes from (`enters from your graveyard`).
+/// The engine records the origin zone on the entering object; `your` names
+/// the owner's zone, which only the source itself is known to have left.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EntryOriginNode {
+    pub zone: &'static str,
+    /// Written `your ZONE` (relative to the ability controller).
+    pub own: bool,
+}
+
+/// `from` starts an entry origin at the cursor (a lexical probe).
+pub(in crate::oracle::canonical) fn entry_origin_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "from")
+}
+
+/// Reads `from (your|a) graveyard | from your hand | from your library |
+/// from exile` after `enters [the battlefield]`.
+pub(in crate::oracle::canonical) fn recognize_entry_origin(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EntryOriginNode> {
+    cursor.enter("event.modifier.entry-origin");
+    cursor.consume("from")?;
+    if word_at(cursor, 0, "exile") {
+        cursor.consume("exile")?;
+        return Ok(EntryOriginNode {
+            zone: "exile",
+            own: false,
+        });
+    }
+    let own = word_at(cursor, 0, "your");
+    if own {
+        cursor.consume("your")?;
+    } else {
+        cursor.consume("a")?;
+    }
+    cursor.enter("event.modifier.entry-origin.zone");
+    let zone = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("graveyard") => "graveyard",
+        Some("hand") if own => "hand",
+        Some("library") if own => "library",
+        _ => return Err(cursor.fail("a graveyard, your hand, your library or exile")),
+    };
+    cursor.consume(zone)?;
+    Ok(EntryOriginNode { zone, own })
+}
+
 /// The state an occurrence requires when it happens (CR 603.2): the turn
 /// owner of an event kind without a pattern-level turn matcher, and a written
 /// `while CONDITION`. It is evaluated once, as the event occurs; it is never

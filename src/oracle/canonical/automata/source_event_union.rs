@@ -92,6 +92,8 @@ pub(in crate::oracle::canonical) enum SourceEventModifier {
     DuringTurn(super::EventTurnOwner),
     /// The spell or ability of `becomes the target of STACK-OBJECT`.
     TargetingStack(super::TargetingStackSelectorNode),
+    /// `enters from ZONE`: the zone the entering source left.
+    EnteredFrom(super::EntryOriginNode),
 }
 
 impl SourceEventModifier {
@@ -203,6 +205,11 @@ fn recognize_source_event_verb(
         consume_verb(cursor, VerbLemma::Enter)?;
         if peek_is(cursor, 0, "the") && peek_is(cursor, 1, "battlefield") {
             cursor.consume_phrase(&["the", "battlefield"])?;
+        }
+        if super::entry_origin_starts(cursor) {
+            modifiers.push(SourceEventModifier::EnteredFrom(
+                super::recognize_entry_origin(cursor)?,
+            ));
         }
         return Ok(SourceEventVerb::Entered);
     }

@@ -703,6 +703,7 @@ fn read_permanent_transition(
     cursor.consume(action)?;
     let mut entry_state = None;
     let mut entering_controller = false;
+    let mut origin = None;
     if kind == PermanentTransitionKind::Entered {
         cursor.enter("trigger.envelope.permanent-subject");
         if subjects.alternatives.iter().any(|branch| {
@@ -716,6 +717,18 @@ fn read_permanent_transition(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
         {
             cursor.consume_phrase(&["the", "battlefield"])?;
+        }
+        // `from ZONE`: the origin the engine records on the entering
+        // object. An owner-relative zone (`your graveyard`) would add an
+        // ownership relation the entry matcher does not evaluate.
+        if super::entry_origin_starts(cursor) {
+            let entry_origin = super::recognize_entry_origin(cursor)?;
+            cursor.enter("trigger.envelope.entry-origin-owner");
+            cursor.require(
+                !entry_origin.own,
+                "an entry origin without an owner relation (`a graveyard`, `exile`)",
+            )?;
+            origin = Some(entry_origin);
         }
         if cursor
             .peek()
@@ -765,8 +778,8 @@ fn read_permanent_transition(
         // controller; the subjects carry one pre-event controller relation
         // shared by both branches, so the union would leak it into `or dies`.
         cursor.require(
-            !entering_controller,
-            "an entering-controller scope without a transition union (it binds only the entering branch)",
+            !entering_controller && origin.is_none(),
+            "an entering-controller scope or origin without a transition union (it binds only the entering branch)",
         )?;
         cursor.consume_phrase(&["or", other.0])?;
         union_kind = Some(other.1);
@@ -775,6 +788,7 @@ fn read_permanent_transition(
         kind,
         subjects: subjects.clone(),
         entry_state,
+        origin,
         union_kind,
     })
 }

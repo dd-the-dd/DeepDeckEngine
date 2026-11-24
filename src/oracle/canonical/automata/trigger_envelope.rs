@@ -34,6 +34,8 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
         kind: PermanentTransitionKind,
         subjects: PermanentDiedEventNode,
         entry_state: Option<EntryStatePredicate>,
+        /// `enters from a graveyard`: the zone the entering object left.
+        origin: Option<super::EntryOriginNode>,
         /// `enters or dies`: the other transition of the same subjects, an
         /// alternative event (one occurrence each, never both at once).
         union_kind: Option<PermanentTransitionKind>,
