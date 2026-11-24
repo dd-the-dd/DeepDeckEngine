@@ -5,21 +5,17 @@ use crate::oracle::{
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ChoiceBinding, LocalObjectReference, LocalPlayerReference, ManaCostNode, ObjectCardType,
-    ObjectQueryNode, recognize_mana_cost, recognize_object_collection, recognize_source_reference,
+    CardNameDomainNode, ChoiceBinding, LocalObjectReference, LocalPlayerReference, ManaCostNode,
+    ObjectCardType, ObjectQueryNode, recognize_card_name_domain, recognize_mana_cost,
+    recognize_object_collection, recognize_source_reference,
 };
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum CardNameDomain {
-    Any,
-    CardType(ObjectCardType),
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardNameChoiceNode {
     pub player: LocalPlayerReference,
     pub binding: ChoiceBinding,
-    pub domain: CardNameDomain,
+    /// The shared card-name domain of `choose_instruction.rs`.
+    pub domain: CardNameDomainNode,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -116,61 +112,31 @@ fn recognize_entering_source(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CardNameChoiceState {
     Action,
-    Quantifier,
-    DomainOrCard,
-    CardNoun,
-    Property,
+    Domain,
     Terminator,
     Complete,
 }
 
 /// Recognizes a free card-name decision. This is deliberately distinct from
 /// lexical name resolution: no concrete card name appears in this phrase.
+/// The admitted names are the shared card-name domain (`a nonland card
+/// name`, `a creature card name`, `a card name other than a basic land card
+/// name`).
 pub(in crate::oracle::canonical) fn recognize_card_name_choice(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CardNameChoiceNode> {
     let mut state = CardNameChoiceState::Action;
-    let mut domain = CardNameDomain::Any;
+    let mut domain = None;
     loop {
         state = match state {
             CardNameChoiceState::Action => {
                 cursor.enter("choice.card-name.action");
                 cursor.consume("choose")?;
-                CardNameChoiceState::Quantifier
+                CardNameChoiceState::Domain
             }
-            CardNameChoiceState::Quantifier => {
-                cursor.enter("choice.card-name.quantifier");
-                let quantifier = cursor
-                    .peek()
-                    .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("any"))
-                    .ok_or_else(|| cursor.fail("`a` or `any`"))?
-                    .to_string();
-                cursor.consume(&quantifier)?;
-                CardNameChoiceState::DomainOrCard
-            }
-            CardNameChoiceState::DomainOrCard => {
+            CardNameChoiceState::Domain => {
                 cursor.enter("choice.card-name.domain");
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("card"))
-                {
-                    CardNameChoiceState::CardNoun
-                } else {
-                    let object_type = permanent_type(cursor.peek())
-                        .ok_or_else(|| cursor.fail("`card` or a permanent card type"))?;
-                    cursor.advance_to(cursor.position() + 1)?;
-                    domain = CardNameDomain::CardType(object_type);
-                    CardNameChoiceState::CardNoun
-                }
-            }
-            CardNameChoiceState::CardNoun => {
-                cursor.enter("choice.card-name.card-noun");
-                cursor.consume("card")?;
-                CardNameChoiceState::Property
-            }
-            CardNameChoiceState::Property => {
-                cursor.enter("choice.card-name.property");
-                cursor.consume("name")?;
+                domain = Some(recognize_card_name_domain(cursor)?);
                 CardNameChoiceState::Terminator
             }
             CardNameChoiceState::Terminator => {
@@ -183,7 +149,7 @@ pub(in crate::oracle::canonical) fn recognize_card_name_choice(
                 return Ok(CardNameChoiceNode {
                     player: LocalPlayerReference::Controller,
                     binding: ChoiceBinding::CardName,
-                    domain,
+                    domain: cursor.require_value(domain, "a card-name domain")?,
                 });
             }
         };
@@ -294,6 +260,32 @@ pub(in crate::oracle::canonical) fn recognize_chosen_card_name_predicate(
                 });
             }
         };
+    }
+}
+
+/// `with the chosen name` / `with that name`: the postnominal qualifier that
+/// reads the card name an earlier `choose a card name` of the same effect
+/// program recorded (CR 201.2, 608.2d). Lexical lookahead only; the rule
+/// validator proves the producer. Outside an effect program (a stored `As
+/// ... enters` choice) it is not claimed, so that reference keeps its own
+/// reader.
+pub(in crate::oracle::canonical) fn chosen_card_name_qualifier_length(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !word(0, "with") || !super::resolution_choice_in_scope(cursor) {
+        return None;
+    }
+    if word(1, "the") && word(2, "chosen") && word(3, "name") {
+        Some(4)
+    } else if word(1, "that") && word(2, "name") {
+        Some(3)
+    } else {
+        None
     }
 }
 

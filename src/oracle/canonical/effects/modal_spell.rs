@@ -159,6 +159,33 @@ fn lower_mode_occurrence(
     Ok(LoweredModeOccurrence { selected, lowered })
 }
 
+/// The maximum of the `chooseModes` declaration: the header's literal, or,
+/// with a mode-count upgrade, the shared conditional value evaluated when
+/// the modes are chosen (CR 601.2b, 700.2). The condition is the shared
+/// condition lowering; a condition it cannot represent fails here.
+fn lower_mode_maximum(
+    cursor: &mut OracleTokenCursor<'_>,
+    modal: &EffectSequenceModalNode,
+) -> MachineResult<Value> {
+    let base = integer(i64::from(modal.cardinality.maximum));
+    let Some(upgrade) = &modal.upgrade else {
+        return Ok(base);
+    };
+    let condition = lower_condition(&upgrade.condition);
+    if condition["kind"].as_str() == Some("unsupportedCondition") {
+        cursor.enter("modal.lower.mode-count-condition");
+        return Err(cursor.fail(
+            "a mode-count condition the shared condition lowering represents without bindings",
+        ));
+    }
+    Ok(json!({
+        "kind": "conditionalValue",
+        "condition": condition,
+        "ifTrue": integer(i64::from(upgrade.maximum)),
+        "ifFalse": base,
+    }))
+}
+
 /// `the chosen modes contain this mode at least N times` (CR 700.2d).
 fn selected_at_least(mode_id: &str, occurrences: u32) -> Value {
     json!({
@@ -214,7 +241,7 @@ pub(in crate::oracle::canonical) fn lower_effect_sequence_modal(
         "id": "chosenModes",
         "kind": "chooseModes",
         "minimum": modal.cardinality.minimum,
-        "maximum": integer(i64::from(modal.cardinality.maximum)),
+        "maximum": lower_mode_maximum(cursor, modal)?,
         "options": mode_ids,
         "allowRepeated": modal.cardinality.allow_repeated,
     })];

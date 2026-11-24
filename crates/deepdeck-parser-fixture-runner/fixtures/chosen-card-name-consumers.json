@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "choices-and-cardinality/chosen-card-name-consumers-after-selector-hook",
+  "cases": [
+    {
+      "id": "exact-demonic-consultation-chosen-name",
+      "request": {
+        "cardName": "Demonic Consultation",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "resolutionCardName"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-divining-witch-chosen-name-activation",
+      "request": {
+        "cardName": "Divining Witch",
+        "typeLine": "Creature — Human Spellshaper",
+        "manaCost": "{1}{B}",
+        "oracleText": "{1}{B}, {T}, Discard a card: Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCardName"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ancient-vendetta-that-name",
+      "request": {
+        "cardName": "Ancient Vendetta",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Choose a card name. Search target opponent's graveyard, hand, and library for up to four cards with that name and exile them. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/effects/0/where",
+                "equals": null
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

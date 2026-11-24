@@ -73,6 +73,10 @@ pub(in crate::oracle::canonical) fn parse_promoted_library_search_partition(
         "the controller's hand as the remainder destination",
     )?;
 
+    cursor.require(
+        sequence.search.count.is_none(),
+        "a literal search count before the partition",
+    )?;
     let searched = "searchedCards";
     let selected = "battlefieldCard";
     let trace = cursor

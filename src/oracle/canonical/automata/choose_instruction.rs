@@ -15,9 +15,11 @@
 //! approximated. Mode choices (`choose one —`) belong to the modal parent.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    PlayerPredicate, TargetListNode, TargetSelector, recognize_target_list,
-    selector_guarantees_permanent,
+    CardSupertype, ObjectCardType, ObjectPredicate, PlayerPredicate, TargetCountSupport,
+    TargetListNode, TargetSelector, recognize_object_predicate_atom,
+    recognize_target_list_with_counts, selector_guarantees_permanent,
 };
+use crate::oracle::characteristic_vocabulary::AcceptedForms;
 
 /// The chooser of a `choose` instruction. An imperative `choose` is the
 /// ability's controller (CR 608.2d); other choosers are not read yet.
@@ -43,6 +45,18 @@ pub(in crate::oracle::canonical) enum ChoiceDomainNode {
     /// while the effect resolves (CR 608.2d), not a target. It is the
     /// antecedent of a later `that player`.
     Player(PlayerChoiceNode),
+    /// `choose a [nonland] card name`: a name chosen while the effect
+    /// resolves (CR 608.2d, 201.3), read later as `with the chosen name` /
+    /// `with that name`.
+    CardName(CardNameDomainNode),
+}
+
+/// The names a card-name choice admits: the names of cards satisfying the
+/// shared card predicate (`nonland`, `nonartifact, nonland`, `creature`,
+/// `other than a basic land card name`). `None` admits every card name.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CardNameDomainNode {
+    pub predicate: Option<ObjectPredicate>,
 }
 
 /// The population a resolution-time player choice draws from.
@@ -76,7 +90,8 @@ impl ChooseInstructionNode {
             | ChoiceDomainNode::PlayerTarget(targets) => Some(targets),
             ChoiceDomainNode::CreatureType
             | ChoiceDomainNode::Color
-            | ChoiceDomainNode::Player(_) => None,
+            | ChoiceDomainNode::Player(_)
+            | ChoiceDomainNode::CardName(_) => None,
         }
     }
 
@@ -86,7 +101,8 @@ impl ChooseInstructionNode {
             ChoiceDomainNode::PlayerTarget(_)
             | ChoiceDomainNode::CreatureType
             | ChoiceDomainNode::Color
-            | ChoiceDomainNode::Player(_) => None,
+            | ChoiceDomainNode::Player(_)
+            | ChoiceDomainNode::CardName(_) => None,
         }
     }
 }
@@ -127,7 +143,7 @@ impl ResolutionDomain {
             Self::Color => "an unrestricted color choice",
             Self::CreatureType => "an unrestricted creature-type choice",
             Self::CardType => "an executable binding consumer for a chosen card type",
-            Self::CardName => "an executable binding consumer for a chosen card name",
+            Self::CardName => "`a [CHARACTERISTICS] card name [other than a basic land card name]`",
             Self::LandType => "an executable binding consumer for a chosen land type",
             Self::Number => "an executable binding consumer for a chosen number",
             Self::Player => "`an opponent` or `a player`, optionally `at random`",
@@ -173,12 +189,19 @@ fn classify_resolution_domain(cursor: &OracleTokenCursor<'_>) -> Option<Resoluti
         return None;
     }
     // The noun phrase after the determiner names the domain; a qualified card
-    // name (`a nonland card name`) keeps its trailing `name` head.
-    let phrase_end = (1..8)
+    // name (`a nonland card name`, `a nonartifact, nonland card name`) keeps
+    // its trailing `name` head. A comma joins characteristics of the phrase,
+    // never a following `, then` instruction.
+    let phrase_end = (1..10)
         .take_while(|offset| {
-            cursor
-                .peek_ahead(*offset)
-                .is_some_and(|raw| raw.chars().all(|c| c.is_alphanumeric() || c == '-'))
+            cursor.peek_ahead(*offset).is_some_and(|raw| {
+                raw.chars().all(|c| c.is_alphanumeric() || c == '-')
+                    || (raw == ","
+                        && !word_at(cursor, offset + 1, "then")
+                        && cursor.peek_ahead(offset + 1).is_some_and(|next| {
+                            next.chars().all(|c| c.is_alphanumeric() || c == '-')
+                        }))
+            })
         })
         .last()
         .unwrap_or(0);
@@ -255,6 +278,62 @@ fn recognize_player_choice(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
     Ok(PlayerChoiceNode { population, random })
 }
 
+/// `a [CHARACTERISTIC[,] ...] card name [other than a basic land card name]`
+/// (CR 201.3): the admitted names are those of cards with the shared card
+/// characteristics. Each characteristic is the shared predicate atom; the
+/// list is their intersection. Anything else fails at this state. The same
+/// domain serves a resolution choice and a choice stored as a permanent
+/// enters (`As this creature enters, choose a nonland card name`).
+pub(in crate::oracle::canonical) fn recognize_card_name_domain(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardNameDomainNode> {
+    cursor.enter(ResolutionDomain::CardName.state());
+    cursor.require(
+        word_at(cursor, 0, "a") || word_at(cursor, 0, "an") || word_at(cursor, 0, "any"),
+        ResolutionDomain::CardName.expectation(),
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    let mut atoms = Vec::new();
+    while !word_at(cursor, 0, "card") {
+        cursor.enter("choose.domain.card-name.characteristic");
+        atoms.push(recognize_object_predicate_atom(
+            cursor,
+            AcceptedForms::SingularOnly,
+        )?);
+        if cursor.peek() == Some(",") {
+            cursor.consume(",")?;
+        }
+    }
+    cursor.enter("choose.domain.card-name.noun");
+    cursor.consume_phrase(&["card", "name"])?;
+    if word_at(cursor, 0, "other") {
+        // `other than a basic land card name`: the basic land names are
+        // excluded from the admitted names.
+        cursor.enter("choose.domain.card-name.exclusion");
+        cursor.consume_phrase(&["other", "than", "a", "basic", "land", "card", "name"])?;
+        atoms.push(ObjectPredicate::Not(Box::new(
+            ObjectPredicate::Intersection(vec![
+                ObjectPredicate::Supertype(CardSupertype::Basic),
+                ObjectPredicate::CardType(ObjectCardType::Land),
+            ]),
+        )));
+    }
+    cursor.enter("choose.domain.card-name.boundary");
+    cursor.require(
+        cursor
+            .peek()
+            .is_none_or(|raw| matches!(raw, "." | "," | ";")),
+        "the end of the card-name choice",
+    )?;
+    Ok(CardNameDomainNode {
+        predicate: match atoms.len() {
+            0 => None,
+            1 => atoms.pop(),
+            _ => Some(ObjectPredicate::Intersection(atoms)),
+        },
+    })
+}
+
 /// Recognizes `choose DOMAIN`. Sentence punctuation stays with the sequence.
 pub(in crate::oracle::canonical) fn recognize_choose_instruction(
     cursor: &mut OracleTokenCursor<'_>,
@@ -272,17 +351,26 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
         word_at(&trial, offset, "target")
             || (word_at(&trial, offset, "other") && word_at(&trial, offset + 1, "target"))
     };
+    // A typed count (`any number of`, `X`, `that many`, `up to X`) heads a
+    // target list only when the `target` head follows it.
+    let expressed_count_width = {
+        let mut probe = trial.clone();
+        (super::expressed_target_count_starts(&probe)
+            && super::recognize_target_count(&mut probe).is_ok())
+        .then(|| probe.position() - trial.position())
+    };
     let explicit_target = trial.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("target")
             || raw.eq_ignore_ascii_case("another")
             || (raw.eq_ignore_ascii_case("any") && word_at(&trial, 1, "target"))
     }) || (quantity_head && target_after(1))
-        || (word_at(&trial, 0, "up") && word_at(&trial, 1, "to") && target_after(3));
+        || (word_at(&trial, 0, "up") && word_at(&trial, 1, "to") && target_after(3))
+        || expressed_count_width.is_some_and(target_after);
     if !explicit_target {
         if word_at(&trial, 0, "any") && word_at(&trial, 1, "number") && word_at(&trial, 2, "of") {
             *cursor = trial;
             cursor.enter("choose.domain.target.cardinality");
-            return Err(cursor.fail("a literal or `up to N` target cardinality"));
+            return Err(cursor.fail("a `target` head after the declared target count"));
         }
         if quantity_head
             || (word_at(&trial, 0, "any") && word_at(&trial, 1, "number"))
@@ -305,6 +393,9 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
                 ResolutionDomain::Player => {
                     recognize_player_choice(&mut trial).map(ChoiceDomainNode::Player)
                 }
+                ResolutionDomain::CardName => {
+                    recognize_card_name_domain(&mut trial).map(ChoiceDomainNode::CardName)
+                }
                 _ => {
                     *cursor = trial;
                     cursor.enter(domain.state());
@@ -323,7 +414,9 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
         return Err(cursor.fail("a typed choice domain"));
     }
     cursor.enter("choose.domain.target");
-    let targets = recognize_target_list(&mut trial)?;
+    // The declared permanent slots are lowered by the shared permanent
+    // subject lowering, which reads a typed target count.
+    let targets = recognize_target_list_with_counts(&mut trial, TargetCountSupport::Expressed)?;
     let domain = if targets
         .slots
         .iter()
@@ -354,3 +447,7 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
         domain,
     })
 }
+
+#[cfg(test)]
+#[path = "choose_card_name_tests.rs"]
+mod card_name_tests;

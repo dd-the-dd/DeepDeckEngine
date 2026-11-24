@@ -1768,6 +1768,14 @@ fn lower_local_effect_sequence_with_collections(
                         color_chosen = true;
                         effects.push(super::resolution_choice::lower_color_choice());
                     }
+                    ChoiceDomainNode::CardName(domain) => {
+                        // CR 608.2d: a name chosen while the program
+                        // resolves; `with the chosen name` reads its id.
+                        cursor.enter("lower.choose.card-name");
+                        effects.push(super::chosen_card_name::lower_resolution_card_name_choice(
+                            domain,
+                        ));
+                    }
                     ChoiceDomainNode::Player(node) => {
                         // A player chosen on resolution, not a target (CR
                         // 115.1): a later `that player` reads its binding.

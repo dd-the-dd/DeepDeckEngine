@@ -929,15 +929,16 @@ impl GameEngine {
     /// Materializes the predicates that read a characteristic chosen earlier
     /// in this resolution (CR 608.2d) into the concrete predicate the shared
     /// object filters evaluate: `chosenColor` becomes `colorContains` of the
-    /// recorded color. A reference whose producer has not run is left
-    /// unchanged, so no consumer ever reads a guessed value.
+    /// recorded color, `chosenCardName` becomes `nameEquals` of the recorded
+    /// name. A reference whose producer has not run is left unchanged, so no
+    /// consumer ever reads a guessed value.
     pub(in crate::engine) fn materialize_resolution_choices<'a>(
         &self,
         effect: &'a Value,
         decisions: &BTreeMap<String, Value>,
     ) -> std::borrow::Cow<'a, Value> {
         fn reads_choice(value: &Value) -> bool {
-            if value_kind(value) == Some("chosenColor") {
+            if matches!(value_kind(value), Some("chosenColor" | "chosenCardName")) {
                 return true;
             }
             match value {
@@ -955,6 +956,16 @@ impl GameEngine {
                     .map(str::to_owned);
                 if let Some(color) = color {
                     *value = json!({ "kind": "colorContains", "value": color });
+                }
+                return;
+            }
+            if value_kind(value) == Some("chosenCardName") {
+                let name = value["decisionId"]
+                    .as_str()
+                    .and_then(|id| resolution_choice_text(decisions.get(id)))
+                    .map(str::to_owned);
+                if let Some(name) = name {
+                    *value = json!({ "kind": "nameEquals", "value": name });
                 }
                 return;
             }

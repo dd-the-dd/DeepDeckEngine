@@ -144,14 +144,25 @@ fn unlowered_header_qualifiers_fail_explicitly() {
             "Choose one at random. \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures.",
             "modal.header.qualifier",
         ),
+        // A mandatory upgrade would raise the minimum too.
         (
-            "Choose one. If you control a commander, you may choose both instead. \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures.",
-            "modal.header.repeat-permission",
+            "Choose one. If you control a commander, choose both instead. \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures.",
+            "modal.header.upgrade.permission",
         ),
     ] {
         let failure = modal_rule(text).expect_err(text);
         assert_eq!(failure.state, state, "{text}");
     }
+    // A permitted upgrade is a conditional maximum over the same minimum.
+    let rule = modal_rule(
+        "Choose one. If you control a commander, you may choose both instead. \u{2022} Destroy all artifacts. \u{2022} Destroy all creatures.",
+    )
+    .expect("a permitted mode-count upgrade lowers");
+    let modes = &rule["declaration"]["decisions"][0];
+    assert_eq!(modes["minimum"], 1);
+    assert_eq!(modes["maximum"]["kind"], "conditionalValue");
+    assert_eq!(modes["maximum"]["ifTrue"]["value"], 2);
+    assert_eq!(modes["maximum"]["ifFalse"]["value"], 1);
 }
 
 #[test]

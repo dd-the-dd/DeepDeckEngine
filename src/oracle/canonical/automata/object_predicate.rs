@@ -152,6 +152,11 @@ pub(in crate::oracle::canonical) enum ObjectRelation {
     /// `that targets OBJECT|PLAYER` (CR 115.1): a spell one of whose
     /// targets is a listed player or a permanent of the listed query.
     Targets(TargetedObjects),
+    /// `with the chosen name` / `with that name` (CR 201.2, 608.2d): the
+    /// object's name is the card name an earlier `choose a card name` of the
+    /// same effect program recorded. Symbolic; the rule validator proves
+    /// the producer.
+    ChosenName,
 }
 
 impl ObjectRelation {
@@ -159,7 +164,7 @@ impl ObjectRelation {
     /// history is read from a battlefield permanent's own events.
     pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
         match self {
-            Self::Named(_) => true,
+            Self::Named(_) | Self::ChosenName => true,
             Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
             // The targets of an object on the stack (CR 115.1).
             Self::Targets(_) => domain == ObjectKind::Spell,
@@ -445,7 +450,9 @@ impl ObjectPredicate {
     /// type`, CR 608.2d), which a declaration-time filter cannot evaluate.
     pub(in crate::oracle::canonical) fn reads_resolution_choice(&self) -> bool {
         match self {
-            Self::ChosenCreatureType | Self::ChosenColor => true,
+            Self::ChosenCreatureType
+            | Self::ChosenColor
+            | Self::Relation(ObjectRelation::ChosenName) => true,
             Self::Not(operand) => operand.reads_resolution_choice(),
             Self::Intersection(operands) | Self::Union(operands) => {
                 operands.iter().any(Self::reads_resolution_choice)

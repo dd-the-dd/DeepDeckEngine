@@ -1949,6 +1949,10 @@ pub(super) struct LibrarySearchEffectNode {
     pub slots: Vec<ObjectPredicate>,
     pub minimum: u32,
     pub maximum: u32,
+    /// The shared typed count (`up to X`, `X`, `that many`) when the count
+    /// is not two positive literals; `minimum`/`maximum` are then only the
+    /// expressed envelope, and the lowering reads this count instead.
+    pub count: Option<TargetCount>,
     pub destination: SearchDestination,
     pub reveal: bool,
     pub shuffle_order: SearchShuffleOrder,

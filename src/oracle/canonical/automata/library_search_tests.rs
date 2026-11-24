@@ -114,7 +114,6 @@ fn collection_count_and_result_number_must_agree() {
         "Search your library for up to two basic land card, put them onto the battlefield, then shuffle.",
         "Search your library for up to two basic land cards, put it onto the battlefield, then shuffle.",
         "Search your library for zero cards, put them into your hand, then shuffle.",
-        "Search your library for X cards, put them into your hand, then shuffle.",
         "Search your library for 2147483648 cards, put them into your hand, then shuffle.",
         "Search your library for each basic land card, put them onto the battlefield, then shuffle.",
         "Search your library for up to two basic land cards and your opponent controls, put them onto the battlefield, then shuffle.",
@@ -126,6 +125,30 @@ fn collection_count_and_result_number_must_agree() {
             "{text}"
         );
     }
+}
+
+/// `X cards` is the shared typed count: the search parses with it, and the
+/// face's X producer is validated after card composition (never defaulted).
+#[test]
+fn a_variable_search_count_is_the_shared_typed_count() {
+    for text in [
+        "Search your library for X cards, put them into your hand, then shuffle.",
+        "Search your library for up to X basic land cards, put them onto the battlefield, then shuffle.",
+    ] {
+        let (search, trailing) = parse(text);
+        assert!(search.count.is_some(), "{text}");
+        assert!(
+            search.maximum > 1,
+            "{text}: the literal envelope stays plural"
+        );
+        assert_eq!(trailing, ".");
+    }
+    // `any number of` has no search maximum and stays an explicit failure.
+    let tokens = recognize_entities(
+        "Search your library for any number of basic land cards, put them onto the battlefield, then shuffle.",
+    );
+    let mut cursor = OracleTokenCursor::new("search-count-unbounded", &tokens);
+    assert!(recognize_controller_library_search(&mut cursor).is_err());
 }
 
 #[test]
