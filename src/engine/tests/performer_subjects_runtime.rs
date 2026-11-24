@@ -380,3 +380,67 @@ fn oblation_owner_shuffles_the_permanent_into_their_library_then_draws() {
     assert_eq!(engine.state.players[1].hand.len(), 2);
     assert!(engine.state.players[0].hand.is_empty());
 }
+
+/// Runs a compiled rule whose first target decision declared several
+/// players, stored as the engine's declaration stores them (`id:N`).
+fn run_with_players(engine: &mut GameEngine, stack: &StackObject, rule: &Value, players: &[&str]) {
+    let mut stack = stack.clone();
+    stack.ability_rule = Some(rule.clone());
+    stack.ability_kind = rule["kind"].as_str().map(str::to_string);
+    let id = rule["declaration"]["decisions"]
+        .as_array()
+        .and_then(|decisions| {
+            decisions
+                .iter()
+                .find(|decision| decision["kind"] == "chooseTargets")
+        })
+        .and_then(|decision| decision["id"].as_str())
+        .expect("target id")
+        .to_string();
+    for (index, player_id) in players.iter().enumerate() {
+        let key = format!("{id}:{index}");
+        let target = TargetRef::Player {
+            player_id: player_id.to_string(),
+        };
+        engine
+            .capture_target_incarnation(&mut stack.decisions, &key, &target)
+            .expect("target designation is captured at declaration");
+        stack.targets.insert(key, target);
+    }
+    let effects = &rule["effects"];
+    assert!(effects.as_array().unwrap().iter().all(effect_supported));
+    engine
+        .execute_effects(
+            effects,
+            &stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut Accepting::default(),
+        )
+        .expect("the compiled program executes");
+}
+
+#[test]
+fn each_declared_target_player_performs_the_clause() {
+    let rule = compile(
+        "Huddle Up",
+        "Sorcery",
+        "Two target players each draw a card.",
+    );
+    let (mut engine, stack) = position(3);
+    run_with_players(&mut engine, &stack, &rule, &["player-0", "player-2"]);
+    assert_eq!(engine.state.players[0].hand.len(), 1);
+    assert!(engine.state.players[1].hand.is_empty());
+    assert_eq!(engine.state.players[2].hand.len(), 1);
+
+    let rule = compile(
+        "Hunters' Feast",
+        "Sorcery",
+        "Any number of target players each gain 6 life.",
+    );
+    let (mut engine, stack) = position(3);
+    run_with_players(&mut engine, &stack, &rule, &["player-1", "player-2"]);
+    assert_eq!(engine.state.players[0].life, 20);
+    assert_eq!(engine.state.players[1].life, 26);
+    assert_eq!(engine.state.players[2].life, 26);
+}

@@ -36,6 +36,16 @@ pub(in crate::oracle::canonical) enum PerformerNode {
         players: PlayerSetReferenceNode,
         binding: PlayerBinding,
     },
+    /// `two|up to N|any number of target players|opponents each VERB`: the
+    /// players one target decision declares under `binding` (CR 115.1,
+    /// 601.2c); each of them performs the action in turn order.
+    DeclaredPlayers {
+        target: super::TargetListNode,
+        binding: PlayerBinding,
+    },
+    /// The same declared players, already declared by an earlier verb of
+    /// the clause (`each lose 2 life and sacrifice a creature`).
+    BoundPlayers(PlayerBinding),
 }
 
 impl PerformerNode {
@@ -47,6 +57,7 @@ impl PerformerNode {
             Self::Player(PlayerEffectSubject::DeclaredTarget { binding, .. }) => {
                 Self::Player(PlayerEffectSubject::Bound(*binding))
             }
+            Self::DeclaredPlayers { binding, .. } => Self::BoundPlayers(*binding),
             other => other.clone(),
         }
     }
@@ -209,6 +220,11 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             )
         })
     };
+    if let Some(declaration) = declaration
+        && declared_players_each_starts(cursor)
+    {
+        return Some(recognize_declared_players(cursor, declaration));
+    }
     if let Some(declaration) = declaration {
         // `target player|opponent VERBs`: one declared target player. A
         // possessive head (`target player's`) is a zone owner, never here.
@@ -271,6 +287,56 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         )));
     }
     None
+}
+
+/// True when the cursor starts a counted player target list followed by
+/// the distributive `each` (`two target players each`, `any number of
+/// target opponents each`). A single declared player is not this subject.
+fn declared_players_each_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let at = |offset: usize, words: &[&str]| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| words.iter().any(|word| raw.eq_ignore_ascii_case(word)))
+    };
+    !at(0, &["target"])
+        && (1..6).any(|offset| {
+            at(offset, &["target"])
+                && at(offset + 1, &["players", "opponents"])
+                && at(offset + 2, &["each"])
+        })
+}
+
+/// `COUNT target players|opponents each`: one declaration of several target
+/// players (CR 115.1, 601.2c) whose members each perform the clause; the
+/// verb after `each` takes the base form. The count is the shared target
+/// count (a literal, `up to N`, `X` or `any number of`); one target player
+/// is the singular performer's, never this distributive subject.
+fn recognize_declared_players(
+    cursor: &mut OracleTokenCursor<'_>,
+    declaration: PlayerBinding,
+) -> MachineResult<(PerformerNode, VerbAgreement)> {
+    cursor.enter("clause.performer.declared-players");
+    let target =
+        super::recognize_target_list_with_counts(cursor, super::TargetCountSupport::Expressed)?;
+    cursor.enter("clause.performer.declared-players.kind");
+    cursor.require(
+        matches!(
+            target.slots.as_slice(),
+            [slot] if matches!(slot.selector, super::TargetSelector::Player(_))
+                && !slot.exclude_source
+                && (slot.count.is_some() || slot.cardinality.maximum > 1)
+        ),
+        "one declaration of several target players",
+    )?;
+    cursor.enter("clause.performer.declared-players.each");
+    cursor.consume("each")?;
+    Ok((
+        PerformerNode::DeclaredPlayers {
+            target,
+            binding: declaration,
+        },
+        VerbAgreement::Base,
+    ))
 }
 
 /// The relation an object-related player subject writes before `of`.
@@ -413,6 +479,9 @@ pub(in crate::oracle::canonical) fn performer_description(
         }
         PerformerNode::Player(_) => "a player other than the controller",
         PerformerNode::Chosen { .. } => "a player chosen on resolution (`an opponent`)",
+        PerformerNode::DeclaredPlayers { .. } | PerformerNode::BoundPlayers(_) => {
+            "declared target players (`two target players each`)"
+        }
     }
 }
 

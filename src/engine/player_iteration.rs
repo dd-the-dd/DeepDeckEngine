@@ -14,7 +14,8 @@ pub(super) fn player_iteration_supported(effect: &Value) -> Option<bool> {
             // `each other player` (CR 102.3: teammates included) is the
             // shared complement of the controller.
             && (player_set_reference_supported(&effect["players"])
-                || player_complement_reference_supported(&effect["players"]))
+                || player_complement_reference_supported(&effect["players"])
+                || declared_player_targets_supported(&effect["players"]))
             && effect["effects"]
                 .as_array()
                 .is_some_and(|effects| !effects.is_empty() && effects.iter().all(effect_supported))
@@ -27,6 +28,12 @@ pub(super) fn player_iteration_supported(effect: &Value) -> Option<bool> {
     )
 }
 
+/// `two|any number of target players each VERB` (CR 115.1, 601.2c): the
+/// players declared under one target decision, each performing the body.
+fn declared_player_targets_supported(players: &Value) -> bool {
+    value_kind(players) == Some("chosenTargets") && players["id"].as_str().is_some()
+}
+
 impl GameEngine {
     pub(super) fn player_iteration_ids(
         &mut self,
@@ -34,6 +41,38 @@ impl GameEngine {
         stack_object: &StackObject,
         bindings: &BTreeMap<String, RuntimeBinding>,
     ) -> Result<Vec<String>, EngineError> {
+        // Declared target players: every player the decision chose, in turn
+        // order (a declaration of zero players is an empty iteration).
+        if value_kind(selector) == Some("chosenTargets") {
+            let decision_id = selector["id"]
+                .as_str()
+                .ok_or_else(|| EngineError::new("declared player targets require an id"))?;
+            let mut players = stack_object
+                .targets
+                .iter()
+                .filter(|(target_id, _)| {
+                    target_id.as_str() == decision_id
+                        || target_id.starts_with(&format!("{decision_id}:"))
+                })
+                .filter_map(|(_, target)| match target {
+                    TargetRef::Player { player_id } => Some(player_id.clone()),
+                    _ => None,
+                })
+                .filter(|id| {
+                    self.player_index(id)
+                        .is_ok_and(|index| !self.state.players[index].has_lost)
+                })
+                .collect::<Vec<_>>();
+            players.dedup();
+            let player_count = self.state.players.len();
+            let active = self.state.active_player;
+            players.sort_by_key(|id| {
+                self.player_index(id)
+                    .map(|index| (index + player_count - active) % player_count)
+                    .unwrap_or(player_count)
+            });
+            return Ok(players);
+        }
         // Fail closed for an explicit player reference. An empty opponent set
         // is valid, whereas an unresolved reference is not an empty set.
         let reference = match value_kind(selector) {

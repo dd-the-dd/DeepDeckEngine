@@ -327,10 +327,10 @@ fn lower_local_effect_sequence_with_collections(
             // A declared performer (`target opponent VERBs`) is written
             // before its action's own targets.
             let performer = match performers.get(effect_index) {
-                Some(Some(PerformerNode::Player(PlayerEffectSubject::DeclaredTarget {
-                    binding,
-                    ..
-                }))) => Some(PlayerTargetBinding {
+                Some(Some(
+                    PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { binding, .. })
+                    | PerformerNode::DeclaredPlayers { binding, .. },
+                )) => Some(PlayerTargetBinding {
                     effect_index: binding.0,
                 }),
                 _ => None,
@@ -3321,6 +3321,29 @@ fn apply_performer(
             }
             return Ok(());
         }
+        // `two target players each VERB`: every declared player performs the
+        // action in turn order (CR 115.1, 608.2c).
+        PerformerNode::DeclaredPlayers { binding, .. } | PerformerNode::BoundPlayers(binding) => {
+            let id = declared_player_targets
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding.0).then_some(id.clone()))
+                .ok_or_else(|| cursor.fail("the declared target players of the performer"))?;
+            let bind = format!("performer{effect_index}");
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = json!({"kind": "boundValue", "id": bind});
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachPlayer",
+                "bind": bind,
+                "players": {"kind": "chosenTargets", "id": id},
+                "effects": body,
+            }));
+            return Ok(());
+        }
         PerformerNode::Population {
             players,
             excluding_controller,
@@ -3365,6 +3388,19 @@ fn declare_performer_target(
     decisions: &mut Vec<Value>,
     declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
+    if let PerformerNode::DeclaredPlayers { target, binding } = performer {
+        cursor.enter("lower.performer.declared-players");
+        return declare_player_targets(
+            cursor,
+            target,
+            PlayerTargetBinding {
+                effect_index: binding.0,
+            },
+            player_target_bindings,
+            decisions,
+            declared_player_targets,
+        );
+    }
     let PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { target, binding }) = performer
     else {
         return Ok(());
@@ -3415,6 +3451,53 @@ fn declare_player_target(
     decisions.push(target_decision(&target_id, candidates, 1, 1));
     declared_player_targets.push((key, target_id.clone()));
     Ok(target_id)
+}
+
+/// Several players declared by one target decision of a performer (`two
+/// target players each`, `any number of target opponents each`): the
+/// decision's bounds are the slot's literal cardinality or its typed count,
+/// under the shared player-target ordinal (CR 115.1, 601.2c).
+fn declare_player_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+    key: PlayerTargetBinding,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    if declared_player_targets
+        .iter()
+        .any(|(declared, _)| *declared == key)
+    {
+        return Ok(());
+    }
+    let [slot] = target.slots.as_slice() else {
+        return Err(EffectSequenceLoweringFailure::FailedInvariant(
+            cursor.fail("one declared player target slot"),
+        ));
+    };
+    let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+        .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+    let ordinal = player_target_bindings
+        .iter()
+        .position(|value| *value == key)
+        .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+    let target_id = player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+    let mut decision = target_decision(
+        &target_id,
+        candidates,
+        i64::from(slot.cardinality.minimum),
+        i64::from(slot.cardinality.maximum),
+    );
+    if let Some(count) = &slot.count {
+        cursor.require(
+            apply_target_count_to_decision(&mut decision, count).is_some(),
+            "a declared player count the target decision can bound",
+        )?;
+    }
+    decisions.push(decision);
+    declared_player_targets.push((key, target_id));
+    Ok(())
 }
 
 /// The deployed card's move binds the moved-onto-battlefield result only

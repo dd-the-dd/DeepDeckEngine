@@ -3108,6 +3108,11 @@ fn performed_agreement(
         .is_some_and(|token| token.raw.eq_ignore_ascii_case("they"));
     match performer {
         super::PerformerNode::Player(_) if they => super::VerbAgreement::Base,
+        // The verbs after `each` take the base form (`two target players
+        // each draw a card and lose 1 life`).
+        super::PerformerNode::DeclaredPlayers { .. } | super::PerformerNode::BoundPlayers(_) => {
+            super::VerbAgreement::Base
+        }
         _ => super::VerbAgreement::ThirdPersonSingular,
     }
 }
