@@ -111,6 +111,7 @@ mod cost_query;
 mod counter_placement;
 mod counter_protection;
 mod counter_selection;
+mod creature_tap_cost;
 mod damage_events;
 mod damage_execution;
 mod damage_preparation;
@@ -4394,6 +4395,9 @@ fn cost_supported(cost: &Value) -> bool {
         Some("tapPermanents") => {
             card_filter_supported(&cost["where"])
                 && integer_value(&cost["count"]).is_some_and(|count| count > 0)
+        }
+        Some(creature_tap_cost::TOTAL_POWER_TAP_COST) => {
+            creature_tap_cost::total_power_tap_cost_supported(cost)
         }
         Some("discardCards") => cost_payment::random_discard_cost_supported(cost),
         Some("discardCard") => {
@@ -16977,6 +16981,12 @@ impl GameEngine {
                     .collect();
             }
         }
+        declarations = self.expand_total_power_tap_declarations(
+            rule,
+            controller_id,
+            source_instance_id,
+            declarations,
+        );
         declarations.retain(|declaration| {
             // A multi-object choice keys each object as `id:index`.
             let excludes_source = excluded_target_ids.iter().all(|target_id| {
@@ -27161,6 +27171,7 @@ impl GameEngine {
                 }
                 let cost_trigger_start = self.state.stack.len();
                 let prepared_cost_payment = self.prepare_activated_cost_payment(action, &rule)?;
+                self.validate_total_power_tap_costs(action, &rule, instance_id)?;
                 let mut tapped_sources = self.apply_payment(player_index, action)?;
                 let activation_limit = &rule["activationLimit"];
                 if let Some(prefix) = activation_limit_use_prefix(activation_limit, rule_index) {
@@ -27481,6 +27492,7 @@ impl GameEngine {
                         tapped_sources.push(tapped_source);
                     }
                 }
+                tapped_sources.extend(self.pay_total_power_tap_costs(action, &rule)?);
                 for cost in rule["costs"]
                     .as_array()
                     .into_iter()

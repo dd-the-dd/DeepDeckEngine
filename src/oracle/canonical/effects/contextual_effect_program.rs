@@ -484,6 +484,7 @@ fn activation_body_context(
         matches!(
             cost,
             LocalActivationCostNode::TapObjects(_)
+                | LocalActivationCostNode::TapTotalPower(_)
                 | LocalActivationCostNode::SacrificeObject(_)
                 | LocalActivationCostNode::ExileCards(_)
                 | LocalActivationCostNode::DiscardCard(_)

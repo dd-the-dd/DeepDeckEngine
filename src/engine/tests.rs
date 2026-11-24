@@ -300,6 +300,9 @@ mod event_count_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_crew_runtime.rs"]
+mod keyword_template_crew_runtime;
 #[path = "tests/numeric_expression_runtime.rs"]
 mod numeric_expression_runtime;
 #[path = "tests/object_qualifier_runtime.rs"]

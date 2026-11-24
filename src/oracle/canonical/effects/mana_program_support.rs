@@ -231,6 +231,7 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::ExileSelf(_)
         | LocalActivationCostNode::DiscardCard(_)
         | LocalActivationCostNode::TapObjects(_)
+        | LocalActivationCostNode::TapTotalPower(_)
         | LocalActivationCostNode::SacrificeObject(_)
         | LocalActivationCostNode::RemoveSourceCounters(_)
         | LocalActivationCostNode::RemoveControlledCounters(_)

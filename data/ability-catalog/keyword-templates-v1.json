@@ -442,6 +442,23 @@
       ]
     },
     {
+      "canonicalId": "crew",
+      "templateVersion": 1,
+      "lexeme": "crew",
+      "parameter": "count",
+      "rulesClause": "crew.cr-702-122a",
+      "rulesSection": "702.122a",
+      "abilities": [
+        "Tap any number of other untapped creatures you control with total power $N or greater: This permanent becomes an artifact creature until end of turn."
+      ],
+      "reminders": [
+        "Tap any number of creatures you control with total power $N or more: This Vehicle becomes an artifact creature until end of turn.",
+        "Tap any number of creatures you control with total power $N or greater: This Vehicle becomes an artifact creature until end of turn.",
+        "Tap any number of untapped creatures you control with total power $N or greater: This Vehicle becomes an artifact creature until end of turn.",
+        "Tap any number of other untapped creatures you control with total power $N or greater: This Vehicle becomes an artifact creature until end of turn."
+      ]
+    },
+    {
       "canonicalId": "level-up",
       "templateVersion": 1,
       "lexeme": "level up",

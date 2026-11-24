@@ -66,6 +66,8 @@ pub(in crate::oracle::canonical) enum PaymentActionNode {
     Pay(ResourcePaymentNode),
     /// `{T}` or `tap SELECTION` (permanents the payer controls).
     Tap(PaymentObjectsNode),
+    /// `tap any number of QUERY with total power N or greater` (`cost.rs`).
+    TapTotalPower(super::TotalPowerTapCostNode),
     /// `sacrifice SELECTION` (permanents the payer controls, CR 701.17a).
     Sacrifice(PaymentObjectsNode),
     /// `discard SELECTION` (cards in the payer's hand).
@@ -311,6 +313,7 @@ impl PaymentActionNode {
                 ..
             }) => return Some(*noun),
             Self::Pay(_)
+            | Self::TapTotalPower(_)
             | Self::Blight { .. }
             | Self::RemoveCounters(_)
             | Self::PutCounters(_)
@@ -387,6 +390,9 @@ fn recognize_listed_payment_action(
                 recognize_pay_life_cost_with_verb(cursor, form)
                     .map(|life| PaymentActionNode::Pay(ResourcePaymentNode::Life(life)))
             }
+        }
+        (VerbLemma::Tap, _) if super::total_power_tap_starts(cursor) => {
+            super::recognize_total_power_tap_cost(cursor).map(PaymentActionNode::TapTotalPower)
         }
         (VerbLemma::Tap, _) => objects(cursor, PaymentVerb::Tap).map(PaymentActionNode::Tap),
         (VerbLemma::Untap, _) => objects(cursor, PaymentVerb::Untap).map(PaymentActionNode::Untap),
