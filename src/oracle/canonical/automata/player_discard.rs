@@ -19,16 +19,28 @@ pub(in crate::oracle::canonical) struct PlayerDiscardEffectNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DiscardQuantity {
     Count(NumericExpression),
+    /// `up to N cards`: zero to N cards, chosen by the discarding player.
+    UpTo(NumericExpression),
+    /// `any number of cards`: zero or more cards, chosen by the discarding
+    /// player (CR 701.9a).
+    AnyNumber,
     WholeHand,
 }
 
 impl DiscardQuantity {
-    /// The numeric count, when the slot is a number of cards.
+    /// The numeric amount, when the slot states one (an exact count or an
+    /// `up to` bound).
     pub(in crate::oracle::canonical) fn count(&self) -> Option<&NumericExpression> {
         match self {
-            Self::Count(count) => Some(count),
-            Self::WholeHand => None,
+            Self::Count(count) | Self::UpTo(count) => Some(count),
+            Self::AnyNumber | Self::WholeHand => None,
         }
+    }
+
+    /// The discarding player chooses how many cards (an `up to` bound or
+    /// `any number of`).
+    pub(in crate::oracle::canonical) fn is_chosen_amount(&self) -> bool {
+        matches!(self, Self::UpTo(_) | Self::AnyNumber)
     }
 }
 
@@ -59,6 +71,9 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_action_fr
         if let Some(quantity) = recognize_whole_hand_quantity(cursor, form)? {
             return Ok(quantity);
         }
+        if let Some(quantity) = recognize_chosen_discard_amount(cursor)? {
+            return Ok(quantity);
+        }
         cursor.enter("effect.player-discard.count");
         let count = recognize_numeric_expression(cursor, None)?;
         recognize_card_count_noun(cursor, &count)?;
@@ -72,12 +87,45 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_discard_action_fr
             || selection == CollectionSelectionMethod::Choice,
         "no selection method after a whole-hand discard",
     )?;
+    cursor.enter("effect.player-discard.chosen-amount-selection");
+    cursor.require(
+        !action.operand.is_chosen_amount() || selection == CollectionSelectionMethod::Choice,
+        "no random selection for an amount the discarding player chooses",
+    )?;
     cursor.enter("effect.player-discard.complete");
     Ok(PlayerDiscardEffectNode {
         player,
         quantity: action.operand,
         selection,
     })
+}
+
+/// `any number of cards` / `up to N cards`: the shared resolution-choice
+/// determiners of the object noun phrase (`ChosenObjectQuantity`), read over
+/// the card noun. Without either determiner this reader makes no claim.
+fn recognize_chosen_discard_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<DiscardQuantity>> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(cursor, 0, "any") && word(cursor, 1, "number") {
+        cursor.enter("effect.player-discard.any-number");
+        cursor.consume_phrase(&["any", "number", "of"])?;
+        cursor.enter("effect.player-discard.any-number.noun");
+        cursor.consume("cards")?;
+        return Ok(Some(DiscardQuantity::AnyNumber));
+    }
+    if word(cursor, 0, "up") && word(cursor, 1, "to") {
+        cursor.enter("effect.player-discard.up-to");
+        cursor.consume_phrase(&["up", "to"])?;
+        let maximum = recognize_numeric_expression(cursor, None)?;
+        recognize_card_count_noun(cursor, &maximum)?;
+        return Ok(Some(DiscardQuantity::UpTo(maximum)));
+    }
+    Ok(None)
 }
 
 /// `[all [the] cards in] POSSESSIVE hand`, where the possessive names the

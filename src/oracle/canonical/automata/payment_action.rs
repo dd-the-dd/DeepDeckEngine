@@ -17,6 +17,8 @@
 //! Selection     := SourceRef
 //!                | Quantity ["other"] ["untapped"] QUERY ["at" "random"]
 //! SourceRef     := "this" NOUN   (shared source reference reader)
+//!                | NAME          (the card's own name, linked by the name
+//!                                 resolver and installed by the cost parent)
 //!                | "it"          (after an earlier action of the same list
 //!                                 named the source)
 //! Quantity      := "a" | "an" | NUMBER | "X" | "another"
@@ -547,10 +549,19 @@ fn recognize_payment_objects(
     recognize_chosen_objects(cursor, verb).map(PaymentObjectsNode::Chosen)
 }
 
+/// The card's own name at the cursor, linked by the name resolver and
+/// installed by the cost parent (CR 201.5: a card's name in its text names
+/// that object).
+fn source_name_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let names = cursor.source_names();
+    !names.is_empty() && super::source_reference_starts_at(cursor.position(), None, names, None)
+}
+
 fn source_object_starts(cursor: &OracleTokenCursor<'_>, antecedent: SourceAntecedent) -> bool {
-    cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+    source_name_starts(cursor)
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
         || (antecedent != SourceAntecedent::Absent
             && cursor
                 .peek()
@@ -578,6 +589,24 @@ fn recognize_source_object(
         };
         cursor.consume("it")?;
         return source_noun_in_domain(cursor, noun, domain, admits_permanent);
+    }
+    if source_name_starts(cursor) {
+        cursor.enter("cost.payment.source.name");
+        let names = cursor.source_names().to_vec();
+        recognize_source_reference(cursor, &names, None)?;
+        // A name carries no noun: the verb's object domain names the source.
+        // Exile reads the source permanent unless a card zone follows
+        // (`Exile NAME from your graveyard`).
+        let names_card_zone = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("from"));
+        return Ok(match domain {
+            OperandDomain::Permanent => PaymentSourceNoun::Permanent,
+            OperandDomain::Card if admits_permanent && !names_card_zone => {
+                PaymentSourceNoun::Permanent
+            }
+            OperandDomain::Card => PaymentSourceNoun::Card,
+        });
     }
     cursor.enter("cost.payment.source.reference");
     let noun_raw = cursor.peek_ahead(1).map(str::to_owned);

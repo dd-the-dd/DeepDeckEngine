@@ -321,32 +321,47 @@ fn recognize_primary(
         if query_context.kind == NumericReadKind::Definition && devotion_starts(cursor) {
             return recognize_devotion(cursor);
         }
-        if cursor
-            .peek()
-            .is_some_and(|word| word.eq_ignore_ascii_case("half"))
-        {
-            // `half your life, rounded up` (CR 107.1a): half of any operand
-            // of this grammar, with the rounding the text states.
-            cursor.enter("numeric.arithmetic.half");
-            cursor.consume("half")?;
-            // `half the number of cards in your library`: the same `the
-            // number of COUNTABLE` aggregate every definition reads, over
-            // the zone-holder domain of the shared scoped query.
-            let operand = if super::number_of_count_starts(cursor) {
-                super::recognize_number_of_count(cursor)?
-            } else {
-                recognize_primary(cursor, antecedent, event_binding, query_context)?
-            };
-            cursor.enter("numeric.arithmetic.half.rounding");
-            let rounding = recognize_stated_rounding(cursor)?;
-            return Ok(NumericExpression::Divide {
-                left: Box::new(operand),
-                right: Box::new(NumericExpression::from(2)),
-                rounding,
-            });
-        }
+    }
+    if cursor
+        .peek()
+        .is_some_and(|word| word.eq_ignore_ascii_case("half"))
+    {
+        return recognize_half(cursor, antecedent, event_binding, query_context);
     }
     recognize_numeric_primary_expression(cursor, antecedent)
+}
+
+/// `half OPERAND, rounded up|down` (CR 107.1a): half of an operand of this
+/// grammar, with the rounding the text states, in every consumer's slot
+/// (`You lose half your life, rounded up`). The operand is a player fact
+/// (`your life`), a `the number of COUNTABLE` aggregate, or any primary the
+/// consumer reads. Without a stated rounding the expression is refused.
+fn recognize_half(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<TargetBinding>,
+    event_binding: Option<EventNumericBinding>,
+    query_context: NumericExpressionReadContext,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.arithmetic.half");
+    cursor.consume("half")?;
+    cursor.enter("numeric.arithmetic.half.operand");
+    // `half the number of cards in your library`: the same `the number of
+    // COUNTABLE` aggregate every definition reads, over the zone-holder
+    // domain of the shared scoped query.
+    let operand = if super::number_of_count_starts(cursor) {
+        super::recognize_number_of_count(cursor)?
+    } else if super::player_numeric_fact_starts(cursor) {
+        super::recognize_player_numeric_fact(cursor)?
+    } else {
+        recognize_primary(cursor, antecedent, event_binding, query_context)?
+    };
+    cursor.enter("numeric.arithmetic.half.rounding");
+    let rounding = recognize_stated_rounding(cursor)?;
+    Ok(NumericExpression::Divide {
+        left: Box::new(operand),
+        right: Box::new(NumericExpression::from(2)),
+        rounding,
+    })
 }
 
 /// `, rounded up|down` (CR 107.1a): a fraction is rounded as the text

@@ -32,14 +32,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["counter"].is_string()
                 && numeric_expression_supported(&effect["count"])
         }
-        Some("removeCounters") => {
-            matches!(
-                value_kind(&effect["permanent"]),
-                Some("self" | "abilitySource")
-            ) && effect["counter"].is_string()
-                && integer_value(&effect["count"]).is_some_and(|count| count > 0)
-                && effect.get("bind").is_none_or(Value::is_string)
-        }
+        Some("removeCounters") => quantity_cost_payers::counter_removal_supported(effect),
         Some("removeUpToCounters") => {
             target_reference_supported(&effect["permanent"])
                 && player_reference_supported(&effect["player"])
@@ -429,23 +422,25 @@ impl GameEngine {
                 }
             }
             Some("removeCounters") => {
-                let instance_id = match value_kind(&effect["permanent"]) {
-                    Some("self" | "abilitySource") => stack_object.card.instance_id.clone(),
-                    _ => return Ok(()),
+                let Some(instance_id) =
+                    self.counter_removal_instance(effect, stack_object, bindings)
+                else {
+                    return Ok(());
                 };
                 // The ability's own object: a permanent, or a card whose
                 // ability functions in exile (CR 113.6k, e.g. Suspend).
                 let location = match self.permanent_position(&instance_id) {
                     Some(position) => Some(("battlefield", position)),
-                    None => self
+                    None if instance_id == stack_object.card.instance_id => self
                         .exiled_object_position(&stack_object.card)
                         .map(|position| ("exile", position)),
+                    None => None,
                 };
                 let Some((zone, (player_index, card_index))) = location else {
                     return Ok(());
                 };
                 let counter = effect["counter"].as_str().unwrap_or_default();
-                let count = integer_value(&effect["count"]).unwrap_or(0).max(0);
+                let count = self.counter_removal_count(effect, stack_object, bindings, decisions);
                 let object = match zone {
                     "battlefield" => &mut self.state.players[player_index].battlefield[card_index],
                     _ => &mut self.state.players[player_index].exile[card_index],

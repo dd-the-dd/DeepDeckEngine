@@ -102,6 +102,7 @@ impl ExplicitActivationSourceAvailability {
 
 fn recognize_activation_prefix(
     cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
 ) -> MachineResult<ActivationCostSequenceNode> {
     // CR 207.2c: an ability word (`Channel —`) labels the ability and has
     // no rules meaning; the costs start after its em dash.
@@ -119,7 +120,12 @@ fn recognize_activation_prefix(
         cursor.advance_to(cursor.position() + label_width + 1)?;
     }
     cursor.enter("activation.effect-sequence.costs");
-    let costs = recognize_activation_cost_sequence(cursor)?;
+    // The cost list names its source by the card's name as well as by
+    // `this NOUN` (`Sacrifice Mindslaver:`); its children read the links.
+    let previous = cursor.replace_source_names(Some(name_links.into()));
+    let costs = recognize_activation_cost_sequence(cursor);
+    cursor.replace_source_names(previous);
+    let costs = costs?;
     cursor.enter("activation.effect-sequence.separator");
     cursor.consume(":")?;
     Ok(costs)
@@ -132,7 +138,7 @@ pub(in crate::oracle::canonical) fn recognize_activated_effect_sequence(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<ActivatedEffectSequenceNode> {
-    let costs = recognize_activation_prefix(cursor)?;
+    let costs = recognize_activation_prefix(cursor, name_links)?;
     cursor.enter("activation.effect-sequence.effects");
     let effects = recognize_effect_sequence(cursor, name_links, name_failure)?;
     cursor.enter("activation.effect-sequence.complete");
@@ -216,7 +222,7 @@ fn try_recognize_activation_program(
     ) -> EffectRecognitionContext,
 ) -> ActivatedEffectSequenceParseAttempt {
     let checkpoint = cursor.checkpoint();
-    let costs = match recognize_activation_prefix(cursor) {
+    let costs = match recognize_activation_prefix(cursor, name_links) {
         Ok(costs) => costs,
         Err(failure) => {
             cursor.rollback(checkpoint);

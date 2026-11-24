@@ -3,6 +3,7 @@ use std::fmt;
 #[cfg(feature = "automata-trace")]
 use crate::oracle::automata_trace::{self, AutomataTraceEventKind, CursorTraceHandle};
 use crate::oracle::model::RecognizedEntity;
+use crate::oracle::syntax::ResolvedNameLink;
 
 use super::automata::{BindingEnvironment, EventNumericBinding};
 use super::engine_gap::EngineGap;
@@ -155,6 +156,10 @@ pub(super) struct OracleTokenCursor<'a> {
     /// (`binding_environment.rs`). The owning parent installs it for the
     /// child it calls; a child never infers or extends it.
     binding_environment: Option<std::sync::Arc<BindingEnvironment>>,
+    /// The name links of the ability being read (`Sacrifice Mindslaver:`),
+    /// installed by a parent whose children read names without receiving
+    /// them as parameters (a cost list). Never inferred by a child.
+    source_names: Option<std::sync::Arc<[ResolvedNameLink]>>,
     /// A child's deeper failure at the token it handed back: a list that
     /// stopped at a comma it could not continue. A parent failing at that
     /// same token reports the child's reason instead of its own shallower one.
@@ -174,6 +179,7 @@ impl Clone for OracleTokenCursor<'_> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            source_names: self.source_names.clone(),
             deferred_failure: self.deferred_failure.clone(),
             trace_cursor: automata_trace::new_cursor(
                 self.trace_cursor,
@@ -201,6 +207,7 @@ impl<'a> OracleTokenCursor<'a> {
             }],
             event_numeric_binding: None,
             binding_environment: None,
+            source_names: None,
             deferred_failure: None,
             #[cfg(feature = "automata-trace")]
             trace_cursor: automata_trace::new_cursor(
@@ -256,6 +263,7 @@ impl<'a> OracleTokenCursor<'a> {
             transitions: self.transitions.clone(),
             event_numeric_binding: self.event_numeric_binding,
             binding_environment: self.binding_environment.clone(),
+            source_names: self.source_names.clone(),
             deferred_failure: self.deferred_failure.clone(),
             #[cfg(feature = "automata-trace")]
             trace_cursor: None,
@@ -287,6 +295,20 @@ impl<'a> OracleTokenCursor<'a> {
 
     pub fn binding_environment(&self) -> Option<&BindingEnvironment> {
         self.binding_environment.as_deref()
+    }
+
+    /// Installs the ability's name links for the children read next and
+    /// returns the previous ones, which the installing parent restores.
+    pub fn replace_source_names(
+        &mut self,
+        names: Option<std::sync::Arc<[ResolvedNameLink]>>,
+    ) -> Option<std::sync::Arc<[ResolvedNameLink]>> {
+        std::mem::replace(&mut self.source_names, names)
+    }
+
+    /// The installed name links, empty when no parent installed any.
+    pub fn source_names(&self) -> &[ResolvedNameLink] {
+        self.source_names.as_deref().unwrap_or(&[])
     }
 
     pub fn enter(&mut self, state: &'static str) {

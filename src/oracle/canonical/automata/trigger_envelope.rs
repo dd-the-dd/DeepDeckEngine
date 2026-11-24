@@ -156,6 +156,21 @@ impl GenericTriggerEventNode {
                 verb: super::ObjectEventVerb::BeDealtDamage(_),
                 ..
             }) => Some(EventNumericBinding::DamageAmount),
+            // The runtime records the amount of every life-gain and
+            // life-loss occurrence it reports to an observer (CR 119.3,
+            // 119.10); one action per event keeps that amount unambiguous.
+            Self::Local(LocalTriggerEventNode::PlayerEvent { actions, .. })
+                if matches!(actions.as_slice(), [super::PlayerEventAction::GainLife]) =>
+            {
+                Some(EventNumericBinding::LifeGained)
+            }
+            Self::Local(LocalTriggerEventNode::PlayerEvent { actions, .. })
+                if matches!(actions.as_slice(), [super::PlayerEventAction::LoseLife]) =>
+            {
+                Some(EventNumericBinding::LifeLost)
+            }
+            // The counters one placement put (CR 122.6).
+            Self::CounterPlacement(_) => Some(EventNumericBinding::CountersPut),
             _ => None,
         }
     }
