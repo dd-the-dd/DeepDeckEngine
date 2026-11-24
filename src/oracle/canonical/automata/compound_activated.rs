@@ -49,6 +49,33 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     PutSourceCounters(SourceCounterPlacementCostNode),
     /// `put N KIND counters on a PERMANENT you control`.
     PutChosenCounters(ChosenCounterPlacementCostNode),
+    /// `reveal this card from your hand` (CR 701.20a): the source card,
+    /// activated from its owner's hand.
+    RevealSelf,
+    /// `reveal N CARDS from your hand`, chosen while paying.
+    RevealCards(ChosenRevealCostNode),
+    /// `mill N cards` (CR 701.13a): the payer's top N library cards.
+    Mill {
+        count: i64,
+    },
+    /// `blight N` (CR 701.65a): N -1/-1 counters on one creature the payer
+    /// controls, chosen while paying.
+    Blight(BlightActivationCostNode),
+}
+
+/// N cards of the payer's hand revealed as a cost, chosen while paying.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ChosenRevealCostNode {
+    pub count: i64,
+    pub filter: ObjectPredicate,
+    pub cost_index: usize,
+}
+
+/// The creature a Blight cost puts its counters on is chosen while paying.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct BlightActivationCostNode {
+    pub amount: i64,
+    pub cost_index: usize,
 }
 
 /// Permanents the payer controls returned to hand while paying.
@@ -192,7 +219,9 @@ impl ActivationCostSequenceNode {
         let mut requirements = ActivationSourceZoneRequirements::default();
         for cost in &self.costs {
             match cost {
-                LocalActivationCostNode::DiscardSelf(_) => requirements.hand = true,
+                LocalActivationCostNode::DiscardSelf(_) | LocalActivationCostNode::RevealSelf => {
+                    requirements.hand = true
+                }
                 LocalActivationCostNode::ExileSelf(exile) => match exile.source_zone {
                     ExileSelfSourceZone::Graveyard => requirements.graveyard = true,
                     ExileSelfSourceZone::Battlefield => requirements.battlefield = true,
@@ -218,7 +247,10 @@ impl ActivationCostSequenceNode {
                 | LocalActivationCostNode::ReturnObjects(_)
                 | LocalActivationCostNode::PutChosenCounters(_)
                 | LocalActivationCostNode::RemoveControlledCounters(_)
-                | LocalActivationCostNode::ExileCards(_) => {}
+                | LocalActivationCostNode::ExileCards(_)
+                | LocalActivationCostNode::RevealCards(_)
+                | LocalActivationCostNode::Mill { .. }
+                | LocalActivationCostNode::Blight(_) => {}
             }
         }
         requirements
@@ -493,12 +525,13 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         PaymentActionNode::RemoveCounters(removal) => {
             activation_counter_removal(cursor, removal, cost_index)
         }
-        PaymentActionNode::Blight { .. } => {
-            cursor.enter("activation.blight");
-            Err(cursor.engine_gap(
-                crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
-                "an activation cost the engine can pay (blight has no activation cost schema)",
-            ))
+        // The engine pays Blight as counters put on one chosen creature
+        // the payer controls (the shared `putCounters` cost).
+        PaymentActionNode::Blight { amount } => {
+            Ok(LocalActivationCostNode::Blight(BlightActivationCostNode {
+                amount,
+                cost_index,
+            }))
         }
         PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.return-self.source-type");
@@ -558,16 +591,56 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 Err(cursor.fail("the source permanent or one permanent you control"))
             }
         },
+        // `reveal this card from your hand`: the source card in its owner's
+        // hand (CR 701.20a); a source permanent cannot be revealed.
+        PaymentActionNode::Reveal {
+            objects: PaymentObjectsNode::Source(noun),
+            origin,
+        } => {
+            cursor.enter("activation.reveal-self.origin");
+            cursor.require(
+                noun == PaymentSourceNoun::Card && origin == Some(PaymentOriginZone::Hand),
+                "`this card from your hand` for a revealed source",
+            )?;
+            Ok(LocalActivationCostNode::RevealSelf)
+        }
+        PaymentActionNode::Reveal {
+            objects: PaymentObjectsNode::Chosen(chosen),
+            origin,
+        } => {
+            cursor.enter("activation.reveal-cards.origin");
+            cursor.require(
+                origin == Some(PaymentOriginZone::Hand),
+                "`from your hand` after the revealed cards",
+            )?;
+            let PaymentObjectFilter::Cards(filter) = chosen.filter else {
+                return Err(cursor.fail("a card operand"));
+            };
+            cursor.enter("activation.reveal-cards.selection");
+            cursor.require(
+                !chosen.exclude_source && chosen.method == CollectionSelectionMethod::Choice,
+                "revealed cards of the payer's choice, without `another`",
+            )?;
+            cursor.enter("activation.reveal-cards.numeric-context");
+            cursor.require(
+                !object_predicate_uses_x(&filter),
+                "no {X} in the revealed-card predicate",
+            )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.reveal-cards")?;
+            Ok(LocalActivationCostNode::RevealCards(ChosenRevealCostNode {
+                count,
+                filter,
+                cost_index,
+            }))
+        }
+        PaymentActionNode::Mill { count } => Ok(LocalActivationCostNode::Mill { count }),
         // The engine has no activation-cost program for these actions; the
         // cost fails here, explicitly, instead of being approximated.
-        PaymentActionNode::Untap(_)
-        | PaymentActionNode::Reveal { .. }
-        | PaymentActionNode::Mill { .. }
-        | PaymentActionNode::Exert(_) => {
+        PaymentActionNode::Untap(_) | PaymentActionNode::Exert(_) => {
             cursor.enter("activation.unsupported-action");
             Err(cursor.engine_gap(
                 crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
-                "an activation cost the engine can pay (untap, reveal, mill and exert have no activation cost schema)",
+                "an activation cost the engine can pay (untap and exert have no activation cost schema)",
             ))
         }
     }

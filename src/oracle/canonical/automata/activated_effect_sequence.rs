@@ -79,7 +79,10 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::RemoveControlledCounters(_)
                 | Cost::ExileCards(_)
                 | Cost::PutSourceCounters(_)
-                | Cost::PutChosenCounters(_) => {}
+                | Cost::PutChosenCounters(_)
+                | Cost::RevealCards(_)
+                | Cost::Mill { .. }
+                | Cost::Blight(_) => {}
                 // `Sacrifice another ...` cannot move the source (CR 109.1);
                 // without `another` the payer may choose the source itself.
                 Cost::SacrificeObject(selected) => possibly_departed |= !selected.exclude_source,
@@ -89,6 +92,7 @@ impl ExplicitActivationSourceAvailability {
                 Cost::ReturnSelf
                 | Cost::SacrificeSelf(_)
                 | Cost::DiscardSelf(_)
+                | Cost::RevealSelf
                 | Cost::ExileSelf(_) => return Self::Unproved,
             }
         }

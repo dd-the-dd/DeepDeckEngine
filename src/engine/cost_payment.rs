@@ -217,6 +217,11 @@ impl GameEngine {
                 controller_id,
                 source_instance_id,
             )
+            && self.activated_chosen_object_costs_are_payable(
+                rule,
+                controller_id,
+                source_instance_id,
+            )
     }
 
     /// The payer has at least the total of each player-counter kind the

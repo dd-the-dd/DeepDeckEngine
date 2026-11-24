@@ -53,6 +53,15 @@ fn activation_cost_counter_holder_id(cost: &ChosenCounterPlacementCostNode) -> S
     format!("activationCostCounterHolder{}", cost.cost_index)
 }
 
+fn activation_cost_reveal_id(cost: &ChosenRevealCostNode) -> String {
+    format!("activationCostReveal{}", cost.cost_index)
+}
+
+/// The declared choice of a Blight cost: the creature receiving its counters.
+fn activation_cost_blight_id(cost: &BlightActivationCostNode) -> String {
+    format!("activationCostBlight{}", cost.cost_index)
+}
+
 /// The engine keys a multi-object choice as `id:index`.
 fn chosen_object_ids(id: &str, count: i64) -> Vec<String> {
     (0..count)
@@ -143,6 +152,24 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                     "kind": "permanents",
                     "controller": controller(),
                     "where": lower_permanent_object_predicate(&cost.object.predicate),
+                }),
+                json!({ "kind": "exactly", "value": integer(1) }),
+            )),
+            LocalActivationCostNode::RevealCards(cost) => Some(object_choice(
+                &activation_cost_reveal_id(cost),
+                json!({
+                    "kind": "cards",
+                    "zone": hand(controller()),
+                    "where": lower_card_object_predicate(&cost.filter),
+                }),
+                json!({ "kind": "exactly", "value": integer(cost.count) }),
+            )),
+            LocalActivationCostNode::Blight(cost) => Some(object_choice(
+                &activation_cost_blight_id(cost),
+                json!({
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
                 }),
                 json!({ "kind": "exactly", "value": integer(1) }),
             )),
@@ -278,6 +305,18 @@ pub(in crate::oracle::canonical) fn lower_local_activation_costs(
                 "selection": { "kind": "random" },
             })],
         },
+        // One reveal per chosen card, each naming its own choice.
+        LocalActivationCostNode::RevealCards(cost) => {
+            chosen_object_ids(&activation_cost_reveal_id(cost), cost.count)
+                .into_iter()
+                .map(|id| {
+                    json!({
+                        "kind": "revealCard",
+                        "card": { "kind": "chosenObject", "id": id },
+                    })
+                })
+                .collect()
+        }
         // One return per chosen permanent, each naming its own choice.
         LocalActivationCostNode::ReturnObjects(cost) => {
             chosen_object_ids(&activation_cost_return_id(cost), cost.count)
@@ -331,9 +370,25 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
         LocalActivationCostNode::TapObjects(_)
         | LocalActivationCostNode::ReturnObjects(_)
         | LocalActivationCostNode::SacrificeObject(_)
-        | LocalActivationCostNode::DiscardCard(_) => {
+        | LocalActivationCostNode::DiscardCard(_)
+        | LocalActivationCostNode::RevealCards(_) => {
             unreachable!("a chosen multi-object cost lowers through lower_local_activation_costs")
         }
+        LocalActivationCostNode::RevealSelf => json!({
+            "kind": "revealCard",
+            "card": self_ref(),
+        }),
+        LocalActivationCostNode::Mill { count } => json!({
+            "kind": "millCards",
+            "count": integer(*count),
+        }),
+        LocalActivationCostNode::Blight(cost) => json!({
+            "kind": "putCounters",
+            "permanent": { "kind": "chosenObject", "id": activation_cost_blight_id(cost) },
+            "controller": controller(),
+            "counter": "-1/-1",
+            "count": integer(cost.amount),
+        }),
         LocalActivationCostNode::ReturnSelf => json!({
             "kind": "returnPermanentToOwnersHand",
             "permanent": self_ref(),

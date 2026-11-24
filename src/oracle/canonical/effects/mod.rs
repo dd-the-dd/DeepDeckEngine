@@ -83,8 +83,6 @@ mod loyalty_ability;
 
 mod mana_lowering;
 mod mana_program_support;
-mod mandatory_additional_discard;
-mod mandatory_additional_sacrifice;
 mod mobilize;
 mod modal_color_guard;
 mod modal_spell;
@@ -228,8 +226,6 @@ pub(super) use loyalty_ability::*;
 pub(super) use color_set_query::*;
 pub(super) use mana_lowering::*;
 pub(super) use mana_program_support::*;
-pub(super) use mandatory_additional_discard::*;
-pub(super) use mandatory_additional_sacrifice::*;
 pub(super) use mobilize::*;
 pub(super) use modal_color_guard::*;
 pub(super) use modal_spell::*;
