@@ -522,6 +522,145 @@
       }
     },
     {
+      "id": "exact-run-out-of-town-owner-chooses-top-or-bottom",
+      "request": {
+        "cardName": "Run Out of Town",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "The owner of target nonland permanent puts it on their choice of the top or bottom of their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putPermanentOnOwnerLibrary"
+              },
+              {
+                "pointer": "/effects/0/position",
+                "equals": "ownerChoiceTopOrBottom"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-oblation-owner-shuffles-it-then-draws",
+      "request": {
+        "cardName": "Oblation",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "The owner of target nonland permanent shuffles it into their library, then draws two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putPermanentOnOwnerLibrary"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/2/performer/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-chosen-target-controller-puts-it-on-top",
+      "request": {
+        "cardName": "Library Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Choose target creature. Its controller puts it on top of their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putPermanentOnOwnerLibrary"
+              },
+              {
+                "pointer": "/effects/0/position",
+                "equals": "top"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-second-from-the-top",
+      "request": {
+        "cardName": "Temporal Cleansing",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "The owner of target nonland permanent puts it into their library second from the top or on the bottom.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-time-walk-extra-turn",
       "request": {
         "cardName": "Time Walk",

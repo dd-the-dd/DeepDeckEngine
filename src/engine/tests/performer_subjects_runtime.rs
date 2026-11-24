@@ -354,3 +354,29 @@ fn an_extra_turn_is_granted_to_the_player_who_takes_it() {
         );
     }
 }
+
+#[test]
+fn oblation_owner_shuffles_the_permanent_into_their_library_then_draws() {
+    let rule = compile(
+        "Oblation",
+        "Instant",
+        "The owner of target nonland permanent shuffles it into their library, then draws two cards.",
+    );
+    let (mut engine, stack) = position(2);
+    let bear = add(&mut engine, 1, "bear", "Creature");
+    let library = engine.state.players[1].library.len();
+    run(
+        &mut engine,
+        &stack,
+        &rule,
+        Some(TargetRef::Permanent {
+            instance_id: bear.clone(),
+        }),
+        &mut Accepting::default(),
+    );
+    assert!(engine.permanent_position(&bear).is_none());
+    // The owner, not the caster, receives the card and draws.
+    assert_eq!(engine.state.players[1].library.len(), library + 1 - 2);
+    assert_eq!(engine.state.players[1].hand.len(), 2);
+    assert!(engine.state.players[0].hand.is_empty());
+}

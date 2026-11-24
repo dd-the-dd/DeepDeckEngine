@@ -2373,8 +2373,9 @@ pub(in crate::oracle::canonical) use performer::{
     recognize_declaring_performer, recognize_object_relation_declaration, recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
-    ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
-    recognize_destroy_reference_effect, recognize_referenced_permanent_zone_action,
+    OwnerLibraryPlacement, ReferencedPermanentAction, ReferencedPermanentActionAttempt,
+    ReferencedPermanentActionNode, recognize_destroy_reference_effect,
+    recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,

@@ -1629,6 +1629,39 @@ fn lower_local_effect_sequence_with_collections(
                     ReferencedPermanentAction::Destroy => "destroyPermanent",
                     ReferencedPermanentAction::Exile => "exilePermanent",
                     ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
+                    // CR 400.3: the permanent goes to its owner's library.
+                    ReferencedPermanentAction::PutOnOwnerLibrary(placement) => {
+                        effects.push(json!({
+                            "kind": "putPermanentOnOwnerLibrary",
+                            "permanent": reference,
+                            "position": match placement {
+                                OwnerLibraryPlacement::Top => "top",
+                                OwnerLibraryPlacement::Bottom => "bottom",
+                                OwnerLibraryPlacement::OwnerChoiceTopOrBottom => {
+                                    "ownerChoiceTopOrBottom"
+                                }
+                            },
+                        }));
+                        continue;
+                    }
+                    // CR 701.24a: put into the owner's library, then that
+                    // library is shuffled (its owner by last known
+                    // information once the permanent has left).
+                    ReferencedPermanentAction::ShuffleIntoOwnerLibrary => {
+                        effects.push(json!({
+                            "kind": "putPermanentOnOwnerLibrary",
+                            "permanent": reference.clone(),
+                            "position": "bottom",
+                        }));
+                        effects.push(json!({
+                            "kind": "shuffleZone",
+                            "zone": {
+                                "kind": "library",
+                                "player": {"kind": "ownerOf", "object": reference},
+                            },
+                        }));
+                        continue;
+                    }
                 };
                 let mut lowered = json!({"kind": kind, "permanent": reference});
                 if destroy.cannot_regenerate {
