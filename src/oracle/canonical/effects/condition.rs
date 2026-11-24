@@ -163,6 +163,9 @@ fn lower_player_designation(node: &PlayerDesignationNode) -> Lowered {
             PlayerDesignation::EnduringStory => {
                 json!({ "kind": "hasEnduringStory", "player": player })
             }
+            PlayerDesignation::CityBlessing => {
+                json!({ "kind": "hasCityBlessing", "player": player })
+            }
             PlayerDesignation::CompletedDungeon { dungeon } => {
                 let mut atom = json!({ "kind": "completedDungeon", "player": player });
                 if let Some(dungeon) = dungeon {

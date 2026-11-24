@@ -83,6 +83,141 @@ fn expansion_failure(
     )
 }
 
+fn intrinsic_failure(
+    input: &AbilityInput<'_>,
+    state: &'static str,
+    expected: &str,
+) -> MachineFailure {
+    let mut cursor = OracleTokenCursor::new("keyword-template", input.tokens);
+    cursor.enter(state);
+    let (span_start, span_end) = match (input.tokens.first(), input.tokens.last()) {
+        (Some(first), Some(last)) => (first.span_start, last.span_end),
+        _ => (0, 0),
+    };
+    let found = input
+        .tokens
+        .first()
+        .map(|token| token.raw.clone())
+        .unwrap_or_default();
+    cursor.fail_with_span(expected, 0, span_start, span_end, found)
+}
+
+/// The typed rule of an intrinsic keyword definition (CR 702.1). A keyword
+/// ability intrinsic is the runtime keyword itself (its state check or
+/// entry choice belongs to the engine rule that reads the keyword); an
+/// activated intrinsic reads its quoted costs with the shared activation-cost
+/// sequence and composes them with an ordinary zone-change effect.
+fn lower_intrinsic_definition(
+    input: &AbilityInput<'_>,
+    invocation: &KeywordTemplateInvocation,
+    intrinsic: KeywordIntrinsic,
+) -> Result<Value, MachineFailure> {
+    // CR 702.131a: ascend on an instant or sorcery is a spell ability, one
+    // instruction of the spell's program; CR 702.131b: on a permanent it is
+    // the static state check the runtime keyword performs.
+    if intrinsic == KeywordIntrinsic::Ascend && spell_face(input.face_type_line) {
+        return Ok(json!({
+            "kind": "spellAbility",
+            "source": self_ref(),
+            "effects": [{ "kind": "ascend", "player": controller() }],
+        }));
+    }
+    if intrinsic == KeywordIntrinsic::Ascend
+        && !crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type(
+            input.face_type_line,
+        )
+    {
+        return Err(intrinsic_failure(
+            input,
+            "keyword.template.intrinsic.face",
+            "a permanent, instant or sorcery face for ascend (CR 702.131a-b)",
+        ));
+    }
+    if let Some(kind) = intrinsic.keyword_kind() {
+        return Ok(json!({
+            "kind": "keywordAbility",
+            "source": self_ref(),
+            "ability": { "kind": kind },
+        }));
+    }
+    match intrinsic {
+        KeywordIntrinsic::Ninjutsu => lower_ninjutsu(input, invocation),
+        KeywordIntrinsic::Ascend | KeywordIntrinsic::Storied | KeywordIntrinsic::ReadAhead => {
+            Err(intrinsic_failure(
+                input,
+                "keyword.template.intrinsic",
+                "a keyword-ability intrinsic with a runtime keyword kind",
+            ))
+        }
+    }
+}
+
+/// CR 702.49a: `[Cost], Reveal this card from your hand, Return an
+/// unblocked attacking creature you control to its owner's hand: Put this
+/// card onto the battlefield from your hand tapped and attacking.` The costs
+/// are the row's quoted CR costs read by the shared activation-cost sequence;
+/// the effect moves the ability's source from hand onto the battlefield
+/// tapped, attacking what the returned creature was attacking (CR 702.49c).
+fn lower_ninjutsu(
+    input: &AbilityInput<'_>,
+    invocation: &KeywordTemplateInvocation,
+) -> Result<Value, MachineFailure> {
+    let text = invocation.activation_costs.as_deref().ok_or_else(|| {
+        intrinsic_failure(
+            input,
+            "keyword.template.intrinsic.costs",
+            "the intrinsic definition's quoted activation costs",
+        )
+    })?;
+    let tokens = crate::oracle::syntax::recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("keyword-template-intrinsic", &tokens);
+    cursor.enter("keyword.template.intrinsic.costs");
+    let costs = recognize_activation_cost_sequence(&mut cursor)?;
+    cursor.enter("keyword.template.intrinsic.costs-complete");
+    cursor.finish()?;
+    let lowered = costs
+        .costs
+        .iter()
+        .flat_map(lower_local_activation_costs)
+        .collect::<Vec<_>>();
+    cursor.enter("keyword.template.intrinsic.returned-attacker");
+    let returned = lowered
+        .iter()
+        .filter(|cost| cost["kind"] == "returnPermanentToOwnersHand")
+        .filter_map(|cost| {
+            (cost["permanent"]["kind"] == "chosenObject")
+                .then(|| cost["permanent"]["id"].as_str())
+                .flatten()
+        })
+        .collect::<Vec<_>>();
+    let [returned] = returned.as_slice() else {
+        return Err(cursor.fail("exactly one chosen attacker returned to its owner's hand"));
+    };
+    let returned = (*returned).to_string();
+    let decisions = lower_activation_cost_decisions(&costs);
+    let mut rule = json!({
+        "kind": "activatedAbility",
+        "source": self_ref(),
+        "costs": lowered,
+        "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": decisions,
+        },
+        "effects": [{
+            "kind": "moveAbilitySourceToBattlefield",
+            "from": "hand",
+            "tapped": true,
+            "attacking": {
+                "kind": "sameDefenderAs",
+                "object": { "kind": "chosenObject", "id": returned },
+            },
+        }],
+    });
+    // CR 702.49a: the ability functions only while the card is in a hand.
+    rule["activationZone"] = json!("hand");
+    Ok(rule)
+}
+
 /// Expands a template keyword line, or `None` when no template keyword owns
 /// it. `compile` runs the ordinary per-ability parser on one ability text in
 /// the face context of `input`.
@@ -103,7 +238,18 @@ pub(crate) fn expand_keyword_template_line(
             });
         }
     };
-    let mut rules = Vec::with_capacity(invocation.abilities.len());
+    let mut rules = Vec::with_capacity(invocation.abilities.len().max(1));
+    if let Some(intrinsic) = invocation.template.intrinsic {
+        match lower_intrinsic_definition(input, &invocation, intrinsic) {
+            Ok(rule) => rules.push(rule),
+            Err(failure) => {
+                return Some(CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer: RecognizerProvenance::Native,
+                });
+            }
+        }
+    }
     for (part, ability) in invocation.abilities.iter().enumerate() {
         let failed = |reason: String, candidate: Option<MachineFailure>| {
             let failure = expansion_failure(input, &invocation, part, reason);
@@ -148,10 +294,15 @@ pub(crate) fn expand_keyword_template_line(
         });
     }
     let expansion = format!(
-        "Instantiate the {} definition (CR {}, template v{}) with its printed parameter",
+        "Instantiate the {} definition (CR {}, template v{}) with its printed parameter{}",
         invocation.template.canonical_id,
         invocation.template.rules_section,
-        invocation.template.template_version
+        invocation.template.template_version,
+        if invocation.template.intrinsic.is_some() {
+            " and lower its intrinsic rule to typed primitives"
+        } else {
+            ""
+        }
     );
     let reminder = if invocation.reminder {
         "Validate the printed reminder against the keyword's reminder renderings"

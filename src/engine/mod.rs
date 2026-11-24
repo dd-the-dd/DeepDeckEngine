@@ -96,6 +96,7 @@ mod activated_rule_execution;
 mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
+mod attacking_entry;
 mod band_gate;
 mod battlefield_departure;
 mod battlefield_entry_batch;
@@ -106,6 +107,7 @@ mod casting_cost;
 mod casting_permission_modes;
 mod characteristic_observation;
 mod chosen_object_costs;
+mod city_blessing;
 mod copy_program;
 mod cost_payment;
 mod cost_query;
@@ -140,6 +142,7 @@ mod mana_ability_execution;
 mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
+mod myriad;
 mod regeneration;
 mod replacement_pipeline;
 mod trigger_multiplicity;
@@ -3363,6 +3366,7 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "intimidate"
                 | "lifelink"
                 | "menace"
+                | "myriad"
                 | "mustBeBlockedIfAble"
                 | "assignsNoCombatDamage"
                 | "canAttackAsThoughNoDefender"
@@ -4572,6 +4576,12 @@ pub fn effect_supported(effect: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = myriad::myriad_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = city_blessing::ascend_effect_supported(effect) {
         return supported;
     }
     if let Some(supported) = ability_signals::ability_signal_effect_supported(effect) {
@@ -23821,6 +23831,7 @@ impl GameEngine {
     }
 
     fn enqueue_declared_attacker_triggers(&mut self, attacker_ids: &[String]) {
+        self.enqueue_myriad_triggers(attacker_ids);
         let mut triggers = Vec::new();
         // One typed record per declared attacker (event_model).
         let attack_records = self.attack_records(attacker_ids);
@@ -26748,7 +26759,11 @@ impl GameEngine {
                             exile_on_leave_stack: false,
                             ability_kind: Some("activatedAbility".to_string()),
                             ability_rule: Some(rule.clone()),
-                            decisions: action.decisions.clone(),
+                            decisions: attacking_entry::with_cost_attack_references(
+                                action.decisions.clone(),
+                                &rule,
+                                &action.targets,
+                            ),
                             targets: stack_targets.clone(),
                         });
                         engine.state.stack.extend(pending_cost_triggers);
@@ -27605,6 +27620,10 @@ impl GameEngine {
                         }
                     }
                 }
+                stack_decisions.extend(attacking_entry::cost_attack_references(
+                    &rule,
+                    &action.targets,
+                ));
                 let stack_targets = Self::activated_effect_targets(&rule, &action.targets);
                 let pending_activation = StackObject {
                     id: stack_id.clone(),
@@ -33390,6 +33409,12 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_myriad_effect(effect, stack_object, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_ascend_effect(effect, stack_object, bindings)? {
             return Ok(());
         }
         if self.execute_ability_signal_effect(effect, stack_object, bindings)? {

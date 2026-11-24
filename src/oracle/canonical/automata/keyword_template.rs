@@ -38,6 +38,7 @@ use serde::Deserialize;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::*;
+use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
 use crate::oracle::model::RecognizedEntity;
 use crate::oracle::syntax::recognize_oracle_entities;
 
@@ -77,6 +78,22 @@ pub(in crate::oracle::canonical) struct KeywordTemplate {
     /// CR 702.110b). `None` for a keyword that names no action.
     #[serde(default)]
     pub named_action: Option<KeywordNamedAction>,
+    /// A definition the shared Oracle grammar does not write as a printed
+    /// sentence: a game-state check, a player designation or an activation
+    /// from a hidden zone (CR 702.1). The row then has no `abilities`; its
+    /// typed expansion (`abilities/keyword_template_expansion.rs`) lowers the
+    /// intrinsic rule to ordinary IR primitives.
+    #[serde(default)]
+    pub intrinsic: Option<KeywordIntrinsic>,
+    /// The activation costs an intrinsic activated definition quotes from its
+    /// CR clause (`$cost, Reveal this card from your hand, ...`), read again
+    /// by the shared activation-cost sequence.
+    #[serde(default)]
+    pub activation_costs: Option<String>,
+    /// The kind of face the definition applies to (CR 702.195a: storied is
+    /// a static ability of a permanent).
+    #[serde(default)]
+    pub face_kind: Option<KeywordFaceKind>,
     /// One Oracle ability per ability the keyword represents.
     pub abilities: Vec<String>,
     /// Accepted reminder renderings, without their parentheses.
@@ -104,6 +121,48 @@ impl KeywordActionPerformer {
             Self::Sacrifice => "sacrifice",
         }
     }
+}
+
+/// An intrinsic keyword definition (CR 702.1) and the rule it lowers to.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(in crate::oracle::canonical) enum KeywordIntrinsic {
+    /// CR 702.131b: any time the controller controls ten or more permanents
+    /// and doesn't have the city's blessing, they get it for the rest of the
+    /// game (a state check of the permanent with ascend); CR 702.131a: on an
+    /// instant or sorcery, the same check is a spell ability.
+    Ascend,
+    /// CR 702.195a: the same state check for an enduring story over three or
+    /// more artifacts, Sagas and/or legendary permanents.
+    Storied,
+    /// CR 702.155a-b: the Saga's entry chapter choice and its chapter
+    /// trigger restriction.
+    ReadAhead,
+    /// CR 702.49a, 702.49c: an activated ability functioning only in hand
+    /// whose effect puts this card onto the battlefield tapped and attacking
+    /// what the returned attacker was attacking.
+    Ninjutsu,
+}
+
+impl KeywordIntrinsic {
+    /// The runtime keyword kind of a keyword-ability intrinsic, or `None`
+    /// for an intrinsic lowered to an activated ability.
+    pub(in crate::oracle::canonical) fn keyword_kind(self) -> Option<&'static str> {
+        match self {
+            Self::Ascend => Some("ascend"),
+            Self::Storied => Some("storied"),
+            Self::ReadAhead => Some("readAhead"),
+            Self::Ninjutsu => None,
+        }
+    }
+}
+
+/// The face kind a keyword definition requires.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub(in crate::oracle::canonical) enum KeywordFaceKind {
+    /// A face with a permanent card type (CR 110.4).
+    Permanent,
 }
 
 #[derive(Debug, Deserialize)]
@@ -183,6 +242,8 @@ pub(in crate::oracle::canonical) struct KeywordTemplateInvocation {
     pub arguments: KeywordTemplateArguments,
     pub reminder: bool,
     pub abilities: Vec<String>,
+    /// The intrinsic definition's activation costs, instantiated.
+    pub activation_costs: Option<String>,
     pub trace: String,
 }
 
@@ -318,12 +379,26 @@ fn read_line(
             "a face carrying the subtype its keyword definition names",
         )?;
     }
+    if let Some(KeywordFaceKind::Permanent) = template.face_kind {
+        // A static definition of a permanent has no meaning on a spell face.
+        cursor.enter("keyword.template.face-kind");
+        cursor.require(
+            type_line_has_permanent_card_type(face_type_line),
+            "a permanent face for this keyword's static definition",
+        )?;
+    }
     cursor.enter("keyword.template.instantiate");
     let abilities = template
         .abilities
         .iter()
         .map(|ability| instantiate(ability, &arguments))
         .collect::<Result<Vec<_>, _>>()
+        .map_err(|expected| cursor.fail(&expected))?;
+    let activation_costs = template
+        .activation_costs
+        .as_ref()
+        .map(|costs| instantiate(costs, &arguments))
+        .transpose()
         .map_err(|expected| cursor.fail(&expected))?;
     let trace = cursor
         .transitions()
@@ -336,6 +411,7 @@ fn read_line(
         arguments,
         reminder,
         abilities,
+        activation_costs,
         trace,
     })
 }
@@ -364,10 +440,12 @@ fn read_reminder(
         instantiate(reminder, arguments).is_ok_and(|rendering| {
             let expected = recognize_oracle_entities(&rendering);
             expected.len() == printed.len()
-                && expected
-                    .iter()
-                    .zip(printed)
-                    .all(|(expected, token)| token.raw.eq_ignore_ascii_case(&expected.raw))
+                && expected.iter().zip(printed).all(|(expected, token)| {
+                    token
+                        .raw
+                        .replace('\u{2019}', "'")
+                        .eq_ignore_ascii_case(&expected.raw)
+                })
         })
     });
     cursor.require(

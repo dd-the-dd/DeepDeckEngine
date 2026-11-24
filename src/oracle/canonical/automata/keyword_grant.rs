@@ -91,6 +91,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "intimidate" => GrantedKeyword::Intimidate,
         "lifelink" => GrantedKeyword::Lifelink,
         "menace" => GrantedKeyword::Menace,
+        "myriad" => GrantedKeyword::Myriad,
         "persist" => GrantedKeyword::Persist,
         "prowess" => GrantedKeyword::Prowess,
         "reach" => GrantedKeyword::Reach,

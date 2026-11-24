@@ -44,6 +44,31 @@ Schéma `deepdeck-keyword-templates/v1`, versionné avec le catalogue
 | `faceSubtype` | sous-type exigé quand la définition nomme la source par lui (`this Equipment`) |
 | `abilities` | une capacité Oracle par capacité représentée par le mot-clé |
 | `reminders` | rendus de rappel acceptés (sans parenthèses) |
+| `intrinsic` | définition sans phrase de la grammaire partagée (`ascend`, `storied`, `readAhead`, `ninjutsu`) ; `abilities` est alors vide et l'expansion typée la réduit en IR ordinaire |
+| `activationCosts` | coûts cités de la clause CR d'un intrinsèque activé (`$cost, Reveal this card from your hand, ...`), relus par la séquence de coûts d'activation partagée |
+| `faceKind` | type de face exigé quand la CR scinde la définition par face (`permanent`) |
+
+Lignes intrinsèques (lot 6) :
+
+| Mot-clé | CR | IR |
+|---|---|---|
+| Ascend | 702.131a-b | permanent : `keywordAbility {kind: ascend}` (vérification d'état du moteur) ; éphémère/rituel : `spellAbility` avec l'effet `ascend` (CR 702.131a), même désignation `cityBlessing` |
+| Storied | 702.195a | `keywordAbility {kind: storied}` (face permanente) |
+| Read ahead | 702.155a-b | `keywordAbility {kind: readAhead}` (face Saga) |
+| Ninjutsu | 702.49a, 702.49c | capacité activée depuis la main : coûts relus par la séquence partagée, effet `moveAbilitySourceToBattlefield {tapped, attacking: sameDefenderAs(créature renvoyée)}` |
+
+Myriad (CR 702.116) n'est pas une ligne de modèle : c'est un mot-clé sans
+paramètre de la liste partagée (`GrantedKeyword::Myriad`), donc aussi
+accordable (`have myriad`, `gains myriad`). Son déclencheur est intrinsèque au
+moteur (`src/engine/myriad.rs`) : un par instance à la déclaration d'attaque.
+Sneak (CR 702.190a) est une ligne de `casting_keyword.rs` ; seule une face
+d'éphémère a une exécution (coût alternatif conditionné à votre étape de
+déclaration des bloqueurs) ; une face de permanent ou de rituel échoue
+explicitement (moment de lancement et entrée attaquante absents du moteur).
+Bestow (CR 702.103a) est aussi une ligne de `casting_keyword.rs` réduite au
+mot-clé d'exécution `bestow` existant (face de créature seulement) ; les
+cartes restent bloquées tant que le sujet statique `Enchanted creature` exige
+une face d'Aura (`static_continuous.rs`).
 
 Emplacements (définitions et rappels) :
 

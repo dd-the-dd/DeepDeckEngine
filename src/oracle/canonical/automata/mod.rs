@@ -1361,6 +1361,9 @@ pub(super) enum GrantedKeyword {
     Landwalk(LandwalkWord),
     Lifelink,
     Menace,
+    /// CR 702.116a: an attack trigger creating attacking token copies for
+    /// each other opponent (engine `myriad` runtime).
+    Myriad,
     Persist,
     Prowess,
     Reach,
@@ -1420,6 +1423,7 @@ impl GrantedKeyword {
             Self::Landwalk(word) => word.keyword,
             Self::Lifelink => "lifelink",
             Self::Menace => "menace",
+            Self::Myriad => "myriad",
             Self::Persist => "persist",
             Self::Prowess => "prowess",
             Self::Reach => "reach",

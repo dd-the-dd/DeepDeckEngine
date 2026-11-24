@@ -517,6 +517,8 @@ pub(in crate::oracle::canonical) enum ActionOutcomeNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum PlayerDesignation {
     EnduringStory,
+    /// CR 702.131c: the city's blessing.
+    CityBlessing,
     /// CR 309.7: `dungeon` names one Dungeon, or any Dungeon when absent.
     CompletedDungeon {
         dungeon: Option<String>,

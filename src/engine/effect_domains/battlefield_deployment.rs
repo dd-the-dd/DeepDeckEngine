@@ -26,6 +26,10 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("moveAbilitySourceToBattlefield") => {
             matches!(effect["from"].as_str(), Some("hand" | "graveyard"))
                 && effect["tapped"].is_boolean()
+                // CR 702.49c: entering attacking a recorded defender.
+                && effect
+                    .get("attacking")
+                    .is_none_or(super::super::attacking_entry::attacking_entry_supported)
                 && effect.get("enterWithCounters").is_none_or(|counters| {
                     counters.as_array().is_some_and(|counters| {
                         counters.iter().all(|counter| {
@@ -129,6 +133,13 @@ impl GameEngine {
                     )?;
                     let trigger_source = card.card.clone();
                     self.state.players[player_index].battlefield.push(card.card);
+                    if let Some(attacking) = effect.get("attacking") {
+                        self.put_entered_permanent_attacking(
+                            &trigger_source.instance_id,
+                            attacking,
+                            stack_object,
+                        );
+                    }
                     self.record_event(
                         "abilitySourceMovedToBattlefield",
                         Some(stack_object.controller.clone()),
