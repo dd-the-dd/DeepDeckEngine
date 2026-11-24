@@ -40,8 +40,6 @@ struct ObjectQueryFrame {
     /// so a parent reading it as the `ownedBy` characteristic keeps its
     /// position in the composed predicate.
     owner_qualifier_index: Option<usize>,
-    /// `other than this creature` read after the noun.
-    source_exclusion: Option<RelationSite>,
     logical_connectors: Vec<super::ContextualListConnector>,
     pending_logical_connector: Option<super::ContextualListConnector>,
     logical_comma: bool,
@@ -180,6 +178,10 @@ pub(in crate::oracle::canonical) struct QueryRelations {
     /// this turn`: the objects are departures of this turn, not present
     /// objects. Like a relation, it ends a coordinated set.
     departure: Option<ReadDeparture>,
+    /// `other than this creature` after the noun (the source is not a
+    /// member). Kept with the relations so that a parent reading the bare
+    /// predicate after checking `is_empty` never drops it.
+    source_exclusion: Option<RelationSite>,
 }
 
 impl QueryRelations {
@@ -191,12 +193,14 @@ impl QueryRelations {
         }
     }
 
-    /// Whether the phrase states no player relation and no departure history.
+    /// Whether the phrase states no player relation, no departure history
+    /// and no postnominal source exclusion.
     pub(in crate::oracle::canonical) fn is_empty(&self) -> bool {
         self.controller.is_none()
             && self.caster.is_none()
             && self.owner.is_none()
             && self.departure.is_none()
+            && self.source_exclusion.is_none()
     }
 
     /// The departure history the phrase states, if any.
@@ -370,9 +374,6 @@ pub(in crate::oracle::canonical) struct RecognizedObjectQuery {
     /// controller read as the `ownedBy` characteristic, at its position.
     owned_predicate: Option<SelectorPredicate>,
     relations: QueryRelations,
-    /// `other than this creature` after the noun (CR 109.5 `this` names
-    /// the source): read here, lowered only by a parent that takes it.
-    source_exclusion: Option<RelationSite>,
 }
 
 impl RecognizedObjectQuery {
@@ -389,7 +390,7 @@ impl RecognizedObjectQuery {
     /// creature`). A parent that lowers a source exclusion calls this before
     /// projecting; every projection refuses an exclusion left in place.
     pub(in crate::oracle::canonical) fn take_source_exclusion(&mut self) -> bool {
-        self.source_exclusion.take().is_some()
+        self.relations.source_exclusion.take().is_some()
     }
 
     /// The projections' shared refusals: a departure history or a
@@ -398,7 +399,7 @@ impl RecognizedObjectQuery {
         if let Some(departure) = &self.relations.departure {
             return Err(refuse_departure(cursor, departure));
         }
-        if let Some(site) = &self.source_exclusion {
+        if let Some(site) = &self.relations.source_exclusion {
             return Err(refuse_source_exclusion(cursor, site));
         }
         Ok(())
@@ -415,12 +416,11 @@ impl RecognizedObjectQuery {
         let (last, preceding) = branches.split_last()?;
         if preceding
             .iter()
-            .any(|branch| branch.source_exclusion.is_some())
+            .any(|branch| branch.relations.source_exclusion.is_some())
         {
             return None;
         }
         let relations = last.relations.clone();
-        let source_exclusion = last.source_exclusion.clone();
         let owned_last = last.owned_predicate.clone();
         let plain: Vec<SelectorPredicate> = branches
             .into_iter()
@@ -440,7 +440,6 @@ impl RecognizedObjectQuery {
             predicate: compose(plain)?,
             owned_predicate,
             relations,
-            source_exclusion,
         })
     }
 
@@ -554,7 +553,7 @@ impl RecognizedObjectQuery {
         let Some(departure) = self.relations.departure.clone() else {
             return Ok(None);
         };
-        if let Some(site) = &self.source_exclusion {
+        if let Some(site) = &self.relations.source_exclusion {
             return Err(refuse_source_exclusion(cursor, site));
         }
         if let Some(relation) = self
@@ -942,10 +941,10 @@ fn recognize_object_query_frame(
                     let names = cursor.source_names().to_vec();
                     super::recognize_source_reference(cursor, &names, None)?;
                     cursor.require(
-                        frame.source_exclusion.is_none(),
+                        frame.relations.source_exclusion.is_none(),
                         "one source exclusion for one object query",
                     )?;
-                    frame.source_exclusion = Some(site);
+                    frame.relations.source_exclusion = Some(site);
                     ObjectQueryState::ReadPostnominalQualifier
                 } else if let Some(negated) = copular_characteristic_starts(cursor) {
                     // `that isn't a Dragon`, `that are artifacts`, `that
@@ -1096,7 +1095,6 @@ fn recognize_object_query_frame(
                     predicate,
                     owned_predicate,
                     relations: frame.relations,
-                    source_exclusion: frame.source_exclusion,
                 });
             }
         };
