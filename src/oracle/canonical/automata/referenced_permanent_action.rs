@@ -1,5 +1,6 @@
 //! Zone actions on one bound permanent reference (`destroy|exile|sacrifice
-//! it|that NOUN|the NOUN`): one reader, the verb's action as data.
+//! it|that NOUN|the NOUN`, `put it on top of|shuffle it into a library`):
+//! one reader, the verb's action as data.
 use super::super::{MachineResult, OracleTokenCursor};
 
 /// `destroy REFERENCE`: the destruction of one bound permanent reference
@@ -23,6 +24,23 @@ pub(in crate::oracle::canonical) enum ReferencedPermanentAction {
     Exile,
     /// CR 701.21: only its controller sacrifices it.
     Sacrifice,
+    /// `put REFERENCE on top of|on the bottom of|on their choice of the top
+    /// or bottom of their library`: the permanent goes to its owner's
+    /// library (CR 400.3) at the written place.
+    PutOnOwnerLibrary(OwnerLibraryPlacement),
+    /// `shuffle REFERENCE into their library` (CR 701.24a): the permanent
+    /// goes to its owner's library (CR 400.3), then that library is shuffled.
+    ShuffleIntoOwnerLibrary,
+}
+
+/// Where a permanent put into its owner's library goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum OwnerLibraryPlacement {
+    Top,
+    Bottom,
+    /// `their choice of the top or bottom`: the acting player, the owner
+    /// whose library it is, chooses on resolution.
+    OwnerChoiceTopOrBottom,
 }
 
 /// `exile|sacrifice REFERENCE` on a permanent the program bound other than
@@ -44,6 +62,15 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_zone_action(
         super::VerbAgreement::Base,
     ) {
         ReferencedPermanentAction::Sacrifice
+    } else if super::lemma_at(cursor, super::VerbLemma::Put, super::VerbAgreement::Base) {
+        // The placement is read after the reference.
+        ReferencedPermanentAction::PutOnOwnerLibrary(OwnerLibraryPlacement::Top)
+    } else if super::lemma_at(
+        cursor,
+        super::VerbLemma::Shuffle,
+        super::VerbAgreement::Base,
+    ) {
+        ReferencedPermanentAction::ShuffleIntoOwnerLibrary
     } else {
         return ReferencedPermanentActionAttempt::NotClaimed;
     };
@@ -106,7 +133,10 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
             "effect.destroy-reference.action",
             "effect.destroy-reference.object",
         ),
-        ReferencedPermanentAction::Exile | ReferencedPermanentAction::Sacrifice => (
+        ReferencedPermanentAction::Exile
+        | ReferencedPermanentAction::Sacrifice
+        | ReferencedPermanentAction::PutOnOwnerLibrary(_)
+        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary => (
             "effect.referenced-permanent.action",
             "effect.referenced-permanent.object",
         ),
@@ -120,6 +150,14 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
         ReferencedPermanentAction::Sacrifice => super::consume_lemma(
             cursor,
             super::VerbLemma::Sacrifice,
+            super::VerbAgreement::Base,
+        )?,
+        ReferencedPermanentAction::PutOnOwnerLibrary(_) => {
+            super::consume_lemma(cursor, super::VerbLemma::Put, super::VerbAgreement::Base)?
+        }
+        ReferencedPermanentAction::ShuffleIntoOwnerLibrary => super::consume_lemma(
+            cursor,
+            super::VerbLemma::Shuffle,
             super::VerbAgreement::Base,
         )?,
     }
@@ -141,15 +179,84 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
         };
         object
     };
+    let action = match action {
+        ReferencedPermanentAction::PutOnOwnerLibrary(_) => {
+            ReferencedPermanentAction::PutOnOwnerLibrary(recognize_owner_library_placement(cursor)?)
+        }
+        ReferencedPermanentAction::ShuffleIntoOwnerLibrary => {
+            cursor.enter("effect.referenced-permanent.shuffle-destination");
+            cursor.consume("into")?;
+            recognize_owner_library(cursor)?;
+            action
+        }
+        other => other,
+    };
     let cannot_regenerate = match action {
         ReferencedPermanentAction::Destroy => {
             super::recognize_scalar_regeneration_amendment(cursor)?
         }
-        ReferencedPermanentAction::Exile | ReferencedPermanentAction::Sacrifice => false,
+        ReferencedPermanentAction::Exile
+        | ReferencedPermanentAction::Sacrifice
+        | ReferencedPermanentAction::PutOnOwnerLibrary(_)
+        | ReferencedPermanentAction::ShuffleIntoOwnerLibrary => false,
     };
     Ok(ReferencedPermanentActionNode {
         object,
         cannot_regenerate,
         action,
     })
+}
+
+/// `on top of LIBRARY` | `on the bottom of LIBRARY` | `on your|its owner's
+/// choice of the top or bottom of LIBRARY`: the place in the owner's library.
+fn recognize_owner_library_placement(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<OwnerLibraryPlacement> {
+    cursor.enter("effect.referenced-permanent.library-placement");
+    cursor.consume("on")?;
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let top = word(0, "top");
+    let bottom = word(0, "the") && word(1, "bottom");
+    let placement = if top {
+        cursor.consume_phrase(&["top", "of"])?;
+        OwnerLibraryPlacement::Top
+    } else if bottom {
+        cursor.consume_phrase(&["the", "bottom", "of"])?;
+        OwnerLibraryPlacement::Bottom
+    } else {
+        cursor.enter("effect.referenced-permanent.library-placement.choice");
+        recognize_library_holder(cursor, "choice")?;
+        cursor.consume_phrase(&["of", "the", "top", "or", "bottom", "of"])?;
+        OwnerLibraryPlacement::OwnerChoiceTopOrBottom
+    };
+    recognize_owner_library(cursor)?;
+    Ok(placement)
+}
+
+/// `your library` (the acting player, the owner, after the performer's
+/// person shift) | `its owner's library`.
+fn recognize_owner_library(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    cursor.enter("effect.referenced-permanent.owner-library");
+    recognize_library_holder(cursor, "library")
+}
+
+/// `your NOUN` | `its owner's NOUN`: the owner of the referenced permanent.
+fn recognize_library_holder(cursor: &mut OracleTokenCursor<'_>, noun: &str) -> MachineResult<()> {
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+    {
+        return cursor.consume_phrase(&["your", noun]);
+    }
+    cursor.consume("its")?;
+    let owner = cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("owner's") || raw.eq_ignore_ascii_case("owner\u{2019}s")
+    });
+    cursor.require(owner, "`your` or `its owner's`")?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume(noun)
 }

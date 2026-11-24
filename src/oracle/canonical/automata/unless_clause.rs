@@ -244,6 +244,7 @@ fn recognize_performed_payer(
             reference: PermanentEffectReference::Target(binding),
             selector: None,
         }),
+        object_player_antecedent: None,
     };
     let (performer, _) = recognize_performer(cursor, &context)
         .ok_or_else(|| cursor.fail("an `unless` payer the performer grammar names"))??;

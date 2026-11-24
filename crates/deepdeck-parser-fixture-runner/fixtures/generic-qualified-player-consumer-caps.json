@@ -310,11 +310,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/1/zone/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
           }
         ]
       }

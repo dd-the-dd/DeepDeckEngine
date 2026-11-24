@@ -163,6 +163,7 @@ mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
+mod extra_turn;
 mod event_history;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
@@ -38453,23 +38454,7 @@ impl GameEngine {
             if self.state.outcome.is_some() {
                 return Ok(UntapBoundaryStatus::GameEnded);
             }
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
         }
         if self.state.outcome.is_some() {
@@ -38545,23 +38530,7 @@ impl GameEngine {
             if self.state.outcome.is_some() {
                 break;
             }
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
         }
         if self.state.outcome.is_none() {
@@ -38592,23 +38561,7 @@ impl GameEngine {
         self.execute_turn(provider)?;
         provider.observe_turn_completed(&self.state);
         if self.state.outcome.is_none() {
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
             if self.state.turn_number > max_turns {
                 self.state.status = GameStatus::TurnLimitReached;

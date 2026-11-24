@@ -293,10 +293,13 @@ fn keyword_action_position(tokens: &[RecognizedEntity], matched: AbilityLexemeMa
     }
 
     let previous = &tokens[matched.start_token - 1];
+    // A player role (`its controller scries 2`, `its owner investigates`) is
+    // a player subject before its verb like a player type word (CR 109.5).
     matches!(
         previous.token_type.as_str(),
         "referenceWord"
             | "typeWord"
+            | "playerRoleWord"
             | "playerQualifierWord"
             | "modalityWord"
             | "logicWord"

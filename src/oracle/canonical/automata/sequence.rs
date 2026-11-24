@@ -273,6 +273,12 @@ struct SequenceMemory {
     /// Remaining per-player actions of one coordinated-subject sentence, in
     /// reverse order. Each is pushed as its own action joined by `and`.
     distributed: Vec<LocalEffectNode>,
+    /// The performer of the clause whose remaining actions `distributed`
+    /// holds: each of them is that performer's action too.
+    distributed_performer: Option<super::PerformerNode>,
+    /// The previous action declared the object of a `the owner|controller
+    /// of TARGET` subject: its performed verb follows without a connector.
+    subject_continuation: bool,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
     /// A preposed `At the beginning of ... ,` timing scoping the sentence
@@ -763,12 +769,28 @@ fn recognize_effect_sequence_attempt_scoped(
                 let mut preposed_for_each: Option<PreposedForEach> = None;
                 let mut effect_start = cursor.position();
                 let mut distributed_rest = Vec::new();
+                let mut from_distributed = false;
+                // `the owner|controller of TARGET`: the relation whose player
+                // performs the rest of the clause after this declaration.
+                let mut declared_subject: Option<super::ObjectPlayerRelation> = None;
                 let mut causative: bool;
                 let mut effect = loop {
                     if let Some(pending) = memory.distributed.pop() {
                         // A distributed per-player action is already read.
+                        // The later actions of one performed clause keep
+                        // its performer (`each player shuffles their hand
+                        // and graveyard into their library`).
                         causative = false;
-                        break pending;
+                        from_distributed = true;
+                        break match memory.distributed_performer.clone() {
+                            Some(performer) => {
+                                LocalEffectNode::Performed(super::PerformedEffectNode {
+                                    performer,
+                                    effect: Box::new(pending),
+                                })
+                            }
+                            None => pending,
+                        };
                     }
                     let mut action_context = base_action_context.clone();
                     action_context.preposed_duration = preposed_duration.clone();
@@ -938,6 +960,26 @@ fn recognize_effect_sequence_attempt_scoped(
                                 super::ReferencedPermanentActionAttempt::NotClaimed => {}
                             }
                         }
+                        // `shuffle your hand and graveyard into your library`:
+                        // the card moves of each zone, then the shuffle, as
+                        // consecutive actions of the clause's actor.
+                        match super::try_recognize_shuffle_zones_into_library(attempt) {
+                            Ok(Some(actions)) => {
+                                let mut actions = actions
+                                    .into_iter()
+                                    .map(LocalEffectNode::CardAction)
+                                    .collect::<Vec<_>>();
+                                actions.reverse();
+                                let first = actions.pop().expect("a move before the shuffle");
+                                distributed_rest = actions;
+                                return Ok(first);
+                            }
+                            Ok(None) => {}
+                            Err(failure) => {
+                                attempt_frame.commit();
+                                return Err(failure);
+                            }
+                        }
                         match super::try_recognize_target_card_action(attempt) {
                             super::CollectionOperandAttempt::Recognized(fragment) => {
                                 return Ok(
@@ -1059,6 +1101,32 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         parsed => parsed,
                     };
+                    // `the owner|controller of TARGET VERBs ...` (CR 108.3,
+                    // 109.4): the subject declares its target permanent with
+                    // the ordinary `choose target` instruction; the related
+                    // player performs the rest of the clause as the next
+                    // action of the same sentence.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && !attempt_frame.is_committed()
+                                && super::object_relation_declaration_starts(cursor) =>
+                        {
+                            let mut subject = cursor.clone();
+                            match super::recognize_object_relation_declaration(&mut subject) {
+                                Ok((relation, choice)) => {
+                                    *cursor = subject;
+                                    declared_subject = Some(relation);
+                                    Ok(LocalEffectNode::Choose(choice))
+                                }
+                                Err(subject) if subject.token_index > failure.token_index => {
+                                    Err(subject)
+                                }
+                                Err(_) => Err(failure),
+                            }
+                        }
+                        parsed => parsed,
+                    };
                     // `PLAYER VERBs ...`: another player performs the clause
                     // (CR 608.2c). The clause reads the subject and checks the
                     // verb's agreement; the ordinary readers read the predicate
@@ -1088,6 +1156,25 @@ fn recognize_effect_sequence_attempt_scoped(
                                 event_player: base_action_context.frame.event_player,
                                 defending_player: base_action_context.frame.defending_player,
                                 object_antecedent: object_antecedent.clone(),
+                                // The object-related player who performed
+                                // the previous action, else the player the
+                                // previous action named through its object.
+                                object_player_antecedent: match &memory.current_performer {
+                                    Some((
+                                        super::PerformerNode::Player(
+                                            super::PlayerEffectSubject::ObjectRelation {
+                                                relation,
+                                                object,
+                                            },
+                                        ),
+                                        _,
+                                        _,
+                                    )) => Some((*relation, *object)),
+                                    _ => object_player_mention(
+                                        &memory.effects,
+                                        object_antecedent.as_ref(),
+                                    ),
+                                },
                             };
                             let mut head = cursor.clone();
                             // A subjectless verb continues the performer of
@@ -1115,20 +1202,11 @@ fn recognize_effect_sequence_attempt_scoped(
                                 // performer's own permission. The shared
                                 // permission reader reads the sentence in the
                                 // performer's person; the performer, put on the
-                                // optional wrapper, owns the decision.
-                                // A bound player's permission (`that player
-                                // may`, `its controller may`) keeps the
-                                // program-level permission reader and its
-                                // historical IR; it already names its actor.
-                                Some(Ok((super::PerformerNode::Player(player), _)))
-                                    if !matches!(
-                                        player,
-                                        super::PlayerEffectSubject::DeclaredTarget { .. }
-                                    ) && super::performer_modality(&head)
-                                        == super::ClauseModality::May =>
-                                {
-                                    Err(failure)
-                                }
+                                // optional wrapper, owns the decision. A bound
+                                // player's permission (`that player may`, `its
+                                // controller may`) reaches this reader only
+                                // when the program-level permission readers,
+                                // tried first, did not read it.
                                 Some(Ok((performer, _)))
                                     if super::performer_modality(&head)
                                         == super::ClauseModality::May =>
@@ -1400,6 +1478,12 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                     }
                 };
+                if !distributed_rest.is_empty() {
+                    memory.distributed_performer = match &effect {
+                        LocalEffectNode::Performed(node) => Some(node.performer.continued()),
+                        _ => None,
+                    };
+                }
                 memory.distributed.extend(distributed_rest);
                 attempt_frame.clear();
                 if let Some(preposed) = preposed_for_each.take() {
@@ -1586,9 +1670,18 @@ fn recognize_effect_sequence_attempt_scoped(
                     });
                 }
                 memory.current_performer = match &effect {
+                    // A distributed action continues the agreement its
+                    // clause's subject gave the verb.
                     LocalEffectNode::Performed(node) => Some((
                         node.performer.continued(),
-                        performed_agreement(&node.performer, cursor, effect_start),
+                        memory
+                            .current_performer
+                            .as_ref()
+                            .filter(|_| from_distributed)
+                            .map(|(_, agreement, _)| *agreement)
+                            .unwrap_or_else(|| {
+                                performed_agreement(&node.performer, cursor, effect_start)
+                            }),
                         memory.sentence_start,
                     )),
                     // The ordinary readers of a player subject: its later
@@ -1617,6 +1710,20 @@ fn recognize_effect_sequence_attempt_scoped(
                     }
                     _ => None,
                 };
+                if let Some(relation) = declared_subject {
+                    memory.current_performer = Some((
+                        super::PerformerNode::Player(super::PlayerEffectSubject::ObjectRelation {
+                            relation,
+                            object: super::PermanentEffectReference::Target(TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            }),
+                        }),
+                        super::VerbAgreement::ThirdPersonSingular,
+                        memory.sentence_start,
+                    ));
+                    memory.subject_continuation = true;
+                }
                 memory.current_player_subject = match &effect {
                     LocalEffectNode::PlayerAction(action) => {
                         if let super::PlayerEffectSubject::DeclaredTarget { binding, .. } =
@@ -1665,6 +1772,13 @@ fn recognize_effect_sequence_attempt_scoped(
             }
             SequenceState::ConnectorOrEnd => {
                 cursor.enter("sequence.connector-or-end");
+                // A declared object's player performs the rest of its
+                // clause: the verb follows the declaration directly.
+                if std::mem::take(&mut memory.subject_continuation) {
+                    memory.connectors.push(EffectConnector::And);
+                    state = SequenceState::Effect;
+                    continue;
+                }
                 if !memory.distributed.is_empty() {
                     // The coordinated subjects' remaining actions belong to
                     // the same sentence: one `and` joins each distributed action.
@@ -2844,6 +2958,30 @@ fn recognize_subject_frame(
         name_links,
         name_failure,
     ) {
+        // A source or anaphor subject the permanent-action frames did not
+        // take: the damage frame reads only `deal`; another lexicon verb or
+        // a modal (`becomes`, `can block`) is named as the clause's own
+        // unsupported lemma for this subject kind.
+        let mut verb = cursor.clone();
+        let other_verb = |raw: &str| {
+            super::lookup_effect_verb(raw).is_some_and(|(entry, _)| entry.lemma != VerbLemma::Deal)
+                || super::lookup_auxiliary(raw)
+                    .is_some_and(|(auxiliary, _)| auxiliary != super::Auxiliary::Would)
+        };
+        if super::recognize_source_reference_with_typed_antecedent(
+            &mut verb,
+            name_links,
+            name_failure,
+            super::permanent_subject::proven_permanent_antecedent(context),
+        )
+        .is_ok()
+            && verb.peek().is_some_and(other_verb)
+        {
+            return Err(super::clause_verb_unsupported(
+                &verb,
+                "a source or anaphor object subject",
+            ));
+        }
         return super::effects::recognize_damage_effect_with_agreement(
             cursor,
             name_links,
@@ -2929,6 +3067,45 @@ fn recognize_declared_subject_clause(
     ))
 }
 
+/// The player an earlier action named only through its singular object
+/// antecedent: the owner after a move to `its owner's` hand or library (CR
+/// 108.3), the controller of a target chosen among the permanents `an
+/// opponent controls` / `you don't control` (CR 109.4). `None` when the
+/// object names no other player; the caller then keeps `that player`'s
+/// ordinary binding failure.
+fn object_player_mention(
+    effects: &[LocalEffectNode],
+    antecedent: Option<&super::ObjectSubjectAntecedent>,
+) -> Option<(super::ObjectPlayerRelation, super::PermanentEffectReference)> {
+    let antecedent = antecedent?;
+    let super::PermanentEffectReference::Target(binding) = antecedent.reference else {
+        return None;
+    };
+    if let Some(LocalEffectNode::ZoneChange(zone_change)) = effects.get(binding.effect_index)
+        && matches!(
+            zone_change.action,
+            super::ZoneChangeAction::Move(
+                super::ZoneChangeDestination::OwnerHand
+                    | super::ZoneChangeDestination::OwnerLibrary(_)
+            )
+        )
+    {
+        return Some((super::ObjectPlayerRelation::Owner, antecedent.reference));
+    }
+    match &antecedent.selector {
+        Some(super::TargetSelector::ControlledObject {
+            controller:
+                super::ObjectControllerScope::OpponentOfAbilityController
+                | super::ObjectControllerScope::NotAbilityController,
+            ..
+        }) => Some((
+            super::ObjectPlayerRelation::Controller,
+            antecedent.reference,
+        )),
+        _ => None,
+    }
+}
+
 /// The agreement of a performer's continued verb: plural after `they`, else
 /// third-person singular (read from the subject as written).
 fn performed_agreement(
@@ -2942,6 +3119,11 @@ fn performed_agreement(
         .is_some_and(|token| token.raw.eq_ignore_ascii_case("they"));
     match performer {
         super::PerformerNode::Player(_) if they => super::VerbAgreement::Base,
+        // The verbs after `each` take the base form (`two target players
+        // each draw a card and lose 1 life`).
+        super::PerformerNode::DeclaredPlayers { .. } | super::PerformerNode::BoundPlayers(_) => {
+            super::VerbAgreement::Base
+        }
         _ => super::VerbAgreement::ThirdPersonSingular,
     }
 }

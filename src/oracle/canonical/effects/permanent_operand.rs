@@ -104,6 +104,8 @@ pub(in crate::oracle::canonical) fn lower_unbounded_target_maximum(
 ) -> Option<Value> {
     match candidates["kind"].as_str()? {
         "permanents" => Some(json!({"kind":"countPermanents", "allPlayers":true})),
+        // Every player in the game bounds any number of target players.
+        "players" => Some(json!({"kind":"countPlayers"})),
         "cards"
             if matches!(
                 candidates["zone"]["kind"].as_str(),
