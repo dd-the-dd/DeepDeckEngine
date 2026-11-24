@@ -335,6 +335,102 @@
       }
     },
     {
+      "id": "exact-krosan-verge-one-card-per-slot",
+      "request": {
+        "cardName": "Krosan Verge",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for a Forest card and a Plains card, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+              { "pointer": "/effects/0/id", "equals": "searchedCards/slot0" },
+              { "pointer": "/effects/0/from/where/value", "equals": "Forest" },
+              { "pointer": "/effects/1/id", "equals": "searchedCards/slot1" },
+              { "pointer": "/effects/1/from/kind", "equals": "setDifference" },
+              { "pointer": "/effects/1/from/left/where/value", "equals": "Plains" },
+              { "pointer": "/effects/2/kind", "equals": "moveCards" },
+              { "pointer": "/effects/2/cards/kind", "equals": "union" },
+              { "pointer": "/effects/2/to/tapped", "equals": true },
+              { "pointer": "/effects/3/kind", "equals": "shuffleZone" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-corpse-harvester-slots-reveal-into-hand",
+      "request": {
+        "cardName": "Corpse Harvester",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "{1}{B}, {T}, Sacrifice a creature: Search your library for a Zombie card and a Swamp card, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/from/where/value", "equals": "Zombie" },
+              { "pointer": "/effects/1/from/left/where/value", "equals": "Swamp" },
+              { "pointer": "/effects/2/kind", "equals": "revealCards" },
+              { "pointer": "/effects/3/kind", "equals": "moveCards" },
+              { "pointer": "/effects/3/to/kind", "equals": "hand" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-following-action-is-not-another-slot",
+      "request": {
+        "cardName": "Synthetic Single Tutor",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Search your library for a creature card and put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/id", "equals": "searchedCards" },
+              { "pointer": "/effects/0/candidates/where/value", "equals": "Creature" },
+              { "pointer": "/effects/1/kind", "equals": "moveCards" }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-turn-aside-spell-targets-relation",
       "request": {
         "cardName": "Turn Aside",

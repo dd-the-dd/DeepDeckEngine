@@ -60,15 +60,32 @@ fn lower_search_effects(
 
     let binding = lower_collection_binding(search.binding);
     let filter = lower_card_object_predicate(&search.filter);
-    let move_effect = lower_search_move(cursor, search, &binding, &player, &holder)?;
+    // One choice, or one choice per slot (`a Forest card and a Plains
+    // card`): the found cards are that choice's result or the slots' union.
+    let slot_ids = (0..search.slots.len())
+        .map(|index| format!("{binding}/slot{index}"))
+        .collect::<Vec<_>>();
+    let found_cards = if search.slots.is_empty() {
+        decision_result(&binding)
+    } else {
+        json!({
+            "kind": "union",
+            "sets": slot_ids.iter().map(|id| decision_result(id)).collect::<Vec<_>>(),
+        })
+    };
+    let move_effect = lower_search_move(cursor, search, found_cards.clone(), &player, &holder)?;
     let found = |zones: &[CardZoneName]| {
-        let mut effects = vec![search_choice(
-            search, &binding, &player, &holder, zones, &filter,
-        )];
+        let mut effects = if search.slots.is_empty() {
+            vec![search_choice(
+                search, &binding, &player, &holder, zones, &filter,
+            )]
+        } else {
+            search_slot_choices(search, &slot_ids, &player, &holder, zones)
+        };
         if search.reveal {
             effects.push(json!({
                 "kind": "revealCards",
-                "cards": decision_result(&binding),
+                "cards": found_cards.clone(),
             }));
         }
         effects
@@ -76,7 +93,7 @@ fn lower_search_effects(
     let record = json!({
         "kind": "recordLibrarySearch",
         "player": player.clone(),
-        "cards": decision_result(&binding),
+        "cards": found_cards.clone(),
     });
     let shuffle = json!({
         "kind": "shuffleZone",
@@ -95,7 +112,7 @@ fn lower_search_effects(
                 json!({
                     "kind": "shuffleZone",
                     "zone": library(holder.clone()),
-                    "excludeCards": decision_result(&binding),
+                    "excludeCards": found_cards.clone(),
                 }),
                 move_effect,
             ]);
@@ -187,17 +204,74 @@ fn search_choice(
     choice
 }
 
+/// One choice per slot of `a Forest card and a Plains card` (CR 701.23a):
+/// each slot finds at most one card of its own phrase among the searched
+/// zones' cards that no earlier slot chose, so one card never fills two
+/// slots. A hidden-zone search may find nothing for a slot.
+fn search_slot_choices(
+    search: &LibrarySearchEffectNode,
+    slot_ids: &[String],
+    player: &Value,
+    holder: &Value,
+    zones: &[CardZoneName],
+) -> Vec<Value> {
+    search
+        .slots
+        .iter()
+        .zip(slot_ids)
+        .enumerate()
+        .map(|(index, (slot, id))| {
+            let filter = lower_card_object_predicate(slot);
+            let zone_query = |zone: &CardZoneName| {
+                json!({
+                    "kind": "cardsInZone",
+                    "zone": {"kind": zone.ir_name(), "player": holder.clone()},
+                    "where": filter.clone(),
+                })
+            };
+            let mut candidates = match zones {
+                [zone] => zone_query(zone),
+                zones => json!({
+                    "kind": "union",
+                    "sets": zones.iter().map(zone_query).collect::<Vec<_>>(),
+                }),
+            };
+            if index > 0 {
+                candidates = json!({
+                    "kind": "setDifference",
+                    "left": candidates,
+                    "right": {
+                        "kind": "union",
+                        "sets": slot_ids[..index]
+                            .iter()
+                            .map(|earlier| decision_result(earlier))
+                            .collect::<Vec<_>>(),
+                    },
+                });
+            }
+            json!({
+                "kind": "chooseCards",
+                "id": id,
+                "player": player.clone(),
+                "minimum": 0,
+                "maximum": 1,
+                "from": candidates,
+            })
+        })
+        .collect()
+}
+
 /// The move of the found cards to the search destination.
 fn lower_search_move(
     cursor: &mut OracleTokenCursor<'_>,
     search: &LibrarySearchEffectNode,
-    binding: &str,
+    cards: Value,
     player: &Value,
     holder: &Value,
 ) -> MachineResult<Value> {
     Ok(json!({
         "kind": "moveCards",
-        "cards": decision_result(binding),
+        "cards": cards,
         "to": match search.destination {
             SearchDestination::Battlefield { tapped } => json!({
                 "kind": "battlefield",

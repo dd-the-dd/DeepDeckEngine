@@ -77,6 +77,7 @@ struct LibrarySearchMemory {
     holder: Option<SearchedPlayer>,
     origin: Option<SearchOrigin>,
     filter: Option<ObjectPredicate>,
+    slots: Vec<ObjectPredicate>,
     cardinality: Option<TargetCardinality>,
     destination: Option<SearchDestination>,
     reveal: bool,
@@ -193,10 +194,31 @@ fn recognize_library_search(
                 let cardinality = memory.cardinality.expect("recognized search cardinality");
                 // One card phrase of the shared card selector, or separately
                 // headed alternatives sharing this cardinality.
-                memory.filter = Some(recognize_search_card_alternatives(
-                    cursor,
-                    cardinality.maximum != 1,
-                )?);
+                let first = recognize_search_card_alternatives(cursor, cardinality.maximum != 1)?;
+                // `a Forest card and a Plains card`, `an Island card, a
+                // Swamp card, and a Mountain card`: one card for each
+                // separately determined phrase (CR 701.23a).
+                let mut slots = Vec::new();
+                if cardinality.minimum == 1 && cardinality.maximum == 1 {
+                    while let Some(slot) = recognize_additional_search_slot(cursor) {
+                        slots.push(slot);
+                    }
+                }
+                if slots.is_empty() {
+                    memory.filter = Some(first);
+                } else {
+                    cursor.enter("effect.library-search.slots");
+                    slots.insert(0, first);
+                    let count = u32::try_from(slots.len()).map_err(|_| {
+                        cursor.fail("a search slot count representable by the runtime count domain")
+                    })?;
+                    memory.cardinality = Some(TargetCardinality {
+                        minimum: count,
+                        maximum: count,
+                    });
+                    memory.filter = Some(ObjectPredicate::Union(slots.clone()));
+                    memory.slots = slots;
+                }
                 LibrarySearchState::EffectSeparator
             }
             LibrarySearchState::EffectSeparator => {
@@ -472,6 +494,7 @@ fn recognize_library_search(
                     player: cursor.require_value(memory.player, "a resolved searching player")?,
                     origin: cursor.require_value(memory.origin, "the resolved searched zones")?,
                     filter,
+                    slots: memory.slots,
                     minimum,
                     maximum: cardinality.maximum,
                     destination: cursor
@@ -484,6 +507,36 @@ fn recognize_library_search(
             }
         };
     }
+}
+
+/// One more separately determined card phrase of a search (`and a Plains
+/// card`, `, a Swamp card`, `, and a Mountain card`, `and/or a card named
+/// NAME`). Transactional: a following action (`, put it ...`, `and put
+/// ...`) leaves the cursor unchanged.
+fn recognize_additional_search_slot(cursor: &mut OracleTokenCursor<'_>) -> Option<ObjectPredicate> {
+    let mut trial = cursor.clone();
+    if trial.peek() == Some(",") {
+        trial.consume(",").ok()?;
+    }
+    if let Some(connector) = trial
+        .peek()
+        .filter(|raw| raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("and/or"))
+        .map(str::to_string)
+    {
+        trial.consume(&connector).ok()?;
+    }
+    let article = trial
+        .peek()
+        .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))?
+        .to_string();
+    if trial.position() == cursor.position() {
+        // Two phrases need a list separator between them.
+        return None;
+    }
+    trial.consume(&article).ok()?;
+    let slot = recognize_search_card_alternatives(&mut trial, false).ok()?;
+    *cursor = trial;
+    Some(slot)
 }
 
 /// `. If you search your library this way, shuffle` at the cursor: the

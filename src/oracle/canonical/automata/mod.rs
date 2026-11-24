@@ -1877,7 +1877,13 @@ pub(super) struct LibrarySearchEffectNode {
     pub player: LocalPlayerReference,
     /// The searched player's zones (`library_search.rs`).
     pub origin: SearchOrigin,
+    /// The predicate every found card satisfies: the one card phrase, or
+    /// the union of the slots below.
     pub filter: ObjectPredicate,
+    /// `a Forest card and a Plains card`: one card for each listed phrase,
+    /// each chosen among the cards no earlier slot took. Empty for a search
+    /// with one card phrase and one quantity.
+    pub slots: Vec<ObjectPredicate>,
     pub minimum: u32,
     pub maximum: u32,
     pub destination: SearchDestination,
