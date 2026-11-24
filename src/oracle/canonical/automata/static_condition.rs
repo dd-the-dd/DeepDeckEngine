@@ -647,14 +647,10 @@ const ACTOR_HISTORY_LEMMAS: &[(VerbLemma, ActorHistoryVerb)] = &[
     (VerbLemma::Put, ActorHistoryVerb::Put),
     (VerbLemma::Gain, ActorHistoryVerb::Gain),
     (VerbLemma::Lose, ActorHistoryVerb::Lose),
-];
-
-/// Recorded actions that the shared verb lexicon does not list yet, with
-/// their base and past forms: playing a land (CR 305.1) and descending (a
-/// permanent card put into that player's graveyard from anywhere).
-const UNLISTED_HISTORY_VERBS: &[(&str, &str, ActorHistoryVerb)] = &[
-    ("play", "played", ActorHistoryVerb::Play),
-    ("descend", "descended", ActorHistoryVerb::Descend),
+    // Event-only lexicon rows: playing a land (CR 305.1) and descending (a
+    // permanent card put into that player's graveyard from anywhere).
+    (VerbLemma::Play, ActorHistoryVerb::Play),
+    (VerbLemma::Descend, ActorHistoryVerb::Descend),
 ];
 
 /// The history verb at `offset` in `form`: the simple past after a subject,
@@ -669,22 +665,14 @@ fn history_verb_at(
         .iter()
         .map(|(lemma, _)| *lemma)
         .collect::<Vec<_>>();
-    if let Some((entry, forms)) = lookup_verb(raw, &lemmas)
-        && forms.contains(&form)
-    {
-        return ACTOR_HISTORY_LEMMAS
-            .iter()
-            .find(|(lemma, _)| *lemma == entry.lemma)
-            .map(|(_, verb)| *verb);
+    let (entry, forms) = lookup_verb(raw, &lemmas)?;
+    if !forms.contains(&form) {
+        return None;
     }
-    UNLISTED_HISTORY_VERBS
+    ACTOR_HISTORY_LEMMAS
         .iter()
-        .find(|(base, past, _)| match form {
-            VerbForm::Base => raw.eq_ignore_ascii_case(base),
-            VerbForm::Past | VerbForm::PastParticiple => raw.eq_ignore_ascii_case(past),
-            _ => false,
-        })
-        .map(|(_, _, verb)| *verb)
+        .find(|(lemma, _)| *lemma == entry.lemma)
+        .map(|(_, verb)| *verb)
 }
 
 /// The width of a past negation (`didn't`, `did not`) at `offset`.

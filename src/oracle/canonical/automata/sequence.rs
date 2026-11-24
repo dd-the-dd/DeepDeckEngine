@@ -3138,18 +3138,8 @@ fn object_player_mention(
     {
         return Some((super::ObjectPlayerRelation::Owner, antecedent.reference));
     }
-    match &antecedent.selector {
-        Some(super::TargetSelector::ControlledObject {
-            controller:
-                super::ObjectControllerScope::OpponentOfAbilityController
-                | super::ObjectControllerScope::NotAbilityController,
-            ..
-        }) => Some((
-            super::ObjectPlayerRelation::Controller,
-            antecedent.reference,
-        )),
-        _ => None,
-    }
+    super::other_player_controlled_antecedent(antecedent)
+        .map(|object| (super::ObjectPlayerRelation::Controller, object))
 }
 
 /// The agreement of a performer's continued verb: plural after `they`, else

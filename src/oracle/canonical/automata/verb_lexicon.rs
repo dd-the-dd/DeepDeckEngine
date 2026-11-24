@@ -125,6 +125,11 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Commit,
     /// `take an extra turn after this one` (CR 500.7).
     Take,
+    /// `play a land` (CR 305.1), an event verb read by turn histories.
+    Play,
+    /// `descend` (a permanent card put into its owner's graveyard from
+    /// anywhere), an event verb read by turn histories.
+    Descend,
 }
 
 /// One inflected form of a lemma.
@@ -983,6 +988,30 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "committing",
         },
         frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Play,
+        forms: VerbForms {
+            base: "play",
+            third_person_singular: "plays",
+            past: "played",
+            past_participle: "played",
+            present_participle: "playing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Descend,
+        forms: VerbForms {
+            base: "descend",
+            third_person_singular: "descends",
+            past: "descended",
+            past_participle: "descended",
+            present_participle: "descending",
+        },
+        frames: &[ArgumentFrame::Intransitive],
         voices: &[Voice::Active],
     },
 ];

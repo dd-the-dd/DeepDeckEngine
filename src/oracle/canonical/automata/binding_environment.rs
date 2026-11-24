@@ -631,6 +631,21 @@ fn controlled_object_player(environment: &BindingEnvironment) -> Option<Permanen
     let Some(antecedent) = environment.object.as_ref() else {
         return event;
     };
+    other_player_controlled_antecedent(antecedent).or_else(|| {
+        // The lexical antecedent is the event's own object (`it` after `a
+        // land an opponent controls enters`).
+        event.filter(|reference| *reference == antecedent.reference)
+    })
+}
+
+/// The one reader of a singular object antecedent declared among the
+/// permanents another player controls (`target creature an opponent
+/// controls`, `... you don't control`, CR 109.4): its controller is the
+/// player `that player` names. Shared by the binding environment and the
+/// clause layer's performer slot.
+pub(in crate::oracle::canonical) fn other_player_controlled_antecedent(
+    antecedent: &ObjectSubjectAntecedent,
+) -> Option<PermanentEffectReference> {
     match antecedent.selector.as_ref() {
         Some(TargetSelector::ControlledObject { controller, .. })
             if names_other_player(*controller)
@@ -639,9 +654,7 @@ fn controlled_object_player(environment: &BindingEnvironment) -> Option<Permanen
         {
             Some(antecedent.reference)
         }
-        // The lexical antecedent is the event's own object (`it` after `a
-        // land an opponent controls enters`).
-        _ => event.filter(|reference| *reference == antecedent.reference),
+        _ => None,
     }
 }
 
