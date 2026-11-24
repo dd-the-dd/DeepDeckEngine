@@ -187,6 +187,20 @@ impl GenericTriggerEventNode {
             }
             // The counters one placement put (CR 122.6).
             Self::CounterPlacement(_) => Some(EventNumericBinding::CountersPut),
+            // `one or more CREATURES you control attack`: the attackers the
+            // one batch occurrence matched (CR 508.1, 603.2c).
+            Self::Object(super::ObjectEventNode {
+                verb: super::ObjectEventVerb::Attack,
+                subject,
+                ..
+            }) if matches!(
+                subject.multiplicity,
+                super::EventMultiplicity::PerEvent { .. }
+            ) && subject.query.controller
+                == Some(super::ObjectControllerScope::AbilityController) =>
+            {
+                Some(EventNumericBinding::EventObjectCount)
+            }
             _ => None,
         }
     }

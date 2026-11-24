@@ -208,6 +208,16 @@ fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
                 lower_condition_number(&comparison.right, player())?,
             ))
         }
+        // `defending player ...` in a static combat restriction: the
+        // defending player the runtime binds for each combat check.
+        ConditionPlayerSubject::DefendingPlayer => {
+            let player = || json!({ "kind": "defendingPlayer" });
+            Ok(compare(
+                operator,
+                lower_condition_number(&comparison.left, player())?,
+                lower_condition_number(&comparison.right, player())?,
+            ))
+        }
         ConditionPlayerSubject::OpponentsTogether => {
             // `your opponents control N QUERY`: one count over every opponent.
             let (

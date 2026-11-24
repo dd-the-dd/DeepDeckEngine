@@ -612,40 +612,46 @@ impl GameEngine {
                                     && self.targeting_turn_ordinal_matches(event, &target, source)
                             })
                 }) {
-                    pending.push((
-                        source.clone(),
-                        rule.clone(),
-                        BTreeMap::from([
-                            (
-                                "targetingStackId".to_string(),
-                                Value::String(targeting_stack_id.to_string()),
-                            ),
-                            (
-                                "triggeringStackId".to_string(),
-                                Value::String(targeting_stack_id.to_string()),
-                            ),
-                            (
-                                "targetingPlayerId".to_string(),
-                                Value::String(targeting_controller_id.clone()),
-                            ),
-                            (
-                                "targetingControllerId".to_string(),
-                                Value::String(targeting_controller_id.clone()),
-                            ),
-                            (
-                                "targetedObjectKind".to_string(),
-                                Value::String(target_kind.clone()),
-                            ),
-                            (
-                                "targetedObjectId".to_string(),
-                                Value::String(target_id.clone()),
-                            ),
-                            (
-                                "targetedObjectControllerId".to_string(),
-                                Value::String(target_controller_id.clone()),
-                            ),
-                        ]),
-                    ));
+                    let mut decisions = BTreeMap::from([
+                        (
+                            "targetingStackId".to_string(),
+                            Value::String(targeting_stack_id.to_string()),
+                        ),
+                        (
+                            "triggeringStackId".to_string(),
+                            Value::String(targeting_stack_id.to_string()),
+                        ),
+                        (
+                            "targetingPlayerId".to_string(),
+                            Value::String(targeting_controller_id.clone()),
+                        ),
+                        (
+                            "targetingControllerId".to_string(),
+                            Value::String(targeting_controller_id.clone()),
+                        ),
+                        (
+                            "targetedObjectKind".to_string(),
+                            Value::String(target_kind.clone()),
+                        ),
+                        (
+                            "targetedObjectId".to_string(),
+                            Value::String(target_id.clone()),
+                        ),
+                        (
+                            "targetedObjectControllerId".to_string(),
+                            Value::String(target_controller_id.clone()),
+                        ),
+                    ]);
+                    // The targeted permanent is the event's object (`that
+                    // creature`), bound with the record like every other
+                    // permanent event (CR 115.1, 603.2).
+                    if let TargetRef::Permanent { instance_id } = &target {
+                        decisions.insert(
+                            "triggeringPermanentId".to_string(),
+                            Value::String(instance_id.clone()),
+                        );
+                    }
+                    pending.push((source.clone(), rule.clone(), decisions));
                 }
             }
         }

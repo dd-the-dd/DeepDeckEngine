@@ -119,6 +119,7 @@ mod damage_replacement;
 mod death_trigger_batch;
 mod deck_construction_keywords;
 mod declaration_result;
+mod defending_player_restriction;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
@@ -5396,6 +5397,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         Some("cantBeSacrificed") => {
             value_kind(&modifier["object"]) == Some("self")
                 || static_object_selector_supported(&modifier["objects"])
+        }
+        Some("defendingPlayerCombatRestriction") => {
+            defending_player_restriction::modifier_supported(modifier)
         }
         Some("cantAttackSourceController") => {
             static_object_selector_supported(&modifier["objects"])
@@ -24252,7 +24256,7 @@ impl GameEngine {
                 })
                 .or_else(|| attacker_ids.first())
                 .cloned();
-            let decisions = triggering_attacker
+            let mut decisions = triggering_attacker
                 .map(|attacker_id| {
                     let mut decisions = BTreeMap::from([(
                         "triggeringPermanentId".to_string(),
@@ -24274,6 +24278,7 @@ impl GameEngine {
                     decisions
                 })
                 .unwrap_or_default();
+            self.bind_attack_batch_count(&rule, &source, attacker_ids, &mut decisions);
             self.put_triggered_ability_on_stack_with_origin(&source, rule, decisions, origin);
             if self.check_quantity_failure().is_err() {
                 return;
@@ -36630,6 +36635,7 @@ impl GameEngine {
                     || jace_attack_prevented
                     || (self.permanent_has_self_static_modifier(card, "cantAttackOwner")
                         && defending_player_id == card.owner)
+                    || self.defending_player_forbids_attack(card, &defending_player_id)?
                     || self
                         .battlefield_static_modifiers()
                         .iter()
@@ -36852,6 +36858,13 @@ impl GameEngine {
 
     pub fn can_block(&self, blocker: &CardInstance, attacker: &CardInstance) -> bool {
         if self.permanent_has_keyword(attacker, "cantBeBlocked") {
+            return false;
+        }
+        // An evaluation error keeps the restriction in force (fail closed).
+        if self
+            .defending_player_forbids_block(blocker, attacker)
+            .unwrap_or(true)
+        {
             return false;
         }
         let evades_flying = self.permanent_has_keyword(attacker, "flying")

@@ -303,8 +303,7 @@ fn read_condition_atom(
         return super::recognize_player_comparative_atom(cursor);
     }
     // Compare: the state of the player the binding environment names.
-    if word_is(cursor, 0, "that")
-        && word_is(cursor, 1, "player")
+    if super::condition_player_reference_starts(cursor)
         && (word_is(cursor, 2, "controls") || word_is(cursor, 2, "has"))
     {
         return recognize_bound_player_state_atom(cursor);
@@ -628,8 +627,9 @@ fn recognize_bound_player_state_atom(
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.bound-player.subject");
     let environment = installed_binding_environment(cursor);
-    let subject = match recognize_that_player(cursor, &environment)? {
+    let subject = match super::recognize_condition_player_reference(cursor, &environment)? {
         BoundPlayerReference::EventPlayer => ConditionPlayerSubject::EventPlayer,
+        BoundPlayerReference::DefendingPlayer => ConditionPlayerSubject::DefendingPlayer,
         _ => {
             cursor.enter("condition.bound-player.binding");
             return Err(cursor.fail(

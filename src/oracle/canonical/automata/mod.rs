@@ -1032,6 +1032,10 @@ pub(super) enum EventNumericBinding {
     /// The counters one counter-placement event put (CR 122.6):
     /// `counterCount`.
     CountersPut,
+    /// The objects one `one or more` batch event matched (`Whenever one or
+    /// more Dragons you control attack, draw that many cards`, CR 603.2c):
+    /// `eventObjectCount`.
+    EventObjectCount,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

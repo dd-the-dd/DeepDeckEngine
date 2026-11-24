@@ -19,6 +19,11 @@ pub(in crate::oracle::canonical) enum PermanentDiedEventBranchNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PermanentDiedEventNode {
     pub alternatives: Vec<PermanentDiedEventBranchNode>,
+    /// The registered nominal a `this NOUN` source branch was written with
+    /// (`this creature or another creature you control`): what a later
+    /// nominal anaphor of the event's object may follow from. A name or any
+    /// other source surface writes none.
+    pub source_nominal: Option<super::TargetNominal>,
 }
 
 fn recognize_branch(
@@ -71,16 +76,29 @@ pub(in crate::oracle::canonical) fn recognize_permanent_transition_subject(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<PermanentDiedEventNode> {
-    let mut alternatives = vec![recognize_branch(cursor, name_links, name_failure)?];
+    let mut source_nominal = None;
+    let mut read_branch =
+        |cursor: &mut OracleTokenCursor<'_>| -> MachineResult<PermanentDiedEventBranchNode> {
+            let nominal = super::this_object_nominal_at(cursor);
+            let branch = recognize_branch(cursor, name_links, name_failure)?;
+            if matches!(branch, PermanentDiedEventBranchNode::Source(_)) {
+                source_nominal = nominal;
+            }
+            Ok(branch)
+        };
+    let mut alternatives = vec![read_branch(cursor)?];
     while cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
     {
         cursor.enter("event.permanent-died.union");
         cursor.consume("or")?;
-        alternatives.push(recognize_branch(cursor, name_links, name_failure)?);
+        alternatives.push(read_branch(cursor)?);
     }
-    Ok(PermanentDiedEventNode { alternatives })
+    Ok(PermanentDiedEventNode {
+        alternatives,
+        source_nominal,
+    })
 }
 
 pub(in crate::oracle::canonical) fn recognize_permanent_died_event(

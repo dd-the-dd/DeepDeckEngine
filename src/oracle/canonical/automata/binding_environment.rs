@@ -70,6 +70,11 @@ pub(in crate::oracle::canonical) struct FrameBindings {
     /// can still find the card it became (CR 400.7, 603.6c): `it` / `that
     /// card` in a card action when the program observed no other card.
     pub event_card: Option<CardZoneName>,
+    /// A static combat restriction checks its condition for each combat it
+    /// restricts: `defending player` names the player the restricted
+    /// creature attacks or would attack (CR 506.2, 508.1c, 509.1b). Only
+    /// the static combat-restriction parent sets it.
+    pub combat_defending_player: bool,
 }
 
 impl FrameBindings {
@@ -493,6 +498,10 @@ pub(in crate::oracle::canonical) enum BoundPlayerReference {
     /// `that spell's controller`: the controller of the spell the cast
     /// record binds (CR 110.2), while it is on the stack, else its caster.
     EventSpellController,
+    /// `defending player` in a static combat restriction: the defending
+    /// player of the combat the restriction is checked for (CR 506.2,
+    /// 508.1c, 509.1b). Only a condition of that frame reads it.
+    DefendingPlayer,
 }
 
 impl BoundPlayerReference {
@@ -505,7 +514,7 @@ impl BoundPlayerReference {
             Self::ObjectRelation { relation, object } => {
                 Some(PlayerEffectSubject::ObjectRelation { relation, object })
             }
-            Self::EventSpellController => None,
+            Self::EventSpellController | Self::DefendingPlayer => None,
         }
     }
 }
@@ -528,6 +537,24 @@ fn registered_nominal(surface: &str) -> Option<TargetNominal> {
         Some(CharacteristicLexeme::ObjectDomain(value)) => Some(TargetNominal::Domain(value)),
         _ => None,
     }
+}
+
+/// The registered nominal of a `this NOUN` source surface at the cursor
+/// (`this creature`), before it is read. Lexical lookahead only.
+pub(in crate::oracle::canonical) fn this_object_nominal_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<TargetNominal> {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        .then(|| {
+            cursor
+                .token_slice(cursor.position() + 1, cursor.position() + 2)
+                .first()
+                .filter(|token| token.token_type != "possessiveTypeWord")
+                .and_then(|token| registered_nominal(&token.raw))
+        })
+        .flatten()
 }
 
 fn possessive_base(raw: &str) -> Option<String> {
@@ -645,6 +672,63 @@ pub(in crate::oracle::canonical) fn recognize_defending_player(
     }
     cursor.enter("player-subject.complete");
     Ok(BoundPlayerReference::EventPlayer)
+}
+
+/// Lexical lookahead for the player subject of a condition (`that player`,
+/// `defending player`).
+pub(in crate::oracle::canonical) fn condition_player_reference_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    defending_player_starts(cursor) || that_player_starts(cursor)
+}
+
+/// `that player` / `defending player` as the subject of a condition: the
+/// one resolver of a condition's bound player. In an attack or block
+/// trigger the defending player is the player the event records; in a
+/// static combat restriction it is the defending player of the combat the
+/// restriction is checked for. Anywhere else it fails explicitly.
+pub(in crate::oracle::canonical) fn recognize_condition_player_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<BoundPlayerReference> {
+    if !defending_player_starts(cursor) {
+        return recognize_that_player(cursor, environment);
+    }
+    if environment.frame.combat_defending_player && !environment.frame.defending_player {
+        cursor.enter("player-subject.defending-player");
+        cursor.consume_phrase(&["defending", "player"])?;
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::DefendingPlayer);
+    }
+    recognize_defending_player(cursor, environment.frame.defending_player)
+}
+
+/// Reads with the static combat-restriction frame installed: a condition
+/// may name the defending player of the combat being checked.
+pub(in crate::oracle::canonical) fn with_combat_defending_player<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.frame.combat_defending_player = true;
+    with_installed_environment(cursor, environment, read)
+}
+
+/// True when an atom of `condition` reads the defending player of a
+/// combat (a static combat restriction checks it per combat).
+pub(in crate::oracle::canonical) fn condition_reads_defending_player(
+    condition: &super::ConditionNode,
+) -> bool {
+    match condition {
+        super::BooleanConditionNode::Atom(super::ConditionAtom::Compare(comparison)) => {
+            comparison.subject == super::ConditionPlayerSubject::DefendingPlayer
+        }
+        super::BooleanConditionNode::Atom(_) => false,
+        super::BooleanConditionNode::Not(inner) => condition_reads_defending_player(inner),
+        super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
+            operands.iter().any(condition_reads_defending_player)
+        }
+    }
 }
 
 /// `that player`: the exact earlier player binding of the program, or,
@@ -1224,6 +1308,14 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             {
                 return Ok(antecedent.reference);
             }
+            // `enchanted creature ... that creature`: the one permanent the
+            // Aura enchants, whose kind its enchant ability fixes (CR
+            // 303.4a); the anaphor names that object by a permanent nominal.
+            PermanentEffectReference::Attached(AttachedObjectRole::Enchanted)
+                if names_one_permanent_kind(nominals) =>
+            {
+                return Ok(antecedent.reference);
+            }
             _ => {}
         }
     }
@@ -1249,6 +1341,16 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
         None => "a preceding singular permanent subject in this lexical scope",
         Some(_) => "a declared target as the nominal anaphor antecedent",
     })
+}
+
+/// One nominal that names a kind of battlefield permanent (`creature`,
+/// `land`, `permanent`).
+fn names_one_permanent_kind(nominals: &[TargetNominal]) -> bool {
+    match nominals {
+        [TargetNominal::CardType(card_type)] => card_type.is_permanent_type(),
+        [TargetNominal::Domain(kind)] => *kind == ObjectKind::Permanent,
+        _ => false,
+    }
 }
 
 /// The one resolver of a possessive `its` in a numeric or condition read
