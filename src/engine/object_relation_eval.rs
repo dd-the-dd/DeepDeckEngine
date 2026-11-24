@@ -305,10 +305,10 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Result<Vec<String>, EngineError> {
         Ok(match value_kind(anchor) {
-            Some("self" | "abilitySource") => self
-                .permanent_position(&source.card.instance_id)
-                .map(|_| vec![source.card.instance_id.clone()])
-                .unwrap_or_default(),
+            // The source wherever it is: a permanent's attachments and
+            // blocks name it on the battlefield; a resolving spell is the
+            // object its own convoke record names (CR 702.51c).
+            Some("self" | "abilitySource") => vec![source.card.instance_id.clone()],
             Some("chosenTargets") => {
                 let id = anchor["id"]
                     .as_str()
