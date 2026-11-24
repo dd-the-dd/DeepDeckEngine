@@ -816,7 +816,18 @@ fn recognize_object_query_frame(
             }
             ObjectQueryState::ReadPostnominalQualifier => {
                 cursor.enter("selector.predicate.postnominal-qualifier");
-                if cursor
+                if let Some(length) = super::chosen_card_name_qualifier_length(cursor) {
+                    // `with the chosen name` / `with that name`: the card
+                    // name chosen earlier in the program (CR 201.2, 608.2d).
+                    // Read before the keyword and counter `with` readers.
+                    cursor.enter("selector.chosen-card-name-qualifier");
+                    cursor.advance_to(cursor.position() + length)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Relation(super::ObjectRelation::ChosenName),
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if cursor
                     .peek()
                     .is_some_and(|token| token.eq_ignore_ascii_case("with"))
                 {
