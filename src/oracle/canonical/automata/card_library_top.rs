@@ -27,47 +27,89 @@ pub(in crate::oracle::canonical) fn try_recognize_card_library_top(
     try_recognize_card_library_position(cursor, false)
 }
 
+/// `COUNT cards from the top of`: the counted form of the same position
+/// (`exile that many cards from the top of your library`, CR 401.2). A pure
+/// lookahead over the amount and the five position words.
+fn counted_from_top_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+    {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    if recognize_numeric_expression(&mut trial, None).is_err() {
+        return false;
+    }
+    ["cards", "from", "the", "top", "of"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            trial
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
 /// The library position operand of an action verb: the controller's
 /// library or, when `target_owner` is admitted, a declared player's
 /// (`the top N cards of target opponent's library`). Another zone after
 /// `of` is not this operand and stays an explicit failure of the action.
+/// `N cards from the top of LIBRARY` names the same cards.
 pub(in crate::oracle::canonical) fn try_recognize_card_library_position(
     cursor: &mut OracleTokenCursor<'_>,
     target_owner: bool,
 ) -> CollectionOperandAttempt<CardLibraryTopNode> {
-    if !cursor
+    let the_top = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
-        || !cursor
+        && cursor
             .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("top"))
-    {
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("top"));
+    if !the_top && !counted_from_top_starts(cursor) {
         return CollectionOperandAttempt::NotClaimed;
     }
     let mut trial = cursor.clone();
     let mut committed = false;
     let result = (|| -> MachineResult<CardLibraryTopNode> {
-        trial.enter("collection.library-top.head");
-        trial.consume_phrase(&["the", "top"])?;
-        committed = true;
-        trial.enter("collection.library-top.quantity");
-        let count = if trial
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("card"))
-        {
-            NumericExpression::from(1)
+        let count = if the_top {
+            trial.enter("collection.library-top.head");
+            trial.consume_phrase(&["the", "top"])?;
+            committed = true;
+            trial.enter("collection.library-top.quantity");
+            let count = if trial
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("card"))
+            {
+                NumericExpression::from(1)
+            } else {
+                recognize_numeric_expression(&mut trial, None)?
+            };
+            if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
+                trial.require(*value > 0, "a positive library-top quantity")?;
+            }
+            trial.enter("collection.library-top.noun");
+            if count == NumericExpression::from(1) {
+                trial.consume("card")?;
+            } else {
+                trial.consume("cards")?;
+            }
+            count
         } else {
-            recognize_numeric_expression(&mut trial, None)?
+            // The lookahead proved `cards from the top of` after the amount.
+            trial.enter("collection.library-top.counted-quantity");
+            let count = recognize_numeric_expression(&mut trial, None)?;
+            committed = true;
+            if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
+                trial.require(
+                    *value > 1,
+                    "a library-top quantity above one before `cards`",
+                )?;
+            }
+            trial.enter("collection.library-top.counted-position");
+            trial.consume_phrase(&["cards", "from", "the", "top"])?;
+            count
         };
-        if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
-            trial.require(*value > 0, "a positive library-top quantity")?;
-        }
-        trial.enter("collection.library-top.noun");
-        if count == NumericExpression::from(1) {
-            trial.consume("card")?;
-        } else {
-            trial.consume("cards")?;
-        }
         trial.enter("collection.library-top.owner");
         trial.consume("of")?;
         let owner = if target_owner && starts_possessive_target_player(&trial) {

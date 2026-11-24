@@ -1779,7 +1779,12 @@ fn read_optional_for_each_count(
         return Ok(None);
     }
     cursor.enter("static.continuous.for-each");
-    let count = recognize_for_each_count(cursor)?;
+    // `This creature gets +2/+2 for each Aura attached to it`: a pronoun in
+    // the count names the modified source, the clause's subject.
+    let subject = source_subject.then_some(PermanentEffectReference::Source(
+        LocalObjectReference::SourceSelf,
+    ));
+    let count = with_clause_subject(cursor, subject, recognize_for_each_count)?;
     // `other` names the source only when the source is the modified object;
     // otherwise it means other than each modified object.
     cursor.enter("static.continuous.for-each.other-antecedent");

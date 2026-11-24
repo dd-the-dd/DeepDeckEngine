@@ -217,6 +217,13 @@ impl GameEngine {
                             }
                         }
                     }
+                    // A relation reads its anchor from the resolving ability.
+                    Some(kind) if object_relation_eval::is_relation_kind(kind) => {
+                        if let FilterPreparationContext::Runtime(source) = context {
+                            prepared = engine
+                                .prepare_object_relation(filter, source, bindings, decisions)?;
+                        }
+                    }
                     Some("colorContains" | "colorDoesNotContain") if permanent_domain => {
                         let requested = filter["value"]
                             .as_str()
@@ -311,6 +318,9 @@ impl GameEngine {
                     Some("==") => left == right,
                     _ => false,
                 }
+            }
+            Some(kind) if object_relation_eval::is_relation_kind(kind) => {
+                self.eval_object_relation(filter, view)
             }
             _ => match view {
                 ObjectFilterView::Definition(_) => {

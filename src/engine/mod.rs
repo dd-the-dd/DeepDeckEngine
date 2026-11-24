@@ -192,6 +192,7 @@ mod object_identity_initialization;
 mod object_identity_test_setup;
 mod object_predicate;
 mod object_predicate_eval;
+mod object_relation_eval;
 mod object_snapshot;
 mod one_shot_modifier;
 mod opponent_extremum;
@@ -2616,6 +2617,9 @@ fn numeric_expression_supported(expression: &Value) -> bool {
     if integer_value(expression).is_some() {
         return true;
     }
+    if let Some(supported) = object_relation_eval::related_count_supported(expression) {
+        return supported;
+    }
     match value_kind(expression) {
         Some("cardsDiscardedThisTurn") => true,
         Some("eachColorAmongPermanents") => {
@@ -3162,7 +3166,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
     match value_kind(candidates) {
         Some("players" | "anyTarget") => true,
         Some("permanents") => {
-            permanent_filter_supported(&candidates["where"])
+            object_relation_eval::target_filter_supported_with_relations(&candidates["where"])
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || (value_kind(controller) == Some("opponentsOf")
@@ -9233,6 +9237,12 @@ impl GameEngine {
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
+        // A relation count reads its anchor from a source: undefined here.
+        if let Some(count) =
+            self.related_permanent_count_with_source(expression, controller_id, None)
+        {
+            return count;
+        }
         match value_kind(expression) {
             Some("opponentExtremum") => self.opponent_extremum(expression, controller_id),
             Some("cardsDiscardedThisTurn") => Some(
@@ -9748,6 +9758,11 @@ impl GameEngine {
         controller_id: &str,
         source: Option<&CardInstance>,
     ) -> Option<i32> {
+        if let Some(count) =
+            self.related_permanent_count_with_source(expression, controller_id, source)
+        {
+            return count;
+        }
         if matches!(
             value_kind(expression),
             Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn")
@@ -10716,6 +10731,11 @@ impl GameEngine {
 
     fn permanent_matches_effective_filter(&self, permanent: &CardInstance, filter: &Value) -> bool {
         match value_kind(filter) {
+            Some(kind) if object_relation_eval::is_relation_kind(kind) => self
+                .eval_object_relation(
+                    filter,
+                    runtime_object_filter::ObjectFilterView::Permanent(permanent),
+                ),
             Some("nameEquals") => filter["value"].as_str().is_some_and(|name| {
                 let effective_name = self
                     .battlefield_static_modifiers()
@@ -11058,6 +11078,11 @@ impl GameEngine {
         controller_id: &str,
     ) -> bool {
         match value_kind(filter) {
+            Some(kind) if object_relation_eval::is_relation_kind(kind) => self
+                .eval_object_relation(
+                    filter,
+                    runtime_object_filter::ObjectFilterView::Permanent(permanent),
+                ),
             Some("dealtDamageThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && event.kind == "damageDealt"
@@ -30956,6 +30981,11 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(count) =
+            self.runtime_related_permanent_count(expression, stack_object, bindings, decisions)
+        {
+            return count;
         }
         // An event object: live while it is the same incarnation, else its
         // last known characteristics (CR 400.7, 608.2h).

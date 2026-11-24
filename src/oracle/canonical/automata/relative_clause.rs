@@ -28,10 +28,38 @@
 //! history); the engine reads it from its object history. Other relatives
 //! (`that player controls`, `that targets only a single ...`) are not
 //! claimed here and keep their explicit failure.
+//!
+//! The same slot reads the object relations of the query, whose second
+//! argument is another object (an anchor) rather than a player or a fact:
+//!
+//! ```text
+//! Relation   := Participle Anchor                      reduced relative
+//!             | Pronoun ("is" | "are") Participle Anchor
+//!             | "that's" Participle Anchor
+//!             | Pronoun Share
+//!             | Pronoun "convoked" Anchor                CR 702.51c
+//! Participle := "attached" "to"                        CR 301.5, 303.4
+//!             | "blocking" ["or" "blocked" "by"]        CR 509.1
+//!             | "blocked" "by"
+//! Share      := ("share" | "shares") Quantity Kind "with" Anchor
+//!             | ("doesn't" | "don't" | "does" "not" | "do" "not") "share"
+//!               Quantity Kind "with" Anchor            negated
+//! Quantity   := "a" | "an" | "at" "least" "one" | "any" | "no" (negated)
+//! Kind       := "creature" Type | "card" Type | "permanent" Type
+//!             | "land" Type | "color" | "colors"
+//! Anchor     := "it" | "that" NOUN | "this" NOUN | NAME   a bound object
+//!             | ["a" | "an"] QUERY                    some permanent of it
+//! ```
+//!
+//! `blocking` only takes a bound object: `blocking creatures` is a status
+//! adjective before its noun. A share clause without `with` (`creatures that
+//! share a color`) relates the members of a set to each other; no anchor is
+//! invented for it and the clause fails here.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamagedPlayer, DepartureHistory, DeparturePlayer, ObjectControllerScope, ObjectPredicate,
-    ObjectQueryContext, ObjectRelation, ObjectStatus, TargetedObjects, TargetedPermanents,
+    DamagedPlayer, DepartureHistory, DeparturePlayer, LocalObjectReference, ObjectControllerScope,
+    ObjectKind, ObjectPredicate, ObjectQueryContext, ObjectQueryNode, ObjectRelation, ObjectStatus,
+    PermanentEffectReference, TargetedObjects, TargetedPermanents,
 };
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -147,6 +175,16 @@ pub(in crate::oracle::canonical) fn relative_clause_starts_in(
 
 /// True when a relative clause of every query starts at the cursor.
 pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if participial_relation_starts(cursor) || contracted_copular_participle(cursor) {
+        return true;
+    }
+    if is_relative_pronoun(cursor)
+        && (copular_participle_at(cursor, 1).is_some()
+            || share_verb_at(cursor, 1).is_some()
+            || word_at(cursor, 1, "convoked"))
+    {
+        return true;
+    }
     is_relative_pronoun(cursor)
         && (word_at(cursor, 1, "has") && super::counter_qualifier_starts(cursor, 2)
             || word_at(cursor, 1, "have") && super::counter_qualifier_starts(cursor, 2)
@@ -283,10 +321,47 @@ fn status_after_copula(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
 pub(in crate::oracle::canonical) fn recognize_relative_clause(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ObjectPredicate> {
+    if participial_relation_at(cursor, 0).is_some() {
+        // `Equipment attached to that creature`, `each creature blocking
+        // it`: a reduced relative clause, the participle with no pronoun.
+        return recognize_participial_relation(cursor);
+    }
+    if contracted_copular_participle(cursor) {
+        // `each Aura you control that's attached to a creature`.
+        cursor.enter("selector.relative-clause.copular-relation");
+        consume_words(cursor, 1)?;
+        return recognize_participial_relation(cursor);
+    }
     cursor.enter("selector.relative-clause.pronoun");
     let pronoun = cursor.peek().unwrap_or_default().to_string();
     cursor.require(is_relative_pronoun(cursor), "`that`, `which` or `who`")?;
     cursor.consume(&pronoun)?;
+    if let Some(copula_width) = copular_participle_at(cursor, 0) {
+        // `that are attached to it`: the present copula before the same
+        // participle; the relation holds now (CR 301.5, 303.4).
+        cursor.enter("selector.relative-clause.copular-relation");
+        for _ in 0..copula_width {
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+        }
+        return recognize_participial_relation(cursor);
+    }
+    if share_verb_at(cursor, 0).is_some() {
+        return recognize_share_clause(cursor);
+    }
+    if word_at(cursor, 0, "convoked") {
+        // `each creature that convoked it|this spell` (CR 702.51c): the
+        // creatures tapped to pay the anchor's convoke cost.
+        cursor.enter("selector.relative-clause.convoked");
+        consume_words(cursor, 1)?;
+        let anchor = recognize_relation_anchor(cursor, true)?;
+        return Ok(ObjectPredicate::Relation(ObjectRelation::Related(
+            RelatedObject {
+                kind: ObjectRelationKind::Convoked,
+                anchor,
+            },
+        )));
+    }
     if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
         cursor.enter("selector.relative-clause.possession");
         let verb = cursor.peek().unwrap_or_default().to_string();
@@ -571,4 +646,432 @@ pub(in crate::oracle::canonical) fn refuse_unread_relative_tail(
     }
     cursor.enter("selector.relative-clause.unsupported");
     Err(cursor.fail("a relative clause the shared object query reads"))
+}
+
+/// The object a relation of the shared query relates each candidate to.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum RelationAnchor {
+    /// One bound object (or one bound set): the source, a declared target,
+    /// the event's object. The binding environment resolved it; nothing is
+    /// guessed.
+    Object(PermanentEffectReference),
+    /// Some battlefield permanent of a query (`attached to a creature you
+    /// control`): the relation holds with at least one of them.
+    Query(Box<ObjectQueryNode>),
+}
+
+/// The characteristic a `share` clause compares (CR 105.1, 205.2, 205.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SharedCharacteristic {
+    CreatureType,
+    CardType,
+    /// The permanent card types (artifact, battle, creature, enchantment,
+    /// land, planeswalker; CR 110.4).
+    PermanentType,
+    LandType,
+    Color,
+}
+
+impl SharedCharacteristic {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::CreatureType => "creatureType",
+            Self::CardType => "cardType",
+            Self::PermanentType => "permanentType",
+            Self::LandType => "landType",
+            Self::Color => "color",
+        }
+    }
+}
+
+/// How a candidate relates to the anchor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectRelationKind {
+    /// The candidate is attached to the anchor (CR 301.5, 303.4).
+    AttachedTo,
+    /// The candidate is a creature blocking the anchor (CR 509.1).
+    Blocking,
+    /// The candidate is an attacking creature the anchor blocks (CR 509.1).
+    BlockedBy,
+    /// The candidate and the anchor have at least one value of the
+    /// characteristic in common.
+    Shares(SharedCharacteristic),
+    /// The candidate is a creature tapped to pay the convoke cost of the
+    /// anchor when it was cast (CR 702.51a, 702.51c).
+    Convoked,
+}
+
+impl ObjectRelationKind {
+    pub(in crate::oracle::canonical) const fn ir_kind(self) -> &'static str {
+        match self {
+            Self::AttachedTo => "attachedTo",
+            Self::Blocking => "blocking",
+            Self::BlockedBy => "blockedBy",
+            Self::Shares(_) => "sharesCharacteristic",
+            Self::Convoked => "convoked",
+        }
+    }
+}
+
+/// One relation of the candidate to another object.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct RelatedObject {
+    pub kind: ObjectRelationKind,
+    pub anchor: RelationAnchor,
+}
+
+impl RelatedObject {
+    /// The domains whose candidates the relation can be tested on: an
+    /// attachment and a block are battlefield facts; a characteristic is
+    /// shared by permanents and by cards (CR 109.3).
+    pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
+        match self.kind {
+            ObjectRelationKind::AttachedTo
+            | ObjectRelationKind::Blocking
+            | ObjectRelationKind::BlockedBy
+            | ObjectRelationKind::Convoked => domain == ObjectKind::Permanent,
+            ObjectRelationKind::Shares(_) => {
+                matches!(domain, ObjectKind::Permanent | ObjectKind::Card)
+            }
+        }
+    }
+}
+
+const ATTACHED_TO: &[ObjectRelationKind] = &[ObjectRelationKind::AttachedTo];
+const BLOCKING: &[ObjectRelationKind] = &[ObjectRelationKind::Blocking];
+const BLOCKED_BY: &[ObjectRelationKind] = &[ObjectRelationKind::BlockedBy];
+const BLOCKING_OR_BLOCKED_BY: &[ObjectRelationKind] =
+    &[ObjectRelationKind::Blocking, ObjectRelationKind::BlockedBy];
+
+/// The participle of a reduced relative clause at `offset`: its relation
+/// kinds (two for `blocking or blocked by`) and its token width.
+fn participial_relation_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(&'static [ObjectRelationKind], usize)> {
+    if word_at(cursor, offset, "attached") && word_at(cursor, offset + 1, "to") {
+        return Some((ATTACHED_TO, 2));
+    }
+    if word_at(cursor, offset, "blocking")
+        && word_at(cursor, offset + 1, "or")
+        && word_at(cursor, offset + 2, "blocked")
+        && word_at(cursor, offset + 3, "by")
+    {
+        return Some((BLOCKING_OR_BLOCKED_BY, 4));
+    }
+    if word_at(cursor, offset, "blocking") {
+        return Some((BLOCKING, 1));
+    }
+    if word_at(cursor, offset, "blocked") && word_at(cursor, offset + 1, "by") {
+        return Some((BLOCKED_BY, 2));
+    }
+    None
+}
+
+/// Whether `kinds` take a bound object only. `blocking creatures` is the
+/// status adjective before its noun; only a definite object after
+/// `blocking` makes it a participle.
+fn definite_anchor_only(kinds: &[ObjectRelationKind]) -> bool {
+    matches!(kinds, [ObjectRelationKind::Blocking])
+}
+
+/// A cursor advanced `offset` tokens, for a lookahead of the anchor.
+fn cursor_after<'a>(
+    cursor: &OracleTokenCursor<'a>,
+    offset: usize,
+) -> Option<OracleTokenCursor<'a>> {
+    let mut trial = cursor.clone();
+    trial.advance_to(cursor.position() + offset).ok()?;
+    Some(trial)
+}
+
+/// Lexical lookahead of a bound-object anchor: `it`, `that NOUN`, `this
+/// NOUN` or the source's name. It proves no binding.
+fn definite_anchor_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if super::bound_object_reference_starts(cursor) {
+        return true;
+    }
+    let names = cursor.source_names().to_vec();
+    let mut trial = cursor.clone();
+    super::recognize_source_reference(&mut trial, &names, None).is_ok()
+}
+
+/// True when a participial relation with a readable anchor starts at the
+/// cursor: `attached to ...`, `blocking it`, `blocked by ...`. A pure
+/// lookahead; the shared atom reader uses it so that the participle is not
+/// read as a status adjective of the noun before it.
+pub(in crate::oracle::canonical) fn participial_relation_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let Some((kinds, width)) = participial_relation_at(cursor, 0) else {
+        return false;
+    };
+    if !definite_anchor_only(kinds) {
+        return true;
+    }
+    cursor_after(cursor, width).is_some_and(|anchor| definite_anchor_starts(&anchor))
+}
+
+/// `is` / `are` before a participle (`that are attached to it`), with the
+/// copula's width. The past `were attached` is a last-known relation that
+/// no anchor here records, and is not claimed.
+fn copular_participle_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    if !(word_at(cursor, offset, "is") || word_at(cursor, offset, "are")) {
+        return None;
+    }
+    let (kinds, width) = participial_relation_at(cursor, offset + 1)?;
+    if definite_anchor_only(kinds) {
+        let anchor = cursor_after(cursor, offset + 1 + width)?;
+        if !definite_anchor_starts(&anchor) {
+            return None;
+        }
+    }
+    Some(1)
+}
+
+/// `that's` before a participle (`that's attached to a creature`): the
+/// contracted present copula of the same relation.
+fn contracted_copular_participle(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !(word_at(cursor, 0, "that's") || word_at(cursor, 0, "that\u{2019}s")) {
+        return false;
+    }
+    let Some((kinds, width)) = participial_relation_at(cursor, 1) else {
+        return false;
+    };
+    !definite_anchor_only(kinds)
+        || cursor_after(cursor, 1 + width).is_some_and(|anchor| definite_anchor_starts(&anchor))
+}
+
+/// `share` / `shares` / `doesn't share` / `do not share` at `offset`: the
+/// verb's width and whether it is negated.
+fn share_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool)> {
+    if word_at(cursor, offset, "share") || word_at(cursor, offset, "shares") {
+        return Some((1, false));
+    }
+    let contracted = ["doesn't", "don't", "doesn\u{2019}t", "don\u{2019}t"]
+        .iter()
+        .any(|form| word_at(cursor, offset, form));
+    if contracted && word_at(cursor, offset + 1, "share") {
+        return Some((2, true));
+    }
+    if (word_at(cursor, offset, "does") || word_at(cursor, offset, "do"))
+        && word_at(cursor, offset + 1, "not")
+        && word_at(cursor, offset + 2, "share")
+    {
+        return Some((3, true));
+    }
+    None
+}
+
+fn consume_words(cursor: &mut OracleTokenCursor<'_>, count: usize) -> MachineResult<()> {
+    for _ in 0..count {
+        let raw = cursor.peek().unwrap_or_default().to_string();
+        cursor.consume(&raw)?;
+    }
+    Ok(())
+}
+
+/// Reads the participle and its anchor into the relation predicate.
+/// `blocking or blocked by X` is the union of both relations with the same
+/// anchor.
+fn recognize_participial_relation(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relation.participle");
+    let (kinds, width) = cursor.require_value(
+        participial_relation_at(cursor, 0),
+        "`attached to`, `blocking` or `blocked by`",
+    )?;
+    consume_words(cursor, width)?;
+    let anchor = recognize_relation_anchor(cursor, definite_anchor_only(kinds))?;
+    let mut members = kinds
+        .iter()
+        .map(|kind| {
+            ObjectPredicate::Relation(ObjectRelation::Related(RelatedObject {
+                kind: *kind,
+                anchor: anchor.clone(),
+            }))
+        })
+        .collect::<Vec<_>>();
+    Ok(if members.len() == 1 {
+        members.remove(0)
+    } else {
+        ObjectPredicate::Union(members)
+    })
+}
+
+/// The characteristic after the share quantity, with its width.
+fn shared_characteristic_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(SharedCharacteristic, usize)> {
+    let type_noun = |at: usize| word_at(cursor, at, "type") || word_at(cursor, at, "types");
+    let typed = [
+        ("creature", SharedCharacteristic::CreatureType),
+        ("card", SharedCharacteristic::CardType),
+        ("permanent", SharedCharacteristic::PermanentType),
+        ("land", SharedCharacteristic::LandType),
+    ];
+    for (word, characteristic) in typed {
+        if word_at(cursor, offset, word) && type_noun(offset + 1) {
+            return Some((characteristic, 2));
+        }
+    }
+    (word_at(cursor, offset, "color") || word_at(cursor, offset, "colors"))
+        .then_some((SharedCharacteristic::Color, 1))
+}
+
+/// `[that] share(s) a creature type with it`, `that shares at least one
+/// color with the exiled card`, `that share no creature types with X`,
+/// `that doesn't share a color with X` (CR 105.1, 205.2, 205.3). The anchor
+/// is mandatory: a share among the members of a set has no anchor.
+fn recognize_share_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.share");
+    let (width, mut negated) = cursor.require_value(
+        share_verb_at(cursor, 0),
+        "`share`, `shares` or `doesn't share`",
+    )?;
+    consume_words(cursor, width)?;
+    cursor.enter("selector.relative-clause.share.quantity");
+    if word_at(cursor, 0, "at") && word_at(cursor, 1, "least") && word_at(cursor, 2, "one") {
+        consume_words(cursor, 3)?;
+    } else if word_at(cursor, 0, "a") || word_at(cursor, 0, "an") || word_at(cursor, 0, "any") {
+        consume_words(cursor, 1)?;
+    } else if word_at(cursor, 0, "no") {
+        cursor.require(!negated, "one negation of a share clause")?;
+        consume_words(cursor, 1)?;
+        negated = true;
+    } else {
+        return Err(cursor
+            .fail("`a`, `an`, `at least one`, `any` or `no` before the shared characteristic"));
+    }
+    cursor.enter("selector.relative-clause.share.characteristic");
+    let (characteristic, characteristic_width) = cursor.require_value(
+        shared_characteristic_at(cursor, 0),
+        "a creature type, card type, permanent type, land type or color",
+    )?;
+    consume_words(cursor, characteristic_width)?;
+    cursor.enter("selector.relative-clause.share.anchor");
+    // `creatures that share a creature type` compares the members of the
+    // set with each other: no anchor is invented for it here.
+    cursor.consume("with")?;
+    let anchor = recognize_relation_anchor(cursor, false)?;
+    let relation = ObjectPredicate::Relation(ObjectRelation::Related(RelatedObject {
+        kind: ObjectRelationKind::Shares(characteristic),
+        anchor,
+    }));
+    Ok(if negated {
+        ObjectPredicate::Not(Box::new(relation))
+    } else {
+        relation
+    })
+}
+
+/// Whether the lowering has a value for this bound anchor: a declared
+/// target is resolved by the program lowering against its declaration; any
+/// other reference needs no declaration.
+fn anchor_reference_lowerable(reference: PermanentEffectReference) -> bool {
+    matches!(
+        reference,
+        PermanentEffectReference::Target(_) | PermanentEffectReference::TargetSet(_)
+    ) || crate::oracle::canonical::effects::bound_permanent_reference_value(reference, &[])
+        .is_some()
+}
+
+/// Reads the anchor of a relation. A bound object is resolved through the
+/// installed binding environment; an absent antecedent is a committed
+/// diagnostic. Otherwise, unless the relation takes a bound object only,
+/// the anchor is a battlefield query (`attached to a creature`).
+fn recognize_relation_anchor(
+    cursor: &mut OracleTokenCursor<'_>,
+    definite_only: bool,
+) -> MachineResult<RelationAnchor> {
+    cursor.enter("selector.relation.anchor");
+    if super::bound_object_reference_starts(cursor) {
+        let environment = super::installed_binding_environment(cursor);
+        // `X gets +1/+1 for each Aura attached to it`: without a lexical
+        // antecedent, the pronoun names the subject of the clause being read,
+        // which its parent installed (`with_clause_subject`).
+        if environment.object.is_none()
+            && let Some(subject) = environment.subject
+            && cursor.peek().is_some_and(super::is_source_anaphor)
+            && anchor_reference_lowerable(subject)
+        {
+            consume_words(cursor, 1)?;
+            return Ok(RelationAnchor::Object(subject));
+        }
+        let reference = super::recognize_bound_object_reference(cursor, &environment)?;
+        cursor.enter("selector.relation.anchor.binding");
+        cursor.require(
+            anchor_reference_lowerable(reference),
+            "a bound anchor object the relation can name at resolution",
+        )?;
+        return Ok(RelationAnchor::Object(reference));
+    }
+    let names = cursor.source_names().to_vec();
+    let mut trial = cursor.clone();
+    if super::recognize_source_reference(&mut trial, &names, None).is_ok() {
+        *cursor = trial;
+        return Ok(RelationAnchor::Object(PermanentEffectReference::Source(
+            LocalObjectReference::SourceSelf,
+        )));
+    }
+    cursor.enter("selector.relation.anchor.query");
+    cursor.require(
+        !definite_only,
+        "a bound object (`it`, `that creature`, `this creature`) after the participle",
+    )?;
+    if word_at(cursor, 0, "a") || word_at(cursor, 0, "an") {
+        consume_words(cursor, 1)?;
+    }
+    let query = super::recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?
+        .into_object_query(cursor)?;
+    cursor.enter("selector.relation.anchor.query-domain");
+    cursor.require(
+        query.denotes_battlefield_permanents() && !query.exclude_source,
+        "an anchor query of battlefield permanents",
+    )?;
+    cursor.require(
+        !matches!(query.controller, Some(ObjectControllerScope::Player(_))),
+        "an anchor query whose controller is relative to the ability controller",
+    )?;
+    Ok(RelationAnchor::Query(Box::new(query)))
+}
+
+/// Whether a relation of `predicate` is anchored on a bound object other
+/// than the source (`that shares a color with it`, `it` an event object).
+/// `other` before such a collection names that anchor, not the source
+/// (`destroy all other creatures that share a color with it`), which no
+/// source exclusion represents: the collection parent refuses it.
+pub(in crate::oracle::canonical) fn relates_to_bound_non_source(
+    predicate: &ObjectPredicate,
+) -> bool {
+    match predicate {
+        ObjectPredicate::Relation(ObjectRelation::Related(related)) => matches!(
+            related.anchor,
+            RelationAnchor::Object(reference)
+                if !matches!(reference, PermanentEffectReference::Source(_))
+        ),
+        ObjectPredicate::Not(operand) => relates_to_bound_non_source(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().any(relates_to_bound_non_source)
+        }
+        _ => false,
+    }
+}
+
+/// Refuses `other` before a collection whose relation anchor is another
+/// bound object (see `relates_to_bound_non_source`).
+pub(in crate::oracle::canonical) fn refuse_other_than_relation_anchor(
+    cursor: &mut OracleTokenCursor<'_>,
+    predicate: &ObjectPredicate,
+    exclude_source: bool,
+) -> MachineResult<()> {
+    if exclude_source && relates_to_bound_non_source(predicate) {
+        cursor.enter("selector.relation.other-antecedent");
+        return Err(cursor.fail(
+            "an `other` collection whose antecedent is the source, not the relation's anchor",
+        ));
+    }
+    Ok(())
 }
