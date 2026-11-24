@@ -45,7 +45,12 @@ fn recognize_branch(
         cursor.consume(&article)?;
     }
     cursor.enter("event.permanent-died.predicate");
-    let query = recognize_object_query(cursor)?;
+    // The subject's own qualifiers may name the source (`a creature dealt
+    // damage by NAME this turn`): its name links are installed for them.
+    let previous = cursor.replace_source_names(Some(name_links.into()));
+    let query = recognize_object_query(cursor);
+    cursor.replace_source_names(previous);
+    let query = query?;
     cursor.require(
         query
             .predicate
