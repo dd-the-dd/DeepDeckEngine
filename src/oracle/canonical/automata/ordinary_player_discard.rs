@@ -33,7 +33,7 @@ pub(in crate::oracle::canonical) fn recognize_ordinary_player_discard(
     )?;
     cursor.enter("effect.ordinary-discard.count");
     cursor.require(
-        !matches!(&node.count, NumericExpression::Atom(NumericAtom::Integer(n)) if *n < 0),
+        !matches!(node.quantity.count(), Some(NumericExpression::Atom(NumericAtom::Integer(n))) if *n < 0),
         "a nonnegative discard count",
     )?;
     cursor.enter("effect.ordinary-discard.complete");

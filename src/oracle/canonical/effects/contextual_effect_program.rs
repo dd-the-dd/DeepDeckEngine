@@ -457,27 +457,8 @@ fn activation_body_context(
     base: &EffectRecognitionContext,
 ) -> EffectRecognitionContext {
     use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
-    let retained = !costs.source_zone_requirements().hand
-        && !costs.source_zone_requirements().graveyard
-        && costs.costs.iter().all(|cost| match cost {
-            LocalActivationCostNode::PayMana(_)
-            | LocalActivationCostNode::TapSelf(_)
-            | LocalActivationCostNode::PayLife(_)
-            | LocalActivationCostNode::TapObjects(_)
-            | LocalActivationCostNode::DiscardCard(_)
-            | LocalActivationCostNode::RemoveSourceCounters(_)
-            | LocalActivationCostNode::RemoveControlledCounters(_)
-            | LocalActivationCostNode::ExileCards(_)
-            | LocalActivationCostNode::PutSourceCounters(_)
-            | LocalActivationCostNode::PutChosenCounters(_) => true,
-            // `Sacrifice another ...` cannot sacrifice the source (CR 109.1).
-            LocalActivationCostNode::SacrificeObject(selected) => selected.exclude_source,
-            LocalActivationCostNode::ReturnObjects(selected) => selected.exclude_source,
-            LocalActivationCostNode::ReturnSelf => false,
-            LocalActivationCostNode::SacrificeSelf(_)
-            | LocalActivationCostNode::DiscardSelf(_)
-            | LocalActivationCostNode::ExileSelf(_) => false,
-        });
+    let permanent_face =
+        type_line_has_permanent_card_type(face_type_line) && !spell_face(face_type_line);
     let mut context = base
         .clone()
         .with_source_attachment(source_attachment_role(face_type_line));
@@ -517,13 +498,11 @@ fn activation_body_context(
     {
         context = context.with_source_event_subject(LocalObjectReference::SourceSelf);
     }
-    context.source_numeric_reads =
-        type_line_has_permanent_card_type(face_type_line) && !spell_face(face_type_line);
-    context.activation_source_availability = if retained
-        && type_line_has_permanent_card_type(face_type_line)
-        && !spell_face(face_type_line)
-    {
-        ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent
+    context.source_numeric_reads = permanent_face;
+    // A permanent face's activation names its source; a cost that may move
+    // the source keeps the reference (CR 113.7a) as `RetainedOrDeparted`.
+    context.activation_source_availability = if permanent_face {
+        ExplicitActivationSourceAvailability::from_costs(costs, true)
     } else {
         ExplicitActivationSourceAvailability::Unproved
     };

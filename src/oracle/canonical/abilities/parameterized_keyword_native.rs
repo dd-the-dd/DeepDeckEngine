@@ -88,6 +88,9 @@ fn cumulative_upkeep_rule(
             };
             json!({ "kind": "payLife", "player": controller(), "amount": amount })
         }
+        ResourcePaymentNode::PlayerCounters(_) => {
+            return Err(cursor.fail("a mana or life cumulative upkeep payment"));
+        }
     };
     let age_counter = json!({
         "kind": "putCounters",

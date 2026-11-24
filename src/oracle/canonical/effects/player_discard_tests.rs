@@ -1,5 +1,5 @@
 use super::super::super::{
-    CollectionSelectionMethod, NumericAtom, NumericExpression, PlayerBinding,
+    CollectionSelectionMethod, DiscardQuantity, NumericAtom, NumericExpression, PlayerBinding,
     PlayerDiscardEffectNode, PlayerEffectSubject, PlayerPredicate, TargetCardinality,
     TargetListNode, TargetSelector, TargetSlot,
 };
@@ -23,7 +23,7 @@ fn count(value: i64) -> NumericExpression {
 fn chosen_controller_discard_lowers_directly_to_discard_cards() {
     let node = PlayerDiscardEffectNode {
         player: PlayerEffectSubject::Controller,
-        count: count(1),
+        quantity: DiscardQuantity::Count(count(1)),
         selection: CollectionSelectionMethod::Choice,
     };
 
@@ -51,7 +51,7 @@ fn targeted_random_discard_composes_random_selection_and_linked_consumer() {
             },
             binding,
         },
-        count: count(2),
+        quantity: DiscardQuantity::Count(count(2)),
         selection: CollectionSelectionMethod::Random,
     };
 
@@ -83,7 +83,7 @@ fn bound_player_reuses_the_exact_existing_target_id() {
     let binding = PlayerBinding(9);
     let node = PlayerDiscardEffectNode {
         player: PlayerEffectSubject::Bound(binding),
-        count: NumericExpression::Atom(NumericAtom::VariableX),
+        quantity: DiscardQuantity::Count(NumericExpression::Atom(NumericAtom::VariableX)),
         selection: CollectionSelectionMethod::Random,
     };
 
@@ -106,7 +106,7 @@ fn bound_player_reuses_the_exact_existing_target_id() {
 fn mismatched_bound_player_is_not_retargeted() {
     let node = PlayerDiscardEffectNode {
         player: PlayerEffectSubject::Bound(PlayerBinding(3)),
-        count: count(1),
+        quantity: DiscardQuantity::Count(count(1)),
         selection: CollectionSelectionMethod::Choice,
     };
 
@@ -120,5 +120,22 @@ fn mismatched_bound_player_is_not_retargeted() {
             }),
         ),
         Err(PlayerDiscardLoweringError::BoundPlayerMismatch)
+    );
+}
+
+#[test]
+fn whole_hand_discard_lowers_to_the_engine_discard_hand_action() {
+    let node = PlayerDiscardEffectNode {
+        player: PlayerEffectSubject::Controller,
+        quantity: DiscardQuantity::WholeHand,
+        selection: CollectionSelectionMethod::Choice,
+    };
+    let lowered = lower_player_discard_effect(&node, ids(), None).unwrap();
+    assert_eq!(
+        lowered.effects,
+        vec![serde_json::json!({
+            "kind": "discardHand",
+            "player": {"kind": "controllerOf", "object": {"kind": "self"}},
+        })]
     );
 }

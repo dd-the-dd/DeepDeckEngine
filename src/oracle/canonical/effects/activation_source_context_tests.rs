@@ -15,25 +15,28 @@ fn parse(text: &str, face_cost: &str, face_type: &str) -> OracleCardParseResult 
 
 #[test]
 fn source_availability_requires_retaining_costs_and_a_permanent_face() {
+    use ExplicitActivationSourceAvailability::{
+        RetainedBattlefieldPermanent, RetainedOrDeparted, Unproved,
+    };
     for (text, expected) in [
-        ("{0}", true),
-        ("{T}", true),
-        ("Pay 2 life", true),
-        ("Sacrifice this creature", false),
-        ("Sacrifice a creature", false),
-        ("Discard this card", false),
+        ("{0}", RetainedBattlefieldPermanent),
+        ("{T}", RetainedBattlefieldPermanent),
+        ("Pay 2 life", RetainedBattlefieldPermanent),
+        ("Pay {E}{E}", RetainedBattlefieldPermanent),
+        ("Sacrifice another creature", RetainedBattlefieldPermanent),
+        ("Sacrifice this creature", Unproved),
+        // The payer may sacrifice the source itself: a self-reference still
+        // names it (CR 113.7a) and does nothing once it left (CR 400.7).
+        ("Sacrifice a creature", RetainedOrDeparted),
+        ("Sacrifice two creatures", RetainedOrDeparted),
+        ("Discard this card", Unproved),
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("activation-source-cost-unit", &tokens);
         let costs = recognize_activation_cost_sequence(&mut cursor).unwrap();
         let context =
             activation_body_context("Creature", &costs, &EffectRecognitionContext::default());
-        assert_eq!(
-            context.activation_source_availability
-                == ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent,
-            expected,
-            "{text}"
-        );
+        assert_eq!(context.activation_source_availability, expected, "{text}");
         assert!(context.source.is_none());
         assert!(!context.source_cast_x);
         // A card discarded or sacrificed to pay for its own ability is the

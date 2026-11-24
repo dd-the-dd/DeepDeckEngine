@@ -4,7 +4,7 @@ use super::super::super::super::super::OracleTokenCursor;
 use super::super::super::super::{NumericAtom, NumericExpression, PlayerPredicate, TargetSelector};
 use super::super::player_subject::{PlayerBinding, PlayerEffectSubject};
 use super::super::selection_method::CollectionSelectionMethod;
-use super::recognize_player_discard_effect;
+use super::{DiscardQuantity, recognize_player_discard_effect};
 
 fn parse(
     text: &str,
@@ -32,8 +32,8 @@ fn target_opponent_discards_word_quantity() {
         [slot] if slot.selector == TargetSelector::Player(PlayerPredicate::Opponent)
     ));
     assert_eq!(
-        effect.count,
-        NumericExpression::Atom(NumericAtom::Integer(2))
+        effect.quantity,
+        DiscardQuantity::Count(NumericExpression::Atom(NumericAtom::Integer(2)))
     );
     assert_eq!(effect.selection, CollectionSelectionMethod::Choice);
 }
@@ -44,8 +44,8 @@ fn controller_discards_a_single_card() {
 
     assert_eq!(effect.player, PlayerEffectSubject::Controller);
     assert_eq!(
-        effect.count,
-        NumericExpression::Atom(NumericAtom::Integer(1))
+        effect.quantity,
+        DiscardQuantity::Count(NumericExpression::Atom(NumericAtom::Integer(1)))
     );
 }
 
@@ -57,8 +57,8 @@ fn bound_player_discards_variable_cards_at_random_without_becoming_a_target() {
 
     assert_eq!(effect.player, PlayerEffectSubject::Bound(antecedent));
     assert_eq!(
-        effect.count,
-        NumericExpression::Atom(NumericAtom::VariableX)
+        effect.quantity,
+        DiscardQuantity::Count(NumericExpression::Atom(NumericAtom::VariableX))
     );
     assert_eq!(effect.selection, CollectionSelectionMethod::Random);
 }
@@ -78,8 +78,8 @@ fn numeric_digit_uses_the_shared_expression_grammar() {
         parse("Target player discards 3 cards.", None).expect("digit discard count parses");
 
     assert_eq!(
-        effect.count,
-        NumericExpression::Atom(NumericAtom::Integer(3))
+        effect.quantity,
+        DiscardQuantity::Count(NumericExpression::Atom(NumericAtom::Integer(3)))
     );
 }
 
@@ -111,4 +111,51 @@ fn malformed_random_modifier_is_a_committed_near_miss() {
     assert_eq!(failure.state, "selection-method.random.mode");
     assert_eq!(failure.actual.as_deref(), Some("choice"));
     assert!(failure.expected.contains("random"));
+}
+
+#[test]
+fn the_whole_hand_is_the_acting_players_own_holder() {
+    // One with Nothing / Bedlam Reveler (`discard your hand`), Dark Deal
+    // (`discards all the cards in their hand`): one quantity determiner.
+    for (text, player) in [
+        ("You discard your hand.", PlayerEffectSubject::Controller),
+        (
+            "You discard all the cards in your hand.",
+            PlayerEffectSubject::Controller,
+        ),
+        (
+            "That player discards their hand.",
+            PlayerEffectSubject::Bound(PlayerBinding(7)),
+        ),
+        (
+            "That player discards all cards in their hand.",
+            PlayerEffectSubject::Bound(PlayerBinding(7)),
+        ),
+    ] {
+        let effect =
+            parse(text, Some(PlayerBinding(7))).unwrap_or_else(|f| panic!("{text}: {f:?}"));
+        assert_eq!(effect.player, player, "{text}");
+        assert_eq!(effect.quantity, DiscardQuantity::WholeHand, "{text}");
+    }
+}
+
+#[test]
+fn another_players_hand_or_a_random_whole_hand_fails_typed() {
+    for (text, state) in [
+        (
+            "You discard their hand.",
+            "effect.player-discard.whole-hand.holder",
+        ),
+        (
+            "That player discards all the cards in your hand.",
+            "effect.player-discard.whole-hand.holder",
+        ),
+        (
+            "You discard your hand at random.",
+            "effect.player-discard.whole-hand-selection",
+        ),
+    ] {
+        let failure = parse(text, Some(PlayerBinding(7))).expect_err(text);
+        assert_eq!(failure.state, state, "{text}");
+    }
 }

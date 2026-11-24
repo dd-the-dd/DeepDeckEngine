@@ -550,12 +550,15 @@ fn lower_local_effect_sequence_with_collections(
                         &life.amount,
                     ),
                     SingularPlayerAction::Discard(discard) => {
-                        validate_targetless_numeric_expression(&discard.count, declarations)
-                            .map_err(|error| {
-                                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                                    cursor.fail(error.expectation()),
-                                )
-                            })?;
+                        if let Some(count) = discard.quantity.count() {
+                            validate_targetless_numeric_expression(count, declarations).map_err(
+                                |error| {
+                                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                        cursor.fail(error.expectation()),
+                                    )
+                                },
+                            )?;
+                        }
                         effects.extend(
                             lower_player_discard_action_for_player(
                                 discard,

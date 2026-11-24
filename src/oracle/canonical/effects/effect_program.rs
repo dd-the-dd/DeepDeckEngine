@@ -471,6 +471,9 @@ pub(in crate::oracle::canonical) fn lower_resolution_cost(cost: &ResolutionCostN
         ResolutionCostNode::Payment(ResourcePaymentNode::Life(life)) => {
             json!({ "kind": "payLife", "amount": integer(life.amount) })
         }
+        ResolutionCostNode::Payment(ResourcePaymentNode::PlayerCounters(counters)) => {
+            lower_resource_player_counter_payment(counters, None)
+        }
         ResolutionCostNode::Sacrifice {
             object,
             exclude_source,
