@@ -1460,3 +1460,10 @@ impl GameEngine {
         }
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "trigger_condition_runtime_tests.rs"]
+mod trigger_condition_runtime_tests;
