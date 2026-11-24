@@ -310,6 +310,7 @@ impl GameEngine {
                 _ => false,
             }
             && matches_card_filter(&card.definition, &modifier["where"])
+            && static_player_permissions::casting_permission_admits_card(modifier, source, card)
             && (!modifier["linkedToSource"].as_bool().unwrap_or(false)
                 || self.state.rule_modifiers.iter().any(|link| {
                     value_kind(link) == Some("exiledWithSource")

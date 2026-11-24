@@ -972,7 +972,7 @@
       }
     },
     {
-      "id": "near-miss-static-self-cast-permission",
+      "id": "static-self-cast-permission-is-not-a-card-action",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Creature — Spirit",
@@ -982,13 +982,28 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "state": "ability-frame.permission.action",
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              },
+              {
+                "pointer": "/activeWhile/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "castingPermission"
+              }
+            ]
           }
         ]
       }
