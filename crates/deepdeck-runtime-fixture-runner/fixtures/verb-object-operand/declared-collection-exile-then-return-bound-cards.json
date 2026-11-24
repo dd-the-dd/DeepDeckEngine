@@ -2,6 +2,77 @@
   "schemaVersion": "deepdeck-runtime-fixture/v1",
   "id": "verb-operand-plural-exile-binds-every-moved-card-for-those-cards",
   "seed": 43,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 0,
+          "maximum": {
+            "kind": "countPermanents",
+            "allPlayers": true
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        },
+        "bind": "exiledObject"
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "exiledObject"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
   "initialState": {
     "activePlayerId": "player-0",
     "players": [

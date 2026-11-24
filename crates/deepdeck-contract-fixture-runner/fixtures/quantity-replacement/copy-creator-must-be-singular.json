@@ -9,11 +9,18 @@
     },
     "effects": [
       {
-        "kind": "createTokenCopyOfPermanent",
-        "object": {
-          "kind": "self"
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 1
         },
-        "exileAtNextEndStep": false,
+        "token": {
+          "kind": "copyOf",
+          "object": {
+            "kind": "self"
+          },
+          "except": []
+        },
         "controller": {
           "kind": "eachPlayer"
         }

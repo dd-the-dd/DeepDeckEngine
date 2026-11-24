@@ -28634,14 +28634,16 @@ impl GameEngine {
                     let copied_card =
                         self.state.players[graveyard_index].graveyard[card_index].clone();
                     card.printed_definition = Some(card.definition.clone());
-                    card.definition = copied_card
-                        .printed_definition
-                        .clone()
-                        .unwrap_or_else(|| copied_card.definition.clone());
+                    card.definition = Self::copiable_values(&copied_card);
                     card.definition.name = operation["name"]
                         .as_str()
                         .unwrap_or(&card.definition.name)
                         .to_string();
+                    if operation.get("basePower").is_some()
+                        || operation.get("baseToughness").is_some()
+                    {
+                        Self::remove_copied_power_toughness_definitions(&mut card.definition);
+                    }
                     card.definition.power =
                         integer_value(&operation["basePower"]).map(|value| value.to_string());
                     card.definition.toughness =
@@ -28706,10 +28708,7 @@ impl GameEngine {
                     };
                     let copied = self.state.players[player_index].battlefield[card_index].clone();
                     card.printed_definition = Some(card.definition.clone());
-                    card.definition = copied
-                        .printed_definition
-                        .clone()
-                        .unwrap_or(copied.definition);
+                    card.definition = Self::copiable_values(&copied);
                     if operation["removeLegendary"].as_bool() == Some(true) {
                         card.definition.type_line = card
                             .definition
@@ -28747,12 +28746,7 @@ impl GameEngine {
                             permanent.instance_id != card.instance_id
                                 && type_line_contains(&permanent.definition.type_line, "Equipment")
                         })
-                        .map(|permanent| {
-                            permanent
-                                .printed_definition
-                                .clone()
-                                .unwrap_or_else(|| permanent.definition.clone())
-                        })
+                        .map(Self::copiable_values)
                     {
                         card.printed_definition = Some(card.definition.clone());
                         card.definition = definition;

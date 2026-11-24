@@ -2,6 +2,61 @@
   "schemaVersion": "deepdeck-runtime-fixture/v1",
   "id": "verb-operand-nontarget-choice-to-owner-hand-excludes-source",
   "seed": 41,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "kind": "choosePermanents",
+        "id": "selectedPermanents",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "candidates": {
+          "kind": "permanents",
+          "controller": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "excludeSource": true,
+          "where": {
+            "kind": "cardTypeContains",
+            "value": "Creature"
+          }
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        }
+      },
+      {
+        "kind": "returnToOwnersHand",
+        "object": {
+          "kind": "decisionResult",
+          "decisionId": "selectedPermanents"
+        }
+      }
+    ]
+  },
   "initialState": {
     "activePlayerId": "player-0",
     "players": [

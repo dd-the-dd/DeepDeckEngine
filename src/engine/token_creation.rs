@@ -380,29 +380,98 @@ impl GameEngine {
         }
     }
 
-    /// The copiable values of an object (CR 707.2): its printed definition as
-    /// modified by copy effects, without the characteristic markers that
-    /// resolved effects recorded on it (they are not copiable). A permanent
-    /// is read on the battlefield; a card in another zone, or the source as
-    /// it last existed, from its definition there.
+    /// The copiable values of an object (CR 707.2): its current values as
+    /// modified by copy effects, its face-down status (CR 707.2, 708.2) or
+    /// the face that is up (CR 707.8, 712.8), without the characteristic
+    /// markers that resolved effects recorded on it (they are not copiable).
+    /// A permanent is read on the battlefield; a card in another zone, or the
+    /// source as it last existed, from its definition there.
     fn copiable_definition(&self, id: &str, stack_object: &StackObject) -> Option<CardDefinition> {
         let card = self
             .permanent_position(id)
             .map(|(player, index)| &self.state.players[player].battlefield[index])
             .or_else(|| self.card_outside_battlefield(id))
             .or_else(|| (stack_object.card.instance_id == id).then_some(&stack_object.card))?;
-        let mut definition = card
-            .printed_definition
-            .clone()
-            .unwrap_or_else(|| card.definition.clone());
-        definition
-            .printed_rules_mut()
-            .retain(|rule| !Self::is_resolved_characteristic_marker(rule));
+        let mut definition = Self::copiable_values(card);
         definition.id = format!("token-copy:{}", definition.id);
         definition.is_token = true;
         definition.is_game_piece = true;
         definition.is_sideboard = false;
         Some(definition)
+    }
+
+    /// The copiable values of `card` (CR 707.2-707.3). A copy effect or a
+    /// face-down status replaces the object's definition with one of another
+    /// identity: those values are its copiable values, so a copy of a Clone
+    /// copies what the Clone copied (CR 707.3). Otherwise the printed card is
+    /// read, restricted to the face that is up (CR 707.8, 712.8); a copy of
+    /// one face is not a transforming object, so it carries no face list.
+    pub(in crate::engine) fn copiable_values(card: &CardInstance) -> CardDefinition {
+        let mut definition = match card.printed_definition.as_ref() {
+            Some(printed) if printed.id == card.definition.id => {
+                let face_index = usize::from(card.flags.get("transformed") == Some(&true));
+                let mut face = card.clone();
+                face.definition = printed.clone();
+                if apply_card_face(&mut face, face_index) {
+                    for rule in face.definition.printed_rules_mut() {
+                        if value_kind(rule) == Some("rulesMarker")
+                            && let Some(marker) = rule.as_object_mut()
+                        {
+                            marker.remove("transformFaces");
+                        }
+                    }
+                    face.definition
+                } else {
+                    printed.clone()
+                }
+            }
+            _ => card.definition.clone(),
+        };
+        definition
+            .printed_rules_mut()
+            .retain(|rule| !Self::is_resolved_characteristic_marker(rule));
+        definition
+    }
+
+    /// CR 707.9d: a copy exception that provides a specific value for a
+    /// characteristic does not copy the characteristic-defining abilities of
+    /// the copied object that would define it. `defines` selects the
+    /// unconditional self-defining modifiers of one characteristic; a static
+    /// ability left without modifiers is removed.
+    fn remove_copied_characteristic_definitions(
+        definition: &mut CardDefinition,
+        defines: impl Fn(&Value) -> bool,
+    ) {
+        let defining = |modifier: &Value| {
+            value_kind(&modifier["objects"]) == Some("self")
+                && modifier.get("condition").is_none()
+                && defines(modifier)
+        };
+        definition.printed_rules_mut().retain_mut(|rule| {
+            if value_kind(rule) != Some("staticAbility") || rule.get("condition").is_some() {
+                return true;
+            }
+            let Some(modifiers) = rule["modifiers"].as_array_mut() else {
+                return true;
+            };
+            let before = modifiers.len();
+            modifiers.retain(|modifier| !defining(modifier));
+            before == modifiers.len() || !modifiers.is_empty()
+        });
+    }
+
+    /// A copy whose power and toughness the copy effect provides does not
+    /// copy the layer-7a abilities that define them (CR 707.9d).
+    pub(in crate::engine) fn remove_copied_power_toughness_definitions(
+        definition: &mut CardDefinition,
+    ) {
+        Self::remove_copied_characteristic_definitions(definition, |modifier| {
+            Self::is_layer_7a_modifier(modifier)
+                && matches!(
+                    value_kind(modifier),
+                    Some("setBasePowerToughness" | "setPower" | "setToughness")
+                )
+        });
     }
 
     /// Applies one copiable-value exception of a token copy (CR 707.9b). The
@@ -432,6 +501,7 @@ impl GameEngine {
                     decisions,
                     "copyOf.except.toughness",
                 )?;
+                Self::remove_copied_power_toughness_definitions(definition);
                 definition.power = Some(power.to_string());
                 definition.toughness = Some(toughness.to_string());
             }
@@ -472,6 +542,15 @@ impl GameEngine {
             Some("setColors") => {
                 // The copy's colors are a copiable value: the same color-set
                 // characteristic the color queries read (CR 105.3, 707.9b).
+                // The copied color-defining abilities, devoid among them
+                // (CR 702.114a), are not copied (CR 707.9d).
+                Self::remove_copied_characteristic_definitions(definition, |modifier| {
+                    matches!(value_kind(modifier), Some("setAllColors" | "setColor"))
+                });
+                definition.printed_rules_mut().retain(|rule| {
+                    !(value_kind(rule) == Some("keywordAbility")
+                        && value_kind(&rule["ability"]) == Some("devoid"))
+                });
                 definition
                     .printed_rules_mut()
                     .push(Self::copiable_color_set(&exception["colors"]));

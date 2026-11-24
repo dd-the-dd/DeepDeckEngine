@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "chosen-opponent-performer/library-search-trigger-draw",
+  "seed": 6401,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "counter": "charge",
+        "kind": "putCounters",
+        "permanent": {
+          "kind": "self"
+        }
+      },
+      {
+        "bindAs": "chosenPerformer1",
+        "candidates": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "id": "chosenPerformer1",
+        "kind": "choosePlayers",
+        "maximum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "minimum": {
+          "kind": "integer",
+          "value": 1
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "count": {
+          "kind": "integer",
+          "value": 1
+        },
+        "kind": "drawCards",
+        "performer": {
+          "id": "chosenPerformer1",
+          "kind": "boundValue"
+        },
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Archive controller",
+        "battlefield": [
+          {
+            "id": "executor",
+            "name": "executor",
+            "typeLine": "Artifact"
+          }
+        ],
+        "library": [
+          {
+            "id": "player-0-card-0",
+            "name": "player-0 card 0",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "player-0-card-1",
+            "name": "player-0 card 1",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "First opponent",
+        "library": [
+          {
+            "id": "player-1-card-0",
+            "name": "player-1 card 0",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "player-1-card-1",
+            "name": "player-1 card 1",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-2",
+        "name": "Second opponent",
+        "library": [
+          {
+            "id": "player-2-card-0",
+            "name": "player-2 card 0",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "player-2-card-1",
+            "name": "player-2 card 1",
+            "typeLine": "Artifact"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "executor"
+  },
+  "decisions": [
+    {
+      "kind": "chooseOption",
+      "index": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-2",
+      "zone": "hand",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-1",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 0
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-2",
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardDrawn",
+      "playerId": "player-0",
+      "equals": 0
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

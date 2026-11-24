@@ -9,12 +9,19 @@
     },
     "effects": [
       {
-        "kind": "createModifiedTokenCopy",
-        "object": {
-          "kind": "chosenTarget",
-          "id": "copied"
+        "kind": "createTokens",
+        "quantity": {
+          "kind": "integer",
+          "value": 1
         },
-        "exileAtNextEndStep": false,
+        "token": {
+          "kind": "copyOf",
+          "object": {
+            "kind": "chosenTarget",
+            "id": "copied"
+          },
+          "except": []
+        },
         "controller": {
           "kind": "chosenTarget",
           "id": "creator"

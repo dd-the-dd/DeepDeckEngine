@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use super::super::{
     keyword_kind_supported, numeric_expression_supported, object_expression_supported,
-    player_reference_supported, rule_supported, target_reference_supported, value_kind,
+    rule_supported, singular_player_reference_supported, target_reference_supported, value_kind,
 };
 
 /// The copied object of a `copyOf` token: the source, a declared target or a
@@ -55,9 +55,11 @@ pub(in super::super) fn token_copy_effect_supported(effect: &Value) -> Option<bo
     let token = &effect["token"];
     Some(
         numeric_expression_supported(&effect["quantity"])
+            // The copies have one creator and controller (CR 111.2); a
+            // plural player reference is not a token creator.
             && effect
                 .get("controller")
-                .is_none_or(player_reference_supported)
+                .is_none_or(singular_player_reference_supported)
             && copied_object_supported(&token["object"])
             && token["except"]
                 .as_array()

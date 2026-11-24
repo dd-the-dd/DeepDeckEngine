@@ -15,7 +15,7 @@
 //! program between `if` and its comma. A referenced object is a symbolic
 //! binding resolved from the sequence's proven antecedents; it is never
 //! guessed.
-use super::super::{MachineResult, OracleTokenCursor};
+use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::*;
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -414,6 +414,20 @@ fn recognize_controlled_quantity_atom(
         } else if word_is(cursor, 0, "another") {
             consume_current(cursor)?;
             another = true;
+        } else {
+            // `you don't control two or more QUERY` negates a count
+            // threshold (fewer than two), not the absence of the query.
+            let counted = cursor.peek().is_some_and(|raw| {
+                ["exactly", "at", "no"]
+                    .iter()
+                    .any(|word| raw.eq_ignore_ascii_case(word))
+                    || raw.parse::<i64>().is_ok()
+                    || parse_number_word(raw).is_some()
+            });
+            cursor.require(
+                !counted,
+                "an absence (`a`, `an`, `another`) after `you don't control`, not a negated count",
+            )?;
         }
         CountThreshold {
             operator: ThresholdOperator::AtMost,

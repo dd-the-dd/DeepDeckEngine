@@ -147,6 +147,10 @@ fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
         "if you control an artifact or banana, draw a card.",
         "if you control an artifact or, draw a card.",
         "if you control an artifact draw a card.",
+        // Near miss: a negated count threshold is not the absence count.
+        "if you don't control two or more creatures, draw a card.",
+        "if you don't control 2 or more creatures, draw a card.",
+        "if you don't control at least two creatures, draw a card.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);

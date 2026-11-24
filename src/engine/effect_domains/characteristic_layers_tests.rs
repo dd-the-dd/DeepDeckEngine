@@ -346,3 +346,168 @@ fn a_token_copy_applies_copiable_exceptions_binds_the_token_and_is_sacrificed_la
             .starts_with("Legendary")
     );
 }
+
+/// Resolves one `createTokens copyOf` effect whose copied object is bound to
+/// `copied`, and returns the created token.
+fn resolve_token_copy(engine: &mut GameEngine, copied_id: &str, token: Value) -> CardInstance {
+    let effect = json!({
+        "kind": "createTokens",
+        "quantity": { "kind": "integer", "value": 1 },
+        "token": token,
+        "counters": [{ "counter": "+1/+1", "count": { "kind": "integer", "value": 6 } }],
+    });
+    let mut copied_token = effect.clone();
+    copied_token["token"]["object"] = json!({ "kind": "boundObjects", "binding": "copied" });
+    let rule = json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "effects": [copied_token],
+    });
+    assert!(rule_is_executable(&rule), "{rule}");
+    let source = engine.state.players[0].battlefield[0].clone();
+    let stack = stack_for(source, rule.clone());
+    let mut bindings = BTreeMap::from([(
+        "copied".to_string(),
+        RuntimeBinding::Objects(vec![copied_id.to_string()]),
+    )]);
+    let before = engine.state.players[0].battlefield.len();
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack,
+            &mut bindings,
+            &mut BTreeMap::new(),
+            &mut FirstOption,
+        )
+        .expect("the token copy resolves");
+    assert_eq!(engine.state.players[0].battlefield.len(), before + 1);
+    engine.state.players[0].battlefield.last().cloned().unwrap()
+}
+
+#[test]
+fn a_copy_exception_that_sets_a_characteristic_drops_the_copied_cda_defining_it() {
+    let mut engine = engine();
+    // A goyf-like creature whose layer-7a CDA defines a 3/4, and a devoid
+    // creature whose CDA defines it as colorless (CR 702.114a).
+    let mut goyf = definition("goyf", "Creature - Lhurgoyf", "*", "1+*");
+    goyf.rules = vec![cda_rule(json!({
+        "kind": "setBasePowerToughness",
+        "objects": { "kind": "self" },
+        "layer": "7a",
+        "power": { "kind": "integer", "value": 3 },
+        "toughness": { "kind": "integer", "value": 4 },
+    }))];
+    let mut eldrazi = definition("eldrazi", "Creature - Eldrazi", "2", "2");
+    eldrazi.mana_cost = "{1}{R}".to_string();
+    eldrazi.rules = vec![json!({
+        "kind": "keywordAbility",
+        "source": { "kind": "self" },
+        "ability": { "kind": "devoid" },
+    })];
+    engine.state.players[0]
+        .battlefield
+        .push(instance("goyf", goyf));
+    engine.state.players[0]
+        .battlefield
+        .push(instance("eldrazi", eldrazi));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let id_of = |engine: &GameEngine, name: &str| {
+        engine.state.players[0]
+            .battlefield
+            .iter()
+            .find(|card| card.definition.name == name)
+            .unwrap()
+            .instance_id
+            .clone()
+    };
+    let goyf_id = id_of(&engine, "goyf");
+    let eldrazi_id = id_of(&engine, "eldrazi");
+
+    // Applied Geometry: a 0/0 Fractal copy with six +1/+1 counters is 6/6;
+    // the copied CDA does not override the exception (CR 707.9d).
+    let token = resolve_token_copy(
+        &mut engine,
+        &goyf_id,
+        json!({
+            "kind": "copyOf",
+            "except": [
+                {
+                    "kind": "setBasePowerToughness",
+                    "power": { "kind": "integer", "value": 0 },
+                    "toughness": { "kind": "integer", "value": 0 },
+                },
+                { "kind": "addSubtypes", "subtypes": ["Fractal"] },
+            ],
+        }),
+    );
+    assert_eq!(engine.characteristic_defining_power_toughness(&token), None);
+    assert_eq!(engine.current_power(&token), 6);
+    assert_eq!(engine.current_toughness(&token), 6);
+    // Near miss: without a P/T exception the copied CDA still defines 3/4.
+    let plain = resolve_token_copy(
+        &mut engine,
+        &goyf_id,
+        json!({ "kind": "copyOf", "except": [] }),
+    );
+    assert_eq!(engine.current_power(&plain), 9);
+    assert_eq!(engine.current_toughness(&plain), 10);
+
+    // A color exception does not copy devoid, the color-defining ability.
+    let red = resolve_token_copy(
+        &mut engine,
+        &eldrazi_id,
+        json!({ "kind": "copyOf", "except": [{ "kind": "setColors", "colors": ["U"] }] }),
+    );
+    assert!(!engine.permanent_has_effective_keyword(&red, "devoid"));
+    assert_eq!(
+        engine
+            .checked_permanent_five_colors(&red)
+            .unwrap()
+            .symbols(),
+        vec!["U".to_string()]
+    );
+    let colorless = resolve_token_copy(
+        &mut engine,
+        &eldrazi_id,
+        json!({ "kind": "copyOf", "except": [] }),
+    );
+    assert_eq!(
+        engine
+            .checked_permanent_five_colors(&colorless)
+            .unwrap()
+            .cardinality(),
+        0
+    );
+}
+
+#[test]
+fn a_token_copy_of_a_clone_copies_what_the_clone_copied() {
+    let mut engine = engine();
+    let bear = definition("bear", "Creature - Bear", "2", "2");
+    let clone = definition("clone", "Creature - Shapeshifter", "0", "0");
+    engine.state.players[0]
+        .battlefield
+        .push(instance("clone", clone.clone()));
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    // The Clone entered as a copy of the bear (CR 707.2): its printed card is
+    // Clone and its copiable values are the bear's.
+    let clone_id = {
+        let permanent = engine.state.players[0].battlefield.last_mut().unwrap();
+        permanent.printed_definition = Some(clone);
+        permanent.definition = bear;
+        permanent.instance_id.clone()
+    };
+    let token = resolve_token_copy(
+        &mut engine,
+        &clone_id,
+        json!({ "kind": "copyOf", "except": [] }),
+    );
+    assert_eq!(token.definition.name, "bear");
+    assert_eq!(token.definition.type_line, "Creature - Bear");
+    assert_eq!(engine.current_power(&token), 8);
+    assert_eq!(engine.current_toughness(&token), 8);
+}
