@@ -212,6 +212,21 @@ pub(in crate::oracle::canonical) fn parameterized_keyword_starts(
     })
 }
 
+/// The lexeme length of a count keyword (`toxic N`, `annihilator N`,
+/// `afflict N`) at the start of `tokens`, followed by its numeral. Only a
+/// count keyword is an ability an effect can grant to another object
+/// (CR 702.1); a cost or quality parameter belongs to the card itself.
+pub(in crate::oracle::canonical) fn grantable_count_keyword_length(
+    tokens: &[RecognizedEntity],
+) -> Option<usize> {
+    KEYWORDS.iter().find_map(|entry| {
+        (entry.parameter == ParameterKind::Count
+            && lexeme_matches(tokens, entry.lexeme)
+            && parameter_starts(entry.parameter, tokens.get(entry.lexeme.len())))
+        .then_some(entry.lexeme.len())
+    })
+}
+
 /// The printed parameter and the token range a reminder may quote.
 struct ReadParameter {
     node: KeywordParameterNode,

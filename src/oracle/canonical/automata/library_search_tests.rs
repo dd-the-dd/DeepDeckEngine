@@ -194,3 +194,85 @@ fn owned_zone_search_does_not_guess_an_owner_or_an_unproved_destination() {
         );
     }
 }
+
+#[test]
+fn searched_zones_are_the_shared_zone_list_of_one_player() {
+    // CR 701.23a: one possessive owns every listed zone; the library is
+    // always among them, and the list keeps its written order.
+    for (text, zones) in [
+        (
+            "Search your library and/or graveyard for a creature card, put it into your hand, then shuffle.",
+            vec![CardZoneName::Library, CardZoneName::Graveyard],
+        ),
+        (
+            "Search your graveyard, hand, and library for a card, put it into your hand, then shuffle.",
+            vec![
+                CardZoneName::Graveyard,
+                CardZoneName::Hand,
+                CardZoneName::Library,
+            ],
+        ),
+        (
+            "Search your library for a card, put it into your hand, then shuffle.",
+            vec![CardZoneName::Library],
+        ),
+    ] {
+        let (search, trailing) = parse(text);
+        assert_eq!(search.origin.zones, zones, "{text}");
+        assert_eq!(search.origin.holder, super::SearchedPlayer::Searcher);
+        assert_eq!(trailing, ".");
+    }
+    // Near-misses: a search names a library, and only its player's own
+    // hidden or public card zones; nothing is silently dropped.
+    for (text, state) in [
+        (
+            "Search your graveyard for a card, put it into your hand, then shuffle.",
+            "effect.library-search.origin-library",
+        ),
+        (
+            "Search your library and exile for a card, put it into your hand, then shuffle.",
+            "effect.library-search.origin-library",
+        ),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("search-origin-near-miss", &tokens);
+        let failure = recognize_controller_library_search(&mut cursor).expect_err(text);
+        assert_eq!(failure.state, state, "{text}: {failure:?}");
+    }
+}
+
+#[test]
+fn found_cards_can_be_exiled_and_a_declared_holder_shuffles_later() {
+    let (search, trailing) = parse("Search your library for a card, exile it, then shuffle.");
+    assert_eq!(
+        search.destination,
+        SearchDestination::Zone(CardZoneName::Exile)
+    );
+    assert_eq!(search.shuffle_order, SearchShuffleOrder::MoveThenShuffle);
+    assert_eq!(trailing, ".");
+
+    // Jester's Cap / Bitter Ordeal: the possessive declares the holder; the
+    // shuffle is that player's own later instruction.
+    let (search, trailing) =
+        parse("Search target player's library for three cards and exile them.");
+    assert!(matches!(
+        search.origin.holder,
+        super::SearchedPlayer::DeclaredTarget(_)
+    ));
+    assert_eq!((search.minimum, search.maximum), (3, 3));
+    assert_eq!(
+        search.destination,
+        SearchDestination::Zone(CardZoneName::Exile)
+    );
+    assert_eq!(
+        search.shuffle_order,
+        SearchShuffleOrder::ByHolderInstruction
+    );
+    assert_eq!(trailing, ".");
+
+    // Near-miss: the searcher's own library is shuffled by the search.
+    let tokens = recognize_entities("Search your library for a card and exile it.");
+    let mut cursor = OracleTokenCursor::new("search-exile-near-miss", &tokens);
+    let failure = recognize_controller_library_search(&mut cursor).expect_err("own library");
+    assert_eq!(failure.state, "effect.library-search.exile-completion");
+}

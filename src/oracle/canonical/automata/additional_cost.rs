@@ -153,3 +153,40 @@ pub(in crate::oracle::canonical) fn positive_literal(
     cursor.require(amount > 0, expected)?;
     Ok(amount)
 }
+
+/// The quantity slot of a counted cost action: `a`/`an` (one), a positive
+/// literal, or the variable X (CR 107.3). The slot never binds X; the cost
+/// parent validates that its own ability declares X before lowering.
+pub(in crate::oracle::canonical) fn positive_quantity(
+    cursor: &mut OracleTokenCursor<'_>,
+    expected: &str,
+) -> MachineResult<NumericAtom> {
+    if cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("a") || token.eq_ignore_ascii_case("an"))
+    {
+        let article = cursor.peek().expect("checked article").to_string();
+        cursor.consume(&article)?;
+        return Ok(NumericAtom::Integer(1));
+    }
+    match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(amount) => {
+            cursor.require(amount > 0, expected)?;
+            Ok(NumericAtom::Integer(amount))
+        }
+        NumericAtom::VariableX => Ok(NumericAtom::VariableX),
+    }
+}
+
+/// Noun agreement of a quantity slot: only a literal one is singular.
+pub(in crate::oracle::canonical) fn quantity_is_plural(count: NumericAtom) -> bool {
+    count != NumericAtom::Integer(1)
+}
+
+/// The literal value of a quantity slot, when it has one.
+pub(in crate::oracle::canonical) fn literal_quantity(count: NumericAtom) -> Option<i64> {
+    match count {
+        NumericAtom::Integer(value) => Some(value),
+        NumericAtom::VariableX => None,
+    }
+}

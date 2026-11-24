@@ -98,8 +98,14 @@ pub(in crate::oracle::canonical) fn lower_player_discard_action_for_player(
     ids: PlayerDiscardLoweringIds<'_>,
     player: Value,
 ) -> Result<Vec<Value>, PlayerDiscardLoweringError> {
-    let count = lower_numeric_expression(&node.count)
-        .ok_or(PlayerDiscardLoweringError::UnsupportedNumericExpression)?;
+    // CR 701.9a: the whole hand is one discard of every card in it.
+    let count = match &node.quantity {
+        DiscardQuantity::WholeHand => {
+            return Ok(vec![json!({ "kind": "discardHand", "player": player })]);
+        }
+        DiscardQuantity::Count(count) => lower_numeric_expression(count)
+            .ok_or(PlayerDiscardLoweringError::UnsupportedNumericExpression)?,
+    };
 
     let effects = match node.selection {
         CollectionSelectionMethod::Choice => vec![json!({

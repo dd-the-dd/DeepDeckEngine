@@ -114,9 +114,25 @@ fn lower_object_predicate(
             }
             Some(atom)
         }
+        ObjectPredicate::Relation(ObjectRelation::Named(name)) => Some(json!({
+            "kind": "nameEquals",
+            "value": name,
+        })),
+        ObjectPredicate::Relation(ObjectRelation::DealtDamageToPlayerThisTurn {
+            recipient,
+            combat_only,
+        }) => Some(json!({
+            "kind": "dealtDamageToPlayerThisTurn",
+            "recipient": recipient.ir_name(),
+            "combatOnly": combat_only,
+        })),
         ObjectPredicate::ChosenCreatureType => Some(json!({
             "kind": "chosenCreatureType",
             "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,
+        })),
+        ObjectPredicate::ChosenColor => Some(json!({
+            "kind": "chosenColor",
+            "decisionId": crate::oracle::contextual_binding::RESOLUTION_COLOR_DECISION,
         })),
         ObjectPredicate::HasKeyword(keyword) => Some(json!({
             "kind": "hasKeyword",

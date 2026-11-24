@@ -221,7 +221,7 @@ fn unsupported_unless_shapes_stay_explicit_failures() {
         (
             "Enchantment",
             "At the beginning of your upkeep, sacrifice this enchantment unless any player pays {3}.",
-            "sequence.unless.payer.any-player",
+            "sequence.unless.payer.indefinite-player",
         ),
         (
             "Creature — Zombie",

@@ -116,9 +116,11 @@ fn malformed_members_fail_at_the_responsible_child_without_legacy_fallback() {
             "until",
         ),
         (
+            // Ward is a granted parameterized keyword; its payload child
+            // reports the missing cost (CR 702.21a).
             "Permanents you control gain ward until end of turn.",
-            "keyword-list.item",
-            "ward",
+            "keyword.ward.cost",
+            "until",
         ),
         (
             "Permanents you control gain hexproof until end of turn unexpectedly.",

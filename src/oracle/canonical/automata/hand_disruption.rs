@@ -2,7 +2,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::player_subject::recognize_player_effect_subject;
 use super::source_sacrifice::atomic_action::{ActingSubject, recognize_discard_action};
 pub(in crate::oracle::canonical) use super::source_sacrifice::atomic_action::{
-    player_discard::PlayerDiscardEffectNode,
+    player_discard::{DiscardQuantity, PlayerDiscardEffectNode},
     player_subject::{PlayerBinding, PlayerEffectSubject},
     selection_method::CollectionSelectionMethod,
 };

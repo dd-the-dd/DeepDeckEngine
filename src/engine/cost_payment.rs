@@ -4,16 +4,75 @@
 //! ability can be placed on the stack before triggers caused while paying its
 //! costs are added above it.
 //!
-//! This module owns `payLife` and `sacrificePermanent` atomicity. Mana, tap,
-//! discard, exile, counter, and return costs still use their existing engine
-//! paths and are outside this transaction's rollback boundary.
+//! This module owns `payLife`, `sacrificePermanent`, `payPlayerCounters`
+//! (CR 107.14: `{E}` energy) and random `discardCards` atomicity. Mana, tap,
+//! chosen discard, exile, counter, and return costs still use their existing
+//! engine paths and are outside this transaction's rollback boundary.
 
 use super::*;
 
 #[derive(Clone, Debug)]
 enum PreparedActivatedCost {
-    PayLife { amount: i32 },
-    SacrificePermanent { instance_id: String },
+    PayLife {
+        amount: i32,
+    },
+    SacrificePermanent {
+        instance_id: String,
+    },
+    /// Counters removed from the payer (`pay {E}{E}`), all or nothing.
+    PayPlayerCounters {
+        counter: String,
+        count: i32,
+    },
+    /// N cards of the payer's hand matching `filter`, selected at random
+    /// while paying (CR 701.9b). The selection is made at commit time, inside
+    /// the transaction checkpoint that also restores the RNG.
+    DiscardRandom {
+        count: usize,
+        filter: Value,
+    },
+}
+
+/// `discardCards` as an activation cost: a counted random discard from the
+/// payer's own hand. A chosen discard keeps the per-card `discardCard` form.
+pub(super) fn random_discard_cost_supported(cost: &Value) -> bool {
+    value_kind(&cost["selection"]) == Some("random")
+        && cost
+            .get("player")
+            .is_none_or(|player| value_kind(player) == Some("controllerOf"))
+        && integer_value(&cost["count"]).is_some_and(|count| count > 0)
+        && cost
+            .get("where")
+            .is_none_or(|filter| filter.is_null() || card_filter_supported(filter))
+}
+
+/// A counted activation-cost quantity: a positive literal, or the activation's
+/// declared numeric choice (`{X}, Remove X counters`).
+pub(super) fn activated_cost_count_supported(count: &Value) -> bool {
+    integer_value(count).is_some_and(|count| count > 0)
+        || (value_kind(count) == Some("decisionResult") && count["decisionId"].is_string())
+}
+
+/// Resolves a counted activation-cost quantity against the activation's
+/// declared decisions. A declared X may be zero; a literal is positive.
+pub(super) fn activated_cost_count(
+    count: &Value,
+    decisions: &BTreeMap<String, Value>,
+) -> Option<i32> {
+    if let Some(literal) = integer_value(count) {
+        return (literal > 0).then_some(literal);
+    }
+    (value_kind(count) == Some("decisionResult"))
+        .then(|| count["decisionId"].as_str())
+        .flatten()
+        .and_then(|decision_id| decisions.get(decision_id))
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok())
+        .filter(|value| *value >= 0)
+}
+
+fn card_matches_cost_filter(card: &CardInstance, filter: &Value) -> bool {
+    filter.is_null() || matches_card_filter(&card.definition, filter)
 }
 
 #[derive(Clone, Debug)]
@@ -141,6 +200,105 @@ impl GameEngine {
         }
     }
 
+    /// Every nonmana activation cost that a declaration fixes before payment
+    /// is affordable: chosen sacrifices, player counters (`{E}`) and the hand
+    /// size a random discard needs. Mana and life are checked by their callers.
+    pub(super) fn activated_nonmana_costs_are_payable(
+        &self,
+        rule: &Value,
+        controller_id: &str,
+        source_instance_id: &str,
+        targets: &BTreeMap<String, TargetRef>,
+    ) -> bool {
+        self.activated_sacrifice_costs_are_payable(rule, controller_id, source_instance_id, targets)
+            && self.activated_player_counter_costs_are_payable(rule, controller_id)
+            && self.activated_random_discard_costs_are_payable(
+                rule,
+                controller_id,
+                source_instance_id,
+            )
+    }
+
+    /// The payer has at least the total of each player-counter kind the
+    /// activation pays (CR 118.3: a cost can't be paid partially).
+    fn activated_player_counter_costs_are_payable(
+        &self,
+        rule: &Value,
+        controller_id: &str,
+    ) -> bool {
+        let Ok(player_index) = self.player_index(controller_id) else {
+            return false;
+        };
+        let mut required = BTreeMap::<String, i32>::new();
+        for cost in rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| value_kind(cost) == Some("payPlayerCounters"))
+        {
+            let (Some(counter), Some(count)) =
+                (cost["counter"].as_str(), integer_value(&cost["count"]))
+            else {
+                return false;
+            };
+            if count < 0 {
+                return false;
+            }
+            let total = required.entry(counter.to_string()).or_default();
+            let Some(sum) = total.checked_add(count) else {
+                return false;
+            };
+            *total = sum;
+        }
+        required.iter().all(|(counter, count)| {
+            self.state.players[player_index]
+                .counters
+                .get(counter)
+                .copied()
+                .unwrap_or(0)
+                >= *count
+        })
+    }
+
+    /// A random discard needs N matching cards in the payer's hand besides
+    /// the source card itself (a source in hand pays its own costs first).
+    fn activated_random_discard_costs_are_payable(
+        &self,
+        rule: &Value,
+        controller_id: &str,
+        source_instance_id: &str,
+    ) -> bool {
+        let Ok(player_index) = self.player_index(controller_id) else {
+            return false;
+        };
+        let hand = &self.state.players[player_index].hand;
+        let mut required = 0_usize;
+        for cost in rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| value_kind(cost) == Some("discardCards"))
+        {
+            let Some(count) = integer_value(&cost["count"]).and_then(|n| usize::try_from(n).ok())
+            else {
+                return false;
+            };
+            let available = hand
+                .iter()
+                .filter(|card| card.instance_id != source_instance_id)
+                .filter(|card| card_matches_cost_filter(card, &cost["where"]))
+                .count();
+            if available < count {
+                return false;
+            }
+            required += count;
+        }
+        hand.iter()
+            .filter(|card| card.instance_id != source_instance_id)
+            .count()
+            >= required
+    }
+
     pub(super) fn activated_sacrifice_costs_are_payable(
         &self,
         rule: &Value,
@@ -239,8 +397,43 @@ impl GameEngine {
                     }
                     costs.push(PreparedActivatedCost::SacrificePermanent { instance_id });
                 }
+                Some("payPlayerCounters") => {
+                    let counter = cost["counter"]
+                        .as_str()
+                        .ok_or_else(|| EngineError::new("player counter cost has no kind"))?;
+                    let count = integer_value(&cost["count"])
+                        .filter(|count| *count >= 0)
+                        .ok_or_else(|| {
+                            EngineError::new("player counter cost is not a nonnegative literal")
+                        })?;
+                    costs.push(PreparedActivatedCost::PayPlayerCounters {
+                        counter: counter.to_string(),
+                        count,
+                    });
+                }
+                Some("discardCards") => {
+                    if !random_discard_cost_supported(cost) {
+                        return Err(EngineError::new(
+                            "activated discard cost is not a counted random discard",
+                        ));
+                    }
+                    let count = integer_value(&cost["count"])
+                        .and_then(|count| usize::try_from(count).ok())
+                        .ok_or_else(|| EngineError::new("random discard cost has no count"))?;
+                    costs.push(PreparedActivatedCost::DiscardRandom {
+                        count,
+                        filter: cost.get("where").cloned().unwrap_or(Value::Null),
+                    });
+                }
                 _ => {}
             }
+        }
+        if !self.activated_player_counter_costs_are_payable(rule, &action.player_id)
+            || !self.activated_random_discard_costs_are_payable(rule, &action.player_id, &source_id)
+        {
+            return Err(EngineError::new(
+                "player cannot pay activated ability counter or discard costs",
+            ));
         }
         let declared_life = action
             .decisions
@@ -282,15 +475,48 @@ impl GameEngine {
             .iter()
             .filter_map(|cost| match cost {
                 PreparedActivatedCost::PayLife { amount } => Some(*amount),
-                PreparedActivatedCost::SacrificePermanent { .. } => None,
+                _ => None,
             })
             .sum::<i32>();
+        let player_index = self.player_index(&payment.player_id)?;
+        let mut counters_required = BTreeMap::<&str, i32>::new();
+        let mut discards_required = 0_usize;
+        for cost in &payment.costs {
+            match cost {
+                PreparedActivatedCost::PayPlayerCounters { counter, count } => {
+                    *counters_required.entry(counter.as_str()).or_default() += *count;
+                }
+                PreparedActivatedCost::DiscardRandom { count, .. } => discards_required += *count,
+                PreparedActivatedCost::PayLife { .. }
+                | PreparedActivatedCost::SacrificePermanent { .. } => {}
+            }
+        }
+        let player = &self.state.players[player_index];
+        let hand_without_source = player
+            .hand
+            .iter()
+            .filter(|card| card.instance_id != payment.source_id)
+            .count();
         if !self.player_can_pay_life_cost(&payment.player_id, total_life)
+            || counters_required.iter().any(|(counter, count)| {
+                player.counters.get(*counter).copied().unwrap_or(0) < *count
+            })
+            || hand_without_source < discards_required
             || !payment.costs.iter().all(|cost| match cost {
-                PreparedActivatedCost::PayLife { .. } => true,
                 PreparedActivatedCost::SacrificePermanent { instance_id } => {
                     self.permanent_can_pay_sacrifice_cost(instance_id, &payment.player_id)
                 }
+                PreparedActivatedCost::DiscardRandom { count, filter } => {
+                    player
+                        .hand
+                        .iter()
+                        .filter(|card| card.instance_id != payment.source_id)
+                        .filter(|card| card_matches_cost_filter(card, filter))
+                        .count()
+                        >= *count
+                }
+                PreparedActivatedCost::PayLife { .. }
+                | PreparedActivatedCost::PayPlayerCounters { .. } => true,
             })
         {
             return Err(EngineError::new(
@@ -322,6 +548,17 @@ impl GameEngine {
                             instance_id,
                             Some(payment.source_id.clone()),
                         )?);
+                    }
+                    PreparedActivatedCost::PayPlayerCounters { counter, count } => {
+                        engine.pay_player_counters_as_cost(&payment.player_id, counter, *count)?;
+                    }
+                    PreparedActivatedCost::DiscardRandom { count, filter } => {
+                        engine.discard_random_cards_as_cost(
+                            &payment.player_id,
+                            &payment.source_id,
+                            *count,
+                            filter,
+                        )?;
                     }
                 }
             }
@@ -385,6 +622,108 @@ impl GameEngine {
         let committed = self.commit_activated_cost_payment(&payment)?;
         self.state.stack.extend(committed.deferred_stack_objects);
         self.publish_cost_domain_events_at_boundary(committed.events, false);
+        Ok(())
+    }
+
+    /// Removes N counters of one kind from the payer (CR 122.1; `{E}` is an
+    /// energy counter, CR 107.14). Paying more than the payer has is refused.
+    pub(super) fn pay_player_counters_as_cost(
+        &mut self,
+        player_id: &str,
+        counter: &str,
+        count: i32,
+    ) -> Result<(), EngineError> {
+        let player_index = self.player_index(player_id)?;
+        let available = self.state.players[player_index]
+            .counters
+            .get(counter)
+            .copied()
+            .unwrap_or(0);
+        if count < 0 || available < count {
+            return Err(EngineError::new("player cannot pay its counter cost"));
+        }
+        if count == 0 {
+            return Ok(());
+        }
+        self.state.players[player_index]
+            .counters
+            .insert(counter.to_string(), available - count);
+        self.record_event(
+            "playerCountersRemoved",
+            Some(player_id.to_string()),
+            None,
+            json!({ "counter": counter, "count": count, "reason": "cost" }),
+        );
+        Ok(())
+    }
+
+    /// Pays the player-counter costs of a battlefield mana ability, whose
+    /// payment does not run the activated cost transaction.
+    pub(super) fn pay_activated_player_counter_costs(
+        &mut self,
+        player_id: &str,
+        rule: &Value,
+    ) -> Result<(), EngineError> {
+        if !self.activated_player_counter_costs_are_payable(rule, player_id) {
+            return Err(EngineError::new(
+                "mana ability player counter cost cannot be paid",
+            ));
+        }
+        for cost in rule["costs"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|cost| value_kind(cost) == Some("payPlayerCounters"))
+        {
+            let counter = cost["counter"]
+                .as_str()
+                .ok_or_else(|| EngineError::new("player counter cost has no kind"))?;
+            let count = integer_value(&cost["count"])
+                .ok_or_else(|| EngineError::new("player counter cost has no count"))?;
+            self.pay_player_counters_as_cost(player_id, counter, count)?;
+        }
+        Ok(())
+    }
+
+    /// Discards N cards selected at random from the payer's hand (CR 701.9b),
+    /// never the source card itself. The selection is published with the
+    /// same `cardsRandomlySelected` event as a resolving random choice.
+    fn discard_random_cards_as_cost(
+        &mut self,
+        player_id: &str,
+        source_id: &str,
+        count: usize,
+        filter: &Value,
+    ) -> Result<(), EngineError> {
+        let player_index = self.player_index(player_id)?;
+        let mut selected = self.state.players[player_index]
+            .hand
+            .iter()
+            .filter(|card| card.instance_id != source_id)
+            .filter(|card| card_matches_cost_filter(card, filter))
+            .map(|card| card.instance_id.clone())
+            .collect::<Vec<_>>();
+        if selected.len() < count {
+            return Err(EngineError::new(
+                "random discard cost no longer has enough cards",
+            ));
+        }
+        selected.shuffle(&mut self.rng);
+        selected.truncate(count);
+        self.record_event(
+            "cardsRandomlySelected",
+            Some(player_id.to_string()),
+            Some(source_id.to_string()),
+            json!({
+                "cardIds": selected,
+                "minimum": count,
+                "maximum": count,
+                "reason": "cost",
+            }),
+        );
+        for instance_id in &selected {
+            self.discard_card_as_cost(player_id, instance_id)?;
+        }
         Ok(())
     }
 

@@ -85,12 +85,99 @@ fn shared_modifiers_are_typed_on_the_subject_kinds_that_absorb_them() {
 
 #[test]
 fn a_modifier_on_an_occurrence_without_its_matcher_is_an_engine_gap() {
-    let (attempt, _) = clause("Whenever you gain life during your turn, draw a card.");
+    let (attempt, _) = clause("Whenever you gain life for the first time each turn, draw a card.");
     let EventClauseAttempt::Committed(failure) = attempt else {
         panic!("committed engine gap")
     };
     assert_eq!(failure.state, "engine.gap.event-matcher");
-    assert!(failure.expected.contains("during your turn"));
+    assert!(failure.expected.contains("for the first time each turn"));
+}
+
+#[test]
+fn an_unmatched_turn_owner_and_a_while_condition_are_the_event_time_condition() {
+    let (attempt, next) = clause("Whenever you gain life during your turn, draw a card.");
+    let EventClauseAttempt::Recognized(GenericTriggerEventNode::Conditioned { condition, .. }) =
+        attempt
+    else {
+        panic!("conditioned occurrence")
+    };
+    assert_eq!(condition.turn_owner, Some(EventTurnOwner::ControllerTurn));
+    assert!(condition.condition.is_none());
+    assert_eq!(next.as_deref(), Some("draw"));
+    let (attempt, next) =
+        clause("Whenever this creature attacks while you control an artifact, draw a card.");
+    let EventClauseAttempt::Recognized(GenericTriggerEventNode::Conditioned { event, condition }) =
+        attempt
+    else {
+        panic!("conditioned occurrence")
+    };
+    assert!(matches!(*event, GenericTriggerEventNode::SourceEvent(_)));
+    assert!(condition.condition.is_some() && condition.turn_owner.is_none());
+    assert_eq!(next.as_deref(), Some("draw"));
+}
+
+#[test]
+fn a_trigger_condition_list_reads_every_member_with_its_own_introducer() {
+    for (text, members) in [
+        (
+            "When this creature enters and at the beginning of your upkeep, surveil 1.",
+            2,
+        ),
+        (
+            "Whenever an opponent casts a spell during your turn and when this creature dies, draw a card.",
+            2,
+        ),
+        (
+            "When this creature enters and whenever you cast a spell with mana value 4 or greater, draw a card.",
+            2,
+        ),
+        // A previously unused combination: three members, a comma before the
+        // list connector and an event-time condition on the first member.
+        (
+            "Whenever you attack with two or more creatures while you control an artifact, and whenever a creature you control is turned face up, and at the beginning of your end step, draw a card.",
+            3,
+        ),
+    ] {
+        let (attempt, next) = clause(text);
+        let EventClauseAttempt::Recognized(GenericTriggerEventNode::Compound(list)) = attempt
+        else {
+            panic!("{text}: a trigger condition list")
+        };
+        assert_eq!(list.len(), members, "{text}");
+        assert!(
+            list.iter()
+                .all(|member| !matches!(member, GenericTriggerEventNode::Compound(_))),
+            "{text}"
+        );
+        // The last member consumes the clause boundary, exactly as a single
+        // clause does; the body starts at the cursor.
+        let body = text
+            .rsplit(", ")
+            .next()
+            .and_then(|body| body.split(' ').next());
+        assert_eq!(next.as_deref(), body, "{text}");
+    }
+}
+
+#[test]
+fn and_without_a_trigger_word_is_not_a_condition_list() {
+    // `enters and attacks` coordinates verbs, not trigger conditions; no
+    // reader owns it, so the claimed clause fails typed at its boundary.
+    let (attempt, _) = clause("When this creature enters and attacks, draw a card.");
+    let (EventClauseAttempt::Committed(failure) | EventClauseAttempt::Rejected(failure)) = attempt
+    else {
+        panic!("never recognized")
+    };
+    assert!(!failure.is_engine_gap(), "{failure}");
+    // `and at least` after a source is a coordinated attack, never a list.
+    let (attempt, _) =
+        clause("Whenever this creature and at least two other creatures attack, draw a card.");
+    assert!(matches!(
+        attempt,
+        EventClauseAttempt::Recognized(GenericTriggerEventNode::Local(
+            LocalTriggerEventNode::AttackDeclaration(_)
+        ))
+    ));
 }
 
 #[test]

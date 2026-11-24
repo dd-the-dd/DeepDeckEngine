@@ -8,6 +8,8 @@ fn ordinary_subject_borrows_the_shared_discard_action_and_card_quantity() {
         "You discard two cards, then",
         "Discard 3 cards at random, then",
         "Discard X cards, then",
+        "Discard your hand, then",
+        "Discard all the cards in your hand, then",
     ] {
         let tokens = recognize_oracle_entities(text);
         let mut cursor = OracleTokenCursor::new("test.ordinary-discard", &tokens);

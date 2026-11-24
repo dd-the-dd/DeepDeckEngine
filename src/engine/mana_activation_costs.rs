@@ -60,7 +60,10 @@ impl GameEngine {
             {
                 let counter = Self::remove_counter_cost_name(cost, &action.decisions)
                     .ok_or_else(|| EngineError::new("mana ability counter cost has no choice"))?;
-                let count = integer_value(&cost["count"]).unwrap_or(0);
+                let count = cost_payment::activated_cost_count(&cost["count"], &action.decisions)
+                    .ok_or_else(|| {
+                    EngineError::new("mana ability counter cost has no count")
+                })?;
                 // Nested mana payments can remove earlier storage entries. Never
                 // carry battlefield vector indices across a payment mutation.
                 let (controller_index, card_index) = self
@@ -85,6 +88,8 @@ impl GameEngine {
                     .insert(counter, available - count);
             }
             self.pay_activated_counter_costs(action, rule, provider)?;
+            // `{T}, Pay {E}: Add ...`: energy leaves the activating player.
+            self.pay_activated_player_counter_costs(&action.player_id, rule)?;
             self.apply_activated_sacrifice_costs(action, rule)?;
             if let Some(limit) = rule.get("activationLimit")
                 && let Some(flag) = granted_mana_program::mana_activation_limit_flag(

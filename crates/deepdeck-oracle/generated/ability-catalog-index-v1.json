@@ -2698,7 +2698,7 @@
                                            "payCost",
                                            "moveCardAsCost",
                                            "enumeratePlayers",
-                                           "createTokenCopyBatch",
+                                           "createTokens",
                                            "grantContinuousAbilityBatch",
                                            "applyAttackRequirementBatch",
                                            "createDelayedTriggeredInstruction"
@@ -5585,7 +5585,7 @@
                                            "registerTriggeredInstruction",
                                            "enumeratePlayers",
                                            "chooseOptionalPerObject",
-                                           "createTokenCopyBatch",
+                                           "createTokens",
                                            "setCombatStateBatch",
                                            "createDelayedTriggeredInstruction"
                                        ],
@@ -5672,7 +5672,7 @@
                                            "payAdditionalCost",
                                            "bindCostPayment",
                                            "registerConditionalEtbTrigger",
-                                           "createTokenCopy"
+                                           "createTokens"
                                        ],
                         "namedActionId":  null,
                         "support":  {

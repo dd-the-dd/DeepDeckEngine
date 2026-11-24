@@ -36,6 +36,30 @@ pub(in crate::oracle::canonical) enum ChoiceDomainNode {
     /// `choose a creature type`: a resolution choice among all creature
     /// types (CR 205.3m), read later as `of the chosen type`.
     CreatureType,
+    /// `choose a color`: a resolution choice among the five colors (CR
+    /// 105.1), read later as `the chosen color` / `of the chosen color`.
+    Color,
+    /// `choose an opponent [at random]`, `choose a player`: a player chosen
+    /// while the effect resolves (CR 608.2d), not a target. It is the
+    /// antecedent of a later `that player`.
+    Player(PlayerChoiceNode),
+}
+
+/// The population a resolution-time player choice draws from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PlayerChoicePopulation {
+    /// `an opponent`: an opponent of the chooser (CR 102.2).
+    Opponent,
+    /// `a player`: any player in the game, the chooser included.
+    Player,
+}
+
+/// `choose an opponent [at random]`: who may be chosen, and whether the
+/// chooser picks or the game picks at random.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerChoiceNode {
+    pub population: PlayerChoicePopulation,
+    pub random: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,21 +74,26 @@ impl ChooseInstructionNode {
         match &self.domain {
             ChoiceDomainNode::PermanentTargets(targets)
             | ChoiceDomainNode::PlayerTarget(targets) => Some(targets),
-            ChoiceDomainNode::CreatureType => None,
+            ChoiceDomainNode::CreatureType
+            | ChoiceDomainNode::Color
+            | ChoiceDomainNode::Player(_) => None,
         }
     }
 
     pub(in crate::oracle::canonical) fn permanent_targets(&self) -> Option<&TargetListNode> {
         match &self.domain {
             ChoiceDomainNode::PermanentTargets(targets) => Some(targets),
-            ChoiceDomainNode::PlayerTarget(_) | ChoiceDomainNode::CreatureType => None,
+            ChoiceDomainNode::PlayerTarget(_)
+            | ChoiceDomainNode::CreatureType
+            | ChoiceDomainNode::Color
+            | ChoiceDomainNode::Player(_) => None,
         }
     }
 }
 
 /// Resolution domains recognized by their head words. Each is a CR 608.2d
-/// decision whose executable consumer (`the chosen color`, `that player`, ...)
-/// is not yet represented, so it fails at its own state.
+/// decision. A domain whose binding has an executable consumer returns a
+/// typed node; every other domain fails at its own state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ResolutionDomain {
     Color,
@@ -95,17 +124,38 @@ impl ResolutionDomain {
 
     fn expectation(self) -> &'static str {
         match self {
-            Self::Color => "an executable binding consumer for a chosen color",
-            Self::CreatureType => "an executable binding consumer for a chosen creature type",
+            Self::Color => "an unrestricted color choice",
+            Self::CreatureType => "an unrestricted creature-type choice",
             Self::CardType => "an executable binding consumer for a chosen card type",
             Self::CardName => "an executable binding consumer for a chosen card name",
             Self::LandType => "an executable binding consumer for a chosen land type",
             Self::Number => "an executable binding consumer for a chosen number",
-            Self::Player => "an executable binding consumer for a player chosen on resolution",
+            Self::Player => "`an opponent` or `a player`, optionally `at random`",
             Self::LandOrNonland => "an executable binding consumer for a chosen land/nonland kind",
             Self::Object => "an executable binding consumer for objects chosen on resolution",
         }
     }
+}
+
+/// `of the chosen color` / `of that color`: the postnominal qualifier that
+/// reads the color an earlier `choose a color` of the same effect program
+/// bound. Lexical lookahead only; the program lowering proves the producer.
+/// Outside an effect program (a stored `As ... enters` choice) it is not
+/// claimed, so that reference keeps failing at its own reader.
+pub(in crate::oracle::canonical) fn chosen_color_qualifier_length(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
+    if !word_at(cursor, 0, "of") || !super::resolution_choice_in_scope(cursor) {
+        return None;
+    }
+    let determiner = if word_at(cursor, 1, "the") && word_at(cursor, 2, "chosen") {
+        3
+    } else if word_at(cursor, 1, "that") {
+        2
+    } else {
+        return None;
+    };
+    word_at(cursor, determiner, "color").then_some(determiner + 1)
 }
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -154,6 +204,57 @@ fn classify_resolution_domain(cursor: &OracleTokenCursor<'_>) -> Option<Resoluti
     })
 }
 
+/// `a creature type` / `a color`: an unrestricted characteristic domain.
+/// An exclusion (`other than Wall`) narrows the legal set and has no
+/// executable producer yet, so it fails at the domain's own state.
+fn recognize_characteristic_domain(
+    cursor: &mut OracleTokenCursor<'_>,
+    phrase: &[&str],
+    domain: ResolutionDomain,
+) -> MachineResult<()> {
+    cursor.enter(domain.state());
+    cursor.consume_phrase(phrase)?;
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("other"))
+    {
+        cursor.enter(match domain {
+            ResolutionDomain::CreatureType => "choose.domain.creature-type.exclusion",
+            _ => "choose.domain.color.exclusion",
+        });
+        return Err(cursor.fail(domain.expectation()));
+    }
+    Ok(())
+}
+
+/// `an opponent` / `a player`, optionally `at random` (CR 608.2d). Any
+/// other player phrase (`another player`, `an opponent who ...`) fails at
+/// this state instead of being widened.
+fn recognize_player_choice(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<PlayerChoiceNode> {
+    cursor.enter("choose.domain.player");
+    let population = if word_at(cursor, 0, "an") && word_at(cursor, 1, "opponent") {
+        PlayerChoicePopulation::Opponent
+    } else if word_at(cursor, 0, "a") && word_at(cursor, 1, "player") {
+        PlayerChoicePopulation::Player
+    } else {
+        return Err(cursor.fail(ResolutionDomain::Player.expectation()));
+    };
+    cursor.advance_to(cursor.position() + 2)?;
+    cursor.enter("choose.domain.player.selection");
+    let random = word_at(cursor, 0, "at") && word_at(cursor, 1, "random");
+    if random {
+        cursor.consume_phrase(&["at", "random"])?;
+    }
+    cursor.enter("choose.domain.player.boundary");
+    cursor.require(
+        cursor
+            .peek()
+            .is_none_or(|raw| matches!(raw, "." | "," | ";")),
+        "the end of the player choice; a qualified player choice is not read",
+    )?;
+    Ok(PlayerChoiceNode { population, random })
+}
+
 /// Recognizes `choose DOMAIN`. Sentence punctuation stays with the sequence.
 pub(in crate::oracle::canonical) fn recognize_choose_instruction(
     cursor: &mut OracleTokenCursor<'_>,
@@ -192,26 +293,31 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
             return Err(cursor.fail("a mode choice owned by the modal ability parent"));
         }
         if let Some(domain) = classify_resolution_domain(&trial) {
-            if domain == ResolutionDomain::CreatureType {
-                trial.consume_phrase(&["a", "creature", "type"])?;
-                if trial
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("other"))
-                {
-                    *cursor = trial;
-                    cursor.enter("choose.domain.creature-type.exclusion");
-                    return Err(cursor.fail("an unrestricted creature-type choice"));
+            let bound = match domain {
+                ResolutionDomain::CreatureType => {
+                    recognize_characteristic_domain(&mut trial, &["a", "creature", "type"], domain)
+                        .map(|()| ChoiceDomainNode::CreatureType)
                 }
-                *cursor = trial;
-                cursor.enter("choose.complete");
-                return Ok(ChooseInstructionNode {
-                    chooser: ChooserNode::Controller,
-                    domain: ChoiceDomainNode::CreatureType,
-                });
-            }
+                ResolutionDomain::Color => {
+                    recognize_characteristic_domain(&mut trial, &["a", "color"], domain)
+                        .map(|()| ChoiceDomainNode::Color)
+                }
+                ResolutionDomain::Player => {
+                    recognize_player_choice(&mut trial).map(ChoiceDomainNode::Player)
+                }
+                _ => {
+                    *cursor = trial;
+                    cursor.enter(domain.state());
+                    return Err(cursor.fail(domain.expectation()));
+                }
+            };
             *cursor = trial;
-            cursor.enter(domain.state());
-            return Err(cursor.fail(domain.expectation()));
+            let domain = bound?;
+            cursor.enter("choose.complete");
+            return Ok(ChooseInstructionNode {
+                chooser: ChooserNode::Controller,
+                domain,
+            });
         }
         *cursor = trial;
         return Err(cursor.fail("a typed choice domain"));

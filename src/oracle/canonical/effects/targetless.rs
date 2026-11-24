@@ -208,7 +208,9 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
         }
         // Contextual numeric validation precedes the shared discard lowering;
         // a variable use cannot manufacture its own producer.
-        validate_targetless_numeric_expression(&action.count, declarations)?;
+        if let Some(count) = action.quantity.count() {
+            validate_targetless_numeric_expression(count, declarations)?;
+        }
         let random_selection = scope.map_or_else(
             || "discardSelection".to_string(),
             |scope| format!("{scope}:discardSelection"),

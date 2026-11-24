@@ -88,6 +88,9 @@ fn cumulative_upkeep_rule(
             };
             json!({ "kind": "payLife", "player": controller(), "amount": amount })
         }
+        ResourcePaymentNode::PlayerCounters(_) => {
+            return Err(cursor.fail("a mana or life cumulative upkeep payment"));
+        }
     };
     let age_counter = json!({
         "kind": "putCounters",
@@ -217,11 +220,18 @@ fn offspring_ability(cost: &ResourcePaymentNode) -> Value {
             "event": { "kind": "enterBattlefield", "object": self_ref() },
             "condition": { "kind": "offspringCostWasPaid", "spell": self_ref() },
             "effects": [{
-                "kind": "createTokenCopy",
+                "kind": "createTokens",
                 "controller": controller(),
-                "object": self_ref(),
-                "basePower": integer(1),
-                "baseToughness": integer(1),
+                "quantity": integer(1),
+                "token": {
+                    "kind": "copyOf",
+                    "object": self_ref(),
+                    "except": [{
+                        "kind": "setBasePowerToughness",
+                        "power": integer(1),
+                        "toughness": integer(1),
+                    }],
+                },
             }],
         },
     })

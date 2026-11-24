@@ -173,11 +173,23 @@ fn station_face(type_line: &str, sources: &[AbilitySource]) -> bool {
         })
 }
 
+/// A Case face (CR 702.169a): only its `Solved —` line is a band; the
+/// solved designation exists on no other permanent, so elsewhere the word
+/// opens no gated body.
+fn case_face(type_line: &str) -> bool {
+    type_line.split('\u{2014}').nth(1).is_some_and(|subtypes| {
+        subtypes
+            .split(|character: char| !character.is_alphanumeric())
+            .any(|word| word == "Case")
+    })
+}
+
 /// The band slot of each logical line of one face, in order. A level or
 /// station band runs from its header to the next band header or the end of
 /// the face; a `Solved` line is its own band.
 pub(crate) fn plan_band_slots(face_type_line: &str, sources: &[AbilitySource]) -> Vec<BandSlot> {
     let station = station_face(face_type_line, sources);
+    let case = case_face(face_type_line);
     let mut open: Option<(BandIntroducer, BandGate)> = None;
     sources
         .iter()
@@ -200,7 +212,7 @@ pub(crate) fn plan_band_slots(face_type_line: &str, sources: &[AbilitySource]) -
                     body_start,
                 });
             }
-            if let Some(body_start) = case_solved_line(text) {
+            if case && let Some(body_start) = case_solved_line(text) {
                 return BandSlot::Body(BandBody {
                     introducer: BandIntroducer::CaseSolved,
                     gate: BandGate::Solved,

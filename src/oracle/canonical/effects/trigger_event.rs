@@ -143,6 +143,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             kind,
             subjects,
             entry_state,
+            origin,
             union_kind,
         } => {
             cursor.require(
@@ -158,6 +159,11 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                     {
                         lowered["entryState"] =
                             json!({"tapped":*state==EntryStatePredicate::Tapped});
+                    }
+                    if let Some(origin) = origin
+                        && transition == PermanentTransitionKind::Entered
+                    {
+                        lowered["fromZone"] = json!(origin.zone);
                     }
                     events.push(lowered);
                 }
@@ -181,7 +187,134 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             lower_counter_placement_event(cursor, event)
         }
         GenericTriggerEventNode::BecameTarget(event) => Ok(lower_became_target_event(event)),
+        GenericTriggerEventNode::Compound(members) => lower_compound_trigger_event(cursor, members),
+        GenericTriggerEventNode::Conditioned { .. } => {
+            // A single occurrence's condition belongs to the ability
+            // (`eventCondition`); the envelope hoists it before lowering.
+            cursor.enter("trigger.event-condition.owner");
+            Err(cursor.fail("an event-time condition owned by the triggered ability"))
+        }
+        GenericTriggerEventNode::SourceCounterState(event) => {
+            lower_source_counter_state_event(cursor, event)
+        }
     }
+}
+
+/// Event kinds whose matcher evaluates a member's own `eventCondition` as
+/// the occurrence is observed. A compound member with an event-time
+/// condition of another kind has no evaluator: the publication of a list
+/// does not know which member matched.
+const MEMBER_EVENT_CONDITION_KINDS: [&str; 2] = ["controlledCreaturesAttacked", "turnedFaceUp"];
+
+/// A trigger condition list (CR 603.2): every member through the same
+/// event lowering, flattened into one `oneOf` in written order. The rule
+/// triggers once for each occurrence that matches any member.
+fn lower_compound_trigger_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    members: &[GenericTriggerEventNode],
+) -> MachineResult<Value> {
+    cursor.enter("trigger.compound.members");
+    cursor.require(
+        members.len() >= 2,
+        "at least two trigger conditions in a list",
+    )?;
+    let mut events = Vec::new();
+    for member in members {
+        let (event, condition) = match member {
+            GenericTriggerEventNode::Conditioned { event, condition } => {
+                (event.as_ref(), Some(condition))
+            }
+            event => (event, None),
+        };
+        cursor.require(
+            !matches!(event, GenericTriggerEventNode::Compound(_)),
+            "a flat trigger condition list",
+        )?;
+        let mut lowered = lower_generic_trigger_event(cursor, event)?;
+        if let Some(condition) = condition {
+            let kind = lowered["kind"].as_str().unwrap_or_default();
+            if !MEMBER_EVENT_CONDITION_KINDS.contains(&kind) {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine matcher that evaluates this member's event-time condition",
+                ));
+            }
+            lowered["eventCondition"] = lower_event_time_condition(cursor, condition)?;
+        }
+        if lowered["kind"] == "oneOf" {
+            let members = lowered["events"]
+                .as_array()
+                .cloned()
+                .ok_or_else(|| cursor.fail("a lowered event union"))?;
+            events.extend(members);
+        } else {
+            events.push(lowered);
+        }
+    }
+    Ok(json!({"kind": "oneOf", "events": events}))
+}
+
+/// The event-time condition (CR 603.2): the turn owner and the `while`
+/// condition, each lowered by the shared condition lowering, evaluated once
+/// as the event occurs. Never the intervening `if` (CR 603.4).
+pub(in crate::oracle::canonical) fn lower_event_time_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &EventTimeConditionNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.event-condition.lowering");
+    let mut operands = Vec::new();
+    match node.turn_owner {
+        Some(EventTurnOwner::ControllerTurn) => {
+            operands.push(json!({"kind": "duringControllerTurn", "player": controller()}));
+        }
+        Some(EventTurnOwner::OpponentTurn) => operands.push(json!({"kind": "notYourTurn"})),
+        None => {}
+    }
+    if let Some(condition) = &node.condition {
+        operands.push(lower_sentence_condition(
+            cursor,
+            condition,
+            &ConditionObjectBindings {
+                permanent_targets: &[],
+                card_targets: &[],
+                card_focus: None,
+                previous_action_result: None,
+            },
+        )?);
+    }
+    match operands.len() {
+        0 => Err(cursor.fail("a turn owner or a `while` condition")),
+        1 => Ok(operands.pop().expect("one operand")),
+        _ => Ok(json!({"kind": "and", "operands": operands})),
+    }
+}
+
+/// `SOURCE has no|N or more COUNTERS on it` (CR 603.8): the engine's state
+/// trigger, whose condition compares the source's counter count.
+fn lower_source_counter_state_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &SourceCounterStateNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.counter-state.source-support");
+    cursor.require(
+        event.source == LocalObjectReference::SourceSelf,
+        "the current source as the counter holder",
+    )?;
+    let (operator, value) = match event.comparison {
+        CounterStateComparison::None => ("==", 0),
+        CounterStateComparison::AtLeast(minimum) => (">=", minimum),
+        CounterStateComparison::AtMost(maximum) => ("<=", maximum),
+        CounterStateComparison::Exactly(value) => ("==", value),
+    };
+    Ok(json!({
+        "kind": "stateConditionMet",
+        "condition": {
+            "kind": "compare",
+            "left": {"kind": "countCounters", "object": self_ref(), "counter": event.counter.as_str()},
+            "operator": operator,
+            "right": {"kind": "integer", "value": value},
+        },
+    }))
 }
 
 /// One placement of one counter kind on one permanent is one runtime event
@@ -315,11 +448,13 @@ fn lower_source_event_union(
                 SourceEventVerb::BecameBlocked => {
                     json!({"kind": "permanentBecameBlocked", "object": object})
                 }
+                // CR 708.8: the face-down source is turned face up.
+                SourceEventVerb::TurnedFaceUp => {
+                    json!({"kind": "turnedFaceUp", "object": object})
+                }
+                // CR 701.26b: the source becomes untapped, whatever untaps it.
                 SourceEventVerb::BecameUntapped => {
-                    return Err(cursor.engine_gap(
-                        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
-                        "a source event with a runtime self matcher (no became-untapped self matcher)",
-                    ));
+                    json!({"kind": "permanentUntapped", "object": object})
                 }
                 // Read only with its counterpart, as an event pattern.
                 SourceEventVerb::Exploited => {
@@ -414,6 +549,27 @@ fn lower_source_event_patterns(
     }
     let mut events = Vec::new();
     for verb in &event.verbs {
+        // The source entering from a written zone: the entry matcher reads
+        // the origin the engine recorded on the entering object.
+        if *verb == SourceEventVerb::Entered
+            && let Some(origin) = event.modifiers.iter().find_map(|modifier| match modifier {
+                SourceEventModifier::EnteredFrom(origin) => Some(origin),
+                _ => None,
+            })
+        {
+            if first_time {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `for the first time each turn` on an entry",
+                ));
+            }
+            events.push(json!({
+                "kind": "enterBattlefield",
+                "object": self_ref(),
+                "fromZone": origin.zone,
+            }));
+            continue;
+        }
         // CR 115.1: the source as the targeted object, observed by the
         // generic targeting matcher with the stack-object selector.
         if *verb == SourceEventVerb::BecameTarget {
@@ -683,10 +839,14 @@ fn lower_object_event(
     let subject = &event.subject;
     cursor.enter("trigger.object-event.threshold-support");
     if let EventMultiplicity::PerEvent { minimum } = subject.multiplicity {
+        // The attack-declaration matcher counts the declared attackers.
         cursor.require(
-            minimum == 1,
+            minimum == 1 || event.verb == ObjectEventVerb::Attack,
             "a `one or more` threshold (no runtime matcher counts larger event batches)",
         )?;
+    }
+    if !event.attacked.is_empty() && event.verb != ObjectEventVerb::Attack {
+        return Err(cursor.fail("an attacked recipient only after an attack"));
     }
     let per_event = matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. });
     // Only the per-attacker pattern evaluates the clause modifiers (`alone`,
@@ -794,9 +954,14 @@ fn lower_object_event(
         return lower_damage_dealt_event(cursor, source, complement);
     }
     cursor.enter("trigger.object-event.source-exclusion-support");
-    // The generic attack pattern carries its own source exclusion.
+    // The generic attack and turned-face-up patterns carry their own source
+    // exclusion.
     cursor.require(
-        !subject.exclude_source || (event.verb == ObjectEventVerb::Attack && !per_event),
+        !subject.exclude_source
+            || (matches!(
+                event.verb,
+                ObjectEventVerb::Attack | ObjectEventVerb::TurnedFaceUp
+            ) && !per_event),
         "an object event without an unproved source exclusion",
     )?;
     cursor.enter("trigger.object-event.verb-support");
@@ -880,13 +1045,39 @@ fn lower_object_event(
                 pattern["turnOrdinal"] = json!(1);
             }
             apply_turn_owner(&mut pattern, modifiers.turn_owner);
+            if !event.attacked.is_empty() {
+                pattern["attacked"] = lower_attacked_recipients(cursor, &event.attacked)?;
+            }
             Ok(pattern)
+        }
+        ObjectEventVerb::TurnedFaceUp => {
+            // One turned-face-up permanent per event (CR 708.8).
+            cursor.enter("trigger.object-event.turned-face-up-subject");
+            cursor.require(
+                !per_event,
+                "a singular turned-face-up subject (no one-or-more batch is proved)",
+            )?;
+            let mut object = json!({"kind": "permanents"});
+            if let Some(filter) = lower_damage_permanent_query(cursor, &subject.query, &mut object)?
+            {
+                object["where"] = filter;
+            }
+            if subject.exclude_source {
+                object["excludeSource"] = json!(true);
+            }
+            Ok(json!({"kind": "turnedFaceUp", "object": object}))
         }
         ObjectEventVerb::Attack | ObjectEventVerb::DealCombatDamageToPlayer => {
             cursor.require(
                 per_event,
                 "a `one or more` subject (per-object attack and damage matchers are separate)",
             )?;
+            if !event.attacked.is_empty() {
+                return Err(engine_gap(
+                    cursor,
+                    "an attack-declaration matcher with a per-attacker attacked recipient",
+                ));
+            }
             cursor.require(
                 subject.query.controller == Some(ObjectControllerScope::AbilityController)
                     && subject
@@ -896,8 +1087,19 @@ fn lower_object_event(
                 "permanents the ability controller controls",
             )?;
             let filter = lower_permanent_object_predicate(&subject.query.predicate);
+            let minimum = match subject.multiplicity {
+                EventMultiplicity::PerEvent { minimum } => minimum,
+                EventMultiplicity::PerObject => 1,
+            };
             Ok(match event.verb {
-                // One attack declaration is one event for all attackers.
+                // One attack declaration is one event for all attackers; the
+                // matcher counts the matching attackers (CR 508.1, 603.2c).
+                ObjectEventVerb::Attack if minimum > 1 => json!({
+                    "kind": "controlledCreaturesAttacked",
+                    "player": controller(),
+                    "where": filter,
+                    "minimum": minimum,
+                }),
                 ObjectEventVerb::Attack => json!({
                     "kind": "controlledCreaturesAttacked",
                     "player": controller(),
@@ -1107,6 +1309,91 @@ fn lower_damage_dealt_event(
             recipient
         }
     };
+    Ok(lowered)
+}
+
+/// The attacked object of an attack pattern (CR 506.2, 508.1b): each
+/// alternative through the shared player relation and permanent query.
+fn lower_attacked_recipients(
+    cursor: &mut OracleTokenCursor<'_>,
+    recipients: &[AttackedRecipientNode],
+) -> MachineResult<Value> {
+    cursor.enter("trigger.attack.attacked-recipient-support");
+    let alternatives = recipients
+        .iter()
+        .map(|recipient| match recipient {
+            AttackedRecipientNode::Player(actor) => {
+                Ok(json!({"kind": "player", "player": event_actor_player(*actor)}))
+            }
+            AttackedRecipientNode::Permanent(query) => {
+                let mut lowered = json!({"kind": "permanents"});
+                if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut lowered)? {
+                    lowered["where"] = filter;
+                }
+                Ok(lowered)
+            }
+        })
+        .collect::<MachineResult<Vec<_>>>()?;
+    Ok(json!({"anyOf": alternatives}))
+}
+
+/// One attack declaration (CR 508.1): the attack-batch matcher counts the
+/// attackers of the ability controller that match the shared query. With
+/// the source coordinated (`SOURCE and at least N other creatures attack`),
+/// the source must attack and is counted among the attackers.
+fn lower_attack_declaration(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &AttackDeclarationNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.attack-declaration.attacker-support");
+    cursor.require(
+        node.attacker == EventActorScope::Controller,
+        "the ability controller as attacking player (the batch matcher counts only that player's attackers)",
+    )?;
+    let EventMultiplicity::PerEvent { minimum } = node.attackers.multiplicity else {
+        return Err(cursor.fail("`N or more` attackers of one declaration"));
+    };
+    let predicate = &node.attackers.query.predicate;
+    cursor.enter("trigger.attack-declaration.attackers-support");
+    cursor.require(
+        node.attackers.query.controller.is_none()
+            && predicate.supports_domain(ObjectKind::Permanent)
+            && !predicate.contains_numeric_comparison()
+            && domain_filter_is_representable(predicate),
+        "a representable attacker predicate without numeric characteristics",
+    )?;
+    let filter = lower_permanent_object_predicate(predicate);
+    cursor.require(!filter.is_null(), "a lowered attacker predicate")?;
+    let mut lowered = json!({
+        "kind": "controlledCreaturesAttacked",
+        "player": controller(),
+        "where": filter,
+    });
+    match node.source {
+        None => {
+            if minimum > 1 {
+                lowered["minimum"] = json!(minimum);
+            }
+        }
+        Some(source) => {
+            cursor.enter("trigger.attack-declaration.source-support");
+            cursor.require(
+                source == LocalObjectReference::SourceSelf,
+                "the current source among the attackers",
+            )?;
+            // The matcher filters every counted attacker, the source
+            // included: only the unfiltered creature set counts the source
+            // and its companions alike.
+            if *predicate != ObjectPredicate::CardType(ObjectCardType::Creature) {
+                return Err(engine_gap(
+                    cursor,
+                    "an attack-declaration matcher that filters the source's companions apart from the source",
+                ));
+            }
+            lowered["sourceMustAttack"] = json!(true);
+            lowered["minimum"] = json!(minimum + 1);
+        }
+    }
     Ok(lowered)
 }
 
@@ -1432,7 +1719,34 @@ fn lower_local_event(
             actions,
             one_or_more,
             card,
-        } => lower_player_event(cursor, *actor, actions, *one_or_more, card.as_ref()),
+            permanent,
+        } => lower_player_event(
+            cursor,
+            *actor,
+            actions,
+            *one_or_more,
+            card.as_ref(),
+            permanent.as_ref(),
+        ),
+        LocalTriggerEventNode::AttackDeclaration(node) => lower_attack_declaration(cursor, node),
+        // Aura and Equipment attachments share the attached-object selector
+        // of the generic targeting matcher (CR 115.1).
+        LocalTriggerEventNode::AttachedObjectTargeted { role: _, stack } => Ok(json!({
+            "kind": "becameTarget",
+            "object": {"kind": "attachedPermanent", "attachment": self_ref()},
+            "targetingStackObject": lower_targeting_stack_selector(stack),
+        })),
+        // One received-damage record per damage event and recipient (CR
+        // 120.3), from any source, observed by the attachment.
+        LocalTriggerEventNode::AttachedObjectDealtDamage { role: _, damage } => {
+            let mut lowered = json!({
+                "kind": "eventPattern",
+                "lemma": "dealDamage",
+                "recipient": {"kind": "attachedPermanent", "attachment": self_ref()},
+            });
+            apply_damage_event_kind(cursor, &mut lowered, *damage)?;
+            Ok(lowered)
+        }
         LocalTriggerEventNode::AttachedObjectEvent { role: _, action } => {
             // The runtime resolves the subject from the source's attachment;
             // Aura and Equipment attachments share the same matcher.
@@ -1449,6 +1763,10 @@ fn lower_local_event(
                 }
                 AttachedObjectEventAction::BecomeBlocked => {
                     json!({"kind": "attachedCreatureBecameBlocked", "attachment": self_ref()})
+                }
+                // The mana-ability observer of the enchanted permanent.
+                AttachedObjectEventAction::TappedForMana => {
+                    json!({"kind": "attachedPermanentManaAbilityActivated", "object": self_ref()})
                 }
             })
         }
@@ -1504,11 +1822,44 @@ fn lower_player_event(
     actions: &[PlayerEventAction],
     one_or_more: bool,
     card: Option<&PlayerEventCardObject>,
+    permanent: Option<&PlayerEventCardObject>,
 ) -> MachineResult<Value> {
     cursor.enter("trigger.program.player-event-support");
     let player = event_actor_player(actor);
     match actions {
         [] => Err(cursor.fail("at least one player-event verb")),
+        [PlayerEventAction::TapForMana] => {
+            lower_tap_for_mana_event(cursor, actor, one_or_more, permanent)
+        }
+        [PlayerEventAction::ActivateAbility(kind)] => {
+            cursor.enter("trigger.player-event.activation-support");
+            cursor.require(
+                !one_or_more,
+                "a per-player activation event (no one-or-more player batch)",
+            )?;
+            let mut lowered = match actor {
+                EventActorScope::Controller => {
+                    json!({"kind": "nonManaAbilityActivated", "player": player})
+                }
+                EventActorScope::Opponent => {
+                    json!({"kind": "nonManaAbilityActivated", "opponentOfSourceController": true})
+                }
+                EventActorScope::AnyPlayer => {
+                    return Err(engine_gap(
+                        cursor,
+                        "an activation matcher for any player (the runtime matches the controller or an opponent)",
+                    ));
+                }
+            };
+            if *kind == ActivatedAbilityKind::Loyalty {
+                lowered["loyaltyOnly"] = json!(true);
+            }
+            Ok(lowered)
+        }
+        [PlayerEventAction::CommitCrime] => Err(engine_gap(
+            cursor,
+            "an engine matcher for a committed crime (CR 700.13)",
+        )),
         [action]
             if !action.takes_card_object()
                 && !matches!(action, PlayerEventAction::NamedAction(_)) =>
@@ -1516,6 +1867,46 @@ fn lower_player_event(
             lower_fixed_player_event(cursor, actor, player, *action, one_or_more)
         }
         _ => lower_player_action_union(cursor, &player, actions, one_or_more, card),
+    }
+}
+
+/// `ACTOR tap(s) PERMANENT for mana` (CR 106.11a, 605.1a): the mana-ability
+/// observer of the tapped permanent, with the shared permanent predicate.
+/// The observer records the permanent's controller as the acting player.
+fn lower_tap_for_mana_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    one_or_more: bool,
+    permanent: Option<&PlayerEventCardObject>,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.player-event.tap-for-mana-support");
+    let permanent = permanent.ok_or_else(|| cursor.fail("the permanent tapped for mana"))?;
+    cursor.require(
+        !one_or_more && !permanent.exclude_source,
+        "one tapped permanent without a source exclusion",
+    )?;
+    let predicate = &permanent.query.predicate;
+    cursor.require(
+        !predicate.contains_numeric_comparison() && domain_filter_is_representable(predicate),
+        "a representable tapped-permanent predicate without numeric characteristics",
+    )?;
+    let filter = lower_permanent_object_predicate(predicate);
+    cursor.require(!filter.is_null(), "a lowered tapped-permanent predicate")?;
+    match actor {
+        EventActorScope::Controller => Ok(json!({
+            "kind": "controlledPermanentManaAbilityActivated",
+            "player": controller(),
+            "where": filter,
+        })),
+        EventActorScope::AnyPlayer => Ok(json!({
+            "kind": "controlledPermanentManaAbilityActivated",
+            "anyPlayer": true,
+            "where": filter,
+        })),
+        EventActorScope::Opponent => Err(engine_gap(
+            cursor,
+            "a mana-ability observer for an opponent's permanent",
+        )),
     }
 }
 
@@ -1653,12 +2044,19 @@ fn lower_fixed_player_event(
             PlayerEventAction::BeDealtDamage(_)
             | PlayerEventAction::DiscardCard
             | PlayerEventAction::CycleCard
-            | PlayerEventAction::NamedAction(_),
+            | PlayerEventAction::NamedAction(_)
+            | PlayerEventAction::ActivateAbility(_)
+            | PlayerEventAction::TapForMana
+            | PlayerEventAction::CommitCrime,
             _,
-        ) => unreachable!("lowered by the received-damage or action-union branches"),
+        ) => unreachable!("lowered by the received-damage, action-union or action-frame branches"),
     }
 }
 
 #[cfg(test)]
 #[path = "dealt_damage_event_tests.rs"]
 mod dealt_damage_event_tests;
+
+#[cfg(test)]
+#[path = "trigger_condition_language_tests.rs"]
+mod trigger_condition_language_tests;

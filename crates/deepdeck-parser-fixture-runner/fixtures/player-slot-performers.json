@@ -1,0 +1,518 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-slot-performers",
+  "cases": [
+    {
+      "id": "Unscrupulous Agent",
+      "request": {
+        "cardName": "Unscrupulous Agent",
+        "typeLine": "Creature — Elf Detective",
+        "manaCost": "{1}{B}",
+        "oracleText": "When this creature enters, target opponent exiles a card from their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates",
+                "equals": {
+                  "kind": "players",
+                  "where": {
+                    "kind": "isOpponentOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Veteran Explorer",
+      "request": {
+        "cardName": "Veteran Explorer",
+        "typeLine": "Creature — Human Soldier Scout",
+        "manaCost": "{G}",
+        "oracleText": "When this creature dies, each player may search their library for up to two basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "performer0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Jester's Cap",
+      "request": {
+        "cardName": "Jester's Cap",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{2}, {T}, Sacrifice this artifact: Search target player's library for three cards and exile them. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/candidates/zone",
+                "equals": {
+                  "kind": "library",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 3
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to",
+                "equals": {
+                  "kind": "exile",
+                  "player": {
+                    "kind": "chosenTarget",
+                    "id": "targetPlayer"
+                  },
+                  "faceDown": false
+                }
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/performer",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-player-reveals-hand",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target player reveals their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-target-opponent-puts-card-on-library",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target opponent puts a card from their hand on top of their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-chosen-opponent-draws",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "An opponent draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "choosePlayers",
+                  "id": "chosenPerformer0",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "candidates": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bindAs": "chosenPerformer0"
+                }
+              },
+              {
+                "pointer": "/effects/1/performer",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "chosenPerformer0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "combination-declared-performer-may-search",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target opponent may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "targetPlayer"
+              },
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-search-library-and-graveyard",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Search your library and/or graveyard for a creature card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/from/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/effects/0/from/sets/0/zone",
+                "equals": {
+                  "kind": "library",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/from/sets/1/zone",
+                "equals": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-search-exile-then-shuffle",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Search your library for a card, exile it, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to",
+                "equals": {
+                  "kind": "exile",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "faceDown": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-object-controller-unknown-verb",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target creature's controller vanquishes a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-declared-player-unsupported-predicate",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target opponent exiles the moon.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-search-without-library",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Search your graveyard for a card, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-own-library-exile-without-shuffle",
+      "request": {
+        "cardName": "Synthetic Player Slot",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Search your library for a card and exile it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "Whisper Squad (named search filter, not yet a shared predicate)",
+      "request": {
+        "cardName": "Whisper Squad",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{B}",
+        "oracleText": "{1}{B}: Search your library for a card named Whisper Squad, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

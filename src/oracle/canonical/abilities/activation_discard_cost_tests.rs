@@ -71,7 +71,7 @@ fn discard_card_composes_with_unrelated_costs_effects_and_card_qualifiers() {
     assert_ne!(decisions[0]["id"], decisions[1]["id"]);
     assert_eq!(
         decisions[0]["id"],
-        lower_local_activation_cost(&both.costs[0])["card"]["id"]
+        lower_local_activation_costs(&both.costs[0])[0]["card"]["id"]
     );
     assert!(!both.source_zone_requirements().hand);
 
@@ -93,13 +93,64 @@ fn discard_this_card_still_forces_hand_activation() {
 }
 
 #[test]
+fn counted_discard_declares_one_choice_and_pays_one_discard_per_card() {
+    // Jolrael, Empress of Beasts: `{2}{G}, {T}, Discard two cards: ...`.
+    let costs = parse_costs("{2}{G}, {T}, Discard two cards").unwrap();
+    let decisions = lower_activation_cost_decisions(&costs);
+    assert_eq!(decisions.len(), 1);
+    assert_eq!(decisions[0]["kind"], "chooseObjects");
+    assert_eq!(decisions[0]["quantity"]["value"], integer(2));
+    let paid = lower_local_activation_costs(&costs.costs[2]);
+    let id = decisions[0]["id"].as_str().unwrap();
+    assert_eq!(
+        paid,
+        vec![
+            json!({"kind": "discardCard", "card": {"kind": "chosenObject", "id": format!("{id}:0")}}),
+            json!({"kind": "discardCard", "card": {"kind": "chosenObject", "id": format!("{id}:1")}}),
+        ]
+    );
+}
+
+#[test]
+fn random_discard_is_selected_by_the_engine_while_paying() {
+    // Stormscale Anarch and the sibling `Discard two cards at random`: the
+    // payer declares no card; the counted random discard is one payment.
+    for (text, count) in [
+        ("{2}{R}, Discard a card at random", 1),
+        ("Discard two cards at random", 2),
+    ] {
+        let costs = parse_costs(text).unwrap();
+        assert!(lower_activation_cost_decisions(&costs).is_empty(), "{text}");
+        let discard = costs.costs.last().unwrap();
+        assert_eq!(
+            lower_local_activation_costs(discard),
+            vec![json!({
+                "kind": "discardCards",
+                "player": controller(),
+                "count": integer(count),
+                "where": Value::Null,
+                "selection": {"kind": "random"},
+            })],
+            "{text}"
+        );
+    }
+    let rule = parsed_rule(
+        "Creature — Dragon",
+        "{2}{R}, Discard a card at random: This creature deals 2 damage to any target.",
+    );
+    assert_eq!(rule["costs"][1]["kind"], "discardCards");
+}
+
+#[test]
 fn unsupported_discard_shapes_fail_explicitly_at_their_own_state() {
     for (text, state) in [
-        ("Discard two cards", "activation.discard-card.quantity"),
         (
-            "Discard a card at random",
-            "activation.discard-card.selection-support",
+            "Discard another card",
+            "activation.discard-card.source-exclusion",
         ),
+        // The activation announces X, but X declared cards have no
+        // declaration schema: a typed engine gap, never a guessed count.
+        ("{1}, Discard X cards", "engine.gap.activation-cost-action"),
         (
             "Discard a card with the same name as a permanent",
             "selector.search-card.basic-land-type",

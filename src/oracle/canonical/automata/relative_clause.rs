@@ -6,9 +6,11 @@
 //! Clause   := ("has" | "have") CounterQualifier                 present
 //!           | ("is" | "are" | "isn't" | "aren't") ["not"] Status ("or" Status)*
 //!           | Past ("or" Past)* "this" "turn"                    history
+//!           | "dealt" ["combat"] "damage" "to" Player "this" "turn"
 //! Past     := "entered" ["the" "battlefield"] | "attacked" | "blocked"
 //!           | ("was" | "were") "dealt" "damage" | "dealt" "damage"
 //!           | ("didn't" | "did" "not") Past
+//! Player   := "you" | "an" "opponent" | "a" "player"
 //! ```
 //!
 //! A past-tense clause names a this-turn fact of the object (CR 608.2c
@@ -16,7 +18,7 @@
 //! (`that player controls`, `that targets ...`) are not claimed here and
 //! keep their explicit failure.
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{ObjectPredicate, ObjectStatus};
+use super::{DamagedPlayer, ObjectPredicate, ObjectRelation, ObjectStatus};
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
     cursor
@@ -62,6 +64,38 @@ fn past_fact_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(Object
     None
 }
 
+/// `dealt [combat] damage to PLAYER this turn` at `offset`: the recipient
+/// relation, whether only combat damage counts, and the phrase width.
+fn dealt_damage_to_player_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(DamagedPlayer, bool, usize)> {
+    if !word_at(cursor, offset, "dealt") {
+        return None;
+    }
+    let combat = word_at(cursor, offset + 1, "combat");
+    let damage = offset + 1 + usize::from(combat);
+    if !word_at(cursor, damage, "damage") || !word_at(cursor, damage + 1, "to") {
+        return None;
+    }
+    let player = damage + 2;
+    let (recipient, player_width) = if word_at(cursor, player, "you") {
+        (DamagedPlayer::AbilityController, 1)
+    } else if word_at(cursor, player, "an") && word_at(cursor, player + 1, "opponent") {
+        (DamagedPlayer::OpponentOfAbilityController, 2)
+    } else if word_at(cursor, player, "a") && word_at(cursor, player + 1, "player") {
+        (DamagedPlayer::AnyPlayer, 2)
+    } else {
+        return None;
+    };
+    let period = player + player_width;
+    (word_at(cursor, period, "this") && word_at(cursor, period + 1, "turn")).then_some((
+        recipient,
+        combat,
+        period + 2 - offset,
+    ))
+}
+
 /// A negated past verb: `didn't attack` / `did not enter`.
 fn negated_past_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(ObjectStatus, usize)> {
     let (skip, base) =
@@ -94,6 +128,7 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
                 .any(|verb| word_at(cursor, 1, verb))
                 && status_after_copula(cursor, 2)
             || past_fact_at(cursor, 1).is_some()
+            || dealt_damage_to_player_at(cursor, 1).is_some()
             || negated_past_at(cursor, 1).is_some())
 }
 
@@ -156,6 +191,21 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
         } else {
             predicate
         });
+    }
+    if let Some((recipient, combat_only, width)) = dealt_damage_to_player_at(cursor, 0) {
+        // `that dealt combat damage to you this turn`: a relation of the
+        // permanent to the players its damage reached this turn.
+        cursor.enter("selector.relative-clause.damage-recipient");
+        for _ in 0..width {
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+        }
+        return Ok(ObjectPredicate::Relation(
+            ObjectRelation::DealtDamageToPlayerThisTurn {
+                recipient,
+                combat_only,
+            },
+        ));
     }
     cursor.enter("selector.relative-clause.history");
     let mut members = Vec::new();

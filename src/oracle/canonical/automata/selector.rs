@@ -706,6 +706,33 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(length) = super::chosen_color_qualifier_length(cursor) {
+                    // `of the chosen color` / `of that color`: the color
+                    // chosen earlier in the program (CR 608.2d).
+                    cursor.enter("selector.chosen-color-qualifier");
+                    cursor.advance_to(cursor.position() + length)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::ChosenColor,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(width) = named_qualifier_width(cursor) {
+                    // `creature named Fenric` (CR 201.2): the object's name.
+                    cursor.enter("selector.named-qualifier");
+                    cursor.consume("named")?;
+                    let words = (1..width)
+                        .map(|_| {
+                            let raw = cursor.peek().unwrap_or_default().to_string();
+                            cursor.consume(&raw).map(|()| raw)
+                        })
+                        .collect::<MachineResult<Vec<_>>>()?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::Relation(super::ObjectRelation::Named(
+                            words.join(" "),
+                        )),
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if super::relative_clause_starts(cursor) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.
@@ -1729,10 +1756,12 @@ fn recognize_numeric_comparison_from(
                     .is_some_and(|word| word.eq_ignore_ascii_case("equal"))
                 {
                     cursor.consume_phrase(&["equal", "to"])?;
-                } else if let Some(strict_operator) = strict_comparison_operator(cursor) {
-                    // `less than EXPR` / `greater than EXPR`: the strict
-                    // relation, the shared operator of sentence conditions.
-                    operator = strict_operator;
+                } else if let Some(prefix_operator) = prefix_comparison_operator(cursor) {
+                    // `less than EXPR` / `greater than EXPR` and their
+                    // inclusive forms `less than or equal to EXPR`: the
+                    // relation precedes its operand, so no postfix
+                    // direction follows it.
+                    operator = prefix_operator;
                     strict = true;
                 }
                 let expression = super::recognize_query_numeric_expression(cursor)?;
@@ -1763,6 +1792,14 @@ fn recognize_numeric_comparison_from(
                             player: super::LocalPlayerReference::Controller,
                             zone: super::LocalZone::Library,
                         } => true,
+                        // `the number of QUERY` over a zone-holder domain:
+                        // admitted when its typed count has a runtime amount.
+                        NumericExpression::CountQuery(query) => {
+                            crate::oracle::canonical::effects::lower_scoped_object_query_amount(
+                                query,
+                            )
+                            .is_some()
+                        }
                         NumericExpression::Add { left, right }
                         | NumericExpression::Subtract { left, right }
                         | NumericExpression::Multiply { left, right }
@@ -1835,23 +1872,35 @@ fn recognize_numeric_comparison_from(
     }
 }
 
-/// `less than` / `greater than` before a comparison's right operand.
-fn strict_comparison_operator(
+/// `less than` / `greater than` before a comparison's right operand, and
+/// the inclusive `less than or equal to` / `greater than or equal to`
+/// (CR 107.1: the comparison of two numbers). The whole prefix is read or
+/// nothing is consumed.
+fn prefix_comparison_operator(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> Option<NumericComparisonOperator> {
-    let operator = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("less") => NumericComparisonOperator::LessThan,
-        Some("greater") => NumericComparisonOperator::GreaterThan,
-        _ => return None,
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    if !cursor
-        .peek_ahead(1)
-        .is_some_and(|word| word.eq_ignore_ascii_case("than"))
-    {
+    let less = word(0, "less");
+    if !(less || word(0, "greater")) || !word(1, "than") {
         return None;
     }
+    let inclusive = word(2, "or") && word(3, "equal") && word(4, "to");
+    let operator = match (less, inclusive) {
+        (true, false) => NumericComparisonOperator::LessThan,
+        (false, false) => NumericComparisonOperator::GreaterThan,
+        (true, true) => NumericComparisonOperator::LessThanOrEqual,
+        (false, true) => NumericComparisonOperator::GreaterThanOrEqual,
+    };
     let direction = cursor.peek()?.to_string();
-    cursor.consume_phrase(&[direction.as_str(), "than"]).ok()?;
+    let mut phrase = vec![direction.as_str(), "than"];
+    if inclusive {
+        phrase.extend(["or", "equal", "to"]);
+    }
+    cursor.consume_phrase(&phrase).ok()?;
     Some(operator)
 }
 
@@ -2497,6 +2546,47 @@ mod negative_modifier_tests;
 #[path = "selector_coordinated_article_tests.rs"]
 mod coordinated_article_tests;
 
+/// Token length of `named NAME` at the cursor: `named` and the name's words.
+/// A name is one or more capitalized words, possibly joined by lowercase
+/// `of`/`the` before another capitalized word (`Urza, Lord High Artificer`
+/// keeps its comma outside this form). Pure lookahead.
+fn named_qualifier_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("named"))
+    {
+        return None;
+    }
+    let capitalized = |offset: usize| {
+        cursor.peek_ahead(offset).is_some_and(|raw| {
+            raw.chars().next().is_some_and(char::is_uppercase)
+                && raw.chars().all(|character| {
+                    character.is_alphanumeric()
+                        || character == '\''
+                        || character == '\u{2019}'
+                        || character == '-'
+                })
+        })
+    };
+    if !capitalized(1) {
+        return None;
+    }
+    let mut width = 2;
+    loop {
+        if capitalized(width) {
+            width += 1;
+        } else if cursor
+            .peek_ahead(width)
+            .is_some_and(|raw| raw == "of" || raw == "the")
+            && capitalized(width + 1)
+        {
+            width += 2;
+        } else {
+            return Some(width);
+        }
+    }
+}
+
 /// Token length of `of the chosen [creature] type` / `of that [creature] type`
 /// at the cursor, the postnominal reference to a creature-type choice.
 fn chosen_creature_type_qualifier_length(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
@@ -2522,3 +2612,30 @@ fn chosen_creature_type_qualifier_length(cursor: &OracleTokenCursor<'_>) -> Opti
 #[cfg(test)]
 #[path = "selector_relation_lexicon_tests.rs"]
 mod relation_lexicon_tests;
+
+/// Lexical lookahead for `your commander(s)`.
+pub(in crate::oracle::canonical) fn your_commander_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("commander") || raw.eq_ignore_ascii_case("commanders")
+        })
+}
+
+/// `your commander(s)` (CR 903.3): a commander the ability controller owns.
+/// The designation and the ownership relation compose the shared predicate;
+/// the parent supplies the object domain (a permanent you control, a card in
+/// a zone) and its own player relation.
+pub(in crate::oracle::canonical) fn recognize_your_commander(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SelectorPredicate> {
+    cursor.enter("selector.your-commander");
+    cursor.require(your_commander_starts(cursor), "`your commander`")?;
+    let noun = cursor.peek_ahead(1).unwrap_or_default().to_string();
+    cursor.consume_phrase(&["your", noun.as_str()])?;
+    Ok(SelectorPredicate::Intersection(vec![
+        SelectorPredicate::IsCommander,
+        SelectorPredicate::OwnedByAbilityController { negated: false },
+    ]))
+}

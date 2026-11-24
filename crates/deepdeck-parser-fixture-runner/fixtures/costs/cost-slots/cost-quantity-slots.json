@@ -1,0 +1,653 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "costs/cost-quantity-slots",
+  "cases": [
+    {
+      "id": "exact-priest-of-forgotten-gods-counted-other-sacrifice",
+      "request": {
+        "cardName": "Priest of Forgotten Gods",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{B}",
+        "oracleText": "{T}, Sacrifice two other creatures: Any number of target players each lose 2 life and sacrifice a creature of their choice. You add {B}{B} and draw a card. (Activate only as an instant.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "tap"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/1/permanent/id",
+                "equals": "activationCostPermanent1:0"
+              },
+              {
+                "pointer": "/costs/2/permanent/id",
+                "equals": "activationCostPermanent1:1"
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "activationCostPermanent1"
+              },
+              {
+                "pointer": "/declaration/decisions/0/quantity/value/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-nantuko-husk-self-reference-after-possible-self-sacrifice",
+      "request": {
+        "cardName": "Nantuko Husk",
+        "typeLine": "Creature — Phyrexian Zombie Insect",
+        "manaCost": "{2}{B}",
+        "oracleText": "Sacrifice a creature: This creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/costs/0/permanent/id",
+                "equals": "activationCostPermanent0"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bristling-hydra-energy-activation",
+      "request": {
+        "cardName": "Bristling Hydra",
+        "typeLine": "Creature — Hydra",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "When this creature enters, you get {E}{E}{E} (three energy counters).\nPay {E}{E}{E}: Put a +1/+1 counter on this creature. It gains hexproof until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/costs/0",
+                "equals": {
+                  "kind": "payPlayerCounters",
+                  "counter": "energy",
+                  "count": {
+                    "kind": "integer",
+                    "value": 3
+                  },
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-energy-pump-without-new-code",
+      "request": {
+        "cardName": "Generic Energy Pump",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{1}{R}",
+        "oracleText": "Pay {E}{E}{E}: This creature gets +3/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "payPlayerCounters"
+              },
+              {
+                "pointer": "/costs/0/count/value",
+                "equals": 3
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-voltaic-brawler-optional-energy-resolution-cost",
+      "request": {
+        "cardName": "Voltaic Brawler",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{R}{G}",
+        "oracleText": "When this creature enters, you get {E}{E} (two energy counters).\nWhenever this creature attacks, you may pay {E}. If you do, it gets +1/+1 and gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cost/kind",
+                "equals": "payPlayerCounters"
+              },
+              {
+                "pointer": "/effects/0/cost/counter",
+                "equals": "energy"
+              },
+              {
+                "pointer": "/effects/0/cost/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-written-energy-quantity",
+      "request": {
+        "cardName": "Generic Written Energy",
+        "typeLine": "Creature — Human Artificer",
+        "manaCost": "{2}{R}",
+        "oracleText": "{T}, Pay eight {E}: This creature deals 1 damage to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "payPlayerCounters"
+              },
+              {
+                "pointer": "/costs/1/count/value",
+                "equals": 8
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-random-two-card-discard-without-new-code",
+      "request": {
+        "cardName": "Generic Random Discard",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Discard two cards at random: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0",
+                "equals": {
+                  "kind": "discardCards",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  },
+                  "where": null,
+                  "selection": {
+                    "kind": "random"
+                  }
+                }
+              },
+              {
+                "pointer": "/declaration/decisions",
+                "equals": []
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thrull-retainer-source-subtype-noun",
+      "request": {
+        "cardName": "Thrull Retainer",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{B}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1.\nSacrifice this Aura: Regenerate enchanted creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0",
+                "equals": {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-feldons-cane-exile-source-permanent",
+      "request": {
+        "cardName": "Feldon's Cane",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}, Exile this artifact: Shuffle your graveyard into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "exileSource",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "zone": "battlefield"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-and-joined-sacrifice-costs",
+      "request": {
+        "cardName": "Generic Joined Sacrifice",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Sacrifice a Swamp and a Forest: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/permanent/id",
+                "equals": "activationCostPermanent0"
+              },
+              {
+                "pointer": "/costs/1/permanent/id",
+                "equals": "activationCostPermanent1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-x-counter-removal-and-other-sacrifice",
+      "request": {
+        "cardName": "Generic Variable Counter Cost",
+        "typeLine": "Creature — Ooze",
+        "manaCost": "{1}{G}",
+        "oracleText": "{X}, Remove X +1/+1 counters from this creature and sacrifice another creature: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/manaCost",
+                "equals": "{X}"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/costs/1/counter",
+                "equals": "+1/+1"
+              },
+              {
+                "pointer": "/costs/1/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              },
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "xValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-announced-x-without-a-mana-symbol",
+      "request": {
+        "cardName": "Generic Announced X",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Remove X charge counters from this artifact: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/count",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/id",
+                "equals": "xValue"
+              },
+              {
+                "pointer": "/effects/0/amount",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-remove-counters-and-sacrifice-it",
+      "request": {
+        "cardName": "Generic Quest Pronoun Cost",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Remove five quest counters from this enchantment and sacrifice it: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/costs/0/count/value",
+                "equals": 5
+              },
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-one-with-nothing-whole-hand",
+      "request": {
+        "cardName": "One with Nothing",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Discard your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "discardHand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-sacrifice-without-x-producer",
+      "request": {
+        "cardName": "Generic Unbound X Sacrifice",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your upkeep, you may sacrifice X creatures. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-whole-hand-of-another-player",
+      "request": {
+        "cardName": "Generic Foreign Hand Discard",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Discard their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.player-discard.whole-hand.holder"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-random-whole-hand",
+      "request": {
+        "cardName": "Generic Random Whole Hand",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Discard your hand at random.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.player-discard.whole-hand-selection"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-number-of-declared-sacrifices",
+      "request": {
+        "cardName": "Generic Declared X Sacrifice",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{X}, {T}, Sacrifice X artifacts: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "engine.gap.activation-cost-action"
+          }
+        ]
+      }
+    }
+  ]
+}

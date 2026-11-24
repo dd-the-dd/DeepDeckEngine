@@ -162,3 +162,88 @@ fn chosen_type_composes_with_a_creature_count_and_another_action() {
     // The Elf artifact is not a creature.
     assert_eq!(engine.state.players[0].life, 24);
 }
+
+fn colored_creature(id: &str, mana_cost: &str, owner: &str) -> CardInstance {
+    let definition: CardDefinition = serde_json::from_value(json!({
+        "id": id, "name": id, "typeLine": "Creature — Bear", "manaCost": mana_cost,
+        "power": "2", "toughness": "2",
+    }))
+    .expect("standalone colored definition is valid");
+    let mut instance = card_instance(owner, &definition, 0);
+    instance.instance_id = id.into();
+    instance
+}
+
+fn power_of(engine: &GameEngine, id: &str) -> i32 {
+    let card = engine
+        .state
+        .players
+        .iter()
+        .flat_map(|player| player.battlefield.iter())
+        .find(|card| card.instance_id == id)
+        .expect("the permanent is on the battlefield");
+    engine.current_power(card)
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_color_chosen_on_resolution_is_read_by_a_group_pump() {
+    // Sibling of the creature-type frame: `of the chosen color` is the shared
+    // object predicate, materialized from the recorded choice.
+    let rule = parsed_rule(
+        "Generalized Color Rally",
+        "Instant",
+        "Choose a color. Creatures of the chosen color get +1/+1 until end of turn.",
+    );
+    assert_eq!(rule["effects"][0]["kind"], "chooseColor");
+    let mut engine = engine_with_tribes();
+    for (id, cost, owner, player) in [
+        ("red-bear", "{1}{R}", "player-0", 0),
+        ("green-bear", "{1}{G}", "player-0", 0),
+        ("rival-red-bear", "{R}", "player-1", 1),
+    ] {
+        engine.state.players[player]
+            .battlefield
+            .push(colored_creature(id, cost, owner));
+    }
+    resolve(&mut engine, &rule, "red");
+    assert_eq!(power_of(&engine, "red-bear"), 3);
+    assert_eq!(power_of(&engine, "rival-red-bear"), 3);
+    assert_eq!(power_of(&engine, "green-bear"), 2);
+    let chosen = engine
+        .state
+        .events
+        .iter()
+        .find(|event| event.kind == "colorChosen")
+        .expect("the color choice is recorded");
+    assert_eq!(chosen.detail["color"], "red");
+}
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_player_chosen_at_random_is_that_player_of_the_next_instruction() {
+    // Previously unused combination: a random opponent loses life equal to a
+    // count of creatures without counters.
+    let rule = parsed_rule(
+        "Generalized Random Reckoning",
+        "Sorcery",
+        "Choose an opponent at random. That player loses life equal to the number of creatures you control with no counters on them.",
+    );
+    assert_eq!(rule["effects"][0]["selection"]["kind"], "random");
+    let mut engine = engine_with_tribes();
+    // Three creatures of player-0 have no counters; one has a +1/+1 counter.
+    engine.state.players[0].battlefield[0]
+        .counters
+        .insert("+1/+1".to_string(), 1);
+    resolve(&mut engine, &rule, "unused");
+    // The only opponent is chosen; the controller's life is unchanged.
+    assert_eq!(engine.state.players[1].life, 18);
+    assert_eq!(engine.state.players[0].life, 20);
+    assert!(
+        engine
+            .state
+            .events
+            .iter()
+            .any(|event| event.kind == "playersRandomlySelected")
+    );
+}

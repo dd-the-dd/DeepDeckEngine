@@ -11,10 +11,30 @@ pub(in crate::oracle::canonical) enum CardTargetZoneOwner {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardTargetOperandNode {
+    /// Literal or `X` bounds. When `unbounded` is set the maximum is not
+    /// read: `any number of target ... cards` declares zero or more.
     pub cardinality: ExpressedTargetCardinality,
     pub predicate: ObjectPredicate,
     pub zone: CardZoneName,
     pub owner: CardTargetZoneOwner,
+    /// `another target ... card`: the ability's source card is not a
+    /// candidate (CR 109.5), even after it moved to that zone.
+    pub exclude_source: bool,
+    /// `any number of target ...` (CR 601.2c): no upper bound.
+    pub unbounded: bool,
+}
+
+impl CardTargetOperandNode {
+    /// The shared count node of this declaration.
+    pub(in crate::oracle::canonical) fn count(&self) -> TargetCount {
+        if self.unbounded {
+            return TargetCount {
+                minimum: NumericExpression::Atom(self.cardinality.minimum),
+                maximum: TargetCountBound::Unbounded,
+            };
+        }
+        TargetCount::from_atoms(self.cardinality)
+    }
 }
 
 // Capability proof, not another predicate evaluator. Declaration filters do not
@@ -28,7 +48,8 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
         // A declaration cannot read a choice made later, on resolution.
         ObjectPredicate::Color(_)
         | ObjectPredicate::ColorQuantity(_)
-        | ObjectPredicate::ChosenCreatureType => false,
+        | ObjectPredicate::ChosenCreatureType
+        | ObjectPredicate::ChosenColor => false,
         ObjectPredicate::Intersection(items) | ObjectPredicate::Union(items) => {
             items.iter().all(declaration_predicate_is_closed)
         }
@@ -46,6 +67,7 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::OwnedByAbilityController { .. }
         | ObjectPredicate::PermanentCard
         | ObjectPredicate::HasCounter(_)
+        | ObjectPredicate::Relation(_)
         | ObjectPredicate::ObjectKind(_) => true,
     }
 }
@@ -57,21 +79,57 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
     let mut committed = false;
     let result = (|| -> MachineResult<CardTargetOperandNode> {
         trial.enter("card-target.cardinality");
+        // The shared declared-count child: `target`, `another target`, `N
+        // target`, `up to N target`, `X target`, `any number of target`.
+        let mut exclude_source = false;
+        let mut unbounded = false;
         let cardinality = if trial
             .peek()
             .is_some_and(|s| s.eq_ignore_ascii_case("target"))
         {
             ExpressedTargetCardinality::EXACTLY_ONE
+        } else if trial
+            .peek()
+            .is_some_and(|s| s.eq_ignore_ascii_case("another"))
+        {
+            trial.consume("another")?;
+            exclude_source = true;
+            ExpressedTargetCardinality::EXACTLY_ONE
         } else {
-            recognize_expressed_target_cardinality(&mut trial)?
+            let count = recognize_target_count(&mut trial)?;
+            if count.is_unbounded() {
+                unbounded = true;
+                let NumericExpression::Atom(minimum) = count.minimum else {
+                    return Err(trial.fail("a literal lower bound for an unbounded card target"));
+                };
+                ExpressedTargetCardinality {
+                    minimum,
+                    // Never read while `unbounded` is set.
+                    maximum: minimum,
+                }
+            } else {
+                count
+                    .atoms()
+                    .ok_or_else(|| trial.fail("a literal or X count of declared card targets"))?
+            }
         };
+        if trial
+            .peek()
+            .is_some_and(|s| s.eq_ignore_ascii_case("other"))
+        {
+            trial.consume("other")?;
+            exclude_source = true;
+        }
         trial.consume("target")?;
         trial.enter("card-target.query");
-        let query = recognize_object_noun_query(
-            &mut trial,
-            ObjectQueryContext::shared_quota(&NumericExpression::Atom(cardinality.maximum)),
-        )?
-        .into_object_query(&mut trial)?;
+        let quota = if unbounded {
+            NumericExpression::Atom(NumericAtom::VariableX)
+        } else {
+            NumericExpression::Atom(cardinality.maximum)
+        };
+        let query =
+            recognize_object_noun_query(&mut trial, ObjectQueryContext::shared_quota(&quota))?
+                .into_object_query(&mut trial)?;
         trial.require(
             query.predicate.is_in_domain(ObjectKind::Card) && query.controller.is_none(),
             "a card-domain predicate separate from its source zone owner",
@@ -80,6 +138,11 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
             crate::oracle::canonical::effects::domain_filter_is_representable(&query.predicate),
             "a target filter preserving Boolean domain identities",
         )?;
+        // An explicit `from ZONE` origin commits the card-target reading:
+        // the declaration is in that zone, never a battlefield permanent.
+        committed = trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("from"));
         trial.enter("card-target.query-capability");
         trial.require(
             declaration_predicate_is_closed(&query.predicate),
@@ -147,6 +210,8 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
             predicate: query.predicate,
             zone,
             owner,
+            exclude_source,
+            unbounded,
         })
     })();
     match result {

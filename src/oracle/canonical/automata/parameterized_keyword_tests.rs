@@ -195,11 +195,18 @@ fn optional_additional_cost_keywords_keep_their_typed_costs() {
                 "event": { "kind": "enterBattlefield", "object": { "kind": "self" } },
                 "condition": { "kind": "offspringCostWasPaid", "spell": { "kind": "self" } },
                 "effects": [{
-                    "kind": "createTokenCopy",
+                    "kind": "createTokens",
                     "controller": controller(),
-                    "object": { "kind": "self" },
-                    "basePower": { "kind": "integer", "value": 1 },
-                    "baseToughness": { "kind": "integer", "value": 1 },
+                    "quantity": { "kind": "integer", "value": 1 },
+                    "token": {
+                        "kind": "copyOf",
+                        "object": { "kind": "self" },
+                        "except": [{
+                            "kind": "setBasePowerToughness",
+                            "power": { "kind": "integer", "value": 1 },
+                            "toughness": { "kind": "integer", "value": 1 },
+                        }],
+                    },
                 }],
             },
         })

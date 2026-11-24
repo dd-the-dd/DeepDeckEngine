@@ -18,6 +18,11 @@ pub(crate) const WHERE_X_BINDING_ID: &str = "whereX";
 /// produces it, and the validator below rejects a rule without that producer.
 pub(crate) const RESOLUTION_CREATURE_TYPE_DECISION: &str = "resolutionCreatureType";
 
+/// Decision id of a color chosen while an effect program resolves (CR
+/// 608.2d). Only a `chooseColor` step of the same rule produces it; the
+/// engine reads it through the `chosenColor` object predicate.
+pub(crate) const RESOLUTION_COLOR_DECISION: &str = "resolutionColor";
+
 /// Stack values bound when a sacrifice cost is paid, keyed by the cost field
 /// that asks the engine to record them (CR 608.2h last known information).
 const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
@@ -85,6 +90,27 @@ pub(crate) fn validate_native_contextual_bindings(
                 span_end: Some(source_span_end),
                 expected: Some(expected.to_string()),
                 found: Some("a chosen creature type reference".to_string()),
+                trace: Vec::new(),
+                owner: None,
+            });
+            continue;
+        }
+        if let Some((state, expected)) = resolution_color_binding_failure(rule) {
+            let source_span_end = ability.source.text.len();
+            ability.status = "unsupported".to_string();
+            ability.rule = None;
+            ability.iterations.clear();
+            ability.diagnostics.push(ParserDiagnostic {
+                code: "oracle_context_binding_failure".to_string(),
+                message: "A color chosen on resolution needs exactly one producing `choose a color` step and a consumer of the same rule.".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-context-binding".to_string()),
+                state: Some(state.to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(source_span_end),
+                expected: Some(expected.to_string()),
+                found: Some("a chosen color reference".to_string()),
                 trace: Vec::new(),
                 owner: None,
             });
@@ -208,6 +234,50 @@ fn resolution_creature_type_references(value: &Value, inside_count: bool) -> (us
             resolution_creature_type_references(value, inside_count || (counted && key == "where"));
         (total + more, read + more_read)
     })
+}
+
+/// Whether a lowered value reads the color chosen on resolution.
+pub(crate) fn references_resolution_color(value: &Value) -> bool {
+    if value["kind"].as_str() == Some("chosenColor")
+        && value["decisionId"].as_str() == Some(RESOLUTION_COLOR_DECISION)
+    {
+        return true;
+    }
+    match value {
+        Value::Object(values) => values.values().any(references_resolution_color),
+        Value::Array(values) => values.iter().any(references_resolution_color),
+        _ => false,
+    }
+}
+
+/// CR 608.2d: a color chosen while the rule resolves is produced once and
+/// read by the same rule. A reference without its producer, or a choice no
+/// instruction reads, is refused rather than executed as a no-op.
+fn resolution_color_binding_failure(rule: &Value) -> Option<(&'static str, &'static str)> {
+    let produced = produces_resolution_color(rule);
+    if references_resolution_color(rule) {
+        (produced != 1).then_some((
+            "binding.chosen-color.source",
+            "exactly one `choose a color` action of the same rule",
+        ))
+    } else {
+        (produced > 0).then_some((
+            "binding.chosen-color.consumer",
+            "an instruction of the same rule that reads the chosen color",
+        ))
+    }
+}
+
+fn produces_resolution_color(value: &Value) -> usize {
+    let own = usize::from(
+        value["kind"].as_str() == Some("chooseColor")
+            && value["id"].as_str() == Some(RESOLUTION_COLOR_DECISION),
+    );
+    own + match value {
+        Value::Object(values) => values.values().map(produces_resolution_color).sum(),
+        Value::Array(values) => values.iter().map(produces_resolution_color).sum(),
+        _ => 0,
+    }
 }
 
 pub(crate) fn references_resolution_creature_type(value: &Value) -> bool {

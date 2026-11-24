@@ -39,7 +39,6 @@ pub(super) fn node_requires_checkpoint(value: &serde_json::Value) -> bool {
                 | "exileFromTopUntil"
                 | "createCardCopy"
                 | "conjureNamedCard"
-                | "createTokenCopy"
         )
     )
 }

@@ -903,3 +903,35 @@ fn a_targeting_ordinal_needs_a_kind_only_selector_on_the_source() {
     event["targetingStackObject"]["where"] = json!({ "kind": "isColorless" });
     assert_eq!(became_target_event_supported(&event), Some(false));
 }
+
+/// Valiant `... for the first time each turn during your turn`: the turn
+/// owner is the rule's event-time condition (CR 603.2), evaluated as the
+/// targeting event occurs. On an opponent's turn the trigger is suppressed;
+/// on the controller's next turn the first targeting triggers it.
+#[test]
+fn a_valiant_trigger_during_your_turn_is_suppressed_on_an_opponents_turn() {
+    let own = json!({ "kind": "controllerOf", "object": { "kind": "self" } });
+    let mut engine = engine();
+    let mut watcher = definition("valiant-your-turn", "Creature - Mouse");
+    let mut rule = source_watcher_rule(Some(own.clone()));
+    rule["event"]["turnOrdinal"] = json!(1);
+    rule["eventCondition"] = json!({ "kind": "duringControllerTurn", "player": own });
+    assert!(triggered_rule_supported(&rule), "{rule}");
+    watcher.rules.push(rule);
+    let permanent = card_instance("player-0", &watcher, 1);
+    let watcher_id = permanent.instance_id.clone();
+    engine.state.players[0].battlefield.push(permanent);
+
+    engine.state.active_player = 1;
+    target_with(&mut engine, "stack:opponent-turn", "player-0", &watcher_id);
+    assert_eq!(
+        triggered_count(&engine),
+        0,
+        "suppressed on an opponent's turn"
+    );
+
+    engine.state.turn_number += 1;
+    engine.state.active_player = 0;
+    target_with(&mut engine, "stack:own-turn", "player-0", &watcher_id);
+    assert_eq!(triggered_count(&engine), 1, "first time during your turn");
+}

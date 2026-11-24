@@ -300,24 +300,44 @@ fn lower_local_effect_sequence_with_collections(
         .filter(|effect| matches!(effect, LocalEffectNode::TargetCardZoneChange(_)))
         .count();
     let mut card_target_ordinal = 0_usize;
+    let local_player_target_binding = |effect_index: usize, effect: &LocalEffectNode| match effect {
+        LocalEffectNode::Choose(ChooseInstructionNode {
+            domain: ChoiceDomainNode::PlayerTarget(_),
+            ..
+        }) => Some(PlayerTargetBinding { effect_index }),
+        LocalEffectNode::TargetPlayerLife(life) if life.declares_target => Some(life.player),
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            player: PlayerEffectSubject::DeclaredTarget { binding, .. },
+            ..
+        }) => Some(PlayerTargetBinding {
+            effect_index: binding.0,
+        }),
+        LocalEffectNode::ControllerLibrarySearch(search)
+            if matches!(search.origin.holder, SearchedPlayer::DeclaredTarget(_)) =>
+        {
+            Some(PlayerTargetBinding { effect_index })
+        }
+        _ => None,
+    };
     let player_target_bindings = sequence
         .effects
         .iter()
         .enumerate()
-        .filter_map(|(effect_index, effect)| match effect {
-            LocalEffectNode::Choose(ChooseInstructionNode {
-                domain: ChoiceDomainNode::PlayerTarget(_),
-                ..
-            }) => Some(PlayerTargetBinding { effect_index }),
-            LocalEffectNode::TargetPlayerLife(life) if life.declares_target => Some(life.player),
-            LocalEffectNode::PlayerAction(PlayerActionNode {
-                player: PlayerEffectSubject::DeclaredTarget { binding, .. },
-                ..
-            }) => Some(PlayerTargetBinding {
-                effect_index: binding.0,
-            }),
-            _ => None,
+        .flat_map(|(effect_index, effect)| {
+            // A declared performer (`target opponent VERBs`) is written
+            // before its action's own targets.
+            let performer = match performers.get(effect_index) {
+                Some(Some(PerformerNode::Player(PlayerEffectSubject::DeclaredTarget {
+                    binding,
+                    ..
+                }))) => Some(PlayerTargetBinding {
+                    effect_index: binding.0,
+                }),
+                _ => None,
+            };
+            [performer, local_player_target_binding(effect_index, effect)]
         })
+        .flatten()
         .fold(Vec::new(), |mut bindings, binding| {
             if !bindings.contains(&binding) {
                 bindings.push(binding);
@@ -334,6 +354,10 @@ fn lower_local_effect_sequence_with_collections(
     // choice in program order (CR 608.2d); it is never borrowed backwards.
     let mut creature_type_chosen = false;
     let mut unbound_creature_type_from = 0_usize;
+    // The same order holds for a color chosen on resolution, and every
+    // player chosen on resolution is lowered as the value its choice binds.
+    let mut color_chosen = false;
+    let mut resolution_players = Vec::<String>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
         apply_performer(
@@ -344,6 +368,13 @@ fn lower_local_effect_sequence_with_collections(
             &declared_player_targets,
         )?;
         if let Some(Some(performer)) = performers.get(effect_index) {
+            declare_performer_target(
+                cursor,
+                performer,
+                &player_target_bindings,
+                &mut decisions,
+                &mut declared_player_targets,
+            )?;
             pending_performer = Some((effects.len(), effect_index, performer.clone()));
         }
         if !creature_type_chosen
@@ -354,6 +385,16 @@ fn lower_local_effect_sequence_with_collections(
             cursor.enter("lower.choose.creature-type.binding");
             return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
                 "a `choose a creature type` action before the chosen-type reference",
+            )));
+        }
+        if !color_chosen
+            && effects[unbound_creature_type_from..]
+                .iter()
+                .any(super::resolution_choice::references_resolution_color)
+        {
+            cursor.enter("lower.choose.color.binding");
+            return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+                "a `choose a color` action before the chosen-color reference",
             )));
         }
         unbound_creature_type_from = effects.len();
@@ -509,12 +550,15 @@ fn lower_local_effect_sequence_with_collections(
                         &life.amount,
                     ),
                     SingularPlayerAction::Discard(discard) => {
-                        validate_targetless_numeric_expression(&discard.count, declarations)
-                            .map_err(|error| {
-                                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                                    cursor.fail(error.expectation()),
-                                )
-                            })?;
+                        if let Some(count) = discard.quantity.count() {
+                            validate_targetless_numeric_expression(count, declarations).map_err(
+                                |error| {
+                                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                        cursor.fail(error.expectation()),
+                                    )
+                                },
+                            )?;
+                        }
                         effects.extend(
                             lower_player_discard_action_for_player(
                                 discard,
@@ -564,7 +608,10 @@ fn lower_local_effect_sequence_with_collections(
                             &target_bindings,
                             context,
                         )?;
-                        effects.push(lower_token_creation_body(body, lowered.player, quantity));
+                        effects.push(
+                            lower_token_creation_body(body, lowered.player, quantity)
+                                .map_err(|expected| cursor.fail(expected))?,
+                        );
                         continue;
                     }
                     SingularPlayerAction::Hand(PlayerHandVerb::Discard) => {
@@ -929,9 +976,29 @@ fn lower_local_effect_sequence_with_collections(
                     effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
                 }
             }
-            LocalEffectNode::ControllerLibrarySearch(search) => {
-                effects.extend(lower_controller_library_search_effects(cursor, search)?);
-            }
+            LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
+                SearchedPlayer::Searcher => {
+                    effects.extend(lower_controller_library_search_effects(cursor, search)?);
+                }
+                // `Search target player's library ...`: the holder is one
+                // declared player target of this action (CR 115.1).
+                SearchedPlayer::DeclaredTarget(target) => {
+                    cursor.enter("lower.library-search.declared-holder");
+                    let id = declare_player_target(
+                        cursor,
+                        target,
+                        PlayerTargetBinding { effect_index },
+                        &player_target_bindings,
+                        &mut decisions,
+                        &mut declared_player_targets,
+                    )?;
+                    effects.extend(lower_controller_search_of_holder(
+                        cursor,
+                        search,
+                        chosen_target(&id),
+                    )?);
+                }
+            },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
                 if let Err(failure) = cursor.require(
@@ -1028,11 +1095,33 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                // `becomes a copy of OBJECT`: the copied object is one more
+                // operand of the same shared permanent-subject lowering.
+                let copy = match &change.copy_of {
+                    Some(copied) => {
+                        cursor.enter("lower.become-types.copy");
+                        let copied = lower_ordinary_permanent_subject(
+                            cursor,
+                            copied,
+                            effect_index,
+                            false,
+                            &permanent_target_base_ids,
+                            &mut used_target_base_ids,
+                            &mut decisions,
+                            &mut target_bindings,
+                        )?;
+                        let [copied] = <[Value; 1]>::try_from(copied)
+                            .map_err(|_| cursor.fail("one copied object"))?;
+                        Some(copied)
+                    }
+                    None => None,
+                };
                 for object in objects {
                     effects.extend(
                         lower_become_types_to_object(
                             change,
                             &object,
+                            copy.as_ref(),
                             &format!("characteristicObjects{effect_index}"),
                         )
                         .map_err(|expected| cursor.fail(expected))?,
@@ -1495,6 +1584,29 @@ fn lower_local_effect_sequence_with_collections(
                             "player": controller(),
                         }));
                     }
+                    ChoiceDomainNode::Color => {
+                        // CR 608.2d: one color decision per program, read
+                        // later as `the chosen color`.
+                        cursor.enter("lower.choose.color");
+                        if color_chosen {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail("one color choice per effect program"),
+                            ));
+                        }
+                        color_chosen = true;
+                        effects.push(super::resolution_choice::lower_color_choice());
+                    }
+                    ChoiceDomainNode::Player(node) => {
+                        // A player chosen on resolution, not a target (CR
+                        // 115.1): a later `that player` reads its binding.
+                        cursor.enter("lower.choose.player");
+                        let id =
+                            super::resolution_choice::resolution_player_choice_id(effect_index);
+                        effects.push(super::resolution_choice::lower_player_choice(*node, &id));
+                        declared_player_targets
+                            .push((PlayerTargetBinding { effect_index }, id.clone()));
+                        resolution_players.push(id);
+                    }
                 }
             }
             LocalEffectNode::UntapTarget(untap) => {
@@ -1777,10 +1889,22 @@ fn lower_local_effect_sequence_with_collections(
                 // A later card action reading `that card`/`it` names the object
                 // this exile produced; record that result only when it is read.
                 if zone_change.action == ZoneChangeAction::Exile
-                    && single_scalar
                     && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
                 {
-                    operation["bind"] = json!(collections.observe_exiled_object());
+                    // A declared collection (`exile any number of target
+                    // ..., then return those cards`) is observed the same
+                    // way: the exile binds every card it actually moved.
+                    operation["bind"] = json!(if single_scalar {
+                        collections.observe_exiled_object()
+                    } else {
+                        let literal_maximum = match zone_change.target.slots.as_slice() {
+                            [slot] if slot.count.is_none() => {
+                                Some(i64::from(slot.cardinality.maximum))
+                            }
+                            _ => None,
+                        };
+                        collections.observe_exiled_objects(literal_maximum)
+                    });
                 }
                 effects.push(operation);
                 if let Some(target_id) = scalar_id {
@@ -1956,6 +2080,53 @@ fn lower_local_effect_sequence_with_collections(
                 decisions.push(lowered.decision);
                 effects.extend(lowered.effects);
             }
+            LocalEffectNode::CreateExplicitTokens(node) if node.body.copy_of().is_some() => {
+                // `create a token that's a copy of OBJECT`: the copied object
+                // is an operand of the shared permanent-subject lowering, so
+                // a target is declared like any other action's target.
+                let copy = node.body.copy_of().expect("a copy specification");
+                cursor.enter("lower.token-copy.player");
+                cursor.require(
+                    node.player == LocalPlayerReference::Controller,
+                    "the controller creating the token copies",
+                )?;
+                cursor.enter("lower.token-copy.quantity");
+                let declarations = match context {
+                    EffectSequenceLoweringContext::NoExternalX => {
+                        TargetlessDeclarationSupport::None
+                    }
+                    EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                        TargetlessDeclarationSupport::XValue
+                    }
+                };
+                let quantity =
+                    lower_targetless_numeric_expression(&node.body.quantity, declarations)
+                        .map_err(|error| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(error.expectation()),
+                            )
+                        })?;
+                cursor.enter("lower.token-copy.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &copy.object,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [object] = <[Value; 1]>::try_from(objects)
+                    .map_err(|_| cursor.fail("one copied object"))?;
+                let mut creation =
+                    lower_token_copy_creation(&node.body, copy, object, controller(), quantity)
+                        .map_err(|expected| cursor.fail(expected))?;
+                if created_tokens_are_next_antecedent(sequence, effect_index) {
+                    creation["bind"] = json!(CREATED_TOKENS_BINDING);
+                }
+                effects.push(creation);
+            }
             effect => {
                 let declarations = match context {
                     EffectSequenceLoweringContext::NoExternalX => {
@@ -2046,6 +2217,15 @@ fn lower_local_effect_sequence_with_collections(
         &sequence_numeric_target_slots(sequence, &target_bindings),
         &mut effects,
     )?;
+    for effect in &mut effects {
+        super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
+    }
+    cursor.enter("lower.choose.player.consumer");
+    if !super::resolution_choice::every_resolution_player_is_read(&effects, &resolution_players) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "a later instruction of the program that reads the player chosen on resolution",
+        )));
+    }
     cursor.enter("lower.ability-loss.later-grant");
     if !super::become_types::no_grant_after_ability_loss(&effects) {
         return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -3058,12 +3238,49 @@ fn apply_performer(
                 .ok_or_else(|| cursor.fail("an earlier declared player for the performer"))?;
             chosen_target(&id)
         }
-        PerformerNode::Player(
-            PlayerEffectSubject::Controller | PlayerEffectSubject::DeclaredTarget { .. },
-        ) => {
-            return Err(EffectSequenceLoweringFailure::FailedInvariant(cursor.fail(
-                "a performer other than the controller or a new declaration",
-            )));
+        // The declaration was lowered where the action began.
+        PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { binding, .. }) => {
+            let id = declared_player_targets
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding.0).then_some(id.clone()))
+                .ok_or_else(|| cursor.fail("the declared target player of the performer"))?;
+            chosen_target(&id)
+        }
+        PerformerNode::Player(PlayerEffectSubject::Controller) => {
+            return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                cursor.fail("a performer other than the controller"),
+            ));
+        }
+        // CR 608.2d: the controller chooses one player of the population on
+        // resolution; every primitive of the action (and of the verbs that
+        // continue it) names the same choice. The choice is the shared
+        // resolution-time `choosePlayers` step (the binding environment's
+        // `choose an opponent`), made once per binding where the action
+        // begins; the performer is the player it binds.
+        PerformerNode::Chosen { players, binding } => {
+            let id = format!("chosenPerformer{}", binding.0);
+            let already_chosen = effects[..start].iter().any(|effect| {
+                effect["kind"] == "choosePlayers" && effect["bindAs"].as_str() == Some(id.as_str())
+            });
+            let player = json!({"kind": "boundValue", "id": id});
+            for effect in &mut effects[start..] {
+                effect["performer"] = player.clone();
+            }
+            if !already_chosen {
+                effects.insert(
+                    start,
+                    json!({
+                        "kind": "choosePlayers",
+                        "id": id,
+                        "player": controller(),
+                        "candidates": lower_player_set_reference(*players),
+                        "minimum": integer(1),
+                        "maximum": integer(1),
+                        "bindAs": id,
+                    }),
+                );
+            }
+            return Ok(());
         }
         PerformerNode::Population {
             players,
@@ -3097,6 +3314,68 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// A declared performer (`target opponent VERBs`, CR 115.1, 601.2c) is one
+/// player target declared where its action begins, under the shared
+/// player-target ordinal; later `that player` reuses its id.
+fn declare_performer_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    performer: &PerformerNode,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { target, binding }) = performer
+    else {
+        return Ok(());
+    };
+    cursor.enter("lower.performer.declared-target");
+    declare_player_target(
+        cursor,
+        target,
+        PlayerTargetBinding {
+            effect_index: binding.0,
+        },
+        player_target_bindings,
+        decisions,
+        declared_player_targets,
+    )
+    .map(|_| ())
+}
+
+/// One player slot declared by an action (a performer, a searched zone's
+/// holder): its target decision under the shared player-target ordinal,
+/// once per binding. Returns the declaration id.
+fn declare_player_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+    key: PlayerTargetBinding,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<String, EffectSequenceLoweringFailure> {
+    if let Some((_, id)) = declared_player_targets
+        .iter()
+        .find(|(declared, _)| *declared == key)
+    {
+        return Ok(id.clone());
+    }
+    let [slot] = target.slots.as_slice() else {
+        return Err(EffectSequenceLoweringFailure::FailedInvariant(
+            cursor.fail("one declared player target slot"),
+        ));
+    };
+    let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+        .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+    let ordinal = player_target_bindings
+        .iter()
+        .position(|value| *value == key)
+        .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+    let target_id = player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+    decisions.push(target_decision(&target_id, candidates, 1, 1));
+    declared_player_targets.push((key, target_id.clone()));
+    Ok(target_id)
 }
 
 /// The deployed card's move binds the moved-onto-battlefield result only

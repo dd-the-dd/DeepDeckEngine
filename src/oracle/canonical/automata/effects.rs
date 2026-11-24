@@ -34,6 +34,25 @@ pub(in crate::oracle::canonical) fn recognize_counter_effect(
             }
             CounterState::Target => {
                 cursor.enter("effect.counter.target");
+                // `it` after a cast event (`Whenever an opponent casts a
+                // spell, counter it`): the cast spell is the only object the
+                // environment names; an object antecedent keeps priority and
+                // is not a spell, so it is refused rather than reinterpreted.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+                    && cursor.binding_environment().is_some_and(|environment| {
+                        environment.frame.event_spell && environment.object.is_none()
+                    })
+                {
+                    cursor.enter("effect.counter.event-spell-anaphor");
+                    cursor.consume("it")?;
+                    cursor.enter("effect.counter.complete");
+                    return Ok(LocalEffectNode::CounterSpell(CounterEffectNode {
+                        target: super::TargetListNode { slots: Vec::new() },
+                        event_spell: true,
+                    }));
+                }
                 // `that spell`: the spell the triggering cast binds.
                 if cursor
                     .peek()
@@ -522,6 +541,8 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::NumericComparison { .. }
         | SelectorPredicate::ObjectKind(_)
         | SelectorPredicate::ChosenCreatureType
+        | SelectorPredicate::ChosenColor
+        | SelectorPredicate::Relation(_)
         | SelectorPredicate::Not(_) => false,
         SelectorPredicate::Intersection(operands) => {
             operands.iter().any(damageable_object_predicate)
@@ -635,7 +656,25 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
             }
             ZoneChangeState::Target => {
                 cursor.enter("effect.zone-change.target");
-                let targets = recognize_target_list(cursor)?;
+                let targets = if support == ZoneChangeTargetSupport::TargetCollection {
+                    // The shared verb operand: a reference, declared targets
+                    // (with typed counts), card targets from an explicit
+                    // origin, a library position or a quantified query.
+                    let operand = recognize_verb_object_operand(
+                        cursor,
+                        VerbObjectOperandExpectation::OBJECT_TO_ZONE,
+                    )?;
+                    match operand {
+                        VerbObjectOperandNode::Targets(targets) => targets,
+                        operand => {
+                            let action =
+                                cursor.require_value(action, "a populated zone-change action")?;
+                            return recognize_untargeted_zone_change(cursor, action, operand);
+                        }
+                    }
+                } else {
+                    recognize_target_list(cursor)?
+                };
                 cursor.enter("effect.zone-change.target.validation");
                 // CR 601.2c: one instruction may name several target slots
                 // (`target A and target B`) and each slot has its
@@ -655,12 +694,9 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
                 )?;
                 for slot in targets.slots.iter().skip(1) {
                     // A later slot's `other` relates it to the earlier target
-                    // (CR 115.3 lets one object fill several instances of
-                    // `target`). No distinct-target relation is lowered here.
-                    cursor.require(
-                        !slot.exclude_source,
-                        "a represented distinct-target relation for a later `other target` slot",
-                    )?;
+                    // slots (CR 115.3): the shared slot lowering marks its
+                    // candidates `otherThanEarlierTargets`, which the card
+                    // composition resolves against the earlier declarations.
                     // The spell/permanent union stays a single-slot form.
                     cursor.require(
                         slot.selector.is_permanent_target(),
@@ -791,6 +827,166 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_effect_with_policy(
     }
 }
 
+/// The zone action over a non-target operand of the shared verb operand:
+/// a bound reference, a universal collection, a resolution choice, declared
+/// card targets from an explicit origin, or a library position. Each pair
+/// maps to the one typed node whose lowering already executes it; any other
+/// pair fails explicitly on this state instead of being approximated.
+fn recognize_untargeted_zone_change(
+    cursor: &mut OracleTokenCursor<'_>,
+    action: ZoneChangeAction,
+    operand: VerbObjectOperandNode,
+) -> MachineResult<LocalEffectNode> {
+    use super::ReferencedPermanentAction as Referenced;
+    let plural = operand.is_plural();
+    match (action, operand) {
+        (ZoneChangeAction::Destroy, VerbObjectOperandNode::Reference(object)) => {
+            cursor.enter("effect.zone-change.reference.destroy");
+            let cannot_regenerate = super::recognize_scalar_regeneration_amendment(cursor)?;
+            Ok(LocalEffectNode::ReferencedPermanentAction(
+                super::ReferencedPermanentActionNode {
+                    object,
+                    cannot_regenerate,
+                    action: Referenced::Destroy,
+                },
+            ))
+        }
+        (ZoneChangeAction::Exile, VerbObjectOperandNode::Reference(object)) => {
+            cursor.enter("effect.zone-change.reference.exile");
+            Ok(LocalEffectNode::ReferencedPermanentAction(
+                super::ReferencedPermanentActionNode {
+                    object,
+                    cannot_regenerate: false,
+                    action: Referenced::Exile,
+                },
+            ))
+        }
+        (
+            ZoneChangeAction::Destroy,
+            VerbObjectOperandNode::Collection {
+                objects,
+                exclude_source,
+            },
+        ) => {
+            cursor.enter("effect.zone-change.collection.destroy");
+            let cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
+            Ok(LocalEffectNode::DestroyCollection(
+                super::DestroyPermanentCollectionEffectNode {
+                    objects,
+                    exclude_source,
+                    cannot_regenerate,
+                },
+            ))
+        }
+        (
+            ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand),
+            VerbObjectOperandNode::Collection { objects, .. },
+        ) => {
+            cursor.enter("effect.zone-change.collection.return");
+            recognize_owner_hand_destination(cursor, plural)?;
+            Ok(LocalEffectNode::SelectedPermanents(
+                super::SelectedPermanentsEffectNode {
+                    action: super::SelectedPermanentAction::ReturnToOwnerHand,
+                    operand: super::PermanentSelectionOperandNode {
+                        bounds: None,
+                        query: objects,
+                    },
+                },
+            ))
+        }
+        (
+            ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand),
+            VerbObjectOperandNode::Selection(operand),
+        ) => {
+            cursor.enter("effect.zone-change.selection.return");
+            recognize_owner_hand_destination(cursor, plural)?;
+            Ok(LocalEffectNode::SelectedPermanents(
+                super::SelectedPermanentsEffectNode {
+                    action: super::SelectedPermanentAction::ReturnToOwnerHand,
+                    operand,
+                },
+            ))
+        }
+        (
+            ZoneChangeAction::Exile | ZoneChangeAction::Move(ZoneChangeDestination::OwnerHand),
+            VerbObjectOperandNode::CardTargets(target),
+        ) => {
+            cursor.enter("effect.zone-change.card-targets.destination");
+            let verb = if action == ZoneChangeAction::Exile {
+                "exile"
+            } else {
+                "return"
+            };
+            let destination = super::recognize_card_action_destination(cursor, verb)?;
+            Ok(LocalEffectNode::CardAction(super::CardActionNode::Move {
+                cards: super::CardOperandNode::Targets(target),
+                destination,
+            }))
+        }
+        (ZoneChangeAction::Exile, VerbObjectOperandNode::LibraryTop(top)) => {
+            cursor.enter("effect.zone-change.library-position.exile");
+            let destination = super::recognize_card_action_destination(cursor, "exile")?;
+            Ok(LocalEffectNode::CardAction(super::CardActionNode::Move {
+                cards: super::CardOperandNode::LibraryTop(top),
+                destination,
+            }))
+        }
+        (_, VerbObjectOperandNode::Targets(_)) => {
+            Err(cursor.fail("declared targets read by the targeted zone change"))
+        }
+        _ => {
+            cursor.enter("effect.zone-change.operand-capability");
+            Err(cursor.fail(
+                "an operand this zone action lowers: a bound reference to destroy or exile, a collection to destroy or return, a chosen permanent to return, card targets or a library position",
+            ))
+        }
+    }
+}
+
+/// `to its|their owner's|owners' hand(s)` (CR 400.3): the possessive
+/// agrees with the operand's number.
+fn recognize_owner_hand_destination(
+    cursor: &mut OracleTokenCursor<'_>,
+    plural: bool,
+) -> MachineResult<()> {
+    cursor.enter("effect.zone-change.destination.relation");
+    cursor.consume("to")?;
+    cursor.enter("effect.zone-change.destination.object");
+    let pronoun = cursor
+        .peek()
+        .filter(|raw| {
+            raw.eq_ignore_ascii_case("its") || (plural && raw.eq_ignore_ascii_case("their"))
+        })
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| cursor.fail("`its`, or `their` for a plural operand"))?;
+    cursor.consume(&pronoun)?;
+    cursor.enter("effect.zone-change.destination.player-role");
+    let owner = cursor
+        .peek()
+        .filter(|raw| {
+            ["owner's", "owner\u{2019}s"]
+                .iter()
+                .any(|form| raw.eq_ignore_ascii_case(form))
+                || (plural
+                    && ["owners'", "owners\u{2019}"]
+                        .iter()
+                        .any(|form| raw.eq_ignore_ascii_case(form)))
+        })
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| cursor.fail("`owner's`"))?;
+    cursor.consume(&owner)?;
+    cursor.enter("effect.zone-change.destination.zone");
+    if plural
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("hands"))
+    {
+        cursor.consume("hands")
+    } else {
+        cursor.consume("hand")
+    }
+}
+
 /// True when the parsed target list denotes more than one object: several
 /// slots or one slot whose maximum exceeds one.
 fn target_collection_is_plural(target: Option<&super::TargetListNode>) -> bool {
@@ -798,6 +994,10 @@ fn target_collection_is_plural(target: Option<&super::TargetListNode>) -> bool {
         target.slots.len() > 1 || target.slots.iter().any(|slot| slot.cardinality.maximum > 1)
     })
 }
+
+#[path = "verb_object_operand.rs"]
+mod verb_object_operand;
+pub(in crate::oracle::canonical) use verb_object_operand::*;
 
 #[cfg(test)]
 #[path = "zone_change_effect_tests.rs"]

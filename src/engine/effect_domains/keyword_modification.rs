@@ -3,6 +3,55 @@
 //! A handled early no-op still returns `Ok(true)`. The root owns transactions.
 use super::super::*;
 
+thread_local! {
+    /// Set while a granted changeling is being evaluated: a nested
+    /// creature-type read inside that evaluation sees printed changeling only.
+    static EVALUATING_GRANTED_CHANGELING: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+}
+
+/// Clears the reentrancy flag even if the evaluation unwinds.
+struct GrantedChangelingScope;
+
+impl GrantedChangelingScope {
+    fn enter() -> Option<Self> {
+        EVALUATING_GRANTED_CHANGELING.with(|flag| {
+            if flag.get() {
+                None
+            } else {
+                flag.set(true);
+                Some(Self)
+            }
+        })
+    }
+}
+
+impl Drop for GrantedChangelingScope {
+    fn drop(&mut self) {
+        EVALUATING_GRANTED_CHANGELING.with(|flag| flag.set(false));
+    }
+}
+
+impl GameEngine {
+    /// Whether the permanent is every creature type through changeling
+    /// (CR 702.73a). Printed changeling is a characteristic-defining ability
+    /// applied in layer 4 before any ability loss (CR 604.3, 613.1d, 613.3).
+    /// A granted changeling (a static grant, a resolved grant or a counter)
+    /// is read through the effective keyword. That read evaluates static
+    /// selectors and conditions which may themselves ask for creature types,
+    /// so while it runs a nested changeling read sees printed changeling
+    /// only: the type layer never depends on itself.
+    pub(in crate::engine) fn permanent_has_changeling(&self, permanent: &CardInstance) -> bool {
+        if permanent_printed_has_keyword(permanent, "changeling") {
+            return true;
+        }
+        let Some(_scope) = GrantedChangelingScope::enter() else {
+            return false;
+        };
+        self.permanent_has_effective_keyword(permanent, "changeling")
+    }
+}
+
 pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(supports_known_effect(effect))
 }
@@ -35,6 +84,7 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && (triggered_rule_supported(&effect["ability"])
                     || activated_rule_supported(&effect["ability"])
                     || mana_rule_supported(&effect["ability"])
+                    || keyword_rule_supported(&effect["ability"])
                     || value_kind(&effect["ability"]) == Some("staticAbility")
                         && rule_supported(&effect["ability"]));
             let flashback_supported = target_reference_supported(&effect["object"])
@@ -64,14 +114,18 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
                 && (triggered_rule_supported(&effect["ability"])
                     || activated_rule_supported(&effect["ability"])
-                    || mana_rule_supported(&effect["ability"]));
+                    || mana_rule_supported(&effect["ability"])
+                    || keyword_rule_supported(&effect["ability"]));
             let temporary_single_supported = (matches!(
                 value_kind(&effect["object"]),
                 Some("self" | "abilitySource")
             ) || target_reference_supported(&effect["object"]))
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
                 && (activated_rule_supported(&effect["ability"])
-                    || mana_rule_supported(&effect["ability"]));
+                    || mana_rule_supported(&effect["ability"])
+                    // A granted parameterized keyword (CR 702.1): Ward,
+                    // protection or a count keyword read from the rules.
+                    || keyword_rule_supported(&effect["ability"]));
             permanent_trigger_supported
                 || flashback_supported
                 || temporary_trigger_supported
@@ -525,7 +579,7 @@ impl GameEngine {
                                                 )
                                             },
                                             |creature_type| {
-                                                self.permanent_has_keyword(permanent, "changeling")
+                                                self.permanent_has_changeling(permanent)
                                                     || type_line_contains(
                                                         &permanent.definition.type_line,
                                                         creature_type,

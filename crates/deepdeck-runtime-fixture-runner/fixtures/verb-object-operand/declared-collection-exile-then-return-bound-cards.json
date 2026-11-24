@@ -1,0 +1,175 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "verb-operand-plural-exile-binds-every-moved-card-for-those-cards",
+  "seed": 43,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "tap",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetPermanent",
+          "minimum": 0,
+          "maximum": {
+            "kind": "countPermanents",
+            "allPlayers": true
+          },
+          "candidates": {
+            "kind": "permanents",
+            "controller": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "not",
+              "operand": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "exilePermanent",
+        "permanent": {
+          "kind": "chosenTargets",
+          "id": "targetPermanent"
+        },
+        "bind": "exiledObject"
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "exiledObject"
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "tapped": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Blinker",
+        "battlefield": [
+          {
+            "id": "blinker",
+            "name": "Blinker",
+            "typeLine": "Creature - Spirit",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 0,
+                      "maximum": { "kind": "countPermanents", "allPlayers": true },
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                        "where": {
+                          "kind": "not",
+                          "operand": { "kind": "cardTypeContains", "value": "Land" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "exilePermanent",
+                    "permanent": { "kind": "chosenTargets", "id": "targetPermanent" },
+                    "bind": "exiledObject"
+                  },
+                  {
+                    "kind": "moveCards",
+                    "cards": { "kind": "boundObjects", "binding": "exiledObject" },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": { "kind": "ownerOf", "object": { "kind": "candidate" } },
+                      "tapped": false
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "blinked-artifact",
+            "name": "Blinked Artifact",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "stays-artifact",
+            "name": "Stays Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "blinker",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": { "kind": "permanentDefinition", "definitionId": "blinked-artifact" }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "blinked-artifact",
+      "equals": true
+    },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "exile", "equals": 0 },
+    { "kind": "eventCount", "eventKind": "cardsMoved", "equals": 1 },
+    { "kind": "zoneCount", "playerId": "player-0", "zone": "battlefield", "equals": 3 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

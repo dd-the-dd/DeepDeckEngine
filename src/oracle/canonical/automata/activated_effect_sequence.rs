@@ -33,6 +33,71 @@ pub(in crate::oracle::canonical) enum ExplicitActivationSourceAvailability {
     #[default]
     Unproved,
     RetainedBattlefieldPermanent,
+    /// A battlefield activation whose cost may move the source: a chosen
+    /// sacrifice or return that does not exclude it (`Sacrifice a creature:
+    /// This creature gets +2/+2`). A self-reference still names the source
+    /// (CR 113.7a, 611.2c); if the source left, it is a new object and the
+    /// action does nothing to it (CR 400.7).
+    RetainedOrDeparted,
+}
+
+impl ExplicitActivationSourceAvailability {
+    /// True when an explicit self-reference names the battlefield source,
+    /// whether or not it is still there when the ability resolves.
+    pub(in crate::oracle::canonical) fn names_battlefield_source(self) -> bool {
+        matches!(
+            self,
+            Self::RetainedBattlefieldPermanent | Self::RetainedOrDeparted
+        )
+    }
+
+    /// Availability proved by an activation's typed costs. `permanent_face`
+    /// is the source face's own evidence; a cost that names the source on
+    /// the battlefield (`{T}`, `sacrifice this creature`) proves it as well.
+    pub(in crate::oracle::canonical) fn from_costs(
+        costs: &ActivationCostSequenceNode,
+        permanent_face: bool,
+    ) -> Self {
+        use super::LocalActivationCostNode as Cost;
+        let requirements = costs.source_zone_requirements();
+        if requirements.hand || requirements.graveyard {
+            return Self::Unproved;
+        }
+        if !(permanent_face || requirements.battlefield) {
+            return Self::Unproved;
+        }
+        let mut possibly_departed = false;
+        for cost in &costs.costs {
+            match cost {
+                Cost::PayMana(_)
+                | Cost::TapSelf(_)
+                | Cost::PayLife(_)
+                | Cost::PayPlayerCounters(_)
+                | Cost::TapObjects(_)
+                | Cost::DiscardCard(_)
+                | Cost::RemoveSourceCounters(_)
+                | Cost::RemoveControlledCounters(_)
+                | Cost::ExileCards(_)
+                | Cost::PutSourceCounters(_)
+                | Cost::PutChosenCounters(_) => {}
+                // `Sacrifice another ...` cannot move the source (CR 109.1);
+                // without `another` the payer may choose the source itself.
+                Cost::SacrificeObject(selected) => possibly_departed |= !selected.exclude_source,
+                Cost::ReturnObjects(selected) => possibly_departed |= !selected.exclude_source,
+                // The source surely leaves: a source subject reads its last
+                // known information through its own event-subject context.
+                Cost::ReturnSelf
+                | Cost::SacrificeSelf(_)
+                | Cost::DiscardSelf(_)
+                | Cost::ExileSelf(_) => return Self::Unproved,
+            }
+        }
+        if possibly_departed {
+            Self::RetainedOrDeparted
+        } else {
+            Self::RetainedBattlefieldPermanent
+        }
+    }
 }
 
 fn recognize_activation_prefix(

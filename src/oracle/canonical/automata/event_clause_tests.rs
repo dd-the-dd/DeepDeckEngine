@@ -66,13 +66,15 @@ fn a_player_set_names_the_verb_it_does_not_read() {
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
     let expected = expected.unwrap_or_default();
     assert!(expected.contains("a player set"), "{expected}");
-    // A lexicon lemma is named by its base form.
+    // A lexicon lemma is named by its base form, after `may` too: the
+    // population's permission reads the performer's instruction, whose
+    // unread verb stays the clause's diagnostic.
     let (_, state, expected) = parse(
         "Sorcery",
-        "Each player may put a card from their hand onto the battlefield.",
+        "Each player may shuffle their hand and graveyard into their library.",
     );
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
-    assert!(expected.unwrap_or_default().contains("lemma `put`"));
+    assert!(expected.unwrap_or_default().contains("lemma `shuffle`"));
 }
 
 #[test]
@@ -93,13 +95,26 @@ fn the_shared_modifier_tail_composes_with_every_combat_subject() {
 }
 
 #[test]
-fn a_recognized_modifier_without_its_matcher_is_an_engine_gap() {
+fn a_turn_owner_without_a_pattern_matcher_is_an_event_time_condition() {
+    // Whose turn it is is a state when the event occurs (CR 500.1, 603.2):
+    // the occurrence keeps its own matcher and the ability its
+    // `eventCondition`, never an engine gap and never dropped.
     for text in [
         "Whenever a creature you control dies during your turn, draw a card.",
         "Whenever this creature enters during your turn, draw a card.",
+        "Whenever you gain life during your turn, draw a card.",
+        "Whenever an opponent draws a card during your turn, draw a card.",
+    ] {
+        assert_eq!(parse("Creature — Wall", text).0, "canonical", "{text}");
+    }
+}
+
+#[test]
+fn a_recognized_modifier_without_its_matcher_is_an_engine_gap() {
+    for text in [
         "Whenever a creature you control blocks alone, draw a card.",
         "Whenever a creature you control attacks and isn't blocked for the first time each turn, draw a card.",
-        "Whenever you gain life during your turn, draw a card.",
+        "Whenever you gain life for the first time each turn, draw a card.",
     ] {
         assert_eq!(
             parse("Creature — Wall", text).1.as_deref(),

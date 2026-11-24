@@ -1,7 +1,8 @@
 //! The shared `choose DOMAIN` instruction frame: target declarations (CR
-//! 115.1, 601.2c), a creature type chosen on resolution (CR 608.2d) read by a
-//! later `of the chosen type` count, and explicit failures for the domains
-//! whose binding consumers are not executable yet.
+//! 115.1, 601.2c), a creature type, a color and a player chosen on
+//! resolution (CR 608.2d) read by later consumers through their bindings,
+//! and explicit failures for the domains whose binding consumers are not
+//! executable yet.
 use serde_json::Value;
 
 use crate::oracle::{OracleCardParseRequest, OracleCardParseResult, parse_oracle_card};
@@ -170,17 +171,34 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "Choose a creature type other than Wall. Draw a card for each permanent you control of that type.",
             "choose.domain.creature-type.exclusion",
         ),
+        // A restricted color set has no producer yet.
         (
-            "Choose a color. Creatures you control gain protection from the chosen color until end of turn.",
-            "choose.domain.color",
+            "Choose a color other than white. Creatures of the chosen color get +1/+1 until end of turn.",
+            "choose.domain.color.exclusion",
+        ),
+        // A chosen color that nothing reads is refused, not a no-op choice.
+        (
+            "Choose a color. Draw a card.",
+            "binding.chosen-color.consumer",
+        ),
+        // A chosen-color reference without its producer is never guessed.
+        (
+            "Creatures of the chosen color get +1/+1 until end of turn.",
+            "binding.chosen-color.source",
         ),
         (
             "Choose a card name. Target opponent reveals their hand.",
             "choose.domain.card-name",
         ),
+        // A qualified player population is not widened to every opponent.
         (
-            "Choose an opponent. That player loses 2 life.",
-            "choose.domain.player",
+            "Choose an opponent who controls a creature. That player loses 2 life.",
+            "choose.domain.player.boundary",
+        ),
+        // A chosen player that no instruction reads is refused.
+        (
+            "Choose an opponent. Draw a card.",
+            "lower.choose.player.consumer",
         ),
         (
             "Choose a number between 0 and 13. Each player sacrifices that many creatures.",
@@ -210,6 +228,74 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
         )
         .is_empty()
     );
+}
+
+#[test]
+fn a_color_chosen_on_resolution_is_read_by_a_group_predicate() {
+    // Sibling of the creature-type frame: no color-specific consumer exists;
+    // the shared object query reads `of the chosen color`.
+    for text in [
+        "Choose a color. Creatures of the chosen color get +1/+1 until end of turn.",
+        "Choose a color. Creatures you control of the chosen color get +1/+0 until end of turn.",
+    ] {
+        let rule = canonical_rule("Generalized Color Rally", "Instant", text);
+        let effects = rule["effects"].as_array().expect("effect program");
+        assert_eq!(effects.len(), 2, "{text}");
+        assert_eq!(effects[0]["kind"], "chooseColor");
+        assert_eq!(effects[0]["id"], "resolutionColor");
+        assert_eq!(effects[0]["player"]["kind"], "controllerOf");
+        let rendered = effects[1].to_string();
+        assert!(rendered.contains("\"chosenColor\""), "{text}: {rendered}");
+        assert!(
+            rendered.contains("\"decisionId\":\"resolutionColor\""),
+            "{text}: {rendered}"
+        );
+    }
+}
+
+#[test]
+fn a_player_chosen_on_resolution_is_the_antecedent_of_that_player() {
+    let rule = canonical_rule(
+        "Generalized Chosen Rival",
+        "Sorcery",
+        "Choose an opponent. That player loses 2 life.",
+    );
+    let effects = rule["effects"].as_array().expect("effect program");
+    assert_eq!(effects[0]["kind"], "choosePlayers");
+    assert_eq!(effects[0]["id"], "resolutionPlayer0");
+    assert_eq!(effects[0]["bindAs"], "resolutionPlayer0");
+    assert_eq!(effects[0]["candidates"]["kind"], "opponentsOf");
+    assert!(effects[0].get("selection").is_none());
+    // Not a target: no declaration, and the later reference reads the
+    // bound value the choice writes.
+    assert!(
+        rule["declaration"]["decisions"]
+            .as_array()
+            .is_none_or(Vec::is_empty),
+        "{rule:#}"
+    );
+    assert_eq!(effects[1]["kind"], "loseLife");
+    assert_eq!(effects[1]["player"]["kind"], "boundValue");
+    assert_eq!(effects[1]["player"]["id"], "resolutionPlayer0");
+}
+
+#[test]
+fn a_random_player_choice_recombines_with_a_count_of_absent_counters() {
+    // Previously unused combination: random player choice, `that player`,
+    // and a count of permanents with no counters on them.
+    let rule = canonical_rule(
+        "Generalized Random Reckoning",
+        "Sorcery",
+        "Choose an opponent at random. That player loses life equal to the number of creatures you control with no counters on them.",
+    );
+    let effects = rule["effects"].as_array().expect("effect program");
+    assert_eq!(effects[0]["kind"], "choosePlayers");
+    assert_eq!(effects[0]["selection"]["kind"], "random");
+    assert_eq!(effects[1]["kind"], "loseLife");
+    assert_eq!(effects[1]["player"]["kind"], "boundValue");
+    let amount = effects[1]["amount"].to_string();
+    assert!(amount.contains("\"countPermanents\""), "{amount}");
+    assert!(amount.contains("\"hasCounter\""), "{amount}");
 }
 
 #[test]

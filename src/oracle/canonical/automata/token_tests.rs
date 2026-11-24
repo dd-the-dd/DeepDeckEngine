@@ -1,7 +1,6 @@
 use crate::oracle::canonical::{
     AddManaEffectNode, LocalActivationCostNode, NumericAtom, OracleTokenCursor, PlayerPredicate,
-    SacrificeSelfSourceNoun, TargetCardinality, TargetSelector,
-    recognize_targeted_create_creature_tokens_with_mana_ability,
+    TargetCardinality, TargetSelector, recognize_targeted_create_creature_tokens_with_mana_ability,
 };
 use crate::oracle::syntax::recognize_entities;
 
@@ -31,8 +30,7 @@ fn parses_targeted_variable_spawn_creation_with_primitive_mana_ability() {
     assert!(node.token.colors.is_empty(), "colorless means no colors");
     assert!(matches!(
         node.ability.costs.costs.as_slice(),
-        [LocalActivationCostNode::SacrificeSelf(cost)]
-            if cost.source_type == SacrificeSelfSourceNoun::Token
+        [LocalActivationCostNode::SacrificeSelf(_)]
     ));
     let AddManaEffectNode::Fixed(mana) = &node.ability.mana else {
         panic!("expected fixed colorless mana production");

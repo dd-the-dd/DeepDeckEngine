@@ -150,3 +150,35 @@ fn near_misses_are_not_band_introducers() {
             .all(|slot| slot == BandSlot::Outside)
     );
 }
+
+#[test]
+fn a_solved_line_is_a_band_only_on_a_case_face() {
+    // CR 702.169: the solved designation belongs to Cases. On another face
+    // `Solved —` opens no gated body, so its text is never compiled as an
+    // ungated ability under a band it does not have.
+    let sources = lines(&["Solved \u{2014} Creatures you control get +1/+0."]);
+    assert!(matches!(
+        plan_band_slots("Enchantment \u{2014} Case", &sources)[0],
+        BandSlot::Body(BandBody {
+            gate: BandGate::Solved,
+            introducer: BandIntroducer::CaseSolved,
+            ..
+        })
+    ));
+    for type_line in [
+        "Enchantment",
+        "Enchantment \u{2014} Aura",
+        "Legendary Enchantment",
+    ] {
+        assert_eq!(
+            plan_band_slots(type_line, &sources)[0],
+            BandSlot::Outside,
+            "{type_line}"
+        );
+    }
+    // The gate is lowered as the solved designation the runtime reads.
+    assert_eq!(
+        BandGate::Solved.lower(),
+        json!({ "kind": "designation", "designation": "solved" })
+    );
+}

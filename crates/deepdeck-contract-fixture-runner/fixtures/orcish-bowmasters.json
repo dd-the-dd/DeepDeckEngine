@@ -30,7 +30,7 @@
       "decisions": [
         {
           "kind": "chooseTargets",
-          "id": "triggerDamageTarget",
+          "id": "targetDamageable",
           "minimum": 1,
           "maximum": 1,
           "candidates": {
@@ -51,7 +51,7 @@
         },
         "recipient": {
           "kind": "chosenTarget",
-          "id": "triggerDamageTarget"
+          "id": "targetDamageable"
         }
       },
       {
@@ -129,7 +129,7 @@
         "then": [
           {
             "kind": "choosePermanents",
-            "id": "triggerEffect1:amassedArmy",
+            "id": "effect1:amassedArmy",
             "player": {
               "kind": "controllerOf",
               "object": {
@@ -172,7 +172,7 @@
             "kind": "putCounters",
             "permanent": {
               "kind": "decisionResult",
-              "decisionId": "triggerEffect1:amassedArmy"
+              "decisionId": "effect1:amassedArmy"
             },
             "counter": "+1/+1",
             "count": {
@@ -184,15 +184,15 @@
             "kind": "forEachObject",
             "objects": {
               "kind": "decisionResult",
-              "decisionId": "triggerEffect1:amassedArmy"
+              "decisionId": "effect1:amassedArmy"
             },
-            "bind": "triggerEffect1:amassedArmy:object",
+            "bind": "effect1:amassedArmy:object",
             "effects": [
               {
                 "kind": "addSubtypeToPermanent",
                 "object": {
                   "kind": "boundValue",
-                  "id": "triggerEffect1:amassedArmy:object"
+                  "id": "effect1:amassedArmy:object"
                 },
                 "subtype": "Orc",
                 "duration": {

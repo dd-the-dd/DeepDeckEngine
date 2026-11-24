@@ -214,8 +214,8 @@ try {
     }
     foreach ($temporaryCopyConcept in @("myriad", "encore")) {
         $entry = $catalog.entries | Where-Object { $_.canonicalId -eq $temporaryCopyConcept }
-        if (@($entry.semantic.primitiveDecomposition.primitive) -notcontains "createTokenCopyBatch") {
-            throw "C9 concept '$temporaryCopyConcept' must share batched token-copy semantics"
+        if (@($entry.semantic.primitiveDecomposition.primitive) -notcontains "createTokens") {
+            throw "C9 concept '$temporaryCopyConcept' must share the createTokens copyOf semantics"
         }
     }
     foreach ($attackTriggerConcept in @("exalted", "myriad", "mobilize", "firebending")) {

@@ -102,8 +102,10 @@ fn typed_unproved_zone_variants_fail_lowering_without_emitting_partial_actions()
     );
     let mut cursor = OracleTokenCursor::new("search-zone-support", &tokens);
     let mut node = recognize_controller_library_search(&mut cursor).unwrap();
+    // Exile is a proved search destination (`exile it, then shuffle`).
+    node.destination = super::SearchDestination::Zone(super::CardZoneName::Exile);
+    assert!(lower_controller_library_search_effects(&mut cursor, &node).is_ok());
     for zone in [
-        super::CardZoneName::Exile,
         super::CardZoneName::Library,
         super::CardZoneName::Battlefield,
     ] {

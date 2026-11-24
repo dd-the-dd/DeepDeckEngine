@@ -2064,8 +2064,8 @@ fn parse_existing_native_rule(
         }
     }
 
-    if ability_kind == "staticAbility" && claims_promoted_graveyard_characteristic_family(input) {
-        return match parse_promoted_graveyard_characteristic(input) {
+    if ability_kind == "staticAbility" && claims_characteristic_defining_power_toughness(input) {
+        return match parse_characteristic_defining_power_toughness(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

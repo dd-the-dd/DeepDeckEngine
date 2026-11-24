@@ -9,6 +9,7 @@ fn effect(selector: TargetSelector) -> ZoneChangeEffectNode {
                 selector,
                 cardinality: TargetCardinality::EXACTLY_ONE,
                 exclude_source: false,
+                count: None,
             }],
         },
         regeneration: ZoneChangeRegenerationPolicy::Allowed,

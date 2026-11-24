@@ -871,8 +871,12 @@ pub(super) enum NumericExpression {
     PermanentCount(Box<PermanentCountNode>),
     SourceCastX,
     EventValue(EventNumericBinding),
+    /// `card types among COLLECTION` (CR 205.2a): the distinct card types
+    /// among the cards of a graveyard collection, read by the shared scoped
+    /// query (`cards in your graveyard`, `creature cards in all graveyards`).
     CountDistinctCardTypes {
         zone: GraveyardScope,
+        predicate: ObjectPredicate,
     },
     /// A quantity an earlier action of the program produced (`the total life
     /// lost this way`). `reader_effect` is the action that reads it; the
@@ -1449,6 +1453,10 @@ pub(super) struct TargetSlot {
     pub selector: TargetSelector,
     pub cardinality: TargetCardinality,
     pub exclude_source: bool,
+    /// The authoritative declared count when it is not two literals (`X
+    /// target`, `any number of target`); `cardinality` is then
+    /// `TargetCardinality::EXPRESSED`. Only count-aware parents produce it.
+    pub count: Option<TargetCount>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1855,11 +1863,16 @@ pub(super) enum SearchDestination {
 pub(super) enum SearchShuffleOrder {
     MoveThenShuffle,
     ShuffleThenMove,
+    /// The searched player's own later instruction shuffles (`Then that
+    /// player shuffles.`); the search itself does not.
+    ByHolderInstruction,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct LibrarySearchEffectNode {
     pub player: LocalPlayerReference,
+    /// The searched player's zones (`library_search.rs`).
+    pub origin: SearchOrigin,
     pub filter: ObjectPredicate,
     pub minimum: u32,
     pub maximum: u32,
@@ -2353,7 +2366,9 @@ mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    performer_description, person_shifted_tokens, recognize_performer,
+    performer_description, performer_modality, permission_sentence_end,
+    person_shifted_permission_tokens, person_shifted_tokens, recognize_declaring_performer,
+    recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,

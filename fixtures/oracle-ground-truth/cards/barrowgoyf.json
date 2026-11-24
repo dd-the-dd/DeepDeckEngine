@@ -45,8 +45,10 @@
           "object": { "kind": "self" },
           "zone": { "kind": "battlefield" }
         },
+        "characteristicDefining": true,
         "modifiers": [{
           "kind": "setBasePowerToughness",
+          "layer": "7a",
           "objects": { "kind": "self" },
           "power": {
             "kind": "countDistinctCardTypes",

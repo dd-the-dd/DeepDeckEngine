@@ -65,7 +65,7 @@ fn another_source_type_target_selector_amass_subtype_and_counts_reuse_the_childr
         ability.rule.as_ref().unwrap()["declaration"]["decisions"][0],
         json!({
             "kind": "chooseTargets",
-            "id": "triggerDamageTarget",
+            "id": "targetPermanent",
             "minimum": 1,
             "maximum": 1,
             "candidates": {
@@ -80,6 +80,8 @@ fn another_source_type_target_selector_amass_subtype_and_counts_reuse_the_childr
     .unwrap();
     let mut expected = truth["abilities"][1]["expectedRule"]["effects"].clone();
     expected[0]["amount"]["value"] = json!(2);
+    // `target creature` is a permanent target slot, not `any target`.
+    expected[0]["recipient"]["id"] = json!("targetPermanent");
     expected[1]["then"][0]["token"]["name"] = json!("Zombie Army Token");
     expected[1]["then"][0]["token"]["subtypes"][0] = json!("Zombie");
     expected[2]["then"][1]["count"]["value"] = json!(2);

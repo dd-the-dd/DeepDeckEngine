@@ -49,6 +49,10 @@ mod binding_environment_runtime;
 mod effect_subject_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_slot_performer_runtime.rs"]
+mod player_slot_performer_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_lki_runtime.rs"]
 mod source_lki_runtime;
 
@@ -3770,10 +3774,6 @@ fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Thorin, King of Durin's Folk; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4116,10 +4116,6 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Long-Lost Lances; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4955,10 +4951,6 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Burn, Burn, Tree and Fern; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -14852,9 +14844,13 @@ fn yenna_aura_copy_uses_composed_untap_and_scry_effects() {
             "source": { "kind": "self" },
             "effects": [
                 {
-                    "kind": "createModifiedTokenCopy",
-                    "object": { "kind": "chosenTarget", "id": "targetEnchantment" },
-                    "removeLegendary": true,
+                    "kind": "createTokens",
+                    "quantity": { "kind": "integer", "value": 1 },
+                    "token": {
+                        "kind": "copyOf",
+                        "object": { "kind": "chosenTarget", "id": "targetEnchantment" },
+                        "except": [{ "kind": "removeSupertype", "supertype": "Legendary" }],
+                    },
                 },
                 {
                     "kind": "conditionalEffect",
@@ -15756,14 +15752,21 @@ fn engine_with_offspring_creature() -> GameEngine {
                         "spell": { "kind": "self" },
                     },
                     "effects": [{
-                        "kind": "createTokenCopy",
+                        "kind": "createTokens",
                         "controller": {
                             "kind": "controllerOf",
                             "object": { "kind": "self" },
                         },
-                        "object": { "kind": "self" },
-                        "basePower": { "kind": "integer", "value": 1 },
-                        "baseToughness": { "kind": "integer", "value": 1 },
+                        "quantity": { "kind": "integer", "value": 1 },
+                        "token": {
+                            "kind": "copyOf",
+                            "object": { "kind": "self" },
+                            "except": [{
+                                "kind": "setBasePowerToughness",
+                                "power": { "kind": "integer", "value": 1 },
+                                "toughness": { "kind": "integer", "value": 1 },
+                            }],
+                        },
                     }],
                 },
             },
@@ -17276,7 +17279,7 @@ fn offspring_offers_one_optional_cost_and_creates_a_one_one_copy_on_entry() {
             .ability_rule
             .as_ref()
             .map(|rule| &rule["effects"][0]["kind"]),
-        Some(&Value::String("createTokenCopy".to_string()))
+        Some(&Value::String("createTokens".to_string()))
     );
     paid_engine
         .resolve_top_stack(&mut RandomAi::seeded(1))
@@ -25576,10 +25579,6 @@ fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bombur, Gentle Dreamer; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -33159,6 +33158,9 @@ mod intervening_if_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/leveler_band_runtime.rs"]
 mod leveler_band_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/object_query_runtime.rs"]
+mod object_query_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;

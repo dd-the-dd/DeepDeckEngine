@@ -259,7 +259,7 @@ impl GameEngine {
 
                 for (declaration_index, declaration) in declarations.into_iter().enumerate() {
                     if rule.is_some_and(|rule| {
-                        !self.activated_sacrifice_costs_are_payable(
+                        !self.activated_nonmana_costs_are_payable(
                             rule,
                             &player.id,
                             &permanent.instance_id,

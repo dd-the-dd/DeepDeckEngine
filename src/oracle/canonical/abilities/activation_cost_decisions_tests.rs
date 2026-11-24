@@ -31,7 +31,11 @@ fn selected_costs_declare_non_targets_and_share_their_payment_ids() {
     let decisions = lower_activation_cost_decisions(&sequence);
     assert_eq!(decisions[0], x_value());
     for (cost_index, decision) in [(1, &decisions[1]), (2, &decisions[2])] {
-        let payment = lower_local_activation_cost(&sequence.costs[cost_index]);
+        // A counted selected cost lowers through the plural payment reader;
+        // one chosen sacrifice is exactly one payment.
+        let payments = lower_local_activation_costs(&sequence.costs[cost_index]);
+        assert_eq!(payments.len(), 1);
+        let payment = &payments[0];
         assert_eq!(decision["kind"], "chooseObjects");
         assert_eq!(decision["candidates"]["controller"], controller());
         assert_eq!(

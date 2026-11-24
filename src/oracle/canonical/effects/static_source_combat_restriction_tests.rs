@@ -157,6 +157,31 @@ fn as_long_as_gates_the_whole_static_ability() {
     assert!(rule["condition"].is_object());
 }
 
+/// A trailing `unless` condition is the shared static condition, negated, on
+/// the same static rule as the restriction or requirement it gates.
+#[test]
+fn a_trailing_unless_condition_gates_the_static_rule() {
+    for (text, modifier) in [
+        (
+            "This creature can't block unless you control an Island.",
+            "grantKeyword",
+        ),
+        (
+            "This creature attacks each combat if able unless you control an Island.",
+            "attackEachCombatIfAble",
+        ),
+    ] {
+        let rule = parsed(text);
+        assert_eq!(rule["modifiers"][0]["kind"], modifier, "{text}");
+        assert_eq!(rule["condition"]["kind"], "not", "{text}");
+        assert_eq!(
+            rule["condition"]["operand"]["left"]["where"],
+            json!({ "kind": "subtypeContains", "value": "Island" }),
+            "{text}"
+        );
+    }
+}
+
 #[test]
 fn near_misses_fail_explicitly_or_stay_with_other_parents() {
     // Not a combat restriction at all: no family commitment.
@@ -180,12 +205,10 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
             "static.combat-restriction.complete",
         ),
         (
-            "This creature can't block unless you control an Island.",
-            "selector.predicate.start",
-        ),
-        (
+            // A defending player is no subject of the static condition
+            // language: it exists only during one combat (CR 506.2).
             "This creature can't attack unless defending player controls an Island.",
-            "static.combat-restriction.complete",
+            "condition.static.atom-kind",
         ),
         (
             "This creature can't attack or block alone.",
@@ -193,10 +216,6 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
         ),
         (
             "This creature can't block. You gain 1 life.",
-            "static.combat-restriction.complete",
-        ),
-        (
-            "This creature attacks each combat if able unless you control an Island.",
             "static.combat-restriction.complete",
         ),
         (

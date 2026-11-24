@@ -118,6 +118,95 @@ fn signed_expression(expression: NumericExpression, negative: bool) -> NumericEx
     }
 }
 
+/// A base power/toughness pair whose components are shared numeric
+/// expressions (CR 208.1, 613.4b): `3/3`, `X/X`, `1/X`. A literal pair keeps
+/// its integers; `X` stays the sequence-owned variable that a postposed
+/// `where X is EXPR` or the face's mana X binds.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct BasePowerToughnessNode {
+    pub power: NumericExpression,
+    pub toughness: NumericExpression,
+}
+
+impl From<PowerToughnessNode> for BasePowerToughnessNode {
+    fn from(literal: PowerToughnessNode) -> Self {
+        Self {
+            power: literal.power.into(),
+            toughness: literal.toughness.into(),
+        }
+    }
+}
+
+impl BasePowerToughnessNode {
+    /// The literal pair, when both components are integers.
+    pub(in crate::oracle::canonical) fn literal(&self) -> Option<PowerToughnessNode> {
+        match (&self.power, &self.toughness) {
+            (
+                NumericExpression::Atom(super::NumericAtom::Integer(power)),
+                NumericExpression::Atom(super::NumericAtom::Integer(toughness)),
+            ) => Some(PowerToughnessNode {
+                power: *power,
+                toughness: *toughness,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// An unsigned stat-pair component that is a single word before or after the
+/// slash: a digit literal or the variable `X` (`X/X`, `1/X`). Wider
+/// expressions use the explicit `equal to` frames instead.
+fn unsigned_stat_component_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("x")
+            || (!raw.is_empty() && raw.bytes().all(|byte| byte.is_ascii_digit()))
+    })
+}
+
+/// Whether an unsigned base power/toughness pair starts here: one literal
+/// `counterValue` token without a sign, or `COMPONENT / COMPONENT`.
+pub(in crate::oracle::canonical) fn numeric_power_toughness_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    if let Some(token) = cursor.peek_token()
+        && token.token_type == "counterValue"
+    {
+        return !token.raw.starts_with(['+', '-']);
+    }
+    unsigned_stat_component_at(cursor, 0)
+        && cursor.peek_ahead(1) == Some("/")
+        && unsigned_stat_component_at(cursor, 2)
+}
+
+/// Reads an unsigned base power/toughness pair. Each component of a
+/// symbolic pair is one shared numeric atom read in a one-token bounded view,
+/// so the toughness never swallows the words that follow the pair.
+pub(in crate::oracle::canonical) fn recognize_numeric_power_toughness(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<BasePowerToughnessNode> {
+    cursor.enter("characteristic.power-toughness.numeric");
+    if cursor
+        .peek_token()
+        .is_some_and(|token| token.token_type == "counterValue")
+    {
+        return recognize_literal_power_toughness(cursor).map(BasePowerToughnessNode::from);
+    }
+    cursor.require(
+        numeric_power_toughness_starts(cursor),
+        "an unsigned power/toughness pair (`N/N`, `X/X`)",
+    )?;
+    let power_end = cursor.position() + 1;
+    let power = cursor.bounded(power_end, |child| recognize_numeric_expression(child, None))?;
+    cursor.enter("characteristic.power-toughness.numeric-separator");
+    cursor.consume_type("statPairSeparator")?;
+    let toughness_end = cursor.position() + 1;
+    let toughness = cursor.bounded(toughness_end, |child| {
+        recognize_numeric_expression(child, None)
+    })?;
+    cursor.enter("characteristic.power-toughness.numeric-complete");
+    Ok(BasePowerToughnessNode { power, toughness })
+}
+
 pub(in crate::oracle::canonical) fn recognize_literal_power_toughness(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PowerToughnessNode> {

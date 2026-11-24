@@ -27,14 +27,20 @@ pub(super) fn effect_supported(effect: &Value) -> Option<bool> {
 fn subtype_set_mode_supported(effect: &Value) -> bool {
     match effect["mode"].as_str() {
         Some("all") => effect.get("subtypes").is_none(),
-        Some("replace" | "add") => effect["subtypes"].as_array().is_some_and(|subtypes| {
-            !subtypes.is_empty()
-                && subtypes.iter().all(|subtype| {
-                    subtype
-                        .as_str()
-                        .is_some_and(super::object_predicate::is_creature_subtype)
-                })
-        }),
+        Some("replace" | "add") => {
+            effect["subtypes"].as_array().is_some_and(|subtypes| {
+                !subtypes.is_empty()
+                    && subtypes.iter().all(|subtype| {
+                        subtype
+                            .as_str()
+                            .is_some_and(super::object_predicate::is_creature_subtype)
+                    })
+            })
+                // `the creature type of your choice`: the subtype a
+                // `chooseCreatureType` of the same resolution recorded.
+                || (value_kind(&effect["subtypes"]) == Some("decisionResult")
+                    && effect["subtypes"]["decisionId"].is_string())
+        }
         _ => false,
     }
 }
@@ -91,6 +97,24 @@ impl GameEngine {
         bindings: &BTreeMap<String, RuntimeBinding>,
         decisions: &BTreeMap<String, Value>,
     ) {
+        // A chosen subtype reads the choice made earlier in this resolution.
+        let chosen;
+        let effect = if value_kind(&effect["subtypes"]) == Some("decisionResult") {
+            let Some(subtypes) = effect["subtypes"]["decisionId"]
+                .as_str()
+                .and_then(|id| decisions.get(id))
+                .filter(|subtypes| subtypes.as_array().is_some_and(|list| !list.is_empty()))
+            else {
+                // No subtype was chosen: nothing changes.
+                return;
+            };
+            let mut resolved = effect.clone();
+            resolved["subtypes"] = subtypes.clone();
+            chosen = resolved;
+            &chosen
+        } else {
+            effect
+        };
         // CR 611.2c: the affected set is locked in when the effect begins.
         for instance_id in
             self.characteristic_object_ids(&effect["object"], stack_object, bindings, decisions)

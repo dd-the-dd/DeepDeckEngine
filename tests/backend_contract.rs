@@ -508,7 +508,8 @@ fn backend_parses_yenna_without_card_specific_copy_flags() {
     let effects = body["abilities"][0]["rule"]["effects"]
         .as_array()
         .expect("Yenna has canonical effects");
-    assert_eq!(effects[0]["kind"], "createModifiedTokenCopy");
+    assert_eq!(effects[0]["kind"], "createTokens");
+    assert_eq!(effects[0]["token"]["kind"], "copyOf");
     assert!(effects[0].get("attachIfAura").is_none());
     assert!(effects[0].get("untapSourceAndScryIfAura").is_none());
     assert_eq!(effects[1]["kind"], "conditionalEffect");

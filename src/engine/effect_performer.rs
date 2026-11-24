@@ -1,9 +1,16 @@
 //! One performer slot for every action. An action whose clause names
 //! another player as its subject (`that player creates`, `each opponent
-//! shuffles`) carries `performer`: the engine resolves that player once and
-//! runs the ordinary primitive as if that player controlled the instruction,
-//! so every choice and every `you` inside the action is the performer's
-//! (CR 608.2c, 109.5). The primitive itself never knows about performers.
+//! shuffles`, `target opponent exiles`) carries `performer`: the engine
+//! resolves that player once and runs the ordinary primitive as if that
+//! player controlled the instruction, so every choice and every `you` inside
+//! the action is the performer's (CR 608.2c, 109.5). A `may` instruction is
+//! the ordinary optional wrapper run as the performer's: the performer owns
+//! that decision (CR 608.2d). The primitive itself never knows about
+//! performers.
+//!
+//! A player chosen on resolution (`an opponent VERBs`, CR 608.2d) is not a
+//! performer kind: the shared `choosePlayers` step binds the chosen player
+//! once, and every primitive of the action names it as a `boundValue`.
 
 use super::*;
 
@@ -31,8 +38,8 @@ impl GameEngine {
         let Some(performer) = effect.get("performer") else {
             return Ok(false);
         };
-        // A performer that no longer exists (a player who left the game)
-        // performs nothing.
+        // A performer that no longer exists (a player who left the game),
+        // or a choice that bound no player, performs nothing.
         let Some(player_id) = self.resolve_player(performer, stack_object, bindings) else {
             return Ok(true);
         };

@@ -270,6 +270,87 @@ pub(in crate::oracle::canonical) fn recognize_type_change_characteristics(
     }
 }
 
+/// Whether a type noun of this number starts `offset` tokens ahead. A verb
+/// parent uses it to see that its complement is a type change.
+pub(in crate::oracle::canonical) fn type_change_noun_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+    number: TypeChangeNumber,
+) -> bool {
+    type_word_at(cursor, offset, forms_for(number)).is_some()
+}
+
+/// The type nouns of a change whose parent has already read its own article
+/// and prenominal characteristics (`becomes a 4/4 red Dragon creature`). It
+/// is the `Types` state of [`recognize_type_change_characteristics`] alone:
+/// the parent owns the retention clauses that may follow a `with` list.
+pub(in crate::oracle::canonical) fn recognize_type_change_nouns(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> MachineResult<TypeChangeCharacteristicsNode> {
+    let forms = forms_for(number);
+    let mut node = TypeChangeCharacteristicsNode {
+        supertypes: Vec::new(),
+        subtypes: Vec::new(),
+        card_types: Vec::new(),
+        all_basic_land_types: false,
+        retention: TypeChangeRetention::ReplacesSameClass,
+    };
+    cursor.enter("type-change.nouns");
+    while let Some(word) = type_word_at(cursor, 0, forms) {
+        match word {
+            TypeWord::Subtype(subtype, width) => {
+                cursor.require(
+                    node.card_types.is_empty(),
+                    "subtypes before the card types they modify",
+                )?;
+                if matches!(subtype, TypeChangeSubtype::Creature(_)) {
+                    cursor.require(
+                        cursor
+                            .token_slice(cursor.position(), cursor.position() + width)
+                            .iter()
+                            .all(|token| token.token_type == "subtypeWord"),
+                        "lexical subtypeWord evidence from CR 205.3m",
+                    )?;
+                }
+                cursor.require(!node.subtypes.contains(&subtype), "distinct subtypes")?;
+                node.subtypes.push(subtype);
+                cursor.advance_to(cursor.position() + width)?;
+            }
+            TypeWord::CardType(card_type) => {
+                cursor.require(!node.card_types.contains(&card_type), "distinct card types")?;
+                node.card_types.push(card_type);
+                cursor.advance_to(cursor.position() + 1)?;
+            }
+        }
+    }
+    cursor.require(
+        node.is_nominal(),
+        "a registered subtype or permanent card type",
+    )?;
+    Ok(node)
+}
+
+/// The copula of a reference subject (`It's an enchantment.`, `That land is
+/// a Swamp.`, `They're Zombies in addition to their other types.`): the same
+/// type-change characteristics as a `becomes` complement (CR 205.1). The
+/// parent owns the subject, consumes a contracted copula (`it's`) itself and
+/// passes `contracted`, and owns the duration and lowering.
+pub(in crate::oracle::canonical) fn recognize_copula_type_change(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+    contracted: bool,
+) -> MachineResult<TypeChangeCharacteristicsNode> {
+    cursor.enter("type-change.copula");
+    if !contracted {
+        cursor.consume(match number {
+            TypeChangeNumber::Singular => "is",
+            TypeChangeNumber::Plural => "are",
+        })?;
+    }
+    recognize_type_change_characteristics(cursor, number)
+}
+
 /// `its other land types` retains only land subtypes; every added type must
 /// then be a land subtype of that class (CR 205.3i).
 fn retained_class_matches(node: &TypeChangeCharacteristicsNode, class: RetainedTypeClass) -> bool {

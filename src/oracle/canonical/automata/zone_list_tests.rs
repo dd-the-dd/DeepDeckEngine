@@ -16,6 +16,15 @@ fn zone_lists_support_arbitrary_length_connectors_and_preserve_parent_boundary()
         );
         assert_eq!(cursor.peek(), Some("can't"));
     }
+    // A comma followed by neither a connector nor a zone is the parent's
+    // boundary, not a dangling list continuation.
+    let tokens = recognize_entities("library, rounded up");
+    let mut cursor = OracleTokenCursor::new("zone-list", &tokens);
+    assert_eq!(
+        recognize_card_zone_list(&mut cursor).unwrap(),
+        vec![CardZoneName::Library]
+    );
+    assert_eq!(cursor.peek(), Some(","));
 }
 #[test]
 fn zone_child_rejects_dangling_connectors_and_unregistered_locations() {

@@ -71,7 +71,7 @@ fn creatures_you_control() -> Value {
 fn granted_triggered_ability_joins_the_effective_layer_only_on_the_battlefield() {
     let mut e = engine();
     let creature = add(&mut e, "grantee", "Creature", vec![upkeep_rule(1)]);
-    add(
+    let grantor = add(
         &mut e,
         "grantor",
         "Artifact",
@@ -80,7 +80,9 @@ fn granted_triggered_ability_joins_the_effective_layer_only_on_the_battlefield()
     );
     let live = e.state.players[0].battlefield[0].clone();
     let rules = e.effective_rules(&live).iter().cloned().collect::<Vec<_>>();
-    assert_eq!(rules, vec![upkeep_rule(1), upkeep_rule(5)]);
+    let mut granted = upkeep_rule(5);
+    granted["grantedByInstanceId"] = json!(grantor.instance_id);
+    assert_eq!(rules, vec![upkeep_rule(1), granted]);
     // The printed layer is unchanged and keeps its own indices.
     assert_eq!(live.definition.printed_rules(), &[upkeep_rule(1)]);
     assert_eq!(
@@ -172,4 +174,145 @@ fn step_trigger_reads_a_grant_exactly_once() {
     })
     .unwrap();
     assert_eq!(e.state.stack.len(), 1);
+}
+
+#[test]
+fn each_grantor_gives_the_grantee_its_own_trigger_instance() {
+    // CR 113.2c: two grants are two instances; both fire from the grantee.
+    let mut e = engine();
+    let grantee = add(&mut e, "grantee", "Creature", vec![]);
+    for grantor in ["first-grantor", "second-grantor"] {
+        add(
+            &mut e,
+            grantor,
+            "Artifact",
+            vec![static_rule(json!({"kind":"grantTriggeredAbility",
+                "objects":creatures_you_control(),"ability":upkeep_rule(5)}))],
+        );
+    }
+    e.with_quantity_transaction(|e| {
+        e.enqueue_step_triggers("upkeep");
+        e.check_quantity_failure()
+    })
+    .unwrap();
+    assert_eq!(e.state.stack.len(), 2);
+    assert!(
+        e.state
+            .stack
+            .iter()
+            .all(|object| object.card.instance_id == grantee.instance_id)
+    );
+}
+
+#[test]
+fn granted_static_ability_applies_with_the_grantee_as_its_source() {
+    // `Creatures you control have "This creature gets +2/+2."`: `self` in the
+    // granted rule is each grantee, never the granting artifact.
+    let mut e = engine();
+    add(&mut e, "grantee", "Creature", vec![]);
+    let granted = static_rule(json!({"kind":"modifyPowerToughness",
+        "objects":{"kind":"self"},
+        "power":{"kind":"integer","value":2},"toughness":{"kind":"integer","value":2}}));
+    add(
+        &mut e,
+        "grantor",
+        "Artifact",
+        vec![static_rule(json!({"kind":"grantStaticAbility",
+            "objects":creatures_you_control(),"ability":granted}))],
+    );
+    let live = e.state.players[0].battlefield[0].clone();
+    assert_eq!(e.current_power(&live), 4);
+    let grantor = e.state.players[0].battlefield[1].clone();
+    assert_eq!(e.current_power(&grantor), 2);
+}
+
+#[test]
+fn a_granted_static_ability_may_not_grant_rules_itself() {
+    let nested = static_rule(json!({"kind":"grantTriggeredAbility",
+        "objects":creatures_you_control(),"ability":upkeep_rule(5)}));
+    assert_eq!(
+        granted_rule_modifier_supported(&json!({"kind":"grantStaticAbility",
+            "objects":creatures_you_control(),"ability":nested})),
+        Some(false)
+    );
+}
+
+#[test]
+fn granted_keyword_rule_carries_its_count_and_identity() {
+    // `Creatures you control have toxic 2.` (CR 702.164): the granted count
+    // is read like a printed one, and the keyword is present.
+    let mut e = engine();
+    add(&mut e, "grantee", "Creature", vec![]);
+    add(
+        &mut e,
+        "grantor",
+        "Artifact",
+        vec![static_rule(json!({"kind":"grantKeywordAbility",
+            "objects":creatures_you_control(),
+            "ability":{"kind":"keywordAbility","source":{"kind":"self"},
+                "ability":{"kind":"toxic","count":{"kind":"integer","value":2}}}}))],
+    );
+    let live = e.state.players[0].battlefield[0].clone();
+    assert_eq!(e.permanent_keyword_count(&live, "toxic", "count"), 2);
+    assert!(e.permanent_has_effective_keyword(&live, "toxic"));
+    let grantor = e.state.players[0].battlefield[1].clone();
+    assert_eq!(e.permanent_keyword_count(&grantor, "toxic", "count"), 0);
+}
+
+#[test]
+fn granted_changeling_makes_the_grantee_every_creature_type_without_recursion() {
+    // CR 702.73a, 613.1: a granted changeling answers creature-type queries
+    // (the chosen-type mana count reads the same helper); a grant whose own
+    // selector asks for a creature type sees printed changeling only.
+    let mut e = engine();
+    add(&mut e, "grantee", "Creature - Human", vec![]);
+    add(
+        &mut e,
+        "grantor",
+        "Artifact",
+        vec![static_rule(json!({"kind":"grantKeyword",
+            "objects":creatures_you_control(),"keyword":"changeling"}))],
+    );
+    let live = e.state.players[0].battlefield[0].clone();
+    assert!(e.permanent_has_changeling(&live));
+    assert!(e.permanent_matches_effective_filter(
+        &live,
+        &json!({"kind":"subtypeContains","value":"Elf"})
+    ));
+
+    let mut circular = engine();
+    add(&mut circular, "grantee", "Creature - Human", vec![]);
+    add(
+        &mut circular,
+        "grantor",
+        "Artifact",
+        vec![static_rule(json!({"kind":"grantKeyword",
+            "objects":{"kind":"permanents",
+                "controller":{"kind":"controllerOf","object":{"kind":"self"}},
+                "where":{"kind":"subtypeContains","value":"Elf"}},
+            "keyword":"changeling"}))],
+    );
+    let live = circular.state.players[0].battlefield[0].clone();
+    assert!(!circular.permanent_has_changeling(&live));
+}
+
+#[test]
+fn printed_changeling_survives_ability_loss() {
+    // CR 604.3, 613.1d: the characteristic-defining ability applies in
+    // layer 4, before ability loss in layer 6.
+    let mut e = engine();
+    add(
+        &mut e,
+        "shapeshifter",
+        "Creature - Shapeshifter",
+        vec![json!({"kind":"keywordAbility","source":{"kind":"self"},
+            "ability":{"kind":"changeling"}})],
+    );
+    let live = e.state.players[0].battlefield[0].clone();
+    e.state.rule_modifiers.push(json!({
+        "kind": "loseAllAbilities",
+        "cardInstanceId": live.instance_id,
+        "expiresAfterTurn": e.state.turn_number,
+    }));
+    assert!(e.permanent_has_changeling(&live));
 }

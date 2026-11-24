@@ -10777,7 +10777,7 @@
                                                                         },
                                                                         {
                                                                             "order":  5,
-                                                                            "primitive":  "createTokenCopy",
+                                                                            "primitive":  "createTokens",
                                                                             "inputs":  [
                                                                                            "resultingPermanent.copiableValues",
                                                                                            "setBasePowerToughness(1,1)"
@@ -11438,7 +11438,7 @@
                                                                         },
                                                                         {
                                                                             "order":  4,
-                                                                            "primitive":  "createTokenCopyBatch",
+                                                                            "primitive":  "createTokens",
                                                                             "inputs":  [
                                                                                            "sourceCreature.copiableValues",
                                                                                            "copyDestinations"
@@ -11612,7 +11612,7 @@
                                                                         },
                                                                         {
                                                                             "order":  5,
-                                                                            "primitive":  "createTokenCopyBatch",
+                                                                            "primitive":  "createTokens",
                                                                             "inputs":  [
                                                                                            "sourceCard.copiableValues",
                                                                                            "encoreOpponents"

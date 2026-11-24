@@ -96,9 +96,10 @@ pub(in crate::oracle::canonical) fn lower_temporary_keyword_grant(
     Some(LoweredTemporaryKeywordGrant { decision, effects })
 }
 
-/// A quoted ability is granted as one complete rule of the affected object
-/// (CR 113.1). The engine appends it to the object's rules for the duration,
-/// so only a temporary grant of a triggered, activated or mana rule is
+/// A quoted ability or a parameterized keyword is granted as one complete
+/// rule of the affected object (CR 113.1). The engine appends it to the
+/// object's rules for the duration, so only a temporary grant of a
+/// triggered, activated, mana or keyword rule is
 /// representable; a static rule is accepted only on a single object. An
 /// indefinite grant (`This Saga gains "..."`, CR 611.2a) is recorded on one
 /// object and lost when it changes zones (CR 400.7).
@@ -112,7 +113,15 @@ fn quoted_ability_grantable(rule: &Value, object: &Value, duration: &Value) -> b
     (temporary || indefinite_single)
         && (single || object["kind"].as_str() == Some("eachPermanent"))
         && match rule["kind"].as_str() {
-            Some("triggeredAbility" | "activatedAbility" | "manaAbility") => true,
+            // A granted parameterized keyword (Ward, protection, toxic N) is
+            // one complete keyword rule of the affected object (CR 702.1).
+            Some(
+                "triggeredAbility"
+                | "activatedAbility"
+                | "manaAbility"
+                | "keywordAbility"
+                | "keywordAbilityGroup",
+            ) => true,
             Some("staticAbility") => single,
             _ => false,
         }

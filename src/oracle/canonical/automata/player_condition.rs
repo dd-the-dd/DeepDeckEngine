@@ -25,10 +25,13 @@ use crate::oracle::counter_name::CounterName;
 pub(in crate::oracle::canonical) enum ThresholdOperator {
     AtLeast,
     AtMost,
+    /// `exactly N`: the measured amount equals the value.
+    Exactly,
 }
 
 /// `N or more`, `at least N`, `a`/`an` (at least one), `no` (at most zero),
-/// `N or fewer|less`, `at most N`: one bounded comparison with a fixed value.
+/// `N or fewer|less`, `at most N`, `exactly N`: one bounded comparison with
+/// a fixed value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CountThreshold {
     pub operator: ThresholdOperator,
@@ -46,7 +49,11 @@ impl CountThreshold {
     /// True when exactly one object satisfies the threshold's lower bound,
     /// so the following noun is singular (`a card`, `one card`).
     fn singular(self) -> bool {
-        self.value == 1 && self.operator == ThresholdOperator::AtLeast
+        self.value == 1
+            && matches!(
+                self.operator,
+                ThresholdOperator::AtLeast | ThresholdOperator::Exactly
+            )
     }
 }
 
@@ -81,6 +88,9 @@ pub(in crate::oracle::canonical) enum ConditionPlayerSubject {
     /// `your opponents` taken together (CR 102.3): one measure summed over
     /// every opponent of the controller, not a per-player quantifier.
     OpponentsTogether,
+    /// `that player`: the one player the binding environment names (the
+    /// player the triggering event records, CR 603.2), never guessed.
+    EventPlayer,
 }
 
 impl ConditionPlayerSubject {
@@ -166,6 +176,16 @@ fn quantified_subject_at(
         _ => return None,
     };
     Some((quantifier, population))
+}
+
+/// The shared quantified player head at the cursor (`an opponent`, `a
+/// player`, `any player`, `each opponent`, `no player`), two tokens long.
+/// Parents that read another verb after it (an `unless` payer) reuse this
+/// one grammar instead of their own word list.
+pub(in crate::oracle::canonical) fn quantified_player_head(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(PlayerQuantifier, PlayerPopulation)> {
+    quantified_subject_at(cursor)
 }
 
 /// True at `your opponents control`, the collective subject of a summed count.
@@ -337,7 +357,7 @@ pub(in crate::oracle::canonical) fn recognize_player_possession_proposition(
 }
 
 /// `[N or more | a | no] QUERY` after `controls`: the shared permanent query.
-fn recognize_controlled_permanents_proposition(
+pub(in crate::oracle::canonical) fn recognize_controlled_permanents_proposition(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PlayerStateProposition> {
     cursor.enter("condition.player.controls.amount");
@@ -411,6 +431,14 @@ pub(in crate::oracle::canonical) fn recognize_count_threshold(
         return Ok(CountThreshold {
             operator: ThresholdOperator::AtMost,
             value: 0,
+        });
+    }
+    if word_is(cursor, 0, "exactly") {
+        cursor.consume("exactly")?;
+        let value = recognize_threshold_value(cursor)?;
+        return Ok(CountThreshold {
+            operator: ThresholdOperator::Exactly,
+            value,
         });
     }
     if word_is(cursor, 0, "at") {

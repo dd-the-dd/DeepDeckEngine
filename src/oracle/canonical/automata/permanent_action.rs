@@ -1,7 +1,7 @@
 //! Ordinary action payloads share one subject grammar and lexical binding.
 use super::super::{MachineFailure, OracleTokenCursor};
 use super::*;
-use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
+use crate::oracle::canonical::automata::{VerbAgreement, VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 pub(in crate::oracle::canonical) enum PermanentActionAttempt {
@@ -61,19 +61,35 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
     let bare = context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive;
+    let chain_agreement = if bare {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
     if let Some(reference) = context.verb_chain_subject
-        && (cursor.peek().is_some_and(|raw| {
-            if bare {
-                is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
-            } else {
-                is_verb_form(&raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
-            }
-        }) || (!bare
-            && (super::become_types::characteristic_change_verb_starts(cursor)
-                || super::combat_clause_starts(cursor))))
+        && (cursor
+            .peek()
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Gain, chain_agreement.form()))
+            || super::become_types::characteristic_change_verb_starts(
+                cursor,
+                chain_agreement,
+                super::TypeChangeNumber::Singular,
+            )
+            || super::become_types::possessed_base_power_toughness_starts(cursor)
+            || (!bare && super::combat_clause_starts(cursor)))
     {
         return recognize_verb_chain_action(cursor, reference, context);
     }
+    // `Its base power and toughness are 1/1.` / `It's an enchantment.`: a
+    // characteristic of the proven antecedent of a new sentence.
+    if let Some(attempt) = try_recognize_antecedent_characteristic(cursor, context) {
+        return attempt;
+    }
+    // `each QUERY` is a distributive, grammatically singular subject
+    // (`each land you control becomes a creature`); `all QUERY` is plural.
+    let distributive_subject = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"));
     let mut subject_end = cursor.clone();
     let subject = match recognize_contextual_permanent_operand(
         &mut subject_end,
@@ -185,9 +201,45 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
         };
     }
-    let Some(predicate) =
-        classify_permanent_predicate(&subject_end, action, action_offset, bare, &subject, context)
-    else {
+    // `That land is a Swamp.`: the copula of a reference subject states its
+    // types with the same type-change characteristics as `becomes`.
+    if action_offset == 0
+        && matches!(
+            subject,
+            PermanentOperandNode::BoundReference(_) | PermanentOperandNode::Reference(_)
+        )
+        && action.eq_ignore_ascii_case("is")
+    {
+        let mut after_copula = subject_end.clone();
+        if after_copula.consume("is").is_ok()
+            && super::type_change_characteristics_start(
+                &after_copula,
+                super::TypeChangeNumber::Singular,
+            )
+        {
+            if let Some(failure) = subject_context_failure(cursor, &subject, &subject_end, context)
+            {
+                return PermanentActionAttempt::FailedCommitted(failure);
+            }
+            let mut trial = subject_end.clone();
+            return match recognize_reference_copula(&mut trial, subject, false, context) {
+                Ok(node) => {
+                    *cursor = trial;
+                    PermanentActionAttempt::Parsed(LocalEffectNode::BecomeTypes(node))
+                }
+                Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+            };
+        }
+    }
+    let Some(predicate) = classify_permanent_predicate(
+        &subject_end,
+        action,
+        action_offset,
+        bare,
+        &subject,
+        distributive_subject,
+        context,
+    ) else {
         return PermanentActionAttempt::NotClaimed;
     };
     match predicate {
@@ -228,6 +280,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             // A type-change frame is only a candidate: other readers own the
             // `becomes a P/T ...` animation shapes, so a non-matching type list
             // must not commit this parent.
+            let (agreement, number) =
+                characteristic_subject_agreement(&subject, distributive_subject, bare);
             let mut trial = cursor.clone();
             let fragment = match super::become_types::recognize_become_types_subject(
                 &mut trial,
@@ -235,7 +289,17 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
                     *cursor = subject_end.clone();
                     Ok(subject.clone())
                 },
+                |cursor| {
+                    recognize_contextual_permanent_operand(
+                        cursor,
+                        name_links,
+                        name_failure,
+                        context,
+                    )
+                },
                 context.preposed_duration.as_ref(),
+                agreement,
+                number,
             ) {
                 Ok(fragment) => fragment,
                 Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
@@ -284,7 +348,10 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
                 return PermanentActionAttempt::FailedCommitted(failure);
             }
             let mut trial = cursor.clone();
-            let result = if predicate == PermanentPredicate::KeywordGrant {
+            let result = if predicate == PermanentPredicate::KeywordGrant
+                && !super::temporary_power_toughness::granted_stats_coordination_starts(
+                    &subject_end,
+                ) {
                 super::keyword_grant::recognize_temporary_keyword_grant_subject(
                     &mut trial,
                     |cursor| {
@@ -352,6 +419,7 @@ fn classify_permanent_predicate(
     action_offset: usize,
     bare: bool,
     subject: &PermanentOperandNode,
+    distributive_subject: bool,
     context: &EffectRecognitionContext,
 ) -> Option<PermanentPredicate> {
     // Only `gain` admits the adverb `also` before it.
@@ -359,7 +427,10 @@ fn classify_permanent_predicate(
     if adjacent && !bare && super::combat_clause_starts(subject_end) {
         return Some(PermanentPredicate::Combat);
     }
-    if adjacent && !bare && super::become_types::characteristic_change_verb_starts(subject_end) {
+    let (agreement, number) = characteristic_subject_agreement(subject, distributive_subject, bare);
+    if adjacent
+        && super::become_types::characteristic_change_verb_starts(subject_end, agreement, number)
+    {
         return Some(PermanentPredicate::CharacteristicChange);
     }
     // `deals AMOUNT damage`: claimed when the shared damage clause starts
@@ -431,8 +502,9 @@ fn subject_context_failure(
     let explicit_activation_source_available = matches!(
         subject,
         PermanentOperandNode::Reference(LocalObjectReference::SourceSelf)
-    ) && context.activation_source_availability
-        == ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent;
+    ) && context
+        .activation_source_availability
+        .names_battlefield_source();
     if matches!(subject, PermanentOperandNode::Reference(_))
         && context.source.is_none()
         && !explicit_activation_source_available
@@ -473,6 +545,11 @@ fn recognize_verb_chain_action(
         PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
         other => PermanentOperandNode::BoundReference(other),
     };
+    let agreement = if context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
     let mut trial = cursor.clone();
     let node = if super::combat_clause_starts(cursor) {
         super::recognize_temporary_combat_clause(&mut trial, context.preposed_duration.as_ref())
@@ -484,11 +561,25 @@ fn recognize_verb_chain_action(
                     duration,
                 })
             })
-    } else if super::become_types::characteristic_change_verb_starts(cursor) {
+    } else if super::become_types::possessed_base_power_toughness_starts(cursor) {
+        super::become_types::recognize_possessed_base_power_toughness(
+            &mut trial,
+            subject.clone(),
+            context.preposed_duration.as_ref(),
+        )
+        .map(|fragment| LocalEffectNode::BecomeTypes(fragment.node))
+    } else if super::become_types::characteristic_change_verb_starts(
+        cursor,
+        agreement,
+        super::TypeChangeNumber::Singular,
+    ) {
         super::become_types::recognize_become_types_subject(
             &mut trial,
             |_| Ok(subject.clone()),
+            |cursor| Err(cursor.fail("a copied object read by a subject frame")),
             context.preposed_duration.as_ref(),
+            agreement,
+            super::TypeChangeNumber::Singular,
         )
         .map(|fragment| LocalEffectNode::BecomeTypes(fragment.node))
     } else {
@@ -507,6 +598,123 @@ fn recognize_verb_chain_action(
         }
         Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
     }
+}
+
+/// The verb agreement and grammatical number a characteristic change takes
+/// after this subject: a plural subject and a causative `have` take the base
+/// verb; only a plural subject takes plural type nouns.
+fn characteristic_subject_agreement(
+    subject: &PermanentOperandNode,
+    distributive_subject: bool,
+    bare: bool,
+) -> (VerbAgreement, super::TypeChangeNumber) {
+    // A distributive `each` collection agrees in the singular with its verb
+    // and its type list, although it denotes several permanents.
+    let plural = permanent_operand_is_plural(subject)
+        && !(distributive_subject && matches!(subject, PermanentOperandNode::Collection { .. }));
+    let number = if plural {
+        super::TypeChangeNumber::Plural
+    } else {
+        super::TypeChangeNumber::Singular
+    };
+    let agreement = if bare || number == super::TypeChangeNumber::Plural {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
+    (agreement, number)
+}
+
+/// A sentence whose subject is the proven antecedent: `It's TYPES.` (the
+/// contracted copula) or `Its base power and toughness are P/T.`. `None`
+/// makes no claim.
+fn try_recognize_antecedent_characteristic(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> Option<PermanentActionAttempt> {
+    let possessed = super::become_types::possessed_base_power_toughness_starts(cursor);
+    let contracted = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("it's"))
+        && {
+            let mut after = cursor.clone();
+            after.consume("it's").is_ok()
+                && super::type_change_characteristics_start(
+                    &after,
+                    super::TypeChangeNumber::Singular,
+                )
+        };
+    if !possessed && !contracted {
+        return None;
+    }
+    cursor.enter("permanent-action.antecedent-characteristic");
+    let Some(reference) = super::permanent_subject::proven_permanent_antecedent(context) else {
+        return Some(PermanentActionAttempt::FailedCommitted(
+            cursor.fail("a proven permanent antecedent for `it`"),
+        ));
+    };
+    let subject = match reference {
+        PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
+        other => PermanentOperandNode::BoundReference(other),
+    };
+    let mut trial = cursor.clone();
+    let result = if possessed {
+        super::become_types::recognize_possessed_base_power_toughness(
+            &mut trial,
+            subject,
+            context.preposed_duration.as_ref(),
+        )
+        .map(|fragment| fragment.node)
+    } else {
+        match trial.consume("it's") {
+            Ok(()) => recognize_reference_copula(&mut trial, subject, true, context),
+            Err(failure) => Err(failure),
+        }
+    };
+    Some(match result {
+        Ok(node) => {
+            *cursor = trial;
+            PermanentActionAttempt::Parsed(LocalEffectNode::BecomeTypes(node))
+        }
+        Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+    })
+}
+
+/// `SUBJECT is TYPES [DURATION]` / `it's TYPES`: the type-change
+/// characteristics of a copula, as one characteristic change of the subject
+/// (CR 205.1). Supertypes and `every basic land type` have no resolved
+/// characteristic primitive and fail explicitly.
+fn recognize_reference_copula(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: PermanentOperandNode,
+    contracted: bool,
+    context: &EffectRecognitionContext,
+) -> Result<BecomeTypesNode<PermanentOperandNode>, MachineFailure> {
+    let types =
+        super::recognize_copula_type_change(cursor, super::TypeChangeNumber::Singular, contracted)?;
+    cursor.enter("permanent-action.copula.characteristics");
+    cursor.require(
+        types.supertypes.is_empty() && !types.all_basic_land_types,
+        "card types and subtypes in a resolved copula type change",
+    )?;
+    let mut node = BecomeTypesNode::empty(subject);
+    node.subtypes = types.subtypes;
+    node.card_types = types.card_types;
+    node.retention = types.retention;
+    cursor.enter("permanent-action.copula.duration");
+    node.duration = if context.preposed_duration.is_some()
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("until"))
+    {
+        Some(super::recognize_trailing_or_supplied_duration(
+            cursor,
+            context.preposed_duration.as_ref(),
+        )?)
+    } else {
+        None
+    };
+    Ok(node)
 }
 
 #[cfg(test)]

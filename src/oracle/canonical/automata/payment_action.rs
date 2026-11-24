@@ -6,17 +6,27 @@
 //! PaymentAction := MANA | "{T}"
 //!                | Clause[supplied payer, operand frame]  (`clause.rs`): a
 //!                  lexicon lemma whose frame the cost reads with its child:
-//!                  ResourcePayment (pay MANA | N life), ObjectSelection
+//!                  ResourcePayment (pay MANA | N life | {E}... ),
+//!                  ObjectSelection
 //!                  (tap, untap, sacrifice, discard, exile, reveal, exert),
 //!                  ObjectToZone (return ... to its owner's hand),
 //!                  CountersOn (put N [KIND] counter(s) on CounterHolder),
 //!                  CountersFrom (remove N [KIND] counter(s) from CounterHolder),
 //!                  CardCount (mill N card(s)), KeywordAmount (blight N)
-//! CounterHolder := "this" SOURCE_NOUN | ("a" | "an") QUERY | "among" QUERY
-//! Selection     := "this" SOURCE_NOUN
+//! CounterHolder := SourceRef | ("a" | "an") QUERY | "among" QUERY
+//! Selection     := SourceRef
 //!                | Quantity ["other"] ["untapped"] QUERY ["at" "random"]
-//! Quantity      := "a" | "an" | NUMBER | "another"
+//! SourceRef     := "this" NOUN   (shared source reference reader)
+//!                | "it"          (after an earlier action of the same list
+//!                                 named the source)
+//! Quantity      := "a" | "an" | NUMBER | "X" | "another"
 //! ```
+//!
+//! The quantity slot is the shared numeric atom: a literal or the variable X.
+//! X is never bound here; the cost parent validates that its own ability
+//! declares X (an activation's `{X}` mana cost) and fails binding otherwise.
+//! The source noun names the source through the shared reference reader; the
+//! verb's object domain decides which zone that source is paid from.
 //!
 //! A parent whose payer is not the ability controller states the payer's
 //! agreement (`ActingSubject`); the lexicon supplies the surface (`pays`,
@@ -30,7 +40,9 @@
 //! not targets) and the source zone implied by `this card` actions. A parent
 //! whose engine schema has no representation for an atom fails explicitly in
 //! its own projection instead of approximating it.
-use crate::oracle::characteristic_vocabulary::{AcceptedForms, lookup_permanent_card_type};
+use crate::oracle::characteristic_vocabulary::{
+    AcceptedForms, ObjectDomain, lookup_card_type, lookup_object_domain,
+};
 use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -40,10 +52,11 @@ use super::source_sacrifice::atomic_action::{
 };
 use super::{ArgumentFrame, VerbLemma, recognize_operand_verb};
 use super::{
-    CollectionSelectionMethod, CostConnector, CostSequenceNode, ObjectCardType,
-    ObjectControllerScope, ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode,
-    positive_literal, recognize_counter_name, recognize_mana_cost, recognize_object_query,
-    recognize_pay_life_cost_with_verb, recognize_search_card_selector, recognize_tap_self_cost,
+    CollectionSelectionMethod, CostConnector, CostSequenceNode, NumericAtom, ObjectControllerScope,
+    ObjectKind, ObjectPredicate, ObjectQueryNode, ResourcePaymentNode, positive_literal,
+    positive_quantity, quantity_is_plural, recognize_counter_name, recognize_mana_cost,
+    recognize_object_query, recognize_pay_life_cost_with_verb, recognize_player_counter_payment,
+    recognize_search_card_selector, recognize_source_reference, recognize_tap_self_cost,
 };
 
 /// One ordinary action read in a cost section.
@@ -86,7 +99,7 @@ pub(in crate::oracle::canonical) enum PaymentActionNode {
 /// Counters put on a permanent while paying a cost.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct PutCountersPaymentNode {
-    pub count: i64,
+    pub count: NumericAtom,
     pub counter: CounterName,
     pub holder: CounterHolderNode,
 }
@@ -96,7 +109,7 @@ pub(in crate::oracle::canonical) struct PutCountersPaymentNode {
 /// engine schema represents.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct RemoveCountersPaymentNode {
-    pub count: i64,
+    pub count: NumericAtom,
     /// `None`: counters of any kinds, chosen by the payer while paying.
     pub counter: Option<CounterName>,
     pub holder: CounterHolderNode,
@@ -122,19 +135,25 @@ pub(in crate::oracle::canonical) enum PaymentObjectsNode {
     Chosen(ChosenPaymentObjectsNode),
 }
 
-/// The typed noun confirming the source reference. It is syntax evidence; a
-/// source-only payment acts on the source object itself.
+/// The object domain a source reference names. The shared reference reader
+/// proves the reference; its noun only decides the domain (CR 109.2): a
+/// `card` is the source outside the battlefield, any noun a permanent may
+/// carry (card type, subtype, `permanent`, `token`) is the source permanent.
+/// A source-only payment acts on the source object itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum PaymentSourceNoun {
     TapSymbol,
-    PermanentType(ObjectCardType),
-    Token,
+    /// `this creature`, `this Aura`, `this token`, or `it` after an action
+    /// on the source permanent.
+    Permanent,
+    /// `this card` (a hand, graveyard or library card).
     Card,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ChosenPaymentObjectsNode {
-    pub count: i64,
+    /// The shared numeric atom: a literal or the variable X.
+    pub count: NumericAtom,
     /// `another` / `other`: the source cannot be one of the chosen objects.
     pub exclude_source: bool,
     pub filter: PaymentObjectFilter,
@@ -257,6 +276,59 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
     cursor: &mut OracleTokenCursor<'_>,
     form: ActingSubject,
 ) -> MachineResult<PaymentActionNode> {
+    recognize_listed_payment_action(cursor, form, SourceAntecedent::Absent)
+}
+
+/// Whether an earlier action of the same cost list named the source, so a
+/// later `it` can only be that source (`remove five quest counters from this
+/// enchantment and sacrifice it`). The list owns this scope; a single action
+/// never invents an antecedent.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SourceAntecedent {
+    Absent,
+    Named(PaymentSourceNoun),
+}
+
+impl PaymentActionNode {
+    /// The source object this action names, if any (`{T}` names the source
+    /// permanent too, but is not a noun phrase a pronoun can resume).
+    fn named_source(&self) -> Option<PaymentSourceNoun> {
+        let objects = match self {
+            Self::Tap(objects)
+            | Self::Sacrifice(objects)
+            | Self::Discard(objects)
+            | Self::Untap(objects)
+            | Self::ReturnToHand(objects)
+            | Self::Exert(objects)
+            | Self::Exile { objects, .. }
+            | Self::Reveal { objects, .. } => objects,
+            Self::RemoveCounters(RemoveCountersPaymentNode {
+                holder: CounterHolderNode::Source(noun),
+                ..
+            })
+            | Self::PutCounters(PutCountersPaymentNode {
+                holder: CounterHolderNode::Source(noun),
+                ..
+            }) => return Some(*noun),
+            Self::Pay(_)
+            | Self::Blight { .. }
+            | Self::RemoveCounters(_)
+            | Self::PutCounters(_)
+            | Self::Mill { .. } => return None,
+        };
+        match objects {
+            PaymentObjectsNode::Source(PaymentSourceNoun::TapSymbol)
+            | PaymentObjectsNode::Chosen(_) => None,
+            PaymentObjectsNode::Source(noun) => Some(*noun),
+        }
+    }
+}
+
+fn recognize_listed_payment_action(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: ActingSubject,
+    antecedent: SourceAntecedent,
+) -> MachineResult<PaymentActionNode> {
     cursor.enter("cost.payment.verb");
     let Some(token) = cursor.peek_token() else {
         return Err(cursor.fail("a payment action"));
@@ -289,7 +361,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
     };
     let objects = |cursor: &mut OracleTokenCursor<'_>, verb: PaymentVerb| {
         cursor.enter(verb.operand_state());
-        recognize_payment_objects(cursor, verb)
+        recognize_payment_objects(cursor, verb, antecedent)
     };
     match (lemma, frame) {
         (VerbLemma::Pay, ArgumentFrame::ResourcePayment) => {
@@ -301,6 +373,13 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
                 cursor.enter("cost.payment.pay.mana");
                 recognize_mana_cost(cursor)
                     .map(|mana| PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana)))
+            } else if super::player_counter_payment_starts(cursor) {
+                // CR 107.14: `{E}` is one energy counter; paying it removes
+                // that many energy counters from the payer.
+                cursor.enter("cost.payment.pay.player-counters");
+                recognize_player_counter_payment(cursor).map(|counters| {
+                    PaymentActionNode::Pay(ResourcePaymentNode::PlayerCounters(counters))
+                })
             } else {
                 // The life child reads its own verb in the payer's agreement.
                 cursor.rollback(verb_start);
@@ -329,6 +408,14 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
                 origin.is_some() || matches!(objects, PaymentObjectsNode::Source(_)),
                 "`from your hand` or `from your graveyard` after the exiled cards",
             )?;
+            // A source permanent is exiled from the battlefield: a named
+            // card zone would contradict its noun.
+            cursor.enter("cost.payment.exile.source-domain");
+            cursor.require(
+                !(origin.is_some()
+                    && objects == PaymentObjectsNode::Source(PaymentSourceNoun::Permanent)),
+                "`this card` for a source exiled from a card zone",
+            )?;
             Ok(PaymentActionNode::Exile { objects, origin })
         }
         (VerbLemma::Reveal, _) => {
@@ -345,11 +432,11 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_payment_actio
             Ok(PaymentActionNode::ReturnToHand(objects))
         }
         (VerbLemma::Put, ArgumentFrame::CountersOn) => {
-            recognize_counter_placement(cursor).map(PaymentActionNode::PutCounters)
+            recognize_counter_placement(cursor, antecedent).map(PaymentActionNode::PutCounters)
         }
         (VerbLemma::Remove, ArgumentFrame::CountersFrom) => {
             cursor.enter("action.remove.operand");
-            recognize_counter_removal(cursor).map(PaymentActionNode::RemoveCounters)
+            recognize_counter_removal(cursor, antecedent).map(PaymentActionNode::RemoveCounters)
         }
         (VerbLemma::Mill, ArgumentFrame::CardCount) => {
             cursor.enter("cost.payment.mill.count");
@@ -418,6 +505,12 @@ impl PaymentVerb {
         }
     }
 
+    /// Exile takes a card (`exile this card from your graveyard`) or the
+    /// source permanent (`exile this artifact`); other card verbs take cards.
+    fn admits_permanent_source(self) -> bool {
+        self == Self::Exile
+    }
+
     fn operand_state(self) -> &'static str {
         match self {
             Self::Tap => "action.tap.operand",
@@ -439,36 +532,98 @@ impl PaymentVerb {
 fn recognize_payment_objects(
     cursor: &mut OracleTokenCursor<'_>,
     verb: PaymentVerb,
+    antecedent: SourceAntecedent,
 ) -> MachineResult<PaymentObjectsNode> {
     cursor.enter("cost.payment.selection");
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
-    {
-        cursor.consume("this")?;
-        cursor.enter("cost.payment.source.noun");
-        return recognize_source_noun(cursor, verb.domain()).map(PaymentObjectsNode::Source);
+    if source_object_starts(cursor, antecedent) {
+        return recognize_source_object(
+            cursor,
+            verb.domain(),
+            verb.admits_permanent_source(),
+            antecedent,
+        )
+        .map(PaymentObjectsNode::Source);
     }
     recognize_chosen_objects(cursor, verb).map(PaymentObjectsNode::Chosen)
 }
 
-fn recognize_source_noun(
+fn source_object_starts(cursor: &OracleTokenCursor<'_>, antecedent: SourceAntecedent) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        || (antecedent != SourceAntecedent::Absent
+            && cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("it")))
+}
+
+/// The source of the cost, named by the shared source reference reader
+/// (`this NOUN`) or resumed by `it` after an earlier action of the same list
+/// named it. The noun decides only the object domain; the verb decides
+/// whether that domain is payable (`exile this artifact` exiles the source
+/// permanent, `discard this card` the source card).
+fn recognize_source_object(
     cursor: &mut OracleTokenCursor<'_>,
     domain: OperandDomain,
+    admits_permanent: bool,
+    antecedent: SourceAntecedent,
 ) -> MachineResult<PaymentSourceNoun> {
-    let raw = cursor
+    if cursor
         .peek()
-        .ok_or_else(|| cursor.fail("a source noun after `this`"))?;
-    let noun = match domain {
-        OperandDomain::Card if raw.eq_ignore_ascii_case("card") => PaymentSourceNoun::Card,
-        OperandDomain::Card => return Err(cursor.fail("`card` after `this`")),
-        OperandDomain::Permanent if raw.eq_ignore_ascii_case("token") => PaymentSourceNoun::Token,
-        OperandDomain::Permanent => lookup_permanent_card_type(raw, AcceptedForms::SingularOnly)
-            .map(PaymentSourceNoun::PermanentType)
-            .ok_or_else(|| cursor.fail("a permanent type or `token` after `this`"))?,
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+    {
+        cursor.enter("cost.payment.source.pronoun");
+        let SourceAntecedent::Named(noun) = antecedent else {
+            return Err(cursor.fail("an earlier cost action naming the source for `it`"));
+        };
+        cursor.consume("it")?;
+        return source_noun_in_domain(cursor, noun, domain, admits_permanent);
+    }
+    cursor.enter("cost.payment.source.reference");
+    let noun_raw = cursor.peek_ahead(1).map(str::to_owned);
+    let reference_start = cursor.checkpoint();
+    recognize_source_reference(cursor, &[], None)?;
+    cursor.enter("cost.payment.source.noun");
+    let noun_raw = cursor.require_value(noun_raw, "a source noun after `this`")?;
+    let noun = if lookup_object_domain(&noun_raw, AcceptedForms::SingularOnly)
+        == Some(ObjectDomain::Card)
+    {
+        PaymentSourceNoun::Card
+    } else if lookup_object_domain(&noun_raw, AcceptedForms::SingularOnly)
+        != Some(ObjectDomain::Spell)
+        && !lookup_card_type(&noun_raw, AcceptedForms::SingularOnly)
+            .is_some_and(|kind| !kind.may_appear_on_permanent())
+    {
+        PaymentSourceNoun::Permanent
+    } else {
+        // A spell or a nonpermanent card type never names a payable
+        // battlefield source (CR 110.4a). The refusal is located at the
+        // noun the shared reference reader accepted.
+        cursor.rollback(reference_start);
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.enter("cost.payment.source.noun");
+        return Err(cursor.fail("a source noun naming a permanent or `this card`"));
     };
-    cursor.advance_to(cursor.position() + 1)?;
-    Ok(noun)
+    source_noun_in_domain(cursor, noun, domain, admits_permanent)
+}
+
+fn source_noun_in_domain(
+    cursor: &mut OracleTokenCursor<'_>,
+    noun: PaymentSourceNoun,
+    domain: OperandDomain,
+    admits_permanent: bool,
+) -> MachineResult<PaymentSourceNoun> {
+    cursor.enter("cost.payment.source.domain");
+    match (noun, domain) {
+        (PaymentSourceNoun::Permanent, OperandDomain::Permanent)
+        | (PaymentSourceNoun::Card, OperandDomain::Card) => Ok(noun),
+        // `exile this artifact`: the verb takes cards and permanents.
+        (PaymentSourceNoun::Permanent, OperandDomain::Card) if admits_permanent => Ok(noun),
+        (_, OperandDomain::Card) => Err(cursor.fail("`this card` for this card action")),
+        (_, OperandDomain::Permanent) => {
+            Err(cursor.fail("a source noun naming a permanent for this permanent action"))
+        }
+    }
 }
 
 fn recognize_chosen_objects(
@@ -487,12 +642,9 @@ fn recognize_chosen_objects(
         .is_some_and(|raw| raw.eq_ignore_ascii_case("another"));
     let count = if another {
         cursor.consume("another")?;
-        1
+        NumericAtom::Integer(1)
     } else {
-        positive_literal(
-            cursor,
-            "`a`, `an`, `another` or a positive literal quantity",
-        )?
+        positive_quantity(cursor, "`a`, `an`, `another`, X or a positive quantity")?
     };
     // `two other untapped creatures`: `other` carries the same exclusion.
     let other = !another
@@ -522,7 +674,7 @@ fn recognize_chosen_objects(
             ),
             OperandDomain::Card => {
                 cursor.enter("cost.payment.card-query");
-                let filter = recognize_search_card_selector(cursor, count > 1)?;
+                let filter = recognize_search_card_selector(cursor, quantity_is_plural(count))?;
                 cursor.require(
                     filter.supports_domain(ObjectKind::Card),
                     "a card-domain payment operand",
@@ -610,17 +762,18 @@ fn recognize_permanent_operand(
 /// `N KIND counter(s) on CounterHolder` after `put` (the kind is named).
 fn recognize_counter_placement(
     cursor: &mut OracleTokenCursor<'_>,
+    antecedent: SourceAntecedent,
 ) -> MachineResult<PutCountersPaymentNode> {
     cursor.enter("cost.payment.put.quantity");
-    let count = positive_literal(cursor, "`a`, `an` or a positive literal counter quantity")?;
+    let count = positive_quantity(cursor, "`a`, `an`, X or a positive counter quantity")?;
     cursor.enter("cost.payment.put.kind");
     let counter = recognize_counter_name(cursor)?;
     cursor.enter("cost.payment.put.noun");
-    cursor.consume(if count == 1 { "counter" } else { "counters" })?;
+    cursor.consume(counter_noun(count))?;
     cursor.enter("cost.payment.put.relation");
     cursor.consume("on")?;
     cursor.enter("cost.payment.put.holder");
-    let holder = recognize_counter_holder(cursor)?;
+    let holder = recognize_counter_holder(cursor, antecedent)?;
     cursor.require(
         !matches!(holder, CounterHolderNode::Among(_)),
         "`this PERMANENT` or `a PERMANENT you control` receiving the counters",
@@ -635,9 +788,10 @@ fn recognize_counter_placement(
 /// `Quantity [COUNTER_NAME] counter(s) from CounterHolder` after `remove`.
 fn recognize_counter_removal(
     cursor: &mut OracleTokenCursor<'_>,
+    antecedent: SourceAntecedent,
 ) -> MachineResult<RemoveCountersPaymentNode> {
     cursor.enter("cost.payment.remove.quantity");
-    let count = positive_literal(cursor, "`a`, `an` or a positive literal counter quantity")?;
+    let count = positive_quantity(cursor, "`a`, `an`, X or a positive counter quantity")?;
     cursor.enter("cost.payment.remove.kind");
     let is_counter_noun =
         |raw: &str| raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters");
@@ -647,11 +801,11 @@ fn recognize_counter_removal(
         Some(recognize_counter_name(cursor)?)
     };
     cursor.enter("cost.payment.remove.noun");
-    cursor.consume(if count == 1 { "counter" } else { "counters" })?;
+    cursor.consume(counter_noun(count))?;
     cursor.enter("cost.payment.remove.relation");
     cursor.consume("from")?;
     cursor.enter("cost.payment.remove.holder");
-    let holder = recognize_counter_holder(cursor)?;
+    let holder = recognize_counter_holder(cursor, antecedent)?;
     Ok(RemoveCountersPaymentNode {
         count,
         counter,
@@ -659,20 +813,29 @@ fn recognize_counter_removal(
     })
 }
 
-/// `this PERMANENT` | `a PERMANENT you control` | `among PERMANENTS you control`.
+/// `counter` agrees with a literal one, `counters` with any other quantity.
+fn counter_noun(count: NumericAtom) -> &'static str {
+    if quantity_is_plural(count) {
+        "counters"
+    } else {
+        "counter"
+    }
+}
+
+/// `this PERMANENT` | `it` | `a PERMANENT you control` | `among PERMANENTS you control`.
 fn recognize_counter_holder(
     cursor: &mut OracleTokenCursor<'_>,
+    antecedent: SourceAntecedent,
 ) -> MachineResult<CounterHolderNode> {
+    if source_object_starts(cursor, antecedent) {
+        return recognize_source_object(cursor, OperandDomain::Permanent, false, antecedent)
+            .map(CounterHolderNode::Source);
+    }
     let head = cursor
         .peek()
         .map(str::to_ascii_lowercase)
         .ok_or_else(|| cursor.fail("a counter holder"))?;
     let holder = match head.as_str() {
-        "this" => {
-            cursor.consume("this")?;
-            cursor.enter("cost.payment.source.noun");
-            CounterHolderNode::Source(recognize_source_noun(cursor, OperandDomain::Permanent)?)
-        }
         "a" | "an" => {
             cursor.consume(&head)?;
             CounterHolderNode::One(recognize_permanent_operand(
@@ -747,11 +910,17 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_cost_sequence
     grammar: CostListGrammar,
     form: ActingSubject,
 ) -> MachineResult<CostSequenceNode<PaymentActionNode>> {
-    let mut costs = Vec::new();
+    let mut costs: Vec<PaymentActionNode> = Vec::new();
     let mut connectors = Vec::new();
+    // The list owns pronoun scope: `it` resumes the latest named source.
+    let mut antecedent = SourceAntecedent::Absent;
     cursor.enter("cost.sequence.first");
-    costs.push(recognize_conjugated_payment_action(cursor, form)?);
     loop {
+        let action = recognize_listed_payment_action(cursor, form, antecedent)?;
+        if let Some(noun) = action.named_source() {
+            antecedent = SourceAntecedent::Named(noun);
+        }
+        costs.push(action);
         cursor.enter("cost.sequence.connector");
         let connector = match cursor.peek() {
             Some(",") if grammar.comma => CostConnector::Comma,
@@ -764,7 +933,6 @@ pub(in crate::oracle::canonical::automata) fn recognize_conjugated_cost_sequence
         cursor.advance_to(cursor.position() + 1)?;
         connectors.push(connector);
         cursor.enter("cost.sequence.next");
-        costs.push(recognize_conjugated_payment_action(cursor, form)?);
     }
 }
 

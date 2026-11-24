@@ -226,6 +226,7 @@ pub(in crate::oracle::canonical) fn recognize_support_action(
                     maximum,
                 },
                 exclude_source: permanent_source_available(context),
+                count: None,
             }],
         }),
         counter,

@@ -1,28 +1,21 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{NumericAtom, NumericExpression, ObjectCardType, TapSelfCostNode};
+use super::{NumericAtom, NumericExpression, TapSelfCostNode};
 
-/// A source-sacrifice cost whose Oracle noun explicitly confirms the source's
-/// permanent type or that the source is a token. The noun is retained as typed
-/// syntax even though lowering pays the cost with the source reference itself.
+/// `sacrifice this PERMANENT`: the shared source reference proved the noun
+/// names the source permanent; lowering pays the cost with the source itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum SacrificeSelfSourceNoun {
-    PermanentType(ObjectCardType),
-    Token,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) struct SacrificeSelfCostNode {
-    pub source_type: SacrificeSelfSourceNoun,
-}
+pub(in crate::oracle::canonical) struct SacrificeSelfCostNode;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct DiscardSelfCostNode;
 
-/// The zone an exile-self cost names as the source's location. Only the
-/// graveyard is representable: the cost proves the ability is activated there.
+/// The zone an exile-self cost pays the source from. A card zone named by the
+/// cost proves the ability is activated there; a source permanent
+/// (`exile this artifact`) is exiled from the battlefield.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ExileSelfSourceZone {
     Graveyard,
+    Battlefield,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

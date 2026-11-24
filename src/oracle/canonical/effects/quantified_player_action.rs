@@ -101,7 +101,9 @@ fn lower_quantified_action(
         QuantifiedPlayerAction::Discard(discard) => {
             // Validate declaration availability/bounds before delegating to
             // the existing discard child and its independent random selector.
-            validate_targetless_numeric_expression(&discard.count, declarations)?;
+            if let Some(count) = discard.quantity.count() {
+                validate_targetless_numeric_expression(count, declarations)?;
+            }
             let random_selection = if ordinal == 0 {
                 "quantifiedDiscard".to_string()
             } else {

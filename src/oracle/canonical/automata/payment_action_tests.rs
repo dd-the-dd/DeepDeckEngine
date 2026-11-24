@@ -145,9 +145,18 @@ fn quantity_status_exclusion_and_query_compose_for_every_object_verb() {
         let chosen = chosen(&node);
         assert_eq!(
             (chosen.count, chosen.exclude_source),
-            (count, exclude_source),
+            (NumericAtom::Integer(count), exclude_source),
             "{text}"
         );
+    }
+    // The quantity slot is the shared numeric atom: X is read, not bound.
+    for text in [
+        "sacrifice X Goats",
+        "discard X cards",
+        "tap X untapped artifacts you control",
+    ] {
+        let node = payment(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"));
+        assert_eq!(chosen(&node).count, NumericAtom::VariableX, "{text}");
     }
     assert!(
         chosen(&payment("discard a card").unwrap())
@@ -169,13 +178,24 @@ fn source_references_keep_their_typed_noun_per_object_domain() {
         ),
         (
             "sacrifice this token",
-            PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(PaymentSourceNoun::Token)),
+            PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(PaymentSourceNoun::Permanent)),
         ),
         (
             "sacrifice this creature",
-            PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(
-                PaymentSourceNoun::PermanentType(ObjectCardType::Creature),
-            )),
+            PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(PaymentSourceNoun::Permanent)),
+        ),
+        // The shared source reader names the source by any subtype noun.
+        (
+            "sacrifice this Aura",
+            PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(PaymentSourceNoun::Permanent)),
+        ),
+        // Exile takes the source permanent from the battlefield.
+        (
+            "exile this artifact",
+            PaymentActionNode::Exile {
+                objects: PaymentObjectsNode::Source(PaymentSourceNoun::Permanent),
+                origin: None,
+            },
         ),
         (
             "discard this card",
@@ -200,8 +220,16 @@ fn shared_reader_rejects_targets_unknown_nouns_and_unscoped_exclusions() {
         // A cost selection is never a target (CR 601.2h).
         ("tap target creature you control", "cost.payment.quantity"),
         ("sacrifice target creature", "cost.payment.quantity"),
-        ("sacrifice this contraption", "cost.payment.source.noun"),
-        ("discard this creature", "cost.payment.source.noun"),
+        ("sacrifice this widget", "reference.source.this-object"),
+        ("sacrifice this instant", "cost.payment.source.noun"),
+        ("discard this creature", "cost.payment.source.domain"),
+        ("sacrifice this card", "cost.payment.source.domain"),
+        (
+            "exile this artifact from your graveyard",
+            "cost.payment.exile.source-domain",
+        ),
+        // `it` resumes a source an earlier action of the same list named.
+        ("sacrifice it", "numeric.atom.start"),
         // Without `you control` the payer-controlled scope is not stated.
         ("tap two untapped creatures", "cost.payment.tap.domain"),
         (
@@ -317,9 +345,15 @@ fn resolution_gains_lower_to_the_engine_cost_program_schema() {
 fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
     for (text, state) in [
         ("{1}, Blight 1", "engine.gap.activation-cost-action"),
+        // The activation announces X; a declaration of X chosen objects
+        // still has no engine schema.
         (
-            "{1}, Sacrifice two creatures",
-            "activation.selected-sacrifice.quantity",
+            "{1}, Sacrifice X creatures",
+            "engine.gap.activation-cost-action",
+        ),
+        (
+            "{X}, Sacrifice X creatures",
+            "engine.gap.activation-cost-action",
         ),
         (
             "{1}, Exile a card at random from your graveyard",
@@ -336,6 +370,11 @@ fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
         ),
         (
             "you may sacrifice two creatures. If you do, draw a card.",
+            "cost.resolution.sacrifice.quantity",
+        ),
+        // No announcement binds X in a resolution cost.
+        (
+            "you may sacrifice X creatures. If you do, draw a card.",
             "cost.resolution.sacrifice.quantity",
         ),
         (

@@ -196,6 +196,29 @@ fn claimed_template(tokens: &[RecognizedEntity]) -> Option<&'static LoadedTempla
     })
 }
 
+/// A template keyword written inside a granted keyword list (`gains bushido
+/// 2 and haste`, `has training`): its lexeme length and parameter kind. A
+/// parameterless keyword is followed by the list, not by the end of the line,
+/// so only its lexeme is claimed; a parameterized one must start its
+/// parameter. The caller reads the parameter with the shared children.
+pub(in crate::oracle::canonical) fn template_keyword_atom_head(
+    tokens: &[RecognizedEntity],
+) -> Option<(usize, KeywordTemplateParameter)> {
+    loaded().templates.iter().find_map(|loaded| {
+        let lexeme_matches = tokens.len() >= loaded.lexeme.len()
+            && loaded
+                .lexeme
+                .iter()
+                .zip(tokens)
+                .all(|(word, token)| token.raw.eq_ignore_ascii_case(word));
+        let parameter = loaded.template.parameter;
+        (lexeme_matches
+            && (parameter == KeywordTemplateParameter::None
+                || parameter_starts(parameter, tokens.get(loaded.lexeme.len()))))
+        .then_some((loaded.lexeme.len(), parameter))
+    })
+}
+
 /// Reads a keyword line owned by a template keyword. `None` when no template
 /// keyword claims the line; a claimed line that fails later fails explicitly.
 pub(in crate::oracle::canonical) fn recognize_keyword_template_line(

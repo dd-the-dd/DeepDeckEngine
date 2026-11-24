@@ -548,6 +548,8 @@ impl GameEngine {
                     Some("graveyard") => &player.graveyard,
                     Some("hand") => &player.hand,
                     Some("exile") => &player.exile,
+                    // A search reads its player's library (CR 701.23a).
+                    Some("library") => &player.library,
                     _ => return Err(EngineError::new("unsupported checked query card zone")),
                 }
             };

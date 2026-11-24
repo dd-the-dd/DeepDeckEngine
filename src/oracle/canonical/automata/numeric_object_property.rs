@@ -110,6 +110,63 @@ pub(in crate::oracle::canonical) fn recognize_subject_possessive_property(
     })
 }
 
+/// `its power|toughness|mana value` outside an action frame that supplies a
+/// subject (`create X tokens, where X is its power`): the possessive names
+/// the object the binding environment binds to a bare `it`. A lexical
+/// antecedent of the program wins; otherwise the event's grammatical
+/// subject (`When enchanted creature dies`), whose last known information
+/// answers the read after it left (CR 608.2h). Without either the reader
+/// fails; the pronoun never mints a reference.
+pub(in crate::oracle::canonical) fn environment_possessive_property_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("power")
+                || raw.eq_ignore_ascii_case("toughness")
+                || (raw.eq_ignore_ascii_case("mana")
+                    && cursor
+                        .peek_ahead(2)
+                        .is_some_and(|next| next.eq_ignore_ascii_case("value")))
+        })
+}
+
+pub(in crate::oracle::canonical) fn recognize_environment_possessive_property(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &super::BindingEnvironment,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.possessive.pronoun");
+    cursor.consume("its")?;
+    cursor.enter("numeric.possessive.property");
+    let property = super::recognize_selector_numeric_property(cursor)?;
+    cursor.enter("numeric.possessive.antecedent");
+    // A lexical antecedent of the program (a declared target) keeps the
+    // declared-slot property, validated against its selector on lowering.
+    if let Some(antecedent) = environment.object.as_ref()
+        && let super::PermanentEffectReference::Target(binding) = antecedent.reference
+    {
+        return Ok(match property {
+            super::SelectorNumericProperty::Power => NumericExpression::PowerOf(binding),
+            super::SelectorNumericProperty::ManaValue => NumericExpression::ManaValueOf(binding),
+            super::SelectorNumericProperty::Toughness => {
+                return Err(cursor.fail("a declared-target toughness read with its nominal"));
+            }
+        });
+    }
+    let slot = environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| slot.subject && environment.object.is_none())
+        .ok_or_else(|| cursor.fail("an event subject or a preceding target that `its` names"))?;
+    Ok(NumericExpression::BoundObjectProperty {
+        object: slot.reference,
+        property,
+    })
+}
+
 /// Lexical lookahead for `the sacrificed NOUN's ...`.
 pub(in crate::oracle::canonical) fn sacrificed_cost_object_property_starts(
     cursor: &OracleTokenCursor<'_>,
