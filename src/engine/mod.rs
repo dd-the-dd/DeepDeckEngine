@@ -4865,6 +4865,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     if let Some(supported) = event_model::turned_face_up_event_supported(event) {
         return supported;
     }
+    if let Some(supported) = event_model::became_untapped_event_supported(event) {
+        return supported;
+    }
     // Keyword actions named by a keyword ability (exploit, CR 702.110b).
     if let Some(supported) = keyword_actions::keyword_action_event_supported(event) {
         return supported;

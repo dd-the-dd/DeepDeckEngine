@@ -650,6 +650,15 @@ pub(super) fn turned_face_up_event_supported(event: &Value) -> Option<bool> {
     )
 }
 
+/// `permanentUntapped` of the source (CR 701.26b: a tapped permanent
+/// becomes untapped): `None` for other kinds.
+pub(super) fn became_untapped_event_supported(event: &Value) -> Option<bool> {
+    (value_kind(event) == Some("permanentUntapped")).then(|| {
+        has_only_fields(event, &["kind", "object"])
+            && matches!(value_kind(&event["object"]), Some("self" | "abilitySource"))
+    })
+}
+
 /// Support of a combat-family trigger event; `None` for other families.
 pub(super) fn combat_event_supported(event: &Value) -> Option<bool> {
     combat_event_pattern(event).map(|pattern| pattern.is_ok())
@@ -1412,6 +1421,39 @@ impl GameEngine {
                     )]),
                 );
             }
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+
+    /// Publishes the abilities of a permanent that became untapped (CR
+    /// 701.26b, `whenever this creature becomes untapped`), whatever untapped
+    /// it: the untap step, an effect or another rule. A stun counter that
+    /// replaced the untap is no untap.
+    pub(super) fn publish_became_untapped_observers(&mut self, instance_id: &str) {
+        let Some(source) = self.combat_permanent(instance_id).cloned() else {
+            return;
+        };
+        let rules = self
+            .effective_rules(&source)
+            .iter()
+            .filter(|rule| {
+                triggered_rule_supported(rule)
+                    && triggered_event_variants(&rule["event"])
+                        .iter()
+                        .any(|event| {
+                            value_kind(event) == Some("permanentUntapped")
+                                && matches!(
+                                    value_kind(&event["object"]),
+                                    Some("self" | "abilitySource")
+                                )
+                        })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for rule in rules {
+            self.put_triggered_ability_on_stack(&source, rule);
             if self.check_quantity_failure().is_err() {
                 return;
             }

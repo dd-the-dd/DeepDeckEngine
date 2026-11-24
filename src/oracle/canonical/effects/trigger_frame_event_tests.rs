@@ -201,9 +201,9 @@ fn cycling_and_ordinal_draw_events_reuse_existing_matchers() {
 #[test]
 fn claimed_frames_report_the_furthest_event_failure() {
     for (text, state) in [
-        // No self matcher observes a source becoming untapped.
+        // No per-turn ordinal is recorded for untapping.
         (
-            "Whenever this creature becomes untapped, draw a card.",
+            "Whenever this creature becomes untapped for the first time each turn, draw a card.",
             "engine.gap.event-matcher",
         ),
         // A counterpart with a numeric characteristic is a typed attribute

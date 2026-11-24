@@ -444,11 +444,9 @@ fn lower_source_event_union(
                 SourceEventVerb::TurnedFaceUp => {
                     json!({"kind": "turnedFaceUp", "object": object})
                 }
+                // CR 701.26b: the source becomes untapped, whatever untaps it.
                 SourceEventVerb::BecameUntapped => {
-                    return Err(cursor.engine_gap(
-                        crate::oracle::canonical::engine_gap::EngineGap::EventMatcher,
-                        "a source event with a runtime self matcher (no became-untapped self matcher)",
-                    ));
+                    json!({"kind": "permanentUntapped", "object": object})
                 }
                 // Read only with its counterpart, as an event pattern.
                 SourceEventVerb::Exploited => {
@@ -2029,3 +2027,7 @@ fn lower_fixed_player_event(
 #[cfg(test)]
 #[path = "dealt_damage_event_tests.rs"]
 mod dealt_damage_event_tests;
+
+#[cfg(test)]
+#[path = "trigger_condition_language_tests.rs"]
+mod trigger_condition_language_tests;

@@ -137,15 +137,29 @@ fn unrepresentable_received_damage_events_fail_at_their_own_state() {
             "Whenever one or more players gain life, draw a card.",
             "trigger.program.player-event-support",
         ),
-        // The turn qualifier is read, not swallowed: the damage matcher
-        // has no turn relation, so the event is an explicit engine gap.
+        // The ordinal is read, not swallowed: the damage matcher has no
+        // per-turn ordinal, so the event is an explicit engine gap.
         (
-            "Whenever an opponent is dealt combat damage during your turn, draw a card.",
+            "Whenever an opponent is dealt combat damage for the first time each turn, draw a card.",
             "engine.gap.event-matcher",
         ),
     ] {
         assert_eq!(failure_state(text), state, "{text}");
     }
+}
+
+#[test]
+fn a_turn_owner_on_a_damage_event_is_the_rule_event_condition() {
+    // The damage matcher has no turn relation: whose turn it is is checked
+    // as the event occurs (CR 603.2), never at resolution.
+    let rule = rule("Whenever an opponent is dealt combat damage during your turn, draw a card.")
+        .expect("an event-time condition");
+    assert_eq!(rule["event"]["kind"], "opponentDealtDamage");
+    assert_eq!(
+        rule["eventCondition"],
+        json!({"kind": "duringControllerTurn", "player": controller()})
+    );
+    assert!(rule.get("condition").is_none());
 }
 
 #[test]
