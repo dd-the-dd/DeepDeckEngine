@@ -1168,7 +1168,23 @@ pub(in crate::oracle::canonical) fn elided_controlled_presence_starts(
             return false;
         };
         if raw == "control" {
-            return at(index - 1).as_deref() == Some("you") && determiner(at(index + 1));
+            if !(at(index - 1).as_deref() == Some("you") && determiner(at(index + 1))) {
+                return false;
+            }
+            // The conjunct is only the presence query: a conjunct with its
+            // own verb (`and a creature died this turn`) is another atom.
+            let mut trial = cursor.clone();
+            return controlled_permanent_presence_from(
+                &mut trial,
+                ControlledPermanentPresenceState::Determiner,
+            )
+            .is_ok()
+                && trial.peek().is_none_or(|raw| {
+                    matches!(
+                        raw.to_ascii_lowercase().as_str(),
+                        "," | "." | ";" | "and" | "or"
+                    )
+                });
         }
         if ELLIPSIS_CLAUSE_BOUNDARIES.contains(&raw.as_str()) {
             return false;
