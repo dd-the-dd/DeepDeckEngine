@@ -29,16 +29,6 @@ pub(in crate::oracle::canonical) struct EquipKeywordNode {
     pub quality: Option<ObjectPredicate>,
 }
 
-impl EquipKeywordNode {
-    /// The printed cost when it is exactly one mana payment.
-    pub(in crate::oracle::canonical) fn mana(&self) -> Option<&ManaCostNode> {
-        match self.costs.costs.as_slice() {
-            [LocalActivationCostNode::PayMana(mana)] => Some(mana),
-            _ => None,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EquipState {
     Keyword,

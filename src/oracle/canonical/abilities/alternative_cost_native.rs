@@ -621,12 +621,17 @@ pub(in crate::oracle::canonical) fn parse_casting_keyword(
         node.keyword.lexeme(),
         node.keyword.rules_section()
     );
+    let reminder = if node.reminder {
+        "Validate the printed reminder against the keyword's registered renderings"
+    } else {
+        "No printed reminder"
+    };
     Ok(draft(
         json!({ "kind": "keywordAbility", "source": self_ref(), "ability": ability }),
         &[
             "Recognize a casting keyword lexeme and its parameter from the shared token stream",
             "Read the parameter with the shared count, mana-cost or cost-sequence child",
-            "Validate an optional reminder against the printed parameter",
+            reminder,
             &expansion,
             &trace,
         ],

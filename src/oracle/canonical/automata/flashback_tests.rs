@@ -13,7 +13,11 @@ fn fixed_flashback_cost_borrows_shared_mana_symbols_and_optional_reminder() {
             " (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
         ] {
             let text = format!("Flashback {cost}{suffix}");
-            assert_eq!(parse(&text).unwrap().mana().unwrap().as_oracle_cost(), cost);
+            let node = parse(&text).unwrap();
+            let [LocalActivationCostNode::PayMana(mana)] = node.costs.costs.as_slice() else {
+                panic!("{text}: one mana payment");
+            };
+            assert_eq!(mana.as_oracle_cost(), cost);
         }
     }
 }

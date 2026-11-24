@@ -1,8 +1,7 @@
 //! A keyword envelope around the shared typed cost child, never a spell effect.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ActivationCostSequenceNode, LocalActivationCostNode, ManaCostNode,
-    recognize_activation_cost_sequence,
+    ActivationCostSequenceNode, LocalActivationCostNode, recognize_activation_cost_sequence,
 };
 
 /// `Flashback [cost]` (CR 702.34a). A mana cost follows the keyword; any
@@ -11,16 +10,6 @@ use super::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct FlashbackKeywordNode {
     pub costs: ActivationCostSequenceNode,
-}
-
-impl FlashbackKeywordNode {
-    /// The printed cost when it is exactly one mana payment.
-    pub(in crate::oracle::canonical) fn mana(&self) -> Option<&ManaCostNode> {
-        match self.costs.costs.as_slice() {
-            [LocalActivationCostNode::PayMana(mana)] => Some(mana),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
