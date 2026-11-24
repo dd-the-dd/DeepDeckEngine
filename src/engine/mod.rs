@@ -2331,7 +2331,7 @@ fn card_filter_supported(filter: &Value) -> bool {
         Some("manaCostEquals") => filter["value"]
             .as_str()
             .is_some_and(|value| parse_mana_requirement(value).is_some()),
-        Some("chosenCreatureType" | "chosenCardType" | "chosenColor") => {
+        Some("chosenCreatureType" | "chosenCardType" | "chosenColor" | "chosenCardName") => {
             filter["decisionId"].is_string()
         }
         Some(

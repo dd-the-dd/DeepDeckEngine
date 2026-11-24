@@ -1684,7 +1684,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         // A characteristic choice introduces no object or
                         // player antecedent; earlier antecedents remain.
-                        super::ChoiceDomainNode::CreatureType | super::ChoiceDomainNode::Color => {}
+                        super::ChoiceDomainNode::CreatureType
+                        | super::ChoiceDomainNode::Color
+                        | super::ChoiceDomainNode::CardName(_) => {}
                     }
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect

@@ -89,6 +89,25 @@ fn lower_stored_card_name(predicate: ChosenCardNamePredicateNode) -> Value {
     })
 }
 
+/// `choose a [CHARACTERISTICS] card name` while an effect program resolves
+/// (CR 608.2d, 201.3): the controller names a card whose characteristics
+/// satisfy the shared card predicate. The name is recorded under the
+/// resolution card-name decision that `with the chosen name` reads; the
+/// card-context validator proves one producer and a consumer per rule.
+pub(in crate::oracle::canonical) fn lower_resolution_card_name_choice(
+    domain: &CardNameDomainNode,
+) -> Value {
+    json!({
+        "kind": "chooseCardName",
+        "id": crate::oracle::contextual_binding::RESOLUTION_CARD_NAME_DECISION,
+        "player": controller(),
+        "where": domain
+            .predicate
+            .as_ref()
+            .map_or(Value::Null, lower_card_object_predicate),
+    })
+}
+
 fn trace(cursor: &OracleTokenCursor<'_>) -> String {
     cursor
         .transitions()

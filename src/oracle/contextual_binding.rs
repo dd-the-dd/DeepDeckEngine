@@ -23,6 +23,12 @@ pub(crate) const RESOLUTION_CREATURE_TYPE_DECISION: &str = "resolutionCreatureTy
 /// engine reads it through the `chosenColor` object predicate.
 pub(crate) const RESOLUTION_COLOR_DECISION: &str = "resolutionColor";
 
+/// Decision id of a card name chosen while an effect program resolves (CR
+/// 608.2d). Only a `chooseCardName` step of the same rule produces it; the
+/// engine reads it through the `chosenCardName` object predicate. Distinct
+/// from a name stored on a permanent by an `As ... enters` choice.
+pub(crate) const RESOLUTION_CARD_NAME_DECISION: &str = "resolutionCardName";
+
 /// Stack values bound when a sacrifice cost is paid, keyed by the cost field
 /// that asks the engine to record them (CR 608.2h last known information).
 const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
@@ -111,6 +117,27 @@ pub(crate) fn validate_native_contextual_bindings(
                 span_end: Some(source_span_end),
                 expected: Some(expected.to_string()),
                 found: Some("a chosen color reference".to_string()),
+                trace: Vec::new(),
+                owner: None,
+            });
+            continue;
+        }
+        if let Some((state, expected)) = resolution_card_name_binding_failure(rule) {
+            let source_span_end = ability.source.text.len();
+            ability.status = "unsupported".to_string();
+            ability.rule = None;
+            ability.iterations.clear();
+            ability.diagnostics.push(ParserDiagnostic {
+                code: "oracle_context_binding_failure".to_string(),
+                message: "A card name chosen on resolution needs exactly one producing `choose a card name` step and a consumer of the same rule.".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-context-binding".to_string()),
+                state: Some(state.to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(source_span_end),
+                expected: Some(expected.to_string()),
+                found: Some("a chosen card name reference".to_string()),
                 trace: Vec::new(),
                 owner: None,
             });
@@ -277,6 +304,48 @@ fn produces_resolution_color(value: &Value) -> usize {
         Value::Object(values) => values.values().map(produces_resolution_color).sum(),
         Value::Array(values) => values.iter().map(produces_resolution_color).sum(),
         _ => 0,
+    }
+}
+
+/// Counts the `kind` values carrying `decision_id` under `field`.
+fn count_decision_kind(value: &Value, kind: &str, field: &str, decision_id: &str) -> usize {
+    let own = usize::from(
+        value["kind"].as_str() == Some(kind) && value[field].as_str() == Some(decision_id),
+    );
+    own + match value {
+        Value::Object(values) => values
+            .values()
+            .map(|value| count_decision_kind(value, kind, field, decision_id))
+            .sum(),
+        Value::Array(values) => values
+            .iter()
+            .map(|value| count_decision_kind(value, kind, field, decision_id))
+            .sum(),
+        _ => 0,
+    }
+}
+
+/// CR 608.2d: a card name chosen while the rule resolves is produced once
+/// and read by the same rule. A reference without its producer, or a choice
+/// no instruction reads, is refused rather than executed as a no-op.
+fn resolution_card_name_binding_failure(rule: &Value) -> Option<(&'static str, &'static str)> {
+    let produced = count_decision_kind(rule, "chooseCardName", "id", RESOLUTION_CARD_NAME_DECISION);
+    let read = count_decision_kind(
+        rule,
+        "chosenCardName",
+        "decisionId",
+        RESOLUTION_CARD_NAME_DECISION,
+    );
+    if read > 0 {
+        (produced != 1).then_some((
+            "binding.chosen-card-name.source",
+            "exactly one `choose a card name` action of the same rule",
+        ))
+    } else {
+        (produced > 0).then_some((
+            "binding.chosen-card-name.consumer",
+            "an executable binding consumer of the same rule that reads the chosen card name",
+        ))
     }
 }
 

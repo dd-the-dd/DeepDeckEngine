@@ -118,6 +118,10 @@ fn lower_object_predicate(
             "kind": "nameEquals",
             "value": name,
         })),
+        ObjectPredicate::Relation(ObjectRelation::ChosenName) => Some(json!({
+            "kind": "chosenCardName",
+            "decisionId": crate::oracle::contextual_binding::RESOLUTION_CARD_NAME_DECISION,
+        })),
         ObjectPredicate::Relation(ObjectRelation::DealtDamageToPlayerThisTurn {
             recipient,
             combat_only,

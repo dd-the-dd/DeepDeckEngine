@@ -197,7 +197,9 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
         )),
         LocalEffectNode::Choose(node) => match &node.domain {
-            ChoiceDomainNode::CreatureType | ChoiceDomainNode::Color => previous,
+            ChoiceDomainNode::CreatureType
+            | ChoiceDomainNode::Color
+            | ChoiceDomainNode::CardName(_) => previous,
             ChoiceDomainNode::PermanentTargets(targets) => {
                 Local(singular_permanent_target(targets, effect_index))
             }
