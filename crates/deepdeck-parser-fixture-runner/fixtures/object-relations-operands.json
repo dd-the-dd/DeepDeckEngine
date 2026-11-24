@@ -1,0 +1,567 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-relations-operands/relations-and-counted-operands",
+  "cardName": "Object relations and counted operands",
+  "cases": [
+    {
+      "id": "exact-blastfire-bolt-equipment-attached-to-that-creature",
+      "request": {
+        "cardName": "Blastfire Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{5}{R}",
+        "oracleText": "Blastfire Bolt deals 5 damage to target creature. Destroy all Equipment attached to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/1/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Equipment"
+                    },
+                    {
+                      "kind": "attachedTo",
+                      "object": {
+                        "kind": "chosenTarget",
+                        "id": "targetPermanent"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-auras-attached-to-the-source",
+      "request": {
+        "cardName": "Aura Scrubber Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "{2}, {T}: Destroy all Auras attached to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Aura"
+                    },
+                    {
+                      "kind": "attachedTo",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-query-anchor-auras-attached-to-opponent-creatures",
+      "request": {
+        "cardName": "Aura Purge Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Destroy all Auras attached to creatures your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Aura"
+                    },
+                    {
+                      "kind": "attachedTo",
+                      "object": {
+                        "kind": "eachPermanent",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        },
+                        "player": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-attached-to-creatures-that-entered-this-turn",
+      "request": {
+        "cardName": "Fresh Arrival Purge Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Destroy all Equipment attached to creatures that entered this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Equipment"
+                    },
+                    {
+                      "kind": "attachedTo",
+                      "object": {
+                        "kind": "eachPermanent",
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Creature"
+                            },
+                            {
+                              "kind": "enteredThisTurn"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-elvish-berserker-count-of-creatures-blocking-it",
+      "request": {
+        "cardName": "Elvish Berserker",
+        "typeLine": "Creature — Elf Berserker",
+        "manaCost": "{G}",
+        "oracleText": "Whenever this creature becomes blocked, it gets +1/+1 until end of turn for each creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-battle-scarred-goblin-damage-to-each-creature-blocking-it",
+      "request": {
+        "cardName": "Battle-Scarred Goblin",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever this creature becomes blocked, it deals 1 damage to each creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kemba-count-of-equipment-attached-to-the-named-source",
+      "request": {
+        "cardName": "Kemba, Kha Regent",
+        "typeLine": "Legendary Creature — Cat Cleric",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "At the beginning of your upkeep, create a 2/2 white Cat creature token for each Equipment attached to Kemba.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-blocked-by-the-source",
+      "request": {
+        "cardName": "Net Wall Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{U}",
+        "oracleText": "{2}: Destroy all creatures blocked by this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-share-a-color-with-the-source",
+      "request": {
+        "cardName": "Prism Purge Probe",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{W}",
+        "oracleText": "When this creature enters, destroy all other creatures that share a color with it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-share-without-an-anchor",
+      "request": {
+        "cardName": "Shared Hue Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy all creatures that share a color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-blocking-a-target-is-not-a-bound-anchor",
+      "request": {
+        "cardName": "Blocker Purge Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Destroy each creature blocking target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-sacrificed-anchor-has-no-binding",
+      "request": {
+        "cardName": "Endemic Plague",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature.\nDestroy all creatures that share a creature type with the sacrificed creature. They can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-furious-reprisal-each-of-two-targets",
+      "request": {
+        "cardName": "Furious Reprisal",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Furious Reprisal deals 2 damage to each of two targets.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates",
+                "equals": {
+                  "kind": "anyTarget"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-storm-of-steel-each-of-one-or-two-targets",
+      "request": {
+        "cardName": "Storm of Steel",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Storm of Steel deals 2 damage to each of one or two targets.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-jayas-immolating-inferno-each-of-up-to-three-targets",
+      "request": {
+        "cardName": "Jaya's Immolating Inferno",
+        "typeLine": "Legendary Sorcery",
+        "manaCost": "{X}{R}{R}",
+        "oracleText": "(You may cast a legendary sorcery only if you control a legendary creature or planeswalker.)\nJaya's Immolating Inferno deals X damage to each of up to three targets.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates",
+                "equals": {
+                  "kind": "anyTarget"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-targets-after-a-single-count",
+      "request": {
+        "cardName": "Lone Spark Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Lone Spark Probe deals 2 damage to each of up to one targets.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-many-cards-from-the-top-of-your-library",
+      "request": {
+        "cardName": "Pillage Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{5}{R}",
+        "oracleText": "Whenever this creature deals combat damage to a player, exile that many cards from the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-literal-cards-from-the-top-of-your-library",
+      "request": {
+        "cardName": "Exile Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile two cards from the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cards-from-the-bottom-is-not-the-top-position",
+      "request": {
+        "cardName": "Bottom Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile two cards from the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    }
+  ]
+}

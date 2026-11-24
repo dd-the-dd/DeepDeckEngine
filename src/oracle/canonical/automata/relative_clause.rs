@@ -948,6 +948,17 @@ fn recognize_relation_anchor(
     cursor.enter("selector.relation.anchor");
     if super::bound_object_reference_starts(cursor) {
         let environment = super::installed_binding_environment(cursor);
+        // `X gets +1/+1 for each Aura attached to it`: without a lexical
+        // antecedent, the pronoun names the subject of the clause being read,
+        // which its parent installed (`with_clause_subject`).
+        if environment.object.is_none()
+            && let Some(subject) = environment.subject
+            && cursor.peek().is_some_and(super::is_source_anaphor)
+            && anchor_reference_lowerable(subject)
+        {
+            consume_words(cursor, 1)?;
+            return Ok(RelationAnchor::Object(subject));
+        }
         let reference = super::recognize_bound_object_reference(cursor, &environment)?;
         cursor.enter("selector.relation.anchor.binding");
         cursor.require(
