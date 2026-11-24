@@ -429,6 +429,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("battlefield"));
         let mut owned_zone_only = false;
         let mut origin_library = false;
+        // The grammatical number of the possessor: `your graveyard`, `its
+        // owner's hand` name one zone; `their owners' hands` several. A bare
+        // `their` agrees with either.
+        let mut plural_possessor = Some(false);
         let owner = if !battlefield {
             if trial
                 .peek()
@@ -472,6 +476,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                             .any(|form| raw.eq_ignore_ascii_case(form))
                     })
                     .map(str::to_owned);
+                plural_possessor = match owner.as_deref() {
+                    Some(form) => Some(form.to_ascii_lowercase().starts_with("owners")),
+                    None => None,
+                };
                 match owner {
                     Some(owner) => trial.consume(&owner)?,
                     // `to their hand`, `on top of their library`: a player's
@@ -489,7 +497,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
         };
         trial.enter("collection.destination.zone");
+        let plural_zone = trial.peek().is_some_and(|raw| {
+            ["graveyards", "libraries", "hands"]
+                .iter()
+                .any(|noun| raw.eq_ignore_ascii_case(noun))
+        });
         let zone = recognize_card_zone_atom(&mut trial)?;
+        trial.require(
+            battlefield || plural_possessor.is_none_or(|plural| plural == plural_zone),
+            "a zone noun agreeing in number with its possessor",
+        )?;
         // `return ... to the battlefield` names the same battlefield entry as
         // `put ... onto the battlefield`; `into the battlefield` is not Oracle.
         trial.require(if surface { zone == CardZoneName::Battlefield || (zone == CardZoneName::Library && position.is_some()) } else { (zone != CardZoneName::Battlefield || relation == "to") && position.is_none() }, "on/onto/to the battlefield or a positioned library; into/to an explicitly owned card zone")?;

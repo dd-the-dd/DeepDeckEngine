@@ -50,20 +50,20 @@ fn ability_of(source: CardInstance) -> StackObject {
     }
 }
 
+/// Resolves through the shared resolution-start fixture path: the ability's
+/// source copy adopts its admitted incarnation and declared targets are
+/// checked for legality, as a real resolution does (CR 608.2b).
 fn resolve(engine: &mut GameEngine, effects: &Value, stack_object: &StackObject) {
-    engine
-        .admit_explicit_test_fixture_objects()
-        .expect("fixture objects are admitted");
     let mut decisions = stack_object.decisions.clone();
-    engine
-        .execute_effects(
-            effects,
-            stack_object,
-            &mut BTreeMap::new(),
-            &mut decisions,
-            &mut RandomAi::seeded(5),
-        )
-        .expect("the effects resolve");
+    execute_effects_at_resolution_start(
+        engine,
+        effects,
+        stack_object,
+        &mut BTreeMap::new(),
+        &mut decisions,
+        &mut RandomAi::seeded(5),
+    )
+    .expect("the effects resolve");
 }
 
 fn battlefield_ids(engine: &GameEngine, player: usize) -> Vec<String> {

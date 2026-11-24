@@ -557,31 +557,25 @@ fn recognize_card_copy(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Card
     Ok(CardActionNode::Copy { cards, count })
 }
 
-/// `once` / `twice` / `thrice` / `N times` after an action; absent means
-/// one performance. The number is the shared numeric grammar.
+/// `once` or the shared repetition adjunct (`twice`, `thrice`, `N times`)
+/// after an action; absent means one performance. The adjunct reads its
+/// amount in a view that ends before `times`, which the shared arithmetic
+/// would otherwise read as multiplication.
 fn recognize_repetition_count(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
-    for (word, count) in [("once", 1), ("twice", 2), ("thrice", 3)] {
-        if peek_word(cursor, 0, word) {
-            cursor.consume(word)?;
-            return Ok(NumericExpression::from(count));
-        }
-    }
-    let counted = peek_word(cursor, 1, "times")
-        && cursor.peek().is_some_and(|raw| {
-            raw.eq_ignore_ascii_case("x") || super::super::parse_number_word(raw).is_some()
-        });
-    if !counted {
+    if peek_word(cursor, 0, "once") {
+        cursor.consume("once")?;
         return Ok(NumericExpression::from(1));
     }
-    cursor.enter("card-action.repetition.count");
-    let count = recognize_numeric_expression(cursor, None)?;
+    if !super::repetition_adjunct_starts(cursor) {
+        return Ok(NumericExpression::from(1));
+    }
+    let count = super::recognize_repetition_adjunct(cursor)?;
     if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
+        cursor.enter("card-action.repetition.count");
         cursor.require(*value > 0, "a positive repetition count")?;
     }
-    cursor.enter("card-action.repetition.times");
-    cursor.consume("times")?;
     Ok(count)
 }
 

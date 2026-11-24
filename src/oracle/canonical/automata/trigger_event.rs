@@ -83,6 +83,9 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
         action: AttachedObjectEventAction,
         /// `attacks alone` (CR 506.5); only an attack reads it.
         alone: bool,
+        /// The noun the event wrote for the attached object (`enchanted
+        /// land becomes tapped`): the nominal a later anaphor must follow.
+        nominal: super::TargetNominal,
     },
     /// `equipped|enchanted creature blocks [QUERY]` or `becomes blocked by
     /// QUERY` (CR 509.1a, 509.1h): the block of the attached object, with
@@ -323,16 +326,34 @@ fn recognize_attached_departure(
     }))
 }
 
+/// The registered nominal of an attached permanent noun (`creature`,
+/// `land`, `permanent`).
+fn attached_nominal(
+    cursor: &OracleTokenCursor<'_>,
+    noun: &str,
+) -> MachineResult<super::TargetNominal> {
+    use crate::oracle::characteristic_vocabulary::{
+        CharacteristicLexeme, lookup_object_selector_lexeme,
+    };
+    match lookup_object_selector_lexeme(noun) {
+        Some(CharacteristicLexeme::CardType(value)) => Ok(super::TargetNominal::CardType(value)),
+        Some(CharacteristicLexeme::ObjectDomain(value)) => Ok(super::TargetNominal::Domain(value)),
+        _ => Err(cursor.fail("a registered attached permanent nominal")),
+    }
+}
+
 /// One verb frame of an attached-object event.
 fn recognize_attached_object_predicate(
     cursor: &mut OracleTokenCursor<'_>,
     role: AttachedObjectRole,
     noun: &str,
 ) -> MachineResult<LocalTriggerEventNode> {
+    let nominal = attached_nominal(cursor, noun)?;
     let event = |action: AttachedObjectEventAction| LocalTriggerEventNode::AttachedObjectEvent {
         role,
         action,
         alone: false,
+        nominal,
     };
     cursor.enter("event.attached-object.action");
     // `is tapped for mana` (CR 106.11a): the passive of the `tap` lemma with
@@ -417,6 +438,7 @@ fn recognize_attached_object_predicate(
             role,
             action: AttachedObjectEventAction::Attack,
             alone: super::consume_alone_modifier(cursor)?,
+            nominal,
         });
     }
     if attached_word_at(cursor, 0, "blocks") {

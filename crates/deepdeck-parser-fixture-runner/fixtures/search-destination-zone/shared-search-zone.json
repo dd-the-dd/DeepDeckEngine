@@ -414,7 +414,7 @@
       }
     },
     {
-      "id": "other-owner-not-guessed",
+      "id": "bare-possessive-names-the-found-card-owner",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -424,12 +424,27 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/to",
+                "equals": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "ownerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  }
+                }
+              }
+            ]
           }
         ]
       }
@@ -456,7 +471,7 @@
       }
     },
     {
-      "id": "exile-destination-held",
+      "id": "exile-destination-is-the-shared-card-destination",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -466,18 +481,25 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "exile"
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "unordered-library-destination-held",
+      "id": "library-destination-then-shuffle",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -487,12 +509,23 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "shuffleZone"
+              }
+            ]
           }
         ]
       }

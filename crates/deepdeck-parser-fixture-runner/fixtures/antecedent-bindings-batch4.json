@@ -796,7 +796,7 @@
         "cardName": "Antecedent Probe",
         "typeLine": "Enchantment — Aura",
         "manaCost": "{2}",
-        "oracleText": "Enchant creature\nWhenever enchanted creature becomes tapped, that creature's controller loses 2 life.",
+        "oracleText": "Enchant permanent\nWhenever enchanted permanent becomes tapped, that creature's controller loses 2 life.",
         "layout": "normal",
         "faces": []
       },

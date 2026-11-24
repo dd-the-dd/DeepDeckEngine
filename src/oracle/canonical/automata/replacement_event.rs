@@ -81,8 +81,14 @@ fn recognize_draw_program(
     cursor.enter("replacement.program.draw");
     consume_lemma(cursor, VerbLemma::Draw, VerbAgreement::Base)?;
     cursor.enter("replacement.program.draw.count");
-    let count = match recognize_numeric_atom(cursor)? {
-        NumericAtom::Integer(count) if count >= 2 => count,
+    // The program owns the diagnosis of its count: an article (`draw a card
+    // instead`) is an atom the numeric child may reject at its own state.
+    let mut amount = cursor.clone();
+    let count = match recognize_numeric_atom(&mut amount) {
+        Ok(NumericAtom::Integer(count)) if count >= 2 => {
+            *cursor = amount;
+            count
+        }
         _ => {
             return Err(cursor.fail("a literal number of cards greater than the one replaced draw"));
         }

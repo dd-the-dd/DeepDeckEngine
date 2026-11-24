@@ -251,7 +251,10 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 2
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "effect.add-any-color-mana.mana-noun",
+            "found": "amount"
           }
         ],
         "abilities": [
@@ -686,7 +689,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "replacement.entry-frame.validation"
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "As"
           }
         ]
       }

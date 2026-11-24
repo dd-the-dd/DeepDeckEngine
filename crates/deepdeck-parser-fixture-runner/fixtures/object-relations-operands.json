@@ -509,13 +509,13 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/declaration/decisions/0/candidates",
+                "pointer": "/declaration/decisions/1/candidates",
                 "equals": {
                   "kind": "anyTarget"
                 }
               },
               {
-                "pointer": "/declaration/decisions/0/maximum",
+                "pointer": "/declaration/decisions/1/maximum",
                 "equals": 3
               }
             ]

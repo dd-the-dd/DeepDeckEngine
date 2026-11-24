@@ -157,14 +157,28 @@
         ]
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "You"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/1/duration/kind",
+                "equals": "restOfGame"
+              },
+              {
+                "pointer": "/effects/1/modifiers/0/kind",
+                "equals": "noMaximumHandSize"
+              }
+            ]
           }
         ]
       }

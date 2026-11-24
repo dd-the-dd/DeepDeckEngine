@@ -152,13 +152,13 @@ fn source_name_card_domain_tax_amount_and_mana_exception_are_generic_children() 
 fn claimed_near_misses_fail_in_the_responsible_local_machine() {
     for (text, automaton, state, found) in [
         // The card-name claim is typed on its `card name` head; another head
-        // is owned by the entry-replacement frame, which names the choice
-        // it cannot read (CR 614.12).
+        // is owned by the shared entry frame, which names the stored-choice
+        // domain it cannot read (CR 614.12).
         (
             "As this artifact enters, choose a card title.",
-            "ability-frame",
-            "ability-frame.entry-replacement.modification",
-            "choose",
+            "entry-frame",
+            "replacement.entry-choice.domain",
+            "card",
         ),
         (
             "Spells with the chosen name cost approximately three more to cast.",

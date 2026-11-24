@@ -733,6 +733,30 @@
         "faces": []
       },
       "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "("
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-millikin-mill-cost-without-reminder",
+      "request": {
+        "cardName": "Millikin",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Mill a card: Add {C}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
         "abilities": [

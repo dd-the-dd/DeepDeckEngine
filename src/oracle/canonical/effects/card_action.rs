@@ -265,8 +265,9 @@ impl CardCollectionMemory {
         self.view = Some(found.clone());
         self.view_maximum = maximum;
         self.complement_basis = Some((found.clone(), maximum));
-        self.mention((found.clone(), maximum));
-        self.plural_focus = Some((found, maximum));
+        // The grammatical number of the selection decides whether `it` or
+        // `them` names the found cards: one found card is never `them`.
+        self.mention((found, maximum));
     }
 
     /// The permanent a scalar exile instruction just moved is the observed

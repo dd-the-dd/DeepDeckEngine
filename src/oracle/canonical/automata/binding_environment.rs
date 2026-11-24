@@ -46,13 +46,11 @@ impl EventObjectSlot {
         self.names(&[nominal])
     }
 
-    /// The event's predicate names the nominal; the permanent an Aura
-    /// enchants is named by any one permanent nominal, the kind its enchant
-    /// ability fixes (CR 303.4a), as for a lexical `enchanted` antecedent.
+    /// The event's predicate names the nominal: the event writes the noun of
+    /// an attached object itself (`enchanted land becomes tapped`, `the
+    /// upkeep of enchanted creature's controller`), as a lexical antecedent.
     fn names(&self, nominals: &[TargetNominal]) -> bool {
         predicate_names_nominals(&self.predicate, nominals)
-            || (self.reference == PermanentEffectReference::Attached(AttachedObjectRole::Enchanted)
-                && names_one_permanent_kind(nominals))
     }
 }
 

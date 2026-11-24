@@ -467,24 +467,32 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
         // dealt damage`, `equipped creature deals damage`): the attached
         // reference, live while it is on the battlefield. A death keeps the
         // observed record of the dying permanent its parent binds.
+        // `enchanted land becomes tapped`: the attached object with the
+        // nominal the event wrote for it.
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            role,
+            action:
+                AttachedObjectEventAction::BecomeTapped
+                | AttachedObjectEventAction::BecomeBlocked
+                | AttachedObjectEventAction::TappedForMana,
+            nominal,
+            ..
+        }) => Some(EventObjectSlot {
+            predicate: nominal.as_predicate(),
+            ..attached_event_subject(*role)?
+        }),
+        // Blocks, targeting and damage of an attached object are read only
+        // for an attached creature (`enchanted creature blocks`).
         GenericTriggerEventNode::Local(
-            LocalTriggerEventNode::AttachedObjectEvent {
-                role,
-                action:
-                    AttachedObjectEventAction::BecomeTapped
-                    | AttachedObjectEventAction::BecomeBlocked
-                    | AttachedObjectEventAction::TappedForMana,
-                ..
-            }
-            | LocalTriggerEventNode::AttachedObjectBlock { role, .. }
+            LocalTriggerEventNode::AttachedObjectBlock { role, .. }
             | LocalTriggerEventNode::AttachedObjectTargeted { role, .. }
             | LocalTriggerEventNode::AttachedObjectDealtDamage { role, .. },
-        ) => attached_event_subject(*role),
+        ) => attached_creature_subject(*role),
         GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
             subject: DamageDealer::Attached(role),
             complement,
         }) if !matches!(complement.recipient, Some(DamageRecipient::Permanent(_))) => {
-            attached_event_subject(*role)
+            attached_creature_subject(*role)
         }
         GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
             complement, ..
@@ -571,6 +579,14 @@ fn attached_nominal(role: AttachedObjectRole) -> ObjectPredicate {
         AttachedObjectRole::Equipped => ObjectPredicate::CardType(ObjectCardType::Creature),
         AttachedObjectRole::Enchanted => ObjectPredicate::ObjectKind(ObjectKind::Permanent),
     }
+}
+
+/// The attached creature the event wrote as its subject.
+fn attached_creature_subject(role: AttachedObjectRole) -> Option<EventObjectSlot> {
+    Some(EventObjectSlot {
+        predicate: ObjectPredicate::CardType(ObjectCardType::Creature),
+        ..attached_event_subject(role)?
+    })
 }
 
 /// The attached permanent as the grammatical subject of the event.

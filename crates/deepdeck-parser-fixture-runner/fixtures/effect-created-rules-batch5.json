@@ -395,7 +395,11 @@
               },
               {
                 "pointer": "/effects/1/event/kind",
-                "equals": "oneOf"
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/effects/1/event/where/kind",
+                "equals": "or"
               }
             ]
           }

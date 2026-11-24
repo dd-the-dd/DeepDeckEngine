@@ -1879,6 +1879,7 @@ fn lower_local_event(
             role: _,
             action,
             alone,
+            ..
         } => {
             if *alone && *action != AttachedObjectEventAction::Attack {
                 return Err(engine_gap(

@@ -123,7 +123,9 @@ fn a_graveyard_source_return_enters_with_the_counters_it_names() {
             2_i64,
         ),
     ] {
-        let tokens = recognize_entities(text);
+        // The pipeline resolves counter-name spans before the grammar runs.
+        let mut tokens = recognize_entities(text);
+        crate::oracle::syntax::resolve_counter_name_spans(&mut tokens);
         let mut cursor = OracleTokenCursor::new("move-source-test", &tokens);
         let returned = recognize_source_zone_move_effect(&mut cursor, &[], None, &context)
             .expect("a return with entry counters parses");

@@ -240,7 +240,14 @@ fn inline_lifetime_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
 /// Whether the trigger word is followed by a specialized delayed event: the
 /// controller's next spell or a followed object's departure.
 fn specialized_event_follows(cursor: &OracleTokenCursor<'_>) -> bool {
-    if word_at(cursor, 1, "you") && (word_at(cursor, 2, "next") || word_at(cursor, 2, "cast")) {
+    // `you next cast` / `you cast your next`: the controller's next spell. A
+    // plain `you cast` is a printed cast trigger's event.
+    if word_at(cursor, 1, "you")
+        && (word_at(cursor, 2, "next")
+            || (word_at(cursor, 2, "cast")
+                && word_at(cursor, 3, "your")
+                && word_at(cursor, 4, "next")))
+    {
         return true;
     }
     let mut event = cursor.clone();

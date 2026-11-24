@@ -278,6 +278,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "installRegenerationShield"
             | "installRegenerationShields"
             | "installDeathExileReplacement"
+            | "installLeaveBattlefieldExileReplacement"
             | "installRuleModifier"
             | "installCreatureDeathLifeGainUntilEndOfTurn"
             | "installDamageMultiplier"

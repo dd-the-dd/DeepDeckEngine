@@ -75,13 +75,19 @@ fn return_cost_decodes_only_as_a_chosen_controlled_permanent() {
 
 #[test]
 fn return_cost_offers_the_payers_matching_permanents_and_returns_the_choice() {
-    let (mut engine, source) = position();
+    let (mut engine, mut source) = position();
     let mine = card_instance("p0", &island("mine"), 701);
     let mine_id = mine.instance_id.clone();
     engine.state.players[0].battlefield.push(mine);
     engine.state.players[1]
         .battlefield
         .push(card_instance("p1", &island("theirs"), 702));
+    // Fixture objects enter with admitted incarnations, as a game would give
+    // them; the ability's source copy adopts its permanent's.
+    engine.admit_explicit_test_fixture_objects().unwrap();
+    engine
+        .adopt_fixture_ability_source_identity(&mut source.card)
+        .unwrap();
     let cost = json!({
         "kind":"returnPermanentToOwnersHand",
         "where":{"kind":"subtypeContains","value":"Island"},

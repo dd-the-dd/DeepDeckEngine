@@ -150,6 +150,19 @@ fn recognize_entering_source(
         cursor.consume("this")?;
         return Ok(LocalObjectReference::SourceSelf);
     }
+    // `this TYPE` enters only as a permanent (CR 110.1): a nonpermanent noun
+    // (`this instant`) names no entering object.
+    if word_at(cursor, 0, "this")
+        && let Some(noun) = cursor.peek_ahead(1)
+        && super::positive_object_selector_atom(noun).is_some_and(|predicate| {
+            matches!(
+                &predicate,
+                ObjectPredicate::CardType(card_type) if !card_type.is_permanent_type()
+            ) || predicate == ObjectPredicate::ObjectKind(super::ObjectKind::Spell)
+        })
+    {
+        return Err(cursor.fail("a permanent card type or `permanent` after `this`"));
+    }
     recognize_source_reference(cursor, name_links, name_failure)
 }
 

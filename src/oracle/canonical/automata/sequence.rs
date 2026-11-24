@@ -330,15 +330,30 @@ impl SequenceMemory {
 
     /// Closes the conditional sentence being read at the current action count.
     fn close_conditional_branch(&mut self) {
-        match self.open_branch.take() {
+        let index = match self.open_branch.take() {
             Some(ConditionalBranch::Then(index)) => {
                 self.conditionals[index].then_end = self.effects.len();
                 self.else_candidate = Some(index);
+                index
             }
             Some(ConditionalBranch::Else(index)) => {
                 self.conditionals[index].else_end = Some(self.effects.len());
+                index
             }
-            None => {}
+            None => return,
+        };
+        // A permanent a branch put onto the battlefield exists after the
+        // conditional sentence only if that branch was taken: it is no
+        // antecedent of a later sentence (`If it's a Bison card, you may put
+        // it onto the battlefield. If it's a creature card, ...` still names
+        // the looked-at card).
+        if self.permanent_subject_scope
+            == super::PermanentSubjectScope::Local(Some(super::PermanentEffectReference::Observed(
+                super::TypedObservedEventObject::MovedOntoBattlefield,
+            )))
+            && let Some(snapshot) = self.branch_snapshots.get(index)
+        {
+            self.permanent_subject_scope = snapshot.permanent_subject_scope;
         }
     }
 

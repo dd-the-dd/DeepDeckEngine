@@ -1895,9 +1895,14 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail("exactly one object dealing the damage"),
                     ));
                 };
+                // The permanent the source is attached to (`enchanted creature
+                // deals 1 damage to its owner`) is a live object reference
+                // the runtime resolves; an unattached source deals no damage.
                 cursor.require(
-                    source["kind"].as_str() == Some("chosenTarget"),
-                    "a damage source declared as a target or bound to a declared target",
+                    source["kind"].as_str() == Some("chosenTarget")
+                        || (source["kind"].as_str() == Some("attachedPermanent")
+                            && source["attachment"]["kind"].as_str() == Some("self")),
+                    "a damage source declared as a target, bound to a declared target, or attached to the source",
                 )?;
                 let amount = lower_sequence_bound_amount(
                     cursor,
@@ -2528,8 +2533,20 @@ fn lower_local_effect_sequence_with_collections(
 /// the replaced actions, which it replaces.
 struct ConditionalScopes {
     conditions: Vec<Option<Value>>,
+    /// A condition that reads a target its own branch declares (`destroy
+    /// target creature if it's tapped`): targets are declared at casting
+    /// (CR 601.2c), before any condition is checked, so the condition is
+    /// lowered once its branch's targets are known, with the position-bound
+    /// inputs read where its `If` sentence begins.
+    deferred: Vec<Option<DeferredCondition>>,
     before: Vec<Option<CardCollectionMemory>>,
     after_then: Vec<Option<CardCollectionMemory>>,
+}
+
+/// The inputs of a deferred condition read where its branch begins.
+struct DeferredCondition {
+    card_focus: Option<Value>,
+    previous_action_result: Option<String>,
 }
 
 impl ConditionalScopes {
@@ -2563,6 +2580,7 @@ impl ConditionalScopes {
         let count = sequence.conditionals.len();
         Ok(Self {
             conditions: vec![None; count],
+            deferred: (0..count).map(|_| None).collect(),
             before: vec![None; count],
             after_then: vec![None; count],
         })
@@ -2578,6 +2596,32 @@ impl ConditionalScopes {
         card_targets: &[(TargetBinding, String)],
         mut previous: PreviousActionResult<'_>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
+        for (index, conditional) in sequence.conditionals.iter().enumerate() {
+            if conditional.then_end == effect_index
+                && let Some(deferred) = self.deferred[index].take()
+            {
+                let bindings = ConditionObjectBindings {
+                    permanent_targets,
+                    card_targets,
+                    card_focus: deferred.card_focus,
+                    previous_action_result: deferred.previous_action_result,
+                };
+                let mut condition =
+                    lower_sentence_condition(cursor, &conditional.condition, &bindings)
+                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                bind_action_result_objects(
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    conditional.then_first,
+                    &mut condition,
+                )
+                .map_err(|expected| {
+                    cursor.enter("lower.action-result.condition");
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                self.conditions[index] = Some(condition);
+            }
+        }
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
             if conditional.end() == effect_index {
                 let reference = self.after_then[index]
@@ -2625,15 +2669,31 @@ impl ConditionalScopes {
                     } else {
                         None
                     };
+                let card_focus = collections.singular_focus_object();
                 let bindings = ConditionObjectBindings {
                     permanent_targets,
                     card_targets,
-                    card_focus: collections.singular_focus_object(),
-                    previous_action_result,
+                    card_focus: card_focus.clone(),
+                    previous_action_result: previous_action_result.clone(),
                 };
                 let mut condition =
-                    lower_sentence_condition(cursor, &conditional.condition, &bindings)
-                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                    match lower_sentence_condition(cursor, &conditional.condition, &bindings) {
+                        Ok(condition) => condition,
+                        // The condition may read a target its own branch
+                        // declares; it is lowered again once that branch's
+                        // targets are bound, and fails there if still unbound.
+                        Err(_) if conditional.replaced_first().is_none() => {
+                            self.deferred[index] = Some(DeferredCondition {
+                                card_focus,
+                                previous_action_result,
+                            });
+                            self.before[index] = Some(collections.clone());
+                            continue;
+                        }
+                        Err(failure) => {
+                            return Err(EffectSequenceLoweringFailure::FailedSupport(failure));
+                        }
+                    };
                 // `if a land card was milled this way` reads the action before it.
                 bind_action_result_objects(
                     previous.action_starts,
@@ -2827,7 +2887,8 @@ impl PreviousActionResult<'_> {
             .as_str()
             .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
             || (effect["kind"].as_str() == Some("sacrificePermanents")
-                && effect["count"].as_i64() == Some(1))
+                && (effect["count"].as_i64() == Some(1)
+                    || effect["count"] == json!({ "kind": "integer", "value": 1 })))
     }
 
     /// Binds the result of the instruction before `reader`, which must be

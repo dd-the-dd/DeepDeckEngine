@@ -125,15 +125,12 @@ fn claimed_near_misses_fail_in_the_responsible_local_state() {
             "selector.search-card.predicate",
             Some("hero"),
         ),
+        // The search ends at its selection; its ordinary later actions own
+        // the number agreement of `them` with one found card.
         (
             "Search your library for a Forest card, put them onto the battlefield tapped, then shuffle.",
-            "effect.library-search.result-reference",
-            Some("them"),
-        ),
-        (
-            "Search your library for a Forest card, put it onto the battlefield tapped, shuffle.",
-            "effect.library-search.post-move-shuffle-separator",
-            Some("shuffle"),
+            "lower.card-action.bindings",
+            None,
         ),
     ] {
         let parsed = parse_spell("Test Search", oracle_text);
@@ -149,4 +146,11 @@ fn claimed_near_misses_fail_in_the_responsible_local_state() {
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.found.as_deref(), found);
     }
+    // A comma joins ordinary actions as `and` does (`Draw a card, gain 1
+    // life.`): the bound search's comma-joined shuffle is that coordination.
+    let coordinated = parse_spell(
+        "Test Search",
+        "Search your library for a Forest card, put it onto the battlefield tapped, shuffle.",
+    );
+    assert_eq!(coordinated.abilities[0].status, "canonical");
 }

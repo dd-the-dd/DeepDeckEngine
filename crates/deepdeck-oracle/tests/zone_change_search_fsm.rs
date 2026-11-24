@@ -80,11 +80,6 @@ fn claimed_near_misses_fail_in_the_responsible_child_automaton() {
             "selector.search-card.card-noun",
             Some("hero"),
         ),
-        (
-            "Destroy target creature. Its controller may search their library for a basic land card, put it into their hand, then shuffle.",
-            "sequence.zone-change-search.validation",
-            None,
-        ),
     ] {
         let parsed = parse_spell(oracle_text);
         let ability = &parsed.abilities[0];
@@ -98,6 +93,31 @@ fn claimed_near_misses_fail_in_the_responsible_child_automaton() {
         assert_eq!(diagnostic.state.as_deref(), Some(state), "{oracle_text}");
         assert_eq!(diagnostic.found.as_deref(), found, "{oracle_text}");
     }
+}
+
+/// The battlefield family keeps its destination; another destination is
+/// the general bound search: the departed target's controller (last known
+/// information, CR 608.2h) searches and the found card moves to their hand.
+#[test]
+fn a_hand_destination_is_the_bound_search_of_the_departed_targets_controller() {
+    let parsed = parse_spell(
+        "Destroy target creature. Its controller may search their library for a basic land card, put it into their hand, then shuffle.",
+    );
+    assert_eq!(parsed.status, "canonical", "{parsed:#?}");
+    let rule = parsed.abilities[0].rule.as_ref().expect("bound search");
+    let searcher = json!({
+        "kind": "controllerOf",
+        "object": { "kind": "chosenTarget", "id": "targetPermanent" },
+    });
+    let optional = &rule["effects"][1];
+    assert_eq!(optional["kind"], "optionalEffects");
+    assert_eq!(optional["player"], searcher);
+    let body = optional["effects"].as_array().expect("optional body");
+    assert_eq!(body[0]["kind"], "chooseCards");
+    assert_eq!(body[0]["player"], searcher);
+    assert_eq!(body[1]["kind"], "moveCards");
+    assert_eq!(body[1]["to"], json!({ "kind": "hand", "player": searcher }));
+    assert!(body.iter().any(|effect| effect["kind"] == "shuffleZone"));
 }
 
 #[test]

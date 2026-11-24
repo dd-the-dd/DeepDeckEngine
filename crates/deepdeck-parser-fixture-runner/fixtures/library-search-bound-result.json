@@ -344,37 +344,15 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "abilityCount": 2,
-        "abilities": [
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "activatedAbility",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "chooseCards"
-              },
-              {
-                "pointer": "/effects/1/kind",
-                "equals": "recordLibrarySearch"
-              },
-              {
-                "pointer": "/effects/2/kind",
-                "equals": "moveCards"
-              },
-              {
-                "pointer": "/effects/2/to/kind",
-                "equals": "battlefield"
-              },
-              {
-                "pointer": "/effects/2/bind",
-                "equals": "movedOntoBattlefield"
-              }
-            ]
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "reference.source.start",
+            "found": "a"
           }
         ]
       }

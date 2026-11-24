@@ -346,9 +346,16 @@ fn run_library_search(
                 // `up to X basic land cards, where X is EXPR, put them ...`:
                 // the postposed definition of the count's X directly after
                 // the counted phrase, read by the shared definition child.
+                // The definition is a transactional child: one the shared
+                // child cannot read stays for the sequence, which owns the
+                // postposed `where X` of its actions and its diagnostic.
                 if memory.count.is_some() && super::where_x_definition_starts(cursor) {
-                    cursor.enter("effect.library-search.where-x");
-                    memory.where_x = Some(super::recognize_where_x_definition(cursor)?);
+                    let mut definition = cursor.clone();
+                    definition.enter("effect.library-search.where-x");
+                    if let Ok(expression) = super::recognize_where_x_definition(&mut definition) {
+                        *cursor = definition;
+                        memory.where_x = Some(expression);
+                    }
                 }
                 LibrarySearchState::SelectionComplete
             }
