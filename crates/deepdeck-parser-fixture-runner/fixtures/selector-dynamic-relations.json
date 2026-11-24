@@ -566,6 +566,50 @@
       }
     },
     {
+      "id": "exact-mageta-the-lion-except-for-the-source",
+      "request": {
+        "cardName": "Mageta the Lion",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "{2}{W}{W}, {T}: Destroy all creatures except for Mageta the Lion. Creatures destroyed this way can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-scourglass-except-for-two-card-types",
+      "request": {
+        "cardName": "Scourglass",
+        "typeLine": "Artifact",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "{T}, Sacrifice this artifact: Destroy all permanents except for artifacts and lands. Activate only during your upkeep.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-empty-exclusion-list",
       "request": {
         "cardName": "Empty Exclusion Probe",

@@ -1016,10 +1016,21 @@ fn recognize_object_query_frame(
                     // stays with the parent, with this reason recorded.
                     let mut trial = cursor.clone();
                     match recognize_except_for_list(&mut trial, context) {
-                        Ok(read) => {
+                        Ok((excluded, source))
+                            if source.is_none() || frame.relations.source_exclusion.is_none() =>
+                        {
                             *cursor = trial;
-                            frame.relations.exclusion = Some(read);
+                            frame.relations.exclusion = excluded;
+                            if source.is_some() {
+                                frame.relations.source_exclusion = source;
+                            }
                             ObjectQueryState::ReadPostnominalQualifier
+                        }
+                        Ok(_) => {
+                            cursor.defer_failure(
+                                cursor.fail("one source exclusion for one object query"),
+                            );
+                            ObjectQueryState::Complete
                         }
                         Err(failure) => {
                             cursor.defer_failure(failure);
@@ -2193,17 +2204,33 @@ fn exclusion_list_continues(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
 }
 
 /// `except for ITEM[, ITEM][,] (and|or) ITEM`: the objects excluded from the
-/// set. Each item is a characteristic phrase of the shared object query; an
-/// item with its own player relation, a departure or a source exclusion has
-/// no representation inside the exclusion and fails. An empty list fails.
+/// set. Each item is a characteristic phrase of the shared object query, or
+/// the source itself (`except for Mageta the Lion`), which is the query's
+/// source exclusion (CR 109.5). An item with its own player relation, a
+/// departure or another source exclusion has no representation inside the
+/// exclusion and fails. An empty list fails.
 fn recognize_except_for_list(
     cursor: &mut OracleTokenCursor<'_>,
     context: ObjectQueryContext,
-) -> MachineResult<ReadExclusion> {
+) -> MachineResult<(Option<ReadExclusion>, Option<RelationSite>)> {
     cursor.enter("selector.exclusion.except-for");
     cursor.consume_phrase(&["except", "for"])?;
     let mut items = Vec::new();
+    let mut source = None;
     loop {
+        cursor.enter("selector.exclusion.except-for.source");
+        let names = cursor.source_names().to_vec();
+        let mut trial = cursor.clone();
+        if source.is_none() && super::recognize_source_reference(&mut trial, &names, None).is_ok() {
+            source = Some(relation_site_at(cursor, 0)?);
+            *cursor = trial;
+            cursor.enter("selector.exclusion.except-for.connector");
+            let Some(width) = exclusion_list_continues(cursor) else {
+                break;
+            };
+            cursor.advance_to(cursor.position() + width)?;
+            continue;
+        }
         cursor.enter("selector.exclusion.except-for.item");
         cursor.require(
             coordinated_object_selector_phrase_starts(cursor),
@@ -2232,10 +2259,11 @@ fn recognize_except_for_list(
         cursor.advance_to(cursor.position() + width)?;
     }
     let excluded = match items.len() {
-        1 => items.pop().expect("one excluded item"),
-        _ => SelectorPredicate::Union(items),
+        0 => None,
+        1 => items.pop(),
+        _ => Some(SelectorPredicate::Union(items)),
     };
-    Ok(ReadExclusion { excluded })
+    Ok((excluded.map(|excluded| ReadExclusion { excluded }), source))
 }
 
 /// `that|which is|are|isn't|aren't [not] [a|an] CHARACTERISTIC` and `...
