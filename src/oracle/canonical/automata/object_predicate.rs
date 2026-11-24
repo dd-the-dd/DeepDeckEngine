@@ -345,13 +345,11 @@ impl ObjectQualifier {
         matches!(self, Self::DistinctValues(_) | Self::TotalAtMost { .. })
     }
 
-    /// Whether a declaration-time filter can read it: the history and the
-    /// ranking read the game as the targets are chosen (CR 601.2c), the
-    /// printed atoms never change.
+    /// Whether the atom reads the declared `X` (`with total mana value X or
+    /// less`), which a consumer without that declaration cannot bind.
     pub(in crate::oracle::canonical) fn uses_x(&self) -> bool {
         match self {
             Self::TotalAtMost { maximum, .. } => maximum.uses_x(),
-            Self::Extremum { among, .. } => among.contains_numeric_comparison(),
             _ => false,
         }
     }
