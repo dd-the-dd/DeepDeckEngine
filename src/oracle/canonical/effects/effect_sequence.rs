@@ -1116,6 +1116,33 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                // Listed or chosen kinds: every further placement's own
+                // count, lowered once for all recipients.
+                let further = match &node.kinds {
+                    CounterKindsNode::Single => Vec::new(),
+                    CounterKindsNode::Listed(placements)
+                    | CounterKindsNode::ChosenAmong(placements) => {
+                        cursor.enter("lower.put-counters.kinds");
+                        if recipient_count.is_some() {
+                            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail("one counter kind for a recipient-relative count"),
+                            ));
+                        }
+                        placements
+                            .iter()
+                            .map(|placement| {
+                                lower_sequence_bound_amount(
+                                    cursor,
+                                    &placement.count,
+                                    sequence,
+                                    &target_bindings,
+                                    context,
+                                )
+                                .map(|count| (placement.counter.as_str(), count))
+                            })
+                            .collect::<Result<Vec<_>, _>>()?
+                    }
+                };
                 for object in objects {
                     let count = match recipient_count {
                         Some(counter) => json!({
@@ -1123,7 +1150,31 @@ fn lower_local_effect_sequence_with_collections(
                         }),
                         None => amount.clone(),
                     };
-                    effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
+                    match &node.kinds {
+                        CounterKindsNode::Single => {
+                            effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
+                        }
+                        // CR 122.1: each placement on the same object, in
+                        // the written order.
+                        CounterKindsNode::Listed(_) => {
+                            effects.push(json!({"kind":"putCounters", "permanent":object.clone(), "counter":node.counter.as_str(), "count":count}));
+                            for (counter, count) in &further {
+                                effects.push(json!({"kind":"putCounters", "permanent":object.clone(), "counter":counter, "count":count}));
+                            }
+                        }
+                        // CR 608.2d: the controller chooses one placement
+                        // while the action resolves.
+                        CounterKindsNode::ChosenAmong(_) => {
+                            let mut options =
+                                vec![json!({"counter":node.counter.as_str(), "count":count})];
+                            options.extend(
+                                further.iter().map(
+                                    |(counter, count)| json!({"counter":counter, "count":count}),
+                                ),
+                            );
+                            effects.push(json!({"kind":"putChosenCounters", "permanent":object, "options":options}));
+                        }
+                    }
                 }
             }
             LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
@@ -1843,17 +1894,23 @@ fn lower_local_effect_sequence_with_collections(
                     ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
                     // CR 400.3: the permanent goes to its owner's library.
                     ReferencedPermanentAction::PutOnOwnerLibrary(placement) => {
-                        effects.push(json!({
+                        let mut operation = json!({
                             "kind": "putPermanentOnOwnerLibrary",
                             "permanent": reference,
                             "position": match placement {
-                                OwnerLibraryPlacement::Top => "top",
+                                OwnerLibraryPlacement::Top
+                                | OwnerLibraryPlacement::BeneathTopCards(_) => "top",
                                 OwnerLibraryPlacement::Bottom => "bottom",
                                 OwnerLibraryPlacement::OwnerChoiceTopOrBottom => {
                                     "ownerChoiceTopOrBottom"
                                 }
                             },
-                        }));
+                        });
+                        // `ORDINAL from the top`: the cards that stay above it.
+                        if let OwnerLibraryPlacement::BeneathTopCards(above) = placement {
+                            operation["cardsAbove"] = lower_numeric_atom(above);
+                        }
+                        effects.push(operation);
                         continue;
                     }
                     // CR 701.24a: put into the owner's library, then that

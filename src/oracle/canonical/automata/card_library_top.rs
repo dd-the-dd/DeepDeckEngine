@@ -116,6 +116,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_library_position(
             // The possessive target head is the shared target-list form:
             // the declared player owns the library (CR 115.1, 401.1).
             CardLibraryOwnerNode::TargetPlayer(recognize_possessive_target_player(&mut trial)?)
+        } else if target_owner
+            && let Some(player) = try_recognize_bound_possessive_player(&mut trial)?
+        {
+            // `that player's library` / `defending player's library`: the
+            // player the binding environment names (the event's player, an
+            // earlier declared player) owns the library (CR 401.1). The
+            // shared bound-player resolver reads the possessive head. Like a
+            // declared owner, only a consumer that lowers the owner admits it.
+            trial.enter("collection.library-top.bound-owner");
+            CardLibraryOwnerNode::Player(LocalPlayerReference::Bound(player))
         } else {
             trial.consume("your")?;
             CardLibraryOwnerNode::Player(LocalPlayerReference::Controller)

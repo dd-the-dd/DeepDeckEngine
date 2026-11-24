@@ -16,9 +16,9 @@ use super::{
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
-    recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
-    recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
-    recognize_set_ability_loss_effect, recognize_source_zone_move_effect, recognize_surveil_effect,
+    recognize_ordinary_sacrifice_effect, recognize_quantified_player_action,
+    recognize_referenced_draw_effect, recognize_scry_effect, recognize_set_ability_loss_effect,
+    recognize_source_zone_move_effect, recognize_surveil_effect,
     recognize_target_card_zone_change_effect, recognize_transform_source_effect,
     recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
@@ -2822,8 +2822,7 @@ fn recognize_imperative_frame(
                 .map(LocalEffectNode::PermanentKeywordAction)
         }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
-            super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
-                .map(LocalEffectNode::PutCounters)
+            super::recognize_remove_counters_frame(cursor, name_links, name_failure, context)
         }
         VerbLemma::Put => recognize_put_frame(cursor, inputs),
         VerbLemma::Counter => recognize_counter_effect(cursor),
@@ -2941,8 +2940,18 @@ fn recognize_put_frame(
         return recognize_target_card_zone_change_effect(cursor)
             .map(LocalEffectNode::TargetCardZoneChange);
     }
+    // `put its|those counters on X`: the counters of a bound object.
+    if super::counter_copy_starts(cursor) {
+        return super::recognize_put_object_counters_effect(
+            cursor,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        );
+    }
     if claims_put_counters_effect(cursor) {
-        return recognize_put_counters_effect(
+        // The effect sequence lowers listed and chosen counter kinds.
+        return super::recognize_put_counter_placements_effect(
             cursor,
             inputs.name_links,
             inputs.name_failure,
@@ -2956,6 +2965,34 @@ fn recognize_put_frame(
         && let Ok(effect) = cursor.attempt(super::recognize_zone_change_effect)
     {
         return Ok(effect);
+    }
+    // The object-to-zone frame over one bound object: the source card from
+    // a named card zone onto the battlefield, else the source or a bound
+    // permanent into its owner's library (top, bottom, beneath the top).
+    if source_or_anaphor_reference_starts_at(
+        cursor.position() + 1,
+        cursor.peek_ahead(1),
+        inputs.name_links,
+        inputs.name_failure,
+    ) || super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+    {
+        if super::source_card_origin_follows(cursor) {
+            return recognize_source_zone_move_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::MoveSource);
+        }
+        return super::referenced_permanent_action::recognize_referenced_permanent_action(
+            cursor,
+            super::ReferencedPermanentAction::PutOnOwnerLibrary(super::OwnerLibraryPlacement::Top),
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction);
     }
     recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
 }

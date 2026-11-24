@@ -300,6 +300,13 @@ fn chosen_objects(
                 "objects the caster chooses (a spell's additional cost does not act on the spell)",
             ))
         }
+        PaymentObjectsNode::Designated(_) => {
+            cursor.enter("additional-cost.action.designated");
+            Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::AdditionalCostAction,
+                "objects the caster chooses (a whole hand, a zone's top card or an attached permanent has no casting schema)",
+            ))
+        }
     }
 }
 

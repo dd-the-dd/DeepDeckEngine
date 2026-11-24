@@ -25,6 +25,7 @@ fn source_ir_is_exact_and_collection_reuses_the_same_primitive() {
         counter: crate::oracle::counter_name::CounterName::from_parts(["+1/+1"]).unwrap(),
         count: NumericExpression::from(1),
         direction: Default::default(),
+        kinds: CounterKindsNode::Single,
     });
     let rule = lower_targetless_local_effect(&effect, TargetlessDeclarationSupport::None).unwrap();
     assert_eq!(

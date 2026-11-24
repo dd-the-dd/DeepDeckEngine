@@ -91,9 +91,15 @@ fn admit_context(input: &AbilityInput<'_>) -> Option<EffectProgramContext> {
 }
 
 fn effects_move_source_from_graveyard(sequence: &EffectSequenceNode) -> bool {
+    effects_move_source_from(sequence, SourceZone::Graveyard)
+}
+
+/// An effect moves the ability's source card out of `zone` (`put this card
+/// from your hand onto the battlefield`): the ability is activated there.
+fn effects_move_source_from(sequence: &EffectSequenceNode, zone: SourceZone) -> bool {
     sequence.effects.iter().any(|effect| match effect {
-        LocalEffectNode::MoveSource(movement) => movement.from == SourceZone::Graveyard,
-        LocalEffectNode::OptionalSequence(body) => effects_move_source_from_graveyard(body),
+        LocalEffectNode::MoveSource(movement) => movement.from == zone,
+        LocalEffectNode::OptionalSequence(body) => effects_move_source_from(body, zone),
         _ => false,
     })
 }
@@ -104,7 +110,7 @@ fn activation_zone_from_costs(
     effects: &EffectSequenceNode,
 ) -> MachineResult<Option<&'static str>> {
     let requirements = costs.source_zone_requirements();
-    let needs_hand = requirements.hand;
+    let needs_hand = requirements.hand || effects_move_source_from(effects, SourceZone::Hand);
     let needs_battlefield = requirements.battlefield;
     // An effect that moves the source out of the graveyard can only resolve
     // for an ability activated there, exactly like an exile-self cost.

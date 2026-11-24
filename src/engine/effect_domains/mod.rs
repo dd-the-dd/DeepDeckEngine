@@ -195,6 +195,7 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::DamageCombat),
         Some(
             "putCounters"
+            | "putChosenCounters"
             | "putDividedCounters"
             | "putCountersOnCreaturesOfTargetPlayer"
             | "putSameCountersAs"

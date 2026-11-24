@@ -515,6 +515,37 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             "from": payment_zone(cost.zone),
             "to": { "kind": "exile" },
         }),
+        LocalActivationCostNode::Designated(cost) => lower_designated_activation_cost(cost),
+    }
+}
+
+/// Objects named by place need no declaration: the engine finds them when
+/// the cost is paid and refuses the activation when they are missing (CR
+/// 118.3). The payer is the activating player.
+fn lower_designated_activation_cost(cost: &DesignatedActivationCost) -> Value {
+    match cost {
+        // CR 701.9a: every card in the payer's hand.
+        DesignatedActivationCost::DiscardHand => json!({
+            "kind": "discardHand",
+            "player": controller(),
+        }),
+        DesignatedActivationCost::ExileLibraryTop { count } => json!({
+            "kind": "exileTopLibraryCards",
+            "player": controller(),
+            "count": integer(*count),
+        }),
+        DesignatedActivationCost::ExileGraveyardTop { filter } => json!({
+            "kind": "exileTopMatchingGraveyardCard",
+            "player": controller(),
+            "where": lower_card_object_predicate(filter),
+        }),
+        // CR 301.5a, 303.4a: the permanent the source is attached to.
+        DesignatedActivationCost::TapAttached => json!({
+            "kind": "tapAttachedPermanent",
+        }),
+        DesignatedActivationCost::SacrificeAttached => json!({
+            "kind": "sacrificeAttachedPermanent",
+        }),
     }
 }
 

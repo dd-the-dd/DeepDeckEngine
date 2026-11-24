@@ -42,11 +42,19 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("bind").is_none_or(Value::is_string)
         }
         Some("putPermanentOnOwnerLibrary") => {
-            target_reference_supported(&effect["permanent"])
+            (target_reference_supported(&effect["permanent"])
+                || matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("self" | "abilitySource")
+                ))
                 && matches!(
                     effect["position"].as_str(),
                     Some("top" | "bottom" | "ownerChoiceTopOrBottom")
                 )
+                // CR 401.2: `ORDINAL from the top` keeps N cards above it.
+                && effect.get("cardsAbove").is_none_or(|above| {
+                    effect["position"].as_str() == Some("top") && numeric_expression_supported(above)
+                })
         }
         Some("blinkPermanent") => {
             target_reference_supported(&effect["permanent"])
@@ -288,10 +296,18 @@ impl GameEngine {
                 }
             }
             Some("putPermanentOnOwnerLibrary") => {
-                let Some(TargetRef::Permanent { instance_id }) =
-                    self.resolve_target(&effect["permanent"], stack_object, bindings)
-                else {
-                    return Ok(());
+                let instance_id = match value_kind(&effect["permanent"]) {
+                    // The ability's source permanent (`put this creature on
+                    // top of its owner's library`).
+                    Some("self" | "abilitySource") => stack_object.card.instance_id.clone(),
+                    _ => {
+                        let Some(TargetRef::Permanent { instance_id }) =
+                            self.resolve_target(&effect["permanent"], stack_object, bindings)
+                        else {
+                            return Ok(());
+                        };
+                        instance_id
+                    }
                 };
                 let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
                     return Ok(());
@@ -311,7 +327,28 @@ impl GameEngine {
                 } else {
                     effect["position"].as_str().unwrap_or("top").to_string()
                 };
+                let owner_index = self.player_index(&owner_id)?;
                 self.put_permanent_on_owner_library(&instance_id, &position)?;
+                // `ORDINAL from the top`: the card put on top is moved below
+                // that many cards (CR 401.2). A replacement that sent it
+                // elsewhere leaves nothing to move.
+                if let Some(above) = effect.get("cardsAbove") {
+                    let above = self
+                        .runtime_numeric_expression(above, stack_object, bindings, decisions)
+                        .unwrap_or(0)
+                        .max(0);
+                    let top_is_moved = self.state.players[owner_index]
+                        .library
+                        .last()
+                        .is_some_and(|card| card.instance_id == instance_id);
+                    if top_is_moved && above > 0 {
+                        self.place_library_card_beneath_top(
+                            owner_index,
+                            &instance_id,
+                            usize::try_from(above).unwrap_or(0),
+                        );
+                    }
+                }
             }
             Some("movePermanentsToOwnersLibraries") => {
                 let ids = self

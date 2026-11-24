@@ -231,5 +231,6 @@ pub(in crate::oracle::canonical) fn recognize_support_action(
         }),
         counter,
         count: NumericExpression::from(1),
+        kinds: super::CounterKindsNode::Single,
     })
 }

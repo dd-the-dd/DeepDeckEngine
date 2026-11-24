@@ -465,7 +465,7 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
 /// resolver reads the possessive as its player head over a view of the same
 /// tokens whose possessive role word is the plain noun (equal length,
 /// indices and spans). `None` consumes nothing.
-fn try_recognize_bound_possessive_player(
+pub(in crate::oracle::canonical) fn try_recognize_bound_possessive_player(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<Option<BoundPlayerReference>> {
     let possessive = cursor.peek_ahead(1).is_some_and(|raw| {

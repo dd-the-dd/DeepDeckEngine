@@ -92,6 +92,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                         (player_reference_supported(&effect["to"]["player"])
                             || destination_uses_each_owner(&effect["to"]))
                             && matches!(effect["to"]["position"].as_str(), Some("top" | "bottom"))
+                            // CR 401.2: `ORDINAL from the top` keeps N cards
+                            // above the placed card.
+                            && effect["to"].get("cardsAbove").is_none_or(|above| {
+                                effect["to"]["position"].as_str() == Some("top")
+                                    && numeric_expression_supported(above)
+                            })
                     }
                     Some("exile") => {
                         (player_reference_supported(&effect["to"]["player"])
@@ -485,6 +491,30 @@ impl GameEngine {
                         } else {
                             private_receipts =
                                 self.put_owned_cards_in_owners_private_zones(moved, zone)?;
+                            // `ORDINAL from the top`: each placed card goes
+                            // below that many cards of its owner's library.
+                            if let Some(above) = effect["to"].get("cardsAbove") {
+                                let above = self
+                                    .runtime_numeric_expression(
+                                        above,
+                                        stack_object,
+                                        bindings,
+                                        decisions,
+                                    )
+                                    .unwrap_or(0)
+                                    .max(0);
+                                let above = usize::try_from(above).unwrap_or(0);
+                                for receipt in &private_receipts {
+                                    if receipt.actual_zone == "library" && above > 0 {
+                                        let owner_index = self.player_index(&receipt.owner_id)?;
+                                        self.place_library_card_beneath_top(
+                                            owner_index,
+                                            &receipt.card_id,
+                                            above,
+                                        );
+                                    }
+                                }
+                            }
                         }
                     }
                     "exile" => {

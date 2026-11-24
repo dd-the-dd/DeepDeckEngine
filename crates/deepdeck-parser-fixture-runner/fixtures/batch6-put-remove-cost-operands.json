@@ -1,0 +1,704 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch6/put-remove-cost-operands",
+  "cases": [
+    {
+      "id": "exact-royal-herbalist-exile-top-library-card-cost",
+      "request": {
+        "cardName": "Royal Herbalist",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{W}",
+        "oracleText": "{2}, Exile the top card of your library: You gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-arc-slogger-exile-top-ten-library-cards-cost",
+      "request": {
+        "cardName": "Arc-Slogger",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "{R}, Exile the top ten cards of your library: This creature deals 2 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-necratog-exile-top-creature-graveyard-card-cost",
+      "request": {
+        "cardName": "Necratog",
+        "typeLine": "Creature — Atog",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Exile the top creature card of your graveyard: this creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-zombie-scavengers-exile-top-creature-graveyard-card-cost",
+      "request": {
+        "cardName": "Zombie Scavengers",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{2}{B}",
+        "oracleText": "Exile the top creature card of your graveyard: Regenerate this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-null-brooch-discard-your-hand-cost",
+      "request": {
+        "cardName": "Null Brooch",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{2}, {T}, Discard your hand: Counter target noncreature spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-slate-of-ancestry-discard-your-hand-cost",
+      "request": {
+        "cardName": "Slate of Ancestry",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{4}, {T}, Discard your hand: Draw a card for each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-unexpected-fangs-listed-counter-placements",
+      "request": {
+        "cardName": "Unexpected Fangs",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Put a +1/+1 counter and a lifelink counter on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-gift-of-the-viper-three-listed-counters",
+      "request": {
+        "cardName": "Gift of the Viper",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter, a reach counter, and a deathtouch counter on target creature. Untap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-champion-of-dusan-renew-listed-counters",
+      "request": {
+        "cardName": "Champion of Dusan",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{2}{G}",
+        "oracleText": "Trample\nRenew — {1}{G}, Exile this card from your graveyard: Put a +1/+1 counter and a trample counter on target creature. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-vampire-hexmage-remove-all-counters",
+      "request": {
+        "cardName": "Vampire Hexmage",
+        "typeLine": "Creature — Vampire Shaman",
+        "manaCost": "{B}{B}",
+        "oracleText": "First strike\nSacrifice this creature: Remove all counters from target permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-render-inert-remove-up-to-five-counters",
+      "request": {
+        "cardName": "Render Inert",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Remove up to five counters from target permanent.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-star-pupil-put-its-counters",
+      "request": {
+        "cardName": "Star Pupil",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{W}",
+        "oracleText": "This creature enters with a +1/+1 counter on it.\nWhen this creature dies, put its counters on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-dockworker-drone-put-its-counters",
+      "request": {
+        "cardName": "Dockworker Drone",
+        "typeLine": "Artifact Creature — Robot",
+        "manaCost": "{1}{W}",
+        "oracleText": "This creature enters with a +1/+1 counter on it.\nWhen this creature dies, put its counters on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-chronostutter-second-from-the-top",
+      "request": {
+        "cardName": "Chronostutter",
+        "typeLine": "Instant",
+        "manaCost": "{5}{U}",
+        "oracleText": "Put target creature into its owner's library second from the top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-isolation-at-orthanc-second-from-the-top",
+      "request": {
+        "cardName": "Isolation at Orthanc",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Put target creature into its owner's library second from the top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-lost-to-legend-fourth-from-the-top",
+      "request": {
+        "cardName": "Lost to Legend",
+        "typeLine": "Instant",
+        "manaCost": "{W}{W}",
+        "oracleText": "Put target nonland historic permanent into its owner's library fourth from the top. (Artifacts, legendaries, and Sagas are historic.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-wayward-soul-put-source-on-top-of-library",
+      "request": {
+        "cardName": "Wayward Soul",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\n{U}: Put this creature on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-thalakos-mistfolk-put-source-on-top-of-library",
+      "request": {
+        "cardName": "Thalakos Mistfolk",
+        "typeLine": "Creature — Thalakos Illusion",
+        "manaCost": "{2}{U}",
+        "oracleText": "Shadow (This creature can block or be blocked by only creatures with shadow.)\n{U}: Put this creature on top of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-exile-top-two-library-cards-then-draw",
+      "request": {
+        "cardName": "Synthetic Archive",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}, Exile the top two cards of your library: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-tap-enchanted-creature-cost",
+      "request": {
+        "cardName": "Synthetic Yoke",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant creature you control\nTap enchanted creature: You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-sacrifice-equipped-creature-cost",
+      "request": {
+        "cardName": "Synthetic Harness",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Sacrifice equipped creature: Draw two cards.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-choice-of-two-keyword-counters",
+      "request": {
+        "cardName": "Synthetic Gift",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put your choice of a flying counter or a lifelink counter on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-choice-with-shared-noun",
+      "request": {
+        "cardName": "Synthetic Mentor",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put your choice of a +1/+1, reach, or trample counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-two-plus-one-and-a-trample-counter",
+      "request": {
+        "cardName": "Synthetic Boon",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put two +1/+1 counters and a trample counter on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-remove-any-number-of-counters",
+      "request": {
+        "cardName": "Synthetic Scrub",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Remove any number of counters from target permanent you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-put-its-counters-up-to-one-target",
+      "request": {
+        "cardName": "Synthetic Mentor Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this creature dies, put its counters on up to one target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-artifact-third-from-the-top",
+      "request": {
+        "cardName": "Synthetic Rewind",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Put target artifact into its owner's library third from the top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-source-on-the-bottom-of-library",
+      "request": {
+        "cardName": "Synthetic Drifter",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{U}",
+        "oracleText": "{2}: Put this creature on the bottom of its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-that-players-library-top-card",
+      "request": {
+        "cardName": "Synthetic Raider",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature deals combat damage to a player, exile the top card of that player's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-source-card-from-hand-onto-battlefield",
+      "request": {
+        "cardName": "Synthetic Gatehouse",
+        "typeLine": "Land — Gate",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{3}: Put this card from your hand onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "unused-combination-unexpectedly-absent-beneath-top-x-cards",
+      "request": {
+        "cardName": "Unexpectedly Absent",
+        "typeLine": "Instant",
+        "manaCost": "{X}{W}{W}",
+        "oracleText": "Put target nonland permanent into its owner's library just beneath the top X cards of that library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-dies-put-it-second-from-the-top",
+      "request": {
+        "cardName": "Synthetic Returning God",
+        "typeLine": "Legendary Creature — God",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature dies, you may put it into its owner's library second from the top.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-reverent-hunter-a-number-of-counters-equal-to-devotion",
+      "request": {
+        "cardName": "Reverent Hunter",
+        "typeLine": "Creature — Human Archer",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, put a number of +1/+1 counters on it equal to your devotion to green. (Each {G} in the mana costs of permanents you control counts toward your devotion to green.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-a-number-of-counters-equal-to-before-the-object",
+      "request": {
+        "cardName": "Synthetic Rally",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Put a number of +1/+1 counters equal to the number of creatures you control on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-a-number-of-counters-without-an-amount",
+      "request": {
+        "cardName": "Synthetic Vague Boon",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a number of +1/+1 counters on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-remove-a-counter-without-kind",
+      "request": {
+        "cardName": "Synthetic Eraser",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Remove a counter from target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ordinal-without-from-the-top",
+      "request": {
+        "cardName": "Synthetic Misplacer",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Put target creature into its owner's library fourth.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exile-your-hand-cost",
+      "request": {
+        "cardName": "Synthetic Burner",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Exile your hand: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-bare-or-between-counter-kinds",
+      "request": {
+        "cardName": "Synthetic Armorer",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Put a +0/+1 counter or a +1/+0 counter on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-remove-up-to-x-counters",
+      "request": {
+        "cardName": "Synthetic Parasite",
+        "typeLine": "Instant",
+        "manaCost": "{X}{B}",
+        "oracleText": "Remove up to X counters from target permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-top-card-of-library-with-a-predicate",
+      "request": {
+        "cardName": "Synthetic Seer",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "Exile the top creature card of your library: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
