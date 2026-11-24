@@ -37,6 +37,13 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
         PermanentEffectReference::Attached(_) => {
             Some(json!({"kind":"attachedPermanent","attachment":self_ref()}))
         }
+        // The one object an earlier action of the program selected or moved;
+        // the program lowering binds that action's result under this id
+        // (`resolve_action_result_objects`).
+        PermanentEffectReference::ActionResult(result) => Some(json!({
+            "kind": "singleBoundObject",
+            "binding": action_result_binding(result.effect_index),
+        })),
         PermanentEffectReference::Target(target) => bindings
             .iter()
             .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id))),

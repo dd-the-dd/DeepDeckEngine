@@ -608,7 +608,216 @@ fn permanent_subject_environment(
 ) -> BindingEnvironment {
     let mut environment = BindingEnvironment::for_permanent_context(context);
     environment.objects = installed_binding_environment(cursor).objects;
+    inherit_installed_action_result(&mut environment, cursor);
     environment
+}
+
+/// The one object `effect`, action `effect_index` of its program, selected
+/// or moved on resolution when its selection states exactly one (CR
+/// 608.2c): a permanent sacrificed by choice, a discarded or milled card,
+/// the revealed or exiled top card of a library, a revealed chosen card, or
+/// the card an exile-until stopped at. Its selector is what the selection
+/// guarantees; none of these is still a battlefield permanent afterwards.
+/// Any other action produces no such object.
+pub(in crate::oracle::canonical) fn action_result_object(
+    effect: &LocalEffectNode,
+    effect_index: usize,
+) -> Option<ActionResultObject> {
+    let one = NumericExpression::from(1);
+    let card = || ObjectPredicate::ObjectKind(ObjectKind::Card);
+    let result = |predicate: ObjectPredicate, verb: Option<ActionResultVerb>| ActionResultObject {
+        reference: ActionResultReference {
+            effect_index,
+            permanent: false,
+        },
+        selector: TargetSelector::Object(predicate),
+        number: GrammaticalNumber::Singular,
+        verb,
+    };
+    let moved_verb = |destination: &CardMoveDestinationNode| {
+        (destination.zone == CardZoneName::Exile).then_some(ActionResultVerb::Exiled)
+    };
+    match effect {
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            action: SingularPlayerAction::Sacrifice(sacrifice),
+            ..
+        }) if sacrifice.count == one => Some(result(
+            sacrifice.object.predicate.clone(),
+            Some(ActionResultVerb::Sacrificed),
+        )),
+        LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { object, count })
+            if *count == one =>
+        {
+            Some(result(
+                object.predicate.clone(),
+                Some(ActionResultVerb::Sacrificed),
+            ))
+        }
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            action: SingularPlayerAction::Discard(discard),
+            ..
+        })
+        | LocalEffectNode::DiscardCards(discard)
+            if discard.quantity == DiscardQuantity::Count(one.clone()) =>
+        {
+            Some(result(card(), Some(ActionResultVerb::Discarded)))
+        }
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            action: SingularPlayerAction::Mill(count),
+            ..
+        }) if *count == one => Some(result(card(), Some(ActionResultVerb::Milled))),
+        LocalEffectNode::MillCards(mill) if mill.count == one => {
+            Some(result(card(), Some(ActionResultVerb::Milled)))
+        }
+        LocalEffectNode::CardAction(CardActionNode::Reveal(operand)) => {
+            singular_card_operand(operand).map(|predicate| {
+                result(
+                    predicate.unwrap_or_else(card),
+                    Some(ActionResultVerb::Revealed),
+                )
+            })
+        }
+        LocalEffectNode::CardAction(CardActionNode::Move { cards, destination })
+            if destination.zone != CardZoneName::Battlefield =>
+        {
+            singular_card_operand(cards)
+                .map(|predicate| result(predicate.unwrap_or_else(card), moved_verb(destination)))
+        }
+        // `exile cards from the top of your library until you exile a
+        // nonland card`: the one card the exile stopped at.
+        LocalEffectNode::CardAction(CardActionNode::RevealUntil {
+            quantity,
+            predicate,
+            verb: CardCollectionVerb::Exiled,
+            ..
+        }) if *quantity == one => Some(result(predicate.clone(), Some(ActionResultVerb::Exiled))),
+        // `manifest dread` / `manifest the top card of your library`: the
+        // one card put onto the battlefield face down as a 2/2 creature (CR
+        // 701.40a, 701.62a), still a permanent (`attach this Equipment to
+        // that creature`).
+        LocalEffectNode::ControllerKeywordAction(node)
+            if node.action == ControllerKeywordAction::ManifestDread
+                || (node.action == ControllerKeywordAction::Manifest
+                    && node
+                        .quantity
+                        .as_ref()
+                        .is_none_or(|quantity| *quantity == one)) =>
+        {
+            Some(ActionResultObject {
+                reference: ActionResultReference {
+                    effect_index,
+                    permanent: true,
+                },
+                selector: TargetSelector::Object(ObjectPredicate::CardType(
+                    ObjectCardType::Creature,
+                )),
+                number: GrammaticalNumber::Singular,
+                verb: None,
+            })
+        }
+        // Another player's action produces the same object (`target
+        // opponent reveals a card at random from their hand`).
+        LocalEffectNode::Performed(node) => action_result_object(&node.effect, effect_index),
+        _ => None,
+    }
+}
+
+/// The predicate of a card operand that selects exactly one new card (the
+/// top card of a library, one chosen or random card), `Some(None)` when it
+/// states none. A reference to cards already observed selects nothing new.
+fn singular_card_operand(operand: &CardOperandNode) -> Option<Option<ObjectPredicate>> {
+    let one = NumericExpression::from(1);
+    match operand {
+        CardOperandNode::LibraryTop(top) if top.count == one => Some(None),
+        CardOperandNode::Selection(selection)
+            if selection.quantity == CardSelectionQuantityNode::Exactly(one.clone()) =>
+        {
+            Some(selection.predicate.clone())
+        }
+        CardOperandNode::HiddenChoice(choice)
+            if choice.quantity == CardSelectionQuantityNode::Exactly(one.clone()) =>
+        {
+            Some(Some(choice.predicate.clone()))
+        }
+        _ => None,
+    }
+}
+
+/// True when `effect` neither selects nor moves another object nor declares
+/// one a later anaphor could name instead, so an earlier action result stays
+/// the program's nearest result (CR 608.2c): life changes, mana, draws,
+/// damage and stat changes (whose own declarations are compared by effect
+/// index), and moves or reveals of the cards already observed (`put that
+/// card into your hand`).
+fn keeps_action_result(effect: &LocalEffectNode) -> bool {
+    match effect {
+        LocalEffectNode::GainLife(_)
+        | LocalEffectNode::LoseLife(_)
+        | LocalEffectNode::TargetPlayerLife(_)
+        | LocalEffectNode::AddMana(_)
+        | LocalEffectNode::DrawCards(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::Scry(_)
+        | LocalEffectNode::DealDamage(_)
+        | LocalEffectNode::ModifyStats(_)
+        | LocalEffectNode::TemporaryKeywordGrant(_) => true,
+        LocalEffectNode::PlayerAction(node) => matches!(
+            node.action,
+            SingularPlayerAction::Draw(_)
+                | SingularPlayerAction::Life(_)
+                | SingularPlayerAction::Counters(_)
+                | SingularPlayerAction::Scry(_)
+        ),
+        LocalEffectNode::Performed(node) => keeps_action_result(&node.effect),
+        LocalEffectNode::CardAction(
+            CardActionNode::Reveal(CardOperandNode::Reference(_))
+            | CardActionNode::Move {
+                cards: CardOperandNode::Reference(_),
+                ..
+            },
+        ) => true,
+        _ => false,
+    }
+}
+
+/// True when `reference` is the created tokens and the latest creation of
+/// the program created exactly one token (`Create a token that's a copy of
+/// target creature you control. Sacrifice it at the beginning of the next
+/// end step.`): the one permanent a zone action on `it` names (CR 111.1,
+/// 608.2c). Several created tokens are a set, never `it`.
+pub(in crate::oracle::canonical) fn singular_created_token_antecedent(
+    reference: PermanentEffectReference,
+    effects: &[LocalEffectNode],
+) -> bool {
+    reference == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens)
+        && effects
+            .iter()
+            .rev()
+            .find_map(|effect| match effect {
+                LocalEffectNode::CreateExplicitTokens(node) => Some(node),
+                _ => None,
+            })
+            .is_some_and(|node| {
+                node.additional.is_empty() && node.body.quantity == NumericExpression::from(1)
+            })
+}
+
+/// The action result a reference read after `effects` names: the latest
+/// action that selected or moved exactly one object, when every action
+/// after it keeps it the nearest result (`keeps_action_result`). The
+/// program parent publishes it through the binding environment.
+pub(in crate::oracle::canonical) fn program_action_result(
+    effects: &[LocalEffectNode],
+) -> Option<ActionResultObject> {
+    for (effect_index, effect) in effects.iter().enumerate().rev() {
+        if let Some(result) = action_result_object(effect, effect_index) {
+            return Some(result);
+        }
+        if !keeps_action_result(effect) {
+            return None;
+        }
+    }
+    None
 }
 
 /// The declared selector of one target slot of an ordinary permanent action.
@@ -832,3 +1041,7 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     }
     recognize_permanent_operand(cursor, name_links, name_failure, context.source.as_ref())
 }
+
+#[cfg(test)]
+#[path = "action_result_antecedent_tests.rs"]
+mod action_result_antecedent_tests;

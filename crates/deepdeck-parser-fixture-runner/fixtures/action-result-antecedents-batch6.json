@@ -1,0 +1,353 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "action-result-antecedents-batch6",
+  "cases": [
+    {
+      "id": "tribute-to-hunger-exact-sacrificed-creature-toughness",
+      "request": {
+        "cardName": "Tribute to Hunger",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target opponent sacrifices a creature of their choice. You gain life equal to that creature's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "devour-flesh-exact-then-gains-life",
+      "request": {
+        "cardName": "Devour Flesh",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target player sacrifices a creature of their choice, then gains life equal to that creature's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "twisted-justice-sibling-draw-equal-to-power",
+      "request": {
+        "cardName": "Twisted Justice",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{B}",
+        "oracleText": "Target player sacrifices a creature of their choice. You draw cards equal to that creature's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dark-confidant-exact-revealed-card-possessive",
+      "request": {
+        "cardName": "Dark Confidant",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{B}",
+        "oracleText": "At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "hellhole-rats-exact-discarded-card-genitive",
+      "request": {
+        "cardName": "Hellhole Rats",
+        "typeLine": "Creature — Rat",
+        "manaCost": "{2}{B}{R}",
+        "oracleText": "Haste\nWhen this creature enters, target player discards a card. This creature deals damage to that player equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-milled-card-mana-value",
+      "request": {
+        "cardName": "Mill Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target player mills a card. You gain life equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-discarded-card-feeds-draw",
+      "request": {
+        "cardName": "Discard Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Discard a card. Draw cards equal to that card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "kiki-jiki-exact-single-token-delayed-sacrifice",
+      "request": {
+        "cardName": "Kiki-Jiki, Mirror Breaker",
+        "typeLine": "Legendary Creature — Goblin Shaman",
+        "manaCost": "{2}{R}{R}{R}",
+        "oracleText": "Haste\n{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tidal-wave-exact-described-token-delayed-sacrifice",
+      "request": {
+        "cardName": "Tidal Wave",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Create a 5/5 blue Wall creature token with defender. Sacrifice it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dissection-tools-exact-manifested-creature-attach-recipient",
+      "request": {
+        "cardName": "Dissection Tools",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{5}",
+        "oracleText": "When this Equipment enters, manifest dread, then attach this Equipment to that creature.\nEquipped creature gets +2/+2 and has deathtouch and lifelink.\nEquip—Sacrifice a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          },
+          {
+            "index": 1,
+            "status": "canonical"
+          },
+          {
+            "index": 2,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-manifested-creature-receives-counters",
+      "request": {
+        "cardName": "Manifest Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Manifest dread, then put three +1/+1 counters on that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "dark-tutelage-sibling-reveal-into-hand-possessive",
+      "request": {
+        "cardName": "Dark Tutelage",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of your upkeep, reveal the top card of your library and put that card into your hand. You lose life equal to its mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departed-sacrificed-creature-as-operand",
+      "request": {
+        "cardName": "Operand Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Target player sacrifices a creature of their choice. Tap that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent",
+            "messageContains": "not a permanent any more"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-discarded-card-is-no-creature",
+      "request": {
+        "cardName": "Nominal Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Discard a card. You gain life equal to that creature's toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.genitive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exiled-participle-without-an-exile",
+      "request": {
+        "cardName": "Participle Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. You gain life equal to the exiled card's mana value.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.participle.antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}

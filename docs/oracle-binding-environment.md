@@ -342,6 +342,53 @@ résultat d'action (`that creature's toughness` après un sacrifice,
 `the mana value of the sacrificed permanent` hors sort) ; itération
 `for each land, … that land`.
 
+## Résultat d'action (lot 6)
+
+Un seul producteur publie l'objet unique qu'une action antérieure du même
+programme a sélectionné ou déplacé à la résolution (CR 608.2c) :
+`permanent_subject::action_result_object` (sacrifice choisi d'un objet,
+défausse ou meule d'une carte, carte du dessus révélée ou exilée, carte
+choisie révélée, carte où s'arrête un exil « jusqu'à »), y compris l'action
+d'un autre joueur (`Performed`). `program_action_result` remonte les actions
+lues : seules les actions qui ne produisent ni ne déclarent d'autre objet
+(vie, mana, pioche, dégâts, modificateurs, déplacement ou révélation des
+cartes déjà observées) conservent le résultat ; toute autre action le clôt.
+
+- `BindingEnvironment::result_object` (`ActionResultObject` : action
+  productrice, sélecteur garanti, nombre, verbe) est publié par
+  `publish_program_antecedents` ; `inherit_installed_action_result` le
+  transmet à un environnement construit depuis le contexte.
+- Référence typée `PermanentEffectReference::ActionResult(ActionResultReference
+  { effect_index, permanent })` ; abaissée en `singleBoundObject
+  actionResult:N`.
+- Lecteurs : `that NOUN` (le résultat est l'antécédent le plus proche, sauf
+  une cible déclarée plus tard qui porte le nominal), `its PROPERTY` (avant le
+  sujet de l'événement), `that NOUN's PROPERTY`, `the VERBed NOUN's
+  PROPERTY` (`the sacrificed creature's power` sans sacrifice de résolution
+  garde la lecture du coût). Un résultat qui n'est plus un permanent n'est
+  lisible que pour son information dernière connue : un lecteur d'opérande
+  échoue avec `DEPARTED_ACTION_RESULT_OPERAND` (CR 400.7).
+- Abaissement : `plan_action_result_objects` repère, tant que les actions
+  ont leurs positions écrites, l'action d'enregistrement du producteur
+  (`bind`, sinon marqueur) ou l'ensemble de cartes lié qu'elle lit ;
+  `resolve_action_result_objects`, en fin de séquence (conditions et
+  définitions de X comprises), relie chaque lecteur et retire les marqueurs.
+  Un lecteur sans plan échoue explicitement.
+- Moteur : avant une action qui retire du champ de bataille les permanents
+  qu'elle lie (sacrifice, destruction, exil), un instantané ; après, l'LKI
+  des objets partis est enregistré sous `BINDING#lki`.
+  `bound_object_numeric_read` lit cette LKI, sinon la carte imprimée hors du
+  champ de bataille, sinon 0 quand l'action n'a rien lié.
+- Jeton unique créé : `Sacrifice it at the beginning of the next end step`
+  après une création d'un seul jeton est l'action de zone sur ce jeton
+  (`singular_created_token_antecedent`), lu comme un objet unique.
+
+Restes : résultats lus dans le corps d'un `If you do` / `When you do`
+(le producteur est dans un autre programme) ; carte choisie au hasard
+(`decisionResult`, aucune liaison d'objet) ; coût sacrifié lu en valeur de
+mana (liaison de coût moteur absente) ; lecteur source-ou-anaphore typé
+`LocalObjectReference` (dégâts d'un jeton, `it` d'un cyclage).
+
 ## Suite
 
 0. Restes du lot S2 : promotions `optional_bound_mill`,

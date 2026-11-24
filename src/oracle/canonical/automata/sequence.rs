@@ -985,6 +985,10 @@ fn recognize_effect_sequence_attempt_scoped(
                                     .selector
                                     .as_ref()
                                     .is_some_and(selector_names_permanents))
+                                    || super::permanent_subject::singular_created_token_antecedent(
+                                        antecedent.reference,
+                                        &memory.effects,
+                                    )
                             });
                         if permanent_antecedent {
                             match super::recognize_referenced_permanent_zone_action(

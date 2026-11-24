@@ -31010,6 +31010,9 @@ impl GameEngine {
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
+        if let Some(value) = self.bound_object_numeric_read(expression, bindings, decisions) {
+            return value;
+        }
         if let Some(count) =
             self.runtime_related_permanent_count(expression, stack_object, bindings, decisions)
         {
@@ -33296,6 +33299,7 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         let materialized = self.materialize_resolution_choices(effect, decisions);
         let effect = materialized.as_ref();
+        let bound_lki = self.bound_object_lki_snapshot(effect);
         // One instruction is one simultaneous event (CR 603.2c).
         let scope = self.begin_event_batch();
         let result = self.execute_effect_in_batch(
@@ -33307,6 +33311,7 @@ impl GameEngine {
             provider,
         );
         self.end_event_batch(scope);
+        self.record_bound_object_lki(effect, bound_lki, bindings, decisions);
         result
     }
 

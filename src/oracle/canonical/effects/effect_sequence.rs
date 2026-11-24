@@ -1830,8 +1830,13 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::ReferencedPermanentAction(destroy) => {
                 cursor.enter("lower.destroy-reference.permanent-binding");
-                let reference =
+                let mut reference =
                     lower_bound_permanent_reference(cursor, destroy.object, &target_bindings)?;
+                // The reference names one permanent (`it`, `that NOUN`): the
+                // one token a creation bound is read as that single object.
+                if reference["kind"] == "boundObjects" {
+                    reference["kind"] = json!("singleBoundObject");
+                }
                 let kind = match destroy.action {
                     ReferencedPermanentAction::Destroy => "destroyPermanent",
                     ReferencedPermanentAction::Exile => "exilePermanent",
@@ -2469,6 +2474,7 @@ fn lower_local_effect_sequence_with_collections(
         },
     )?;
     action_starts.push((effects.len(), decisions.len()));
+    let result_object_plans = plan_action_result_objects(sequence, &action_starts, &mut effects);
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
     install_action_result_object_counts(&action_starts, &mut effects).map_err(|expected| {
@@ -2520,6 +2526,10 @@ fn lower_local_effect_sequence_with_collections(
     }
     super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
         .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
+    cursor.enter("lower.action-result.object");
+    resolve_action_result_objects(&result_object_plans, &mut effects).map_err(|expected| {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+    })?;
 
     Ok(LoweredEffectSequence { decisions, effects })
 }
@@ -3597,6 +3607,12 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
     let Some(next) = sequence.effects.get(effect_index + 1) else {
         return false;
     };
+    // `Sacrifice it at the beginning of the next end step`: a zone action
+    // on the one created token.
+    if let LocalEffectNode::ReferencedPermanentAction(node) = next {
+        return node.object
+            == PermanentEffectReference::Observed(TypedObservedEventObject::CreatedTokens);
+    }
     let operands: Vec<&PermanentOperandNode> = match next {
         LocalEffectNode::TemporaryKeywordGrant(node) => vec![&node.objects],
         LocalEffectNode::ModifyStats(node) => vec![&node.targets],
@@ -4057,6 +4073,7 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
                 | TypedObservedEventObject::CombatCounterpart,
             ) => true,
             PermanentEffectReference::Observed(_) => false,
+            PermanentEffectReference::ActionResult(result) => result.permanent,
         },
     }
 }
