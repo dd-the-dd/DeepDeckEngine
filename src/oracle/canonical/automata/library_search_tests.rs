@@ -384,3 +384,20 @@ fn a_search_action_keeps_selection_failures_explicit() {
         assert_eq!(failure.state, state, "{text}: {failure:?}");
     }
 }
+
+/// `in any order` after a library-top placement orders several cards only.
+#[test]
+fn a_library_top_order_needs_several_found_cards() {
+    let (search, trailing) = parse(
+        "Search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+    );
+    assert_eq!(search.destination, SearchDestination::LibraryTop);
+    assert_eq!(trailing, ".");
+
+    let tokens = recognize_entities(
+        "Search your library for a card, then shuffle and put that card on top in any order.",
+    );
+    let mut cursor = OracleTokenCursor::new("search-top-order-near-miss", &tokens);
+    let failure = recognize_controller_library_search(&mut cursor).expect_err("one card");
+    assert_eq!(failure.state, "effect.library-search.top-order");
+}

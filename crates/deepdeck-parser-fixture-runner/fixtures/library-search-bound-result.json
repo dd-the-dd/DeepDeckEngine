@@ -660,6 +660,122 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-goblin-recruiter-ordered-top-placement",
+      "request": {
+        "cardName": "Goblin Recruiter",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/maximum/kind",
+                "equals": "countObjects"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "chooseOrder"
+              },
+              {
+                "pointer": "/effects/4/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/4/to/position",
+                "equals": "top"
+              },
+              {
+                "pointer": "/effects/4/order/kind",
+                "equals": "decisionOrder"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ghost-quarter-target-controller-searches",
+      "request": {
+        "cardName": "Ghost Quarter",
+        "typeLine": "Land",
+        "manaCost": null,
+        "oracleText": "{T}: Add {C}.\n{T}, Sacrifice this land: Destroy target land. Its controller may search their library for a basic land card, put it onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/effects/1/player/object/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/effects/0/candidates/zone/player/kind",
+                "equals": "controllerOf"
+              },
+              {
+                "pointer": "/effects/1/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/effects/2/kind",
+                "equals": "shuffleZone"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

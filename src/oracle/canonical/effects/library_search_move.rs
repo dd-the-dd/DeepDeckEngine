@@ -136,14 +136,34 @@ fn lower_search_effects(
         }
         SearchShuffleOrder::ShuffleThenMove => {
             let mut effects = found(&search.origin.zones);
-            effects.extend([
-                json!({
-                    "kind": "shuffleZone",
-                    "zone": library(holder.clone()),
-                    "excludeCards": found_cards.clone(),
-                }),
-                move_effect,
-            ]);
+            effects.push(json!({
+                "kind": "shuffleZone",
+                "zone": library(holder.clone()),
+                "excludeCards": found_cards.clone(),
+            }));
+            // CR 401.4: several cards put on top of one library at once are
+            // ordered by their owner, the searcher of its own library.
+            let several = !search.slots.is_empty() || search.count.is_some() || search.maximum > 1;
+            if search.destination == SearchDestination::LibraryTop && several {
+                cursor.enter("lower.library-search.top-order");
+                cursor.require(
+                    search.origin.holder == SearchedPlayer::Searcher,
+                    "the searcher's own library for an ordered library-top placement",
+                )?;
+                let order = format!("{binding}/order");
+                effects.push(json!({
+                    "kind": "chooseOrder",
+                    "id": order,
+                    "player": player.clone(),
+                    "objects": found_cards.clone(),
+                }));
+                let mut ordered = move_effect;
+                ordered["cards"] = decision_result(&order);
+                ordered["order"] = json!({"kind": "decisionOrder", "decisionId": order});
+                effects.push(ordered);
+            } else {
+                effects.push(move_effect);
+            }
             effects
         }
         // The holder's own later instruction shuffles.
@@ -251,6 +271,30 @@ fn search_found_maximum(search: &LibrarySearchEffectNode) -> Option<i64> {
             }
             _ => None,
         },
+    }
+}
+
+/// The player a `PLAYER may search their library ...` permission names:
+/// the controller, the controller of a target this program declared earlier
+/// (`Destroy target land. Its controller may search ...`, read by last known
+/// information once it left, CR 608.2h), or a player the binding
+/// environment bound (`That player may search ...`). `None` for any other
+/// reference: it has no lowering here and the caller fails explicitly.
+pub(in crate::oracle::canonical) fn optional_search_player(
+    search: &LibrarySearchEffectNode,
+    target_bindings: &[(TargetBinding, String)],
+    player_bindings: &[(PlayerTargetBinding, String)],
+) -> Option<Value> {
+    match search.player {
+        LocalPlayerReference::Controller => Some(controller()),
+        LocalPlayerReference::ControllerOf(binding) => target_bindings
+            .iter()
+            .find(|(declared, _)| *declared == binding)
+            .map(|(_, id)| json!({"kind": "controllerOf", "object": chosen_target(id)})),
+        LocalPlayerReference::Bound(reference) => {
+            bound_player_reference_value(reference, target_bindings, player_bindings)
+        }
+        LocalPlayerReference::ControllerOfQualified(_) => None,
     }
 }
 

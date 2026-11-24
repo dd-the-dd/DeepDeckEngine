@@ -158,3 +158,34 @@ fn a_bound_search_lowers_its_choice_without_a_move_or_shuffle() {
             .all(|effect| effect["kind"] != "shuffleZone" && effect["kind"] != "moveCards")
     );
 }
+
+/// Goblin Recruiter: several found cards put on top after the shuffle are
+/// ordered by the searcher (CR 401.4); one card needs no order.
+#[test]
+fn several_cards_put_on_top_after_the_shuffle_are_ordered() {
+    let effects = lower(
+        "Search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+    );
+    let kinds = effects
+        .iter()
+        .map(|effect| effect["kind"].as_str().unwrap_or_default())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        kinds,
+        [
+            "chooseCards",
+            "revealCards",
+            "shuffleZone",
+            "chooseOrder",
+            "moveCards",
+            "recordLibrarySearch"
+        ]
+    );
+    assert_eq!(effects[3]["objects"]["decisionId"], "searchedCards");
+    assert_eq!(effects[4]["cards"]["decisionId"], "searchedCards/order");
+    assert_eq!(effects[4]["order"]["kind"], "decisionOrder");
+    assert_eq!(effects[4]["to"]["position"], "top");
+
+    let single = lower("Search your library for a card, then shuffle and put that card on top.");
+    assert!(single.iter().all(|effect| effect["kind"] != "chooseOrder"));
+}

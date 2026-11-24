@@ -565,6 +565,24 @@ fn run_library_search(
                         memory.shuffle_order == Some(SearchShuffleOrder::ShuffleThenMove),
                         "a library-top move after shuffling the searched library",
                     )?;
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
+                    {
+                        // `put those cards on top in any order`: the searcher
+                        // orders the cards put on its own library (CR 401.4);
+                        // the lowering orders every plural placement.
+                        cursor.enter("effect.library-search.top-order");
+                        cursor.require(
+                            memory
+                                .cardinality
+                                .expect("recognized search cardinality")
+                                .maximum
+                                != 1,
+                            "an order only for several cards put on top",
+                        )?;
+                        cursor.consume_phrase(&["in", "any", "order"])?;
+                    }
                     memory.destination = Some(SearchDestination::LibraryTop);
                     LibrarySearchState::Complete
                 }
