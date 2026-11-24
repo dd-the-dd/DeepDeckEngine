@@ -1866,6 +1866,10 @@ pub(super) enum SearchShuffleOrder {
     /// The searched player's own later instruction shuffles (`Then that
     /// player shuffles.`); the search itself does not.
     ByHolderInstruction,
+    /// `If you search your library this way, shuffle.` after a search of
+    /// the library and other zones: the searcher chooses whether the
+    /// library is searched, and only then is it shuffled (CR 701.23a).
+    IfLibrarySearched,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -185,6 +185,7 @@ mod object_identity_initialization;
 #[cfg(test)]
 mod object_identity_test_setup;
 mod object_predicate;
+mod object_predicate_eval;
 mod object_snapshot;
 mod one_shot_modifier;
 mod optional_action;
@@ -2395,6 +2396,7 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "isAttacking"
             | "isAttackingAlone"
             | "isUnblockedAttacker"
+            | "isBlocked"
             | "isBlocking"
             | "isEquipped"
             | "isModified"
@@ -5249,7 +5251,8 @@ fn filter_reads_object_history(filter: &Value) -> bool {
             | "dealtDamageThisTurn"
             | "wasDealtDamageThisTurn"
             | "dealtDamageToControllerThisTurn"
-            | "dealtDamageToPlayerThisTurn",
+            | "dealtDamageToPlayerThisTurn"
+            | "isBlocked",
         ) => true,
         Some("and" | "or") => filter["operands"]
             .as_array()
@@ -10934,18 +10937,8 @@ impl GameEngine {
                                 ))
                         })
             }
-            Some("isUnblockedAttacker") => {
-                self.state
-                    .combat
-                    .attackers
-                    .iter()
-                    .any(|attacker| attacker.attacker_id == permanent.instance_id)
-                    && !self
-                        .state
-                        .combat
-                        .blockers
-                        .iter()
-                        .any(|blocker| blocker.attacker_id == permanent.instance_id)
+            Some(kind @ ("isBlocked" | "isUnblockedAttacker")) => {
+                self.combat_block_status_matches(permanent, kind) == Some(true)
             }
             Some("hasAttachedAura") => self
                 .state
@@ -11011,6 +11004,9 @@ impl GameEngine {
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(card, kind),
+            Some(kind) if object_predicate_eval::combat_block_status_kind(kind) => {
+                self.combat_block_status_matches(card, kind) == Some(true)
+            }
             _ => matches_permanent_filter(card, filter),
         }
     }

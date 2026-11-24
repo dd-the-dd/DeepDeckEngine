@@ -59,51 +59,145 @@ fn lower_search_effects(
     )?;
 
     let binding = lower_collection_binding(search.binding);
-    let choice = if search.origin.is_library_only() {
+    let filter = lower_card_object_predicate(&search.filter);
+    let move_effect = lower_search_move(cursor, search, &binding, &player, &holder)?;
+    let found = |zones: &[CardZoneName]| {
+        let mut effects = vec![search_choice(
+            search, &binding, &player, &holder, zones, &filter,
+        )];
+        if search.reveal {
+            effects.push(json!({
+                "kind": "revealCards",
+                "cards": decision_result(&binding),
+            }));
+        }
+        effects
+    };
+    let record = json!({
+        "kind": "recordLibrarySearch",
+        "player": player.clone(),
+        "cards": decision_result(&binding),
+    });
+    let shuffle = json!({
+        "kind": "shuffleZone",
+        "zone": library(holder.clone()),
+    });
+
+    let mut effects = match search.shuffle_order {
+        SearchShuffleOrder::MoveThenShuffle => {
+            let mut effects = found(&search.origin.zones);
+            effects.extend([move_effect, shuffle]);
+            effects
+        }
+        SearchShuffleOrder::ShuffleThenMove => {
+            let mut effects = found(&search.origin.zones);
+            effects.extend([
+                json!({
+                    "kind": "shuffleZone",
+                    "zone": library(holder.clone()),
+                    "excludeCards": decision_result(&binding),
+                }),
+                move_effect,
+            ]);
+            effects
+        }
+        // The holder's own later instruction shuffles.
+        SearchShuffleOrder::ByHolderInstruction => {
+            let mut effects = found(&search.origin.zones);
+            effects.push(move_effect);
+            effects
+        }
+        // CR 701.23a: the searcher chooses the zones of `library and/or
+        // graveyard`. Searching more zones never narrows the choice, so the
+        // decision that matters is whether the library is searched: then the
+        // choice reads every listed zone and the library is shuffled;
+        // otherwise it reads the other zones and nothing is shuffled.
+        SearchShuffleOrder::IfLibrarySearched => {
+            cursor.enter("lower.library-search.conditional-shuffle");
+            let other_zones = search
+                .origin
+                .zones
+                .iter()
+                .copied()
+                .filter(|zone| *zone != CardZoneName::Library)
+                .collect::<Vec<_>>();
+            cursor.require(
+                !other_zones.is_empty() && other_zones.len() < search.origin.zones.len(),
+                "a search of the library and at least one other zone",
+            )?;
+            let mut with_library = found(&search.origin.zones);
+            with_library.extend([move_effect.clone(), shuffle, record]);
+            let mut without_library = found(&other_zones);
+            without_library.push(move_effect);
+            return Ok(vec![json!({
+                "kind": "chooseOneEffect",
+                "player": player,
+                "options": [
+                    {"label": "Search your library", "effects": with_library},
+                    {"label": "Don't search your library", "effects": without_library},
+                ],
+            })]);
+        }
+    };
+    effects.push(record);
+    Ok(effects)
+}
+
+/// One choice of the found cards among the searched zones (CR 701.23a): the
+/// library alone keeps its candidate set; several zones are one union of the
+/// shared card-zone query; one other zone is that zone's query.
+fn search_choice(
+    search: &LibrarySearchEffectNode,
+    binding: &str,
+    player: &Value,
+    holder: &Value,
+    zones: &[CardZoneName],
+    filter: &Value,
+) -> Value {
+    let mut choice = json!({
+        "kind": "chooseCards",
+        "id": binding,
+        "player": player.clone(),
+        "minimum": i64::from(search.minimum),
+        "maximum": i64::from(search.maximum),
+    });
+    let zone_query = |zone: &CardZoneName| {
         json!({
-            "kind": "chooseCards",
-            "id": binding.clone(),
-            "player": player.clone(),
-            "minimum": i64::from(search.minimum),
-            "maximum": i64::from(search.maximum),
-            "candidates": {
-                "kind": "cards",
-                "zone": library(holder.clone()),
-                "where": lower_card_object_predicate(&search.filter),
-            },
-        })
-    } else {
-        // CR 701.23a: one choice over the union of the searched player's
-        // zones; each zone is the shared card-zone query.
-        cursor.enter("lower.library-search.origin-zones");
-        let filter = lower_card_object_predicate(&search.filter);
-        json!({
-            "kind": "chooseCards",
-            "id": binding.clone(),
-            "player": player.clone(),
-            "minimum": i64::from(search.minimum),
-            "maximum": i64::from(search.maximum),
-            "from": {
-                "kind": "union",
-                "sets": search.origin.zones.iter().map(|zone| json!({
-                    "kind": "cardsInZone",
-                    "zone": {"kind": zone.ir_name(), "player": holder.clone()},
-                    "where": filter.clone(),
-                })).collect::<Vec<_>>(),
-            },
+            "kind": "cardsInZone",
+            "zone": {"kind": zone.ir_name(), "player": holder.clone()},
+            "where": filter.clone(),
         })
     };
-    let mut effects = vec![choice];
-    if search.reveal {
-        effects.push(json!({
-            "kind": "revealCards",
-            "cards": decision_result(&binding),
-        }));
+    match zones {
+        [CardZoneName::Library] => {
+            choice["candidates"] = json!({
+                "kind": "cards",
+                "zone": library(holder.clone()),
+                "where": filter.clone(),
+            });
+        }
+        [zone] => choice["from"] = zone_query(zone),
+        zones => {
+            choice["from"] = json!({
+                "kind": "union",
+                "sets": zones.iter().map(zone_query).collect::<Vec<_>>(),
+            });
+        }
     }
+    choice
+}
 
-    let move_effect = json!({
+/// The move of the found cards to the search destination.
+fn lower_search_move(
+    cursor: &mut OracleTokenCursor<'_>,
+    search: &LibrarySearchEffectNode,
+    binding: &str,
+    player: &Value,
+    holder: &Value,
+) -> MachineResult<Value> {
+    Ok(json!({
         "kind": "moveCards",
-        "cards": decision_result(&binding),
+        "cards": decision_result(binding),
         "to": match search.destination {
             SearchDestination::Battlefield { tapped } => json!({
                 "kind": "battlefield",
@@ -132,32 +226,7 @@ fn lower_search_effects(
                 "position": "top",
             }),
         },
-    });
-    match search.shuffle_order {
-        SearchShuffleOrder::MoveThenShuffle => effects.extend([
-            move_effect,
-            json!({
-                "kind": "shuffleZone",
-                "zone": library(holder.clone()),
-            }),
-        ]),
-        SearchShuffleOrder::ShuffleThenMove => effects.extend([
-            json!({
-                "kind": "shuffleZone",
-                "zone": library(holder.clone()),
-                "excludeCards": decision_result(&binding),
-            }),
-            move_effect,
-        ]),
-        // The holder's own later instruction shuffles.
-        SearchShuffleOrder::ByHolderInstruction => effects.push(move_effect),
-    }
-    effects.push(json!({
-        "kind": "recordLibrarySearch",
-        "player": player,
-        "cards": decision_result(&binding),
-    }));
-    Ok(effects)
+    }))
 }
 
 #[cfg(test)]

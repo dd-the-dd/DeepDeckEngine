@@ -24,6 +24,11 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     Enchanted,
     /// An Equipment is attached to it (CR 301.5).
     Equipped,
+    /// CR 509.1h: an attacking creature that a creature blocked. It remains
+    /// blocked for the rest of combat even if its blockers leave combat.
+    Blocked,
+    /// CR 509.1h: an attacking creature no creature blocked.
+    Unblocked,
     /// This-turn history of the object, read by a past-tense relative
     /// clause (`that entered this turn`, `that was dealt damage this turn`).
     /// They have no adjective surface.
@@ -44,6 +49,8 @@ impl ObjectStatus {
             "modified" => Some(Self::Modified),
             "enchanted" => Some(Self::Enchanted),
             "equipped" => Some(Self::Equipped),
+            "blocked" => Some(Self::Blocked),
+            "unblocked" => Some(Self::Unblocked),
             _ => None,
         }
     }
@@ -58,6 +65,8 @@ impl ObjectStatus {
             Self::Modified => ("isModified", false),
             Self::Enchanted => ("hasAttachedAura", false),
             Self::Equipped => ("isEquipped", false),
+            Self::Blocked => ("isBlocked", false),
+            Self::Unblocked => ("isUnblockedAttacker", false),
             Self::EnteredThisTurn => ("enteredThisTurn", false),
             Self::AttackedThisTurn => ("attackedThisTurn", false),
             Self::BlockedThisTurn => ("blockedThisTurn", false),

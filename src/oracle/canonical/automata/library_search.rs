@@ -3,7 +3,7 @@ use super::{
     CardZoneName, CollectionBinding, LibrarySearchEffectNode, LocalPlayerReference, ObjectKind,
     ObjectPredicate, SearchDestination, SearchShuffleOrder, TargetBinding, TargetCardinality,
     TargetListNode, recognize_card_zone_atom, recognize_card_zone_list, recognize_player_reference,
-    recognize_possessive_target_player, recognize_search_card_selector,
+    recognize_possessive_target_player, recognize_search_card_alternatives,
     recognize_target_cardinality,
 };
 
@@ -67,6 +67,7 @@ enum LibrarySearchState {
     DestinationModifier,
     PostMoveShuffleSeparator,
     PostMoveShuffleAction,
+    ConditionalShuffle,
     Complete,
 }
 
@@ -190,7 +191,9 @@ fn recognize_library_search(
             LibrarySearchState::Filter => {
                 cursor.enter("effect.library-search.filter");
                 let cardinality = memory.cardinality.expect("recognized search cardinality");
-                memory.filter = Some(recognize_search_card_selector(
+                // One card phrase of the shared card selector, or separately
+                // headed alternatives sharing this cardinality.
+                memory.filter = Some(recognize_search_card_alternatives(
                     cursor,
                     cardinality.maximum != 1,
                 )?);
@@ -198,14 +201,17 @@ fn recognize_library_search(
             }
             LibrarySearchState::EffectSeparator => {
                 cursor.enter("effect.library-search.effect-separator");
-                // `... and exile them`: the coordinated move of the found
+                // `... and exile them`, `... and put it onto the battlefield`,
+                // `... and reveal it`: the coordinated action on the found
                 // cards; every other action follows its comma.
                 if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
-                    && cursor
-                        .peek_ahead(1)
-                        .is_some_and(|raw| raw.eq_ignore_ascii_case("exile"))
+                    && cursor.peek_ahead(1).is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("exile")
+                            || raw.eq_ignore_ascii_case("put")
+                            || raw.eq_ignore_ascii_case("reveal")
+                    })
                 {
                     cursor.consume("and")?;
                 } else {
@@ -215,6 +221,19 @@ fn recognize_library_search(
             }
             LibrarySearchState::PostFilterAction => {
                 cursor.enter("effect.library-search.post-filter-action");
+                // `reveal it, and put it ...` / `reveal it, then put it ...`:
+                // the move follows the reveal in the same sequence.
+                if memory.reveal
+                    && cursor.peek().is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")
+                    })
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("put"))
+                {
+                    let connector = cursor.peek().expect("checked connector").to_string();
+                    cursor.consume(&connector)?;
+                }
                 match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
                     Some("reveal") => {
                         crate::oracle::canonical::automata::consume_lemma(
@@ -396,8 +415,43 @@ fn recognize_library_search(
                     memory.shuffle_order == Some(SearchShuffleOrder::MoveThenShuffle),
                     "a move-before-shuffle search sequence",
                 )?;
-                cursor.consume_phrase(&[",", "then"])?;
-                LibrarySearchState::PostMoveShuffleAction
+                if conditional_shuffle_starts(cursor) {
+                    LibrarySearchState::ConditionalShuffle
+                } else {
+                    cursor.consume_phrase(&[",", "then"])?;
+                    LibrarySearchState::PostMoveShuffleAction
+                }
+            }
+            LibrarySearchState::ConditionalShuffle => {
+                // `Search your library and/or graveyard ... . If you search
+                // your library this way, shuffle.` (CR 701.23a, 701.20a): the
+                // searcher chooses whether the library is among the searched
+                // zones, and only a searched library is shuffled.
+                cursor.enter("effect.library-search.conditional-shuffle");
+                cursor.require(
+                    memory
+                        .origin
+                        .as_ref()
+                        .is_some_and(|origin| !origin.is_library_only()),
+                    "a search of the library and another zone before `if you search your library this way`",
+                )?;
+                cursor.require(
+                    matches!(
+                        memory.origin.as_ref().map(|origin| &origin.holder),
+                        Some(SearchedPlayer::Searcher)
+                    ) && memory.player == Some(LocalPlayerReference::Controller),
+                    "the searching controller's own zones before `if you search your library this way`",
+                )?;
+                cursor.consume_phrase(&[
+                    ".", "if", "you", "search", "your", "library", "this", "way", ",", "shuffle",
+                ])?;
+                cursor.enter("effect.library-search.conditional-shuffle.terminator");
+                cursor.require(
+                    cursor.peek().is_none_or(|raw| raw == "."),
+                    "the end of the conditional shuffle sentence",
+                )?;
+                memory.shuffle_order = Some(SearchShuffleOrder::IfLibrarySearched);
+                LibrarySearchState::Complete
             }
             LibrarySearchState::PostMoveShuffleAction => {
                 cursor.enter("effect.library-search.post-move-shuffle-action");
@@ -430,6 +484,22 @@ fn recognize_library_search(
             }
         };
     }
+}
+
+/// `. If you search your library this way, shuffle` at the cursor: the
+/// conditional shuffle sentence of a search through several zones. Pure
+/// lookahead; the sentence's own period stays with the parent.
+fn conditional_shuffle_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    [
+        ".", "if", "you", "search", "your", "library", "this", "way", ",", "shuffle",
+    ]
+    .iter()
+    .enumerate()
+    .all(|(offset, expected)| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    })
 }
 
 fn library_player_possessive(player: LocalPlayerReference) -> &'static str {

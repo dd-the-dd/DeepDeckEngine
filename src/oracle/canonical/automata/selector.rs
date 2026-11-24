@@ -562,7 +562,9 @@ fn recognize_object_query_frame(
                     token.eq_ignore_ascii_case("or")
                         || token.eq_ignore_ascii_case("and/or")
                         || (logical_properties && token.eq_ignore_ascii_case("and"))
-                }) {
+                }) || (!logical_properties
+                    && coordinated_type_adjective_and(cursor, &frame))
+                {
                     let checkpoint = cursor.checkpoint();
                     let connector = cursor.peek().expect("checked connector").to_string();
                     cursor.consume(&connector)?;
@@ -716,20 +718,11 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if let Some(width) = named_qualifier_width(cursor) {
+                } else if named_qualifier_width(cursor).is_some() {
                     // `creature named Fenric` (CR 201.2): the object's name.
-                    cursor.enter("selector.named-qualifier");
-                    cursor.consume("named")?;
-                    let words = (1..width)
-                        .map(|_| {
-                            let raw = cursor.peek().unwrap_or_default().to_string();
-                            cursor.consume(&raw).map(|()| raw)
-                        })
-                        .collect::<MachineResult<Vec<_>>>()?;
+                    let predicate = recognize_named_qualifier(cursor)?;
                     frame.postnominal_qualifiers.push(PostnominalQualifier {
-                        predicate: SelectorPredicate::Relation(super::ObjectRelation::Named(
-                            words.join(" "),
-                        )),
+                        predicate,
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
@@ -926,6 +919,37 @@ fn inherited_relation_after_but(
         }
         _ => None,
     }
+}
+
+/// `instant and sorcery card(s)`, `artifact and creature spells`: `and`
+/// between bare card-type adjectives that share one following domain noun
+/// names the objects having either type (CR 205.2a lists a card's types; no
+/// object is both an instant and a sorcery). Only a singular, unheaded type
+/// adjective before `and` and `TYPE NOUN` after it take this reading, so
+/// separately headed branches (`instant cards and sorcery cards`, `creatures
+/// and lands you control`) keep their `and` for the parent. Pure lookahead.
+fn coordinated_type_adjective_and(
+    cursor: &OracleTokenCursor<'_>,
+    frame: &ObjectQueryFrame,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|token| token.eq_ignore_ascii_case("and"))
+        && matches!(
+            frame.union_branches.last(),
+            Some(SelectorPredicate::CardType(_))
+        )
+        && frame.branch_has_plural_surface.last() == Some(&false)
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| lookup_card_type(raw, AcceptedForms::SingularOnly).is_some())
+        && cursor.peek_ahead(2).is_some_and(|raw| {
+            crate::oracle::characteristic_vocabulary::lookup_object_domain(
+                raw,
+                AcceptedForms::SingularOrPlural,
+            )
+            .is_some()
+        })
 }
 
 /// Whether a comma at the cursor continues the object list: another object
@@ -2372,9 +2396,23 @@ fn recognize_search_card_type_union(
             connected = true;
         } else if cursor
             .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or") || raw.eq_ignore_ascii_case("and/or"))
         {
-            cursor.consume("or")?;
+            let connector = cursor.peek().expect("checked connector").to_string();
+            cursor.consume(&connector)?;
+            connected = true;
+        } else if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| lookup_card_type(raw, AcceptedForms::SingularOnly).is_some())
+        {
+            // `instant and sorcery cards`: type adjectives sharing the one
+            // card noun that follows name cards of either type. A headed
+            // member (`a creature card and a land card`) ends at its noun
+            // before any `and`, so it never reaches this connector.
+            cursor.consume("and")?;
             connected = true;
         }
         if !connected {
@@ -2454,7 +2492,21 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
             }
             SearchCardSelectorState::QualifierOrComplete => {
                 cursor.enter("selector.search-card.qualifier-or-complete");
-                if cursor
+                if named_qualifier_width(cursor).is_some() {
+                    // `a card named NAME [or NAME]` (CR 201.2): the shared
+                    // name relation of the object query.
+                    predicates.push(recognize_named_qualifier(cursor)?);
+                    SearchCardSelectorState::QualifierOrComplete
+                } else if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
+                    && cursor.peek_ahead(1).is_some_and(keyword_qualifier_word)
+                {
+                    // `a card with flash`: the shared keyword qualifier.
+                    cursor.enter("selector.search-card.keyword-qualifier");
+                    predicates.push(recognize_keyword_qualifier(cursor)?);
+                    SearchCardSelectorState::QualifierOrComplete
+                } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
                 {
@@ -2534,6 +2586,49 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
     }
 }
 
+/// Separately headed card phrases sharing one parent quantity: `a basic land
+/// card or a Gate card`, `an instant card or a card with flash`, `up to two
+/// basic land cards and/or Gate cards`. Each alternative is a complete card
+/// phrase of the shared card selector, so its own qualifiers stay local to
+/// it (`a basic Plains card or a creature card with mana value 1 or less`).
+/// `and/or` joins alternatives of one plural quantity only; a singular `a X
+/// and/or a Y` names two slots, which this union cannot express, and stays
+/// with the parent. An alternative that does not read as a card phrase leaves
+/// its connector unconsumed.
+pub(in crate::oracle::canonical) fn recognize_search_card_alternatives(
+    cursor: &mut OracleTokenCursor<'_>,
+    plural: bool,
+) -> MachineResult<ObjectPredicate> {
+    let mut alternatives = vec![recognize_search_card_selector(cursor, plural)?];
+    loop {
+        cursor.enter("selector.search-card.alternative");
+        let Some(connector) = cursor.peek().map(str::to_string) else {
+            break;
+        };
+        let joins = connector.eq_ignore_ascii_case("or")
+            || (plural && connector.eq_ignore_ascii_case("and/or"));
+        if !joins {
+            break;
+        }
+        let mut trial = cursor.clone();
+        trial.consume(&connector)?;
+        if consume_optional_selector_article(&mut trial).is_err() {
+            break;
+        }
+        match recognize_search_card_selector(&mut trial, plural) {
+            Ok(alternative) => {
+                *cursor = trial;
+                alternatives.push(alternative);
+            }
+            Err(_) => break,
+        }
+    }
+    Ok(match alternatives.len() {
+        1 => alternatives.pop().expect("one card phrase"),
+        _ => ObjectPredicate::Union(alternatives),
+    })
+}
+
 #[cfg(test)]
 #[path = "selector_transactional_coordinator_tests.rs"]
 mod transactional_coordinator_tests;
@@ -2547,9 +2642,7 @@ mod negative_modifier_tests;
 mod coordinated_article_tests;
 
 /// Token length of `named NAME` at the cursor: `named` and the name's words.
-/// A name is one or more capitalized words, possibly joined by lowercase
-/// `of`/`the` before another capitalized word (`Urza, Lord High Artificer`
-/// keeps its comma outside this form). Pure lookahead.
+/// Pure lookahead; see [`card_name_width_at`] for the name's form.
 fn named_qualifier_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     if !cursor
         .peek()
@@ -2557,8 +2650,18 @@ fn named_qualifier_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
     {
         return None;
     }
-    let capitalized = |offset: usize| {
-        cursor.peek_ahead(offset).is_some_and(|raw| {
+    card_name_width_at(cursor, 1).map(|width| width + 1)
+}
+
+/// Token length of one card name `offset` tokens ahead (CR 201.2): one or
+/// more capitalized words, possibly joined by lowercase `of`/`the` before
+/// another capitalized word (`Monk of the Open Hand`), and an epithet after
+/// a comma (`Jace, Arcane Strategist`, `Gideon, the Oathsworn`) when that
+/// epithet ends the name at a list, clause or sentence boundary. Pure
+/// lookahead.
+fn card_name_width_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    let capitalized = |at: usize| {
+        cursor.peek_ahead(at).is_some_and(|raw| {
             raw.chars().next().is_some_and(char::is_uppercase)
                 && raw.chars().all(|character| {
                     character.is_alphanumeric()
@@ -2568,23 +2671,95 @@ fn named_qualifier_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
                 })
         })
     };
-    if !capitalized(1) {
+    let joiner = |at: usize| {
+        cursor
+            .peek_ahead(at)
+            .is_some_and(|raw| raw == "of" || raw == "the")
+    };
+    // The end of a run of capitalized words and joiners starting at `at`.
+    let run_end = |mut at: usize| {
+        loop {
+            if capitalized(at) {
+                at += 1;
+            } else if joiner(at) && capitalized(at + 1) {
+                at += 2;
+            } else {
+                return at;
+            }
+        }
+    };
+    if !capitalized(offset) {
         return None;
     }
-    let mut width = 2;
-    loop {
-        if capitalized(width) {
-            width += 1;
-        } else if cursor
-            .peek_ahead(width)
-            .is_some_and(|raw| raw == "of" || raw == "the")
-            && capitalized(width + 1)
-        {
-            width += 2;
-        } else {
-            return Some(width);
+    let mut end = run_end(offset);
+    // `NAME, EPITHET`: the epithet starts with a capitalized word or `the`
+    // and a capitalized word, and is followed by a boundary, never by more
+    // name-like words that would make the comma a list separator.
+    if cursor.peek_ahead(end) == Some(",") {
+        let epithet = end + 1 + usize::from(cursor.peek_ahead(end + 1) == Some("the"));
+        if capitalized(epithet) {
+            let epithet_end = run_end(epithet);
+            let boundary = cursor.peek_ahead(epithet_end).is_none_or(|raw| {
+                matches!(raw, "," | "." | ";")
+                    || raw.eq_ignore_ascii_case("or")
+                    || raw.eq_ignore_ascii_case("and")
+                    || raw.eq_ignore_ascii_case("and/or")
+            });
+            if boundary {
+                end = epithet_end;
+            }
         }
     }
+    Some(end - offset)
+}
+
+/// `named NAME [or NAME]*` (CR 201.2): the object's name is one of the
+/// listed names. Another name follows `or` only when it does not begin an
+/// object phrase of its own (`named Halvar, God of Battle or an Equipment
+/// card` leaves `or an Equipment card` to the parent).
+pub(in crate::oracle::canonical) fn recognize_named_qualifier(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<SelectorPredicate> {
+    cursor.enter("selector.named-qualifier");
+    cursor.consume("named")?;
+    let mut names = Vec::new();
+    loop {
+        cursor.enter("selector.named-qualifier.name");
+        let width =
+            card_name_width_at(cursor, 0).ok_or_else(|| cursor.fail("a capitalized card name"))?;
+        let mut words = Vec::with_capacity(width);
+        for _ in 0..width {
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+            if raw == "," {
+                // `Jace, Arcane Strategist`: the comma is part of the name.
+                if let Some(last) = words.last_mut() {
+                    *last = format!("{last},");
+                }
+            } else {
+                words.push(raw);
+            }
+        }
+        names.push(SelectorPredicate::Relation(super::ObjectRelation::Named(
+            words.join(" "),
+        )));
+        let alternative = cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+            && card_name_width_at(cursor, 1).is_some()
+            && {
+                let mut lookahead = cursor.clone();
+                lookahead.consume("or").is_ok() && !object_selector_phrase_starts(&lookahead)
+            };
+        if !alternative {
+            break;
+        }
+        cursor.consume("or")?;
+    }
+    Ok(match names.len() {
+        1 => names.pop().expect("one name"),
+        _ => SelectorPredicate::Union(names),
+    })
 }
 
 /// Token length of `of the chosen [creature] type` / `of that [creature] type`
