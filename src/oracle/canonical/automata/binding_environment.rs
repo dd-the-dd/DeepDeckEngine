@@ -36,6 +36,9 @@ pub(in crate::oracle::canonical) struct EventObjectSlot {
     /// but it is no longer a permanent an action can operate on (CR 400.7,
     /// 700.4). The card it became is the frame's `event_card`.
     pub departed: bool,
+    /// The controller relation the event wrote for the object (`a creature
+    /// an opponent controls`): the player `that player` names (CR 108.4).
+    pub controller: Option<super::ObjectControllerScope>,
 }
 
 impl EventObjectSlot {
@@ -542,6 +545,17 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
         cursor.enter("player-subject.complete");
         return Ok(BoundPlayerReference::EventPlayer);
     }
+    // `Destroy target creature an opponent controls. That player loses 3
+    // life.` / `Whenever a creature an opponent controls dies, that player
+    // ...`: the other player the object's controller relation named.
+    if let Some(object) = controlled_object_player(environment) {
+        cursor.enter("player-subject.object-controller");
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation {
+            relation: ObjectPlayerRelation::Controller,
+            object,
+        });
+    }
     Err(cursor.fail_with_span(
         "a prior player binding for `that player`",
         first.index,
@@ -549,6 +563,46 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
         first.span_end,
         first.raw,
     ))
+}
+
+/// A controller relation that names a player other than the ability's
+/// controller (`an opponent controls`, `you don't control`).
+fn names_other_player(scope: super::ObjectControllerScope) -> bool {
+    matches!(
+        scope,
+        super::ObjectControllerScope::NotAbilityController
+            | super::ObjectControllerScope::OpponentOfAbilityController
+    )
+}
+
+/// The singular object whose controller relation named another player:
+/// the program's antecedent declared `target NOUN an opponent controls`,
+/// else the event's object written `a NOUN an opponent controls`. Its
+/// controller, live or as last known information, is `that player`.
+fn controlled_object_player(environment: &BindingEnvironment) -> Option<PermanentEffectReference> {
+    let event = environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| {
+            slot.controller.is_some_and(names_other_player) && relation_supported(slot.reference)
+        })
+        .map(|slot| slot.reference);
+    let Some(antecedent) = environment.object.as_ref() else {
+        return event;
+    };
+    match antecedent.selector.as_ref() {
+        Some(TargetSelector::ControlledObject { controller, .. })
+            if names_other_player(*controller)
+                && singular_reference(antecedent.reference)
+                && relation_supported(antecedent.reference) =>
+        {
+            Some(antecedent.reference)
+        }
+        // The lexical antecedent is the event's own object (`it` after `a
+        // land an opponent controls enters`).
+        _ => event.filter(|reference| *reference == antecedent.reference),
+    }
 }
 
 /// `its controller|owner` / `that NOUN's controller|owner` (CR 108.3,

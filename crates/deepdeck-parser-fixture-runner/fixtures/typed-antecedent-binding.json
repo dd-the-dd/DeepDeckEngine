@@ -22,13 +22,34 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/kind", "equals": "tapPermanent" },
-              { "pointer": "/effects/0/permanent/kind", "equals": "chosenTargets" },
-              { "pointer": "/effects/1/kind", "equals": "forEachObject" },
-              { "pointer": "/effects/1/objects/kind", "equals": "chosenTargets" },
-              { "pointer": "/effects/1/effects/0/kind", "equals": "installUntapRestriction" },
-              { "pointer": "/effects/1/effects/0/permanent/kind", "equals": "boundValue" },
-              { "pointer": "/effects/1/effects/0/duration/kind", "equals": "nextUntapStep" }
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "tapPermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/objects/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              },
+              {
+                "pointer": "/effects/1/effects/0/permanent/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/1/effects/0/duration/kind",
+                "equals": "nextUntapStep"
+              }
             ]
           }
         ]
@@ -53,8 +74,14 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/1/kind", "equals": "forEachObject" },
-              { "pointer": "/effects/1/effects/0/kind", "equals": "installUntapRestriction" }
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              }
             ]
           }
         ]
@@ -80,8 +107,14 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/1/kind", "equals": "modifyPowerToughness" },
-              { "pointer": "/effects/1/object/kind", "equals": "chosenTargets" }
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/1/object/kind",
+                "equals": "chosenTargets"
+              }
             ]
           }
         ]
@@ -107,8 +140,14 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/1/kind", "equals": "forEachObject" },
-              { "pointer": "/effects/1/effects/0/kind", "equals": "installUntapRestriction" }
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              }
             ]
           }
         ]
@@ -134,7 +173,10 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/bind", "equals": "createdTokens" }
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "createdTokens"
+              }
             ]
           }
         ]
@@ -237,7 +279,10 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/kind", "equals": "staticAbility" }
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              }
             ]
           }
         ]
@@ -369,6 +414,141 @@
             "state": "permanent.subject.object-set-anaphor.nominal"
           }
         ]
+      }
+    },
+    {
+      "id": "exact-assault-intercessor-that-player-is-the-dying-objects-controller",
+      "request": {
+        "cardName": "Assault Intercessor",
+        "typeLine": "Creature — Astartes Warrior",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "First strike, menace\nChainsword — Whenever a creature an opponent controls dies, that player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-nightshade-harvester-that-player-is-the-entering-lands-controller",
+      "request": {
+        "cardName": "Nightshade Harvester",
+        "typeLine": "Creature — Elf Shaman",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a land an opponent controls enters, that player loses 1 life. Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-player-controls-the-destroyed-target",
+      "request": {
+        "cardName": "Generalized Sentence",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy target creature an opponent controls. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-another-players-object",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy target creature you control. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kitesail-apprentice-it-after-a-source-condition",
+      "request": {
+        "cardName": "Kitesail Apprentice",
+        "typeLine": "Creature — Kor Soldier",
+        "manaCost": "{W}",
+        "oracleText": "As long as this creature is equipped, it gets +1/+1 and has flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-join-forces-one-or-two-targets-they-each",
+      "request": {
+        "cardName": "Join Forces",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Untap up to two target creatures. They each get +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
       }
     }
   ]
