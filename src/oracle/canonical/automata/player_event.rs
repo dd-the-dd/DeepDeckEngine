@@ -100,28 +100,24 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
 
 impl PlayerEventAction {
     /// Base and third-person verb forms followed by the fixed complement.
+    /// The lexicon lemma of a verb with a fixed complement, then the
+    /// complement (`draw(s) a card`, `attack(s)`). The verb surface agreeing
+    /// with the actor is lexicon data, never a phrase of this table.
+    fn lemma_frame(self) -> Option<(VerbLemma, &'static [&'static str])> {
+        match self {
+            Self::DrawCard => Some((VerbLemma::Draw, &["a", "card"])),
+            Self::Attack => Some((VerbLemma::Attack, &[])),
+            _ => None,
+        }
+    }
+
+    /// The fixed phrase of a verb without a lexicon lemma (`face(s) a
+    /// dilemma`, a named mechanic action).
     fn fixed_phrase(self, third_person: bool) -> Option<&'static [&'static str]> {
         Some(match (self, third_person) {
-            (Self::DrawCard, false) => &["draw", "a", "card"],
-            (Self::DrawCard, true) => &["draws", "a", "card"],
-            (Self::Attack, false) => &["attack"],
-            (Self::Attack, true) => &["attacks"],
             (Self::FaceDilemma, false) => &["face", "a", "dilemma"],
             (Self::FaceDilemma, true) => &["faces", "a", "dilemma"],
-            // Life verbs are the shared life clause's; object and named
-            // verbs are union verbs.
-            (
-                Self::GainLife
-                | Self::LoseLife
-                | Self::BeDealtDamage(_)
-                | Self::DiscardCard
-                | Self::CycleCard
-                | Self::NamedAction(_)
-                | Self::ActivateAbility(_)
-                | Self::TapForMana
-                | Self::CommitCrime,
-                _,
-            ) => return None,
+            _ => return None,
         })
     }
 
@@ -317,13 +313,31 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
         return Ok(event);
     }
     for action in FIXED_PLAYER_EVENT_ACTIONS {
-        let phrase = action.fixed_phrase(third_person).expect("fixed phrase");
-        if (0..phrase.len()).all(|offset| {
-            cursor
-                .peek_ahead(offset)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case(phrase[offset]))
-        }) {
-            cursor.consume_phrase(phrase)?;
+        let matched = if let Some((lemma, complement)) = action.lemma_frame() {
+            let complete = lemma_form_at(cursor, lemma, life_agreement)
+                && complement.iter().enumerate().all(|(offset, word)| {
+                    cursor
+                        .peek_ahead(offset + 1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+                });
+            if complete {
+                consume_verb_word(cursor)?;
+                cursor.consume_phrase(complement)?;
+            }
+            complete
+        } else {
+            let phrase = action.fixed_phrase(third_person).expect("fixed phrase");
+            let complete = (0..phrase.len()).all(|offset| {
+                cursor
+                    .peek_ahead(offset)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(phrase[offset]))
+            });
+            if complete {
+                cursor.consume_phrase(phrase)?;
+            }
+            complete
+        };
+        if matched {
             return Ok(LocalTriggerEventNode::PlayerEvent {
                 actor,
                 actions: vec![action],
