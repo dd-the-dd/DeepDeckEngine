@@ -9,7 +9,7 @@
 //!
 //! ```text
 //! ActionResult := ObjectCollection Verb "this" "way"
-//! Verb         := "destroyed" | "milled" | "discarded"
+//! Verb         := "destroyed" | "milled" | "discarded" | "revealed"
 //! ```
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
@@ -26,17 +26,24 @@ pub(in crate::oracle::canonical) enum ActionResultVerb {
     Milled,
     /// Cards put into a graveyard from a hand by discard (CR 701.9).
     Discarded,
+    /// Cards revealed (CR 701.16): they stay where they are.
+    Revealed,
 }
 
 impl ActionResultVerb {
-    pub(in crate::oracle::canonical) const ALL: [Self; 3] =
-        [Self::Destroyed, Self::Milled, Self::Discarded];
+    pub(in crate::oracle::canonical) const ALL: [Self; 4] = [
+        Self::Destroyed,
+        Self::Milled,
+        Self::Discarded,
+        Self::Revealed,
+    ];
 
     pub(in crate::oracle::canonical) fn from_word(word: &str) -> Option<Self> {
         match word.to_ascii_lowercase().as_str() {
             "destroyed" => Some(Self::Destroyed),
             "milled" => Some(Self::Milled),
             "discarded" => Some(Self::Discarded),
+            "revealed" => Some(Self::Revealed),
             _ => None,
         }
     }
@@ -46,6 +53,7 @@ impl ActionResultVerb {
             Self::Destroyed => "destroyed",
             Self::Milled => "milled",
             Self::Discarded => "discarded",
+            Self::Revealed => "revealed",
         }
     }
 
@@ -60,6 +68,7 @@ impl ActionResultVerb {
             Self::Destroyed => &["destroyPermanent"],
             Self::Milled => &["mill"],
             Self::Discarded => &["discardCards"],
+            Self::Revealed => &["revealCards", "revealFromTopUntilCount"],
         }
     }
 
@@ -68,7 +77,7 @@ impl ActionResultVerb {
     /// card noun can be re-read on the bound objects. A permanent that left
     /// the battlefield (a token ceases to exist) is never re-read.
     pub(in crate::oracle::canonical) const fn preserves_card_characteristics(self) -> bool {
-        matches!(self, Self::Milled | Self::Discarded)
+        matches!(self, Self::Milled | Self::Discarded | Self::Revealed)
     }
 }
 
@@ -136,8 +145,9 @@ pub(in crate::oracle::canonical) fn recognize_action_result_reference(
 }
 
 /// A quantity an earlier action of the same program produced
-/// (`the total life lost this way`, `that many`, CR 608.2c, 702.101a).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// (`the total life lost this way`, `that many`, `the number of cards
+/// revealed this way`, CR 608.2c, 702.101a).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ActionResultQuantity {
     /// The life the players actually lost (prevented loss is not lost).
     LifeLost,
@@ -147,6 +157,9 @@ pub(in crate::oracle::canonical) enum ActionResultQuantity {
     /// `that much` without an event quantity: the amount the nearest earlier
     /// recording action actually produced (life lost).
     Amount,
+    /// `the number of OBJECTS VERBed this way`: the objects the nearest
+    /// earlier action of the restated verb affected that satisfy the noun.
+    Objects(ActionResultReferenceNode),
 }
 
 /// Where one runtime action records the quantity a reader restates.
@@ -187,16 +200,17 @@ impl ActionResultQuantity {
     pub(in crate::oracle::canonical) const ALL: [Self; 3] =
         [Self::LifeLost, Self::ObjectCount, Self::Amount];
 
-    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+    pub(in crate::oracle::canonical) const fn ir_name(&self) -> &'static str {
         match self {
             Self::LifeLost => "lifeLost",
             Self::ObjectCount => "objectCount",
             Self::Amount => "amount",
+            Self::Objects(_) => "objects",
         }
     }
 
     /// `that many|much`: its antecedent is the immediately preceding action.
-    pub(in crate::oracle::canonical) const fn is_anaphor(self) -> bool {
+    pub(in crate::oracle::canonical) const fn is_anaphor(&self) -> bool {
         matches!(self, Self::ObjectCount | Self::Amount)
     }
 
@@ -211,7 +225,7 @@ impl ActionResultQuantity {
     /// table lists only runtime actions whose recorded value is exactly the
     /// affected objects (or their number) in every branch the engine runs.
     pub(in crate::oracle::canonical) fn produced_by(
-        self,
+        &self,
         runtime_kind: &str,
     ) -> Option<ActionResultField> {
         match (self, runtime_kind) {
@@ -240,7 +254,7 @@ pub(in crate::oracle::canonical) fn action_result_anaphor(
     cursor: &mut OracleTokenCursor<'_>,
     much: bool,
 ) -> MachineResult<super::NumericExpression> {
-    cursor.enter("numeric.action-result-anaphor.reader");
+    // The failure keeps the anaphor's resolve state: no antecedent at all.
     let reader = cursor
         .binding_environment()
         .and_then(|environment| environment.effect_index)
@@ -256,6 +270,29 @@ pub(in crate::oracle::canonical) fn action_result_anaphor(
         } else {
             ActionResultQuantity::ObjectCount
         },
+    })
+}
+
+/// `OBJECTS VERBed this way` as a count read inside an action's arguments
+/// (`the number of cards revealed this way`). The reader is the action being
+/// read; the program lowering binds the nearest earlier action of the verb,
+/// or fails explicitly. The first action of a program has no antecedent.
+pub(in crate::oracle::canonical) fn recognize_action_result_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::NumericExpression> {
+    let reference = recognize_action_result_reference(cursor)?;
+    cursor.enter("action-result.count.reader");
+    let reader = cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
+        .filter(|index| *index > 0);
+    let reader = cursor.require_value(
+        reader,
+        "an earlier action of this program whose affected objects the phrase restates",
+    )?;
+    Ok(super::NumericExpression::ActionResultQuantity {
+        reader_effect: reader,
+        quantity: ActionResultQuantity::Objects(reference),
     })
 }
 
@@ -358,6 +395,12 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
                     ..
                 })
         ),
+        ActionResultVerb::Revealed => matches!(
+            effect,
+            LocalEffectNode::CardAction(
+                super::CardActionNode::Reveal(_) | super::CardActionNode::RevealUntil { .. }
+            )
+        ),
         ActionResultVerb::Discarded => matches!(
             effect,
             LocalEffectNode::DiscardCards(_)
@@ -392,7 +435,9 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
         }
         // Milled and discarded cards keep their characteristics in the
         // graveyard.
-        LocalEffectNode::PlayerAction(_) | LocalEffectNode::DiscardCards(_) => {
+        LocalEffectNode::PlayerAction(_)
+        | LocalEffectNode::DiscardCards(_)
+        | LocalEffectNode::CardAction(_) => {
             if reference.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
                 ActionResultFilter::All
             } else if reference.predicate.is_in_domain(ObjectKind::Card) {

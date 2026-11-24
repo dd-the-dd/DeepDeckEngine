@@ -467,6 +467,59 @@
         ],
         "abilityCount": 1
       }
+    },
+    {
+      "id": "sibling-for-each-nonland-card-revealed-this-way",
+      "request": {
+        "cardName": "Synthetic Prospector",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Reveal cards from the top of your library until you reveal a land card. You gain 1 life for each nonland card revealed this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-number-of-cards-revealed-this-way",
+      "request": {
+        "cardName": "Synthetic Charbelcher",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Reveal cards from the top of your library until you reveal a land card. Synthetic Charbelcher deals damage equal to the number of nonland cards revealed this way to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-number-of-cards-revealed-first-action",
+      "request": {
+        "cardName": "Synthetic Seer",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Synthetic Seer deals damage equal to the number of cards revealed this way to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
     }
   ]
 }

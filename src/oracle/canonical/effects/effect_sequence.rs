@@ -2264,6 +2264,10 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
+    install_action_result_object_counts(&action_starts, &mut effects).map_err(|expected| {
+        cursor.enter("lower.action-result.count");
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+    })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     apply_delayed_frames(
         cursor,
@@ -2530,14 +2534,16 @@ fn install_action_result_bindings(
                 cursor.fail("one top-level runtime action recording the restated objects"),
             ));
         };
+        // The producer's stable object set: an existing binding, a revealed
+        // set the program already bound, or a binding installed now.
+        let objects = action_result_objects(producer, effect_index)
+            .map_err(|expected| cursor.fail(expected))?;
         let binding = action_result_binding(effect_index);
-        cursor.require(
-            producer
-                .get("bind")
-                .is_none_or(|existing| existing.as_str() == Some(binding.as_str())),
-            "a producing action without another result binding",
-        )?;
-        producer["bind"] = json!(binding);
+        if objects != json!({ "kind": "boundObjects", "binding": binding }) {
+            effects
+                .iter_mut()
+                .for_each(|effect| rewrite_bound_objects(effect, &binding, &objects));
+        }
     }
     Ok(())
 }

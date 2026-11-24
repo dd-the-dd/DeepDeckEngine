@@ -133,6 +133,10 @@ fn recognize_counted_collection(
     color_noun: &str,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.for-each.countable");
+    // `cards revealed this way`: the objects an earlier action affected.
+    if action_result_reference_starts(cursor) {
+        return recognize_action_result_count(cursor);
+    }
     if counter_operand_starts(cursor) {
         return recognize_source_counter_operand(cursor);
     }

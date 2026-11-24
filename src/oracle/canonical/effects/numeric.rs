@@ -74,6 +74,55 @@ pub(in crate::oracle::canonical) fn lower_action_result_objects(
     }))
 }
 
+/// The objects one producing runtime action affected, as a stable object
+/// expression: its existing `bind`, the already stable card set a reveal
+/// names (`revealCards` of bound, chosen or targeted cards), or a `bind`
+/// installed now under the compiler-assigned identifier of `effect_index`.
+/// A reveal of a set that is re-evaluated later (the library's top cards)
+/// has no stable result and is refused.
+pub(in crate::oracle::canonical) fn action_result_objects(
+    producer: &mut Value,
+    effect_index: usize,
+) -> Result<Value, &'static str> {
+    if let Some(existing) = producer.get("bind").and_then(Value::as_str) {
+        return Ok(json!({ "kind": "boundObjects", "binding": existing }));
+    }
+    if producer["kind"].as_str() == Some("revealCards") {
+        return matches!(
+            producer["cards"]["kind"].as_str(),
+            Some("boundObjects" | "decisionResult" | "chosenTargets")
+        )
+        .then(|| producer["cards"].clone())
+        .ok_or("a revealed card set the program bound or chose");
+    }
+    let binding = action_result_binding(effect_index);
+    producer["bind"] = json!(binding);
+    Ok(json!({ "kind": "boundObjects", "binding": binding }))
+}
+
+/// Replaces every `boundObjects` reference to `binding` under `value`.
+pub(in crate::oracle::canonical) fn rewrite_bound_objects(
+    value: &mut Value,
+    binding: &str,
+    replacement: &Value,
+) {
+    match value {
+        Value::Object(map)
+            if map.get("kind").and_then(Value::as_str) == Some("boundObjects")
+                && map.get("binding").and_then(Value::as_str) == Some(binding) =>
+        {
+            *value = replacement.clone();
+        }
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| rewrite_bound_objects(child, binding, replacement)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| rewrite_bound_objects(child, binding, replacement)),
+        _ => {}
+    }
+}
+
 /// Binds every pending `OBJECTS VERBed this way` count under `value` to the
 /// action immediately before action `reader` (CR 608.2c): its lowering must
 /// contain exactly one top-level runtime action of the restated verb, whose
@@ -85,6 +134,31 @@ pub(in crate::oracle::canonical) fn bind_action_result_objects(
     reader: usize,
     value: &mut Value,
 ) -> Result<(), &'static str> {
+    bind_pending_action_result_objects(action_starts, effects, Some(reader), value)
+}
+
+/// Binds every pending `the number of OBJECTS VERBed this way` that records
+/// its own reader action (a count inside an action's arguments). Each
+/// top-level action is rebound on a copy, so the producer it binds (always
+/// an earlier action) is updated in place.
+pub(in crate::oracle::canonical) fn install_action_result_object_counts(
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+) -> Result<(), &'static str> {
+    for position in 0..effects.len() {
+        let mut effect = effects[position].clone();
+        bind_pending_action_result_objects(action_starts, effects, None, &mut effect)?;
+        effects[position] = effect;
+    }
+    Ok(())
+}
+
+fn bind_pending_action_result_objects(
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+    reader: Option<usize>,
+    value: &mut Value,
+) -> Result<(), &'static str> {
     match value {
         Value::Object(map)
             if map.get("kind").and_then(Value::as_str) == Some(ACTION_RESULT_OBJECTS) =>
@@ -94,35 +168,36 @@ pub(in crate::oracle::canonical) fn bind_action_result_objects(
                 .and_then(Value::as_str)
                 .and_then(ActionResultVerb::from_ir_name)
                 .ok_or("a known restated verb")?;
-            let previous = reader
-                .checked_sub(1)
-                .ok_or("an earlier action of this program that the condition restates")?;
-            let (Some(&(from, _)), Some(&(to, _))) =
-                (action_starts.get(previous), action_starts.get(previous + 1))
-            else {
-                return Err("a lowered action before the condition");
-            };
-            let producers = (from..to)
-                .filter(|position| {
-                    effects[*position]["kind"]
-                        .as_str()
-                        .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
-                })
-                .collect::<Vec<_>>();
+            let reader = map
+                .get("reader")
+                .and_then(Value::as_u64)
+                .and_then(|reader| usize::try_from(reader).ok())
+                .or(reader)
+                .ok_or("the action that reads the restated objects")?;
+            // The nearest earlier action whose lowering runs the verb.
+            let producer = (0..reader).rev().find_map(|index| {
+                let (from, _) = *action_starts.get(index)?;
+                // The last lowered action ends with the program lowered so far.
+                let to = action_starts
+                    .get(index + 1)
+                    .map_or(effects.len(), |(to, _)| *to);
+                let producers = (from..to)
+                    .filter(|position| {
+                        effects[*position]["kind"]
+                            .as_str()
+                            .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
+                    })
+                    .collect::<Vec<_>>();
+                (!producers.is_empty()).then_some((index, producers))
+            });
+            let (previous, producers) =
+                producer.ok_or("an earlier action of this program that the phrase restates")?;
             let [position] = producers.as_slice() else {
                 return Err(
                     "one preceding top-level runtime action recording the restated objects",
                 );
             };
-            let binding = match effects[*position].get("bind").and_then(Value::as_str) {
-                Some(existing) => existing.to_owned(),
-                None => {
-                    let binding = action_result_binding(previous);
-                    effects[*position]["bind"] = json!(binding);
-                    binding
-                }
-            };
-            let bound = json!({ "kind": "boundObjects", "binding": binding });
+            let bound = action_result_objects(&mut effects[*position], previous)?;
             let filter = map.get("where").cloned().unwrap_or(Value::Null);
             *value = json!({
                 "kind": "countObjects",
@@ -135,10 +210,10 @@ pub(in crate::oracle::canonical) fn bind_action_result_objects(
             Ok(())
         }
         Value::Object(map) => map.values_mut().try_for_each(|child| {
-            bind_action_result_objects(action_starts, effects, reader, child)
+            bind_pending_action_result_objects(action_starts, effects, reader, child)
         }),
         Value::Array(items) => items.iter_mut().try_for_each(|child| {
-            bind_action_result_objects(action_starts, effects, reader, child)
+            bind_pending_action_result_objects(action_starts, effects, reader, child)
         }),
         _ => Ok(()),
     }
@@ -303,6 +378,16 @@ fn lower_numeric_expression_in_context(
         // Resolved and bound by the program lowering (see
         // `install_action_result_quantities`); left unresolved it is no
         // runtime expression and is refused.
+        // `the number of cards revealed this way`: bound by the program
+        // lowering to the nearest earlier action of the restated verb.
+        NumericExpression::ActionResultQuantity {
+            reader_effect,
+            quantity: ActionResultQuantity::Objects(reference),
+        } => {
+            let mut pending = lower_action_result_objects(reference).ok()?;
+            pending["reader"] = json!(reader_effect);
+            Some(pending)
+        }
         NumericExpression::ActionResultQuantity {
             reader_effect,
             quantity,
