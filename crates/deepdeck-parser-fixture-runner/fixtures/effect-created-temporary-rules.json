@@ -473,6 +473,126 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-circle-of-protection-white",
+      "request": {
+        "cardName": "Circle of Protection: White",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "{1}: The next time a white source of your choice would deal damage to you this turn, prevent that damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "all"
+              },
+              {
+                "pointer": "/effects/0/nextTimeOnly",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/combatOnly",
+                "equals": false
+              },
+              {
+                "pointer": "/effects/0/sourceChoice/where/kind",
+                "equals": "colorContains"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-next-combat-damage-any-source",
+      "request": {
+        "cardName": "Test Parry",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "The next time a source of your choice would deal combat damage to you this turn, prevent that damage. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/combatOnly",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/sourceChoice/where",
+                "equals": null
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-damage-without-a-rule",
+      "request": {
+        "cardName": "Test Stray Shield",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Draw a card. Prevent that damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.next-damage.event-damage"
+          }
+        ]
+      }
     }
   ]
 }

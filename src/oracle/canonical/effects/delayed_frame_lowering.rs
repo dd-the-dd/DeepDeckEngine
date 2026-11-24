@@ -288,6 +288,8 @@ pub(super) fn apply_delayed_frames(
             // A replacement is created now and acts on the current object;
             // it captures nothing.
             lower_created_replacement(cursor, replacement, target_bindings, &delayed)?
+        } else if let EffectCreatedRuleNode::NextDamage(shield) = &frame.rule {
+            lower_next_damage_shield(cursor, shield, &delayed)?
         } else {
             lower_delayed_trigger(
                 cursor,
@@ -307,7 +309,82 @@ pub(super) fn apply_delayed_frames(
             }
         }
     }
+    // `prevent that damage` names the damage of a created rule's event; no
+    // other sentence supplies one.
+    cursor.enter("lower.next-damage.event-damage");
+    cursor.require(
+        !effects.iter().any(reads_event_damage),
+        "`prevent that damage` inside a created next-damage rule",
+    )?;
     Ok(())
+}
+
+fn reads_event_damage(value: &Value) -> bool {
+    match value {
+        Value::Array(items) => items.iter().any(reads_event_damage),
+        Value::Object(object) => {
+            object.get("kind").and_then(Value::as_str) == Some("eventDamage")
+                || object.values().any(reads_event_damage)
+        }
+        _ => false,
+    }
+}
+
+/// `The next time SOURCE of your choice would deal [combat] damage to you
+/// this turn, prevent that damage.` (CR 615.7): one prevention shield, used
+/// once, whose source the controller chooses on resolution (CR 609.7a).
+fn lower_next_damage_shield(
+    cursor: &mut OracleTokenCursor<'_>,
+    shield: &NextDamageRuleNode,
+    governed: &[Value],
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    let CreatedRuleLifetime::ThisTurn = shield.lifetime;
+    let event = &shield.event;
+    cursor.enter("lower.next-damage.recipient");
+    cursor.require(
+        event.recipients == [DamageEventRecipient::Player(DamagePlayerRecipient::You)],
+        "you as the protected recipient of the next damage",
+    )?;
+    cursor.enter("lower.next-damage.amount-guard");
+    cursor.require(
+        event.minimum.is_none() && event.maximum.is_none(),
+        "a next damage event without an amount guard",
+    )?;
+    cursor.enter("lower.next-damage.kind");
+    let combat_only = match event.kind {
+        DamageKind::Any => false,
+        DamageKind::Combat => true,
+        DamageKind::Noncombat => {
+            return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                cursor.fail("any or combat damage for a next-damage shield"),
+            ));
+        }
+    };
+    cursor.enter("lower.next-damage.source");
+    let source = event
+        .source
+        .as_ref()
+        .ok_or_else(|| cursor.fail("the damage source the shield names"))?;
+    let filter = lower_chosen_damage_source_filter(cursor, source)?;
+    cursor.enter("lower.next-damage.action");
+    cursor.require(
+        governed.len() == 1
+            && governed[0]["kind"] == "preventDamage"
+            && governed[0]["amount"]["kind"] == "eventDamage"
+            && governed[0].get("recipient").is_none()
+            && governed[0].get("source").is_none()
+            && governed[0]["combatOnly"] == json!(false),
+        "exactly `prevent that damage` as the shield's modification",
+    )?;
+    Ok(json!({
+        "kind": "preventDamage",
+        "amount": {"kind": "all"},
+        "combatOnly": combat_only,
+        "recipient": controller(),
+        "sourceChoice": {"where": filter},
+        "nextTimeOnly": true,
+        "duration": {"kind": "untilEndOfCurrentTurn"},
+    }))
 }
 
 /// One delayed triggered ability over its lowered range (CR 603.7).
@@ -324,7 +401,9 @@ fn lower_delayed_trigger(
             DelayedTriggerEventNode::BoundObjectDeparture { .. } => EventScope::Departure,
             DelayedTriggerEventNode::NextSpellCast { .. } => EventScope::SpellCast,
         },
-        EffectCreatedRuleNode::Step(_) | EffectCreatedRuleNode::Replacement(_) => EventScope::Step,
+        EffectCreatedRuleNode::Step(_)
+        | EffectCreatedRuleNode::Replacement(_)
+        | EffectCreatedRuleNode::NextDamage(_) => EventScope::Step,
     };
     // The followed object, read in the trigger's actions, is the object its
     // own departure record binds (CR 603.7c, 603.10a).
@@ -441,7 +520,7 @@ fn lower_delayed_trigger(
                 }
             }
         }
-        EffectCreatedRuleNode::Replacement(_) => {
+        EffectCreatedRuleNode::Replacement(_) | EffectCreatedRuleNode::NextDamage(_) => {
             unreachable!("a created replacement is lowered without a delayed trigger")
         }
     };

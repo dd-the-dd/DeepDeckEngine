@@ -325,3 +325,108 @@ fn parsed_created_rules_are_executable() {
         }
     }
 }
+
+fn colored_creature(id: &str, mana_cost: &str) -> CardInstance {
+    let mut definition = test_definition(id, "Creature");
+    definition.mana_cost = mana_cost.to_string();
+    test_instance(id, definition, "player-1")
+}
+
+fn life_of(engine: &GameEngine, id: &str) -> i32 {
+    engine
+        .state
+        .players
+        .iter()
+        .find(|player| player.id == id)
+        .expect("player")
+        .life
+}
+
+fn damage_player(engine: &mut GameEngine, player_id: &str, source: &str) {
+    engine
+        .deal_damage_amount_with_kind_and_origin(
+            TargetRef::Player {
+                player_id: player_id.to_string(),
+            },
+            2,
+            source,
+            false,
+            QuantityOrigin::Effect,
+            None,
+        )
+        .expect("damage resolves");
+}
+
+/// Circle of Protection: White prevents the damage of the one white source
+/// chosen on resolution, once (CR 615.7, 609.7a).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn the_next_time_shield_prevents_one_chosen_source_once() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Circle of Protection: White".to_string(),
+        type_line: "Enchantment".to_string(),
+        mana_cost: Some("{1}{W}".to_string()),
+        oracle_text: Some(
+            "{1}: The next time a white source of your choice would deal damage to you this turn, prevent that damage."
+                .to_string(),
+        ),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.abilities);
+    let rule = parsed.abilities[0].rule.clone().expect("a canonical rule");
+    assert!(rule_is_executable(&rule), "{rule:#}");
+
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        colored_creature("white-striker", "{W}"),
+        colored_creature("red-striker", "{R}"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let stack = StackObject {
+        id: "stack:circle".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance(
+            "circle",
+            test_definition("circle", "Enchantment"),
+            "player-0",
+        ),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack,
+            &mut BTreeMap::new(),
+            &mut BTreeMap::new(),
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the shield is created");
+    let start = life_of(&engine, "player-0");
+
+    damage_player(&mut engine, "player-0", "red-striker");
+    assert_eq!(
+        life_of(&engine, "player-0"),
+        start - 2,
+        "another source is not chosen"
+    );
+    damage_player(&mut engine, "player-0", "white-striker");
+    assert_eq!(
+        life_of(&engine, "player-0"),
+        start - 2,
+        "the chosen source is prevented"
+    );
+    damage_player(&mut engine, "player-0", "white-striker");
+    assert_eq!(
+        life_of(&engine, "player-0"),
+        start - 4,
+        "the shield applied once"
+    );
+}

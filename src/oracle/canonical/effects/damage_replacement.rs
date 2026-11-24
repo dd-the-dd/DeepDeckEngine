@@ -111,6 +111,33 @@ fn lower_source_predicate(
     Ok((lower_card_object_predicate(predicate), None))
 }
 
+/// The filter of a source chosen on resolution (`a white source of your
+/// choice`, CR 609.7a): any object with those characteristics. A controller
+/// relation, an exclusion or a spell-only domain has no chooser.
+pub(in crate::oracle::canonical) fn lower_chosen_damage_source_filter(
+    cursor: &OracleTokenCursor<'_>,
+    source: &DamageSourceNode,
+) -> MachineResult<Value> {
+    let DamageSourceNode::Objects {
+        predicate,
+        controller: None,
+        exclude_source: false,
+        source_noun,
+    } = source
+    else {
+        return Err(cursor.fail("a source of your choice qualified only by characteristics"));
+    };
+    let Some(predicate) = predicate else {
+        return Ok(Value::Null);
+    };
+    let (filter, domain) = lower_source_predicate(cursor, predicate, *source_noun)?;
+    cursor.require(
+        domain.is_none(),
+        "a chosen source that may be a permanent or a spell",
+    )?;
+    Ok(filter)
+}
+
 fn lower_damage_source(
     cursor: &OracleTokenCursor<'_>,
     source: &DamageSourceNode,

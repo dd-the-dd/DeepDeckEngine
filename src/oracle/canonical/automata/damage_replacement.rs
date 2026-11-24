@@ -213,6 +213,31 @@ fn recognize_damage_event(
         ClauseRecognition::NotClaimed => {}
     }
     let source = recognize_damage_source(cursor, context)?;
+    recognize_would_deal_event(cursor, context, source, committed)
+}
+
+/// `SOURCE of your choice would deal [KIND] damage [to RECIPIENTS]`: the
+/// event of a created next-time shield (CR 615.7), whose source the
+/// controller chooses on resolution. The shared source and damage-clause
+/// children read it; only the choice phrase is added.
+pub(in crate::oracle::canonical) fn recognize_chosen_source_damage_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &DamageReplacementContext<'_>,
+) -> MachineResult<DamageEventNode> {
+    let source = recognize_damage_source(cursor, context)?;
+    cursor.enter("replacement.damage-source.choice");
+    cursor.consume_phrase(&["of", "your", "choice"])?;
+    let mut committed = false;
+    recognize_would_deal_event(cursor, context, source, &mut committed)
+}
+
+/// `would deal [KIND] damage [to RECIPIENTS]` after a read source.
+fn recognize_would_deal_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &DamageReplacementContext<'_>,
+    source: DamageSourceNode,
+    committed: &mut bool,
+) -> MachineResult<DamageEventNode> {
     // `SOURCE would deal ...`: the clause's `would` modality and the
     // replacement policy of the damage frame. A claimed clause commits.
     cursor.enter("replacement.damage-event.verb");

@@ -5,6 +5,7 @@
 //! CreatedRule := DelayedStepTiming                       -- `delayed_step_timing.rs`
 //!              | "when" DelayedEvent Lifetime ","         -- delayed trigger (603.7)
 //!              | "if" BoundObject "would die" Lifetime "," -- replacement (614.1a)
+//!              | "the next time" ChosenSourceDamage Lifetime "," -- shield (615.7)
 //! DelayedEvent := BoundObject ("dies" | "leaves the battlefield")
 //!               | "you" "next" "cast" SpellQuery
 //!               | "you" "cast" "your" "next" SpellQuery
@@ -17,9 +18,12 @@
 //! binding environment (`that creature`, `it`); a spell is read by the shared
 //! object query. The actions of a delayed trigger read the delayed trigger's
 //! own event, not the event of the ability that created it (CR 603.7d-e).
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
+
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DelayedStepTimingNode, FrameBindings, ObjectKind, ObjectPredicate, PermanentEffectReference,
+    DamageEventNode, DamageReplacementContext, DelayedStepTimingNode, FrameBindings, ObjectKind,
+    ObjectPredicate, PermanentEffectReference,
 };
 
 /// How a created rule governs its action range.
@@ -34,6 +38,10 @@ pub(in crate::oracle::canonical) enum EffectCreatedRuleNode {
     /// `If OBJECT would die this turn, ACTION instead.`: a replacement effect
     /// the resolving effect creates (CR 614.1a, 614.6).
     Replacement(CreatedReplacementNode),
+    /// `The next time SOURCE of your choice would deal damage to RECIPIENT
+    /// this turn, prevent that damage.`: a prevention shield that applies
+    /// once, to a source chosen on resolution (CR 615.7, 609.7a).
+    NextDamage(NextDamageRuleNode),
 }
 
 impl From<DelayedStepTimingNode> for EffectCreatedRuleNode {
@@ -47,7 +55,7 @@ impl EffectCreatedRuleNode {
     pub(in crate::oracle::canonical) fn step_timing(&self) -> Option<DelayedStepTimingNode> {
         match self {
             Self::Step(timing) => Some(*timing),
-            Self::Trigger(_) | Self::Replacement(_) => None,
+            Self::Trigger(_) | Self::Replacement(_) | Self::NextDamage(_) => None,
         }
     }
 
@@ -56,7 +64,7 @@ impl EffectCreatedRuleNode {
     /// replacement read the frame of the ability that created them.
     pub(in crate::oracle::canonical) fn body_frame(&self) -> Option<FrameBindings> {
         match self {
-            Self::Step(_) | Self::Replacement(_) => None,
+            Self::Step(_) | Self::Replacement(_) | Self::NextDamage(_) => None,
             Self::Trigger(trigger) => Some(match trigger.event {
                 // The departed object is the lexical antecedent the program
                 // already names; no other event reference is in scope.
@@ -128,6 +136,13 @@ pub(in crate::oracle::canonical) struct EmbeddedDelayedTriggerNode {
     pub lifetime: CreatedRuleLifetime,
 }
 
+/// The next damage event a created shield modifies, with its lifetime.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct NextDamageRuleNode {
+    pub event: DamageEventNode,
+    pub lifetime: CreatedRuleLifetime,
+}
+
 /// `If OBJECT would die this turn, ACTION instead.` The action is the
 /// governed range; lowering proves it is the replacing action.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -156,6 +171,9 @@ pub(in crate::oracle::canonical) fn effect_created_rule_starts(
     if word_at(cursor, 0, "when") || word_at(cursor, 0, "whenever") {
         return true;
     }
+    if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && word_at(cursor, 2, "time") {
+        return true;
+    }
     // `If OBJECT would die`: the bound object is at most a determiner and a
     // noun, or a pronoun; the lookahead stays within that width.
     word_at(cursor, 0, "if")
@@ -167,8 +185,27 @@ pub(in crate::oracle::canonical) fn effect_created_rule_starts(
 /// including) the comma that opens its action range.
 pub(in crate::oracle::canonical) fn recognize_effect_created_rule(
     cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<EffectCreatedRuleNode> {
     cursor.enter("created-rule.introducer");
+    if word_at(cursor, 0, "the") {
+        cursor.consume_phrase(&["the", "next", "time"])?;
+        // The shared damage-event children read the source and the event;
+        // an attached-permanent noun has no meaning outside an Aura or
+        // Equipment's static ability.
+        let context = DamageReplacementContext {
+            name_links,
+            name_failure,
+            attachment_word: None,
+        };
+        let event = super::recognize_chosen_source_damage_event(cursor, &context)?;
+        let lifetime = recognize_lifetime(cursor, "next-damage.lifetime")?;
+        return Ok(EffectCreatedRuleNode::NextDamage(NextDamageRuleNode {
+            event,
+            lifetime,
+        }));
+    }
     if word_at(cursor, 0, "if") {
         cursor.consume("if")?;
         return recognize_created_replacement(cursor).map(EffectCreatedRuleNode::Replacement);

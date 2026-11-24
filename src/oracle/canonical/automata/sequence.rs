@@ -1267,7 +1267,11 @@ fn recognize_effect_sequence_attempt_scoped(
                                 && super::effect_created_rule_starts(cursor)
                             {
                                 let mut trial = cursor.clone();
-                                let rule = super::recognize_effect_created_rule(&mut trial)?;
+                                let rule = super::recognize_effect_created_rule(
+                                    &mut trial,
+                                    name_links,
+                                    name_failure,
+                                )?;
                                 trial.enter("sequence.created-rule.separator");
                                 trial.consume(",")?;
                                 *cursor = trial;

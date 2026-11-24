@@ -21,6 +21,10 @@ use super::{
 pub(in crate::oracle::canonical) enum PreventedDamageAmount {
     All,
     Next(NumericAtom),
+    /// `that damage`: all the damage of the event the enclosing created
+    /// rule observes (CR 615.7). Only that rule's lowering gives it a
+    /// meaning; anywhere else it is refused.
+    EventDamage,
 }
 
 /// A damage recipient or source named by a prevention action. Collections of
@@ -135,6 +139,26 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
     let mut trial = cursor.clone();
     trial.consume("prevent")?;
     trial.enter("effect.prevent.amount");
+    if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && trial
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("damage"))
+    {
+        // The event, its parties and its lifetime belong to the rule that
+        // introduced the sentence.
+        trial.enter("effect.prevent.event-damage");
+        trial.consume_phrase(&["that", "damage"])?;
+        *cursor = trial;
+        return Ok(PreventDamageEffectNode {
+            amount: PreventedDamageAmount::EventDamage,
+            combat_only: false,
+            recipient: None,
+            source: None,
+            duration: EffectDurationNode::UntilEndOfCurrentTurn,
+        });
+    }
     let amount = if trial
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))

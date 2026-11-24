@@ -116,3 +116,26 @@ fn outcome_connectors_and_ordinary_conditions_are_not_created_rules() {
         assert!(!effect_created_rule_starts(&cursor), "{text}");
     }
 }
+
+#[test]
+fn a_next_damage_shield_reads_the_shared_damage_event() {
+    let (first, end, rule) = only_rule(
+        "The next time a white source of your choice would deal damage to you this turn, prevent that damage.",
+    );
+    assert_eq!((first, end), (0, 1));
+    let EffectCreatedRuleNode::NextDamage(shield) = rule else {
+        panic!("a next-damage shield");
+    };
+    assert_eq!(shield.lifetime, CreatedRuleLifetime::ThisTurn);
+    assert!(shield.event.source.is_some());
+    assert_eq!(shield.event.recipients.len(), 1);
+    // A source the controller does not choose is another event pattern.
+    assert_eq!(
+        parse(
+            "The next time a white source would deal damage to you this turn, prevent that damage."
+        )
+        .err()
+        .as_deref(),
+        Some("replacement.damage-source.choice")
+    );
+}
