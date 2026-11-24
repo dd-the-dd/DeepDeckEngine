@@ -40,6 +40,13 @@ pub(super) struct PreparedDamageFrame {
     pub events: Vec<DeferredDamageEvent>,
     pub counter_removals: Vec<PreparedCounterRemoval>,
 }
+/// One redirection shield applied to a damage event (CR 614.9): the
+/// shield, how much of the event it redirects and the new recipient.
+pub(super) struct DamageRedirectionSplit {
+    pub shield_id: u64,
+    pub amount: i32,
+    pub target: TargetRef,
+}
 pub(super) enum PreparedDamage {
     Prevented {
         events: Vec<DeferredDamageEvent>,
@@ -606,6 +613,114 @@ impl GameEngine {
             events: events.records,
             counter_removals,
         }))
+    }
+    /// Installs a redirection shield (CR 614.9) over the same scope as a
+    /// prevention shield: amount (`None` is all), combat-only, recipient and
+    /// source filters, the turn it lasts and whether it is used once.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn install_damage_redirection_shield(
+        &mut self,
+        shield_id: u64,
+        remaining: Option<i32>,
+        combat_only: bool,
+        recipient: Value,
+        source: Value,
+        redirect_to: Value,
+        next_time_only: bool,
+    ) {
+        self.state.rule_modifiers.push(json!({
+            "kind": "damageRedirectionShield",
+            "shieldId": shield_id,
+            "remaining": remaining,
+            "combatOnly": combat_only,
+            "recipient": recipient,
+            "sourcePermanentId": source,
+            "redirectTo": redirect_to,
+            "nextTimeOnly": next_time_only,
+            "expiresAfterTurn": self.state.turn_number,
+        }));
+    }
+    /// The first live redirection shield (CR 614.9) that applies to this
+    /// damage event and was not already applied to it. A shield whose new
+    /// recipient no longer exists, or is the current recipient, does nothing
+    /// to the event and is not used up.
+    pub(super) fn select_damage_redirection(
+        &self,
+        target: &TargetRef,
+        amount: i32,
+        source: &str,
+        combat: bool,
+        applied: &[u64],
+    ) -> Option<DamageRedirectionSplit> {
+        if amount <= 0 {
+            return None;
+        }
+        self.state
+            .rule_modifiers
+            .iter()
+            .filter(|modifier| value_kind(modifier) == Some("damageRedirectionShield"))
+            .find_map(|shield| {
+                let shield_id = shield["shieldId"].as_u64()?;
+                if applied.contains(&shield_id)
+                    || !self.damage_prevention_shield_applies(shield, target, source, combat)
+                {
+                    return None;
+                }
+                let redirected_to =
+                    if let Some(player_id) = shield["redirectTo"]["playerId"].as_str() {
+                        let index = self.player_index(player_id).ok()?;
+                        if self.state.players[index].has_lost {
+                            return None;
+                        }
+                        TargetRef::Player {
+                            player_id: player_id.to_string(),
+                        }
+                    } else {
+                        let instance_id = shield["redirectTo"]["permanentId"].as_str()?;
+                        self.permanent_position(instance_id)?;
+                        TargetRef::Permanent {
+                            instance_id: instance_id.to_string(),
+                        }
+                    };
+                if &redirected_to == target {
+                    return None;
+                }
+                let redirected = shield["remaining"]
+                    .as_i64()
+                    .map(|remaining| i32::try_from(remaining).unwrap_or(i32::MAX).min(amount))
+                    .unwrap_or(amount);
+                (redirected > 0).then_some(DamageRedirectionSplit {
+                    shield_id,
+                    amount: redirected,
+                    target: redirected_to,
+                })
+            })
+    }
+    /// A finite shield is reduced by what it redirected; a `next time`
+    /// shield is used up by the event it applied to (CR 614.9, 615.7).
+    pub(super) fn consume_damage_redirection_shield(&mut self, shield_id: u64, redirected: i32) {
+        if let Some(shield) = self.state.rule_modifiers.iter_mut().find(|modifier| {
+            value_kind(modifier) == Some("damageRedirectionShield")
+                && modifier["shieldId"].as_u64() == Some(shield_id)
+        }) {
+            if let Some(remaining) = shield["remaining"].as_i64() {
+                shield["remaining"] = json!((remaining - i64::from(redirected)).max(0));
+            }
+            if shield["nextTimeOnly"].as_bool() == Some(true) {
+                shield["spent"] = Value::Bool(true);
+            }
+        }
+    }
+    /// True when a redirection shield applies to damage dealt to `target`.
+    pub(super) fn damage_redirection_shield_applies(
+        &self,
+        target: &TargetRef,
+        amount: i32,
+        source: &str,
+        combat: bool,
+    ) -> bool {
+        self.select_damage_redirection(target, amount, source, combat, &[])
+            .is_some()
     }
     /// A `damagePreventionShield` (CR 615) applies to one damage event when it
     /// is live this turn, has amount left, and its optional combat-only,

@@ -361,6 +361,24 @@ fn recognize_target_slot(
                     ));
                 }
                 match cursor.peek() {
+                    // `any other target` (CR 115.3): any target that is not
+                    // an object or player an earlier slot of the same
+                    // instruction targets (`... to any target and 1 damage to
+                    // any other target`).
+                    Some(raw)
+                        if allow_any_target
+                            && raw.eq_ignore_ascii_case("any")
+                            && cursor
+                                .peek_ahead(1)
+                                .is_some_and(|raw| raw.eq_ignore_ascii_case("other")) =>
+                    {
+                        cursor.enter("target-list.slot.any-other");
+                        cursor.consume_phrase(&["any", "other", "target"])?;
+                        cardinality = Some(TargetCardinality::EXACTLY_ONE);
+                        exclude_source = true;
+                        selector = Some(TargetSelector::Any);
+                        TargetSlotState::Complete
+                    }
                     Some(raw) if allow_any_target && raw.eq_ignore_ascii_case("any") => {
                         cardinality = Some(TargetCardinality::EXACTLY_ONE);
                         TargetSlotState::Selector
@@ -372,6 +390,18 @@ fn recognize_target_slot(
                     Some(raw) if raw.eq_ignore_ascii_case("another") => {
                         cardinality = Some(TargetCardinality::EXACTLY_ONE);
                         cursor.consume("another")?;
+                        exclude_source = true;
+                        TargetSlotState::TargetHead
+                    }
+                    // `a second|third target ...` (CR 115.3): one more target,
+                    // distinct from every earlier one, like `another target`.
+                    Some(_) if ordinal_target_head_follows(cursor) => {
+                        cursor.enter("target-list.slot.ordinal");
+                        let article = cursor.peek().expect("checked article").to_string();
+                        cursor.consume(&article)?;
+                        let ordinal = cursor.peek().expect("checked ordinal").to_string();
+                        cursor.consume(&ordinal)?;
+                        cardinality = Some(TargetCardinality::EXACTLY_ONE);
                         exclude_source = true;
                         TargetSlotState::TargetHead
                     }
@@ -426,7 +456,14 @@ fn recognize_target_slot(
                     TargetSlotState::Complete
                 } else {
                     cursor.consume("target")?;
-                    TargetSlotState::Selector
+                    // `another target` / `a third target` without a noun:
+                    // the plural-free form of `any other target`.
+                    if exclude_source && target_slot_boundary(cursor) {
+                        selector = Some(TargetSelector::Any);
+                        TargetSlotState::Complete
+                    } else {
+                        TargetSlotState::Selector
+                    }
                 }
             }
             TargetSlotState::DeterminedHead => {
@@ -612,12 +649,37 @@ fn try_recognize_additional_slot(
 pub(in crate::oracle::canonical) fn starts_explicit_target_slot(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    cursor.peek().is_some_and(|raw| {
-        raw.eq_ignore_ascii_case("target")
-            || raw.eq_ignore_ascii_case("another")
-            || raw.eq_ignore_ascii_case("up")
-            || raw.eq_ignore_ascii_case("any")
-            || is_literal_quantity(cursor)
+    ordinal_target_head_follows(cursor)
+        || cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("target")
+                || raw.eq_ignore_ascii_case("another")
+                || raw.eq_ignore_ascii_case("up")
+                || raw.eq_ignore_ascii_case("any")
+                || is_literal_quantity(cursor)
+        })
+}
+
+/// `a second|third|fourth|fifth target`: an ordinal target head.
+fn ordinal_target_head_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("a"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            ["second", "third", "fourth", "fifth"]
+                .iter()
+                .any(|ordinal| raw.eq_ignore_ascii_case(ordinal))
+        })
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+}
+
+/// The end of a target phrase without a selector noun.
+fn target_slot_boundary(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor.peek().is_none_or(|raw| {
+        matches!(raw, "." | "," | ";" | ":")
+            || raw.eq_ignore_ascii_case("and")
+            || raw.eq_ignore_ascii_case("instead")
     })
 }
 

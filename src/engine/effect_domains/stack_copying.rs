@@ -21,6 +21,15 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("mayChooseNewTargets")
                     .is_none_or(Value::is_boolean)
                 && effect.get("removeLegendary").is_none_or(Value::is_boolean)
+                // CR 707.10: the copy's copiable-value exceptions, the same
+                // modification list a token copy applies (CR 707.9b).
+                && effect.get("except").is_none_or(|exceptions| {
+                    exceptions.as_array().is_some_and(|exceptions| {
+                        exceptions
+                            .iter()
+                            .all(super::super::validation::copy_exception_supported)
+                    })
+                })
                 && effect.get("grantKeywords").is_none_or(|keywords| {
                     keywords.as_array().is_some_and(|keywords| {
                         keywords.iter().all(|keyword| {
@@ -42,6 +51,45 @@ fn supports_known_effect(effect: &Value) -> bool {
 }
 
 impl GameEngine {
+    /// CR 707.10: a copy of a spell or ability copies the copiable values
+    /// of the original, then applies the effect's exceptions to them.
+    fn apply_stack_copy_exceptions(
+        &mut self,
+        copy_id: &str,
+        exceptions: &[Value],
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        let Some(mut definition) = self
+            .state
+            .stack
+            .iter()
+            .find(|object| object.id == copy_id)
+            .map(|copy| copy.card.definition.clone())
+        else {
+            return Ok(());
+        };
+        for exception in exceptions {
+            self.apply_copy_exception(
+                &mut definition,
+                exception,
+                stack_object,
+                bindings,
+                decisions,
+            )?;
+        }
+        if let Some(copy) = self
+            .state
+            .stack
+            .iter_mut()
+            .find(|object| object.id == copy_id)
+        {
+            copy.card.definition = definition;
+        }
+        Ok(())
+    }
+
     pub(super) fn execute_stack_copying_domain<P: DecisionProvider>(
         &mut self,
         effect: &Value,
@@ -186,6 +234,15 @@ impl GameEngine {
                             .strip_prefix("Legendary ")
                             .unwrap_or(&copy.card.definition.type_line)
                             .to_string();
+                    }
+                    if let Some(exceptions) = effect["except"].as_array() {
+                        self.apply_stack_copy_exceptions(
+                            &copy_id,
+                            exceptions,
+                            stack_object,
+                            bindings,
+                            decisions,
+                        )?;
                     }
                     if effect["mayChooseNewTargets"].as_bool() == Some(true) {
                         let chooser = self

@@ -879,6 +879,21 @@ fn recognize_effect_sequence_attempt_scoped(
                                 return Ok(LocalEffectNode::DealDamage(node));
                             }
                         }
+                        // `This creature gets +1/+0 until end of turn and
+                        // deals 1 damage to you`: a second predicate of the
+                        // same written subject (CR 608.2c).
+                        if memory.connectors.last() == Some(&EffectConnector::And)
+                            && let Some(source) =
+                                super::shared_damage_subject(memory.effects.last())
+                            && super::shared_subject_damage_starts(attempt)
+                        {
+                            return super::recognize_damage_predicate(
+                                attempt,
+                                source,
+                                super::SubjectVerbAgreement::Finite,
+                            )
+                            .map(LocalEffectNode::DealDamage);
+                        }
                         if memory.connectors.last() == Some(&EffectConnector::And)
                             && super::elided_sacrifice_operand_starts(
                                 attempt,
@@ -2217,6 +2232,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             cursor.enter("sequence.copy-new-targets.terminator");
                             cursor.consume(".")?;
                         }
+                        if super::type_retention_amendment_starts(cursor) {
+                            // CR 205.1b: the sentence amends the type change
+                            // of the sentence just closed.
+                            attempt_frame.commit();
+                            super::recognize_type_retention_amendment(
+                                cursor,
+                                memory.effects.last_mut(),
+                            )?;
+                            cursor.enter("sequence.type-retention.terminator");
+                            cursor.consume(".")?;
+                        }
                         if library_look_reminder_starts_at(cursor)
                             && let Some(reminded) =
                                 memory.effects.iter().rev().find_map(|effect| match effect {
@@ -2622,6 +2648,18 @@ fn recognize_effect(
             return Err(failure);
         }
         super::RetargetActionAttempt::NotClaimed => {}
+    }
+    if super::damage_redirection_starts(cursor) {
+        // `AMOUNT damage that would be dealt ... is dealt to PARTY instead`
+        // (CR 614.9): the damage is the subject of the redirection shield.
+        attempt_frame.commit();
+        return super::recognize_damage_redirection_effect(
+            cursor,
+            name_links,
+            name_failure,
+            context,
+        )
+        .map(LocalEffectNode::PreventDamage);
     }
     if super::control_change_starts(cursor) {
         // `[you] gain control of` / `exchange control of` owns its verb frame;

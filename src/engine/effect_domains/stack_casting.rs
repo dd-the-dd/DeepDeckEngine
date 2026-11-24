@@ -72,6 +72,14 @@ fn supports_known_effect(effect: &Value) -> bool {
             target_reference_supported(&effect["object"])
                 && player_reference_supported(&effect["player"])
                 && effect["optional"].is_boolean()
+                // CR 115.7a/b: `change the target(s)` / `change a target`.
+                && effect
+                    .get("mode")
+                    .is_none_or(|mode| matches!(mode.as_str(), Some("all" | "one")))
+                && effect.get("to").is_none_or(|to| {
+                    matches!(value_kind(to), Some("self" | "abilitySource"))
+                        || target_reference_supported(to)
+                })
         }
         _ => false,
     }

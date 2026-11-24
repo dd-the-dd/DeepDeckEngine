@@ -235,6 +235,162 @@ pub(in crate::oracle::canonical) fn recognize_relative_damage_clause(
     }
 }
 
+/// The written subject a following `and deals ...` predicate shares: the
+/// source of a stat change on the ability's own object (`This creature gets
+/// +1/+1 until end of turn and deals 1 damage to each opponent`). Only a
+/// fixed or bound singular reference is shared; a declared target keeps its
+/// own slots.
+pub(in crate::oracle::canonical) fn shared_damage_subject(
+    previous: Option<&super::LocalEffectNode>,
+) -> Option<super::PermanentOperandNode> {
+    match previous? {
+        super::LocalEffectNode::ModifyStats(change) => match &change.targets {
+            source @ super::PermanentOperandNode::Reference(_) => Some(source.clone()),
+            // `it gets +2/+2 until end of turn and deals 2 damage to ...`:
+            // one bound object, never a declared set.
+            source @ super::PermanentOperandNode::BoundReference(reference)
+                if !matches!(reference, super::PermanentEffectReference::TargetSet(_)) =>
+            {
+                Some(source.clone())
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// True at the finite damage verb with its subject elided (`deals N damage`).
+pub(in crate::oracle::canonical) fn shared_subject_damage_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    peek_is(cursor, "deals")
+        && damage_arguments_claim(
+            &{
+                let mut after = cursor.clone();
+                let _ = after.advance_to(after.position() + 1);
+                after
+            },
+            DamageArguments::Effect,
+        )
+}
+
+/// True at a recipient reference this reader owns: the reflexive `itself`,
+/// the source's `this NOUN`, the attacked `the player or planeswalker ...
+/// attacking`, or the singular `them` of an event player.
+fn damage_recipient_reference_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    peek_is(cursor, "itself")
+        || peek_is(cursor, "them")
+        || super::this_object_nominal_at(cursor).is_some()
+        || (peek_is(cursor, "the")
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("player"))
+            && cursor
+                .peek_ahead(2)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+            && cursor
+                .peek_ahead(3)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("planeswalker")))
+}
+
+/// A damage recipient named by a reference before any target (CR 120.1,
+/// 608.2c), resolved against the binding environment of the damage clause:
+///
+/// ```text
+/// Reference := "itself"                                  -- the clause subject
+///            | "this" NOUN                               -- the ability source
+///            | "the" "player" "or" "planeswalker" ATTACKER "attacking"
+///            | "them"                                    -- the event's player
+/// ATTACKER  := "it's" | "it" "is" | "that" NOUN "is"
+/// ```
+///
+/// `None` makes no claim; a claimed reference without its antecedent is a
+/// committed diagnostic, never a new target.
+pub(in crate::oracle::canonical) fn recognize_damage_recipient_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> Option<MachineResult<super::DamageRecipientNode>> {
+    if !damage_recipient_reference_starts(cursor) {
+        return None;
+    }
+    Some(read_damage_recipient_reference(cursor))
+}
+
+fn read_damage_recipient_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::DamageRecipientNode> {
+    let environment = super::installed_binding_environment(cursor);
+    if peek_is(cursor, "itself") {
+        // CR 120.1: the object dealing the damage is dealt it.
+        cursor.enter("effect.damage.recipient.reflexive");
+        let subject = environment
+            .subject
+            .ok_or_else(|| cursor.fail("a singular damage source `itself` names"))?;
+        cursor.consume("itself")?;
+        return Ok(super::DamageRecipientNode::BoundObject(subject));
+    }
+    if peek_is(cursor, "them") {
+        // The singular `they` of a player the event records (`At the
+        // beginning of each player's upkeep, ... deals 1 damage to them`).
+        cursor.enter("effect.damage.recipient.event-player");
+        cursor.require(
+            environment.frame.event_player
+                && environment.player.is_none()
+                && environment.player_target.is_none()
+                && environment.objects.is_none(),
+            "an event player as the only antecedent of `them`",
+        )?;
+        cursor.consume("them")?;
+        return Ok(super::DamageRecipientNode::BoundPlayer(
+            super::BoundPlayerReference::EventPlayer,
+        ));
+    }
+    if super::this_object_nominal_at(cursor).is_some() {
+        cursor.enter("effect.damage.recipient.source");
+        cursor.advance_to(cursor.position() + 2)?;
+        return Ok(super::DamageRecipientNode::BoundObject(
+            super::PermanentEffectReference::Source(super::LocalObjectReference::SourceSelf),
+        ));
+    }
+    cursor.enter("effect.damage.recipient.attacked");
+    cursor.consume_phrase(&["the", "player", "or", "planeswalker"])?;
+    cursor.require(
+        environment.frame.defending_player,
+        "an attack event that records what the creature is attacking (CR 506.3)",
+    )?;
+    let attacker = if peek_is(cursor, "it's") || peek_is(cursor, "it’s") {
+        let raw = cursor.peek().expect("a contracted pronoun").to_string();
+        cursor.consume(&raw)?;
+        attacking_pronoun_antecedent(cursor, &environment)?
+    } else if peek_is(cursor, "it") {
+        cursor.consume_phrase(&["it", "is"])?;
+        attacking_pronoun_antecedent(cursor, &environment)?
+    } else {
+        let attacker = super::recognize_nominal_object_reference(cursor, &environment)?;
+        cursor.consume("is")?;
+        attacker
+    };
+    cursor.enter("effect.damage.recipient.attacked.participle");
+    cursor.consume("attacking")?;
+    Ok(super::DamageRecipientNode::AttackedRecipient(attacker))
+}
+
+/// `it` in `the player or planeswalker it's attacking`: the attacking object
+/// of the attack event, else the clause's own subject (`Whenever this
+/// creature attacks, it deals ...`).
+fn attacking_pronoun_antecedent(
+    cursor: &OracleTokenCursor<'_>,
+    environment: &super::BindingEnvironment,
+) -> MachineResult<super::PermanentEffectReference> {
+    environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| slot.subject && !slot.departed)
+        .map(|slot| slot.reference)
+        .or(environment.subject)
+        .ok_or_else(|| cursor.fail("an attacking creature `it` names"))
+}
+
 #[cfg(test)]
 #[path = "damage_clause_tests.rs"]
 mod tests;

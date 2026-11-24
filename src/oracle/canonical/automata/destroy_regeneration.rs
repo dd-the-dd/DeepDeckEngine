@@ -18,12 +18,30 @@ enum AmendmentState {
     Complete,
 }
 
+/// `. that|the NOUN can't` after a destruction: a nominal anaphor of the
+/// destroyed object (the selector check follows once it is read).
+fn nominal_amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that") || raw.eq_ignore_ascii_case("the"))
+        && cursor.peek_ahead(2).is_some_and(|raw| {
+            crate::oracle::characteristic_vocabulary::lookup_card_type(
+                raw,
+                AcceptedForms::SingularOnly,
+            )
+            .is_some()
+        })
+        && cursor.peek_ahead(3).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
+        })
+}
+
 fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek() == Some(".")
-        && ((cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they"))
-            && cursor.peek_ahead(2).is_some_and(|raw| {
+        && (nominal_amendment_starts(cursor)
+            || (cursor.peek_ahead(1).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they")
+            }) && cursor.peek_ahead(2).is_some_and(|raw| {
                 raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
             }))
             || (cursor
@@ -41,6 +59,29 @@ fn amendment_starts(cursor: &OracleTokenCursor<'_>) -> bool {
                 && cursor.peek_ahead(6).is_some_and(|raw| {
                     raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
                 })))
+}
+
+/// The singular card type a destroyed scalar target is guaranteed to have,
+/// named by a following nominal anaphor (`That creature`, `The land`).
+fn recognize_destroyed_nominal(
+    cursor: &mut OracleTokenCursor<'_>,
+    zone_change: &ZoneChangeEffectNode,
+) -> MachineResult<super::ObjectCardType> {
+    let determiner = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&determiner)?;
+    let predicate = recognize_object_predicate_atom(cursor, AcceptedForms::SingularOnly)?;
+    let ObjectPredicate::CardType(object_type) = predicate else {
+        return Err(cursor.fail("a singular registered card type"));
+    };
+    cursor.require(
+        zone_change.target.slots.len() == 1
+            && zone_change.target.slots[0].cardinality.maximum == 1
+            && zone_change.target.slots[0]
+                .selector
+                .guarantees_card_type(object_type),
+        "a preceding scalar target selector guaranteed to have the referenced card type",
+    )?;
+    Ok(object_type)
 }
 
 /// `. They can't be regenerated` after a destroyed collection: the later
@@ -134,6 +175,13 @@ pub(in crate::oracle::canonical) fn recognize_zone_change_with_regeneration_amen
                             && zone_change.target.slots[0].cardinality.maximum == 1,
                         "one scalar destroyed-object antecedent",
                     )?;
+                    AmendmentState::NegatedModal
+                } else if cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("that") || raw.eq_ignore_ascii_case("the")
+                }) {
+                    // `That creature can't be regenerated.` (CR 701.19c):
+                    // the destroyed target named by its guaranteed type.
+                    referenced_type = Some(recognize_destroyed_nominal(cursor, &zone_change)?);
                     AmendmentState::NegatedModal
                 } else if cursor
                     .peek()

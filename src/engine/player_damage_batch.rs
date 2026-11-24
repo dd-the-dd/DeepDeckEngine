@@ -103,6 +103,7 @@ impl GameEngine {
                 != (TargetRef::Player {
                     player_id: player.clone(),
                 })
+                || self.damage_redirection_shield_applies(&target, amount, source, false)
             {
                 return Err(EngineError::new(
                     "simultaneous damage redirection requires ordered replacement choices",

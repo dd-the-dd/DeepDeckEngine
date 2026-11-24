@@ -8,7 +8,56 @@ use super::*;
 pub(super) fn node_requires_checkpoint(effect: &Value) -> bool {
     value_kind(effect) == Some("dealDamage")
 }
+/// `attackedRecipientOf OBJECT`: the player, planeswalker or battle the
+/// object is attacking (CR 506.3, 508.1b), read from the current combat.
+pub(super) fn attacked_recipient_reference_supported(reference: &Value) -> bool {
+    value_kind(reference) == Some("attackedRecipientOf")
+        && (matches!(
+            value_kind(&reference["object"]),
+            Some("self" | "abilitySource")
+        ) || target_reference_supported(&reference["object"]))
+}
 impl GameEngine {
+    /// What the referenced object attacks, while it is an attacking creature
+    /// of the current combat and that player or permanent is still in the
+    /// game. An object that is not attacking names no recipient.
+    pub(super) fn resolve_attacked_recipient(
+        &self,
+        reference: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Option<TargetRef> {
+        let attacker = if matches!(
+            value_kind(&reference["object"]),
+            Some("self" | "abilitySource")
+        ) {
+            stack_object.card.instance_id.clone()
+        } else {
+            match self.resolve_target(&reference["object"], stack_object, bindings)? {
+                TargetRef::Permanent { instance_id } => instance_id,
+                _ => return None,
+            }
+        };
+        self.permanent_position(&attacker)?;
+        let defender = self
+            .state
+            .combat
+            .attackers
+            .iter()
+            .find(|declared| declared.attacker_id == attacker)?
+            .defender
+            .clone();
+        let present = match &defender {
+            TargetRef::Player { player_id } => self
+                .state
+                .players
+                .iter()
+                .any(|player| player.id == *player_id && !player.has_lost),
+            TargetRef::Permanent { instance_id } => self.permanent_position(instance_id).is_some(),
+            TargetRef::Card { .. } | TargetRef::StackObject { .. } => false,
+        };
+        present.then_some(defender)
+    }
     pub(super) fn deal_damage_amount_with_kind_and_origin(
         &mut self,
         target: TargetRef,
@@ -26,6 +75,114 @@ impl GameEngine {
     /// can no longer find in a zone (a resolving spell, CR 120.3).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn deal_damage_amount_with_source_profile(
+        &mut self,
+        target: TargetRef,
+        amount: i32,
+        source: &str,
+        combat: bool,
+        origin: QuantityOrigin,
+        provider: Option<&mut dyn DecisionProvider>,
+        source_profile: Option<&super::source_lki::ResolvedDamageSource>,
+    ) -> Result<i32, EngineError> {
+        let mut applied = Vec::new();
+        self.deal_damage_through_redirections(
+            target,
+            amount,
+            source,
+            combat,
+            origin,
+            provider,
+            source_profile,
+            &mut applied,
+        )
+    }
+    /// CR 614.9: a redirection shield replaces the recipient of the part of
+    /// the event it covers; the rest is still dealt to the original
+    /// recipient. Each shield applies at most once to one event (CR 614.5).
+    #[allow(clippy::too_many_arguments)]
+    fn deal_damage_through_redirections(
+        &mut self,
+        target: TargetRef,
+        amount: i32,
+        source: &str,
+        combat: bool,
+        origin: QuantityOrigin,
+        mut provider: Option<&mut dyn DecisionProvider>,
+        source_profile: Option<&super::source_lki::ResolvedDamageSource>,
+        applied: &mut Vec<u64>,
+    ) -> Result<i32, EngineError> {
+        if amount <= 0 {
+            return Ok(0);
+        }
+        let Some(split) = self.select_damage_redirection(&target, amount, source, combat, applied)
+        else {
+            return self.deal_unredirected_damage(
+                target,
+                amount,
+                source,
+                combat,
+                origin,
+                provider,
+                source_profile,
+            );
+        };
+        applied.push(split.shield_id);
+        self.consume_damage_redirection_shield(split.shield_id, split.amount);
+        let (from_player, from_card) = match &target {
+            TargetRef::Player { player_id } => (Some(player_id.clone()), None),
+            TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                (None, Some(instance_id.clone()))
+            }
+            TargetRef::StackObject { .. } => (None, None),
+        };
+        let to = match &split.target {
+            TargetRef::Player { player_id } => json!({ "playerId": player_id }),
+            TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                json!({ "permanentId": instance_id })
+            }
+            TargetRef::StackObject { stack_id } => json!({ "stackId": stack_id }),
+        };
+        self.record_event(
+            "damageRedirected",
+            from_player,
+            from_card,
+            json!({
+                "amount": split.amount,
+                "source": source,
+                "reason": "redirectionShield",
+                "shieldId": split.shield_id,
+                "to": to,
+            }),
+        );
+        let redirected = self.deal_damage_through_redirections(
+            split.target,
+            split.amount,
+            source,
+            combat,
+            origin,
+            match provider.as_mut() {
+                Some(p) => Some(&mut **p),
+                None => None,
+            },
+            source_profile,
+            applied,
+        )?;
+        let kept = self.deal_damage_through_redirections(
+            target,
+            amount - split.amount,
+            source,
+            combat,
+            origin,
+            provider,
+            source_profile,
+            applied,
+        )?;
+        redirected
+            .checked_add(kept)
+            .ok_or_else(|| EngineError::new("redirected damage sum overflow"))
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn deal_unredirected_damage(
         &mut self,
         target: TargetRef,
         amount: i32,

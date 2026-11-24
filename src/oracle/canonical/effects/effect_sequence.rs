@@ -275,7 +275,8 @@ fn lower_local_effect_sequence_with_collections(
                 ids.extend(operand_target_base_ids(&fight.second));
                 ids
             }
-            LocalEffectNode::PreventDamage(prevent) => [&prevent.recipient, &prevent.source]
+            LocalEffectNode::PreventDamage(prevent) => prevent
+                .parties()
                 .into_iter()
                 .filter_map(|party| damage_party_targets(party))
                 .filter_map(|targets| lower_target_slot_candidates(&targets.slots[0]))
@@ -1565,13 +1566,19 @@ fn lower_local_effect_sequence_with_collections(
             LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
                 // The spell the triggering cast record binds (CR 707.10);
                 // `twice` is two ordinary copies of it.
+                let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
+                    .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                 for _ in 0..copy.count {
-                    effects.push(json!({
+                    let mut action = json!({
                         "kind": "copyStackItem",
                         "object": {"kind": "triggeringStackObject"},
                         "controller": controller(),
                         "mayChooseNewTargets": copy.may_choose_new_targets,
-                    }));
+                    });
+                    if let Some(except) = &except {
+                        action["except"] = except.clone();
+                    }
+                    effects.push(action);
                 }
             }
             LocalEffectNode::CopyStackObject(copy) => {
@@ -1583,7 +1590,10 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 // The stack-object target slot (id and candidates) is the one
                 // the counter action declares; only the action differs.
-                let (target_id, candidates, _) = lower_counter_action(slot, false);
+                let (target_id, mut candidates, _) = lower_counter_action(slot, false);
+                if let Some(scope) = copy.controller {
+                    candidates["controller"] = lower_object_controller_scope(scope);
+                }
                 if decisions
                     .iter()
                     .any(|decision| decision["id"].as_str() == Some(target_id))
@@ -1598,13 +1608,19 @@ fn lower_local_effect_sequence_with_collections(
                     i64::from(slot.cardinality.minimum),
                     i64::from(slot.cardinality.maximum),
                 ));
+                let except = lower_stack_copy_exceptions(cursor, &copy.exceptions)
+                    .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                 for _ in 0..copy.count {
-                    effects.push(json!({
+                    let mut action = json!({
                         "kind": "copyStackItem",
                         "object": chosen_target(target_id),
                         "controller": controller(),
                         "mayChooseNewTargets": copy.may_choose_new_targets,
-                    }));
+                    });
+                    if let Some(except) = &except {
+                        action["except"] = except.clone();
+                    }
+                    effects.push(action);
                 }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
@@ -1733,11 +1749,8 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::PreventDamage(prevent) => {
                 cursor.enter("lower.prevent.parties");
-                let mut parties = Vec::with_capacity(2);
-                for (party_index, party) in [&prevent.recipient, &prevent.source]
-                    .into_iter()
-                    .enumerate()
-                {
+                let mut parties = Vec::with_capacity(3);
+                for (party_index, party) in prevent.parties().into_iter().enumerate() {
                     parties.push(match party {
                         None => None,
                         Some(DamagePartyNode::Targets(targets)) => {
@@ -1805,11 +1818,7 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail(error.expectation()),
                     )
                 })?;
-                let source = parties.pop().flatten();
-                let recipient = parties.pop().flatten();
-                effects.push(lower_prevent_damage_shield(
-                    prevent, amount, recipient, source,
-                ));
+                effects.push(lower_damage_shield_parties(prevent, amount, parties));
             }
             LocalEffectNode::Choose(choice) => {
                 // `choose target ...` is the target declaration itself (CR
@@ -2046,6 +2055,16 @@ fn lower_local_effect_sequence_with_collections(
                 let recipients = match &damage.recipient {
                     DamageRecipientNode::Targets(targets) => {
                         cursor.enter("lower.damage.object-source.recipient");
+                        // `other` names the object dealing the damage; the
+                        // shared slot marks exclude the ability source and
+                        // earlier targets, never an attached object.
+                        cursor
+                            .require(
+                                source["kind"].as_str() != Some("attachedPermanent")
+                                    || targets.slots.iter().all(|slot| !slot.exclude_source),
+                                "an `other` recipient relation to the attached damage source",
+                            )
+                            .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                         let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
                         let ordinal = used_target_base_ids
                             .iter()
@@ -3564,6 +3583,9 @@ fn lower_fixed_damage_recipient(
         DamageRecipientNode::BoundObject(reference) => {
             return bound_permanent_reference_value(*reference, object_bindings)
                 .ok_or(TargetlessLoweringError::RequiresTarget);
+        }
+        DamageRecipientNode::AttackedRecipient(attacker) => {
+            return lower_attacked_recipient(*attacker, object_bindings);
         }
         _ => {}
     }

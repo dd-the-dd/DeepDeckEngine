@@ -394,7 +394,8 @@ fn lower_local_effect_sequence(
                     DamageRecipientNode::EachPermanent(_)
                     | DamageRecipientNode::All(_)
                     | DamageRecipientNode::BoundPlayer(_)
-                    | DamageRecipientNode::BoundObject(_) => {
+                    | DamageRecipientNode::BoundObject(_)
+                    | DamageRecipientNode::AttackedRecipient(_) => {
                         return Err(DamageFamilySequenceLoweringError::ExistingUnsupported);
                     }
                 }
