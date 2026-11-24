@@ -759,19 +759,22 @@ fn zone_actions_on_a_target_antecedent() {
             .unwrap_or_else(|| panic!("{oracle}: {effects:#?}"));
         assert_eq!(action["permanent"]["kind"], "chosenTarget", "{oracle}");
     }
-    // A delayed action on a declared target stays refused: the target is not
-    // transported into the delayed trigger.
-    let (status, _, states) = parse(
+    // A delayed action on a declared target captures that target when the
+    // delayed trigger is created (CR 603.7c) and reads the capture.
+    let effects = effects(
         "Instant",
         "Tap target creature. Exile it at the beginning of the next end step.",
     );
-    assert_ne!(status, "canonical");
-    assert!(
-        states
-            .iter()
-            .any(|state| state == "lower.delayed.object-references"),
-        "{states:?}"
+    let delayed = effects
+        .iter()
+        .find(|effect| effect["kind"] == "installDelayedStepTrigger")
+        .unwrap_or_else(|| panic!("{effects:#?}"));
+    assert_eq!(
+        delayed["captureReferences"][0]["reference"]["kind"],
+        "chosenTarget"
     );
+    assert_eq!(delayed["effects"][0]["kind"], "exilePermanent");
+    assert_eq!(delayed["effects"][0]["permanent"]["kind"], "boundValue");
     // The definite description follows the antecedent's selector.
     let (status, _, _) = parse("Instant", "Tap target creature. Sacrifice the land.");
     assert_ne!(status, "canonical");

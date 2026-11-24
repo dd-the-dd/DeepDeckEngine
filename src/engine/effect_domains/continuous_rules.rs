@@ -219,9 +219,11 @@ impl GameEngine {
                     self.resolve_target(&effect["object"], stack_object, bindings)
                     && self.permanent_position(&instance_id).is_some()
                 {
+                    // CR 614.1a: a one-shot replacement that lasts this turn
+                    // only; the departure pipeline checks its turn.
                     self.state.rule_modifiers.push(json!({
-                        "kind": "exileIfWouldDie",
-                        "cardInstanceId": instance_id,
+                        "kind": "exileIfDiesThisTurn",
+                        "instanceId": instance_id,
                         "expiresAfterTurn": self.state.turn_number,
                     }));
                 }

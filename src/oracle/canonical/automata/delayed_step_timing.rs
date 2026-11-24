@@ -8,6 +8,9 @@ pub(in crate::oracle::canonical) enum DelayedStepTurnNode {
     AnyTurn,
     /// `your next STEP`: the next such step of the controller's turn.
     ControllerTurn,
+    /// `the next turn's STEP`: that step of the turn after this one, never a
+    /// later step of the current turn.
+    NextTurn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,13 +20,14 @@ pub(in crate::oracle::canonical) struct DelayedStepTimingNode {
 }
 
 /// A program range whose actions are not performed now: resolving creates a
-/// delayed triggered ability that performs them at the stated step
-/// (CR 603.7a). The sequence parent owns the range; this node owns timing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// rule that performs them later, a delayed triggered ability at the stated
+/// step or event (CR 603.7a) or a replacement (CR 614.1a). The sequence
+/// parent owns the range; the rule node owns timing, event and lifetime.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct DelayedFrameNode {
     pub first_effect: usize,
     pub end_effect: usize,
-    pub timing: DelayedStepTimingNode,
+    pub rule: super::EffectCreatedRuleNode,
 }
 
 impl DelayedFrameNode {
@@ -51,7 +55,7 @@ pub(in crate::oracle::canonical) fn delayed_step_timing_starts(
     phrase(&["at", "the", "beginning", "of"]) || phrase(&["at", "end", "of", "combat"])
 }
 
-/// Reads `at the beginning of {the|your} next {end step|upkeep}`.
+/// Reads `at the beginning of {the|your} next [turn's] {end step|upkeep}`.
 pub(in crate::oracle::canonical) fn recognize_delayed_step_timing(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DelayedStepTimingNode> {
@@ -83,6 +87,19 @@ pub(in crate::oracle::canonical) fn recognize_delayed_step_timing(
     };
     cursor.enter("delayed-step.timing.next");
     cursor.consume("next")?;
+    // `the next turn's STEP`: the step of the following turn (CR 500.1).
+    let turn = if turn == DelayedStepTurnNode::AnyTurn
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("turn's") || raw == "turn\u{2019}s")
+    {
+        cursor.enter("delayed-step.timing.next-turn");
+        let possessive = cursor.peek().expect("checked possessive turn").to_string();
+        cursor.consume(&possessive)?;
+        DelayedStepTurnNode::NextTurn
+    } else {
+        turn
+    };
     cursor.enter("delayed-step.timing.step");
     let step = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some("upkeep") => {

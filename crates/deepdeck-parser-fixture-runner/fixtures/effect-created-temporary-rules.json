@@ -1,0 +1,478 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/effect-created-temporary-rules",
+  "cases": [
+    {
+      "id": "exact-time-to-feed",
+      "request": {
+        "cardName": "Time to Feed",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Choose target creature an opponent controls. When that creature dies this turn, you gain 3 life. Target creature you control fights that creature. (Each deals damage equal to its power to the other.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDelayedZoneChangeTrigger"
+              },
+              {
+                "pointer": "/effects/0/trackedObject/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/destinations/0",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "fightPermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-otherworldly-outburst",
+      "request": {
+        "cardName": "Otherworldly Outburst",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Target creature gets +1/+0 until end of turn. When that creature dies this turn, create a 3/2 colorless Eldrazi Horror creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedZoneChangeTrigger"
+              },
+              {
+                "pointer": "/effects/1/destinations/0",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kjeldoran-elite-guard",
+      "request": {
+        "cardName": "Kjeldoran Elite Guard",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "{T}: Target creature gets +2/+2 until end of turn. When that creature leaves the battlefield this turn, sacrifice this creature. Activate only during combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedZoneChangeTrigger"
+              },
+              {
+                "pointer": "/effects/1/anyDestination",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-leaves-battlefield-draw",
+      "request": {
+        "cardName": "Test Parting Gift",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Target creature gets +2/+2 until end of turn. When that creature leaves the battlefield this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedZoneChangeTrigger"
+              },
+              {
+                "pointer": "/effects/1/anyDestination",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ral-storm-conduit",
+      "request": {
+        "cardName": "Ral, Storm Conduit",
+        "typeLine": "Legendary Planeswalker — Ral",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Whenever you cast or copy an instant or sorcery spell, Ral deals 1 damage to target opponent or planeswalker.\n+2: Scry 1.\n−2: When you next cast an instant or sorcery spell this turn, copy that spell. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDelayedSpellCastTrigger"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/effects/0/object/kind",
+                "equals": "triggeringStackObject"
+              },
+              {
+                "pointer": "/effects/0/effects/0/mayChooseNewTargets",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-your-next-spell",
+      "request": {
+        "cardName": "Test Echo Charm",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{R}",
+        "oracleText": "When you cast your next instant or sorcery spell this turn, copy that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDelayedSpellCastTrigger"
+              },
+              {
+                "pointer": "/effects/0/effects/0/mayChooseNewTargets",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lava-coil",
+      "request": {
+        "cardName": "Lava Coil",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Lava Coil deals 4 damage to target creature. If that creature would die this turn, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDeathExileReplacement"
+              },
+              {
+                "pointer": "/effects/1/object/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stone-giant",
+      "request": {
+        "cardName": "Stone Giant",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "{T}: Target creature you control with toughness less than this creature's power gains flying until end of turn. Destroy that creature at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/step",
+                "equals": "endStep"
+              },
+              {
+                "pointer": "/effects/1/captureReferences/0/reference/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/effects/0/permanent/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cinder-wall",
+      "request": {
+        "cardName": "Cinder Wall",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{R}",
+        "oracleText": "Defender\nWhen this creature blocks, destroy it at end of combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/0/step",
+                "equals": "endOfCombat"
+              },
+              {
+                "pointer": "/effects/0/captureReferences/0/reference/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fevered-strength",
+      "request": {
+        "cardName": "Fevered Strength",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target creature gets +2/+0 until end of turn.\nDraw a card at the beginning of the next turn's upkeep.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/0/step",
+                "equals": "upkeep"
+              },
+              {
+                "pointer": "/effects/0/nextTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departure-without-antecedent",
+      "request": {
+        "cardName": "Test Lonely Vigil",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "When that creature dies this turn, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departure-without-lifetime",
+      "request": {
+        "cardName": "Test Long Vigil",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature gets +1/+1 until end of turn. When that creature dies, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "delayed-trigger.lifetime"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-replacement-without-instead",
+      "request": {
+        "cardName": "Test Coil",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Test Coil deals 4 damage to target creature. If that creature would die this turn, exile it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.created-replacement.instead"
+          }
+        ]
+      }
+    }
+  ]
+}
