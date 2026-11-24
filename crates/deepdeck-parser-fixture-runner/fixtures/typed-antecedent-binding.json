@@ -617,6 +617,29 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-synapse-sliver-its-controller-of-the-event-object",
+      "request": {
+        "cardName": "Synapse Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{4}{U}",
+        "oracleText": "Whenever a Sliver deals combat damage to a player, its controller may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }
