@@ -741,8 +741,12 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     }) || cursor
         .peek_token()
         .is_some_and(|token| token.token_type == "quantity")
+        || super::expressed_target_count_starts(cursor)
     {
-        let targets = recognize_target_list(cursor)?;
+        // The shared lowering reads a slot's typed count (`X target`, `any
+        // number of target`); see `lower_ordinary_permanent_subject`.
+        let targets =
+            super::recognize_target_list_with_counts(cursor, super::TargetCountSupport::Expressed)?;
         cursor.require(
             targets
                 .slots

@@ -320,6 +320,91 @@ fn try_recognize_activation_program(
     })
 }
 
+/// A modal activated ability (CR 700.2): the shared activation costs, then
+/// the shared modal container, whose modes are chosen as the ability is put
+/// on the stack (CR 602.2b, 700.2a). Restrictions written between the header
+/// and the first mode (`Choose one. Activate only as a sorcery.`) belong to
+/// the ability, exactly like trailing ones (CR 602.5b).
+#[derive(Clone, Debug)]
+pub(in crate::oracle::canonical) struct ActivatedModalNode {
+    pub costs: ActivationCostSequenceNode,
+    pub modal: super::EffectSequenceModalNode,
+    pub restrictions: super::ActivationRestrictionsNode,
+}
+
+pub(in crate::oracle::canonical) enum ActivatedModalParseAttempt {
+    /// No activation envelope, or its body is not a modal container; the
+    /// cursor is restored for the ordinary activated program.
+    NotClaimed,
+    Parsed(ActivatedModalNode),
+    /// The costs and the modal markers committed this parent; the header or
+    /// a mode failed in its own state.
+    FailedCommitted(MachineFailure),
+}
+
+/// Claims `COSTS: Choose N — • MODE • MODE ...` once the costs and colon are
+/// read and the body carries the modal container's markers (`choose` and a
+/// mode bullet). The body is the shared modal container read with the
+/// activation's own body context, so a mode's `this creature` or `equipped
+/// creature` names the source exactly as an ordinary activated body does.
+pub(in crate::oracle::canonical) fn try_recognize_activated_modal_with_cost_context(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    derive_context: impl FnOnce(
+        &ActivationCostSequenceNode,
+        &EffectRecognitionContext,
+    ) -> EffectRecognitionContext,
+) -> ActivatedModalParseAttempt {
+    // The claim is decided on a trial cursor, so an unclaimed body leaves
+    // the caller's cursor and trace exactly as they were.
+    let mut trial = cursor.clone();
+    let Ok((costs, keyword)) = recognize_activation_prefix(&mut trial, name_links) else {
+        return ActivatedModalParseAttempt::NotClaimed;
+    };
+    if !super::modal_body_starts(&trial) {
+        return ActivatedModalParseAttempt::NotClaimed;
+    }
+    *cursor = trial;
+    let context = derive_context(&costs, context);
+    cursor.enter("activation.modal.body");
+    let mut printed = None;
+    let modal = super::recognize_effect_sequence_modal_with_header_sentence(
+        cursor,
+        name_links,
+        name_failure,
+        &context,
+        &mut |cursor| {
+            if !super::activation_restriction_starts(cursor) {
+                return Ok(false);
+            }
+            cursor.enter("activation.modal.header-restriction");
+            printed = Some(super::recognize_activation_restrictions(cursor)?);
+            Ok(true)
+        },
+    );
+    let modal = match modal {
+        Ok(modal) => modal,
+        Err(failure) => return ActivatedModalParseAttempt::FailedCommitted(failure),
+    };
+    let mut restrictions = keyword_restrictions(keyword);
+    if let Some(printed) = printed
+        && let Err(failure) = restrictions.merge(cursor, printed)
+    {
+        return ActivatedModalParseAttempt::FailedCommitted(failure);
+    }
+    ActivatedModalParseAttempt::Parsed(ActivatedModalNode {
+        costs,
+        modal,
+        restrictions,
+    })
+}
+
 #[cfg(test)]
 #[path = "activated_effect_sequence_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "activated_modal_tests.rs"]
+mod modal_tests;

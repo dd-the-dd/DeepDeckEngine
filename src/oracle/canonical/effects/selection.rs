@@ -74,12 +74,27 @@ pub(in crate::oracle::canonical) fn lower_target_slot_candidates(
     Some((id, candidates))
 }
 
+/// The literal maximum of [`TargetCardinality::EXPRESSED`]: the envelope of
+/// a slot whose authoritative count is its typed `count`, never a bound.
+const EXPRESSED_TARGET_MAXIMUM: i64 = u32::MAX as i64;
+
+/// One `chooseTargets` declaration with literal bounds. A count-aware
+/// lowerer replaces both bounds with the slot's typed count
+/// ([`apply_target_count_to_decision`]). If a literal-only lowerer receives
+/// the expressed envelope instead, the maximum stays an explicit unresolved
+/// count that no runtime admits, so the slot can never silently become
+/// `any number of targets` (CR 601.2c, 115.1).
 pub(in crate::oracle::canonical) fn target_decision(
     id: &str,
     candidates: Value,
     minimum: i64,
     maximum: i64,
 ) -> Value {
+    let maximum = if maximum == EXPRESSED_TARGET_MAXIMUM {
+        json!({ "kind": "unappliedTargetCount" })
+    } else {
+        json!(maximum)
+    };
     json!({
         "id": id,
         "kind": "chooseTargets",

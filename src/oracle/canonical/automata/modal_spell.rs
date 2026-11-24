@@ -152,6 +152,18 @@ const REPEAT_PERMISSION: [&str; 9] = [
 pub(in crate::oracle::canonical) fn recognize_modal_header(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ModalHeaderNode> {
+    recognize_modal_header_with_sentence(cursor, &mut |_| Ok(false))
+}
+
+/// The same header, where the parent may own one sentence between the
+/// header's period and the first bullet (`Choose one. Activate only as a
+/// sorcery.`, CR 602.5b). `header_sentence` reads that sentence when it
+/// recognizes its introducer and returns `true`; otherwise it consumes
+/// nothing and returns `false`, and the period keeps its CR 700.2d reading.
+pub(in crate::oracle::canonical) fn recognize_modal_header_with_sentence(
+    cursor: &mut OracleTokenCursor<'_>,
+    header_sentence: &mut dyn FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<bool>,
+) -> MachineResult<ModalHeaderNode> {
     cursor.enter("modal.header.action");
     cursor.consume("choose")?;
     let count = recognize_mode_count(cursor)?;
@@ -170,17 +182,22 @@ pub(in crate::oracle::canonical) fn recognize_modal_header(
         false
     } else if cursor.peek() == Some(".") {
         cursor.consume(".")?;
-        cursor.enter("modal.header.repeat-permission");
-        cursor.require(
-            REPEAT_PERMISSION
-                .iter()
-                .enumerate()
-                .all(|(offset, word)| word_at(cursor, offset, word)),
-            "the same-mode permission (CR 700.2d); a conditional mode-count upgrade is not lowered",
-        )?;
-        cursor.advance_to(cursor.position() + REPEAT_PERMISSION.len())?;
-        cursor.consume(".")?;
-        true
+        cursor.enter("modal.header.parent-sentence");
+        if header_sentence(cursor)? {
+            false
+        } else {
+            cursor.enter("modal.header.repeat-permission");
+            cursor.require(
+                REPEAT_PERMISSION
+                    .iter()
+                    .enumerate()
+                    .all(|(offset, word)| word_at(cursor, offset, word)),
+                "the same-mode permission (CR 700.2d); a conditional mode-count upgrade is not lowered",
+            )?;
+            cursor.advance_to(cursor.position() + REPEAT_PERMISSION.len())?;
+            cursor.consume(".")?;
+            true
+        }
     } else {
         return Err(cursor.fail("an em dash or period closing the modal header"));
     };
@@ -264,7 +281,26 @@ pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_context
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectSequenceModalNode> {
-    let header = recognize_modal_header(cursor)?;
+    recognize_effect_sequence_modal_with_header_sentence(
+        cursor,
+        name_links,
+        name_failure,
+        context,
+        &mut |_| Ok(false),
+    )
+}
+
+/// The modal envelope of a parent that owns one header sentence (an
+/// activated ability's `Activate only ...` restriction, CR 602.5b): the
+/// header, the parent's sentence, then the shared mode bodies.
+pub(in crate::oracle::canonical) fn recognize_effect_sequence_modal_with_header_sentence(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    header_sentence: &mut dyn FnMut(&mut OracleTokenCursor<'_>) -> MachineResult<bool>,
+) -> MachineResult<EffectSequenceModalNode> {
+    let header = recognize_modal_header_with_sentence(cursor, header_sentence)?;
 
     let mut modes = Vec::new();
     while cursor.peek() == Some(MODE_BULLET) {
