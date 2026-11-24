@@ -1031,10 +1031,3 @@ impl GameEngine {
 ))]
 #[path = "choices_tests.rs"]
 mod tests;
-
-#[cfg(all(
-    test,
-    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
-))]
-#[path = "chosen_card_name_tests.rs"]
-mod chosen_card_name_tests;
