@@ -2354,6 +2354,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
+                cursor.enter("lower.targetless-effect");
                 let mut lowered = lower_targetless_local_effects(
                     effect,
                     declarations,
@@ -2508,6 +2509,9 @@ impl ConditionalScopes {
                 "a sequence without both a sentence conditional and a postposed definition of X",
             )));
         }
+        // Later lowering failures belong to the action being lowered, not
+        // to the conditional ranges checked here.
+        cursor.enter("lower.effect-sequence.actions");
         let count = sequence.conditionals.len();
         Ok(Self {
             conditions: vec![None; count],
