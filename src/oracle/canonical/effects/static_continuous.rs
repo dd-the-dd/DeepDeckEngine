@@ -3,7 +3,9 @@
 //! ```text
 //! Static    := [ability word "—"] [("as long as" Condition | TurnCondition) ","]
 //!              (Subject Predicate ("and" Predicate)* | "you control" AttachedObject)
-//!              ["as long as" Condition] "." [keyword reminder]
+//!              [Gate] "." [keyword reminder]
+//! Gate      := "as long as" Condition | "if" Condition | "unless" Condition
+//!            | TurnCondition
 //! TurnCondition := "during your turn" | "during turns other than yours"
 //! Subject   := source reference | "equipped creature" | "enchanted" PERMANENT
 //!            | ["each" | "all"] ["other"] permanent collection
@@ -331,17 +333,13 @@ fn read_static_continuous_effect(
         }
         match cursor.peek() {
             Some(raw) if raw.eq_ignore_ascii_case("and") => cursor.consume("and")?,
-            Some(_) if as_long_as_starts(cursor) => {
-                cursor.require(
-                    condition.is_none(),
-                    "one `as long as` condition for the static ability",
-                )?;
+            Some(_) if trailing_condition_starts(cursor) => {
+                // One trailing gate of the whole ability (CR 611.3a): `as
+                // long as C`, `if C`, `unless C` (not-C) or a turn condition
+                // (`during your turn`), read by the shared condition readers.
+                cursor.require(condition.is_none(), "one condition for the static ability")?;
                 cursor.enter("static.continuous.trailing-condition");
-                cursor.consume_phrase(&["as", "long", "as"])?;
-                condition = Some(recognize_static_condition(
-                    cursor,
-                    condition_context(input, source_subject),
-                )?);
+                condition = Some(read_trailing_condition(cursor, input, source_subject)?);
                 cursor.enter("static.continuous.trailing-condition.terminator");
                 cursor.consume(".")?;
                 break;
@@ -643,6 +641,35 @@ fn serial_predicate_follows(cursor: &OracleTokenCursor<'_>) -> bool {
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
             && predicate_starts_at(cursor, 2))
+}
+
+/// A trailing gate of the static ability: `as long as`, `unless`, `if` (not
+/// a requirement's `if able`) or a `during` turn condition.
+fn trailing_condition_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    as_long_as_starts(cursor)
+        || word_in(cursor.peek(), &["unless", "during"])
+        || (word_in(cursor.peek(), &["if"]) && !word_in(cursor.peek_ahead(1), &["able"]))
+}
+
+fn read_trailing_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+    source_subject: bool,
+) -> MachineResult<StaticConditionNode> {
+    if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
+        return Ok(turn_condition);
+    }
+    if as_long_as_starts(cursor) {
+        cursor.consume_phrase(&["as", "long", "as"])?;
+        return recognize_static_condition(cursor, condition_context(input, source_subject));
+    }
+    if word_in(cursor.peek(), &["if"]) {
+        cursor.consume("if")?;
+        return recognize_static_condition(cursor, condition_context(input, source_subject));
+    }
+    cursor.consume("unless")?;
+    recognize_static_condition(cursor, condition_context(input, source_subject))
+        .map(|condition| BooleanConditionNode::Not(Box::new(condition)))
 }
 
 fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {

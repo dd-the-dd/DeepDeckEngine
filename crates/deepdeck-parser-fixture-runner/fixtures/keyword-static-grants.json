@@ -1,0 +1,444 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "keyword-static/granted-payloads-and-gated-statics",
+  "cases": [
+    {
+      "id": "exact-hunted-horror-token-protection-payload",
+      "request": {
+        "cardName": "Hunted Horror",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{B}{B}",
+        "oracleText": "When this creature enters, target opponent creates two 3/3 green Centaur creature tokens with protection from black.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": []
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-craterhoof-behemoth-gain-then-get-shared-duration",
+      "request": {
+        "cardName": "Craterhoof Behemoth",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{5}{G}{G}{G}",
+        "oracleText": "Haste\nWhen this creature enters, creatures you control gain trample and get +X/+X until end of turn, where X is the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": []
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-collection-gains-toxic-and-gets-stats",
+      "request": {
+        "cardName": "Toxic Surge Witness",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Creatures you control gain toxic 1 and get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/1/ability/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/effects/1/ability/ability/kind",
+                "equals": "toxic"
+              },
+              {
+                "pointer": "/effects/1/ability/ability/count/value",
+                "equals": 1
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-target-gains-protection-until-end-of-turn",
+      "request": {
+        "cardName": "Protection Grant Witness",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Target creature you control gains protection from red until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/ability/ability/kind",
+                "equals": "protection"
+              },
+              {
+                "pointer": "/effects/0/ability/ability/from/0",
+                "equals": "red"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-target-gains-template-keyword",
+      "request": {
+        "cardName": "Bushido Grant Witness",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Target creature gains bushido 2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantAbility"
+              },
+              {
+                "pointer": "/effects/0/ability/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-granted-keyword-with-variable-count-fails",
+      "request": {
+        "cardName": "Variable Toxic Witness",
+        "typeLine": "Instant",
+        "manaCost": "{X}{B}",
+        "oracleText": "Target creature gains toxic X until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-snake-umbra-grants-a-trigger",
+      "request": {
+        "cardName": "Snake Umbra",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{G}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has \"Whenever this creature deals damage to an opponent, you may draw a card.\"\nUmbra armor (If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantTriggeredAbility"
+              },
+              {
+                "pointer": "/modifiers/1/objects/kind",
+                "equals": "attachedPermanent"
+              },
+              {
+                "pointer": "/modifiers/1/ability/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-spiteful-sliver-collection-grants-a-trigger",
+      "request": {
+        "cardName": "Spiteful Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{2}{R}",
+        "oracleText": "Sliver creatures you control have \"Whenever this creature is dealt damage, it deals that much damage to target player or planeswalker.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantTriggeredAbility"
+              },
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/modifiers/0/ability/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-annihilator-and-quoted-trigger-as-long-as",
+      "request": {
+        "cardName": "Granted Rules Witness",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{3}",
+        "oracleText": "Enchanted creature has annihilator 1 and \"Whenever this creature deals combat damage to a player, draw a card\" as long as you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeywordAbility"
+              },
+              {
+                "pointer": "/modifiers/0/ability/ability/kind",
+                "equals": "annihilator"
+              },
+              {
+                "pointer": "/modifiers/0/ability/ability/quantity/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantTriggeredAbility"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-static-grant-with-unsupported-quoted-body-grants-nothing",
+      "request": {
+        "cardName": "Partial Grant Witness",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{G}",
+        "oracleText": "Enchanted creature has flying and \"Whenever this creature becomes tapped for the first time each turn, put a +1/+1 counter on it.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deep-sea-terror-cant-attack-unless",
+      "request": {
+        "cardName": "Deep-Sea Terror",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "This creature can't attack unless there are seven or more cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "cantAttack"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-razorkin-needlehead-trailing-turn-condition",
+      "request": {
+        "cardName": "Razorkin Needlehead",
+        "typeLine": "Creature — Human Assassin",
+        "manaCost": "{R}{R}",
+        "oracleText": "This creature has first strike during your turn.\nWhenever an opponent draws a card, this creature deals 1 damage to them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "firstStrike"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cant-block-unless-unsupported-condition",
+      "request": {
+        "cardName": "Moonlit Blocker Witness",
+        "typeLine": "Creature — Wolf",
+        "manaCost": "{1}{G}",
+        "oracleText": "This creature can't block unless the moon is full.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-opponent-payer-is-refused-at-the-payer",
+      "request": {
+        "cardName": "Polling Payer Witness",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "At the beginning of your upkeep, sacrifice this enchantment unless each opponent pays {1}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "sequence.unless.payer.indefinite-player"
+          }
+        ]
+      }
+    }
+  ]
+}
