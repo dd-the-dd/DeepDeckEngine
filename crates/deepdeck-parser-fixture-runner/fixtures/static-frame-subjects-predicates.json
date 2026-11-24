@@ -1170,6 +1170,268 @@
       }
     },
     {
+      "id": "exact-gravity-sphere-static-keyword-loss",
+      "request": {
+        "cardName": "Gravity Sphere",
+        "typeLine": "World Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "All creatures lose flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "loseKeywords"
+              },
+              {
+                "pointer": "/modifiers/0/keywords",
+                "equals": [
+                  "flying"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-archetype-of-courage-loss-and-prohibition",
+      "request": {
+        "cardName": "Archetype of Courage",
+        "typeLine": "Enchantment Creature — Human Soldier",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Creatures you control have first strike.\nCreatures your opponents control lose first strike and can't have or gain first strike.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "loseKeywords"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "loseKeywords"
+              },
+              {
+                "pointer": "/modifiers/1/objects/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hunters-blowgun-turn-condition-otherwise",
+      "request": {
+        "cardName": "Hunter's Blowgun",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Equipped creature gets +1/+1.\nEquipped creature has deathtouch during your turn. Otherwise, it has reach.\nEquip {2} ({2}: Attach to target creature you control. Equip only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "deathtouch"
+              },
+              {
+                "pointer": "/modifiers/1/keyword",
+                "equals": "reach"
+              },
+              {
+                "pointer": "/modifiers/1/condition/kind",
+                "equals": "not"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-so-tiny-instead-sentence",
+      "request": {
+        "cardName": "So Tiny",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{U}",
+        "oracleText": "Flash\nEnchant creature\nEnchanted creature gets -2/-0. It gets -6/-0 instead as long as its controller has seven or more cards in their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/modifiers/1/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": -6
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-possessed-aven-threshold-serial-color",
+      "request": {
+        "cardName": "Possessed Aven",
+        "typeLine": "Creature — Bird Soldier Horror",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Flying\nThreshold — As long as there are seven or more cards in your graveyard, this creature gets +1/+1, is black, and has \"{2}{B}, {T}: Destroy target blue creature.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setColor"
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "grantActivatedAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sylvan-advocate-source-and-collection-subjects",
+      "request": {
+        "cardName": "Sylvan Advocate",
+        "typeLine": "Creature — Elf Druid Ally",
+        "manaCost": "{1}{G}",
+        "oracleText": "Vigilance\nAs long as you control six or more lands, this creature and land creatures you control get +2/+2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/modifiers/1/objects/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thran-lens-colorless",
+      "request": {
+        "cardName": "Thran Lens",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "All permanents are colorless.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "setColor",
+                  "objects": {
+                    "kind": "permanents",
+                    "where": null
+                  },
+                  "colors": []
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-unused-each-opponent-hexproof-as-long-as",
       "request": {
         "cardName": "Static frame probe",

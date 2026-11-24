@@ -5299,6 +5299,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
     if let Some(supported) = player_static_modifiers::modifier_supported(modifier) {
         return supported;
     }
+    if let Some(supported) = GameEngine::static_keyword_loss_supported(modifier) {
+        return supported;
+    }
     if value_kind(modifier) == Some("replaceDamage") {
         return damage_replacement::damage_replacement_modifier_supported(modifier);
     }
@@ -10309,6 +10312,9 @@ impl GameEngine {
             return false;
         }
         if self.keyword_removed_by_resolved_effect(permanent, keyword) {
+            return false;
+        }
+        if self.static_keyword_loss_applies(permanent, keyword) {
             return false;
         }
         let keyword_counter = match keyword {

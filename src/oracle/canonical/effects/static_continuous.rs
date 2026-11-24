@@ -694,8 +694,23 @@ fn read_object_predicates(
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.ability-loss");
-                cursor.consume_phrase(&["all", "abilities"])?;
-                modifiers.push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
+                if word_in(cursor.peek(), &["all"]) {
+                    cursor.consume_phrase(&["all", "abilities"])?;
+                    modifiers
+                        .push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
+                } else {
+                    // `lose(s) KEYWORDS` (CR 613.1f).
+                    modifiers.push(read_keyword_loss(cursor, objects)?);
+                }
+            }
+            Some(StaticPredicateHead::KeywordProhibition) => {
+                // `can't have or gain KEYWORDS`: the objects don't have them
+                // whatever grants them (CR 613.1f).
+                *committed = true;
+                cursor.enter("static.continuous.keyword-prohibition");
+                read_prohibition_word(cursor)?;
+                cursor.consume_phrase(&["have", "or", "gain"])?;
+                modifiers.push(read_keyword_loss(cursor, objects)?);
             }
             Some(StaticPredicateHead::Ability) => {
                 cursor.consume("can")?;
@@ -922,6 +937,7 @@ fn modifier_takes_own_condition(modifier: &Value) -> bool {
                 | "setPower"
                 | "doesNotUntap"
                 | "loseAllAbilities"
+                | "loseKeywords"
                 | "preventCounters"
                 | "allowAttackWithDefender"
                 | "removeCardTypeWhile"
@@ -1053,6 +1069,23 @@ fn read_card_type_removal(
         "object": self_ref(),
         "cardType": card_type.ir_name(),
     }))
+}
+
+/// `KEYWORD ("," | "and" | ", and") KEYWORD …` lost by the subject's objects:
+/// the shared keyword list, restricted to parameterless keywords.
+fn read_keyword_loss(cursor: &mut OracleTokenCursor<'_>, objects: &Value) -> MachineResult<Value> {
+    let mut keywords = Vec::new();
+    for keyword in
+        recognize_granted_list_before_connector(cursor, GRANTED_OBJECT_TYPE_LINE)?.keywords
+    {
+        match keyword {
+            KeywordAtomNode::Parameterless(keyword) => keywords.push(keyword.canonical_name()),
+            _ => {
+                return Err(cursor.fail("a parameterless keyword the objects lose"));
+            }
+        }
+    }
+    Ok(json!({ "kind": "loseKeywords", "objects": objects.clone(), "keywords": keywords }))
 }
 
 /// `COLOR (("," | "and") COLOR)*`, `all colors` or `colorless` after the
@@ -1285,6 +1318,8 @@ enum StaticPredicateHead {
     PossessedAbilities,
     /// `all creatures able to block it|them do so` (CR 509.1c).
     BlockRequirement,
+    /// `can't have or gain KEYWORDS` (CR 613.1f).
+    KeywordProhibition,
 }
 
 impl StaticPredicateHead {
@@ -1299,6 +1334,7 @@ impl StaticPredicateHead {
                 | Self::CounterProhibition
                 | Self::PossessiveAbilities
                 | Self::BlockRequirement
+                | Self::KeywordProhibition
         )
     }
 }
@@ -1314,6 +1350,13 @@ fn static_predicate_head(cursor: &OracleTokenCursor<'_>) -> Option<StaticPredica
         && word_in(cursor.peek_ahead(2), &["counters"])
     {
         return Some(StaticPredicateHead::CounterProhibition);
+    }
+    if word_in(cursor.peek(), &["can't", "cannot"])
+        && word_in(cursor.peek_ahead(1), &["have"])
+        && word_in(cursor.peek_ahead(2), &["or"])
+        && word_in(cursor.peek_ahead(3), &["gain"])
+    {
+        return Some(StaticPredicateHead::KeywordProhibition);
     }
     if word_in(cursor.peek(), &["its", "their"])
         && word_in(cursor.peek_ahead(1), &["activated"])

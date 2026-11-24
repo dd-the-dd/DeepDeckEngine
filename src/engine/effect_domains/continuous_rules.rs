@@ -505,3 +505,54 @@ impl GameEngine {
         Ok(())
     }
 }
+
+/// Static keyword loss (CR 613.1f): `OBJECTS lose KEYWORDS` and `can't have
+/// or gain KEYWORDS`. Like the engine's static loss of all abilities, the
+/// loss applies to every grant while its source's ability applies.
+impl GameEngine {
+    /// Validation of the static `loseKeywords` modifier; `None` leaves other
+    /// modifier kinds to the battlefield modifier validator.
+    pub(in crate::engine) fn static_keyword_loss_supported(modifier: &Value) -> Option<bool> {
+        (value_kind(modifier) == Some("loseKeywords")).then(|| {
+            static_object_selector_supported(&modifier["objects"])
+                && modifier["keywords"].as_array().is_some_and(|keywords| {
+                    !keywords.is_empty()
+                        && keywords.iter().all(|keyword| {
+                            keyword.as_str().is_some_and(|keyword| {
+                                keyword_kind_supported(&json!({ "kind": keyword }))
+                            })
+                        })
+                })
+                && modifier.get("condition").is_none_or(condition_supported)
+        })
+    }
+
+    /// Whether an active static keyword loss removes `keyword` from
+    /// `permanent`.
+    pub(in crate::engine) fn static_keyword_loss_applies(
+        &self,
+        permanent: &CardInstance,
+        keyword: &str,
+    ) -> bool {
+        // Keyword reads are frequent: the layered static-modifier query runs
+        // only while a battlefield permanent prints a keyword loss.
+        let printed = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .any(|source| {
+                source
+                    .definition
+                    .printed_rules()
+                    .iter()
+                    .any(|rule| rule_contains_kind(rule, "loseKeywords"))
+            });
+        printed
+            && self.static_modifier_applies_to_where("loseKeywords", permanent, |modifier| {
+                modifier["keywords"].as_array().is_some_and(|keywords| {
+                    keywords.iter().any(|value| value.as_str() == Some(keyword))
+                })
+            })
+    }
+}
