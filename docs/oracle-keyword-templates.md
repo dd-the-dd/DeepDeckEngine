@@ -65,6 +65,10 @@ Sneak (CR 702.190a) est une ligne de `casting_keyword.rs` ; seule une face
 d'éphémère a une exécution (coût alternatif conditionné à votre étape de
 déclaration des bloqueurs) ; une face de permanent ou de rituel échoue
 explicitement (moment de lancement et entrée attaquante absents du moteur).
+Bestow (CR 702.103a) est aussi une ligne de `casting_keyword.rs` réduite au
+mot-clé d'exécution `bestow` existant (face de créature seulement) ; les
+cartes restent bloquées tant que le sujet statique `Enchanted creature` exige
+une face d'Aura (`static_continuous.rs`).
 
 Emplacements (définitions et rappels) :
 

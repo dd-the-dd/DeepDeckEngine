@@ -1011,6 +1011,63 @@
       }
     },
     {
+      "id": "sibling-bestow-creature",
+      "request": {
+        "cardName": "Generic Bestowed Spirit",
+        "typeLine": "Enchantment Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "Bestow {2}{W} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nFlying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability",
+                "equals": {
+                  "kind": "bestow",
+                  "manaCost": "{2}{W}"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-bestow-noncreature",
+      "request": {
+        "cardName": "Generic Bestowed Charm",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Bestow {2}{W} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    },
+    {
       "id": "combination-ninjutsu-ascend-blessing-grant",
       "request": {
         "cardName": "Generic City Shinobi",

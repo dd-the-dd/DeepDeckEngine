@@ -9,7 +9,7 @@
 //!                                          retrace, jump-start)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
-//!                                          emerge, sneak)
+//!                                          emerge, sneak, bestow)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
@@ -43,6 +43,8 @@ use crate::oracle::syntax::recognize_entities;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CastingKeyword {
     Awaken,
+    /// CR 702.103a.
+    Bestow,
     Blitz,
     Conspire,
     /// CR 702.119a.
@@ -113,6 +115,15 @@ const DEFINITIONS: &[Definition] = &[
         parameter: Parameter::CountThenMana,
         reminders: &[
             "If you cast this spell for $cost, also put $Nw +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Bestow,
+        lexeme: "bestow",
+        rules_section: "702.103a",
+        parameter: Parameter::Mana,
+        reminders: &[
+            "If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.",
         ],
     },
     Definition {

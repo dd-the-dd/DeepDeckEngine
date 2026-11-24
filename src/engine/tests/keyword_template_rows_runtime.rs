@@ -371,3 +371,60 @@ fn myriad_in_a_two_player_game_creates_nothing() {
     assert_eq!(engine.state.combat.attackers.len(), 1);
     assert_eq!(engine.state.players[0].battlefield.len(), 1);
 }
+
+#[test]
+fn bestow_casts_the_creature_as_an_aura_attached_to_a_creature() {
+    let spirit = parsed_rules(
+        "Generic Bestowed Spirit",
+        "Enchantment Creature \u{2014} Spirit",
+        "{1}{W}",
+        "Bestow {2}{W} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nFlying",
+    );
+    let mut engine = test_engine(2);
+    engine.state.active_player = 0;
+    engine.state.priority_player = Some(0);
+    engine.state.step = GameStep::PrecombatMain;
+    engine.state.players[0].hand = vec![test_instance(
+        "spirit",
+        card("spirit", "Enchantment Creature - Spirit", "{1}{W}", spirit),
+        "player-0",
+    )];
+    let mut battlefield = vec![test_instance(
+        "bear",
+        test_definition("bear", "Creature - Bear"),
+        "player-0",
+    )];
+    for index in 0..3 {
+        battlefield.push(mana_source(
+            &format!("plains-{index}"),
+            "Basic Land - Plains",
+            "{W}",
+            None,
+        ));
+    }
+    engine.state.players[0].battlefield = battlefield;
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let cast = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.kind == ActionKind::CastSpell
+                && action.card_instance_id.as_deref() == Some("spirit")
+                && action.decisions.get("useBestow") == Some(&Value::Bool(true))
+        })
+        .expect("the bestow cast is offered with a creature to enchant");
+    engine
+        .apply_priority_action(&cast, &mut FirstOption)
+        .expect("the bestow cost is paid");
+    engine
+        .resolve_top_stack(&mut FirstOption)
+        .expect("the bestowed Aura resolves");
+    let (player, index) = engine
+        .permanent_position("spirit")
+        .expect("the Aura is on the battlefield");
+    let aura = &engine.state.players[player].battlefield[index];
+    assert_eq!(aura.attached_to.as_deref(), Some("bear"));
+    assert!(aura.definition.type_line.contains("Aura"));
+}

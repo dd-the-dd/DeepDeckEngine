@@ -539,6 +539,23 @@ fn lower_casting_keyword(
             )
         }
         CastingKeyword::Escape => escape_ability(cursor, node)?,
+        // CR 702.103a-b: cast for the bestow cost as an Aura spell with
+        // enchant creature; the casting runtime targets the creature and
+        // keeps the original type line for when it becomes unattached.
+        CastingKeyword::Bestow => {
+            cursor.require(
+                face_type_line
+                    .split(|character: char| !character.is_alphanumeric())
+                    .any(|word| word.eq_ignore_ascii_case("creature")),
+                "a creature face for bestow (CR 702.103a)",
+            )?;
+            let mana = node
+                .cost
+                .as_ref()
+                .and_then(KeywordCostNode::single_mana)
+                .ok_or_else(|| cursor.fail("a bestow mana cost"))?;
+            json!({ "kind": "bestow", "manaCost": mana.as_oracle_cost() })
+        }
         // The runtime owns blitz's haste, dies-draw and delayed sacrifice
         // (CR 702.152a); it pays a mana blitz cost only.
         CastingKeyword::Blitz => json!({
