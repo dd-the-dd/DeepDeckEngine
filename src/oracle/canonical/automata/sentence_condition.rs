@@ -983,7 +983,22 @@ fn recognize_cast_spell_reference(
         if event_spell {
             return Ok(CastSpellReference::EventSpell);
         }
-        let reference = resolve_object_anaphor(cursor, context)?;
+        // Outside a program (`sacrifice it unless {W} was spent to cast
+        // it`), the guarded action's own antecedent names the object.
+        let environment_object = cursor
+            .binding_environment()
+            .and_then(|environment| environment.object.as_ref())
+            .map(|antecedent| ConditionObjectReference::Permanent(antecedent.reference));
+        let reference = match environment_object {
+            Some(reference)
+                if context.program.is_none()
+                    && !context.source_subject
+                    && context.subject_object.is_none() =>
+            {
+                reference
+            }
+            _ => resolve_object_anaphor(cursor, context)?,
+        };
         cursor.enter("condition.cast.mana-spent.source-pronoun");
         cursor.require(
             reference == ConditionObjectReference::SOURCE,

@@ -262,11 +262,13 @@ pub(in crate::oracle::canonical) fn recognize_player_possession_proposition(
         cursor.enter("condition.player.drawn.amount");
         let threshold = recognize_count_threshold(cursor, true)?;
         cursor.enter("condition.player.drawn.noun");
-        cursor.consume(if threshold.singular() {
-            "card"
-        } else {
-            "cards"
-        })?;
+        // `more than one card`: the noun agrees with the stated number, not
+        // with the bound the threshold keeps.
+        cursor.require(
+            word_is(cursor, 0, "card") || word_is(cursor, 0, "cards"),
+            "`card` or `cards` after a drawn amount",
+        )?;
+        consume_current(cursor)?;
         cursor.enter("condition.player.drawn.duration");
         cursor.consume_phrase(&["this", "turn"])?;
         return Ok(PlayerStateProposition {
