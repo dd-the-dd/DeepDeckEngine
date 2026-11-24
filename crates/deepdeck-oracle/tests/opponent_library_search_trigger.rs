@@ -168,9 +168,13 @@ fn an_explicit_different_draw_player_is_not_silently_changed_to_controller() {
         .filter(|effect| effect["kind"] == "drawCards")
         .collect::<Vec<_>>();
     assert_eq!(draws.len(), 1, "{rule:#}");
-    assert_eq!(draws[0]["performer"]["kind"], "chosenPlayer", "{rule:#}");
-    assert_eq!(
-        draws[0]["performer"]["players"]["kind"], "opponentsOf",
-        "{rule:#}"
-    );
+    assert_eq!(draws[0]["performer"]["kind"], "boundValue", "{rule:#}");
+    let choice = rule["effects"]
+        .as_array()
+        .expect("effects")
+        .iter()
+        .find(|effect| effect["kind"] == "choosePlayers")
+        .expect("the opponent is chosen on resolution by the shared player choice");
+    assert_eq!(choice["bindAs"], draws[0]["performer"]["id"], "{rule:#}");
+    assert_eq!(choice["candidates"]["kind"], "opponentsOf", "{rule:#}");
 }

@@ -3253,13 +3253,35 @@ fn apply_performer(
         }
         // CR 608.2d: the controller chooses one player of the population on
         // resolution; every primitive of the action (and of the verbs that
-        // continue it) names the same choice.
-        PerformerNode::Chosen { players, binding } => json!({
-            "kind": "chosenPlayer",
-            "id": format!("chosenPerformer{}", binding.0),
-            "chooser": controller(),
-            "players": lower_player_set_reference(*players),
-        }),
+        // continue it) names the same choice. The choice is the shared
+        // resolution-time `choosePlayers` step (the binding environment's
+        // `choose an opponent`), made once per binding where the action
+        // begins; the performer is the player it binds.
+        PerformerNode::Chosen { players, binding } => {
+            let id = format!("chosenPerformer{}", binding.0);
+            let already_chosen = effects[..start].iter().any(|effect| {
+                effect["kind"] == "choosePlayers" && effect["bindAs"].as_str() == Some(id.as_str())
+            });
+            let player = json!({"kind": "boundValue", "id": id});
+            for effect in &mut effects[start..] {
+                effect["performer"] = player.clone();
+            }
+            if !already_chosen {
+                effects.insert(
+                    start,
+                    json!({
+                        "kind": "choosePlayers",
+                        "id": id,
+                        "player": controller(),
+                        "candidates": lower_player_set_reference(*players),
+                        "minimum": integer(1),
+                        "maximum": integer(1),
+                        "bindAs": id,
+                    }),
+                );
+            }
+            return Ok(());
+        }
         PerformerNode::Population {
             players,
             excluding_controller,

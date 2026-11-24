@@ -241,17 +241,17 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/performer",
+                "pointer": "/effects/0",
                 "equals": {
-                  "kind": "chosenPlayer",
+                  "kind": "choosePlayers",
                   "id": "chosenPerformer0",
-                  "chooser": {
+                  "player": {
                     "kind": "controllerOf",
                     "object": {
                       "kind": "self"
                     }
                   },
-                  "players": {
+                  "candidates": {
                     "kind": "opponentsOf",
                     "player": {
                       "kind": "controllerOf",
@@ -259,7 +259,23 @@
                         "kind": "self"
                       }
                     }
-                  }
+                  },
+                  "minimum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "bindAs": "chosenPerformer0"
+                }
+              },
+              {
+                "pointer": "/effects/1/performer",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "chosenPerformer0"
                 }
               }
             ]

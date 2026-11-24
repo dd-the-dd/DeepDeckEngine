@@ -382,8 +382,9 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
     })
 }
 
-/// Reads the state-trigger condition `SOURCE has no COUNTERS on it` or
-/// `SOURCE has N or more COUNTERS on it` (CR 603.8): the possession frame of
+/// Reads the state-trigger condition `SOURCE has no COUNTERS on it`,
+/// `SOURCE has N or more COUNTERS on it` or any other count threshold of the
+/// shared condition language (CR 603.8): the possession frame of
 /// the `have` lemma with a counter quantity and its holder anaphor. The
 /// enclosing clause owns the trigger word and the boundary.
 pub(in crate::oracle::canonical) fn recognize_source_counter_state_event(
@@ -403,16 +404,19 @@ pub(in crate::oracle::canonical) fn recognize_source_counter_state_event(
         .ok_or_else(|| cursor.fail("the possession verb `has`"))?;
     cursor.consume(&verb)?;
     cursor.enter("event.counter-state.quantity");
-    let comparison = if peek_is(cursor, 0, "no") {
-        cursor.consume("no")?;
-        super::CounterStateComparison::None
-    } else {
-        let super::NumericAtom::Integer(minimum) = super::recognize_numeric_atom(cursor)? else {
-            return Err(cursor.fail("a fixed counter threshold"));
-        };
-        cursor.require(minimum >= 1, "a positive counter threshold")?;
-        cursor.consume_phrase(&["or", "more"])?;
-        super::CounterStateComparison::AtLeast(minimum)
+    // The shared count-threshold grammar of the condition language (`no`,
+    // `N or more|fewer`, `at least|most N`, `exactly N`).
+    let threshold = super::recognize_count_threshold(cursor, false)?;
+    let comparison = match (threshold.operator, threshold.value) {
+        (super::ThresholdOperator::AtMost, 0) => super::CounterStateComparison::None,
+        (super::ThresholdOperator::AtLeast, minimum) => {
+            cursor.require(minimum >= 1, "a positive counter threshold")?;
+            super::CounterStateComparison::AtLeast(minimum)
+        }
+        (super::ThresholdOperator::AtMost, maximum) => {
+            super::CounterStateComparison::AtMost(maximum)
+        }
+        (super::ThresholdOperator::Exactly, value) => super::CounterStateComparison::Exactly(value),
     };
     cursor.enter("event.counter-state.counter");
     let counter = super::recognize_counter_name(cursor)?;

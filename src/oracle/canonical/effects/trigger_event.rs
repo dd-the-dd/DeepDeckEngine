@@ -303,6 +303,8 @@ fn lower_source_counter_state_event(
     let (operator, value) = match event.comparison {
         CounterStateComparison::None => ("==", 0),
         CounterStateComparison::AtLeast(minimum) => (">=", minimum),
+        CounterStateComparison::AtMost(maximum) => ("<=", maximum),
+        CounterStateComparison::Exactly(value) => ("==", value),
     };
     Ok(json!({
         "kind": "stateConditionMet",

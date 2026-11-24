@@ -314,6 +314,15 @@ fn a_counter_threshold_on_the_source_is_a_state_trigger() {
             ["operator"],
         ">="
     );
+    // The shared count threshold also bounds the count from above or exactly.
+    let exact = event("When this creature has exactly two +1/+1 counters on it, draw a card.");
+    assert_eq!(exact["condition"]["operator"], "==");
+    assert_eq!(exact["condition"]["right"]["value"], 2);
+    assert_eq!(
+        event("When this creature has two or fewer +1/+1 counters on it, draw a card.")["condition"]
+            ["operator"],
+        "<="
+    );
 }
 
 #[test]

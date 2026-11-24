@@ -76,11 +76,15 @@ pub(in crate::oracle::canonical) struct SourceCounterStateNode {
     pub comparison: CounterStateComparison,
 }
 
-/// `has no COUNTERS` is a count of zero; `has N or more COUNTERS` is at least N.
+/// `has no COUNTERS` is a count of zero; `has N or more COUNTERS` is at least
+/// N; `N or fewer` / `at most N` and `exactly N` bound it from above or both
+/// ways. Read through the shared count threshold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CounterStateComparison {
     None,
     AtLeast(i64),
+    AtMost(i64),
+    Exactly(i64),
 }
 
 impl GenericTriggerEventNode {
