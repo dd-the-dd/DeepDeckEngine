@@ -48,6 +48,9 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     BecameTarget,
     /// `exploits a creature` (CR 702.110b), always with its counterpart.
     Exploited,
+    /// `is turned face up` (CR 708.8): the passive of the `turn` lemma with
+    /// its `face up` state complement.
+    TurnedFaceUp,
 }
 
 impl SourceEventVerb {
@@ -89,6 +92,8 @@ pub(in crate::oracle::canonical) enum SourceEventModifier {
     DuringTurn(super::EventTurnOwner),
     /// The spell or ability of `becomes the target of STACK-OBJECT`.
     TargetingStack(super::TargetingStackSelectorNode),
+    /// `enters from ZONE`: the zone the entering source left.
+    EnteredFrom(super::EntryOriginNode),
 }
 
 impl SourceEventModifier {
@@ -129,6 +134,35 @@ fn verb_at(cursor: &OracleTokenCursor<'_>, lemma: VerbLemma) -> bool {
 
 fn consume_verb(cursor: &mut OracleTokenCursor<'_>, lemma: VerbLemma) -> MachineResult<()> {
     consume_lemma(cursor, lemma, VerbAgreement::ThirdPersonSingular)
+}
+
+/// `AUXILIARY turned face up` at the cursor: the passive participle of the
+/// `turn` lemma (lexicon data) with its state complement. A lexical probe.
+pub(in crate::oracle::canonical) fn turned_face_up_starts(
+    cursor: &OracleTokenCursor<'_>,
+    auxiliary: &str,
+) -> bool {
+    peek_is(cursor, 0, auxiliary)
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            super::is_verb_form(raw, VerbLemma::Turn, super::VerbForm::PastParticiple)
+        })
+        && peek_is(cursor, 2, "face")
+        && peek_is(cursor, 3, "up")
+}
+
+/// Consumes `AUXILIARY turned face up` (CR 708.8).
+pub(in crate::oracle::canonical) fn consume_turned_face_up(
+    cursor: &mut OracleTokenCursor<'_>,
+    auxiliary: &str,
+) -> MachineResult<()> {
+    cursor.enter("event.turned-face-up");
+    cursor.consume(auxiliary)?;
+    let participle = cursor
+        .peek()
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("the passive participle of `turn`"))?;
+    cursor.consume(&participle)?;
+    cursor.consume_phrase(&["face", "up"])
 }
 
 /// Reads the counterpart object of `blocks` / `becomes blocked by` with the
@@ -172,6 +206,11 @@ fn recognize_source_event_verb(
         if peek_is(cursor, 0, "the") && peek_is(cursor, 1, "battlefield") {
             cursor.consume_phrase(&["the", "battlefield"])?;
         }
+        if super::entry_origin_starts(cursor) {
+            modifiers.push(SourceEventModifier::EnteredFrom(
+                super::recognize_entry_origin(cursor)?,
+            ));
+        }
         return Ok(SourceEventVerb::Entered);
     }
     if verb_at(cursor, VerbLemma::Die) {
@@ -204,6 +243,10 @@ fn recognize_source_event_verb(
         consume_verb(cursor, VerbLemma::Leave)?;
         cursor.consume_phrase(&["the", "battlefield"])?;
         return Ok(SourceEventVerb::LeftBattlefield);
+    }
+    if turned_face_up_starts(cursor, "is") {
+        consume_turned_face_up(cursor, "is")?;
+        return Ok(SourceEventVerb::TurnedFaceUp);
     }
     if peek_is(cursor, 0, "is") && peek_is(cursor, 1, "put") {
         // The passive of `put` (`is put into a graveyard from the battlefield`).
@@ -336,6 +379,96 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
         source,
         verbs,
         modifiers,
+    })
+}
+
+/// Reads the state-trigger condition `SOURCE has no COUNTERS on it` or
+/// `SOURCE has N or more COUNTERS on it` (CR 603.8): the possession frame of
+/// the `have` lemma with a counter quantity and its holder anaphor. The
+/// enclosing clause owns the trigger word and the boundary.
+pub(in crate::oracle::canonical) fn recognize_source_counter_state_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<super::SourceCounterStateNode> {
+    cursor.enter("event.counter-state.source");
+    let source = recognize_source_reference(cursor, name_links, name_failure)?;
+    cursor.enter("event.counter-state.verb");
+    let verb = cursor
+        .peek()
+        .filter(|raw| {
+            super::is_verb_form(raw, VerbLemma::Have, super::VerbForm::ThirdPersonSingular)
+        })
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("the possession verb `has`"))?;
+    cursor.consume(&verb)?;
+    cursor.enter("event.counter-state.quantity");
+    let comparison = if peek_is(cursor, 0, "no") {
+        cursor.consume("no")?;
+        super::CounterStateComparison::None
+    } else {
+        let super::NumericAtom::Integer(minimum) = super::recognize_numeric_atom(cursor)? else {
+            return Err(cursor.fail("a fixed counter threshold"));
+        };
+        cursor.require(minimum >= 1, "a positive counter threshold")?;
+        cursor.consume_phrase(&["or", "more"])?;
+        super::CounterStateComparison::AtLeast(minimum)
+    };
+    cursor.enter("event.counter-state.counter");
+    let counter = super::recognize_counter_name(cursor)?;
+    let noun = cursor
+        .peek()
+        .filter(|raw| raw.eq_ignore_ascii_case("counters") || raw.eq_ignore_ascii_case("counter"))
+        .map(str::to_string)
+        .ok_or_else(|| cursor.fail("`counters`"))?;
+    cursor.consume(&noun)?;
+    cursor.enter("event.counter-state.holder");
+    cursor.consume_phrase(&["on", "it"])?;
+    cursor.enter("event.counter-state.complete");
+    Ok(super::SourceCounterStateNode {
+        source,
+        counter,
+        comparison,
+    })
+}
+
+/// Reads `SOURCE and at least N other COLLECTION attack` (battalion, CR
+/// 702.101a style): one attack declaration containing the source and at
+/// least N other attackers read by the shared collection query. The verb is
+/// the `attack` lemma in the plural agreement of the coordinated subject.
+pub(in crate::oracle::canonical) fn recognize_source_attack_declaration(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<super::AttackDeclarationNode> {
+    cursor.enter("event.attack-declaration.source");
+    let source = recognize_source_reference(cursor, name_links, name_failure)?;
+    cursor.enter("event.attack-declaration.coordination");
+    cursor.consume("and")?;
+    cursor.consume_phrase(&["at", "least"])?;
+    cursor.enter("event.attack-declaration.minimum");
+    let super::NumericAtom::Integer(minimum) = super::recognize_numeric_atom(cursor)? else {
+        return Err(cursor.fail("a fixed number of other attackers"));
+    };
+    cursor.require(minimum >= 1, "a positive number of other attackers")?;
+    cursor.enter("event.attack-declaration.companions");
+    // The collection frame reads `other` once: the source is excluded from
+    // the companions it is coordinated with.
+    let query = super::recognize_object_collection(cursor)?;
+    cursor.require(
+        query.exclude_source,
+        "`other` attackers coordinated with the source",
+    )?;
+    cursor.enter("event.attack-declaration.verb");
+    consume_lemma(cursor, VerbLemma::Attack, VerbAgreement::Base)?;
+    Ok(super::AttackDeclarationNode {
+        attacker: super::EventActorScope::Controller,
+        attackers: super::QuantifiedEventSubjectNode {
+            multiplicity: super::EventMultiplicity::PerEvent { minimum },
+            exclude_source: true,
+            query,
+        },
+        source: Some(source),
     })
 }
 

@@ -1,8 +1,10 @@
 //! The one event clause reader (S5, docs/oracle-event-model.md).
 //!
 //! ```text
-//! EventClause := "at the beginning of" Step BOUNDARY
-//!              | ("when" | "whenever") Occurrence [ModifierTail] BOUNDARY
+//! TriggerCondition := EventClause ([","] "and" EventClause)* BOUNDARY
+//! EventClause := "at the beginning of" Step [EventTime]
+//!              | ("when" | "whenever") Occurrence [ModifierTail] [EventTime]
+//! EventTime   := "while" CONDITION          -- `event_modifiers.rs`
 //! Occurrence  := SUBJECT LEMMA-FRAME
 //!   SUBJECT    the source, a quantified object query, a player actor, an
 //!              attached object, a targeted-object union
@@ -21,18 +23,25 @@
 //! the same reader.
 //!
 //! Modifiers of the shared tail are absorbed by the subject kinds that type
-//! them (the source union, quantified objects); on any other occurrence a
-//! recognized modifier is an engine gap, never dropped.
+//! them (the source union, quantified objects). A turn owner that no pattern
+//! matcher evaluates is a state of the event-time condition; any other
+//! unevaluated modifier is an engine gap, never dropped.
+//!
+//! A trigger condition list (CR 603.2, `When this creature enters and at the
+//! beginning of your upkeep, ...`) is read here: each member keeps its own
+//! introducer, subject and frame, and the list owns the `and` between two
+//! complete clauses. `enters and attacks` (no introducer after `and`) is
+//! not a list.
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::machine::MachineCheckpoint;
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    ActorObjectEventAttempt, EntryStatePredicate, EventModifierTail, GenericTriggerEventNode,
-    LocalTriggerEventNode, ObjectControllerScope, PermanentDiedEventBranchNode,
-    PermanentDiedEventNode, PermanentTransitionKind, SacrificeEventAttempt, SourceEventModifier,
-    SourceEventVerb, SourceTriggerEnvelopeAttempt, SpellCastOrdinalSupport,
-    recognize_card_drawn_event, recognize_combat_damage_to_player_event,
+    ActorObjectEventAttempt, EntryStatePredicate, EventModifierTail, EventMultiplicity,
+    EventTimeConditionNode, GenericTriggerEventNode, LocalTriggerEventNode, ObjectControllerScope,
+    ObjectEventVerb, PermanentDiedEventBranchNode, PermanentDiedEventNode, PermanentTransitionKind,
+    SacrificeEventAttempt, SourceEventModifier, SourceEventVerb, SourceTriggerEnvelopeAttempt,
+    SpellCastOrdinalSupport, recognize_card_drawn_event, recognize_combat_damage_to_player_event,
     recognize_land_played_event, recognize_optional_spell_cast_event_atom,
     recognize_ordinal_card_drawn_event, recognize_permanent_transition_subject,
     recognize_player_event, recognize_source_attacked_event, recognize_source_dealt_damage_event,
@@ -78,6 +87,27 @@ pub(in crate::oracle::canonical) fn event_introducer_at(
     }
 }
 
+fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// `[,] and INTRODUCER` continues a trigger condition list (CR 603.2): the
+/// next member is a complete clause with its own trigger word (`when`,
+/// `whenever` or the complete `at the beginning of`; `and at least` is no
+/// list). A lexical probe that commits nothing.
+fn compound_continuation_at(cursor: &OracleTokenCursor<'_>) -> bool {
+    let offset = usize::from(cursor.peek() == Some(","));
+    word_at(cursor, offset, "and")
+        && (word_at(cursor, offset + 1, "when")
+            || word_at(cursor, offset + 1, "whenever")
+            || (word_at(cursor, offset + 1, "at")
+                && word_at(cursor, offset + 2, "the")
+                && word_at(cursor, offset + 3, "beginning")
+                && word_at(cursor, offset + 4, "of")))
+}
+
 /// Whether a child alternative owns the clause once it is complete.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BoundaryPolicy {
@@ -92,6 +122,8 @@ struct ClauseReading<'b> {
     start: MachineCheckpoint,
     furthest: Option<MachineFailure>,
     boundary: &'b str,
+    name_links: &'b [ResolvedNameLink],
+    name_failure: Option<&'b NameResolutionFailure>,
 }
 
 impl ClauseReading<'_> {
@@ -120,7 +152,13 @@ impl ClauseReading<'_> {
         event: GenericTriggerEventNode,
         policy: BoundaryPolicy,
     ) -> Option<EventClauseAttempt> {
-        match close_occurrence(cursor, event, self.boundary) {
+        match close_occurrence(
+            cursor,
+            event,
+            self.boundary,
+            self.name_links,
+            self.name_failure,
+        ) {
             Ok(event) => Some(EventClauseAttempt::Recognized(event)),
             Err(failure) if policy == BoundaryPolicy::Commit => {
                 Some(EventClauseAttempt::Committed(failure))
@@ -145,14 +183,36 @@ impl ClauseReading<'_> {
     }
 }
 
-/// The shared modifier tail of a completed occurrence, then the boundary.
+/// The shared modifier tail of a completed occurrence, its event-time
+/// condition, then the boundary. Before `[,] and INTRODUCER` the boundary
+/// belongs to the last member of the trigger condition list.
 fn close_occurrence(
     cursor: &mut OracleTokenCursor<'_>,
     event: GenericTriggerEventNode,
     boundary: &str,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<GenericTriggerEventNode> {
     let tail = super::read_event_modifier_tail(cursor)?;
-    let mut event = absorb_modifiers(cursor, event, tail)?;
+    let (event, mut time) = absorb_modifiers(cursor, event, tail)?;
+    if super::while_condition_starts(cursor) {
+        time.condition = Some(super::recognize_while_condition(
+            cursor,
+            name_links,
+            name_failure,
+        )?);
+    }
+    let mut event = if time.is_empty() {
+        event
+    } else {
+        GenericTriggerEventNode::Conditioned {
+            event: Box::new(event),
+            condition: time,
+        }
+    };
+    if compound_continuation_at(cursor) {
+        return Ok(event);
+    }
     cursor.enter("trigger.envelope.separator");
     cursor.consume(boundary)?;
     if let GenericTriggerEventNode::SourceTransition(node) = &mut event {
@@ -161,16 +221,34 @@ fn close_occurrence(
     Ok(event)
 }
 
-/// The subject kinds that type the clause modifiers absorb them; any other
-/// occurrence with a modifier is an engine gap (no matcher evaluates it).
+/// Whether the per-object attack pattern evaluates the turn owner of this
+/// quantified object event (the other object matchers have no turn field).
+fn object_pattern_evaluates_turn_owner(node: &super::ObjectEventNode) -> bool {
+    node.verb == ObjectEventVerb::Attack
+        && node.subject.multiplicity == EventMultiplicity::PerObject
+}
+
+/// The combat verbs whose source pattern evaluates a turn owner.
+fn source_pattern_evaluates_turn_owner(verbs: &[SourceEventVerb]) -> bool {
+    verbs.iter().all(|verb| {
+        matches!(
+            verb,
+            SourceEventVerb::Attacked | SourceEventVerb::Blocked | SourceEventVerb::BecameBlocked
+        )
+    })
+}
+
+/// The subject kinds that type the clause modifiers absorb them. A turn
+/// owner that no pattern matcher evaluates becomes the occurrence's
+/// event-time condition (whose turn it is is a state when the event occurs,
+/// CR 500.1); any other modifier without a matcher is an engine gap, never
+/// dropped.
 fn absorb_modifiers(
     cursor: &mut OracleTokenCursor<'_>,
     event: GenericTriggerEventNode,
     tail: EventModifierTail,
-) -> MachineResult<GenericTriggerEventNode> {
-    if tail.is_empty() {
-        return Ok(event);
-    }
+) -> MachineResult<(GenericTriggerEventNode, EventTimeConditionNode)> {
+    let mut time = EventTimeConditionNode::default();
     match event {
         GenericTriggerEventNode::SourceEvent(mut node) => {
             for modifier in SourceEventModifier::from_tail(tail) {
@@ -181,7 +259,18 @@ fn absorb_modifiers(
                 )?;
                 node.modifiers.push(modifier);
             }
-            Ok(GenericTriggerEventNode::SourceEvent(node))
+            if !source_pattern_evaluates_turn_owner(&node.verbs) {
+                // The source union read its own tail: hoist the turn owner
+                // that its patterns cannot evaluate.
+                node.modifiers.retain(|modifier| match modifier {
+                    SourceEventModifier::DuringTurn(owner) => {
+                        time.turn_owner = Some(*owner);
+                        false
+                    }
+                    _ => true,
+                });
+            }
+            Ok((GenericTriggerEventNode::SourceEvent(node), time))
         }
         GenericTriggerEventNode::Object(mut node) => {
             cursor.enter("event.modifier.distinct");
@@ -194,9 +283,12 @@ fn absorb_modifiers(
             node.modifiers.not_blocked |= tail.not_blocked;
             node.modifiers.first_time_each_turn |= tail.first_time_each_turn;
             node.modifiers.turn_owner = node.modifiers.turn_owner.or(tail.turn_owner);
-            Ok(GenericTriggerEventNode::Object(node))
+            if !object_pattern_evaluates_turn_owner(&node) {
+                time.turn_owner = node.modifiers.turn_owner.take();
+            }
+            Ok((GenericTriggerEventNode::Object(node), time))
         }
-        _ => {
+        _ if tail.not_blocked || tail.first_time_each_turn => {
             // The modifier was read: the missing piece is the runtime
             // matcher (S0 engine gap), never a grammar failure.
             cursor.enter("trigger.event.modifier-matcher");
@@ -208,13 +300,66 @@ fn absorb_modifiers(
                 ),
             ))
         }
+        event => {
+            time.turn_owner = tail.turn_owner;
+            Ok((event, time))
+        }
     }
 }
 
 /// Reads `INTRODUCER OCCURRENCE [MODIFIERS] BOUNDARY`. Every successful
 /// child returns immediately after the boundary; in particular this reader
 /// never consumes `if` or `you may` from the body.
+///
+/// A trigger condition list (`EVENT and when|whenever|at the beginning of
+/// EVENT`, CR 603.2) is one `Compound` event: every member is read by this
+/// same clause reader and the last one consumes the boundary. Once the
+/// first member is complete, a failing member is the committed failure of
+/// the list.
 pub(in crate::oracle::canonical) fn read_event_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    boundary: &str,
+) -> EventClauseAttempt {
+    let first = match read_one_event_clause(cursor, name_links, name_failure, boundary) {
+        EventClauseAttempt::Recognized(event) => event,
+        outcome => return outcome,
+    };
+    if !compound_continuation_at(cursor) {
+        return EventClauseAttempt::Recognized(first);
+    }
+    let mut members = vec![first];
+    while compound_continuation_at(cursor) {
+        cursor.enter("trigger.envelope.compound-connector");
+        if cursor.peek() == Some(",")
+            && let Err(failure) = cursor.consume(",")
+        {
+            return EventClauseAttempt::Committed(failure);
+        }
+        if let Err(failure) = cursor.consume("and") {
+            return EventClauseAttempt::Committed(failure);
+        }
+        match read_one_event_clause(cursor, name_links, name_failure, boundary) {
+            EventClauseAttempt::Recognized(member) => members.push(member),
+            EventClauseAttempt::Rejected(failure) | EventClauseAttempt::Committed(failure) => {
+                return EventClauseAttempt::Committed(failure);
+            }
+            EventClauseAttempt::NotClaimed => {
+                cursor.enter("trigger.envelope.compound-member");
+                return EventClauseAttempt::Committed(
+                    cursor.fail("a complete trigger condition after `and`"),
+                );
+            }
+        }
+    }
+    EventClauseAttempt::Recognized(GenericTriggerEventNode::Compound(members))
+}
+
+/// One member of a trigger condition list: its introducer, occurrence,
+/// modifiers, event-time condition and either the list connector (left at
+/// the cursor) or the consumed boundary.
+fn read_one_event_clause(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
@@ -222,12 +367,17 @@ pub(in crate::oracle::canonical) fn read_event_clause(
 ) -> EventClauseAttempt {
     match event_introducer_at(cursor) {
         None => EventClauseAttempt::NotClaimed,
-        Some(EventIntroducer::At) => read_step_clause(cursor, boundary),
+        Some(EventIntroducer::At) => read_step_clause(cursor, name_links, name_failure, boundary),
         Some(_) => read_occurrence_clause(cursor, name_links, name_failure, boundary),
     }
 }
 
-fn read_step_clause(cursor: &mut OracleTokenCursor<'_>, boundary: &str) -> EventClauseAttempt {
+fn read_step_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    boundary: &str,
+) -> EventClauseAttempt {
     cursor.enter("trigger.envelope.step-prefix");
     if let Err(failure) = cursor.consume_phrase(&["at", "the", "beginning", "of"]) {
         return EventClauseAttempt::Rejected(failure);
@@ -236,7 +386,13 @@ fn read_step_clause(cursor: &mut OracleTokenCursor<'_>, boundary: &str) -> Event
         Ok(event) => event,
         Err(failure) => return EventClauseAttempt::Rejected(failure),
     };
-    match close_occurrence(cursor, GenericTriggerEventNode::Step(event), boundary) {
+    match close_occurrence(
+        cursor,
+        GenericTriggerEventNode::Step(event),
+        boundary,
+        name_links,
+        name_failure,
+    ) {
         Ok(event) => EventClauseAttempt::Recognized(event),
         Err(failure) => EventClauseAttempt::Committed(failure),
     }
@@ -253,6 +409,21 @@ type LocalReader = fn(
 
 type PlayerReader = fn(&mut OracleTokenCursor<'_>) -> MachineResult<LocalTriggerEventNode>;
 
+type AttackDeclarationReader = fn(
+    &mut OracleTokenCursor<'_>,
+    &[ResolvedNameLink],
+    Option<&NameResolutionFailure>,
+) -> MachineResult<super::AttackDeclarationNode>;
+
+/// The player attack declaration has no source reference to resolve.
+fn player_attack_declaration(
+    cursor: &mut OracleTokenCursor<'_>,
+    _name_links: &[ResolvedNameLink],
+    _name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<super::AttackDeclarationNode> {
+    super::recognize_player_attack_declaration(cursor)
+}
+
 fn read_occurrence_clause(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -268,6 +439,8 @@ fn read_occurrence_clause(
         start: cursor.checkpoint(),
         furthest: None,
         boundary,
+        name_links,
+        name_failure,
     };
 
     // The source as the subject of a battlefield transition.
@@ -392,6 +565,41 @@ fn read_occurrence_clause(
         }
         Err(failure) => reading.reject(cursor, failure),
     }
+    // `SOURCE has N or more|no COUNTERS on it`: a state trigger (CR 603.8).
+    match super::recognize_source_counter_state_event(cursor, name_links, name_failure) {
+        Ok(event) => {
+            return reading
+                .finish(
+                    cursor,
+                    GenericTriggerEventNode::SourceCounterState(event),
+                    BoundaryPolicy::Commit,
+                )
+                .expect("a committed alternative always concludes");
+        }
+        Err(failure) => reading.reject(cursor, failure),
+    }
+    // One attack declaration (CR 508.1): the source coordinated with other
+    // attackers, or a player attacking with a quantified set.
+    let attack_declarations: [AttackDeclarationReader; 2] = [
+        super::recognize_source_attack_declaration,
+        player_attack_declaration,
+    ];
+    for reader in attack_declarations {
+        match reader(cursor, name_links, name_failure) {
+            Ok(event) => {
+                return reading
+                    .finish(
+                        cursor,
+                        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttackDeclaration(
+                            event,
+                        )),
+                        BoundaryPolicy::Commit,
+                    )
+                    .expect("a committed alternative always concludes");
+            }
+            Err(failure) => reading.reject(cursor, failure),
+        }
+    }
     let local_readers: [LocalReader; 5] = [
         recognize_source_attacked_event,
         recognize_combat_damage_to_player_event,
@@ -495,6 +703,7 @@ fn read_permanent_transition(
     cursor.consume(action)?;
     let mut entry_state = None;
     let mut entering_controller = false;
+    let mut origin = None;
     if kind == PermanentTransitionKind::Entered {
         cursor.enter("trigger.envelope.permanent-subject");
         if subjects.alternatives.iter().any(|branch| {
@@ -508,6 +717,18 @@ fn read_permanent_transition(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
         {
             cursor.consume_phrase(&["the", "battlefield"])?;
+        }
+        // `from ZONE`: the origin the engine records on the entering
+        // object. An owner-relative zone (`your graveyard`) would add an
+        // ownership relation the entry matcher does not evaluate.
+        if super::entry_origin_starts(cursor) {
+            let entry_origin = super::recognize_entry_origin(cursor)?;
+            cursor.enter("trigger.envelope.entry-origin-owner");
+            cursor.require(
+                !entry_origin.own,
+                "an entry origin without an owner relation (`a graveyard`, `exile`)",
+            )?;
+            origin = Some(entry_origin);
         }
         if cursor
             .peek()
@@ -557,8 +778,8 @@ fn read_permanent_transition(
         // controller; the subjects carry one pre-event controller relation
         // shared by both branches, so the union would leak it into `or dies`.
         cursor.require(
-            !entering_controller,
-            "an entering-controller scope without a transition union (it binds only the entering branch)",
+            !entering_controller && origin.is_none(),
+            "an entering-controller scope or origin without a transition union (it binds only the entering branch)",
         )?;
         cursor.consume_phrase(&["or", other.0])?;
         union_kind = Some(other.1);
@@ -567,6 +788,7 @@ fn read_permanent_transition(
         kind,
         subjects: subjects.clone(),
         entry_state,
+        origin,
         union_kind,
     })
 }

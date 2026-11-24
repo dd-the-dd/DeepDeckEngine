@@ -480,6 +480,7 @@ fn trigger_guard_context(event: &GenericTriggerEventNode) -> EffectRecognitionCo
             ..
         })
         | GenericTriggerEventNode::Local(LocalTriggerEventNode::SourceDealtDamage { .. })
+        | GenericTriggerEventNode::SourceCounterState(_)
         | GenericTriggerEventNode::SourceEvent(_) => {
             EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf)
                 .with_source_event_subject(LocalObjectReference::SourceSelf)

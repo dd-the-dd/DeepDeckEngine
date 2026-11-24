@@ -66,6 +66,8 @@ pub(in crate::oracle::canonical) enum ObjectEventVerb {
     PutIntoGraveyard(GraveyardOwner, Option<&'static str>),
     /// Passive of `deal damage`: the subject is the damaged object (CR 120.3).
     BeDealtDamage(DamageKind),
+    /// `is|are turned face up` (CR 708.8).
+    TurnedFaceUp,
 }
 
 /// Whose graveyard a card arrives in, relative to the ability controller.
@@ -84,6 +86,9 @@ pub(in crate::oracle::canonical) struct ObjectEventNode {
     pub damage: Option<super::DamageDealtComplement>,
     /// `attacks alone` (CR 506.5).
     pub alone: bool,
+    /// `attacks you or a planeswalker you control`: the alternatives of the
+    /// attacked object (CR 506.2); empty when the attack names none.
+    pub attacked: Vec<super::AttackedRecipientNode>,
     /// The shared clause modifier tail; each event kind's lowering decides
     /// which modifiers its matcher evaluates.
     pub modifiers: EventModifierTail,
@@ -180,6 +185,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
             verb,
             damage,
             alone: false,
+            attacked: Vec::new(),
             modifiers,
         });
     }
@@ -249,8 +255,16 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         | ObjectEventVerb::Block
         | ObjectEventVerb::Enter
         | ObjectEventVerb::Die
+        | ObjectEventVerb::TurnedFaceUp
         | ObjectEventVerb::PutIntoGraveyard(..) => {}
     }
+    // The attacked player or permanent is the attack's own argument (CR
+    // 506.2), read by the shared player and object readers.
+    let attacked = if verb == ObjectEventVerb::Attack && super::attacked_recipient_starts(cursor) {
+        super::recognize_attacked_recipients(cursor)?
+    } else {
+        Vec::new()
+    };
     // `alone` (CR 506.5) is typed after any verb; the lowering decides which
     // verbs evaluate it. The clause tail follows.
     let alone = super::consume_alone_modifier(cursor)?;
@@ -261,6 +275,7 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
         verb,
         damage: None,
         alone,
+        attacked,
         modifiers,
     })
 }
@@ -299,6 +314,10 @@ fn recognize_object_event_verb(
     if passive_put(cursor, agreement) {
         cursor.consume(passive_auxiliary(agreement))?;
         return Ok(ObjectEventVerb::PutIntoGraveyardFromBattlefield);
+    }
+    if super::turned_face_up_starts(cursor, passive_auxiliary(agreement)) {
+        super::consume_turned_face_up(cursor, passive_auxiliary(agreement))?;
+        return Ok(ObjectEventVerb::TurnedFaceUp);
     }
     if let Some(lemma) = OBJECT_EVENT_LEMMAS
         .into_iter()

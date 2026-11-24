@@ -67,6 +67,9 @@ pub(super) struct CombatEventRecord {
     /// The player whose turn it is when the action happens (CR 500.1): the
     /// turn owner a `during your turn` modifier compares with.
     pub turn_player: String,
+    /// The planeswalker or battle the attacker attacks; `None` when it
+    /// attacks a player (CR 506.2, 508.1b).
+    pub attacked_permanent: Option<String>,
 }
 
 /// A turn-owner modifier of a pattern, relative to the source's controller
@@ -207,6 +210,9 @@ pub(super) struct CombatEventPattern<'a> {
     pub turn_ordinal: Option<usize>,
     /// `during your turn` / `during an opponent's turn` (CR 500.1).
     pub turn_owner: Option<TurnOwnerRelation>,
+    /// `attacks you or a planeswalker you control`: the alternatives of the
+    /// object the attacker attacks (`{"anyOf": [...]}`), CR 506.2.
+    pub attacked: Option<&'a Value>,
     pub group: PublicationGroup,
     /// A pattern written in the generic `eventPattern` IR.
     pub generic: bool,
@@ -233,6 +239,7 @@ impl<'a> CombatEventPattern<'a> {
             face_down_only: false,
             turn_ordinal: None,
             turn_owner: None,
+            attacked: None,
             group,
             generic: false,
         }
@@ -423,6 +430,7 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
             "duringControllerTurn",
             "duringOpponentTurn",
             "aggregation",
+            "attacked",
         ],
     ) {
         return None;
@@ -533,6 +541,18 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
     if (attacking_alone || declared_attacker) && subject_role != Attacker {
         return None;
     }
+    // The attacked object is an attribute of the attacker's attack record.
+    let attacked = match event.get("attacked") {
+        None => None,
+        Some(attacked)
+            if lemma == CombatLemma::Attack
+                && subject_role == Attacker
+                && attacked_recipients_supported(attacked) =>
+        {
+            Some(attacked)
+        }
+        Some(_) => return None,
+    };
     let group = match (lemma, subject_role, relation) {
         (CombatLemma::Attack, _, SubjectRelation::Source) => PublicationGroup::AttackSource,
         (
@@ -563,8 +583,79 @@ fn generic_combat_pattern(event: &Value) -> Option<CombatEventPattern<'_>> {
         declared_attacker,
         turn_ordinal,
         turn_owner: TurnOwnerRelation::from_pattern(event)?,
+        attacked,
         generic: true,
         ..CombatEventPattern::new(lemma, subject_role, relation, group)
+    })
+}
+
+/// `{"anyOf": [ALTERNATIVE, ...]}`: each alternative a player relation
+/// (`{"kind":"player","player":REF}`) or a permanent query
+/// (`{"kind":"permanents","controller":REF,"where":FILTER}`).
+fn attacked_recipients_supported(attacked: &Value) -> bool {
+    has_only_fields(attacked, &["anyOf"])
+        && attacked["anyOf"].as_array().is_some_and(|alternatives| {
+            !alternatives.is_empty()
+                && alternatives
+                    .iter()
+                    .all(|alternative| match value_kind(alternative) {
+                        Some("player") => {
+                            has_only_fields(alternative, &["kind", "player"])
+                                && player_action_events::event_player_reference_supported(
+                                    &alternative["player"],
+                                )
+                        }
+                        Some("permanents") => {
+                            has_only_fields(alternative, &["kind", "controller", "where"])
+                                && alternative.get("where").is_none_or(card_filter_supported)
+                                && alternative.get("controller").is_none_or(
+                                    player_action_events::event_player_reference_supported,
+                                )
+                        }
+                        _ => false,
+                    })
+        })
+}
+
+/// Event kinds whose matcher evaluates a compound member's own
+/// `eventCondition` when it observes the occurrence (CR 603.2).
+const MEMBER_EVENT_CONDITION_KINDS: [&str; 2] = ["controlledCreaturesAttacked", "turnedFaceUp"];
+
+/// A compound member's `eventCondition` is supported only on a kind whose
+/// matcher evaluates it; any other placement is unsupported, never ignored.
+pub(super) fn member_event_condition_supported(event: &Value) -> bool {
+    event.get("eventCondition").is_none_or(|condition| {
+        value_kind(event).is_some_and(|kind| MEMBER_EVENT_CONDITION_KINDS.contains(&kind))
+            && condition_supported(condition)
+    })
+}
+
+/// `turnedFaceUp` observing another permanent (CR 708.8): `None` for the
+/// self form (the established arm) and for other kinds.
+pub(super) fn turned_face_up_event_supported(event: &Value) -> Option<bool> {
+    if value_kind(event) != Some("turnedFaceUp")
+        || value_kind(&event["object"]) != Some("permanents")
+    {
+        return None;
+    }
+    let object = &event["object"];
+    Some(
+        has_only_fields(event, &["kind", "object", "eventCondition"])
+            && has_only_fields(object, &["kind", "controller", "where", "excludeSource"])
+            && object.get("where").is_none_or(card_filter_supported)
+            && object
+                .get("controller")
+                .is_none_or(player_action_events::event_player_reference_supported)
+            && object.get("excludeSource").is_none_or(Value::is_boolean),
+    )
+}
+
+/// `permanentUntapped` of the source (CR 701.26b: a tapped permanent
+/// becomes untapped): `None` for other kinds.
+pub(super) fn became_untapped_event_supported(event: &Value) -> Option<bool> {
+    (value_kind(event) == Some("permanentUntapped")).then(|| {
+        has_only_fields(event, &["kind", "object"])
+            && matches!(value_kind(&event["object"]), Some("self" | "abilitySource"))
     })
 }
 
@@ -589,7 +680,10 @@ impl GameEngine {
                     || self.permanent_matches_effective_filter(object, filter.predicate)
             }
             ObjectView::PermanentState => self.permanent_state_matches(object, filter.predicate),
-            ObjectView::Printed => matches_card_filter(&object.definition, filter.predicate),
+            ObjectView::Printed => matches_card_filter(
+                object_predicate::DefinitionView::for_permanent(object),
+                filter.predicate,
+            ),
         }
     }
 
@@ -674,6 +768,11 @@ impl GameEngine {
         }
         if let Some(owner) = pattern.turn_owner
             && !owner.matches(&record.turn_player, &source.controller)
+        {
+            return false;
+        }
+        if let Some(attacked) = pattern.attacked
+            && !self.attacked_recipient_matches(attacked, record, source)
         {
             return false;
         }
@@ -848,6 +947,60 @@ impl GameEngine {
             .unwrap_or_default()
     }
 
+    /// Whether the attacked object of `record` is one of the alternatives:
+    /// a player in the given relation to the source, or a planeswalker or
+    /// battle matching the permanent query (CR 506.2).
+    fn attacked_recipient_matches(
+        &self,
+        attacked: &Value,
+        record: &CombatEventRecord,
+        source: &CardInstance,
+    ) -> bool {
+        attacked["anyOf"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|alternative| match value_kind(alternative) {
+                Some("player") => {
+                    record.attacked_permanent.is_none()
+                        && self.event_player_reference_matches(
+                            &alternative["player"],
+                            source,
+                            &record.defending_player,
+                        )
+                }
+                Some("permanents") => record
+                    .attacked_permanent
+                    .as_deref()
+                    .and_then(|id| self.combat_permanent(id))
+                    .is_some_and(|permanent| {
+                        alternative.get("controller").is_none_or(|controller| {
+                            self.event_player_reference_matches(
+                                controller,
+                                source,
+                                &permanent.controller,
+                            )
+                        }) && alternative.get("where").is_none_or(|filter| {
+                            self.permanent_matches_effective_filter(permanent, filter)
+                        })
+                    }),
+                _ => false,
+            })
+    }
+
+    /// The planeswalker or battle an attacker attacks, if not a player.
+    fn attacked_permanent_of(&self, attacker_id: &str) -> Option<String> {
+        self.state
+            .combat
+            .attackers
+            .iter()
+            .find(|assignment| assignment.attacker_id == attacker_id)
+            .and_then(|assignment| match &assignment.defender {
+                TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+                _ => None,
+            })
+    }
+
     fn defending_player_of(&self, attacker_id: &str) -> String {
         self.state
             .combat
@@ -878,6 +1031,7 @@ impl GameEngine {
                 ),
                 blocker_turn_ordinal: None,
                 turn_player: actor.clone(),
+                attacked_permanent: self.attacked_permanent_of(attacker_id),
             })
             .collect()
     }
@@ -913,6 +1067,7 @@ impl GameEngine {
             attacker_turn_ordinal: Some(self.attacker_blocked_turn_ordinal(attacker_id)),
             blocker_turn_ordinal: Some(self.combat_turn_ordinal("blockerDeclared", blocker_id)),
             turn_player: self.state.players[self.state.active_player].id.clone(),
+            attacked_permanent: self.attacked_permanent_of(attacker_id),
         }
     }
 
@@ -947,6 +1102,10 @@ impl GameEngine {
                 attacker_turn_ordinal: None,
                 blocker_turn_ordinal: None,
                 turn_player: actor.clone(),
+                attacked_permanent: match &assignment.defender {
+                    TargetRef::Permanent { instance_id } => Some(instance_id.clone()),
+                    _ => None,
+                },
             })
             .collect()
     }
@@ -1166,4 +1325,145 @@ impl GameEngine {
         }
         Ok(())
     }
+
+    /// The rule's `eventCondition` (CR 603.2): a state the occurrence
+    /// requires, evaluated once as the event is observed and never on
+    /// resolution (that is the intervening `if`, CR 603.4). `true` when the
+    /// condition suppresses this publication.
+    pub(super) fn event_condition_suppresses(
+        &self,
+        rule: &Value,
+        source: &CardInstance,
+        decisions: &BTreeMap<String, Value>,
+    ) -> bool {
+        rule.get("eventCondition").is_some_and(|condition| {
+            !self.trigger_publication_condition_holds(condition, source, decisions)
+        })
+    }
+
+    /// A compound member's own `eventCondition`, evaluated by the matcher
+    /// of that member's kind as it observes the occurrence.
+    pub(super) fn member_event_condition_holds(
+        &self,
+        event: &Value,
+        source: &CardInstance,
+    ) -> bool {
+        event.get("eventCondition").is_none_or(|condition| {
+            self.trigger_publication_condition_holds(condition, source, &BTreeMap::new())
+        })
+    }
+
+    /// Whether the `turnedFaceUp` pattern observed by `source` matches the
+    /// permanent `turned` (CR 708.8): the source itself, or a permanent
+    /// matching the shared query (controller relation, effective filter,
+    /// source exclusion).
+    fn turned_face_up_matches(
+        &self,
+        event: &Value,
+        source: &CardInstance,
+        turned: &CardInstance,
+    ) -> bool {
+        let object = &event["object"];
+        let object_matches = match value_kind(object) {
+            Some("self" | "abilitySource") => source.instance_id == turned.instance_id,
+            Some("permanents") => {
+                !(object["excludeSource"].as_bool() == Some(true)
+                    && source.instance_id == turned.instance_id)
+                    && object.get("controller").is_none_or(|controller| {
+                        self.event_player_reference_matches(controller, source, &turned.controller)
+                    })
+                    && object.get("where").is_none_or(|filter| {
+                        self.permanent_matches_effective_filter(turned, filter)
+                    })
+            }
+            _ => false,
+        };
+        object_matches && self.member_event_condition_holds(event, source)
+    }
+
+    /// Publishes every battlefield observer of a permanent turned face up
+    /// (CR 708.8), in battlefield order. The permanent's own `turned face
+    /// up` abilities keep their established binding-free publication; an
+    /// observer of another permanent binds it as the triggering permanent.
+    pub(super) fn publish_turned_face_up_observers(&mut self, turned: &CardInstance) {
+        let triggers = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|source| {
+                self.effective_rules(source)
+                    .iter()
+                    .filter(|rule| {
+                        triggered_rule_supported(rule)
+                            && triggered_event_variants(&rule["event"])
+                                .iter()
+                                .any(|event| {
+                                    value_kind(event) == Some("turnedFaceUp")
+                                        && self.turned_face_up_matches(event, source, turned)
+                                })
+                    })
+                    .map(|rule| (source.clone(), rule.clone()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for (source, rule) in triggers {
+            if source.instance_id == turned.instance_id {
+                self.put_triggered_ability_on_stack(&source, rule);
+            } else {
+                self.put_triggered_ability_on_stack_with_decisions(
+                    &source,
+                    rule,
+                    BTreeMap::from([(
+                        "triggeringPermanentId".to_string(),
+                        Value::String(turned.instance_id.clone()),
+                    )]),
+                );
+            }
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+
+    /// Publishes the abilities of a permanent that became untapped (CR
+    /// 701.26b, `whenever this creature becomes untapped`), whatever untapped
+    /// it: the untap step, an effect or another rule. A stun counter that
+    /// replaced the untap is no untap.
+    pub(super) fn publish_became_untapped_observers(&mut self, instance_id: &str) {
+        let Some(source) = self.combat_permanent(instance_id).cloned() else {
+            return;
+        };
+        let rules = self
+            .effective_rules(&source)
+            .iter()
+            .filter(|rule| {
+                triggered_rule_supported(rule)
+                    && triggered_event_variants(&rule["event"])
+                        .iter()
+                        .any(|event| {
+                            value_kind(event) == Some("permanentUntapped")
+                                && matches!(
+                                    value_kind(&event["object"]),
+                                    Some("self" | "abilitySource")
+                                )
+                        })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for rule in rules {
+            self.put_triggered_ability_on_stack(&source, rule);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "trigger_condition_runtime_tests.rs"]
+mod trigger_condition_runtime_tests;

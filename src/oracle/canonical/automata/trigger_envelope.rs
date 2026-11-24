@@ -34,6 +34,8 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
         kind: PermanentTransitionKind,
         subjects: PermanentDiedEventNode,
         entry_state: Option<EntryStatePredicate>,
+        /// `enters from a graveyard`: the zone the entering object left.
+        origin: Option<super::EntryOriginNode>,
         /// `enters or dies`: the other transition of the same subjects, an
         /// alternative event (one occurrence each, never both at once).
         union_kind: Option<PermanentTransitionKind>,
@@ -48,6 +50,37 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
     /// A targeted-object union `becomes the target of` a spell or ability
     /// (CR 115.1). The source subject is a `SourceEvent` verb.
     BecameTarget(super::BecameTargetEventNode),
+    /// A trigger condition list (CR 603.2): `EVENT and when|whenever|at the
+    /// beginning of EVENT ...`. Each member is a complete typed clause with
+    /// its own introducer; the ability triggers once per occurrence of any
+    /// member. Members are never nested lists.
+    Compound(Vec<GenericTriggerEventNode>),
+    /// An occurrence with its event-time condition (`while CONDITION`, a turn
+    /// owner without pattern matcher). The trigger envelope hoists the
+    /// condition of a single occurrence to the ability; a compound member
+    /// keeps it as an attribute of that member's pattern.
+    Conditioned {
+        event: Box<GenericTriggerEventNode>,
+        condition: super::EventTimeConditionNode,
+    },
+    /// `SOURCE has N or more|no COUNTERS on it` (CR 603.8): a state trigger,
+    /// checked whenever a player would receive priority.
+    SourceCounterState(SourceCounterStateNode),
+}
+
+/// The counter threshold a state-triggered ability watches on its source.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SourceCounterStateNode {
+    pub source: LocalObjectReference,
+    pub counter: crate::oracle::counter_name::CounterName,
+    pub comparison: CounterStateComparison,
+}
+
+/// `has no COUNTERS` is a count of zero; `has N or more COUNTERS` is at least N.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CounterStateComparison {
+    None,
+    AtLeast(i64),
 }
 
 impl GenericTriggerEventNode {
@@ -82,12 +115,25 @@ impl GenericTriggerEventNode {
 
     pub(in crate::oracle::canonical) fn numeric_binding(&self) -> Option<EventNumericBinding> {
         match self {
+            // Every member must export the same binding; otherwise the body
+            // cannot name one amount for all occurrences.
+            Self::Compound(members) => {
+                let first = members.first()?.numeric_binding()?;
+                members
+                    .iter()
+                    .all(|member| member.numeric_binding() == Some(first))
+                    .then_some(first)
+            }
+            Self::Conditioned { event, .. } => event.numeric_binding(),
             Self::Local(
                 LocalTriggerEventNode::CombatDamageToPlayer { amount, .. }
                 | LocalTriggerEventNode::SourceDealtDamage { amount, .. },
             ) => Some(*amount),
             // The runtime exports the dealt amount of every dealt-damage observer.
-            Self::Local(LocalTriggerEventNode::DamageDealt { .. })
+            Self::Local(
+                LocalTriggerEventNode::DamageDealt { .. }
+                | LocalTriggerEventNode::AttachedObjectDealtDamage { .. },
+            )
             | Self::Object(super::ObjectEventNode {
                 verb: super::ObjectEventVerb::DealDamage,
                 ..
@@ -114,10 +160,14 @@ impl GenericTriggerEventNode {
     /// (CR 702.29), so any card type may own it. Every other event here is
     /// observed by a permanent on the battlefield.
     pub(in crate::oracle::canonical) fn requires_permanent_face(&self) -> bool {
-        !matches!(
-            self,
-            Self::Local(LocalTriggerEventNode::SourceCycled { .. })
-        )
+        match self {
+            Self::Compound(members) => members.iter().any(Self::requires_permanent_face),
+            Self::Conditioned { event, .. } => event.requires_permanent_face(),
+            _ => !matches!(
+                self,
+                Self::Local(LocalTriggerEventNode::SourceCycled { .. })
+            ),
+        }
     }
 
     pub(in crate::oracle::canonical) fn source(&self) -> LocalObjectReference {
@@ -130,6 +180,9 @@ impl GenericTriggerEventNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct GenericTriggerEnvelopeNode {
     pub event: GenericTriggerEventNode,
+    /// The event-time condition of a single occurrence, hoisted from the
+    /// clause: the ability's `eventCondition` (checked as the event occurs).
+    pub event_condition: Option<super::EventTimeConditionNode>,
     pub body_start: usize,
     pub has_ability_word: bool,
 }
@@ -165,8 +218,15 @@ fn recognized(
     event: GenericTriggerEventNode,
     has_ability_word: bool,
 ) -> GenericTriggerEnvelopeAttempt {
+    // A single occurrence's event-time condition belongs to the ability; a
+    // compound member keeps its own (only that member's occurrences test it).
+    let (event, event_condition) = match event {
+        GenericTriggerEventNode::Conditioned { event, condition } => (*event, Some(condition)),
+        event => (event, None),
+    };
     GenericTriggerEnvelopeAttempt::Recognized(GenericTriggerEnvelopeNode {
         event,
+        event_condition,
         body_start: cursor.position(),
         has_ability_word,
     })

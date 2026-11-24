@@ -1,0 +1,692 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger-condition-language",
+  "cases": [
+    {
+      "id": "real-monastery-loremaster-turned-face-up",
+      "request": {
+        "cardName": "Monastery Loremaster",
+        "typeLine": "Creature — Djinn Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature is turned face up, return target noncreature, nonland card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "turnedFaceUp",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-pugnacious-hammerskull-while-condition",
+      "request": {
+        "cardName": "Pugnacious Hammerskull",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks while you don't control another Dinosaur, put a stun counter on it. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "declaredAttacker",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-sleeping-potion-attached-target",
+      "request": {
+        "cardName": "Sleeping Potion",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant creature\nWhen enchanted creature becomes the target of a spell or ability, sacrifice this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "becameTarget"
+              },
+              {
+                "pointer": "/event/object",
+                "equals": {
+                  "kind": "attachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-manabarbs-tap-for-mana",
+      "request": {
+        "cardName": "Manabarbs",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{R}",
+        "oracleText": "Whenever a player taps a land for mana, this enchantment deals 1 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledPermanentManaAbilityActivated"
+              },
+              {
+                "pointer": "/event/anyPlayer",
+                "equals": true
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "real-unshakable-tail-condition-list",
+      "request": {
+        "cardName": "Unshakable Tail",
+        "typeLine": "Creature — Zombie Detective",
+        "manaCost": "{2}{B}",
+        "oracleText": "When this creature enters and at the beginning of your upkeep, surveil 1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0",
+                "equals": {
+                  "kind": "enterBattlefield",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/events/1/step",
+                "equals": "upkeep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-oreskos-sun-guide-inspired",
+      "request": {
+        "cardName": "Oreskos Sun Guide",
+        "typeLine": "Creature — Cat Monk",
+        "manaCost": "{1}{W}",
+        "oracleText": "Inspired — Whenever this creature becomes untapped, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "permanentUntapped",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-dark-depths-counter-state",
+      "request": {
+        "cardName": "Dark Depths",
+        "typeLine": "Legendary Snow Land",
+        "manaCost": "",
+        "oracleText": "When Dark Depths has no ice counters on it, sacrifice it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "stateConditionMet"
+              },
+              {
+                "pointer": "/event/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/event/condition/left/counter",
+                "equals": "ice"
+              },
+              {
+                "pointer": "/event/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-voice-of-resurgence-condition-list",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent casts a spell during your turn and when this creature dies, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/events/0/duringControllerTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/event/events/1",
+                "equals": {
+                  "kind": "permanentDied",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-odric-coordinated-attack",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature and at least three other creatures attack, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/sourceMustAttack",
+                "equals": true
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 4
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-legions-landing-attack-count",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "When you attack with three or more creatures, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/minimum",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-enters-or-dies-no-new-code",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters or dies, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/events",
+                "equals": [
+                  {
+                    "kind": "enterBattlefield",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  {
+                    "kind": "permanentDied",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-enchanted-creature-dealt-damage",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature is dealt damage, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "eventPattern",
+                  "lemma": "dealDamage",
+                  "recipient": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-attacked-recipient",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature attacks you or a planeswalker you control, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0",
+                "equals": {
+                  "kind": "player",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/attacked/anyOf/1/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-activates-non-mana-ability",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever an opponent activates an ability that isn't a mana ability, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "nonManaAbilityActivated",
+                  "opponentOfSourceController": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-conditioned-list-member",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you attack with two or more creatures while you control an artifact, and whenever a creature you control is turned face up, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "controlledCreaturesAttacked"
+              },
+              {
+                "pointer": "/event/events/0/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "turnedFaceUp"
+              },
+              {
+                "pointer": "/event/events/1/object/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-enters-and-attacks-is-no-list",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters and attacks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "trigger.envelope.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-filtered-companions",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature and at least two other Knights attack, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-member-condition-without-matcher",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you gain life while you control an artifact, and whenever you draw a card, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-commit-a-crime-has-no-matcher",
+      "request": {
+        "cardName": "Trigger Language Probe",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you commit a crime, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    }
+  ]
+}

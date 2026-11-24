@@ -113,6 +113,8 @@ fn controller_reference_supported(reference: &Value) -> bool {
 
 fn became_target_object_selector_supported(selector: &Value) -> bool {
     match value_kind(selector) {
+        // The permanent the observing Aura or Equipment is attached to.
+        Some("attachedPermanent") => value_kind(&selector["attachment"]) == Some("self"),
         Some("union") => selector["sets"].as_array().is_some_and(|sets| {
             !sets.is_empty() && sets.iter().all(became_target_object_selector_supported)
         }),
@@ -404,6 +406,12 @@ impl GameEngine {
                 sets.iter()
                     .any(|set| self.target_matches_event_object(set, target, source))
             }),
+            // The permanent the observing attachment is attached to.
+            Some("attachedPermanent") => matches!(
+                target,
+                TargetRef::Permanent { instance_id }
+                    if source.attached_to.as_deref() == Some(instance_id.as_str())
+            ),
             Some("permanents") => {
                 let TargetRef::Permanent { instance_id } = target else {
                     return false;

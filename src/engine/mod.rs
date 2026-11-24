@@ -4859,6 +4859,15 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    if !event_model::member_event_condition_supported(event) {
+        return false;
+    }
+    if let Some(supported) = event_model::turned_face_up_event_supported(event) {
+        return supported;
+    }
+    if let Some(supported) = event_model::became_untapped_event_supported(event) {
+        return supported;
+    }
     // Keyword actions named by a keyword ability (exploit, CR 702.110b).
     if let Some(supported) = keyword_actions::keyword_action_event_supported(event) {
         return supported;
@@ -5187,6 +5196,7 @@ fn triggered_rule_supported(rule: &Value) -> bool {
     value_kind(rule) == Some("triggeredAbility")
         && event_supported
         && rule.get("condition").is_none_or(condition_supported)
+        && rule.get("eventCondition").is_none_or(condition_supported)
         && rule.get("triggerZone").is_none_or(|zone| {
             matches!(
                 zone.as_str(),
@@ -21339,6 +21349,9 @@ impl GameEngine {
         }) {
             return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
         }
+        if self.event_condition_suppresses(&rule, source, &decisions) {
+            return trigger_multiplicity::TriggerPublicationOutcome::Suppressed;
+        }
         let trigger_limit_id = rule["triggerLimit"]["id"].as_str();
         let trigger_limit_kind = value_kind(&rule["triggerLimit"]);
         if trigger_limit_id.is_some_and(|limit_id| {
@@ -24207,6 +24220,7 @@ impl GameEngine {
                                         || attacker_ids.contains(&source.instance_id))
                                     && integer_value(&event["totalPowerAtLeast"])
                                         .is_none_or(|minimum| total_power >= minimum)
+                                    && self.member_event_condition_holds(event, &source)
                             }
                             _ => false,
                         }))
@@ -34560,23 +34574,7 @@ impl GameEngine {
     }
 
     fn enqueue_turned_face_up_triggers(&mut self, source: &CardInstance) {
-        let rules = self
-            .effective_rules(&source)
-            .iter()
-            .filter(|rule| {
-                triggered_rule_supported(rule)
-                    && triggered_event_variants(&rule["event"])
-                        .iter()
-                        .any(|event| value_kind(event) == Some("turnedFaceUp"))
-            })
-            .cloned()
-            .collect::<Vec<_>>();
-        for rule in rules {
-            self.put_triggered_ability_on_stack(source, rule);
-            if self.check_quantity_failure().is_err() {
-                return;
-            }
-        }
+        self.publish_turned_face_up_observers(source);
     }
 
     fn selected_mode(stack_object: &StackObject, decision_id: &str, mode: &str) -> bool {
