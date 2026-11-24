@@ -34,7 +34,26 @@ pub(in crate::oracle::canonical) fn recognize_ordinary_sacrifice_effect(
     }
     let read = |cursor: &mut OracleTokenCursor<'_>| {
         source_sacrifice::atomic_action::recognize_sacrifice_action(cursor, |cursor| {
-            recognize_selected_sacrifice_operand(cursor, SacrificeOperandOwner::AbilityController)
+            let operand = recognize_selected_sacrifice_operand(
+                cursor,
+                SacrificeOperandOwner::AbilityController,
+            )?;
+            // `of their choice`, kept by a performer's person shift: the
+            // acting player chooses, as it always does here (CR 101.4).
+            let marker = ["of", "their", "choice"]
+                .iter()
+                .enumerate()
+                .all(|(offset, word)| {
+                    cursor
+                        .peek_ahead(offset)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+                });
+            if marker {
+                source_sacrifice::atomic_action::selection_method::recognize_acting_player_choice_marker(
+                    cursor,
+                )?;
+            }
+            Ok(operand)
         })
     };
     let action = match cursor.attempt(read) {
