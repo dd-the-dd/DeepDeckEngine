@@ -22,9 +22,18 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/kind", "equals": "chooseColor" },
-              { "pointer": "/effects/0/id", "equals": "resolutionColor" },
-              { "pointer": "/effects/0/player/kind", "equals": "controllerOf" }
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseColor"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "resolutionColor"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "controllerOf"
+              }
             ]
           }
         ]
@@ -50,7 +59,10 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/kind", "equals": "chooseColor" }
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseColor"
+              }
             ]
           }
         ]
@@ -120,11 +132,26 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/kind", "equals": "choosePlayers" },
-              { "pointer": "/effects/0/candidates/kind", "equals": "opponentsOf" },
-              { "pointer": "/effects/0/bindAs", "equals": "resolutionPlayer0" },
-              { "pointer": "/effects/1/player/kind", "equals": "boundValue" },
-              { "pointer": "/effects/1/player/id", "equals": "resolutionPlayer0" }
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/0/candidates/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/bindAs",
+                "equals": "resolutionPlayer0"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/1/player/id",
+                "equals": "resolutionPlayer0"
+              }
             ]
           }
         ]
@@ -150,9 +177,18 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/effects/0/kind", "equals": "choosePlayers" },
-              { "pointer": "/effects/0/selection/kind", "equals": "random" },
-              { "pointer": "/effects/1/player/kind", "equals": "boundValue" }
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePlayers"
+              },
+              {
+                "pointer": "/effects/0/selection/kind",
+                "equals": "random"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "boundValue"
+              }
             ]
           }
         ]
@@ -200,10 +236,22 @@
             "recognizer": "native",
             "abilityType": "triggeredAbility",
             "ruleAssertions": [
-              { "pointer": "/condition/kind", "equals": "compare" },
-              { "pointer": "/condition/operator", "equals": "==" },
-              { "pointer": "/condition/left/kind", "equals": "countPermanents" },
-              { "pointer": "/condition/right/value", "equals": 1 }
+              {
+                "pointer": "/condition/kind",
+                "equals": "compare"
+              },
+              {
+                "pointer": "/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 1
+              }
             ]
           }
         ]
@@ -230,9 +278,18 @@
             "recognizer": "native",
             "abilityType": "triggeredAbility",
             "ruleAssertions": [
-              { "pointer": "/condition/operator", "equals": "<=" },
-              { "pointer": "/condition/left/kind", "equals": "countPermanents" },
-              { "pointer": "/condition/right/value", "equals": 0 }
+              {
+                "pointer": "/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 0
+              }
             ]
           }
         ]
@@ -258,8 +315,14 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/condition/operator", "equals": "==" },
-              { "pointer": "/condition/right/value", "equals": 2 }
+              {
+                "pointer": "/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 2
+              }
             ]
           }
         ]
@@ -286,11 +349,26 @@
             "recognizer": "native",
             "abilityType": "triggeredAbility",
             "ruleAssertions": [
-              { "pointer": "/condition/operator", "equals": ">" },
-              { "pointer": "/condition/left/kind", "equals": "countPermanents" },
-              { "pointer": "/condition/left/player/kind", "equals": "triggeringPlayer" },
-              { "pointer": "/condition/right/kind", "equals": "countPermanents" },
-              { "pointer": "/condition/right/player/kind", "equals": "controllerOf" }
+              {
+                "pointer": "/condition/operator",
+                "equals": ">"
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/left/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/condition/right/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/right/player/kind",
+                "equals": "controllerOf"
+              }
             ]
           },
           {
@@ -298,7 +376,10 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/condition/left/player/kind", "equals": "triggeringPlayer" }
+              {
+                "pointer": "/condition/left/player/kind",
+                "equals": "triggeringPlayer"
+              }
             ]
           }
         ]
@@ -324,11 +405,26 @@
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
-              { "pointer": "/condition/operator", "equals": "<=" },
-              { "pointer": "/condition/left/kind", "equals": "countCards" },
-              { "pointer": "/condition/left/zone/kind", "equals": "hand" },
-              { "pointer": "/condition/left/zone/player/kind", "equals": "triggeringPlayer" },
-              { "pointer": "/condition/right/value", "equals": 2 }
+              {
+                "pointer": "/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/condition/left/kind",
+                "equals": "countCards"
+              },
+              {
+                "pointer": "/condition/left/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/condition/left/zone/player/kind",
+                "equals": "triggeringPlayer"
+              },
+              {
+                "pointer": "/condition/right/value",
+                "equals": 2
+              }
             ]
           }
         ]
@@ -363,6 +459,97 @@
         "typeLine": "Sorcery",
         "manaCost": "{1}{U}",
         "oracleText": "Draw a card. If that creature is tapped, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tezzerets-ambition-absence-in-program",
+      "request": {
+        "cardName": "Tezzeret's Ambition",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Draw three cards. If you control no artifacts, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-no-counters-on-the-source-guard",
+      "request": {
+        "cardName": "Generalized Spent Quiver",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your upkeep, if there are no arrowhead counters on this artifact, sacrifice it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "objectMatchesFilter"
+              },
+              {
+                "pointer": "/condition/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/condition/where/kind",
+                "equals": "hasCounter"
+              },
+              {
+                "pointer": "/condition/where/maximum",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-there-are-no-counters-without-object",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your upkeep, if there are no arrowhead counters on that creature, sacrifice this artifact.",
         "layout": "normal",
         "faces": []
       },

@@ -311,6 +311,11 @@ fn read_condition_atom(
     if super::object_event_history_starts(cursor) {
         return super::recognize_object_event_history_atom(cursor);
     }
+    // ObjectSatisfies: `there are no KIND counters on OBJECT` (CR 122.1).
+    if existential_counter_follows(cursor) {
+        return recognize_existential_counter_atom(cursor, context)
+            .map(ConditionAtom::ObjectSatisfies);
+    }
     // Compare: `there are N or more CARDS in your graveyard`.
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {
         return super::recognize_graveyard_count_atom(cursor);
@@ -886,6 +891,94 @@ fn recognize_status_list(
         (_, Some("and")) => ObjectPredicate::Intersection(members),
         _ => ObjectPredicate::Union(members),
     }))
+}
+
+/// The width of `there is|are` / `there's` at the cursor, if present.
+fn existential_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    if contraction_is(cursor, 0, "there", "s") {
+        Some(1)
+    } else if word_is(cursor, 0, "there") && (word_is(cursor, 1, "is") || word_is(cursor, 1, "are"))
+    {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead: `there is|are QUANTITY [KIND] counter(s) on ...`, the
+/// existential form of a counter count on one object. A zone count (`there
+/// are N cards in your graveyard`) is not this form.
+fn existential_counter_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let Some(start) = existential_width(cursor) else {
+        return false;
+    };
+    for offset in start..start + 7 {
+        let Some(raw) = cursor.peek_ahead(offset) else {
+            return false;
+        };
+        if raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters") {
+            return word_is(cursor, offset + 1, "on");
+        }
+        if matches!(raw, "," | "." | ";") || raw.eq_ignore_ascii_case("in") {
+            return false;
+        }
+    }
+    false
+}
+
+/// `there are no KIND counters on OBJECT`, `there is a KIND counter on it`,
+/// `there are N or more counters on this permanent`: the number of counters
+/// on one referenced object (CR 122.1), read with the shared threshold and
+/// counter name, and tested with the shared object predicate. The object is
+/// resolved like the subject of any object condition; it is never guessed.
+fn recognize_existential_counter_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ReferencedObjectConditionNode> {
+    cursor.enter("condition.existential-counter.existential");
+    let width = existential_width(cursor).ok_or_else(|| cursor.fail("`there is|are`"))?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.existential-counter.quantity");
+    let threshold = recognize_count_threshold(cursor, true)?;
+    let (minimum, maximum) = match threshold.operator {
+        ThresholdOperator::AtLeast => (threshold.value, None),
+        ThresholdOperator::AtMost => (0, Some(threshold.value)),
+        ThresholdOperator::Exactly => (threshold.value, Some(threshold.value)),
+    };
+    cursor.enter("condition.existential-counter.kind");
+    let counter = if word_is(cursor, 0, "counter") || word_is(cursor, 0, "counters") {
+        None
+    } else {
+        Some(recognize_counter_name(cursor)?)
+    };
+    cursor.enter("condition.existential-counter.noun");
+    cursor.require(
+        word_is(cursor, 0, "counter") || word_is(cursor, 0, "counters"),
+        "`counter` or `counters`",
+    )?;
+    consume_current(cursor)?;
+    cursor.enter("condition.existential-counter.location");
+    cursor.consume("on")?;
+    cursor.enter("condition.existential-counter.object");
+    let object = if word_is(cursor, 0, "it") {
+        cursor.consume("it")?;
+        resolve_object_anaphor(cursor, context)?
+    } else {
+        recognize_source_reference(cursor, context.name_links, context.name_failure)?;
+        ConditionObjectReference::SOURCE
+    };
+    finish_referenced_object(
+        cursor,
+        context,
+        object,
+        ObjectPredicate::HasCounter(CounterPresence {
+            counter,
+            minimum,
+            maximum,
+        }),
+    )
 }
 
 /// `it` denotes exactly one proven singular antecedent: a permanent subject,

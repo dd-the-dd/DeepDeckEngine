@@ -80,15 +80,6 @@ impl ChooseInstructionNode {
         }
     }
 
-    /// Whether this instruction binds the player a later `that player`
-    /// names: a declared player target or a player chosen on resolution.
-    pub(in crate::oracle::canonical) fn binds_player(&self) -> bool {
-        matches!(
-            self.domain,
-            ChoiceDomainNode::PlayerTarget(_) | ChoiceDomainNode::Player(_)
-        )
-    }
-
     pub(in crate::oracle::canonical) fn permanent_targets(&self) -> Option<&TargetListNode> {
         match &self.domain {
             ChoiceDomainNode::PermanentTargets(targets) => Some(targets),
