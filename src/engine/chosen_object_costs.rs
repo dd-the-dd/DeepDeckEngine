@@ -678,3 +678,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "chosen_object_costs_designated_tests.rs"]
+mod designated_tests;

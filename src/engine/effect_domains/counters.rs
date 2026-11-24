@@ -1079,3 +1079,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "counters_tests.rs"]
+mod tests;

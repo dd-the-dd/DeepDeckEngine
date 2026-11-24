@@ -121,6 +121,44 @@ fn recognize_listed_counter_placements(
     }
 }
 
+/// One option's counter kind inside `your choice of`. A kind written before
+/// its own `counter(s)` noun is the lexer's resolved counter name; a kind
+/// that shares the list's final noun (`a +1/+1, first strike, or trample
+/// counter`) is the opaque span up to its `,` or `or`, resolved by this
+/// frame exactly as the lexer resolves the span before a noun.
+fn recognize_choice_counter_name(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<crate::oracle::counter_name::CounterName> {
+    let boundary = |raw: &str| raw == "," || raw.eq_ignore_ascii_case("or");
+    let noun =
+        |raw: &str| raw.eq_ignore_ascii_case("counter") || raw.eq_ignore_ascii_case("counters");
+    let own_noun = (0..8)
+        .map_while(|offset| cursor.peek_ahead(offset))
+        .find(|raw| boundary(raw) || noun(raw))
+        .is_some_and(noun);
+    if own_noun {
+        return recognize_counter_name(cursor);
+    }
+    cursor.enter("effect.put-counters.choice.shared-noun-kind");
+    let mut parts = Vec::new();
+    while let Some(raw) = cursor.peek() {
+        if boundary(raw) || noun(raw) {
+            break;
+        }
+        cursor.require(
+            parts.len() < 3
+                && raw.chars().all(|character| {
+                    character.is_alphanumeric() || matches!(character, '+' | '-' | '/')
+                }),
+            "a counter kind of at most three words before `,` or `or`",
+        )?;
+        parts.push(raw.to_owned());
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    crate::oracle::counter_name::CounterName::from_parts(parts.iter().map(String::as_str))
+        .ok_or_else(|| cursor.fail("a counter kind before `,` or `or`"))
+}
+
 /// `your choice of OPTION (, OPTION)* [,] or OPTION`: each option is
 /// `[COUNT] KIND [counter(s)]`. An option without a count keeps the count
 /// before it; an option without its noun shares the noun of the last one
@@ -149,7 +187,7 @@ fn recognize_counter_kind_choice(
         }
         let option_count = cursor.require_value(count.clone(), "a counter quantity")?;
         cursor.enter("effect.put-counters.choice.kind");
-        let counter = recognize_counter_name(cursor)?;
+        let counter = recognize_choice_counter_name(cursor)?;
         cursor.require(
             !options.iter().any(|option| option.counter == counter),
             "distinct counter kinds to choose among",
