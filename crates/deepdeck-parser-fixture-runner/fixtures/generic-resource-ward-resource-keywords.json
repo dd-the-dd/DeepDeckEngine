@@ -1000,7 +1000,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "static-continuous-effect",
-            "state": "static.continuous.connector",
+            "state": "static.continuous.complete",
             "found": "until"
           }
         ]
@@ -1112,7 +1112,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "static-continuous-effect",
-            "state": "static.continuous.connector",
+            "state": "static.continuous.complete",
             "found": "You"
           }
         ]

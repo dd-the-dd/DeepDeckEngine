@@ -411,3 +411,82 @@ fn distinct_entry_rules_keep_separate_empty_input_nominal_scopes() {
     let incoming = BTreeMap::from([("tribe".into(), json!("Time Lord"))]);
     assert!(super::prepare_entry_creature_type_bindings(&definition, &incoming).is_err());
 }
+
+/// Chooses the named creature type from a resolution menu.
+struct NamedTypeProvider(&'static str);
+impl DecisionProvider for NamedTypeProvider {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        request
+            .options
+            .iter()
+            .position(|action| {
+                action.decisions.values().any(|value| {
+                    value.as_str() == Some(self.0)
+                        || value
+                            .as_array()
+                            .is_some_and(|values| values.len() == 1 && values[0] == self.0)
+                })
+            })
+            .ok_or_else(|| EngineError::new("the named creature type must be selectable"))
+    }
+}
+
+/// Kindred Judgment: `Choose a creature type. Destroy all creatures that
+/// aren't of the chosen type.` The battlefield collection of the destroy
+/// action reads the type chosen earlier in the same resolution (CR 608.2d).
+#[test]
+fn resolution_choice_filters_the_destroyed_battlefield_collection() {
+    let mut engine = path_engine("Creature - Goblin");
+    for (index, (id, types)) in [
+        ("elf", "Creature - Elf"),
+        ("goblin", "Creature - Goblin"),
+        ("elf-artifact", "Artifact - Elf"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let definition = path_definition(id, types);
+        engine.state.players[1]
+            .battlefield
+            .push(card_instance("p1", &definition, 950 + index));
+    }
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture construction precedes references");
+    let rule = json!({"kind":"spellAbility","source":{"kind":"self"},"effects":[
+        {"kind":"chooseCreatureType","id":"resolutionCreatureType",
+         "player":{"kind":"controllerOf","object":{"kind":"self"}}},
+        {"kind":"destroyPermanent","permanent":{"kind":"eachPermanent","where":{"kind":"and",
+            "operands":[{"kind":"cardTypeContains","value":"Creature"},
+                {"kind":"not","operand":{"kind":"chosenCreatureType",
+                    "decisionId":"resolutionCreatureType"}}]}}}]});
+    assert!(super::super::rule_is_executable(&rule));
+    engine
+        .execute_canonical_rule(
+            CanonicalRuleExecution {
+                controller_id: "p0".into(),
+                source_definition_id: "chooser".into(),
+                rule,
+                decisions: BTreeMap::new(),
+                targets: BTreeMap::new(),
+            },
+            &mut NamedTypeProvider("Elf"),
+        )
+        .unwrap();
+    let battlefield = engine.state.players[1]
+        .battlefield
+        .iter()
+        .map(|card| card.definition.id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(battlefield, vec!["elf", "elf-artifact"]);
+    assert!(
+        engine.state.players[1]
+            .graveyard
+            .iter()
+            .any(|card| card.definition.id == "goblin")
+    );
+}

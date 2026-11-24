@@ -484,10 +484,9 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "trigger.envelope.separator",
-            "expected": ",",
-            "found": "or",
-            "tokenIndex": 6
+            "found": "whenever",
+            "tokenIndex": 7,
+            "traceContainsState": "trigger.envelope.occurrence-union"
           }
         ]
       }

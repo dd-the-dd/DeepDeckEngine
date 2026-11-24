@@ -1004,6 +1004,9 @@ pub(super) enum OpponentFact {
     /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
     /// is not attacking the player.
     AttackedByControllerThisCombat,
+    /// Every opponent of the controller still in the game (`the number of
+    /// opponents you have`, CR 102.3).
+    Any,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1977,6 +1980,10 @@ pub(super) struct LibrarySearchEffectNode {
     /// is not two positive literals; `minimum`/`maximum` are then only the
     /// expressed envelope, and the lowering reads this count instead.
     pub count: Option<TargetCount>,
+    /// `up to X basic land cards, where X is EXPR, put them ...`: the
+    /// postposed definition read right after the counted phrase it defines
+    /// (CR 107.3). The sentence parent takes it and owns its scope.
+    pub where_x: Option<NumericExpression>,
     pub destination: SearchDestination,
     pub reveal: bool,
     pub shuffle_order: SearchShuffleOrder,

@@ -493,7 +493,9 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "event.player.expend.amount"
+            "state": "numeric.atom.complete",
+            "found": ",",
+            "expectedContains": "fixed amount of total mana spent"
           }
         ]
       }

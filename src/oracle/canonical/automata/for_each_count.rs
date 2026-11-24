@@ -447,7 +447,8 @@ pub(in crate::oracle::canonical) fn recognize_history_count_collection(
     )))
 }
 
-/// `opponent(s) you attacked ...`: the counted players are opponents.
+/// `opponent(s) you attacked ...` / `opponents you have`: the counted
+/// players are opponents.
 fn opponent_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("opponent") || raw.eq_ignore_ascii_case("opponents")
@@ -468,6 +469,14 @@ fn recognize_opponent_count(
         .to_string();
     cursor.consume(&noun)?;
     cursor.enter("numeric.for-each.opponent.relation");
+    // `opponents you have` (CR 102.3): every opponent of the controller.
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("have"))
+    {
+        cursor.consume_phrase(&["you", "have"])?;
+        return Ok(NumericExpression::OpponentCount(OpponentFact::Any));
+    }
     cursor.consume_phrase(&["you", "attacked"])?;
     if cursor
         .peek()

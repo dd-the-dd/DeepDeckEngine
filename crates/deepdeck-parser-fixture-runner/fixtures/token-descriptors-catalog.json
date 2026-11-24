@@ -34,7 +34,7 @@
       }
     },
     {
-      "id": "mystic-genesis-where-x-is-that-spells-mana-value",
+      "id": "known-gap-mystic-genesis-earlier-sentence-target-property",
       "request": {
         "cardName": "Mystic Genesis",
         "typeLine": "Instant",
@@ -44,8 +44,15 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.where-x.definition"
+          }
+        ]
       }
     },
     {
@@ -64,7 +71,7 @@
       }
     },
     {
-      "id": "manaform-hellkite-where-x-mana-spent",
+      "id": "known-gap-manaform-hellkite-mana-spent-amount",
       "request": {
         "cardName": "Manaform Hellkite",
         "typeLine": "Creature — Dragon",
@@ -74,8 +81,16 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "numeric.atom.start",
+            "found": "the"
+          }
+        ]
       }
     },
     {
@@ -229,7 +244,7 @@
       }
     },
     {
-      "id": "militant-angel-equal-to-after-modifiers",
+      "id": "known-gap-militant-angel-opponents-attacked-this-turn",
       "request": {
         "cardName": "Militant Angel",
         "typeLine": "Creature — Angel",
@@ -239,8 +254,16 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "numeric.for-each.opponent.period",
+            "found": "turn"
+          }
+        ]
       }
     },
     {

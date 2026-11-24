@@ -126,12 +126,70 @@
       }
     },
     {
-      "id": "near-miss-graveyard-return-attached",
+      "id": "sibling-graveyard-return-attached-to-target",
       "request": {
         "cardName": "Attached Return Fixture",
         "typeLine": "Enchantment — Aura",
         "manaCost": "{W}",
         "oracleText": "{2}{W}: Return this card from your graveyard to the battlefield attached to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "attachedEntrant"
+              },
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "attachment": {
+                    "binding": "attachedEntrant",
+                    "kind": "boundObjects"
+                  },
+                  "kind": "attachPermanent",
+                  "to": {
+                    "id": "targetPermanent1",
+                    "kind": "chosenTarget"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-graveyard-return-attached-to-untargeted-creature",
+      "request": {
+        "cardName": "Attached Return Fixture",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "{2}{W}: Return this card from your graveyard to the battlefield attached to a creature.",
         "layout": "normal",
         "faces": []
       },
@@ -142,7 +200,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "found": "a"
           }
         ]
       }

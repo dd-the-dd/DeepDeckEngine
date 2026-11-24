@@ -1279,7 +1279,11 @@
               },
               {
                 "pointer": "/modifiers/1/condition/kind",
-                "equals": "not"
+                "equals": "notYourTurn"
+              },
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "duringControllerTurn"
               }
             ]
           }
@@ -1287,7 +1291,7 @@
       }
     },
     {
-      "id": "exact-so-tiny-instead-sentence",
+      "id": "known-gap-so-tiny-attached-controller-condition",
       "request": {
         "cardName": "So Tiny",
         "typeLine": "Enchantment — Aura",
@@ -1297,27 +1301,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 2,
-            "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "staticAbility",
-            "ruleAssertions": [
-              {
-                "pointer": "/modifiers/0/condition/kind",
-                "equals": "not"
-              },
-              {
-                "pointer": "/modifiers/1/power",
-                "equals": {
-                  "kind": "integer",
-                  "value": -6
-                }
-              }
-            ]
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.property",
+            "found": "controller"
           }
         ]
       }
@@ -1820,7 +1811,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "static.continuous.block-requirement"
+            "state": "static.continuous.predicate",
+            "found": "able"
           }
         ]
       }

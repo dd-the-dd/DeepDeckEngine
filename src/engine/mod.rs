@@ -31306,8 +31306,10 @@ impl GameEngine {
             Some("countOpponents" | "countOpponentsAttackedThisCombat") => {
                 self.numeric_expression(expression, &stack_object.controller)
             }
-            // CR 700.5: the devotion of the player the expression names.
-            Some("devotion") => {
+            // CR 700.5: the devotion of the player the expression names; the
+            // total power of the creatures that player controls (`creatures
+            // you control have total power N or greater`).
+            Some("devotion" | "sumPowers") => {
                 let player = self.resolve_player(&expression["player"], stack_object, bindings)?;
                 self.numeric_expression(expression, &player)
             }

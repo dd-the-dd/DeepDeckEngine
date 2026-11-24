@@ -81,9 +81,9 @@
         ],
         "library": [
           {
-            "id": "top-sorcery",
-            "name": "Top Sorcery",
-            "typeLine": "Sorcery"
+            "id": "third-land",
+            "name": "Third Land",
+            "typeLine": "Land"
           },
           {
             "id": "second-instant",
@@ -91,9 +91,9 @@
             "typeLine": "Instant"
           },
           {
-            "id": "third-land",
-            "name": "Third Land",
-            "typeLine": "Land"
+            "id": "top-sorcery",
+            "name": "Top Sorcery",
+            "typeLine": "Sorcery"
           }
         ]
       },

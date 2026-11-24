@@ -2921,6 +2921,14 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                     // name relation of the object query.
                     predicates.push(recognize_named_qualifier(cursor)?);
                     SearchCardSelectorState::QualifierOrComplete
+                } else if let Some(length) = super::chosen_card_name_qualifier_length(cursor) {
+                    // `cards with that name` / `with the chosen name`: the
+                    // shared chosen-name relation of the object query
+                    // (CR 201.2, 608.2d), read before the `with` readers.
+                    cursor.enter("selector.search-card.chosen-card-name-qualifier");
+                    cursor.advance_to(cursor.position() + length)?;
+                    predicates.push(ObjectPredicate::Relation(super::ObjectRelation::ChosenName));
+                    SearchCardSelectorState::QualifierOrComplete
                 } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))

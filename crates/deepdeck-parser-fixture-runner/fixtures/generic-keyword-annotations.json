@@ -648,7 +648,7 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "static-continuous-effect",
-            "state": "static.continuous.complete",
+            "state": "static.continuous.keyword-reminder.end",
             "found": "You"
           }
         ]

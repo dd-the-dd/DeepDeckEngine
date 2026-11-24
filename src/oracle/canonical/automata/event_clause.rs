@@ -161,6 +161,15 @@ impl ClauseReading<'_> {
         ) {
             Ok(event) => Some(EventClauseAttempt::Recognized(event)),
             Err(failure) if policy == BoundaryPolicy::Commit => {
+                // The committed alternative owns the clause, but an earlier
+                // alternative that read further is the more precise
+                // diagnostic (`attacks the player with the most life`
+                // reaches the recipient predicate after the bare `attacks`
+                // reader stops at the boundary).
+                let failure = match self.furthest.take() {
+                    Some(earlier) if earlier.token_index > failure.token_index => earlier,
+                    _ => failure,
+                };
                 Some(EventClauseAttempt::Committed(failure))
             }
             Err(failure) => {

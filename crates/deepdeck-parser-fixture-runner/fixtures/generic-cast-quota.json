@@ -237,7 +237,7 @@
       }
     },
     {
-      "id": "unsupported-player-scope",
+      "id": "sibling-opponents-player-scope",
       "request": {
         "cardName": "Shared quota",
         "typeLine": "Enchantment",
@@ -247,11 +247,65 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "castLimitPerTurn",
+                  "maximum": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "where": {
+                    "kind": "not",
+                    "operand": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-combat-period",
+      "request": {
+        "cardName": "Shared quota",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Your opponents can't cast more than one noncreature spell each combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "static.cast-quota.turn",
+            "found": "combat"
           }
         ]
       }

@@ -28,18 +28,69 @@
         ]
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 3,
         "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/roomDoorIndex",
+                "equals": 0
+              },
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "doorUnlocked",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/amount",
+                "equals": {
+                  "kind": "countCards",
+                  "where": null,
+                  "zone": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          },
           {
             "index": 1,
             "status": "canonical",
             "recognizer": "native",
             "abilityType": "staticAbility",
             "ruleAssertions": [
-              { "pointer": "/roomDoorIndex", "equals": 1 },
-              { "pointer": "/modifiers/0/kind", "equals": "noMaximumHandSize" }
+              {
+                "pointer": "/roomDoorIndex",
+                "equals": 1
+              },
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "noMaximumHandSize"
+              }
             ]
           },
           {
@@ -48,16 +99,19 @@
             "recognizer": "native",
             "abilityType": "triggeredAbility",
             "ruleAssertions": [
-              { "pointer": "/roomDoorIndex", "equals": 1 },
-              { "pointer": "/event/kind", "equals": "stepBegan" },
-              { "pointer": "/effects/0/kind", "equals": "drawCards" }
+              {
+                "pointer": "/roomDoorIndex",
+                "equals": 1
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              }
             ]
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
           }
         ]
       }

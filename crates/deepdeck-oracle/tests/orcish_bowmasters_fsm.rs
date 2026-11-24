@@ -101,15 +101,16 @@ fn second_draw_exception_is_a_committed_event_diagnostic() {
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
     // Trigger frames claim every triggered ability: the generic trigger
-    // program owns the committed diagnostic and the specialized family keeps
-    // its precise state as explicit candidate evidence.
+    // program owns the committed diagnostic, which is the alternative that
+    // read furthest (the unsupported ordinal exception), and the specialized
+    // family keeps its precise state as explicit candidate evidence.
     assert_eq!(
         ability.diagnostics[0].automaton.as_deref(),
         Some("generic-trigger-program")
     );
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("trigger.envelope.separator")
+        Some("event.card-drawn.exception.ordinal")
     );
     assert_eq!(
         ability.diagnostics[1].code,

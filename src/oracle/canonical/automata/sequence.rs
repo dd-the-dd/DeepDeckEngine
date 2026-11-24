@@ -893,6 +893,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         // left its words unresolved; it is never a source name.
                         if super::venture_action_starts(attempt)
                             || super::ring_temptation_starts(attempt)
+                            || super::player_designation_follows(attempt).is_some()
                             || super::skip_turn_part_follows(attempt)
                             || super::defending_player_starts(attempt)
                             || !source_reference_starts_at(
@@ -1672,6 +1673,24 @@ fn recognize_effect_sequence_attempt_scoped(
                     | LocalEffectNode::OptionalLibrarySearch(search) => {
                         search.binding = CollectionBinding(memory.next_search_binding);
                         memory.next_search_binding += 1;
+                        // CR 107.3: a definition of X the search read after its
+                        // counted phrase binds X for this sentence's actions
+                        // through this search, like a postposed `where X`.
+                        if let Some(expression) = search.where_x.take() {
+                            cursor.enter("sequence.where-x.scope");
+                            cursor.require(
+                                !memory
+                                    .where_x
+                                    .iter()
+                                    .any(|binding| binding.first_effect == memory.sentence_start),
+                                "one definition of X for the actions of this sentence",
+                            )?;
+                            memory.where_x.push(super::WhereXBindingNode {
+                                first_effect: memory.sentence_start,
+                                end_effect: effect_index + 1,
+                                expression,
+                            });
+                        }
                         // A searched collection is a new object antecedent, but it is
                         // not a target slot. Until collection/object anaphora is
                         // modeled explicitly, never let `it` fall back to a target

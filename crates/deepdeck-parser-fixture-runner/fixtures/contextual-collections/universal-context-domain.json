@@ -1048,7 +1048,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.continuous.connector",
+            "state": "static.continuous.complete",
             "found": "until"
           }
         ]
@@ -1078,7 +1078,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.continuous.connector",
+            "state": "static.continuous.complete",
             "found": "Draw"
           }
         ]

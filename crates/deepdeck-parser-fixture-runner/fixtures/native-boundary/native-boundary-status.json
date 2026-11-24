@@ -125,7 +125,7 @@
         "cardName": "Legacy Static Bonus",
         "typeLine": "Enchantment",
         "manaCost": "",
-        "oracleText": "Creatures you control are blue.",
+        "oracleText": "Creatures you control are the color of your choice.",
         "layout": "normal",
         "faces": []
       },
@@ -143,7 +143,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "static.continuous.type-change"
+            "state": "static.continuous.type-change",
+            "found": "the"
           }
         ]
       }
@@ -600,12 +601,12 @@
       }
     },
     {
-      "id": "unimplemented-awaken",
+      "id": "unimplemented-epic",
       "request": {
         "cardName": "Test Spell",
         "typeLine": "Sorcery",
         "manaCost": "{4}{R}",
-        "oracleText": "Awaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
+        "oracleText": "Epic (For the rest of the game, you can’t cast spells. At the beginning of each of your upkeeps, copy this spell except for its epic ability. You may choose new targets for the copy.)",
         "layout": "normal",
         "faces": []
       },
@@ -622,7 +623,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "keyword.unsupported.epic"
           }
         ]
       }
@@ -633,7 +635,7 @@
         "cardName": "Mixed Proof",
         "typeLine": "Instant",
         "manaCost": "{R}",
-        "oracleText": "Entwine {2}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+        "oracleText": "Madness {1}{R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
         "layout": "normal",
         "faces": []
       },
@@ -644,7 +646,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "keyword.unsupported.entwine"
+            "state": "keyword.unsupported.madness"
           }
         ],
         "abilities": [
