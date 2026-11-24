@@ -3,7 +3,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     EffectRecognitionContext, MoveSourceEffectNode, SourceFaceChange, SourceMoveController,
-    SourceZone, recognize_source_reference, recognize_source_reference_with_antecedent,
+    SourceZone, recognize_contextual_permanent_operand, recognize_source_reference,
+    recognize_source_reference_with_antecedent,
 };
 
 /// Recognizes one source-object zone move. A caller composes exile and return
@@ -32,6 +33,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 face_change: SourceFaceChange::Preserve,
                 controller: SourceMoveController::Preserve,
                 tapped: false,
+                attached_to: None,
             })
         }
         Some("return") => {
@@ -79,6 +81,23 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 if tapped {
                     cursor.consume("tapped")?;
                 }
+                // `attached to OBJECT`: the shared permanent operand names
+                // the permanent the source enters attached to (CR 303.4f).
+                let attached_to = if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("attached"))
+                {
+                    cursor.enter("effect.move-source.return.attached-to");
+                    cursor.consume_phrase(&["attached", "to"])?;
+                    Some(recognize_contextual_permanent_operand(
+                        cursor,
+                        name_links,
+                        name_failure,
+                        context,
+                    )?)
+                } else {
+                    None
+                };
                 cursor.enter("effect.move-source.complete");
                 return Ok(MoveSourceEffectNode {
                     source,
@@ -87,6 +106,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     face_change: SourceFaceChange::Preserve,
                     controller: SourceMoveController::Preserve,
                     tapped,
+                    attached_to,
                 });
             }
             if origin == Some(SourceZone::Graveyard) {
@@ -100,6 +120,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     face_change: SourceFaceChange::Preserve,
                     controller: SourceMoveController::Preserve,
                     tapped: false,
+                    attached_to: None,
                 });
             }
             if origin.is_none()
@@ -129,6 +150,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     face_change: SourceFaceChange::Preserve,
                     controller: SourceMoveController::Owner,
                     tapped: false,
+                    attached_to: None,
                 });
             }
             cursor.consume_phrase(&["the", "battlefield"])?;
@@ -159,6 +181,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 face_change: SourceFaceChange::Transform,
                 controller: SourceMoveController::Owner,
                 tapped: false,
+                attached_to: None,
             })
         }
         _ => Err(cursor.fail("`exile` or `return` source-zone action")),

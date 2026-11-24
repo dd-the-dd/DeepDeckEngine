@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/exile-until",
+  "cases": [
+    {
+      "id": "exact-wandas-vision-exile-until-a-nonland-card",
+      "request": {
+        "cardName": "Wanda's Vision",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Whenever you cast your second spell each turn, exile cards from the top of your library until you exile a nonland card. You may cast that card without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exileFromTopUntil"
+              },
+              {
+                "pointer": "/effects/0/faceDown",
+                "equals": false
+              },
+              {
+                "pointer": "/effects/0/alsoStopsWhen/kind",
+                "equals": "sourceZoneEmpty"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-territorial-bruntar-cast-the-matching-card-this-turn",
+      "request": {
+        "cardName": "Territorial Bruntar",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Reach\nLandfall — Whenever a land you control enters, exile cards from the top of your library until you exile a nonland card. You may cast that card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exileFromTopUntil"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reveal-until-keeps-its-reveal-writer",
+      "request": {
+        "cardName": "Shared Until",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Reveal cards from the top of your library until you reveal a creature card. Put that card into your hand and the rest into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "revealFromTopUntilCount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exile-until-two-matching-cards",
+      "request": {
+        "cardName": "Shared Until",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile cards from the top of your library until you exile two nonland cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

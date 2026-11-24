@@ -1071,10 +1071,43 @@ impl CardCollectionMemory {
                 }
                 self.last_revealed = Some((cards, maximum));
             }
+            // `exile cards from the top of your library until you exile a
+            // PREDICATE card`: the shared exile-until writer. Every exiled
+            // card is observed in exile; the matching card is `that card`,
+            // the others `the rest`, all of them `the exiled cards`.
+            CardActionNode::RevealUntil {
+                predicate,
+                owner,
+                verb: CardCollectionVerb::Exiled,
+                ..
+            } => {
+                cursor.enter("lower.card-action.exile-until");
+                cursor.require(
+                    *owner == LocalPlayerReference::Controller,
+                    "a supported explicit library owner",
+                )?;
+                let id = fresh("exiledUntil", &mut self.next_view);
+                self.allocated_ids.insert(id.clone());
+                let hit = fresh("exiledUntilMatch", &mut self.next_view);
+                self.allocated_ids.insert(hit.clone());
+                effects.push(json!({"kind":"exileFromTopUntil",
+                    "zone":{"kind":"library", "player":controller()},
+                    "bind":id, "stopCardBind":hit, "faceDown":false,
+                    "stopWhere":lower_card_object_predicate(predicate),
+                    "alsoStopsWhen":{"kind":"sourceZoneEmpty"}}));
+                self.observe(&id, None);
+                self.view_verb = Some(CardCollectionVerb::Exiled);
+                self.view_zone = Some(CardZoneName::Exile);
+                self.last_exiled = Some((bound(&id), None));
+                self.selected.push(bound(&hit));
+                self.complement_exclusions.push(bound(&hit));
+                self.mention((bound(&hit), Some(1)));
+            }
             CardActionNode::RevealUntil {
                 quantity,
                 predicate,
                 owner,
+                verb: CardCollectionVerb::Revealed,
             } => {
                 cursor.require(
                     *owner == LocalPlayerReference::Controller,

@@ -788,6 +788,40 @@ fn lower_local_effect_sequence_with_collections(
                     "binding": id,
                 })));
             }
+            // `return this card from your graveyard to the battlefield
+            // attached to OBJECT`: the entry, then the attachment of the
+            // object it became to the permanent the shared operand names
+            // (CR 303.4f, 301.5c); an illegal attachment leaves it unattached.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.to == SourceZone::Battlefield
+                    && movement.attached_to.is_some() =>
+            {
+                cursor.enter("lower.move-source.attach-on-entry");
+                let recipient = movement
+                    .attached_to
+                    .as_ref()
+                    .expect("an attachment recipient checked by the guard");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    recipient,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [recipient] = <[Value; 1]>::try_from(objects)
+                    .map_err(|_| cursor.fail("one permanent to attach the entering object to"))?;
+                let id = collections.allocate_selection_id("attachedEntrant");
+                effects.push(lower_source_move_effect(movement, self_ref(), Some(&id)));
+                effects.push(json!({
+                    "kind": "attachPermanent",
+                    "attachment": {"kind": "boundObjects", "binding": id},
+                    "to": recipient,
+                }));
+            }
             LocalEffectNode::OptionalSequence(body) => {
                 let before = collections.clone();
                 let mut lowered = lower_local_effect_sequence_with_collections(

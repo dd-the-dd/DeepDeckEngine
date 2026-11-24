@@ -190,6 +190,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_source_into_library(
         face_change: SourceFaceChange::Preserve,
         controller: SourceMoveController::Owner,
         tapped: false,
+        attached_to: None,
     }))
 }
 
