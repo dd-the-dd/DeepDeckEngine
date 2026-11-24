@@ -238,13 +238,21 @@ pub(in crate::oracle::canonical) fn recognize_relative_damage_clause(
 /// The written subject a following `and deals ...` predicate shares: the
 /// source of a stat change on the ability's own object (`This creature gets
 /// +1/+1 until end of turn and deals 1 damage to each opponent`). Only a
-/// fixed source reference is shared; a declared target keeps its own slots.
+/// fixed or bound singular reference is shared; a declared target keeps its
+/// own slots.
 pub(in crate::oracle::canonical) fn shared_damage_subject(
     previous: Option<&super::LocalEffectNode>,
 ) -> Option<super::PermanentOperandNode> {
     match previous? {
         super::LocalEffectNode::ModifyStats(change) => match &change.targets {
             source @ super::PermanentOperandNode::Reference(_) => Some(source.clone()),
+            // `it gets +2/+2 until end of turn and deals 2 damage to ...`:
+            // one bound object, never a declared set.
+            source @ super::PermanentOperandNode::BoundReference(reference)
+                if !matches!(reference, super::PermanentEffectReference::TargetSet(_)) =>
+            {
+                Some(source.clone())
+            }
             _ => None,
         },
         _ => None,

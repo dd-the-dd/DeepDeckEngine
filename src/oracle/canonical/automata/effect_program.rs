@@ -842,6 +842,18 @@ fn complete_outcome_block(
         cursor.consume(".")?;
         return complete_outcome_block(cursor, block, name_links, name_failure, context);
     }
+    if super::type_retention_amendment_starts(cursor) {
+        // CR 205.1b: the sentence amends the type change the block ends
+        // with, whatever wrapper gates that change.
+        let mut block = block;
+        super::recognize_type_retention_amendment(
+            cursor,
+            super::last_program_action_mut(&mut block),
+        )?;
+        cursor.enter("program.type-retention.terminator");
+        cursor.consume(".")?;
+        return complete_outcome_block(cursor, block, name_links, name_failure, context);
+    }
     cursor.enter("program.steps.following");
     // A sentence-initial `Then` only restates the written order of the
     // independent steps (CR 608.2c); the following step owns its sentence.

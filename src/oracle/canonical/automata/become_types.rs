@@ -821,6 +821,25 @@ fn last_type_change(
     }
 }
 
+/// The last action of a program's last written sentence, through the
+/// wrappers that only gate it (`Then you may have it become ...`).
+pub(in crate::oracle::canonical) fn last_program_action_mut(
+    program: &mut super::EffectProgramNode,
+) -> Option<&mut super::LocalEffectNode> {
+    match program {
+        super::EffectProgramNode::Sequence(sequence) => sequence.effects.last_mut(),
+        super::EffectProgramNode::Optional { body, .. } => last_program_action_mut(body),
+        super::EffectProgramNode::Outcome {
+            body,
+            otherwise: None,
+            ..
+        } => last_program_action_mut(body),
+        super::EffectProgramNode::Steps(steps) => last_program_action_mut(steps.last_mut()?),
+        super::EffectProgramNode::Outcome { .. }
+        | super::EffectProgramNode::Alternatives { .. } => None,
+    }
+}
+
 /// `It's still a TYPE.` / `They're still TYPEs.` as its own sentence after
 /// a type change whose sentence another tail closed first (a postposed
 /// `where X is ...`, the period of a quoted granted ability, CR 205.1b).
