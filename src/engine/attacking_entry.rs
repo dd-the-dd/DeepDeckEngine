@@ -13,8 +13,9 @@
 //! captures the chosen instance in the stack object's decisions
 //! (`cost_attack_references`). Its attack record survives its leaving the
 //! battlefield, so the entering permanent reads the defender recorded when
-//! that creature attacked. It is never a declared attacker (CR 508.4):
-//! attack triggers do not fire for it.
+//! that creature attacked. The entry itself goes through the shared
+//! attacking-entry writer (`entering_attacking`): it is never a declared
+//! attacker (CR 508.4), so attack triggers do not fire for it.
 use super::*;
 
 /// The decision holding the instance a `sameDefenderAs` reference chose.
@@ -53,8 +54,9 @@ pub(super) fn with_cost_attack_references(
     decisions
 }
 
-/// The `attacking` policy of an entry onto the battlefield.
-pub(super) fn attacking_entry_supported(value: &Value) -> bool {
+/// A `sameDefenderAs` policy names the cost choice whose creature's
+/// recorded defender the entering permanent attacks.
+pub(super) fn same_defender_reference_supported(value: &Value) -> bool {
     value_kind(value) == Some("sameDefenderAs")
         && value_kind(&value["object"]) == Some("chosenObject")
         && value["object"]["id"]
@@ -63,20 +65,15 @@ pub(super) fn attacking_entry_supported(value: &Value) -> bool {
 }
 
 impl GameEngine {
-    /// Makes the permanent that just entered attack the referenced
-    /// creature's recorded defender. Outside combat, under the control of a
-    /// player other than the active player, or when that player,
-    /// planeswalker or battle can no longer be attacked, the permanent enters
-    /// but is not attacking (CR 506.3, 508.4a).
-    pub(super) fn put_entered_permanent_attacking(
-        &mut self,
-        instance_id: &str,
-        attacking: &Value,
+    /// The defender the referenced creature was recorded attacking, read
+    /// from the instance the activation captured (or a still-declared
+    /// target of the same id). Its record survives its leaving combat.
+    pub(super) fn same_defender_recorded(
+        &self,
+        policy: &Value,
         stack_object: &StackObject,
-    ) {
-        let Some(reference_id) = attacking["object"]["id"].as_str() else {
-            return;
-        };
+    ) -> Option<TargetRef> {
+        let reference_id = policy["object"]["id"].as_str()?;
         let reference = match (
             stack_object
                 .decisions
@@ -86,44 +83,13 @@ impl GameEngine {
         ) {
             (Some(captured), _) => captured.to_string(),
             (None, Some(TargetRef::Permanent { instance_id })) => instance_id.clone(),
-            _ => return,
+            _ => return None,
         };
-        let Some(assignment) = self
-            .state
+        self.state
             .combat
             .attackers
             .iter()
             .find(|assignment| assignment.attacker_id == reference)
-            .cloned()
-        else {
-            return;
-        };
-        let Some((player_index, card_index)) = self.permanent_position(instance_id) else {
-            return;
-        };
-        let controller = self.state.players[player_index].battlefield[card_index]
-            .controller
-            .clone();
-        let active_player_id = self.state.players[self.state.active_player].id.clone();
-        let in_combat = matches!(
-            self.state.step,
-            GameStep::DeclareAttackers | GameStep::DeclareBlockers | GameStep::CombatDamage
-        );
-        if !in_combat
-            || controller != active_player_id
-            || self
-                .attack_defending_player_id(&active_player_id, &assignment.defender)
-                .is_none()
-        {
-            return;
-        }
-        self.state.players[player_index].battlefield[card_index]
-            .flags
-            .insert("attacking".to_string(), true);
-        self.state.combat.attackers.push(DeclaredAttacker {
-            attacker_id: instance_id.to_string(),
-            defender: assignment.defender,
-            defending_player_id: assignment.defending_player_id,
-        });
+            .map(|assignment| assignment.defender.clone())
     }
 }

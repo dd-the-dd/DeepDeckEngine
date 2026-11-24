@@ -247,7 +247,8 @@ pub(in crate::oracle::canonical) fn last_program_copy_instruction_mut(
             last_program_copy_instruction_mut(steps.last_mut()?)
         }
         super::EffectProgramNode::Outcome { .. }
-        | super::EffectProgramNode::Alternatives { .. } => None,
+        | super::EffectProgramNode::Alternatives { .. }
+        | super::EffectProgramNode::Offer { .. } => None,
     }
 }
 

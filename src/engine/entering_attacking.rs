@@ -1,20 +1,36 @@
 //! Permanents put onto the battlefield attacking (CR 508.4).
 //!
 //! One writer for every entry that joins combat without a declaration: a
-//! moved card (`put it onto the battlefield tapped and attacking`) and a
-//! created token (`create a token that's tapped and attacking`). The
+//! moved card (`put it onto the battlefield tapped and attacking`), a
+//! created token (`create a token that's tapped and attacking`) and a
+//! ninjutsu entry attacking what the returned creature was attacking
+//! (`sameDefenderAs`, CR 702.49c, see `attacking_entry`). The
 //! permanent was never declared as an attacker, so no ability that triggers
 //! on declaring attackers sees it (CR 508.3a, 508.4).
 use super::*;
 
 /// The defender policy an attacking entry states: any defender, one named
-/// player, or that player and the planeswalkers they control.
+/// player, that player and the planeswalkers they control, or the defender
+/// another creature was recorded attacking.
 pub(super) fn entering_attack_supported(policy: &Value) -> bool {
     match value_kind(policy) {
         Some("anyDefender") => true,
         Some("player" | "playerOrPlaneswalkers") => player_reference_supported(&policy["player"]),
+        Some("sameDefenderAs") => super::attacking_entry::same_defender_reference_supported(policy),
         _ => false,
     }
+}
+
+/// The defenders an attacking entry admits.
+pub(super) enum AdmittedDefenders<'a> {
+    Any,
+    /// A named player, and with `planeswalkers` the planeswalkers they control.
+    Player {
+        player_id: &'a str,
+        planeswalkers: bool,
+    },
+    /// Exactly the defender another attacker was recorded attacking.
+    Exactly(&'a TargetRef),
 }
 
 impl GameEngine {
@@ -29,21 +45,33 @@ impl GameEngine {
         bindings: &BTreeMap<String, RuntimeBinding>,
         provider: &mut P,
     ) -> Result<(), EngineError> {
-        let named_player = match value_kind(policy) {
+        let named_player;
+        let recorded_defender;
+        let admitted = match value_kind(policy) {
             Some("player" | "playerOrPlaneswalkers") => {
-                match self.resolve_player(&policy["player"], stack_object, bindings) {
-                    Some(player_id) => Some(player_id),
+                named_player = match self.resolve_player(&policy["player"], stack_object, bindings)
+                {
+                    Some(player_id) => player_id,
                     None => return Ok(()),
+                };
+                AdmittedDefenders::Player {
+                    player_id: &named_player,
+                    planeswalkers: value_kind(policy) == Some("playerOrPlaneswalkers"),
                 }
             }
-            _ => None,
+            Some("sameDefenderAs") => {
+                recorded_defender = match self.same_defender_recorded(policy, stack_object) {
+                    Some(defender) => defender,
+                    None => return Ok(()),
+                };
+                AdmittedDefenders::Exactly(&recorded_defender)
+            }
+            _ => AdmittedDefenders::Any,
         };
-        let planeswalkers = value_kind(policy) == Some("playerOrPlaneswalkers");
         for permanent_id in permanent_ids {
             self.put_permanent_into_combat_attacking(
                 permanent_id,
-                named_player.as_deref(),
-                planeswalkers,
+                &admitted,
                 stack_object,
                 provider,
             )?;
@@ -57,8 +85,7 @@ impl GameEngine {
     pub(super) fn put_permanent_into_combat_attacking<P: DecisionProvider>(
         &mut self,
         permanent_id: &str,
-        named_player: Option<&str>,
-        planeswalkers: bool,
+        admitted: &AdmittedDefenders<'_>,
         stack_object: &StackObject,
         provider: &mut P,
     ) -> Result<(), EngineError> {
@@ -76,17 +103,29 @@ impl GameEngine {
         if !in_combat || controller != active_player_id {
             return Ok(());
         }
-        let admitted = |engine: &Self, defender: &TargetRef| match (named_player, defender) {
-            (None, _) => true,
-            (Some(named), TargetRef::Player { player_id }) => player_id == named,
-            (Some(named), TargetRef::Permanent { instance_id }) => {
-                planeswalkers
+        let admitted = |engine: &Self, defender: &TargetRef| match (admitted, defender) {
+            (AdmittedDefenders::Any, _) => true,
+            (AdmittedDefenders::Exactly(recorded), defender) => *recorded == defender,
+            (
+                AdmittedDefenders::Player {
+                    player_id: named, ..
+                },
+                TargetRef::Player { player_id },
+            ) => player_id == named,
+            (
+                AdmittedDefenders::Player {
+                    player_id: named,
+                    planeswalkers,
+                },
+                TargetRef::Permanent { instance_id },
+            ) => {
+                *planeswalkers
                     && engine
                         .permanent_position(instance_id)
                         .is_some_and(|(owner_index, index)| {
                             let permanent = &engine.state.players[owner_index].battlefield[index];
                             has_card_type(&permanent.definition, "planeswalker")
-                                && permanent.controller == named
+                                && permanent.controller == *named
                         })
             }
             _ => false,

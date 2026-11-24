@@ -246,6 +246,7 @@ mod subtypes;
 mod suspend_keyword;
 mod target_incarnation;
 
+mod candidate_numeric_operands;
 mod echo_upkeep;
 mod entering_attacking;
 #[cfg(all(
@@ -266,7 +267,6 @@ mod object_identity_tests;
 mod object_lki;
 mod object_relation_lki;
 mod source_bound_operands;
-mod candidate_numeric_operands;
 mod target_legality;
 mod target_numeric_runtime;
 mod target_reassignment;

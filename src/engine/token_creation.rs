@@ -767,7 +767,12 @@ impl GameEngine {
         stack_object: &StackObject,
         provider: &mut P,
     ) -> Result<(), EngineError> {
-        self.put_permanent_into_combat_attacking(token_id, None, false, stack_object, provider)
+        self.put_permanent_into_combat_attacking(
+            token_id,
+            &super::entering_attacking::AdmittedDefenders::Any,
+            stack_object,
+            provider,
+        )
     }
 
     #[cfg(test)]

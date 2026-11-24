@@ -245,6 +245,7 @@ mod coordinated_static_subject_runtime;
 #[path = "tests/alternative_life_payment_runtime.rs"]
 mod alternative_life_payment_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/static_player_permissions_runtime.rs"]
 mod static_player_permissions_runtime;
 
