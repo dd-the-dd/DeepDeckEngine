@@ -142,6 +142,20 @@ impl GenericTriggerEventNode {
                 verb: super::ObjectEventVerb::DealDamage,
                 ..
             }) => Some(EventNumericBinding::DamageAmount),
+            // A per-object `deals combat damage to a player` lowers through
+            // the same dealt-damage observer (one occurrence per source); a
+            // `one or more` batch is a different observer and exports none.
+            Self::Object(super::ObjectEventNode {
+                verb: super::ObjectEventVerb::DealCombatDamageToPlayer,
+                subject,
+                ..
+            }) if !matches!(
+                subject.multiplicity,
+                super::EventMultiplicity::PerEvent { .. }
+            ) =>
+            {
+                Some(EventNumericBinding::DamageAmount)
+            }
             // The runtime exports the dealt amount for every received-damage
             // observer: per object, per player, and the one-or-more total.
             Self::Local(LocalTriggerEventNode::PlayerEvent { actions, .. })

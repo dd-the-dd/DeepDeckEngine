@@ -159,6 +159,39 @@
       }
     },
     {
+      "id": "sibling-per-creature-combat-damage-amount",
+      "request": {
+        "cardName": "Quantity Probe Delta",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a creature you control deals combat damage to a player, you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/decisionId",
+                "equals": "damageAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-that-many-without-event-amount",
       "request": {
         "cardName": "Quantity Probe Gamma",
