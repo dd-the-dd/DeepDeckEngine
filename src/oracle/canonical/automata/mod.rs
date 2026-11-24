@@ -1260,6 +1260,9 @@ pub(super) enum GrantedKeyword {
     Flanking,
     Flash,
     Flying,
+    /// CR 702.102a: a split card cast from hand may be cast as both halves
+    /// (the engine's fused split definition).
+    Fuse,
     Haste,
     Hexproof,
     Horsemanship,
@@ -1316,6 +1319,7 @@ impl GrantedKeyword {
             Self::Flanking => "flanking",
             Self::Flash => "flash",
             Self::Flying => "flying",
+            Self::Fuse => "fuse",
             Self::Haste => "haste",
             Self::Hexproof => "hexproof",
             Self::Horsemanship => "horsemanship",

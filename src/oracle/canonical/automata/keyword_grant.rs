@@ -81,6 +81,7 @@ pub(in crate::oracle::canonical) fn parameterless_keyword_from_oracle_word(
         "flanking" => GrantedKeyword::Flanking,
         "flash" => GrantedKeyword::Flash,
         "flying" => GrantedKeyword::Flying,
+        "fuse" => GrantedKeyword::Fuse,
         "haste" => GrantedKeyword::Haste,
         "hexproof" => GrantedKeyword::Hexproof,
         "horsemanship" => GrantedKeyword::Horsemanship,
