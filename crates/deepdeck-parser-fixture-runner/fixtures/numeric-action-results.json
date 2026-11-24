@@ -520,6 +520,38 @@
           }
         ]
       }
+    },
+    {
+      "id": "sibling-counters-on-source-name",
+      "request": {
+        "cardName": "Synthetic Bard",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: You gain 1 life for each verse counter on Synthetic Bard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-counters-on-it-as-damage-subject",
+      "request": {
+        "cardName": "Synthetic Clock",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: This artifact deals damage equal to the number of doom counters on it to each player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
     }
   ]
 }
