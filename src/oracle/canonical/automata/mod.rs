@@ -102,6 +102,7 @@ mod emblem;
 mod empower_jace;
 mod enchant;
 mod entry_counters;
+mod entry_frame;
 mod entry_or_repeat_trigger;
 pub(in crate::oracle::canonical) mod entry_replacement;
 mod equip;
@@ -194,6 +195,7 @@ mod reference;
 mod regenerate;
 mod relative_clause;
 mod repetition;
+mod replacement_event;
 mod replacing_conditional;
 mod replicate;
 mod resolution_cost;
@@ -365,6 +367,7 @@ pub(super) use emblem::*;
 pub(super) use empower_jace::*;
 pub(super) use enchant::*;
 pub(super) use entry_counters::*;
+pub(super) use entry_frame::*;
 pub(super) use entry_or_repeat_trigger::*;
 pub(super) use equip::*;
 pub(super) use event_actor::*;
@@ -455,6 +458,7 @@ pub(super) use reference::*;
 pub(super) use regenerate::*;
 pub(super) use relative_clause::*;
 pub(super) use repetition::*;
+pub(super) use replacement_event::*;
 pub(super) use replacing_conditional::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
@@ -1880,6 +1884,14 @@ pub(super) struct AddManaChoiceEffectNode {
     pub options: Vec<ManaCostNode>,
 }
 
+/// `[FIXED or] N mana of the chosen color`: the color the source stored as
+/// it entered (CR 614.12), optionally after fixed alternatives.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddStoredColorManaEffectNode {
+    pub amount: i64,
+    pub alternatives: Vec<ManaCostNode>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum AddManaEffectNode {
     Qualified {
@@ -1896,6 +1908,7 @@ pub(super) enum AddManaEffectNode {
     AnyColorAmount(AddAnyColorAmountManaEffectNode),
     ScopedColor(AddScopedManaEffectNode),
     EachColor(AddEachColorManaNode),
+    StoredColor(AddStoredColorManaEffectNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -136,6 +136,13 @@ fn recognize_quantity_replacement_body(
     cursor.enter("quantity-replacement.numeric-binding");
     cursor.require(quantity_expression_has_runtime_binding(&quantity), "an i32 arithmetic expression over this replacement event's quantity, without external variables")?;
     recognize_preserved_subject(cursor, &event)?;
+    if event.domain == QuantityEventDomain::TokenCreation
+        && event.voice == QuantityEventVoice::Passive
+    {
+        // `twice that many of those tokens are created instead`.
+        cursor.enter("quantity-replacement.passive-tokens");
+        cursor.consume_phrase(&["are", "created"])?;
+    }
     if event.domain == QuantityEventDomain::CounterPlacement {
         if event.voice == QuantityEventVoice::Passive {
             cursor.consume_phrase(&["are", "put"])?;

@@ -2,9 +2,10 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     AddAnyColorAmountManaEffectNode, AddAnyColorManaEffectNode, AddCountedManaEffectNode,
     AddFixedManaEffectNode, AddManaChoiceEffectNode, AddManaEffectNode, AddScopedManaEffectNode,
-    ManaChoiceDomain, ManaColorDistribution, NumericAtom, NumericExpression, ObjectCardType,
-    ObjectControllerScope, ObjectPredicate, PermanentCountMeasure, recognize_fixed_mana_sequence,
-    recognize_numeric_atom, recognize_object_query,
+    AddStoredColorManaEffectNode, ManaChoiceDomain, ManaColorDistribution, ManaCostNode,
+    NumericAtom, NumericExpression, ObjectCardType, ObjectControllerScope, ObjectPredicate,
+    PermanentCountMeasure, recognize_fixed_mana_sequence, recognize_numeric_atom,
+    recognize_object_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -40,6 +41,15 @@ fn recognize_add_fixed_mana_or_choice_effect(
             }
             AddFixedManaChoiceState::Option => {
                 cursor.enter("effect.add-fixed-mana-choice.option");
+                if !options.is_empty() && stored_color_production_starts(cursor, 0) {
+                    // `{W} or one mana of the chosen color`: the last
+                    // alternative reads the source's stored color.
+                    cursor.require(
+                        valid_choice_connectors(options.len() + 1, &connectors),
+                        "a canonical fixed-mana choice list",
+                    )?;
+                    return recognize_stored_color_production(cursor, options);
+                }
                 options.push(recognize_fixed_mana_sequence(cursor)?);
                 AddFixedManaChoiceState::ConnectorOrComplete
             }
@@ -79,20 +89,7 @@ fn recognize_add_fixed_mana_or_choice_effect(
             }
             AddFixedManaChoiceState::Complete => {
                 cursor.enter("effect.add-fixed-mana-choice.complete");
-                let valid_connectors = match options.len() {
-                    0 => false,
-                    1 => connectors.is_empty(),
-                    2 => connectors == [ManaChoiceConnector::Or],
-                    _ => {
-                        connectors.len() + 1 == options.len()
-                            && connectors.split_last().is_some_and(|(last, prefix)| {
-                                *last == ManaChoiceConnector::CommaOr
-                                    && prefix
-                                        .iter()
-                                        .all(|connector| *connector == ManaChoiceConnector::Comma)
-                            })
-                    }
-                };
+                let valid_connectors = valid_choice_connectors(options.len(), &connectors);
                 cursor.require(valid_connectors, "a canonical fixed-mana choice list")?;
                 return match options.len() {
                     0 => Err(cursor.fail("one or more fixed-mana output options")),
@@ -106,6 +103,54 @@ fn recognize_add_fixed_mana_or_choice_effect(
             }
         };
     }
+}
+
+/// `A or B`, `A, B, or C`: the connectors of a list of `count` options.
+fn valid_choice_connectors(count: usize, connectors: &[ManaChoiceConnector]) -> bool {
+    match count {
+        0 => false,
+        1 => connectors.is_empty(),
+        2 => connectors == [ManaChoiceConnector::Or],
+        _ => {
+            connectors.len() + 1 == count
+                && connectors.split_last().is_some_and(|(last, prefix)| {
+                    *last == ManaChoiceConnector::CommaOr
+                        && prefix
+                            .iter()
+                            .all(|connector| *connector == ManaChoiceConnector::Comma)
+                })
+        }
+    }
+}
+
+/// `N mana of the chosen color` at `offset`: a production of the color the
+/// source stored as it entered (CR 614.12, 106.1).
+fn stored_color_production_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + at)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(1, "mana") && word(2, "of") && word(3, "the") && word(4, "chosen") && word(5, "color")
+}
+
+/// `N mana of the chosen color`, after the fixed alternatives read before it.
+/// The card-level binding proves the entry choice that stores the color.
+fn recognize_stored_color_production(
+    cursor: &mut OracleTokenCursor<'_>,
+    alternatives: Vec<ManaCostNode>,
+) -> MachineResult<AddManaEffectNode> {
+    cursor.enter("effect.add-stored-color-mana.amount");
+    let amount = literal_mana_amount(&NumericExpression::Atom(recognize_numeric_atom(cursor)?))
+        .ok_or_else(|| cursor.fail("a positive literal amount of the chosen color"))?;
+    cursor.enter("effect.add-stored-color-mana.color");
+    cursor.consume_phrase(&["mana", "of", "the", "chosen", "color"])?;
+    Ok(AddManaEffectNode::StoredColor(
+        AddStoredColorManaEffectNode {
+            amount,
+            alternatives,
+        },
+    ))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -427,6 +472,11 @@ fn recognize_add_mana_output(
     {
         let production = recognize_add_fixed_mana_or_choice_effect(cursor)?;
         return recognize_optional_mana_for_each_count(cursor, production);
+    }
+    if stored_color_production_starts(cursor, 1) {
+        cursor.enter("effect.add-stored-color-mana.action");
+        cursor.consume("add")?;
+        return recognize_stored_color_production(cursor, Vec::new());
     }
     let (amount, output_domain, distribution) = recognize_add_any_mana_head(cursor, true)?;
     if cursor

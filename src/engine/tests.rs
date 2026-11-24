@@ -138,6 +138,10 @@ mod counter_protection_runtime;
 mod riot_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/entry_frame_runtime.rs"]
+mod entry_frame_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/conditional_static_runtime.rs"]
 mod conditional_static_runtime;
 

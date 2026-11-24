@@ -6,6 +6,7 @@ mod card_structure;
 mod characteristic_vocabulary;
 mod contextual_binding;
 mod counter_name;
+mod entry_choice_binding;
 mod model;
 mod pipeline;
 mod syntax;
