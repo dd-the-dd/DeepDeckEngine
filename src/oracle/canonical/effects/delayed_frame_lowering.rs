@@ -158,6 +158,26 @@ fn capture_references(
     }
 }
 
+/// True when an action uses the event object other than as the object of
+/// `its controller` / `its owner`.
+fn operates_on_event_object(value: &Value, parent: Option<&str>) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .any(|item| operates_on_event_object(item, parent)),
+        Value::Object(object) => {
+            let kind = object.get("kind").and_then(Value::as_str);
+            if kind == Some("triggeringPermanent") {
+                return !matches!(parent, Some("controllerOf" | "ownerOf"));
+            }
+            object
+                .values()
+                .any(|child| operates_on_event_object(child, kind))
+        }
+        _ => false,
+    }
+}
+
 /// Replaces each occurrence of `from` by `to`.
 fn replace_reference(value: &mut Value, from: &Value, to: &Value) {
     if value == from {
@@ -417,6 +437,16 @@ fn lower_delayed_trigger(
             delayed
                 .iter_mut()
                 .for_each(|effect| replace_reference(effect, &followed, &event_object));
+            // The departed object is a new object in its new zone (CR
+            // 400.7): the trigger's actions read only its last known
+            // controller or owner, never act on it as a permanent.
+            cursor.enter("lower.delayed-trigger.departed-object");
+            cursor.require(
+                !delayed
+                    .iter()
+                    .any(|effect| operates_on_event_object(effect, None)),
+                "the departed object read only for its last known controller or owner",
+            )?;
             Some(followed)
         }
         _ => None,
