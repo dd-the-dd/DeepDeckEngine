@@ -427,6 +427,31 @@ pub(in crate::oracle::canonical) fn recognize_keyword_list(
         .collect()
 }
 
+/// The effect-owned parameterless keyword list a `lose(s) KEYWORDS` frame
+/// removes (CR 613.1f): a trailing `and`/`,` that does not introduce another
+/// keyword belongs to the parent effect.
+pub(in crate::oracle::canonical) fn recognize_effect_owned_keyword_list(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Vec<GrantedKeyword>> {
+    recognize_keyword_atom_list_in_context(
+        cursor,
+        false,
+        None,
+        &mut KeywordResourceCommitment::None,
+        true,
+    )?
+    .keywords
+    .into_iter()
+    .map(|atom| match atom {
+        KeywordAtomNode::Parameterless(keyword) => Ok(keyword),
+        KeywordAtomNode::Ward { .. }
+        | KeywordAtomNode::Protection { .. }
+        | KeywordAtomNode::ManaCost(_)
+        | KeywordAtomNode::Quoted(_) => Err(cursor.fail("a parameterless lost keyword")),
+    })
+    .collect()
+}
+
 pub(in crate::oracle::canonical) fn recognize_standalone_keyword_list(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<KeywordListNode> {

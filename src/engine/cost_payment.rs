@@ -299,7 +299,7 @@ impl GameEngine {
             >= required
     }
 
-    fn activated_sacrifice_costs_are_payable(
+    pub(super) fn activated_sacrifice_costs_are_payable(
         &self,
         rule: &Value,
         controller_id: &str,

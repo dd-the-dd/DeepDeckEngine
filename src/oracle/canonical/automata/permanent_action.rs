@@ -630,7 +630,7 @@ fn try_recognize_antecedent_characteristic(
         return None;
     }
     cursor.enter("permanent-action.antecedent-characteristic");
-    let Some(reference) = super::proven_permanent_antecedent(context) else {
+    let Some(reference) = super::permanent_subject::proven_permanent_antecedent(context) else {
         return Some(PermanentActionAttempt::FailedCommitted(
             cursor.fail("a proven permanent antecedent for `it`"),
         ));
