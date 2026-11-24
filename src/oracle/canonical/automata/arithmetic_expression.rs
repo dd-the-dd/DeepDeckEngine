@@ -57,6 +57,26 @@ pub(in crate::oracle::canonical) fn recognize_query_numeric_expression(
     )
 }
 
+/// Reads the right-hand side of an object-query comparison (`with power
+/// greater than EXPR`). It is the definition grammar (counts, player facts,
+/// sacrificed-cost and source properties, devotion, arithmetic) without the
+/// possessive families that name an antecedent: inside a candidate filter,
+/// `its power` is the candidate under test, never the environment's object,
+/// so the comparison parent reads (or refuses) it itself.
+pub(in crate::oracle::canonical) fn recognize_comparison_rhs_expression(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    recognize_arithmetic_with_event_binding(
+        cursor,
+        None,
+        None,
+        NumericExpressionReadContext {
+            kind: NumericReadKind::Comparison,
+            subject: None,
+        },
+    )
+}
+
 /// Reads the value of a postposed variable definition (`where X is EXPR`).
 /// It is the query grammar plus the `the number of COUNTABLE` quantity; the
 /// parent that owns the sentence decides which actions the value binds.
@@ -116,6 +136,17 @@ enum NumericReadKind {
     Ordinary,
     Query,
     Definition,
+    /// A comparison right-hand side: the definition families without the
+    /// antecedent possessives and without program action results.
+    Comparison,
+}
+
+impl NumericReadKind {
+    /// Whether the definition quantity families (`the number of`, player
+    /// facts, sacrificed-cost properties, devotion) are readable.
+    fn reads_definition_families(self) -> bool {
+        matches!(self, Self::Definition | Self::Comparison)
+    }
 }
 
 /// Which quantity families a consumer can evaluate, plus the parent-owned
@@ -287,24 +318,24 @@ fn recognize_primary(
     }
     if matches!(
         query_context.kind,
-        NumericReadKind::Query | NumericReadKind::Definition
+        NumericReadKind::Query | NumericReadKind::Definition | NumericReadKind::Comparison
     ) {
-        if query_context.kind == NumericReadKind::Definition
+        if query_context.kind.reads_definition_families()
             && super::player_numeric_fact_starts(cursor)
         {
             return super::recognize_player_numeric_fact(cursor);
         }
-        if query_context.kind == NumericReadKind::Definition
+        if query_context.kind.reads_definition_families()
             && super::sacrificed_cost_object_property_starts(cursor)
         {
             return super::recognize_sacrificed_cost_object_property(cursor);
         }
-        if query_context.kind == NumericReadKind::Definition
+        if query_context.kind.reads_definition_families()
             && super::greatest_property_among_starts(cursor)
         {
             return super::recognize_greatest_property_among(cursor);
         }
-        if query_context.kind == NumericReadKind::Definition
+        if query_context.kind.reads_definition_families()
             && super::number_of_count_starts(cursor)
             && !super::source_counter_count_starts(cursor)
         {
@@ -318,7 +349,7 @@ fn recognize_primary(
         {
             return super::recognize_action_result_quantity(cursor);
         }
-        if query_context.kind == NumericReadKind::Definition && devotion_starts(cursor) {
+        if query_context.kind.reads_definition_families() && devotion_starts(cursor) {
             return recognize_devotion(cursor);
         }
     }

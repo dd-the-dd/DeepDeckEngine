@@ -280,6 +280,13 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
                     "where": predicate,
                     "player": lower_related_player(player),
                 }),
+                // `Swamps they control` after an event naming a player: the
+                // player the triggering event records (CR 603.2).
+                Some(ObjectControllerScope::EventPlayer) => json!({
+                    "kind": "countPermanents",
+                    "where": predicate,
+                    "player": { "kind": "triggeringPlayer" },
+                }),
                 // `you don't control`: no engine aggregate counts for that
                 // player relation yet.
                 Some(_) => return None,
