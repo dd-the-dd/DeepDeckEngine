@@ -266,6 +266,7 @@ mod object_identity_tests;
 mod object_lki;
 mod object_relation_lki;
 mod source_bound_operands;
+mod candidate_numeric_operands;
 mod target_legality;
 mod target_numeric_runtime;
 mod target_reassignment;
@@ -14750,6 +14751,7 @@ impl GameEngine {
         stored_decisions: &BTreeMap<String, Value>,
         respect_targeting_restrictions: bool,
     ) -> Option<Vec<TargetRef>> {
+        let candidates: &Value = &self.bind_candidate_amounts(candidates, controller_id);
         let can_select_permanent = |card: &CardInstance| {
             !card.flags.get("phasedOut").copied().unwrap_or(false)
                 && (!respect_targeting_restrictions

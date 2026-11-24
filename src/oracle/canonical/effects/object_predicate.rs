@@ -244,6 +244,10 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
         ObjectQualifier::DistinctValues(property) => {
             json!({ "kind": "distinctValues", "property": property.ir_name() })
         }
+        ObjectQualifier::SharedValue(characteristic) => json!({
+            "kind": "sharedValue",
+            "characteristic": characteristic.ir_name(),
+        }),
         ObjectQualifier::TotalAtMost { property, maximum } => json!({
             "kind": "totalAtMost",
             "property": numeric_property_ir_name(*property),
@@ -326,6 +330,9 @@ pub(in crate::oracle::canonical) fn lift_target_set_constraints(value: &mut Valu
             if map.get("kind").and_then(Value::as_str) == Some("chooseTargets") {
                 lift_slot_set_constraints(map);
             }
+            if map.get("kind").and_then(Value::as_str) == Some("chooseCards") {
+                lift_choice_set_constraints(map);
+            }
             map.values_mut().for_each(lift_target_set_constraints);
         }
         Value::Array(items) => items.iter_mut().for_each(lift_target_set_constraints),
@@ -374,6 +381,56 @@ fn lift_slot_set_constraints(decision: &mut serde_json::Map<String, Value>) {
         json!({ "kind": "allOf", "constraints": lifted })
     };
     decision.insert("selectionConstraint".to_string(), constraint);
+}
+
+/// `that share a land type` (CR 205.3i), lowered as a set-constraint atom.
+fn is_shared_land_type_atom(atom: &Value) -> bool {
+    atom["kind"].as_str() == Some("sharedValue")
+        && atom["characteristic"].as_str() == Some("landType")
+}
+
+/// Moves the set constraints of a resolution card choice's candidate filter
+/// (`up to three Aura cards with different names`, `up to two basic land
+/// cards that share a land type`) to the choice itself: `setConstraints`
+/// and `sameLandType`, which the engine checks over the whole selection
+/// (CR 701.23a: the searcher finds a set as stated). Only members of the
+/// filter's top-level conjunction move; another shared characteristic, or
+/// a constraint nested elsewhere, stays in the filter, where the candidate
+/// validator refuses it.
+fn lift_choice_set_constraints(choice: &mut serde_json::Map<String, Value>) {
+    let Some(filter) = choice
+        .get_mut("candidates")
+        .and_then(|candidates| candidates.get_mut("where"))
+    else {
+        return;
+    };
+    let lifts = |atom: &Value| is_set_constraint_atom(atom) || is_shared_land_type_atom(atom);
+    let mut members = Vec::new();
+    conjunction_members(filter, &mut members);
+    if !members.iter().any(lifts) {
+        return;
+    }
+    let (lifted, rest): (Vec<Value>, Vec<Value>) = members.into_iter().partition(lifts);
+    *filter = match rest.len() {
+        0 => Value::Null,
+        1 => rest.into_iter().next().expect("one remaining operand"),
+        _ => json!({ "kind": "and", "operands": rest }),
+    };
+    let mut constraints = match choice.remove("setConstraints") {
+        Some(Value::Array(existing)) => existing,
+        Some(other) => vec![other],
+        None => Vec::new(),
+    };
+    for atom in lifted {
+        if is_shared_land_type_atom(&atom) {
+            choice.insert("sameLandType".to_string(), json!(true));
+        } else {
+            constraints.push(atom);
+        }
+    }
+    if !constraints.is_empty() {
+        choice.insert("setConstraints".to_string(), Value::Array(constraints));
+    }
 }
 
 /// Splits a superlative that ranks the candidates of a player's own choice

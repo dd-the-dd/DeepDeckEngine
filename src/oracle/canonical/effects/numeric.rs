@@ -280,6 +280,13 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
                     "where": predicate,
                     "player": lower_related_player(player),
                 }),
+                // `Swamps they control` after an event naming a player: the
+                // player the triggering event records (CR 603.2).
+                Some(ObjectControllerScope::EventPlayer) => json!({
+                    "kind": "countPermanents",
+                    "where": predicate,
+                    "player": { "kind": "triggeringPlayer" },
+                }),
                 // `you don't control`: no engine aggregate counts for that
                 // player relation yet.
                 Some(_) => return None,
@@ -301,14 +308,20 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
             json!({ "kind": "countDistinctPermanentNames", "player": controller(), "where": predicate })
         }
         PermanentCountMeasure::DistinctBasicLandTypes => {
-            // The engine's Domain count reads every land its player controls.
-            if count.controller != Some(ObjectControllerScope::AbilityController)
-                || count.exclude_source
+            // The engine's Domain count reads every land its player controls:
+            // the ability controller's, or the triggering event's player's
+            // (`basic land types among lands they control`).
+            let player = match count.controller {
+                Some(ObjectControllerScope::AbilityController) => controller(),
+                Some(ObjectControllerScope::EventPlayer) => json!({ "kind": "triggeringPlayer" }),
+                _ => return None,
+            };
+            if count.exclude_source
                 || count.predicate != ObjectPredicate::CardType(ObjectCardType::Land)
             {
                 return None;
             }
-            return Some(json!({ "kind": "domainCount", "player": controller() }));
+            return Some(json!({ "kind": "domainCount", "player": player }));
         }
     };
     if count.exclude_source {
@@ -363,6 +376,9 @@ fn lower_numeric_expression_in_context(
         NumericExpression::CountersOnRecipient { .. } => None,
         NumericExpression::PermanentCount(count) => lower_permanent_count(count),
         NumericExpression::SourceCastX => Some(json!({ "kind": "sourceCastXValue" })),
+        NumericExpression::ColorsOfManaSpentToCastSource => {
+            Some(json!({ "kind": "colorsOfManaSpentToCastSource" }))
+        }
         NumericExpression::EventValue(EventNumericBinding::DamageAmount) => {
             Some(decision_result("damageAmount"))
         }

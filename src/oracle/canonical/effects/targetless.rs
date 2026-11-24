@@ -90,6 +90,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::CountCounters { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
+        | NumericExpression::ColorsOfManaSpentToCastSource
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)

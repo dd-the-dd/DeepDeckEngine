@@ -166,6 +166,15 @@ struct ReadRelation {
     site: RelationSite,
 }
 
+/// `except for commanders`, `except for Dragons and Wizards`: the listed
+/// objects are not members of the set (CR 608.2b reads the set as stated).
+/// The exclusion scopes the whole coordinated set it ends, as a relation
+/// does; every projection composes `and(query, not(excluded))`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ReadExclusion {
+    excluded: SelectorPredicate,
+}
+
 /// Every player relation one noun phrase states, one slot per relation
 /// verb. The noun phrase reads them all; each parent type-checks which
 /// relations it consumes.
@@ -182,6 +191,9 @@ pub(in crate::oracle::canonical) struct QueryRelations {
     /// member). Kept with the relations so that a parent reading the bare
     /// predicate after checking `is_empty` never drops it.
     source_exclusion: Option<RelationSite>,
+    /// `except for LIST` after the set: kept with the relations for the
+    /// same reason, and folded into the predicate by every projection.
+    exclusion: Option<ReadExclusion>,
 }
 
 impl QueryRelations {
@@ -201,6 +213,7 @@ impl QueryRelations {
             && self.owner.is_none()
             && self.departure.is_none()
             && self.source_exclusion.is_none()
+            && self.exclusion.is_none()
     }
 
     /// The departure history the phrase states, if any.
@@ -393,6 +406,17 @@ impl RecognizedObjectQuery {
         self.relations.source_exclusion.take().is_some()
     }
 
+    /// `predicate` without the objects an `except for LIST` exclusion names.
+    fn excluding(&self, predicate: SelectorPredicate) -> SelectorPredicate {
+        match &self.relations.exclusion {
+            None => predicate,
+            Some(read) => SelectorPredicate::Intersection(vec![
+                predicate,
+                SelectorPredicate::Not(Box::new(read.excluded.clone())),
+            ]),
+        }
+    }
+
     /// The projections' shared refusals: a departure history or a
     /// postnominal exclusion the projection cannot carry.
     fn refuse_unprojected(&self, cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
@@ -414,10 +438,9 @@ impl RecognizedObjectQuery {
         compose: impl Fn(Vec<SelectorPredicate>) -> Option<SelectorPredicate>,
     ) -> Option<RecognizedObjectQuery> {
         let (last, preceding) = branches.split_last()?;
-        if preceding
-            .iter()
-            .any(|branch| branch.relations.source_exclusion.is_some())
-        {
+        if preceding.iter().any(|branch| {
+            branch.relations.source_exclusion.is_some() || branch.relations.exclusion.is_some()
+        }) {
             return None;
         }
         let relations = last.relations.clone();
@@ -455,13 +478,14 @@ impl RecognizedObjectQuery {
             return Err(refuse_relation(cursor, caster, RelationVerb::Control));
         }
         match &self.relations.owner {
-            None => Ok(self.predicate.clone()),
+            None => Ok(self.excluding(self.predicate.clone())),
             Some(owner) => match owner.scope {
                 QuerySubjectScope::AbilityController | QuerySubjectScope::NotAbilityController => {
-                    cursor.require_value(
+                    let owned = cursor.require_value(
                         self.owned_predicate.clone(),
                         "an ownership characteristic composed with the query",
-                    )
+                    )?;
+                    Ok(self.excluding(owned))
                 }
                 QuerySubjectScope::OpponentOfAbilityController
                 | QuerySubjectScope::EventPlayer
@@ -506,7 +530,7 @@ impl RecognizedObjectQuery {
             return Err(refuse_relation(cursor, relation, RelationVerb::Cast));
         }
         Ok(super::SpellCastQueryNode {
-            predicate: self.predicate,
+            predicate: self.excluding(self.predicate.clone()),
             caster: self
                 .relations
                 .caster
@@ -526,7 +550,7 @@ impl RecognizedObjectQuery {
         }
         Ok(RelatedObjectQueryNode {
             objects: super::ObjectQueryNode {
-                predicate: self.predicate,
+                predicate: self.excluding(self.predicate.clone()),
                 controller: self
                     .relations
                     .controller_scope()
@@ -582,7 +606,7 @@ impl RecognizedObjectQuery {
             domain: ObjectKind::Permanent,
             objects: RelatedObjectQueryNode {
                 objects: super::ObjectQueryNode {
-                    predicate: self.predicate,
+                    predicate: self.excluding(self.predicate.clone()),
                     controller: None,
                     exclude_source,
                 },
@@ -863,7 +887,10 @@ fn recognize_object_query_frame(
                             || token.eq_ignore_ascii_case("toughness")
                     }) {
                         (
-                            recognize_numeric_comparison_qualifier(cursor, query_source_available)?,
+                            recognize_numeric_comparison_qualifier(
+                                cursor,
+                                context.comparison_admission(),
+                            )?,
                             PostnominalQualifierScope::WholeQuery,
                         )
                     } else if counter_qualifier_starts(cursor, 1) {
@@ -983,6 +1010,33 @@ fn recognize_object_query_frame(
                     )?;
                     frame.relations.source_exclusion = Some(site);
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if except_for_starts(cursor) && frame.relations.exclusion.is_none() {
+                    // `except for commanders`: a transactional child. A
+                    // tail it cannot read (`except for its name` of a copy)
+                    // stays with the parent, with this reason recorded.
+                    let mut trial = cursor.clone();
+                    match recognize_except_for_list(&mut trial, context) {
+                        Ok((excluded, source))
+                            if source.is_none() || frame.relations.source_exclusion.is_none() =>
+                        {
+                            *cursor = trial;
+                            frame.relations.exclusion = excluded;
+                            if source.is_some() {
+                                frame.relations.source_exclusion = source;
+                            }
+                            ObjectQueryState::ReadPostnominalQualifier
+                        }
+                        Ok(_) => {
+                            cursor.defer_failure(
+                                cursor.fail("one source exclusion for one object query"),
+                            );
+                            ObjectQueryState::Complete
+                        }
+                        Err(failure) => {
+                            cursor.defer_failure(failure);
+                            ObjectQueryState::Complete
+                        }
+                    }
                 } else if let Some(negated) = copular_characteristic_starts(cursor) {
                     // `that isn't a Dragon`, `that are artifacts`, `that
                     // aren't of the chosen type`: the copula relates the
@@ -1840,6 +1894,31 @@ fn player_relation_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
             || token.eq_ignore_ascii_case("your")
     }) || bound_player_relation_starts(cursor)
         || declared_player_relation_starts(cursor)
+        || they_relation_scope(cursor).is_some()
+}
+
+/// `they control|own|cast` after an object noun: the plural pronoun of the
+/// player `that player` would name (CR 608.2c), with the base verb form.
+/// The relation is claimed only when the binding environment names that
+/// player without a declaration of this program: the player the triggering
+/// event records, when no player of the program is a nearer antecedent.
+/// Otherwise the pronoun stays with the parent (a superlative population
+/// `among creatures they control` reads its own candidate controller, a
+/// performer's restated `they` its own player), whose diagnostic stands.
+fn they_relation_scope(cursor: &OracleTokenCursor<'_>) -> Option<QuerySubjectScope> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(word(0, "they") && (word(1, "control") || word(1, "own") || word(1, "cast"))) {
+        return None;
+    }
+    let environment = super::installed_binding_environment(cursor);
+    (environment.player.is_none()
+        && environment.player_target.is_none()
+        && environment.frame.event_player)
+        .then_some(QuerySubjectScope::EventPlayer)
 }
 
 /// `target player controls` / `target opponent controls`: a possessor
@@ -1881,7 +1960,14 @@ fn recognize_player_relation(
         state = match state {
             PlayerRelationState::Subject => {
                 cursor.enter("selector.controller-qualifier.subject");
-                if bound_player_relation_starts(cursor) {
+                if let Some(player) = they_relation_scope(cursor) {
+                    // `Swamps they control`: the event's player, with the
+                    // plural verb agreement of the pronoun.
+                    cursor.enter("selector.controller-qualifier.they");
+                    cursor.consume("they")?;
+                    scope = Some(player);
+                    PlayerRelationState::Verb
+                } else if bound_player_relation_starts(cursor) {
                     // `defending player controls`, `that player owns`, `its
                     // controller controls`: the player is resolved by the
                     // binding environment (C2), never guessed by this query.
@@ -2086,6 +2172,100 @@ fn source_exclusion_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     super::recognize_source_reference(&mut trial, &names, None).is_ok()
 }
 
+/// `except for` after an object set. Lexical lookahead only.
+fn except_for_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("except"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("for"))
+}
+
+/// The width of a list connector at the cursor (`,`, `and`, `or`, `, and`,
+/// `, or`) when another object phrase follows it. Lexical lookahead only.
+fn exclusion_list_continues(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let mut width = 0;
+    if cursor.peek_ahead(width).is_some_and(|raw| raw == ",") {
+        width += 1;
+    }
+    if cursor
+        .peek_ahead(width)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("or"))
+    {
+        width += 1;
+    }
+    if width == 0 {
+        return None;
+    }
+    let mut lookahead = cursor.clone();
+    lookahead.advance_to(cursor.position() + width).ok()?;
+    coordinated_object_selector_phrase_starts(&lookahead).then_some(width)
+}
+
+/// `except for ITEM[, ITEM][,] (and|or) ITEM`: the objects excluded from the
+/// set. Each item is a characteristic phrase of the shared object query, or
+/// the source itself (`except for Mageta the Lion`), which is the query's
+/// source exclusion (CR 109.5). An item with its own player relation, a
+/// departure or another source exclusion has no representation inside the
+/// exclusion and fails. An empty list fails.
+fn recognize_except_for_list(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: ObjectQueryContext,
+) -> MachineResult<(Option<ReadExclusion>, Option<RelationSite>)> {
+    cursor.enter("selector.exclusion.except-for");
+    cursor.consume_phrase(&["except", "for"])?;
+    let mut items = Vec::new();
+    let mut source = None;
+    loop {
+        cursor.enter("selector.exclusion.except-for.source");
+        let names = cursor.source_names().to_vec();
+        let mut trial = cursor.clone();
+        if source.is_none() && super::recognize_source_reference(&mut trial, &names, None).is_ok() {
+            source = Some(relation_site_at(cursor, 0)?);
+            *cursor = trial;
+            cursor.enter("selector.exclusion.except-for.connector");
+            let Some(width) = exclusion_list_continues(cursor) else {
+                break;
+            };
+            cursor.advance_to(cursor.position() + width)?;
+            continue;
+        }
+        cursor.enter("selector.exclusion.except-for.item");
+        cursor.require(
+            coordinated_object_selector_phrase_starts(cursor),
+            "an excluded object phrase after `except for`",
+        )?;
+        consume_optional_selector_article(cursor)?;
+        let item = recognize_object_query_frame(
+            cursor,
+            ObjectQueryContext {
+                quota: QueryQuota::ExistingQuery,
+                source_available: context.source_available,
+                stack_targets: false,
+            },
+            false,
+        )?;
+        cursor.enter("selector.exclusion.except-for.item-relation");
+        cursor.require(
+            item.relations.is_empty(),
+            "an excluded characteristic without its own player relation",
+        )?;
+        items.push(item.predicate);
+        cursor.enter("selector.exclusion.except-for.connector");
+        let Some(width) = exclusion_list_continues(cursor) else {
+            break;
+        };
+        cursor.advance_to(cursor.position() + width)?;
+    }
+    let excluded = match items.len() {
+        0 => None,
+        1 => items.pop(),
+        _ => Some(SelectorPredicate::Union(items)),
+    };
+    Ok((excluded.map(|excluded| ReadExclusion { excluded }), source))
+}
+
 /// `that|which is|are|isn't|aren't [not] [a|an] CHARACTERISTIC` and `...
 /// of the chosen type`: a characteristic relative clause. Returns whether
 /// the copula negates it. A status (`that are tapped`) keeps the relative
@@ -2146,24 +2326,184 @@ fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
 enum NumericComparisonState {
     Relation,
     Property,
+    PropertyAlternative,
     Right,
     DirectionOrComplete,
     Direction,
     Complete,
 }
 
+/// Which right-hand sides of a candidate comparison its consumer can
+/// evaluate (CR 107.1). The grammar of the operand is shared; the consumer
+/// states when the operand is evaluated, and only an operand with an
+/// evaluator at that moment is admitted. Anything else fails at
+/// `selector.numeric-comparison.rhs-context`, never as a false comparison.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ComparisonRhsAdmission {
+    /// A consumer that compares each candidate with a value fixed by the
+    /// rule text: a literal, the declared `X`, or the source's own power or
+    /// toughness, which the target binder reads.
+    Literal,
+    /// Declared target candidates (CR 115.1, 601.2c, 608.2b): an amount that
+    /// does not depend on the candidate and is relative to the ability
+    /// controller is bound by the engine each time the candidates are
+    /// enumerated, at declaration and when the target is rechecked.
+    DeclaredTarget,
+    /// A resolution-owned query, prepared with the resolving ability before
+    /// its candidates are enumerated. `source_available` proves the source's
+    /// own counters and characteristics; a candidate property other than
+    /// mana value has no checked evaluator in these consumers.
+    Resolution { source_available: bool },
+    /// Cards chosen at resolution from a zone (a library search, CR 701.23):
+    /// the operand is prepared with the resolving ability, and the compared
+    /// property is a printed characteristic of a card outside the
+    /// battlefield (CR 109.3), so power and toughness are readable too.
+    CardResolution,
+}
+
+impl ObjectQueryContext {
+    fn comparison_admission(self) -> ComparisonRhsAdmission {
+        match self.source_available {
+            Some(source_available) => ComparisonRhsAdmission::Resolution { source_available },
+            None if self.stack_targets => ComparisonRhsAdmission::DeclaredTarget,
+            None => ComparisonRhsAdmission::Literal,
+        }
+    }
+}
+
+/// An amount that depends neither on the candidate nor on a declaration and
+/// is relative to the ability controller: a count of its (or every)
+/// permanents or cards, a fact about the controller, devotion, an opponent
+/// count, and arithmetic over them. Every such amount has a lowering whose
+/// players are the ability controller (or every player).
+fn controller_relative_amount(expression: &super::NumericExpression) -> bool {
+    use super::NumericExpression;
+    match expression {
+        // A declared `X` inside an amount has no value where the amount is
+        // bound; alone, it is a literal threshold (`ComparisonRhsAdmission`).
+        NumericExpression::Atom(super::NumericAtom::Integer(_)) => true,
+        NumericExpression::PermanentCount(count) => {
+            !count.exclude_source
+                && count.measure != super::PermanentCountMeasure::DistinctColors
+                && matches!(
+                    count.controller,
+                    None | Some(
+                        ObjectControllerScope::AbilityController
+                            | ObjectControllerScope::OpponentOfAbilityController
+                    )
+                )
+                && crate::oracle::canonical::effects::lower_permanent_count(count).is_some()
+        }
+        NumericExpression::CountQuery(query) => {
+            query.departures.is_none()
+                && crate::oracle::canonical::effects::lower_scoped_object_query_amount(query)
+                    .is_some()
+        }
+        NumericExpression::CardsInZone {
+            player: super::LocalPlayerReference::Controller,
+            zone: super::LocalZone::Library,
+        }
+        | NumericExpression::PlayerFact {
+            player: super::LocalPlayerReference::Controller,
+            ..
+        }
+        | NumericExpression::Devotion(_)
+        | NumericExpression::OpponentCount(_) => true,
+        NumericExpression::GreatestPropertyAmong { property, .. } => {
+            *property != SelectorNumericProperty::ManaValue
+                && crate::oracle::canonical::effects::lower_numeric_expression(expression).is_some()
+        }
+        NumericExpression::Add { left, right }
+        | NumericExpression::Subtract { left, right }
+        | NumericExpression::Multiply { left, right }
+        | NumericExpression::Divide { left, right, .. } => {
+            controller_relative_amount(left) && controller_relative_amount(right)
+        }
+        _ => false,
+    }
+}
+
+/// The right-hand sides a resolution-prepared consumer evaluates: every
+/// controller-relative amount, the turn's departures, the source's own
+/// counters and characteristics when the source is proved, and a
+/// characteristic of the permanent sacrificed to pay a cost (a value the
+/// cost payment binds, CR 608.2h).
+fn resolution_amount(expression: &super::NumericExpression, source_available: bool) -> bool {
+    use super::NumericExpression;
+    match expression {
+        NumericExpression::Atom(_) => true,
+        // The resolving ability's own count reads its source (`other
+        // creatures you control`) and every measure.
+        NumericExpression::PermanentCount(count) => {
+            matches!(
+                count.controller,
+                None | Some(
+                    ObjectControllerScope::AbilityController
+                        | ObjectControllerScope::OpponentOfAbilityController
+                )
+            ) && crate::oracle::canonical::effects::lower_permanent_count(count).is_some()
+        }
+        NumericExpression::CountCounters { .. }
+        | NumericExpression::ObjectProperty {
+            object: super::LocalObjectReference::SourceSelf,
+            ..
+        } => source_available,
+        NumericExpression::CountQuery(query) => {
+            crate::oracle::canonical::effects::lower_scoped_object_query_amount(query).is_some()
+        }
+        // The spell's own payment, read from the resolving spell (the card
+        // context keeps it in spell abilities).
+        NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::ColorsOfManaSpentToCastSource => true,
+        NumericExpression::Add { left, right }
+        | NumericExpression::Subtract { left, right }
+        | NumericExpression::Multiply { left, right }
+        | NumericExpression::Divide { left, right, .. } => {
+            resolution_amount(left, source_available) && resolution_amount(right, source_available)
+        }
+        other => controller_relative_amount(other),
+    }
+}
+
+impl ComparisonRhsAdmission {
+    fn admits(self, expression: &super::NumericExpression) -> bool {
+        use super::NumericExpression;
+        let literal = matches!(
+            expression,
+            NumericExpression::Atom(_)
+                | NumericExpression::ObjectProperty {
+                    object: super::LocalObjectReference::SourceSelf,
+                    ..
+                }
+        );
+        match self {
+            Self::Literal => literal,
+            Self::DeclaredTarget => literal || controller_relative_amount(expression),
+            Self::Resolution { source_available } => {
+                resolution_amount(expression, source_available)
+            }
+            Self::CardResolution => literal || resolution_amount(expression, true),
+        }
+    }
+
+    /// Whether the compared candidate property may be power or toughness.
+    /// A resolution-owned permanent query has no checked evaluator of the
+    /// effective power of a candidate in every zone.
+    fn admits_property(self, property: SelectorNumericProperty) -> bool {
+        match self {
+            Self::Resolution { .. } => property == SelectorNumericProperty::ManaValue,
+            Self::Literal | Self::DeclaredTarget | Self::CardResolution => true,
+        }
+    }
+}
+
 /// Recognizes a reusable numeric property constraint attached to one selector.
 /// The selector owns the predicate; effect machines only validate their domain.
 fn recognize_numeric_comparison_qualifier(
     cursor: &mut OracleTokenCursor<'_>,
-    query_source_available: Option<bool>,
+    admission: ComparisonRhsAdmission,
 ) -> MachineResult<SelectorPredicate> {
-    recognize_numeric_comparison_from(
-        cursor,
-        query_source_available,
-        NumericComparisonState::Relation,
-        None,
-    )
+    recognize_numeric_comparison_from(cursor, admission, NumericComparisonState::Relation, None)
 }
 
 /// One numeric object property (`mana value`, `power`, `toughness`). The
@@ -2190,6 +2530,19 @@ pub(in crate::oracle::canonical) fn recognize_selector_numeric_property(
     )
 }
 
+/// Whether a numeric property word starts at `offset` (`mana value`,
+/// `power`, `toughness`). Lexical lookahead only.
+fn numeric_property_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("power")
+            || raw.eq_ignore_ascii_case("toughness")
+            || (raw.eq_ignore_ascii_case("mana")
+                && cursor
+                    .peek_ahead(offset + 1)
+                    .is_some_and(|next| next.eq_ignore_ascii_case("value")))
+    })
+}
+
 /// The comparison after an already read property: `[equal to] N [or less |
 /// or greater]`. It shares the selector qualifier's threshold grammar and its
 /// literal/declared-X right-hand-side policy.
@@ -2197,17 +2550,24 @@ pub(in crate::oracle::canonical) fn recognize_numeric_property_comparison_tail(
     cursor: &mut OracleTokenCursor<'_>,
     property: SelectorNumericProperty,
 ) -> MachineResult<SelectorPredicate> {
-    recognize_numeric_comparison_from(cursor, None, NumericComparisonState::Right, Some(property))
+    recognize_numeric_comparison_from(
+        cursor,
+        ComparisonRhsAdmission::Literal,
+        NumericComparisonState::Right,
+        Some(property),
+    )
 }
 
 fn recognize_numeric_comparison_from(
     cursor: &mut OracleTokenCursor<'_>,
-    query_source_available: Option<bool>,
+    admission: ComparisonRhsAdmission,
     start: NumericComparisonState,
     initial_property: Option<SelectorNumericProperty>,
 ) -> MachineResult<SelectorPredicate> {
     let mut state = start;
-    let mut property = initial_property;
+    // `power or toughness 1 or less` (CR 208.1): one threshold compared with
+    // either property, the disjunction of two comparisons.
+    let mut properties: Vec<SelectorNumericProperty> = initial_property.into_iter().collect();
     let mut right = None;
     let mut operator = NumericComparisonOperator::Equal;
     let mut strict = false;
@@ -2220,7 +2580,24 @@ fn recognize_numeric_comparison_from(
             }
             NumericComparisonState::Property => {
                 cursor.enter("selector.numeric-comparison.property");
-                property = Some(recognize_selector_numeric_property(cursor)?);
+                properties.push(recognize_selector_numeric_property(cursor)?);
+                NumericComparisonState::PropertyAlternative
+            }
+            NumericComparisonState::PropertyAlternative => {
+                cursor.enter("selector.numeric-comparison.property-alternative");
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+                    && numeric_property_starts_at(cursor, 1)
+                {
+                    cursor.consume("or")?;
+                    let alternative = recognize_selector_numeric_property(cursor)?;
+                    cursor.require(
+                        !properties.contains(&alternative),
+                        "two different properties compared with one threshold",
+                    )?;
+                    properties.push(alternative);
+                }
                 NumericComparisonState::Right
             }
             NumericComparisonState::Right => {
@@ -2238,68 +2615,35 @@ fn recognize_numeric_comparison_from(
                     operator = prefix_operator;
                     strict = true;
                 }
-                let expression = super::recognize_query_numeric_expression(cursor)?;
-                // Syntax is shared. Card P/T has no checked AnyZone
-                // characteristic evaluator in this new resolution consumer.
-                // Do not route it to the historical printed-stat fallback.
-                if query_source_available.is_some() {
-                    cursor.enter("selector.numeric-comparison.property-context");
-                    cursor.require(
-                        property == Some(SelectorNumericProperty::ManaValue),
-                        "mana value as the proved candidate property for this resolution-card query",
-                    )?;
+                // `toughness greater than its power`: inside a candidate
+                // filter the possessive names the candidate under test, an
+                // operand no consumer evaluates per candidate yet. It is
+                // never read as the environment's object.
+                if cursor.peek().is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("its") || raw.eq_ignore_ascii_case("their")
+                }) {
+                    cursor.enter("selector.numeric-comparison.candidate-possessive");
+                    return Err(cursor.fail(
+                        "an operand independent of the candidate (`its PROPERTY` names the candidate under test)",
+                    ));
                 }
+                let expression =
+                    super::arithmetic_expression::recognize_comparison_rhs_expression(cursor)?;
+                // Card P/T has no checked AnyZone characteristic evaluator in
+                // a resolution permanent consumer. Do not route it to the
+                // historical printed-stat fallback.
+                cursor.enter("selector.numeric-comparison.property-context");
+                cursor.require(
+                    properties
+                        .iter()
+                        .all(|property| admission.admits_property(*property)),
+                    "mana value as the proved candidate property for this resolution-card query",
+                )?;
                 cursor.enter("selector.numeric-comparison.rhs-context");
-                fn supported(
-                    expression: &super::NumericExpression,
-                    source_available: bool,
-                ) -> bool {
-                    use super::NumericExpression;
-                    match expression {
-                        NumericExpression::Atom(_) => true,
-                        NumericExpression::CountCounters { .. } => source_available,
-                        NumericExpression::ObjectProperty {
-                            object: super::LocalObjectReference::SourceSelf,
-                            ..
-                        } => source_available,
-                        NumericExpression::CardsInZone {
-                            player: super::LocalPlayerReference::Controller,
-                            zone: super::LocalZone::Library,
-                        } => true,
-                        // `the number of QUERY` over a zone-holder domain:
-                        // admitted when its typed count has a runtime amount.
-                        NumericExpression::CountQuery(query) => {
-                            crate::oracle::canonical::effects::lower_scoped_object_query_amount(
-                                query,
-                            )
-                            .is_some()
-                        }
-                        NumericExpression::Add { left, right }
-                        | NumericExpression::Subtract { left, right }
-                        | NumericExpression::Multiply { left, right }
-                        | NumericExpression::Divide { left, right, .. } => {
-                            supported(left, source_available) && supported(right, source_available)
-                        }
-                        _ => false,
-                    }
-                }
-                let admitted = match query_source_available {
-                    // Compatibility consumers have not proved contextual runtime
-                    // expressions. Syntax is shared; their semantic slice stays
-                    // literal/declared-X until their capability is migrated.
-                    // The source's characteristic is bound by the target
-                    // binder when targets are chosen and rechecked.
-                    None => matches!(
-                        expression,
-                        super::NumericExpression::Atom(_)
-                            | super::NumericExpression::ObjectProperty {
-                                object: super::LocalObjectReference::SourceSelf,
-                                ..
-                            }
-                    ),
-                    Some(source_available) => supported(&expression, source_available),
-                };
-                cursor.require(admitted, "a query expression supported by this consumer's explicit numeric/source context")?;
+                cursor.require(
+                    admission.admits(&expression),
+                    "a query expression supported by this consumer's explicit numeric/source context",
+                )?;
                 right = Some(Box::new(expression));
                 if strict {
                     NumericComparisonState::Complete
@@ -2336,10 +2680,20 @@ fn recognize_numeric_comparison_from(
             }
             NumericComparisonState::Complete => {
                 cursor.enter("selector.numeric-comparison.complete");
-                return Ok(SelectorPredicate::NumericComparison {
-                    left: cursor.require_value(property, "a populated numeric property")?,
-                    operator,
-                    right: cursor.require_value(right, "a populated numeric threshold")?,
+                let right = cursor.require_value(right, "a populated numeric threshold")?;
+                cursor.require(!properties.is_empty(), "a populated numeric property")?;
+                let mut comparisons = properties
+                    .into_iter()
+                    .map(|left| SelectorPredicate::NumericComparison {
+                        left,
+                        operator,
+                        right: right.clone(),
+                    })
+                    .collect::<Vec<_>>();
+                return Ok(if comparisons.len() == 1 {
+                    comparisons.pop().expect("one comparison")
+                } else {
+                    SelectorPredicate::Union(comparisons)
                 });
             }
         };
@@ -2885,10 +3239,22 @@ fn recognize_search_card_type_union(
 
 /// Recognizes a card filter used by a library-search grammar. Unlike a target
 /// selector, this grammar distinguishes supertypes from card types and owns
-/// the terminating `card` noun.
+/// the terminating `card` noun. Its numeric comparisons keep the literal
+/// right-hand-side policy of a consumer that has not proved when it
+/// evaluates them.
 pub(in crate::oracle::canonical) fn recognize_search_card_selector(
     cursor: &mut OracleTokenCursor<'_>,
     plural: bool,
+) -> MachineResult<ObjectPredicate> {
+    recognize_search_card_selector_with(cursor, plural, ComparisonRhsAdmission::Literal)
+}
+
+/// The same card phrase for a consumer that states when its numeric
+/// comparisons are evaluated (`admission`).
+fn recognize_search_card_selector_with(
+    cursor: &mut OracleTokenCursor<'_>,
+    plural: bool,
+    admission: ComparisonRhsAdmission,
 ) -> MachineResult<ObjectPredicate> {
     let mut state = SearchCardSelectorState::Predicate;
     let mut predicates = Vec::new();
@@ -2962,6 +3328,31 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                     cursor.advance_to(cursor.position() + length)?;
                     predicates.push(ObjectPredicate::Relation(super::ObjectRelation::ChosenName));
                     SearchCardSelectorState::QualifierOrComplete
+                } else if let Some(form) = qualifiers::with_qualifier_form(cursor).filter(|form| {
+                    matches!(
+                        form,
+                        qualifiers::WithQualifierForm::Distinct
+                            | qualifiers::WithQualifierForm::Total
+                            | qualifiers::WithQualifierForm::ManaCostSymbol
+                            | qualifiers::WithQualifierForm::KeywordAbility
+                    )
+                }) {
+                    // `cards with different names`, `with total mana value
+                    // 6 or less`, `a card with flashback`: the shared
+                    // qualifier atoms. A set constraint needs the plural
+                    // found set; its consumer lifts it onto the choice.
+                    cursor.enter("selector.search-card.with-qualifier");
+                    predicates.push(qualifiers::recognize_with_qualifier(cursor, form, plural)?);
+                    SearchCardSelectorState::QualifierOrComplete
+                } else if plural && shared_characteristic_set_clause_starts(cursor) {
+                    // `up to two basic land cards that share a land type`:
+                    // a constraint over the found set (CR 205.3i).
+                    cursor.enter("selector.search-card.shared-characteristic");
+                    cursor.consume_phrase(&["that", "share", "a", "land", "type"])?;
+                    predicates.push(ObjectPredicate::Qualifier(
+                        super::ObjectQualifier::SharedValue(super::SharedCharacteristic::LandType),
+                    ));
+                    SearchCardSelectorState::QualifierOrComplete
                 } else if cursor
                     .peek()
                     .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
@@ -3017,7 +3408,7 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
                 // The same numeric property comparison as every object query;
                 // its consumer-independent literal/declared-X policy applies.
                 cursor.enter("selector.search-card.numeric-qualifier");
-                predicates.push(recognize_numeric_comparison_qualifier(cursor, None)?);
+                predicates.push(recognize_numeric_comparison_qualifier(cursor, admission)?);
                 SearchCardSelectorState::Complete
             }
             SearchCardSelectorState::ExactManaCostQualifier => {
@@ -3051,6 +3442,22 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
     }
 }
 
+/// `that share a land type` closing the set (not `... with ANCHOR`, which
+/// relates each card to another object). Lexical lookahead only.
+fn shared_characteristic_set_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "that")
+        && word(1, "share")
+        && word(2, "a")
+        && word(3, "land")
+        && word(4, "type")
+        && !word(5, "with")
+}
+
 /// Separately headed card phrases sharing one parent quantity: `a basic land
 /// card or a Gate card`, `an instant card or a card with flash`, `up to two
 /// basic land cards and/or Gate cards`. Each alternative is a complete card
@@ -3060,11 +3467,20 @@ pub(in crate::oracle::canonical) fn recognize_search_card_selector(
 /// and/or a Y` names two slots, which this union cannot express, and stays
 /// with the parent. An alternative that does not read as a card phrase leaves
 /// its connector unconsumed.
+///
+/// The found cards are chosen while the search resolves, from a zone where
+/// they keep their printed characteristics (CR 109.3, 701.23a): a numeric
+/// comparison may read every amount the resolving ability evaluates
+/// (`with mana value less than or equal to the number of lands you
+/// control`).
 pub(in crate::oracle::canonical) fn recognize_search_card_alternatives(
     cursor: &mut OracleTokenCursor<'_>,
     plural: bool,
 ) -> MachineResult<ObjectPredicate> {
-    let mut alternatives = vec![recognize_search_card_selector(cursor, plural)?];
+    let admission = ComparisonRhsAdmission::CardResolution;
+    let mut alternatives = vec![recognize_search_card_selector_with(
+        cursor, plural, admission,
+    )?];
     loop {
         cursor.enter("selector.search-card.alternative");
         let Some(connector) = cursor.peek().map(str::to_string) else {
@@ -3080,7 +3496,7 @@ pub(in crate::oracle::canonical) fn recognize_search_card_alternatives(
         if consume_optional_selector_article(&mut trial).is_err() {
             break;
         }
-        match recognize_search_card_selector(&mut trial, plural) {
+        match recognize_search_card_selector_with(&mut trial, plural, admission) {
             Ok(alternative) => {
                 *cursor = trial;
                 alternatives.push(alternative);

@@ -64,6 +64,7 @@ fn independent_number(amount: &NumericExpression) -> bool {
         | NumericExpression::CountersOnRecipient { .. }
         | NumericExpression::PermanentCount(_)
         | NumericExpression::SourceCastX
+        | NumericExpression::ColorsOfManaSpentToCastSource
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)

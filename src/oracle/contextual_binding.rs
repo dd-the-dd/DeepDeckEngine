@@ -49,6 +49,32 @@ pub(crate) fn validate_native_contextual_bindings(
         let Some(rule) = ability.rule.as_ref() else {
             continue;
         };
+        // CR 601.2h: the colors of mana spent to cast a spell are recorded
+        // with that spell's own payment. Another ability of the card (an
+        // enters trigger reading `this spell`) resolves without it.
+        if rule["kind"].as_str() != Some("spellAbility")
+            && references_kind(rule, "colorsOfManaSpentToCastSource")
+        {
+            let source_span_end = ability.source.text.len();
+            ability.status = "unsupported".to_string();
+            ability.rule = None;
+            ability.iterations.clear();
+            ability.diagnostics.push(ParserDiagnostic {
+                code: "oracle_context_binding_failure".to_string(),
+                message: "The colors of mana spent to cast a spell are read only by that spell's own resolution.".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-context-binding".to_string()),
+                state: Some("binding.mana-spent-colors.source".to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(source_span_end),
+                expected: Some("a spell ability whose own cast payment records the colors".to_string()),
+                found: Some(rule["kind"].as_str().unwrap_or("unknown rule").to_string()),
+                trace: Vec::new(),
+                owner: None,
+            });
+            continue;
+        }
         if binds_where_x(rule) {
             let face_mana_cost = mana_cost_for_source(request, ability.source.face_id.as_deref());
             let mana_x = face_mana_cost.is_some_and(|mana_cost| mana_cost.contains("{X}"));
@@ -395,6 +421,18 @@ fn resolution_creature_type_binding_failure(rule: &Value) -> Option<(&'static st
         "binding.chosen-creature-type.consumer",
         "a battlefield count or one-shot collection reading the chosen creature type",
     ))
+}
+
+/// Whether an IR node of `kind` occurs anywhere under `value`.
+fn references_kind(value: &Value, kind: &str) -> bool {
+    match value {
+        Value::Object(map) => {
+            map.get("kind").and_then(Value::as_str) == Some(kind)
+                || map.values().any(|child| references_kind(child, kind))
+        }
+        Value::Array(items) => items.iter().any(|child| references_kind(child, kind)),
+        _ => false,
+    }
 }
 
 fn declares_number(rule: &Value, decision_id: &str) -> bool {
