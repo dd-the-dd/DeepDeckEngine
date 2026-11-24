@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "cards-discarded-this-turn-count",
+  "seed": 16,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "discardHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "countEventsThisTurn",
+          "event": "cardDiscarded",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "where": null
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "cards-discarded-this-turn-count",
+            "name": "Change of Fortune Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          },
+          {
+            "id": "hand-card-0",
+            "name": "Hand Card 0",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "hand-card-1",
+            "name": "Hand Card 1",
+            "typeLine": "Instant"
+          }
+        ],
+        "library": [
+          {
+            "id": "library-card-0",
+            "name": "Library-Card 0",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-1",
+            "name": "Library-Card 1",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-2",
+            "name": "Library-Card 2",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-3",
+            "name": "Library-Card 3",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "cards-discarded-this-turn-count"
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 2
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 2
+    }
+  ]
+}

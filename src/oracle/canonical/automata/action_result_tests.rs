@@ -33,3 +33,39 @@ fn action_result_reference_starts_text(text: &str) -> bool {
     let cursor = OracleTokenCursor::new("action-result-test", &tokens);
     action_result_reference_starts(&cursor)
 }
+
+#[test]
+fn discarded_is_a_restated_card_verb() {
+    let node = read("nonland card discarded this way").expect("discarded result");
+    assert_eq!(node.verb, ActionResultVerb::Discarded);
+    assert!(node.verb.preserves_card_characteristics());
+    assert!(!ActionResultVerb::Destroyed.preserves_card_characteristics());
+}
+
+#[test]
+fn quantity_producers_are_typed_by_runtime_kind() {
+    assert_eq!(
+        ActionResultQuantity::ObjectCount.produced_by("discardHand"),
+        Some(ActionResultField::Count)
+    );
+    assert_eq!(
+        ActionResultQuantity::ObjectCount.produced_by("drawCards"),
+        Some(ActionResultField::Objects)
+    );
+    assert_eq!(
+        ActionResultQuantity::Amount.produced_by("loseLife"),
+        Some(ActionResultField::Integer)
+    );
+    // `that much` never counts objects; `that many` never reads life lost.
+    assert_eq!(ActionResultQuantity::Amount.produced_by("mill"), None);
+    assert_eq!(
+        ActionResultQuantity::ObjectCount.produced_by("loseLife"),
+        None
+    );
+    for quantity in ActionResultQuantity::ALL {
+        assert_eq!(
+            ActionResultQuantity::from_ir_name(quantity.ir_name()),
+            Some(quantity)
+        );
+    }
+}

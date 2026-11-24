@@ -1,0 +1,472 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/numeric-action-results",
+  "cases": [
+    {
+      "id": "exact-tolarian-winds-discard-hand-draw-that-many",
+      "request": {
+        "cardName": "Tolarian Winds",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Discard all the cards in your hand, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "discardHand"
+              },
+              {
+                "pointer": "/effects/0/bindCountAs",
+                "equals": "actionResult:0"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/count",
+                "equals": {
+                  "kind": "boundValue",
+                  "id": "actionResult:0"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-foul-tongue-shriek-gain-that-much-life",
+      "request": {
+        "cardName": "Foul-Tongue Shriek",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Target opponent loses 1 life for each attacking creature you control. You gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-discard-up-to-two-draw-that-many",
+      "request": {
+        "cardName": "Synthetic Augur",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{R}",
+        "oracleText": "When this creature enters, discard up to two cards, then draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-mill-then-create-that-many-tokens",
+      "request": {
+        "cardName": "Synthetic Harvester",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Mill three cards, then create that many 1/1 green Saproling creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-that-many-without-producer",
+      "request": {
+        "cardName": "Synthetic Echo",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-that-much-after-a-non-amount-producer",
+      "request": {
+        "cardName": "Synthetic Misreader",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Mill two cards, then you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-saprazzan-breaker-land-milled-this-way",
+      "request": {
+        "cardName": "Saprazzan Breaker",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{4}{U}",
+        "oracleText": "{U}: Mill a card. If a land card was milled this way, this creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-psychic-miasma-land-discarded-this-way",
+      "request": {
+        "cardName": "Psychic Miasma",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target player discards a card. If a land card is discarded this way, return Psychic Miasma to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-no-creature-cards-milled-this-way",
+      "request": {
+        "cardName": "Synthetic Sifter",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Mill three cards. If no creature cards were milled this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-for-each-artifact-card-milled-this-way",
+      "request": {
+        "cardName": "Synthetic Scrapper",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Mill four cards. You gain 1 life for each artifact card milled this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-this-way-without-producing-action",
+      "request": {
+        "cardName": "Synthetic Augury",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "If a land card was milled this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-this-way-after-another-verb",
+      "request": {
+        "cardName": "Synthetic Mismatch",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card. If a land card was milled this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-kalemne-experience-counters-you-have",
+      "request": {
+        "cardName": "Kalemne, Disciple of Iroas",
+        "typeLine": "Legendary Creature — Giant Soldier",
+        "manaCost": "{2}{R}{W}",
+        "oracleText": "Double strike, vigilance\nWhenever you cast a creature spell with mana value 5 or greater, you get an experience counter.\nKalemne gets +1/+1 for each experience counter you have.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-momentum-counters-on-this-aura",
+      "request": {
+        "cardName": "Momentum",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{G}",
+        "oracleText": "Enchant creature\nAt the beginning of your upkeep, you may put a growth counter on this Aura.\nEnchanted creature gets +1/+1 for each growth counter on this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-counters-on-this-instant",
+      "request": {
+        "cardName": "Synthetic Charge",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Synthetic Charge deals damage to any target equal to the number of charge counters on this instant.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-moorland-drifter-delirium-static",
+      "request": {
+        "cardName": "Moorland Drifter",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{W}",
+        "oracleText": "Delirium — This creature has flying as long as there are four or more card types among cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-soul-swallower-delirium-trigger-guard",
+      "request": {
+        "cardName": "Soul Swallower",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Trample\nDelirium — At the beginning of your upkeep, if there are four or more card types among cards in your graveyard, put three +1/+1 counters on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-delirium-sentence-condition",
+      "request": {
+        "cardName": "Synthetic Delirium",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card. If there are four or more card types among cards in your graveyard, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-distinct-measure-without-among",
+      "request": {
+        "cardName": "Synthetic Typeless",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card. If there are four or more card types in your graveyard, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-owlbear-shepherd-total-power",
+      "request": {
+        "cardName": "Owlbear Shepherd",
+        "typeLine": "Creature — Goblin Druid",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your end step, if creatures you control have total power 8 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-total-power-of-uncontrolled-creatures",
+      "request": {
+        "cardName": "Synthetic Rival",
+        "typeLine": "Creature — Goblin Druid",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your end step, if creatures your opponents control have total power 8 or greater, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-change-of-fortune-cards-discarded-this-turn",
+      "request": {
+        "cardName": "Change of Fortune",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Discard your hand, then draw a card for each card you've discarded this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-aetherflux-reservoir-spells-cast-this-turn",
+      "request": {
+        "cardName": "Aetherflux Reservoir",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Whenever you cast a spell, you gain 1 life for each spell you've cast this turn.\nPay 50 life: This artifact deals 50 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-creatures-that-died-this-turn",
+      "request": {
+        "cardName": "Synthetic Mourner",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "You gain 1 life for each creature that died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-history-count-without-period",
+      "request": {
+        "cardName": "Synthetic Archivist",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw a card for each card you've drawn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ],
+        "abilityCount": 1
+      }
+    }
+  ]
+}

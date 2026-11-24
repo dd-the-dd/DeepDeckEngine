@@ -340,6 +340,11 @@ fn read_condition_atom(
     {
         return super::recognize_controller_history_atom(cursor);
     }
+    // Compare: the objects an earlier action affected (`a land card was
+    // milled this way`).
+    if super::action_result_condition_starts(cursor) {
+        return super::recognize_action_result_condition_atom(cursor);
+    }
     // EventHistory with an object quantity: `a creature died this turn`, `no
     // spells were cast last turn`.
     if super::object_event_history_starts(cursor) {
@@ -349,6 +354,14 @@ fn read_condition_atom(
     if existential_counter_follows(cursor) {
         return recognize_existential_counter_atom(cursor, context)
             .map(ConditionAtom::ObjectSatisfies);
+    }
+    // Compare: `creatures you control have total power N or greater` (sum).
+    if super::collection_total_atom_starts(cursor) {
+        return super::recognize_collection_total_atom(cursor);
+    }
+    // Compare: `there are N or more MEASURE among COLLECTION` (distinct values).
+    if super::distinct_measure_atom_starts(cursor) {
+        return super::recognize_distinct_measure_atom(cursor);
     }
     // Compare: `there are N or more CARDS in your graveyard`.
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {

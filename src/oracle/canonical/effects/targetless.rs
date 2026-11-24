@@ -93,6 +93,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
+        | NumericExpression::EventHistoryCount(_)
         | NumericExpression::Devotion(_)
         | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::Add { .. }

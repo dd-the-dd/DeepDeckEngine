@@ -207,6 +207,7 @@ fn recognize_draw_action_attempt(
                     | NumericExpression::EventValue(_)
                     | NumericExpression::CountDistinctCardTypes { .. }
                     | NumericExpression::OpponentCount(_)
+                    | NumericExpression::EventHistoryCount(_)
                     | NumericExpression::Devotion(_)
                     | NumericExpression::ActionResultQuantity { .. }
                     | NumericExpression::Add { .. }

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "lose-life-gain-that-much",
+  "seed": 12,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "loseLife",
+        "player": {
+          "kind": "opponentsOf",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "actionResult:0"
+      },
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "boundValue",
+          "id": "actionResult:0"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "lose-life-gain-that-much",
+            "name": "Shriek Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          }
+        ],
+        "library": []
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "lose-life-gain-that-much"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-1",
+      "equals": 18
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    }
+  ]
+}

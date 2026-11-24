@@ -5,9 +5,10 @@ use super::{
     recognize_source_object_property,
 };
 
-/// Resolves Oracle's event-bound `that many`/`that much` numeric anaphor. An
-/// explicit parent binding wins; otherwise the binding the enclosing triggered
-/// ability installed on the cursor applies. Without either it is a failure.
+/// Resolves Oracle's `that many`/`that much` numeric anaphor. An explicit
+/// parent binding wins; otherwise the binding the enclosing triggered ability
+/// installed on the cursor applies; otherwise the nearest earlier action of
+/// the enclosing program is the antecedent. Without any it is a failure.
 pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
     cursor: &mut OracleTokenCursor<'_>,
     binding: Option<EventNumericBinding>,
@@ -22,10 +23,13 @@ pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
         .to_string();
     cursor.consume(&quantity)?;
     cursor.enter("numeric.event-anaphor.resolve");
-    binding
-        .or(cursor.event_numeric_binding())
-        .map(NumericExpression::EventValue)
-        .ok_or_else(|| cursor.fail("a numeric value bound by the triggering event"))
+    match binding.or(cursor.event_numeric_binding()) {
+        Some(binding) => Ok(NumericExpression::EventValue(binding)),
+        // Without an event quantity the antecedent is the result of an
+        // earlier action of the same program (CR 608.2c); the program
+        // lowering binds it or fails explicitly.
+        None => super::action_result_anaphor(cursor, quantity.eq_ignore_ascii_case("much")),
+    }
 }
 
 /// `the number of card types among COLLECTION`: the shared `the number of`

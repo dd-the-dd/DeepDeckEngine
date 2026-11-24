@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "discard-hand-draw-that-many",
+  "seed": 11,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "discardHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "bindCountAs": "actionResult:0"
+      },
+      {
+        "kind": "drawCards",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "boundValue",
+          "id": "actionResult:0"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "discard-hand-draw-that-many",
+            "name": "Tolarian Winds Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          },
+          {
+            "id": "hand-card-0",
+            "name": "Hand Card 0",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "hand-card-1",
+            "name": "Hand Card 1",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "hand-card-2",
+            "name": "Hand Card 2",
+            "typeLine": "Instant"
+          }
+        ],
+        "library": [
+          {
+            "id": "library-card-0",
+            "name": "Library-Card 0",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-1",
+            "name": "Library-Card 1",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-2",
+            "name": "Library-Card 2",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-3",
+            "name": "Library-Card 3",
+            "typeLine": "Sorcery"
+          },
+          {
+            "id": "library-card-4",
+            "name": "Library-Card 4",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "discard-hand-draw-that-many"
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "hand",
+      "equals": 3
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 2
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "hand-card-0",
+      "equals": true
+    }
+  ]
+}
