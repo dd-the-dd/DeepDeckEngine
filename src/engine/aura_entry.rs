@@ -30,20 +30,16 @@ impl GameEngine {
         if !type_line_contains(&definition.type_line, "Aura") {
             return Ok(EnteringAuraHost::NotAnAura);
         }
-        let Some(enchant_filter) = definition.printed_rules().iter().find_map(|rule| {
-            (value_kind(rule) == Some("keywordAbility")
-                && value_kind(&rule["ability"]) == Some("enchant"))
-            .then(|| rule["ability"]["where"].clone())
-        }) else {
+        if entering_aura_enchant_filter(definition).is_none() {
             return Ok(EnteringAuraHost::NoLegalHost);
-        };
+        }
         let candidates = self
             .state
             .players
             .iter()
             .filter(|player| !player.has_lost)
             .flat_map(|player| player.battlefield.iter())
-            .filter(|permanent| self.permanent_matches_effective_filter(permanent, &enchant_filter))
+            .filter(|permanent| self.aura_could_enchant(definition, permanent))
             .map(|permanent| permanent.instance_id.clone())
             .collect::<Vec<_>>();
         let selected = self.choose_resolution_objects(
@@ -61,4 +57,29 @@ impl GameEngine {
             .next()
             .map_or(EnteringAuraHost::NoLegalHost, EnteringAuraHost::Host))
     }
+
+    /// Whether an entering Aura (`definition`) could enchant `permanent`
+    /// (CR 303.4a, 303.4f): its Enchant ability allows the object and the
+    /// object is not protected from it (CR 702.16c). Shared by the chosen
+    /// host of an entering Aura and the stated host of an Aura token created
+    /// attached to an object (CR 111.3).
+    pub(super) fn aura_could_enchant(
+        &self,
+        definition: &CardDefinition,
+        permanent: &CardInstance,
+    ) -> bool {
+        entering_aura_enchant_filter(definition).is_some_and(|enchant_filter| {
+            self.permanent_matches_effective_filter(permanent, enchant_filter)
+                && !self.permanent_is_protected_from_card(permanent, definition)
+        })
+    }
+}
+
+/// The object filter of an Aura's Enchant keyword ability.
+fn entering_aura_enchant_filter(definition: &CardDefinition) -> Option<&Value> {
+    definition.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("keywordAbility")
+            && value_kind(&rule["ability"]) == Some("enchant"))
+        .then(|| &rule["ability"]["where"])
+    })
 }

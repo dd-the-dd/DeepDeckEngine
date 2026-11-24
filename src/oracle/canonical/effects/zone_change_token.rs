@@ -79,6 +79,24 @@ pub(in crate::oracle::canonical) fn parse_promoted_zone_change_token(
                 true,
             )?,
         ),
+        // A written description with modifiers the historical node cannot
+        // carry (`... token with flying`): the same shared body lowering,
+        // created by the snapshot of the departed object's controller.
+        LocalEffectNode::CreateExplicitTokens(create_tokens)
+            if create_tokens.additional.is_empty()
+                && create_tokens.body.object_operand().is_none() =>
+        {
+            cursor.enter("sequence.zone-change-token.written-description");
+            let quantity =
+                lower_numeric_expression(&create_tokens.body.quantity).ok_or_else(|| {
+                    cursor.fail("a token quantity the shared numeric lowering represents")
+                })?;
+            (
+                &create_tokens.player,
+                lower_token_creation_body(&create_tokens.body, token_controller, quantity)
+                    .map_err(|expected| cursor.fail(expected))?,
+            )
+        }
         _ => return Err(cursor.fail("a zone change followed by token creation")),
     };
     let binding = TargetBinding {

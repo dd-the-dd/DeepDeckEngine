@@ -2293,11 +2293,12 @@ fn lower_local_effect_sequence_with_collections(
                 decisions.push(lowered.decision);
                 effects.extend(lowered.effects);
             }
-            LocalEffectNode::CreateExplicitTokens(node) if node.body.copy_of().is_some() => {
-                // `create a token that's a copy of OBJECT`: the copied object
-                // is an operand of the shared permanent-subject lowering, so
-                // a target is declared like any other action's target.
-                let copy = node.body.copy_of().expect("a copy specification");
+            LocalEffectNode::CreateExplicitTokens(node) if node.body.object_operand().is_some() => {
+                // `create a token that's a copy of OBJECT` / `create a Role
+                // token attached to OBJECT`: the object is an operand of the
+                // shared permanent-subject lowering, so a target is declared
+                // like any other action's target.
+                let operand = node.body.object_operand().expect("an object operand");
                 cursor.enter("lower.token-copy.player");
                 cursor.require(
                     node.player == LocalPlayerReference::Controller,
@@ -2322,7 +2323,7 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.token-copy.object");
                 let objects = lower_ordinary_permanent_subject(
                     cursor,
-                    &copy.object,
+                    operand,
                     effect_index,
                     false,
                     &permanent_target_base_ids,
@@ -2332,9 +2333,13 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 let [object] = <[Value; 1]>::try_from(objects)
                     .map_err(|_| cursor.fail("one copied object"))?;
-                let mut creation =
-                    lower_token_copy_creation(&node.body, copy, object, controller(), quantity)
-                        .map_err(|expected| cursor.fail(expected))?;
+                let mut creation = lower_token_creation_with_object(
+                    &node.body,
+                    Some(object),
+                    controller(),
+                    quantity,
+                )
+                .map_err(|expected| cursor.fail(expected))?;
                 if created_tokens_are_next_antecedent(sequence, effect_index) {
                     creation["bind"] = json!(CREATED_TOKENS_BINDING);
                 }

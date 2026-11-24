@@ -450,11 +450,20 @@ impl GameEngine {
                     if let Some(restriction) = &spend_restriction
                         && !allow_unassigned_restriction
                     {
-                        let Some(spending_card) = spending_card else {
-                            continue;
-                        };
-                        if !matches_card_filter(spending_card, &restriction["where"]) {
-                            continue;
+                        if mana_spend_prohibition::is_cast_spell_prohibition(restriction) {
+                            if !mana_spend_prohibition::prohibition_permits(
+                                restriction,
+                                spending_card,
+                            ) {
+                                continue;
+                            }
+                        } else {
+                            let Some(spending_card) = spending_card else {
+                                continue;
+                            };
+                            if !matches_card_filter(spending_card, &restriction["where"]) {
+                                continue;
+                            }
                         }
                     }
                     let mut mana = effect["mana"].clone();

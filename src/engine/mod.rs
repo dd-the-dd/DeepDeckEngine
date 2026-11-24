@@ -178,6 +178,7 @@ mod mana_projection_fixed_point;
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
 ))]
 mod mana_public_path_tests;
+mod mana_spend_prohibition;
 mod mana_value_execution;
 mod nominal_choices;
 mod numeric_evaluation;
@@ -4097,7 +4098,11 @@ fn mana_value_supported(value: &Value) -> bool {
 fn mana_spend_restriction_supported(restriction: &Value) -> bool {
     (matches!(
         value_kind(restriction),
-        Some("castSpell" | "castSpellOrActivateAbility")
+        Some(
+            "castSpell"
+                | "castSpellOrActivateAbility"
+                | mana_spend_prohibition::CAST_SPELL_PROHIBITED
+        )
     ) && card_filter_supported(&restriction["where"]))
         || (value_kind(restriction) == Some("castSpellFromZone")
             && matches!(
@@ -35971,6 +35976,7 @@ impl GameEngine {
         for instance_id in illegal_auras {
             self.move_permanent_to_graveyard(&instance_id, "illegalAuraAttachment")?;
         }
+        self.put_superseded_roles_into_graveyard()?;
         let mut vanished_tokens = Vec::new();
         for player in &mut self.state.players {
             for (zone_name, zone) in [
