@@ -95,6 +95,9 @@ pub(super) fn stored_color_mana_options(
     )
 }
 
-#[cfg(test)]
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
 #[path = "stored_choice_binding_tests.rs"]
 mod tests;
