@@ -556,3 +556,10 @@ impl GameEngine {
             })
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "continuous_rules_tests.rs"]
+mod tests;
