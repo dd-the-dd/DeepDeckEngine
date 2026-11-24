@@ -118,6 +118,10 @@ fn lower_object_predicate(
             "kind": "chosenCreatureType",
             "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,
         })),
+        ObjectPredicate::ChosenColor => Some(json!({
+            "kind": "chosenColor",
+            "decisionId": crate::oracle::contextual_binding::RESOLUTION_COLOR_DECISION,
+        })),
         ObjectPredicate::HasKeyword(keyword) => Some(json!({
             "kind": "hasKeyword",
             "value": keyword.canonical_name(),

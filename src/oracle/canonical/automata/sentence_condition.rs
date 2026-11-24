@@ -273,6 +273,13 @@ fn read_condition_atom(
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_controlled_permanents_atom(cursor);
     }
+    // Compare: the state of the player the binding environment names.
+    if word_is(cursor, 0, "that")
+        && word_is(cursor, 1, "player")
+        && (word_is(cursor, 2, "controls") || word_is(cursor, 2, "has"))
+    {
+        return recognize_bound_player_state_atom(cursor);
+    }
     // Compare: a player population's state.
     if super::collective_opponents_condition_starts(cursor) {
         return super::recognize_collective_opponents_condition(cursor).map(player_state_atom);
@@ -351,6 +358,11 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.controlled-permanents.kind");
+    // `you control no QUERY` / `you control exactly N QUERY`: the absence or
+    // exact count read by the shared threshold (CR 109.4 control).
+    if word_is(cursor, 2, "no") || word_is(cursor, 2, "exactly") {
+        return recognize_controlled_quantity_atom(cursor);
+    }
     let presence = cursor.peek_ahead(2).is_some_and(|word| {
         word.eq_ignore_ascii_case("a")
             || word.eq_ignore_ascii_case("an")
@@ -362,6 +374,110 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
         recognize_controlled_permanent_count_query(cursor)?
     };
     Ok(query.into_atom())
+}
+
+/// `you control THRESHOLD [other] QUERY` with a quantifier the fixed count
+/// query does not read (`no`, `exactly N`): the controller's count of the
+/// shared permanent query compared with the shared threshold.
+fn recognize_controlled_quantity_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.controlled-permanents.quantity.subject");
+    cursor.consume("you")?;
+    cursor.consume("control")?;
+    cursor.enter("condition.controlled-permanents.quantity.threshold");
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.enter("condition.controlled-permanents.quantity.query");
+    let query = super::recognize_query_excluding_source(cursor, recognize_object_query)?;
+    cursor.require(
+        query.controller.is_none(),
+        "an unscoped permanent selector after `you control`",
+    )?;
+    let exclude_source = query.exclude_source;
+    let controlled = ObjectQueryNode {
+        controller: Some(ObjectControllerScope::AbilityController),
+        ..query
+    };
+    cursor.require(
+        controlled.denotes_battlefield_permanents(),
+        "a selector that establishes the permanent domain",
+    )?;
+    Ok(ConditionAtom::Compare(ConditionComparison::measured(
+        ConditionPlayerSubject::Controller,
+        PlayerStateMeasure::ControlledPermanents {
+            predicate: controlled.predicate,
+            exclude_source,
+        },
+        threshold,
+    )))
+}
+
+/// `that player controls|has ...`: a player-state proposition whose subject
+/// is resolved by the one binding-environment resolver (`recognize_that_player`).
+/// Only the player the triggering event records has a condition lowering; a
+/// player declared by the program is refused instead of being re-read.
+fn recognize_bound_player_state_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.bound-player.subject");
+    let environment = installed_binding_environment(cursor);
+    let subject = match recognize_that_player(cursor, &environment)? {
+        BoundPlayerReference::EventPlayer => ConditionPlayerSubject::EventPlayer,
+        _ => {
+            cursor.enter("condition.bound-player.binding");
+            return Err(cursor.fail(
+                "the player the triggering event records; a declared player is not read by a condition",
+            ));
+        }
+    };
+    cursor.enter("condition.bound-player.verb");
+    if word_is(cursor, 0, "has") {
+        cursor.consume("has")?;
+        let proposition = recognize_player_possession_proposition(cursor, subject)?;
+        return Ok(player_state_atom(PlayerStateConditionNode {
+            subject,
+            proposition,
+        }));
+    }
+    cursor.consume("controls")?;
+    if word_is(cursor, 0, "more") || word_is(cursor, 0, "fewer") {
+        // `that player controls more QUERY than you`: two counts of one
+        // query, the bound player's and the controller's.
+        cursor.enter("condition.bound-player.comparative");
+        let more = word_is(cursor, 0, "more");
+        consume_current(cursor)?;
+        let query = recognize_object_query(cursor)?;
+        cursor.require(
+            query.controller.is_none(),
+            "a permanent query without its own controller relation",
+        )?;
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Permanent),
+            "a predicate valid for a battlefield permanent",
+        )?;
+        cursor.enter("condition.bound-player.comparative.than");
+        cursor.consume("than")?;
+        cursor.consume("you")?;
+        let measure = || PlayerStateMeasure::ControlledPermanents {
+            predicate: query.predicate.clone(),
+            exclude_source: false,
+        };
+        return Ok(ConditionAtom::Compare(ConditionComparison {
+            subject,
+            left: ConditionNumber::Player(measure()),
+            operator: if more {
+                NumericComparisonOperator::GreaterThan
+            } else {
+                NumericComparisonOperator::LessThan
+            },
+            right: ConditionNumber::ControllerMeasure(measure()),
+        }));
+    }
+    let proposition = recognize_controlled_permanents_proposition(cursor)?;
+    Ok(player_state_atom(PlayerStateConditionNode {
+        subject,
+        proposition,
+    }))
 }
 
 /// A player-state proposition is a comparison over a measure of its subject.
@@ -623,10 +739,12 @@ fn recognize_referenced_object_atom(
         cursor.consume("that")?;
         cursor.consume("card")?;
         resolve_card_anaphor(cursor, context)?
-    } else if word_is(cursor, 0, "that") && bound_object_reference_starts(cursor) {
-        // A condition reads the object's last known information, so the
-        // nominal may name a departed event object (`If that creature was a
-        // Villain` after `another creature dies`).
+    } else {
+        // `that NOUN`: the one nominal-anaphor resolver of the binding
+        // environment. A condition reads the object's last known
+        // information, so the nominal may name a departed event object (`If
+        // that creature was a Villain` after `another creature dies`); a
+        // nominal without an antecedent in scope fails there, never guessed.
         cursor.enter("condition.sentence.object.nominal-anaphor");
         let program = cursor.require_value(
             context.program,
@@ -636,26 +754,6 @@ fn recognize_referenced_object_atom(
             cursor,
             &BindingEnvironment::for_permanent_context(program.effects),
         )?)
-    } else {
-        cursor.enter("condition.sentence.object.nominal-anaphor");
-        let program = cursor.require_value(
-            context.program,
-            "a nominal anaphor of an effect program's proven antecedent",
-        )?;
-        match recognize_contextual_permanent_operand(
-            cursor,
-            context.name_links,
-            context.name_failure,
-            program.effects,
-        )? {
-            PermanentOperandNode::BoundReference(reference) => {
-                ConditionObjectReference::Permanent(reference)
-            }
-            _ => {
-                cursor.enter("condition.sentence.object.nominal-anaphor");
-                return Err(cursor.fail("a nominal anaphor of one proven permanent antecedent"));
-            }
-        }
     };
     let predicate = recognize_object_state_predicate(cursor, false)?;
     finish_referenced_object(cursor, context, object, predicate)

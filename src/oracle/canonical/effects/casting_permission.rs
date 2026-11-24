@@ -97,7 +97,7 @@ fn require_spell_predicate(
 
 fn object_predicate_uses_chosen_type(predicate: &ObjectPredicate) -> bool {
     match predicate {
-        ObjectPredicate::ChosenCreatureType => true,
+        ObjectPredicate::ChosenCreatureType | ObjectPredicate::ChosenColor => true,
         ObjectPredicate::Not(child) => object_predicate_uses_chosen_type(child),
         ObjectPredicate::Intersection(children) | ObjectPredicate::Union(children) => {
             children.iter().any(object_predicate_uses_chosen_type)

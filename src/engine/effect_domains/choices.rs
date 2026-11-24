@@ -76,6 +76,17 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && player_reference_supported(&effect["player"])
                 && numeric_expression_supported(&effect["minimum"])
                 && numeric_expression_supported(&effect["maximum"])
+                && effect
+                    .get("candidates")
+                    .is_none_or(player_reference_supported)
+                && effect
+                    .get("selection")
+                    .is_none_or(|selection| value_kind(selection) == Some("random"))
+                && effect.get("bindAs").is_none_or(Value::is_string)
+        }
+        // CR 608.2d: one of the five colors, chosen while the effect resolves.
+        Some("chooseColor") => {
+            effect["id"].is_string() && player_reference_supported(&effect["player"])
         }
         Some("chooseNumber") => {
             effect["id"].is_string()
@@ -132,13 +143,18 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
-                let candidates = self
-                    .state
-                    .players
-                    .iter()
-                    .filter(|player| !player.has_lost)
-                    .map(|player| player.id.clone())
-                    .collect::<Vec<_>>();
+                // The population the choice draws from (`an opponent`, `a
+                // player`); every player in the game when unrestricted.
+                let candidates = match effect.get("candidates") {
+                    Some(population) => self.resolve_players(population, stack_object, bindings),
+                    None => self
+                        .state
+                        .players
+                        .iter()
+                        .filter(|player| !player.has_lost)
+                        .map(|player| player.id.clone())
+                        .collect::<Vec<_>>(),
+                };
                 let minimum = self
                     .runtime_numeric_expression(
                         &effect["minimum"],
@@ -158,27 +174,113 @@ impl GameEngine {
                     .unwrap_or(0)
                     .max(0)
                     .min(candidates.len() as i32) as usize;
-                let mut values = Vec::new();
-                for count in minimum..=maximum {
-                    values.extend(Self::resolution_selections(
-                        &candidates,
-                        count,
-                        128 - values.len(),
-                    ));
+                let minimum = minimum.min(maximum);
+                if value_kind(&effect["selection"]) == Some("random") {
+                    // The game picks, not the chooser: no decision request.
+                    let mut shuffled = candidates.clone();
+                    shuffled.shuffle(&mut self.rng);
+                    let selected = shuffled
+                        .into_iter()
+                        .take(maximum)
+                        .map(Value::String)
+                        .collect::<Vec<_>>();
+                    decisions.insert(decision_id.to_string(), Value::Array(selected.clone()));
+                    self.record_event(
+                        "playersRandomlySelected",
+                        Some(player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "decisionId": decision_id, "playerIds": selected }),
+                    );
+                } else {
+                    let mut values = Vec::new();
+                    for count in minimum..=maximum {
+                        values.extend(Self::resolution_selections(
+                            &candidates,
+                            count,
+                            128 - values.len(),
+                        ));
+                    }
+                    if values.iter().all(Vec::is_empty) {
+                        // No player can be chosen: the instruction does as
+                        // much as possible (CR 609.3) and binds no player.
+                        decisions.insert(decision_id.to_string(), Value::Array(Vec::new()));
+                    } else {
+                        self.make_resolution_decision(
+                            decision_id,
+                            &player_id,
+                            stack_object,
+                            DecisionChoice::OptionSelection {
+                                decision_id: decision_id.to_string(),
+                                options: candidates,
+                                prompt: "Choose players.".to_string(),
+                            },
+                            values,
+                            decisions,
+                            provider,
+                        )?;
+                    }
                 }
+                // A singular choice is the antecedent of a later `that
+                // player`: it is bound as that player for this resolution.
+                if let Some(binding_id) = effect["bindAs"].as_str() {
+                    let chosen = decisions
+                        .get(decision_id)
+                        .and_then(Value::as_array)
+                        .map(|values| {
+                            values
+                                .iter()
+                                .filter_map(Value::as_str)
+                                .map(ToOwned::to_owned)
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+                    match chosen.as_slice() {
+                        [chosen] => {
+                            bindings.insert(
+                                binding_id.to_string(),
+                                RuntimeBinding::Player(chosen.clone()),
+                            );
+                        }
+                        _ => {
+                            bindings.remove(binding_id);
+                        }
+                    }
+                }
+            }
+            Some("chooseColor") => {
+                let Some(decision_id) = effect["id"].as_str() else {
+                    return Ok(());
+                };
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let colors = RESOLUTION_COLOR_NAMES
+                    .iter()
+                    .map(|color| (*color).to_string())
+                    .collect::<Vec<_>>();
+                let values = colors.iter().map(|color| vec![color.clone()]).collect();
                 self.make_resolution_decision(
                     decision_id,
                     &player_id,
                     stack_object,
                     DecisionChoice::OptionSelection {
                         decision_id: decision_id.to_string(),
-                        options: candidates,
-                        prompt: "Choose players.".to_string(),
+                        options: colors,
+                        prompt: "Choose a color.".to_string(),
                     },
                     values,
                     decisions,
                     provider,
                 )?;
+                let chosen = resolution_choice_text(decisions.get(decision_id)).map(str::to_owned);
+                self.record_event(
+                    "colorChosen",
+                    Some(player_id),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({ "decisionId": decision_id, "color": chosen }),
+                );
             }
             Some("chooseNumber") => {
                 let Some(decision_id) = effect["id"].as_str() else {
@@ -659,6 +761,73 @@ impl GameEngine {
             }
         }
         Ok(())
+    }
+}
+
+/// The five colors a color choice offers (CR 105.1), in the spelling the
+/// shared color predicate (`colorContains`) reads.
+const RESOLUTION_COLOR_NAMES: [&str; 5] = ["white", "blue", "black", "red", "green"];
+
+/// The one text value a resolution choice recorded (`"red"` or `["red"]`).
+fn resolution_choice_text(value: Option<&Value>) -> Option<&str> {
+    let value = value?;
+    value
+        .as_str()
+        .or_else(|| match value.as_array()?.as_slice() {
+            [single] => single.as_str(),
+            _ => None,
+        })
+}
+
+impl GameEngine {
+    /// Materializes the predicates that read a characteristic chosen earlier
+    /// in this resolution (CR 608.2d) into the concrete predicate the shared
+    /// object filters evaluate: `chosenColor` becomes `colorContains` of the
+    /// recorded color. A reference whose producer has not run is left
+    /// unchanged, so no consumer ever reads a guessed value.
+    pub(in crate::engine) fn materialize_resolution_choices<'a>(
+        &self,
+        effect: &'a Value,
+        decisions: &BTreeMap<String, Value>,
+    ) -> std::borrow::Cow<'a, Value> {
+        fn reads_choice(value: &Value) -> bool {
+            if value_kind(value) == Some("chosenColor") {
+                return true;
+            }
+            match value {
+                Value::Object(values) => values.values().any(reads_choice),
+                Value::Array(values) => values.iter().any(reads_choice),
+                _ => false,
+            }
+        }
+        fn materialize(value: &mut Value, decisions: &BTreeMap<String, Value>) {
+            if value_kind(value) == Some("chosenColor") {
+                let color = value["decisionId"]
+                    .as_str()
+                    .and_then(|id| resolution_choice_text(decisions.get(id)))
+                    .filter(|color| RESOLUTION_COLOR_NAMES.contains(color))
+                    .map(str::to_owned);
+                if let Some(color) = color {
+                    *value = json!({ "kind": "colorContains", "value": color });
+                }
+                return;
+            }
+            match value {
+                Value::Object(values) => values
+                    .values_mut()
+                    .for_each(|value| materialize(value, decisions)),
+                Value::Array(values) => values
+                    .iter_mut()
+                    .for_each(|value| materialize(value, decisions)),
+                _ => {}
+            }
+        }
+        if !reads_choice(effect) {
+            return std::borrow::Cow::Borrowed(effect);
+        }
+        let mut materialized = effect.clone();
+        materialize(&mut materialized, decisions);
+        std::borrow::Cow::Owned(materialized)
     }
 }
 

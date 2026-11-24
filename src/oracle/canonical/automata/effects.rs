@@ -522,6 +522,7 @@ fn damageable_object_predicate(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::NumericComparison { .. }
         | SelectorPredicate::ObjectKind(_)
         | SelectorPredicate::ChosenCreatureType
+        | SelectorPredicate::ChosenColor
         | SelectorPredicate::Not(_) => false,
         SelectorPredicate::Intersection(operands) => {
             operands.iter().any(damageable_object_predicate)

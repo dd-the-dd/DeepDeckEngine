@@ -108,7 +108,7 @@ fn domain(effect: &Value) -> Option<Domain> {
 
         Some(
             "choosePlayers" | "chooseNumber" | "chooseCardName" | "chooseCreatureType"
-            | "choosePermanents" | "chooseCards" | "chooseOrder",
+            | "chooseColor" | "choosePermanents" | "chooseCards" | "chooseOrder",
         ) => Some(Domain::Choices),
         Some(
             "drawCards"

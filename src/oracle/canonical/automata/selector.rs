@@ -706,6 +706,16 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(length) = super::chosen_color_qualifier_length(cursor) {
+                    // `of the chosen color` / `of that color`: the color
+                    // chosen earlier in the program (CR 608.2d).
+                    cursor.enter("selector.chosen-color-qualifier");
+                    cursor.advance_to(cursor.position() + length)?;
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: SelectorPredicate::ChosenColor,
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if super::relative_clause_starts(cursor) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.

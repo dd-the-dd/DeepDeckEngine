@@ -197,11 +197,11 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
         )),
         LocalEffectNode::Choose(node) => match &node.domain {
-            ChoiceDomainNode::CreatureType => previous,
+            ChoiceDomainNode::CreatureType | ChoiceDomainNode::Color => previous,
             ChoiceDomainNode::PermanentTargets(targets) => {
                 Local(singular_permanent_target(targets, effect_index))
             }
-            ChoiceDomainNode::PlayerTarget(_) => Local(None),
+            ChoiceDomainNode::PlayerTarget(_) | ChoiceDomainNode::Player(_) => Local(None),
         },
         // A targeted source occupies the action's first slots; the recipient
         // is then no longer the action's sole singular referent.
