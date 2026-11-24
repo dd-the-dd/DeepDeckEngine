@@ -790,6 +790,116 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-devout-harpist-target-aura-attached-to-a-creature",
+      "request": {
+        "cardName": "Devout Harpist",
+        "typeLine": "Creature — Human",
+        "manaCost": "{W}",
+        "oracleText": "{T}: Destroy target Aura attached to a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Aura"
+                    },
+                    {
+                      "kind": "attachedTo",
+                      "object": {
+                        "kind": "eachPermanent",
+                        "where": {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-knight-of-dusk-target-creature-blocking-the-source",
+      "request": {
+        "cardName": "Knight of Dusk",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "{B}{B}: Destroy target creature blocking this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "blocking",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-flowstone-salamander-target-blocking-the-clause-subject",
+      "request": {
+        "cardName": "Flowstone Salamander",
+        "typeLine": "Creature — Salamander",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "{R}: This creature deals 1 damage to target creature blocking it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }
