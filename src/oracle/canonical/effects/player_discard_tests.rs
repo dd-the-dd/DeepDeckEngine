@@ -46,6 +46,7 @@ fn targeted_random_discard_composes_random_selection_and_linked_consumer() {
                     selector: TargetSelector::Player(PlayerPredicate::Opponent),
                     cardinality: TargetCardinality::EXACTLY_ONE,
                     exclude_source: false,
+                    count: None,
                 }],
             },
             binding,

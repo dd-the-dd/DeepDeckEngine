@@ -1449,6 +1449,10 @@ pub(super) struct TargetSlot {
     pub selector: TargetSelector,
     pub cardinality: TargetCardinality,
     pub exclude_source: bool,
+    /// The authoritative declared count when it is not two literals (`X
+    /// target`, `any number of target`); `cardinality` is then
+    /// `TargetCardinality::EXPRESSED`. Only count-aware parents produce it.
+    pub count: Option<TargetCount>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

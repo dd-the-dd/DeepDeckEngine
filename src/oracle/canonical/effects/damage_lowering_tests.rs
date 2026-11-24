@@ -12,6 +12,7 @@ fn targeted_damage_lowering_keeps_declaration_and_recipient_id_together() {
                 selector: TargetSelector::Any,
                 cardinality: TargetCardinality::EXACTLY_ONE,
                 exclude_source: false,
+                count: None,
             }],
         }),
     };

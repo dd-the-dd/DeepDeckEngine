@@ -70,7 +70,7 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
         CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
     }
-    match try_recognize_card_library_top(cursor) {
+    match try_recognize_card_library_position(cursor, true) {
         CollectionOperandAttempt::Recognized(fragment) => {
             return Ok(CardOperandNode::LibraryTop(fragment.node));
         }
@@ -222,6 +222,12 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     if explicit_move {
         let verb = head.to_owned();
         cursor.consume(&verb)?;
+        // `return to the battlefield all creature cards ...`: a heavy object
+        // follows its destination (the same two children, reversed).
+        if let Some(destination) = super::try_recognize_preposed_card_move_destination(cursor)? {
+            let cards = operand(cursor)?;
+            return Ok(Some(CardActionNode::Move { cards, destination }));
+        }
     }
     let cards = operand(cursor)?;
     let destination = recognize_card_action_destination(cursor, "move")?;

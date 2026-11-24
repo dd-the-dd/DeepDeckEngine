@@ -133,10 +133,18 @@ pub(in crate::oracle::canonical) fn lower_zone_change_targets(
     let slots = cursor.require_value(slots, "a supported zone-change target candidate policy")?;
     let mut decisions = Vec::new();
     let mut members = Vec::new();
-    for (base, candidates, minimum, maximum) in &slots {
+    for ((base, candidates, minimum, maximum), slot) in slots.iter().zip(&effect.target.slots) {
         let total = slots.iter().filter(|(other, ..)| other == base).count();
         let id = target_id(base, total);
-        decisions.push(target_decision(&id, candidates.clone(), *minimum, *maximum));
+        let mut decision = target_decision(&id, candidates.clone(), *minimum, *maximum);
+        // `X target`, `any number of target` (CR 601.2c): the slot's typed
+        // count replaces the literal envelope; an unrepresented bound fails.
+        if let Some(count) = &slot.count {
+            cursor.enter("lower.zone-change.target-count");
+            let applied = apply_target_count_to_decision(&mut decision, count);
+            cursor.require_value(applied, "a declared target count the IR represents")?;
+        }
+        decisions.push(decision);
         members.push(json!({"kind":"chosenTargets", "id":id}));
     }
     if let [decision] = decisions.as_slice() {

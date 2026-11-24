@@ -69,7 +69,14 @@ pub(in crate::oracle::canonical) fn legacy_target_card_move(
     else {
         return None;
     };
-    if target.zone != CardZoneName::Graveyard || destination.order.is_some() || destination.tapped {
+    // The historical node has no source exclusion and no unbounded count;
+    // such declarations stay on the shared card-action lowering.
+    if target.zone != CardZoneName::Graveyard
+        || destination.order.is_some()
+        || destination.tapped
+        || target.exclude_source
+        || target.unbounded
+    {
         return None;
     }
     let source_zone = match target.owner {

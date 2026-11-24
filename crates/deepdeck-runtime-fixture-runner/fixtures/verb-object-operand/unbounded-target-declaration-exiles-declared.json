@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "verb-operand-any-number-of-targets-declares-a-population-bounded-count",
+  "seed": 42,
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Declarer",
+        "battlefield": [
+          {
+            "id": "exiler",
+            "name": "Exiler",
+            "typeLine": "Creature - Spirit",
+            "power": "2",
+            "toughness": "2",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": { "kind": "self" },
+                "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "kind": "chooseTargets",
+                      "id": "targetPermanent",
+                      "minimum": 0,
+                      "maximum": { "kind": "countPermanents", "allPlayers": true },
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
+                        "where": {
+                          "kind": "not",
+                          "operand": { "kind": "cardTypeContains", "value": "Land" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "effects": [
+                  {
+                    "kind": "exilePermanent",
+                    "permanent": { "kind": "chosenTargets", "id": "targetPermanent" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "artifact-a",
+            "name": "Artifact A",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "artifact-b",
+            "name": "Artifact B",
+            "typeLine": "Artifact"
+          },
+          {
+            "id": "own-land",
+            "name": "Own Land",
+            "typeLine": "Land"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          {
+            "id": "opposing-artifact",
+            "name": "Opposing Artifact",
+            "typeLine": "Artifact"
+          }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "exiler",
+      "abilityRuleIndex": 0,
+      "targets": {
+        "targetPermanent": { "kind": "permanentDefinition", "definitionId": "artifact-a" }
+      }
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "exile",
+      "definitionId": "artifact-a",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "artifact-b",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-1",
+      "zone": "battlefield",
+      "definitionId": "opposing-artifact",
+      "equals": true
+    },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

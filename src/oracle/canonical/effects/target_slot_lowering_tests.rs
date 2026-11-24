@@ -9,6 +9,7 @@ fn another_target_exclusion_survives_a_union_candidate_set() {
         ]),
         cardinality: TargetCardinality::EXACTLY_ONE,
         exclude_source: true,
+        count: None,
     };
     let (_, candidates) =
         lower_target_slot_candidates(&slot).expect("the complete target slot lowers");

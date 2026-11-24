@@ -8,12 +8,20 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
     scope: Option<&str>,
 ) -> Result<Vec<Value>, TargetlessLoweringError> {
     let operand = &effect.operand;
-    let (predicate, controller_filter) = lower_fixed_controller_permanent_query(&operand.query)?;
+    let (predicate, controller_filter) =
+        lower_permanent_query_in_context(&operand.query, declarations)?;
     let Some(bounds) = operand.bounds else {
-        // `all QUERY`: every matching permanent on resolution, no decision.
+        // `all|each QUERY`: every matching permanent on resolution, no
+        // decision. The collection reads a controller population
+        // (`your opponents control`) and the `other` source exclusion.
         let mut objects = json!({"kind":"eachPermanent", "where":predicate});
-        if let Some(controller) = controller_filter {
-            objects["player"] = controller;
+        match controller_filter {
+            Some(LoweredQueryController::Player(player))
+            | Some(LoweredQueryController::Population(player)) => objects["player"] = player,
+            None => {}
+        }
+        if operand.query.exclude_source {
+            objects["excludeSource"] = json!(true);
         }
         return Ok(vec![match effect.action {
             SelectedPermanentAction::Untap => json!({"kind":"untapPermanents", "objects":objects}),
@@ -35,8 +43,18 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
         |scope| format!("{scope}:selectedPermanents"),
     );
     let mut candidates = json!({"kind":"permanents", "where":predicate});
-    if let Some(controller) = controller_filter {
-        candidates["controller"] = controller;
+    match controller_filter {
+        Some(LoweredQueryController::Player(controller)) => candidates["controller"] = controller,
+        // A choice's candidates name one controller; a population of
+        // controllers has no candidate writer yet and is refused.
+        Some(LoweredQueryController::Population(_)) => {
+            return Err(TargetlessLoweringError::UnsupportedCollectionController);
+        }
+        None => {}
+    }
+    // `another creature you control` (CR 109.5 source exclusion).
+    if operand.query.exclude_source {
+        candidates["excludeSource"] = json!(true);
     }
     Ok(vec![
         json!({"kind":"choosePermanents", "id":id, "player":controller(),

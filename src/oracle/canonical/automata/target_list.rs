@@ -1,8 +1,184 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    ExpressedTargetCardinality, NumericAtom, PlayerPredicate, TargetCardinality, TargetListNode,
-    TargetSelector, TargetSlot, recognize_numeric_atom, recognize_target_slot_selector,
+    ExpressedTargetCardinality, NumericAtom, NumericExpression, PlayerPredicate, TargetCardinality,
+    TargetListNode, TargetSelector, TargetSlot, recognize_numeric_atom,
+    recognize_numeric_expression, recognize_target_slot_selector,
 };
+
+/// One bound of a declared target count (CR 601.2c, 115.1): an amount the
+/// controller announces on declaration, read by the shared numeric grammar
+/// (a literal, `X` of the same face, `that many`), or no upper bound at all
+/// (`any number of target ...`). The X producer is validated after card
+/// composition in the face context; it is never defaulted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TargetCountBound {
+    Amount(NumericExpression),
+    Unbounded,
+}
+
+/// The one cardinality node shared by target lists, card targets and
+/// non-target selections: `{minimum, maximum}` where the minimum is an
+/// amount and the maximum an amount or unbounded. Literal positive bounds
+/// stay representable as the historical [`TargetCardinality`].
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TargetCount {
+    pub minimum: NumericExpression,
+    pub maximum: TargetCountBound,
+}
+
+impl TargetCount {
+    pub(in crate::oracle::canonical) fn from_literal(cardinality: TargetCardinality) -> Self {
+        Self {
+            minimum: NumericExpression::from(i64::from(cardinality.minimum)),
+            maximum: TargetCountBound::Amount(NumericExpression::from(i64::from(
+                cardinality.maximum,
+            ))),
+        }
+    }
+
+    pub(in crate::oracle::canonical) fn from_atoms(
+        cardinality: ExpressedTargetCardinality,
+    ) -> Self {
+        Self {
+            minimum: NumericExpression::Atom(cardinality.minimum),
+            maximum: TargetCountBound::Amount(NumericExpression::Atom(cardinality.maximum)),
+        }
+    }
+
+    /// The literal projection, when both bounds are integer literals.
+    pub(in crate::oracle::canonical) fn literal(&self) -> Option<TargetCardinality> {
+        fn literal(expression: &NumericExpression) -> Option<u32> {
+            match expression {
+                NumericExpression::Atom(NumericAtom::Integer(value)) => u32::try_from(*value).ok(),
+                _ => None,
+            }
+        }
+        let TargetCountBound::Amount(maximum) = &self.maximum else {
+            return None;
+        };
+        Some(TargetCardinality {
+            minimum: literal(&self.minimum)?,
+            maximum: literal(maximum)?,
+        })
+    }
+
+    /// The atom projection (`X` or a literal on both sides), when no bound
+    /// is unbounded or composite.
+    pub(in crate::oracle::canonical) fn atoms(&self) -> Option<ExpressedTargetCardinality> {
+        fn atom(expression: &NumericExpression) -> Option<NumericAtom> {
+            match expression {
+                NumericExpression::Atom(atom) => Some(*atom),
+                _ => None,
+            }
+        }
+        let TargetCountBound::Amount(maximum) = &self.maximum else {
+            return None;
+        };
+        Some(ExpressedTargetCardinality {
+            minimum: atom(&self.minimum)?,
+            maximum: atom(maximum)?,
+        })
+    }
+
+    pub(in crate::oracle::canonical) fn is_unbounded(&self) -> bool {
+        self.maximum == TargetCountBound::Unbounded
+    }
+
+    /// More than one object may be declared: an unbounded or non-literal
+    /// maximum, or a literal maximum above one.
+    pub(in crate::oracle::canonical) fn is_plural(&self) -> bool {
+        match &self.maximum {
+            TargetCountBound::Unbounded => true,
+            TargetCountBound::Amount(NumericExpression::Atom(NumericAtom::Integer(value))) => {
+                *value > 1
+            }
+            TargetCountBound::Amount(_) => true,
+        }
+    }
+}
+
+impl TargetCardinality {
+    /// The literal envelope of a slot whose authoritative count is
+    /// [`TargetSlot::count`]: no literal reader may treat it as scalar.
+    /// Only parents that read `count` opt into such slots.
+    pub(in crate::oracle::canonical) const EXPRESSED: Self = Self {
+        minimum: 0,
+        maximum: u32::MAX,
+    };
+}
+
+/// Whether a parent admits declared target counts that are not two literal
+/// integers. Lowerers that only read [`TargetCardinality`] keep `Literal`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum TargetCountSupport {
+    Literal,
+    Expressed,
+}
+
+/// Lexical lookahead for a target count that is not a positive literal:
+/// `any number of`, `X`, `that many`, or `up to` one of those. Dispatch
+/// hint only; [`recognize_target_count`] reads and validates the count.
+pub(in crate::oracle::canonical) fn expressed_target_count_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let at = |offset: usize, word: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    };
+    let variable =
+        |offset: usize| at(offset, "x") || (at(offset, "that") && at(offset + 1, "many"));
+    (at(0, "any") && at(1, "number") && at(2, "of"))
+        || variable(0)
+        || (at(0, "up") && at(1, "to") && variable(2))
+}
+
+/// The shared declared-count child: `N`, `N or M`, `up to N`, `X`, `up to
+/// X`, `that many` and `any number of`. Amounts are the shared numeric
+/// expression; a literal must be positive (a zero upper bound declares no
+/// target). The caller owns the following `[other] target` head.
+pub(in crate::oracle::canonical) fn recognize_target_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<TargetCount> {
+    cursor.enter("target-list.count.start");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("any"))
+    {
+        cursor.enter("target-list.count.unbounded");
+        cursor.consume_phrase(&["any", "number", "of"])?;
+        return Ok(TargetCount {
+            minimum: NumericExpression::from(0),
+            maximum: TargetCountBound::Unbounded,
+        });
+    }
+    let up_to = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("up"));
+    if up_to {
+        cursor.consume_phrase(&["up", "to"])?;
+    }
+    cursor.enter("target-list.count.amount");
+    if is_literal_quantity(cursor) && !up_to {
+        // An exact literal keeps the historical literal grammar, including
+        // the `N or M` range and its positivity diagnostics.
+        return recognize_target_cardinality(cursor).map(TargetCount::from_literal);
+    }
+    let amount = recognize_numeric_expression(cursor, None)?;
+    cursor.enter("target-list.count.positive");
+    cursor.require(
+        !matches!(amount, NumericExpression::Atom(NumericAtom::Integer(value)) if value <= 0),
+        "a positive target count",
+    )?;
+    Ok(TargetCount {
+        minimum: if up_to {
+            NumericExpression::from(0)
+        } else {
+            amount.clone()
+        },
+        maximum: TargetCountBound::Amount(amount),
+    })
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TargetListState {
@@ -22,6 +198,7 @@ enum TargetSlotState {
     Start,
     Cardinality,
     OptionalSourceExclusion,
+    ExpressedCount,
     TargetHead,
     DeterminedHead,
     Selector,
@@ -42,6 +219,17 @@ enum CardinalityKind {
 pub(in crate::oracle::canonical) fn recognize_target_list(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<TargetListNode> {
+    recognize_target_list_with_counts(cursor, TargetCountSupport::Literal)
+}
+
+/// The same target list for a parent whose lowerer reads
+/// [`TargetSlot::count`]: `X target`, `up to X target`, `that many target`
+/// and `any number of target` slots are admitted with their typed count.
+/// Every other parent keeps the literal contract and its diagnostics.
+pub(in crate::oracle::canonical) fn recognize_target_list_with_counts(
+    cursor: &mut OracleTokenCursor<'_>,
+    counts: TargetCountSupport,
+) -> MachineResult<TargetListNode> {
     let mut state = TargetListState::Start;
     let mut frame = TargetListAttemptFrame::default();
 
@@ -55,12 +243,12 @@ pub(in crate::oracle::canonical) fn recognize_target_list(
                 cursor.enter("target-list.first-slot");
                 frame
                     .slots
-                    .push(recognize_target_slot(cursor, true, false)?);
+                    .push(recognize_target_slot(cursor, true, false, counts)?);
                 TargetListState::Continuation
             }
             TargetListState::Continuation => {
                 cursor.enter("target-list.continuation");
-                if let Some(slot) = try_recognize_additional_slot(cursor)? {
+                if let Some(slot) = try_recognize_additional_slot(cursor, counts)? {
                     frame.slots.push(slot);
                     TargetListState::Continuation
                 } else {
@@ -104,6 +292,7 @@ pub(in crate::oracle::canonical) fn recognize_possessive_target_player(
             selector: TargetSelector::Player(predicate),
             cardinality: TargetCardinality::EXACTLY_ONE,
             exclude_source: false,
+            count: None,
         }],
     })
 }
@@ -112,14 +301,35 @@ fn recognize_target_slot(
     cursor: &mut OracleTokenCursor<'_>,
     allow_any_target: bool,
     allow_determined_head: bool,
+    counts: TargetCountSupport,
 ) -> MachineResult<TargetSlot> {
     let mut state = TargetSlotState::Start;
     let mut cardinality = None;
+    let mut count = None;
     let mut selector = None;
     let mut exclude_source = false;
 
     loop {
         state = match state {
+            TargetSlotState::Start
+                if counts == TargetCountSupport::Expressed
+                    && expressed_target_count_starts(cursor) =>
+            {
+                cursor.enter("target-list.slot.start");
+                TargetSlotState::ExpressedCount
+            }
+            TargetSlotState::ExpressedCount => {
+                cursor.enter("target-list.slot.expressed-count");
+                let read = recognize_target_count(cursor)?;
+                match read.literal() {
+                    Some(literal) => cardinality = Some(literal),
+                    None => {
+                        cardinality = Some(TargetCardinality::EXPRESSED);
+                        count = Some(read);
+                    }
+                }
+                TargetSlotState::OptionalSourceExclusion
+            }
             TargetSlotState::Start => {
                 cursor.enter("target-list.slot.start");
                 if !starts_explicit_target_slot(cursor)
@@ -204,6 +414,7 @@ fn recognize_target_slot(
                     cardinality: cursor
                         .require_value(cardinality, "a populated target cardinality")?,
                     exclude_source,
+                    count,
                 });
             }
         };
@@ -338,6 +549,7 @@ pub(in crate::oracle::canonical) fn recognize_expressed_target_cardinality(
 
 fn try_recognize_additional_slot(
     cursor: &mut OracleTokenCursor<'_>,
+    counts: TargetCountSupport,
 ) -> MachineResult<Option<TargetSlot>> {
     if !cursor
         .peek()
@@ -349,13 +561,15 @@ fn try_recognize_additional_slot(
     let checkpoint = cursor.checkpoint();
     cursor.enter("target-list.continuation.probe");
     cursor.consume("and")?;
-    if !starts_target_slot(cursor) {
+    if !starts_target_slot(cursor)
+        && !(counts == TargetCountSupport::Expressed && expressed_target_count_starts(cursor))
+    {
         cursor.rollback(checkpoint);
         return Ok(None);
     }
 
     cursor.enter("target-list.continuation.committed");
-    recognize_target_slot(cursor, true, true).map(Some)
+    recognize_target_slot(cursor, true, true, counts).map(Some)
 }
 
 /// The first-slot target head is shared with targeted-effect parent admission.

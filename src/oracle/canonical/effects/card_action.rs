@@ -185,9 +185,20 @@ impl CardCollectionMemory {
     /// object it became in exile (CR 400.7, 610.3). Returns the binding the
     /// exile primitive must record.
     pub(in crate::oracle::canonical) fn observe_exiled_object(&mut self) -> String {
+        self.observe_exiled_objects(Some(1))
+    }
+
+    /// The cards an exile of declared targets produced (`exile any number
+    /// of target ..., then return those cards`): the same observed exile
+    /// view as one object, with the declaration's maximum when it is a
+    /// literal and no fixed size otherwise.
+    pub(in crate::oracle::canonical) fn observe_exiled_objects(
+        &mut self,
+        maximum: Option<i64>,
+    ) -> String {
         let id = fresh("exiledObject", &mut self.next_view);
         self.allocated_ids.insert(id.clone());
-        self.observe(&id, Some(1));
+        self.observe(&id, maximum);
         self.view_verb = Some(CardCollectionVerb::Exiled);
         self.view_zone = Some(CardZoneName::Exile);
         id
@@ -454,8 +465,19 @@ impl CardCollectionMemory {
                 "minimum":lower_target_cardinality_bound(target.cardinality.minimum),
                 "maximum":lower_target_cardinality_bound(target.cardinality.maximum),
                 "candidates":{"kind":"cards","zone":zone,"where":lower_card_object_predicate(&target.predicate)}});
+            // `another target ... card`: the source card is not a candidate.
+            if target.exclude_source {
+                decision["candidates"]["excludeSource"] = json!(true);
+            }
+            // `any number of target ... cards` (CR 601.2c): the shared count.
+            if target.unbounded {
+                let applied = apply_target_count_to_decision(&mut decision, &target.count());
+                cursor
+                    .require_value(applied, "an unbounded card-target count the IR represents")?;
+            }
             if target.owner == CardTargetZoneOwner::OnePlayer
-                && target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE
+                && (target.unbounded
+                    || target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE)
             {
                 decision["selectionConstraint"] =
                     json!({"kind":"sameZoneOwner","zone":target.zone.ir_name()});
@@ -463,16 +485,38 @@ impl CardCollectionMemory {
             target_decisions.push(decision);
             self.clear_antecedent();
             let maximum = match target.cardinality.maximum {
-                NumericAtom::Integer(value) => Some(value),
+                NumericAtom::Integer(value) if !target.unbounded => Some(value),
                 _ => None,
             };
             return Ok((json!({"kind":"chosenTargets","id":id}), maximum));
         }
         if let CardOperandNode::LibraryTop(top) = operand {
-            cursor.require(
-                top.owner == LocalPlayerReference::Controller,
-                "a supported explicit library owner",
-            )?;
+            let player = match &top.owner {
+                CardLibraryOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
+                CardLibraryOwnerNode::Player(_) => {
+                    return Err(cursor.fail("a supported explicit library owner"));
+                }
+                // `the top N cards of target opponent's library`: the
+                // declared player owns the library the cards are read from.
+                CardLibraryOwnerNode::TargetPlayer(targets) => {
+                    let [slot] = targets.slots.as_slice() else {
+                        return Err(cursor.fail("one library-owner target slot"));
+                    };
+                    let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+                        .ok_or_else(|| {
+                            cursor.fail("a player target selector for the library owner")
+                        })?;
+                    cursor.require(
+                        matches!(slot.selector, TargetSelector::Player(_))
+                            && slot.cardinality == TargetCardinality::EXACTLY_ONE,
+                        "a singular targeted player as library owner",
+                    )?;
+                    let id = fresh("targetZonePlayer", &mut self.next_zone_target);
+                    self.allocated_ids.insert(id.clone());
+                    target_decisions.push(target_decision(&id, candidates, 1, 1));
+                    chosen_target(&id)
+                }
+            };
             let count_ir = lower_targetless_numeric_expression(&top.count, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
             let maximum = match &top.count {
@@ -486,7 +530,7 @@ impl CardCollectionMemory {
             // read these identities, not whatever is on top afterwards.
             effects.push(json!({"kind":"bind", "id":id,
                 "value":{"kind":"libraryTopCards",
-                    "zone":{"kind":"library", "player":controller()}, "count":count_ir}}));
+                    "zone":{"kind":"library", "player":player}, "count":count_ir}}));
             return Ok((bound(&id), maximum));
         }
         if let CardOperandNode::ZoneCollection(query) = operand {
