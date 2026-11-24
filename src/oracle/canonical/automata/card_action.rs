@@ -113,6 +113,24 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
     }
     match try_recognize_card_collection_reference(cursor) {
         CardCollectionReferenceAttempt::Recognized(fragment) => {
+            // `the exiled cards not cast this way`: every member of the
+            // restated collection minus what a preceding cast cast.
+            if matches!(
+                fragment.node,
+                CardCollectionReferenceNode::Antecedent
+                    | CardCollectionReferenceNode::Exiled
+                    | CardCollectionReferenceNode::Revealed
+            ) && recognize_uncast_relative_clause(cursor)?
+            {
+                return Ok(CardOperandNode::Selection(CardSelectionOperandNode {
+                    quantity: CardSelectionQuantityNode::All {
+                        via: None,
+                        except_cast: true,
+                    },
+                    predicate: None,
+                    from: fragment.node,
+                }));
+            }
             return Ok(CardOperandNode::Reference(fragment.node));
         }
         CardCollectionReferenceAttempt::FailedCommitted(failure) => return Err(failure),

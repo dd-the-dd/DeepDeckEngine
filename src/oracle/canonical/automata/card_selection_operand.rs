@@ -39,37 +39,43 @@ pub(in crate::oracle::canonical) struct CardSelectionOperandNode {
     pub from: CardCollectionReferenceNode,
 }
 
-/// `that weren't cast [this way]` after a restated collection: the members
-/// a preceding cast of the program left uncast. Pure lookahead first; the
-/// clause is consumed only when it is complete.
-fn recognize_uncast_relative_clause(trial: &mut OracleTokenCursor<'_>) -> MachineResult<bool> {
+/// `that weren't cast [this way]` / `not cast this way` after a restated
+/// collection: the members a preceding cast of the program left uncast.
+/// Pure lookahead first; the clause is consumed only when it is complete.
+pub(in crate::oracle::canonical) fn recognize_uncast_relative_clause(
+    trial: &mut OracleTokenCursor<'_>,
+) -> MachineResult<bool> {
     let negated_past = |raw: &str| {
         ["weren't", "weren\u{2019}t", "wasn't", "wasn\u{2019}t"]
             .iter()
             .any(|form| raw.eq_ignore_ascii_case(form))
     };
-    if !(trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let relative = word(trial, 0, "that")
         && trial.peek_ahead(1).is_some_and(negated_past)
-        && trial
-            .peek_ahead(2)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("cast")))
-    {
+        && word(trial, 2, "cast");
+    // The reduced form always restates its producer: `not cast this way`.
+    let reduced = word(trial, 0, "not")
+        && word(trial, 1, "cast")
+        && word(trial, 2, "this")
+        && word(trial, 3, "way");
+    if !relative && !reduced {
         return Ok(false);
     }
     trial.enter("collection.selection.uncast-relative");
-    trial.consume("that")?;
-    let negation = trial.peek().unwrap_or_default().to_owned();
-    trial.consume(&negation)?;
+    if relative {
+        trial.consume("that")?;
+        let negation = trial.peek().unwrap_or_default().to_owned();
+        trial.consume(&negation)?;
+    } else {
+        trial.consume("not")?;
+    }
     trial.consume("cast")?;
-    if trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
-        && trial
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("way"))
-    {
+    if word(trial, 0, "this") && word(trial, 1, "way") {
         trial.consume_phrase(&["this", "way"])?;
     }
     Ok(true)

@@ -221,6 +221,38 @@
       }
     },
     {
+      "id": "sibling-uncast-exiled-cards-to-hand",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Exile the top four cards of your library. You may cast a spell from among them without paying its mana cost. Put the exiled cards that weren't cast this way into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "sibling-target-card-from-your-graveyard",
       "request": {
         "cardName": "Hidden Zone Witness",
@@ -313,6 +345,46 @@
               {
                 "pointer": "/effects/2/maximum/value",
                 "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-collected-conjuring-not-cast-this-way",
+      "request": {
+        "cardName": "Collected Conjuring",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Exile the top six cards of your library. You may cast up to two sorcery spells with mana value 3 or less from among them without paying their mana costs. Put the exiled cards not cast this way on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/3/to/position",
+                "equals": "bottom"
               }
             ]
           }
