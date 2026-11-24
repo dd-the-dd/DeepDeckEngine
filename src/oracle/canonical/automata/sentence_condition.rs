@@ -418,6 +418,12 @@ fn read_condition_atom(
     if super::object_event_history_starts(cursor) {
         return super::recognize_object_event_history_atom(cursor);
     }
+    // Compare: an object quantity where it is now (`no creatures are on the
+    // battlefield`, `a Warrior card is in your graveyard`, `three or more
+    // creatures are attacking`).
+    if super::located_quantity_atom_starts(cursor) {
+        return super::recognize_located_quantity_atom(cursor);
+    }
     // ObjectSatisfies: `there are no KIND counters on OBJECT` (CR 122.1).
     if existential_counter_follows(cursor) {
         return recognize_existential_counter_atom(cursor, context)

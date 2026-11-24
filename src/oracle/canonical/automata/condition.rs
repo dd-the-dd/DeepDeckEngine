@@ -869,6 +869,191 @@ pub(in crate::oracle::canonical) fn recognize_action_result_condition_atom(
     }))
 }
 
+/// Where a counted object phrase is stated to be, after its copula.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum LocatedQuantityTail {
+    /// `on the battlefield`: permanents of every player (CR 110.1).
+    Battlefield,
+    /// `in your graveyard`, `in your hand`: the controller's card zone.
+    ControllerZone(super::PlayerCardZone),
+    /// A registered permanent status (`attacking`, `tapped`): battlefield
+    /// permanents in that state.
+    Status(ObjectPredicate),
+}
+
+/// The tail of a located quantity at `offset`, with its width. A status is
+/// claimed only when the clause ends after it (`attacking you` names a
+/// relation this tail does not read).
+fn located_quantity_tail_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(LocatedQuantityTail, usize)> {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + at)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(0, "on") && word(1, "the") && word(2, "battlefield") {
+        return Some((LocatedQuantityTail::Battlefield, 3));
+    }
+    if word(0, "in") && word(1, "your") {
+        if word(2, "graveyard") {
+            return Some((
+                LocatedQuantityTail::ControllerZone(super::PlayerCardZone::Graveyard),
+                3,
+            ));
+        }
+        if word(2, "hand") {
+            return Some((
+                LocatedQuantityTail::ControllerZone(super::PlayerCardZone::Hand),
+                3,
+            ));
+        }
+        return None;
+    }
+    let status = cursor
+        .peek_ahead(offset)
+        .and_then(super::lookup_status_predicate)?;
+    let ends = cursor.peek_ahead(offset + 1).is_none_or(|raw| {
+        matches!(
+            raw.to_ascii_lowercase().as_str(),
+            "," | "." | ";" | "and" | "or"
+        )
+    });
+    ends.then_some((LocatedQuantityTail::Status(status), 1))
+}
+
+/// The offset of the copula of `QUANTITY OBJECTS is|are TAIL` before the end
+/// of the clause. Lexical lookahead only.
+fn located_quantity_copula_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let quantity = cursor.peek().is_some_and(|raw| {
+        ["a", "an", "another", "no", "at", "exactly", "one"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+            || raw.parse::<i64>().is_ok()
+            || super::super::parse_number_word(raw).is_some()
+    });
+    if !quantity {
+        return None;
+    }
+    (1..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            cursor.peek_ahead(*offset).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("is") || raw.eq_ignore_ascii_case("are")
+            }) && located_quantity_tail_at(cursor, offset + 1).is_some()
+        })
+}
+
+/// Lexical lookahead for `QUANTITY OBJECTS is|are on the battlefield|in your
+/// ZONE|STATUS`.
+pub(in crate::oracle::canonical) fn located_quantity_atom_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    located_quantity_copula_offset(cursor).is_some()
+}
+
+/// `no creatures are on the battlefield`, `another creature is on the
+/// battlefield`, `seven or more land cards are in your graveyard`, `a
+/// Warrior card is in your graveyard`, `three or more creatures are
+/// attacking`: `Compare(count(QUERY located there), op, N)`. The object
+/// phrase is the shared object query (permanents of every player unless it
+/// names a controller) or the shared card selector of the controller's
+/// zone; the quantity is the shared threshold (`another` excludes the
+/// source).
+pub(in crate::oracle::canonical) fn recognize_located_quantity_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.located-quantity.quantity");
+    let offset = located_quantity_copula_offset(cursor).ok_or_else(|| {
+        cursor.fail("a counted object phrase followed by `is|are` and a location")
+    })?;
+    let copula = cursor.position() + offset;
+    let plural = cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("are"));
+    let (tail, tail_width) = located_quantity_tail_at(cursor, offset + 1)
+        .ok_or_else(|| cursor.fail("`on the battlefield`, `in your ZONE` or a status"))?;
+    let another = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("another"));
+    let threshold = if another {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        CountThreshold::at_least(1)
+    } else {
+        super::recognize_count_threshold(cursor, true)?
+    };
+    let atom = match &tail {
+        LocatedQuantityTail::ControllerZone(zone) => {
+            let zone = *zone;
+            cursor.enter("condition.located-quantity.cards");
+            cursor.require(!another, "counted cards without `another`")?;
+            let predicate = cursor.bounded(copula, |cursor| {
+                super::recognize_search_card_selector(cursor, plural)
+            })?;
+            ConditionAtom::Compare(ConditionComparison::measured(
+                ConditionPlayerSubject::Controller,
+                PlayerStateMeasure::CardsInZone { zone, predicate },
+                threshold,
+            ))
+        }
+        LocatedQuantityTail::Battlefield | LocatedQuantityTail::Status(_) => {
+            cursor.enter("condition.located-quantity.permanents");
+            let mut query = cursor.bounded(copula, |cursor| {
+                super::recognize_query_excluding_source(cursor, recognize_object_query)
+            })?;
+            cursor.require(
+                !(another && query.exclude_source),
+                "one source exclusion for one object query",
+            )?;
+            query.exclude_source |= another;
+            cursor.require(
+                matches!(
+                    query.controller,
+                    None | Some(super::ObjectControllerScope::AbilityController)
+                        | Some(super::ObjectControllerScope::OpponentOfAbilityController)
+                ),
+                "permanents of every player, of the controller or of the opponents",
+            )?;
+            cursor.require(
+                query.denotes_battlefield_permanents(),
+                "a selector that establishes the permanent domain",
+            )?;
+            let predicate = match &tail {
+                LocatedQuantityTail::Status(status) => {
+                    ObjectPredicate::Intersection(vec![query.predicate, status.clone()])
+                }
+                _ => query.predicate,
+            };
+            let (operator, value) = threshold_comparison(threshold);
+            ConditionAtom::Compare(ConditionComparison {
+                subject: ConditionPlayerSubject::Controller,
+                left: ConditionNumber::Expression(NumericExpression::PermanentCount(Box::new(
+                    super::PermanentCountNode {
+                        predicate,
+                        controller: query.controller,
+                        exclude_source: query.exclude_source,
+                        measure: super::PermanentCountMeasure::Objects,
+                    },
+                ))),
+                operator,
+                right: ConditionNumber::Integer(value),
+            })
+        }
+    };
+    cursor.enter("condition.located-quantity.location");
+    for _ in 0..1 + tail_width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    Ok(atom)
+}
+
 /// Reads `if ATOM,` for a family parent that composes exactly one family.
 /// The atom is read by the shared reader; the family is the allow-list.
 fn recognize_family_envelope(

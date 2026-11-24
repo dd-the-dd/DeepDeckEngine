@@ -771,6 +771,115 @@
           }
         ]
       }
+    },
+    {
+      "id": "real-pestilence-no-creatures-on-the-battlefield",
+      "request": {
+        "cardName": "Pestilence",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.\n{B}: This enchantment deals 1 damage to each creature and each player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "countPermanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "allPlayers": true
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-mortal-combat-cards-in-your-graveyard",
+      "request": {
+        "cardName": "Mortal Combat",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "At the beginning of your upkeep, if twenty or more creature cards are in your graveyard, you win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-vengeful-firebrand-a-card-is-in-your-graveyard",
+      "request": {
+        "cardName": "Vengeful Firebrand",
+        "typeLine": "Creature — Elemental Warrior",
+        "manaCost": "{3}{R}",
+        "oracleText": "This creature has haste as long as a Warrior card is in your graveyard.\n{R}: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-lethargy-trap-three-or-more-creatures-are-attacking",
+      "request": {
+        "cardName": "Lethargy Trap",
+        "typeLine": "Instant — Trap",
+        "manaCost": "{3}{U}",
+        "oracleText": "If three or more creatures are attacking, you may pay {U} rather than pay this spell's mana cost.\nAttacking creatures get -3/-0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }
