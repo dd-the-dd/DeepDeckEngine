@@ -389,8 +389,9 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::ControllerKeywordAction(_) => {
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
+        // Listed or chosen counter kinds are lowered by the effect sequence.
         LocalEffectNode::PutCounters(effect)
-            if effect.direction == CounterChangeDirection::Divided =>
+            if effect.direction == CounterChangeDirection::Divided || !effect.kinds.is_single() =>
         {
             Err(TargetlessLoweringError::UnsupportedEffect)
         }

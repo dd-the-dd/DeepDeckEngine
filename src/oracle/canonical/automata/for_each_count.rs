@@ -652,6 +652,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
     // scaled by the same count; a zero component stays zero (CR 613.4c).
     let affected = match effect {
         LocalEffectNode::ModifyStats(node) => Some(&node.targets),
+        // One count scales one placement; listed or chosen kinds would keep
+        // their own unscaled counts, so they are refused.
+        LocalEffectNode::PutCounters(node) if !node.kinds.is_single() => return false,
         LocalEffectNode::PutCounters(node) => Some(&node.permanent),
         _ => None,
     };

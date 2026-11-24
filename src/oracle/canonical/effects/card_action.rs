@@ -632,6 +632,10 @@ impl CardCollectionMemory {
         if let CardOperandNode::LibraryTop(top) = operand {
             let player = match &top.owner {
                 CardLibraryOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
+                // `that player's library`: the player the event records.
+                CardLibraryOwnerNode::Player(LocalPlayerReference::Bound(
+                    BoundPlayerReference::EventPlayer,
+                )) => json!({"kind":"triggeringPlayer"}),
                 CardLibraryOwnerNode::Player(_) => {
                     return Err(cursor.fail("a supported explicit library owner"));
                 }

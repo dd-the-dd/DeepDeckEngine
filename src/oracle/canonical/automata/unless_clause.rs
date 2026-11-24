@@ -281,6 +281,8 @@ fn recognize_performed_payer(
 fn payer_relative(payment: &PaymentActionNode) -> bool {
     let chosen_relative = |objects: &PaymentObjectsNode| match objects {
         PaymentObjectsNode::Source(_) => false,
+        // `your hand`, `your library`, `your graveyard`: the payer's zones.
+        PaymentObjectsNode::Designated(_) => true,
         PaymentObjectsNode::Chosen(chosen) => match &chosen.filter {
             PaymentObjectFilter::Permanents(object) => object.controller.is_none(),
             PaymentObjectFilter::Cards(_) => true,

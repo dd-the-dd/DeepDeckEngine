@@ -16,9 +16,9 @@ use super::{
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
-    recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
-    recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
-    recognize_set_ability_loss_effect, recognize_source_zone_move_effect, recognize_surveil_effect,
+    recognize_ordinary_sacrifice_effect, recognize_quantified_player_action,
+    recognize_referenced_draw_effect, recognize_scry_effect, recognize_set_ability_loss_effect,
+    recognize_source_zone_move_effect, recognize_surveil_effect,
     recognize_target_card_zone_change_effect, recognize_transform_source_effect,
     recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
@@ -2938,7 +2938,8 @@ fn recognize_put_frame(
             .map(LocalEffectNode::TargetCardZoneChange);
     }
     if claims_put_counters_effect(cursor) {
-        return recognize_put_counters_effect(
+        // The effect sequence lowers listed and chosen counter kinds.
+        return super::recognize_put_counter_placements_effect(
             cursor,
             inputs.name_links,
             inputs.name_failure,

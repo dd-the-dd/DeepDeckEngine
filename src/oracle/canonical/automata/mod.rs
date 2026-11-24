@@ -1668,6 +1668,9 @@ pub(in crate::oracle::canonical) struct PutCountersOnObjectEffectNode {
     pub counter: crate::oracle::counter_name::CounterName,
     pub count: NumericExpression,
     pub direction: CounterChangeDirection,
+    /// Further placements of the same action, or a choice among kinds
+    /// (`put_counters.rs`); `Single` is exactly `count` `counter` counters.
+    pub kinds: CounterKindsNode,
 }
 
 /// CR 122.5: moving counters removes them from one object and puts them on

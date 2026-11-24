@@ -37,8 +37,43 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
         Some("millCards") => {
             Some(integer_value(&cost["count"]).is_some_and(|count| (1..=64).contains(&count)))
         }
+        // CR 701.9a: the payer discards every card in their hand; an empty
+        // hand pays it.
+        Some("discardHand") => Some(cost.get("player").is_none_or(player_reference_supported)),
+        // CR 401.2: the payer's top N library cards are exiled (all N must
+        // be there, CR 118.3).
+        Some("exileTopLibraryCards") => Some(
+            cost.get("player").is_none_or(player_reference_supported)
+                && integer_value(&cost["count"]).is_some_and(|count| (1..=64).contains(&count)),
+        ),
+        // CR 301.5a, 303.4a: the permanent the source is attached to.
+        Some(ATTACHED_TAP_COST | ATTACHED_SACRIFICE_COST) => Some(true),
         _ => None,
     }
+}
+
+/// `tap enchanted|equipped NOUN` as a cost.
+const ATTACHED_TAP_COST: &str = "tapAttachedPermanent";
+/// `sacrifice enchanted|equipped NOUN` as a cost.
+const ATTACHED_SACRIFICE_COST: &str = "sacrificeAttachedPermanent";
+
+/// The designated-object costs this module pays without a declaration.
+const DESIGNATED_COSTS: [&str; 4] = [
+    "discardHand",
+    "exileTopLibraryCards",
+    ATTACHED_TAP_COST,
+    ATTACHED_SACRIFICE_COST,
+];
+
+fn designated_library_cards(rule: &Value) -> i64 {
+    rule["costs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|cost| matches!(value_kind(cost), Some("millCards" | "exileTopLibraryCards")))
+        .filter_map(|cost| integer_value(&cost["count"]))
+        .map(i64::from)
+        .sum::<i64>()
 }
 
 /// The quantity of a `chooseObjects` declaration: an exact positive literal,
@@ -332,14 +367,8 @@ impl GameEngine {
             return false;
         };
         let player = &self.state.players[player_index];
-        let mill = rule["costs"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|cost| value_kind(cost) == Some("millCards"))
-            .filter_map(|cost| integer_value(&cost["count"]))
-            .map(i64::from)
-            .sum::<i64>();
+        // Milled and exiled top cards both come from the payer's library.
+        let mill = designated_library_cards(rule);
         let reveals_source = rule["costs"].as_array().into_iter().flatten().any(|cost| {
             value_kind(cost) == Some("revealCard") && value_kind(&cost["card"]) == Some("self")
         });
@@ -349,6 +378,115 @@ impl GameEngine {
                     .hand
                     .iter()
                     .any(|card| card.instance_id == source_instance_id))
+            && self.attached_costs_are_payable(rule, controller_id, source_instance_id)
+    }
+
+    /// The permanent the source is attached to (CR 301.5a, 303.4a), if any.
+    fn cost_source_attachment(&self, source_instance_id: &str) -> Option<String> {
+        let (player_index, card_index) = self.permanent_position(source_instance_id)?;
+        self.state.players[player_index].battlefield[card_index]
+            .attached_to
+            .clone()
+    }
+
+    /// An attached-permanent cost needs that permanent on the battlefield,
+    /// controlled by the payer, untapped for a tap cost and sacrificeable
+    /// for a sacrifice cost (CR 118.3, 701.21a).
+    fn attached_costs_are_payable(
+        &self,
+        rule: &Value,
+        controller_id: &str,
+        source_instance_id: &str,
+    ) -> bool {
+        let costs = rule["costs"].as_array().into_iter().flatten();
+        let mut kinds = costs
+            .filter_map(|cost| value_kind(cost))
+            .filter(|kind| matches!(*kind, ATTACHED_TAP_COST | ATTACHED_SACRIFICE_COST))
+            .peekable();
+        if kinds.peek().is_none() {
+            return true;
+        }
+        let Some(attached) = self.cost_source_attachment(source_instance_id) else {
+            return false;
+        };
+        let Some((player_index, card_index)) = self.permanent_position(&attached) else {
+            return false;
+        };
+        let permanent = &self.state.players[player_index].battlefield[card_index];
+        permanent.controller == controller_id
+            && kinds.all(|kind| match kind {
+                ATTACHED_TAP_COST => !permanent.tapped,
+                _ => self.permanent_can_be_sacrificed(permanent),
+            })
+    }
+
+    /// Pays the designated-object costs: the payer's whole hand, the payer's
+    /// top library cards, and the permanent the source is attached to. Each
+    /// object is re-read at payment; a missing one refuses the payment.
+    fn pay_designated_object_costs(
+        &mut self,
+        action: &LegalAction,
+        costs: &[Value],
+        source_id: &str,
+    ) -> Result<(), EngineError> {
+        let player_index = self.player_index(&action.player_id)?;
+        for cost in costs {
+            match value_kind(cost) {
+                Some("discardHand") => {
+                    // CR 701.9a: every card in the hand when the cost is paid.
+                    let hand = self.state.players[player_index]
+                        .hand
+                        .iter()
+                        .map(|card| card.instance_id.clone())
+                        .collect::<Vec<_>>();
+                    for instance_id in hand {
+                        self.discard_card_as_cost(&action.player_id, &instance_id)?;
+                    }
+                }
+                Some("exileTopLibraryCards") => {
+                    let count = integer_value(&cost["count"])
+                        .and_then(|count| usize::try_from(count).ok())
+                        .ok_or_else(|| EngineError::new("library exile cost has no count"))?;
+                    if self.state.players[player_index].library.len() < count {
+                        return Err(EngineError::new(
+                            "the payer's library cannot pay the exile cost",
+                        ));
+                    }
+                    for _ in 0..count {
+                        // The library's top card is its last element.
+                        let top = self.state.players[player_index].library.len() - 1;
+                        let card =
+                            self.take_zone_card_for_movement(player_index, "library", top)?;
+                        self.put_owned_card_into_exile(player_index, card)?;
+                    }
+                }
+                Some(kind @ (ATTACHED_TAP_COST | ATTACHED_SACRIFICE_COST)) => {
+                    let attached = self.cost_source_attachment(source_id).ok_or_else(|| {
+                        EngineError::new("the cost source is attached to no permanent")
+                    })?;
+                    let (owner_index, card_index) =
+                        self.permanent_position(&attached).ok_or_else(|| {
+                            EngineError::new("the attached cost permanent left the battlefield")
+                        })?;
+                    let permanent = &self.state.players[owner_index].battlefield[card_index];
+                    if permanent.controller != action.player_id {
+                        return Err(EngineError::new(
+                            "the attached permanent is not controlled by the payer",
+                        ));
+                    }
+                    if kind == ATTACHED_TAP_COST {
+                        let tapped = self.tap_permanent(&attached)?.ok_or_else(|| {
+                            EngineError::new("a tapped permanent cannot pay a tap cost")
+                        })?;
+                        self.enqueue_permanent_tapped_triggers(&tapped);
+                    } else {
+                        self.move_permanent_to_graveyard(&attached, "sacrificed")?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
     }
 
     /// Every object of one declared choice (`id` or `id:index`), each once.
@@ -450,7 +588,7 @@ impl GameEngine {
                 matches!(
                     value_kind(cost),
                     Some("revealCard" | "millCards" | "exert" | "chosenObjectsCost")
-                )
+                ) || value_kind(cost).is_some_and(|kind| DESIGNATED_COSTS.contains(&kind))
             })
             .cloned()
             .collect::<Vec<_>>();
@@ -533,6 +671,7 @@ impl GameEngine {
         {
             self.pay_chosen_objects_cost(action, cost)?;
         }
+        self.pay_designated_object_costs(action, &costs, &source_id)?;
         if mill > 0 {
             self.mill_cards(&action.player_id, mill, Some(&action.player_id))?;
         }

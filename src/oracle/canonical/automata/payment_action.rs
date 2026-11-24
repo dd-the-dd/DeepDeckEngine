@@ -137,6 +137,26 @@ pub(in crate::oracle::canonical) enum PaymentObjectsNode {
     Source(PaymentSourceNoun),
     /// Objects the payer chooses while paying (never targets).
     Chosen(ChosenPaymentObjectsNode),
+    /// Objects the text determines without a choice: a whole zone, a zone
+    /// position or the permanent the source is attached to.
+    Designated(DesignatedPaymentObjects),
+}
+
+/// Objects a cost names by their place rather than by a choice. The verb
+/// frame decides which of them it can perform its action on.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DesignatedPaymentObjects {
+    /// `your hand`: every card in the payer's hand (CR 701.9a, 402.1).
+    Hand,
+    /// `the top card of your library` / `the top N cards of your library`
+    /// (CR 401.2): a literal number of the payer's top library cards.
+    LibraryTop { count: i64 },
+    /// `the top [PREDICATE] card of your graveyard` (CR 404.2: the order of
+    /// a graveyard is kept): the latest card put there that matches.
+    GraveyardTop { filter: ObjectPredicate },
+    /// `enchanted NOUN` / `equipped creature`: the permanent the source is
+    /// attached to (CR 301.5a, 303.4a).
+    Attached(super::AttachedObjectRole),
 }
 
 /// The object domain a source reference names. The shared reference reader
@@ -323,7 +343,8 @@ impl PaymentActionNode {
         };
         match objects {
             PaymentObjectsNode::Source(PaymentSourceNoun::TapSymbol)
-            | PaymentObjectsNode::Chosen(_) => None,
+            | PaymentObjectsNode::Chosen(_)
+            | PaymentObjectsNode::Designated(_) => None,
             PaymentObjectsNode::Source(noun) => Some(*noun),
         }
     }
@@ -410,6 +431,14 @@ fn recognize_listed_payment_action(
         }
         (VerbLemma::Exile, _) => {
             let objects = objects(cursor, PaymentVerb::Exile)?;
+            if matches!(objects, PaymentObjectsNode::Designated(_)) {
+                // A zone position already names its zone (`the top card of
+                // your library`): no further origin is read.
+                return Ok(PaymentActionNode::Exile {
+                    objects,
+                    origin: None,
+                });
+            }
             cursor.enter("cost.payment.exile.origin");
             let origin = recognize_optional_origin_zone(cursor)?;
             cursor.require(
@@ -552,7 +581,122 @@ fn recognize_payment_objects(
         )
         .map(PaymentObjectsNode::Source);
     }
+    if let Some(designated) = recognize_designated_objects(cursor, verb)? {
+        return Ok(PaymentObjectsNode::Designated(designated));
+    }
     recognize_chosen_objects(cursor, verb).map(PaymentObjectsNode::Chosen)
+}
+
+/// Objects named by their place: `your hand`, `the top [N] card(s) of your
+/// library`, `the top [PREDICATE] card of your graveyard`, `enchanted NOUN`.
+/// `None` consumes nothing: the chosen-object quantity reads the operand.
+/// Once its head is read the phrase is committed; the verb decides which
+/// place it can act on, so `exile your hand` fails at the verb's operand.
+fn recognize_designated_objects(
+    cursor: &mut OracleTokenCursor<'_>,
+    verb: PaymentVerb,
+) -> MachineResult<Option<DesignatedPaymentObjects>> {
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(cursor, 0, "your") && word(cursor, 1, "hand") {
+        cursor.enter("cost.payment.designated.hand");
+        cursor.require(
+            verb == PaymentVerb::Discard,
+            "`discard` for the payer's whole hand",
+        )?;
+        cursor.consume_phrase(&["your", "hand"])?;
+        return Ok(Some(DesignatedPaymentObjects::Hand));
+    }
+    if word(cursor, 0, "the") && word(cursor, 1, "top") {
+        cursor.enter("cost.payment.designated.zone-top");
+        cursor.require(
+            verb == PaymentVerb::Exile,
+            "`exile` for the top cards of a zone",
+        )?;
+        return recognize_zone_top_objects(cursor).map(Some);
+    }
+    if super::attached_object_reference_starts(cursor) {
+        cursor.enter("cost.payment.designated.attached");
+        cursor.require(
+            matches!(verb, PaymentVerb::Tap | PaymentVerb::Sacrifice),
+            "`tap` or `sacrifice` for the permanent the source is attached to",
+        )?;
+        let role = if word(cursor, 0, "equipped") {
+            super::AttachedObjectRole::Equipped
+        } else {
+            super::AttachedObjectRole::Enchanted
+        };
+        // The shared attached-object reader validates the nominal for the
+        // role (`equipped creature`, `enchanted permanent|land|creature`).
+        super::recognize_attached_object_reference(cursor, Some(role))?;
+        return Ok(Some(DesignatedPaymentObjects::Attached(role)));
+    }
+    Ok(None)
+}
+
+/// `the top card of your library`, `the top N cards of your library`, `the
+/// top [PREDICATE] card of your graveyard`: the quantity, an optional card
+/// predicate and the zone are independent slots; the zone decides which
+/// combination it has (a library's top cards are counted, a graveyard's
+/// top card is the latest one matching the predicate).
+fn recognize_zone_top_objects(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<DesignatedPaymentObjects> {
+    cursor.consume_phrase(&["the", "top"])?;
+    cursor.enter("cost.payment.zone-top.quantity");
+    let (count, filter) = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("card"))
+    {
+        cursor.consume("card")?;
+        (1, None)
+    } else if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
+    {
+        let NumericAtom::Integer(count) = super::recognize_numeric_atom(cursor)? else {
+            return Err(cursor.fail("a literal number of top cards"));
+        };
+        cursor.require(count > 1, "a literal number of top cards above one")?;
+        cursor.enter("cost.payment.zone-top.noun");
+        cursor.consume("cards")?;
+        (count, None)
+    } else {
+        cursor.enter("cost.payment.zone-top.predicate");
+        let filter = recognize_search_card_selector(cursor, false)?;
+        cursor.require(
+            filter.supports_domain(ObjectKind::Card),
+            "a card predicate for the top card of a zone",
+        )?;
+        (1, Some(filter))
+    };
+    cursor.enter("cost.payment.zone-top.zone");
+    cursor.consume_phrase(&["of", "your"])?;
+    match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        Some("library") => {
+            cursor.consume("library")?;
+            cursor.enter("cost.payment.zone-top.library");
+            // A library is hidden: its top cards are counted, never matched
+            // against a predicate before they are seen.
+            cursor.require(
+                filter.is_none(),
+                "the top cards of a library without a card predicate",
+            )?;
+            Ok(DesignatedPaymentObjects::LibraryTop { count })
+        }
+        Some("graveyard") => {
+            cursor.consume("graveyard")?;
+            cursor.enter("cost.payment.zone-top.graveyard");
+            cursor.require(count == 1, "the one top card of a graveyard")?;
+            Ok(DesignatedPaymentObjects::GraveyardTop {
+                filter: filter.unwrap_or(ObjectPredicate::ObjectKind(ObjectKind::Card)),
+            })
+        }
+        _ => Err(cursor.fail("`library` or `graveyard` after `of your`")),
+    }
 }
 
 /// The card's own name at the cursor, linked by the name resolver and
