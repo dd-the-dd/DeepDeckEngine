@@ -97,6 +97,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         }
         LocalEffectNode::CardAction(action) => match action {
             CardActionNode::Look { .. }
+            | CardActionNode::LookAt(_)
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
