@@ -9,7 +9,7 @@
 //!                                          retrace, jump-start)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
-//!                                          emerge)
+//!                                          emerge, sneak)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
@@ -65,6 +65,8 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Prototype,
     /// CR 702.81a.
     Retrace,
+    /// CR 702.190a.
+    Sneak,
     Spectacle,
     Surge,
     Teamwork,
@@ -246,6 +248,18 @@ const DEFINITIONS: &[Definition] = &[
         parameter: Parameter::None,
         reminders: &[
             "You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Sneak,
+        lexeme: "sneak",
+        rules_section: "702.190a",
+        parameter: Parameter::Mana,
+        reminders: &[
+            "You may cast this spell for $cost if you also return an unblocked attacker you control to hand during the declare blockers step.",
+            "You may cast this spell for $cost if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.",
+            "You may cast this spell for $cost if you also return an unblocked attacker you control to hand during the declare blockers step. She enters tapped and attacking.",
+            "You may cast this spell for $cost if you also return an unblocked attacker you control to hand during the declare blockers step. It enters tapped and attacking.",
         ],
     },
     Definition {

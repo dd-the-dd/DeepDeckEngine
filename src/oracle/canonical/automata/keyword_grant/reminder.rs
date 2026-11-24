@@ -56,6 +56,8 @@ enum ParameterlessReminderSchema {
     /// CR 702.44a reminder: the counter kind follows the named subject type.
     Sunburst,
     Undying,
+    /// CR 702.116a reminder: the attack trigger names the keyword's holder.
+    Myriad,
 }
 
 fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
@@ -84,6 +86,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Landwalk(_) => "landwalk",
         GrantedKeyword::Lifelink => "lifelink",
         GrantedKeyword::Menace => "menace",
+        GrantedKeyword::Myriad => "myriad",
         GrantedKeyword::Prowess => "prowess",
         GrantedKeyword::Persist => "persist",
         GrantedKeyword::Reach => "reach",
@@ -446,6 +449,7 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
         ]),
         GrantedKeyword::Persist => ParameterlessReminderSchema::Persist,
         GrantedKeyword::Sunburst => ParameterlessReminderSchema::Sunburst,
+        GrantedKeyword::Myriad => ParameterlessReminderSchema::Myriad,
         GrantedKeyword::Reach => ParameterlessReminderSchema::SubjectPredicate {
             subject_type: ObjectCardType::Creature,
             predicate: &["can", "block", "creatures", "with", "flying", "."],
@@ -842,6 +846,88 @@ fn recognize_sunburst_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineRes
     )
 }
 
+/// CR 702.116a: `Whenever HOLDER attacks, for each opponent other than
+/// defending player, you may create a token copy that's tapped and
+/// attacking that player or a planeswalker they control. Exile the tokens at
+/// end of combat.` The holder is the keyword's own creature (`this
+/// creature`), the pronoun of the one object an effect grants it to (`it`),
+/// or the generic holder of a granted or collection keyword (`a creature
+/// with myriad`).
+fn recognize_myriad_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: KeywordReminderSubjectContext<'_>,
+) -> MachineResult<()> {
+    cursor.enter("keyword.myriad.reminder.trigger");
+    cursor.consume("Whenever")?;
+    cursor.enter("keyword.myriad.reminder.holder");
+    let generic_holder = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("a"));
+    match context {
+        KeywordReminderSubjectContext::SelfObject => {
+            cursor.consume_phrase(&["this", "creature"])?;
+        }
+        KeywordReminderSubjectContext::GrantedObjects { plural, keyword } => {
+            if generic_holder {
+                recognize_generic_keyword_holder(cursor, ObjectCardType::Creature, keyword)?;
+            } else {
+                cursor.require(
+                    !plural,
+                    "`a creature with myriad` naming plural granted objects",
+                )?;
+                cursor.consume("it")?;
+            }
+        }
+        KeywordReminderSubjectContext::BoundCollection(predicate) => {
+            cursor.consume_phrase(&["a", "creature", "with", "myriad"])?;
+            cursor.enter("keyword.myriad.reminder.holder-binding");
+            cursor.require(
+                collection_implies_type(predicate, ObjectCardType::Creature),
+                "a reminder subject implied by every object in the bound collection",
+            )?;
+        }
+    }
+    cursor.enter("keyword.myriad.reminder.copies");
+    consume_exact_tokens(
+        cursor,
+        &[
+            "attacks",
+            ",",
+            "for",
+            "each",
+            "opponent",
+            "other",
+            "than",
+            "defending",
+            "player",
+            ",",
+            "you",
+            "may",
+            "create",
+            "a",
+            "token",
+            "copy",
+            "that's",
+            "tapped",
+            "and",
+            "attacking",
+            "that",
+            "player",
+            "or",
+            "a",
+            "planeswalker",
+            "they",
+            "control",
+            ".",
+        ],
+    )?;
+    cursor.enter("keyword.myriad.reminder.exile");
+    consume_exact_tokens(
+        cursor,
+        &["Exile", "the", "tokens", "at", "end", "of", "combat", "."],
+    )
+}
+
 /// A bound reminder noun must hold for every branch of its antecedent.
 /// Negative adjectives do not establish a positive nominal identity.
 fn collection_implies_type(predicate: &ObjectPredicate, card_type: ObjectCardType) -> bool {
@@ -1077,6 +1163,7 @@ fn recognize_reminder_schema(
             )?;
             recognize_sunburst_reminder(cursor)?;
         }
+        ParameterlessReminderSchema::Myriad => recognize_myriad_reminder(cursor, context)?,
     }
     Ok(())
 }

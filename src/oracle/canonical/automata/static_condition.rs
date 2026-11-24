@@ -255,6 +255,16 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
         );
     }
     cursor.enter("condition.static.controller-history.designation");
+    // CR 702.131c: `you have the city's blessing`.
+    if word_is(cursor, 0, "the") && contraction_is(cursor, 1, "city", "s") {
+        cursor.consume("the")?;
+        consume_current(cursor)?;
+        cursor.consume("blessing")?;
+        return Ok(ConditionAtom::PlayerDesignation(PlayerDesignationNode {
+            designation: PlayerDesignation::CityBlessing,
+            held: true,
+        }));
+    }
     cursor.consume("an")?;
     cursor.consume("enduring")?;
     cursor.consume("story")?;

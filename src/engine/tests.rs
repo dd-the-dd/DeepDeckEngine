@@ -336,6 +336,9 @@ mod graveyard_source_return_runtime;
 #[path = "tests/keyword_template_crew_runtime.rs"]
 mod keyword_template_crew_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_rows_runtime.rs"]
+mod keyword_template_rows_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
 #[path = "tests/numeric_expression_runtime.rs"]

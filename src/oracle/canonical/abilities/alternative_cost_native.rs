@@ -510,6 +510,34 @@ fn lower_casting_keyword(
                 None,
             )
         }
+        // CR 702.190a: pay [cost] and return an unblocked creature you
+        // control rather than the mana cost, any time an instant could be
+        // cast during your declare blockers step.
+        CastingKeyword::Sneak => {
+            cursor.require(
+                face_type_line
+                    .split(|character: char| !character.is_alphanumeric())
+                    .any(|word| word.eq_ignore_ascii_case("instant")),
+                "an instant face for sneak (a sneak permanent or sorcery spell needs the declare-blockers cast timing and the attacking entry of CR 702.190b, which the casting runtime lacks)",
+            )?;
+            lower_alternative_cast_permission(
+                Some("sneak"),
+                vec![
+                    keyword_mana(cursor, node, "a sneak mana cost")?,
+                    alternative_return_payment(&ObjectPredicate::Intersection(vec![
+                        ObjectPredicate::CardType(ObjectCardType::Creature),
+                        ObjectPredicate::Status(ObjectStatus::Unblocked),
+                    ])),
+                ],
+                Some(json!({
+                    "kind": "and",
+                    "operands": [
+                        { "kind": "duringControllerTurn", "player": controller() },
+                        { "kind": "duringSteps", "steps": ["declareBlockers"] },
+                    ],
+                })),
+            )
+        }
         CastingKeyword::Escape => escape_ability(cursor, node)?,
         // The runtime owns blitz's haste, dies-draw and delayed sacrifice
         // (CR 702.152a); it pays a mana blitz cost only.
