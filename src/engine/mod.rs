@@ -204,6 +204,7 @@ mod player_damage_replacement_order;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
+mod player_static_modifiers;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -5297,6 +5298,12 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
     if let Some(supported) = quantity_replacement::quantity_modifier_supported(modifier) {
         return supported;
     }
+    if let Some(supported) = player_static_modifiers::modifier_supported(modifier) {
+        return supported;
+    }
+    if let Some(supported) = GameEngine::static_keyword_loss_supported(modifier) {
+        return supported;
+    }
     if value_kind(modifier) == Some("replaceDamage") {
         return damage_replacement::damage_replacement_modifier_supported(modifier);
     }
@@ -7633,6 +7640,7 @@ impl GameEngine {
             .battlefield_static_modifiers()
             .iter()
             .any(|(_, modifier)| value_kind(modifier) == Some("preventPlayersDrawCards"));
+        let draw_prevented = draw_prevented || self.static_draw_limit_reached(player_id);
         if draw_prevented {
             self.record_event(
                 "cardDrawPrevented",
@@ -10308,6 +10316,9 @@ impl GameEngine {
         if self.keyword_removed_by_resolved_effect(permanent, keyword) {
             return false;
         }
+        if self.static_keyword_loss_applies(permanent, keyword) {
+            return false;
+        }
         let keyword_counter = match keyword {
             "doubleStrike" => Some("double strike"),
             "firstStrike" => Some("first strike"),
@@ -10604,11 +10615,7 @@ impl GameEngine {
     }
 
     fn player_has_battlefield_static_modifier(&self, player_id: &str, modifier_kind: &str) -> bool {
-        self.battlefield_static_modifiers()
-            .iter()
-            .any(|(source, modifier)| {
-                source.controller == player_id && value_kind(modifier) == Some(modifier_kind)
-            })
+        self.player_static_modifier_present(player_id, modifier_kind)
     }
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
@@ -11715,7 +11722,8 @@ impl GameEngine {
             .battlefield_static_modifiers()
             .iter()
             .filter(|(source, modifier)| {
-                source.controller == player_id && value_kind(modifier) == Some("additionalLandPlay")
+                value_kind(modifier) == Some("additionalLandPlay")
+                    && self.static_population_includes(source, &modifier["player"], player_id)
             })
             .filter_map(|(_, modifier)| integer_value(&modifier["count"]))
             .fold(0_i32, i32::saturating_add);
@@ -12017,17 +12025,7 @@ impl GameEngine {
                 .battlefield_static_modifiers()
                 .iter()
                 .any(|(source, modifier)| {
-                    value_kind(modifier) == Some("prohibitCast")
-                        && self.event_player_reference_matches(
-                            &modifier["duringTurnOf"],
-                            source,
-                            active_player_id,
-                        )
-                        && self.event_player_reference_matches(
-                            &modifier["players"],
-                            source,
-                            player_id,
-                        )
+                    self.static_cast_prohibition_applies(source, modifier, player_id, None)
                 })
             || (matches!(
                 self.state.step,
@@ -12055,6 +12053,9 @@ impl GameEngine {
     }
 
     fn card_casting_prohibited(&self, player_id: &str, card: &CardDefinition) -> bool {
+        if self.static_card_cast_prohibited(player_id, card) {
+            return true;
+        }
         if card.printed_rules().iter().any(|rule| {
             value_kind(rule) == Some("rulesMarker")
                 && rule["cantCastThroughTurn"]
@@ -12094,8 +12095,9 @@ impl GameEngine {
             || self
                 .battlefield_static_modifiers()
                 .iter()
-                .any(|(_, modifier)| {
+                .any(|(source, modifier)| {
                     value_kind(modifier) == Some("castLimitPerTurn")
+                        && self.static_population_includes(source, &modifier["players"], player_id)
                         && matches_card_filter(card, &modifier["where"])
                         && integer_value(&modifier["maximum"]).is_some_and(|maximum| {
                             self.state
@@ -12443,10 +12445,8 @@ impl GameEngine {
                                 .flatten()
                                 .any(|modifier| {
                                     value_kind(modifier) == Some("prohibitActivation")
-                                        && self.activation_source_filter_matches(
-                                            source,
-                                            permanent,
-                                            &modifier["abilities"]["sourceWhere"],
+                                        && self.static_activation_prohibition_scope_matches(
+                                            source, rule, modifier, permanent,
                                         )
                                         && (modifier["abilities"]["where"].is_null()
                                             || value_kind(&modifier["abilities"]["where"])
@@ -17431,7 +17431,11 @@ impl GameEngine {
         )
         .unwrap_or(i32::MAX);
         let land_play_limit = 1_i32.saturating_add(self.additional_land_play_count(&player.id));
-        if active_main && self.state.stack.is_empty() && land_plays_used < land_play_limit {
+        if active_main
+            && self.state.stack.is_empty()
+            && land_plays_used < land_play_limit
+            && !self.player_action_prohibited(&player.id, "playLand")
+        {
             let land_sources = card_sources.iter().flat_map(|(card, source_zone)| {
                 let faces = split_face_definitions(&card.definition);
                 if faces.is_empty() {
@@ -36267,16 +36271,7 @@ impl GameEngine {
                 remain_tapped.insert(instance_id);
             }
         }
-        let other_untap_ids = self
-            .battlefield_static_modifiers()
-            .into_iter()
-            .filter(|(source, modifier)| {
-                source.controller != active_player_id
-                    && source.tapped
-                    && value_kind(modifier) == Some("untapDuringOtherPlayersUntap")
-            })
-            .map(|(source, _)| source.instance_id)
-            .collect::<Vec<_>>();
+        let other_untap_ids = self.static_other_player_untap_ids(&active_player_id);
         let mut attempted_other_untaps = BTreeSet::new();
         for instance_id in other_untap_ids {
             if attempted_other_untaps.insert(instance_id.clone()) {
@@ -36333,6 +36328,7 @@ impl GameEngine {
             .filter(|permanent| !remain_tapped.contains(&permanent.instance_id))
             .map(|permanent| permanent.instance_id.clone())
             .collect::<Vec<_>>();
+        let candidates = self.apply_static_untap_limits(provider, &active_player_id, candidates)?;
         let mut untapped_permanent_ids = Vec::new();
         for instance_id in candidates {
             if self.attempt_untap_permanent(&instance_id)
@@ -38025,6 +38021,8 @@ impl GameEngine {
         } else {
             configured_maximum_hand_size.unwrap_or(self.state.players[active].max_hand_size)
         };
+        let maximum_hand_size =
+            self.static_adjusted_maximum_hand_size(&active_player_id, maximum_hand_size);
         while self.state.players[active].hand.len() > maximum_hand_size {
             let player_id = self.state.players[active].id.clone();
             let options = self.state.players[active]

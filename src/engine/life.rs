@@ -18,7 +18,8 @@ pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
 }
 
 /// Player sets a static `prohibitPlayerAction` may name, relative to its
-/// source: you, its controller, each player, or the opponents of one of them.
+/// source: you, its controller, each player, the controller of the permanent
+/// it is attached to, or the opponents of one of them.
 pub(super) fn prohibited_player_set_supported(reference: &Value) -> bool {
     match value_kind(reference) {
         Some("abilityController" | "eachPlayer") => true,
@@ -26,14 +27,18 @@ pub(super) fn prohibited_player_set_supported(reference: &Value) -> bool {
             value_kind(&reference["object"]),
             Some("self" | "abilitySource")
         ),
+        Some("controllerOfAttachedPermanent") => {
+            value_kind(&reference["attachment"]) == Some("self")
+        }
         Some("opponentsOf") => prohibited_player_set_supported(&reference["player"]),
         _ => false,
     }
 }
 
-/// Player actions a static prohibition can forbid (CR 119.8 for life gain).
+/// Player actions a static prohibition can forbid: gaining life (CR 119.8)
+/// and playing lands (CR 305.1), each checked where the action happens.
 pub(super) fn prohibited_player_action_supported(action: &Value) -> bool {
-    matches!(action.as_str(), Some("gainLife"))
+    matches!(action.as_str(), Some("gainLife" | "playLand"))
 }
 
 /// Validates direct `gainLife` and `loseLife` IR nodes.
