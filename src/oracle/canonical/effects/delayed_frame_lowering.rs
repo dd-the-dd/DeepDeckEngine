@@ -442,9 +442,13 @@ fn lower_next_damage_shield(
     require_this_turn(cursor, shield.lifetime)?;
     let event = &shield.event;
     cursor.enter("lower.next-damage.recipient");
+    // `would deal damage to you` names the protected player; without a
+    // recipient the shield covers the source's next damage to anything.
+    let protects_controller =
+        event.recipients == [DamageEventRecipient::Player(DamagePlayerRecipient::You)];
     cursor.require(
-        event.recipients == [DamageEventRecipient::Player(DamagePlayerRecipient::You)],
-        "you as the protected recipient of the next damage",
+        protects_controller || event.recipients.is_empty(),
+        "you or no recipient for the next damage",
     )?;
     cursor.enter("lower.next-damage.amount-guard");
     cursor.require(
@@ -481,11 +485,13 @@ fn lower_next_damage_shield(
         "kind": "preventDamage",
         "amount": {"kind": "all"},
         "combatOnly": combat_only,
-        "recipient": controller(),
         "sourceChoice": {"where": filter},
         "nextTimeOnly": true,
         "duration": {"kind": "untilEndOfCurrentTurn"},
     });
+    if protects_controller {
+        shield["recipient"] = controller();
+    }
     // CR 614.9: the same once-only shield redirects instead of preventing.
     if let Some(redirect) = governed[0].get("redirectTo") {
         shield["redirectTo"] = redirect.clone();

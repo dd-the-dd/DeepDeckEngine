@@ -1923,6 +1923,16 @@ fn lower_local_effect_sequence_with_collections(
                 let recipients = match &damage.recipient {
                     DamageRecipientNode::Targets(targets) => {
                         cursor.enter("lower.damage.object-source.recipient");
+                        // `other` names the object dealing the damage; the
+                        // shared slot marks exclude the ability source and
+                        // earlier targets, never an attached object.
+                        cursor
+                            .require(
+                                source["kind"].as_str() != Some("attachedPermanent")
+                                    || targets.slots.iter().all(|slot| !slot.exclude_source),
+                                "an `other` recipient relation to the attached damage source",
+                            )
+                            .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
                         let (base_id, candidates, minimum, maximum) = lower_single_target(targets);
                         let ordinal = used_target_base_ids
                             .iter()
