@@ -411,7 +411,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
         {
             trial.consume("the")?;
         }
-        let position = if surface
+        let mut position = if surface
             && trial.peek().is_some_and(|raw| {
                 raw.eq_ignore_ascii_case("top") || raw.eq_ignore_ascii_case("bottom")
             }) {
@@ -526,6 +526,11 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             !origin_library || zone == CardZoneName::Library,
             "`that` naming a library",
         )?;
+        if zone == CardZoneName::Library && position.is_none() {
+            // `into its owner's library second from the top`: the shared
+            // library-position child reads a place beneath the top cards.
+            position = super::collection::try_recognize_beneath_top_position(&mut trial)?;
+        }
         let mut modifiers = EntryModifiers::new(owner);
         if matches!(zone, CardZoneName::Battlefield | CardZoneName::Exile) {
             recognize_entry_modifiers(&mut trial, zone, &mut modifiers)?;

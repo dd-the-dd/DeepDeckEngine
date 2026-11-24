@@ -1889,17 +1889,23 @@ fn lower_local_effect_sequence_with_collections(
                     ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
                     // CR 400.3: the permanent goes to its owner's library.
                     ReferencedPermanentAction::PutOnOwnerLibrary(placement) => {
-                        effects.push(json!({
+                        let mut operation = json!({
                             "kind": "putPermanentOnOwnerLibrary",
                             "permanent": reference,
                             "position": match placement {
-                                OwnerLibraryPlacement::Top => "top",
+                                OwnerLibraryPlacement::Top
+                                | OwnerLibraryPlacement::BeneathTopCards(_) => "top",
                                 OwnerLibraryPlacement::Bottom => "bottom",
                                 OwnerLibraryPlacement::OwnerChoiceTopOrBottom => {
                                     "ownerChoiceTopOrBottom"
                                 }
                             },
-                        }));
+                        });
+                        // `ORDINAL from the top`: the cards that stay above it.
+                        if let OwnerLibraryPlacement::BeneathTopCards(above) = placement {
+                            operation["cardsAbove"] = lower_numeric_atom(above);
+                        }
+                        effects.push(operation);
                         continue;
                     }
                     // CR 701.24a: put into the owner's library, then that

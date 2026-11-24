@@ -22,6 +22,32 @@ pub(super) struct PrivateZoneReceipt {
 }
 
 impl GameEngine {
+    /// Moves a card already in a library down so that `cards_above` cards
+    /// stay above it (CR 401.2: `ORDINAL from the top`, `just beneath the top
+    /// N cards`). A library's top is its last element; with fewer cards
+    /// above it the card is at the bottom. `false` when the card is absent.
+    pub(super) fn place_library_card_beneath_top(
+        &mut self,
+        player_index: usize,
+        card_id: &str,
+        cards_above: usize,
+    ) -> bool {
+        let Some(player) = self.state.players.get_mut(player_index) else {
+            return false;
+        };
+        let Some(position) = player
+            .library
+            .iter()
+            .rposition(|card| card.instance_id == card_id)
+        else {
+            return false;
+        };
+        let card = player.library.remove(position);
+        let index = player.library.len().saturating_sub(cards_above);
+        player.library.insert(index, card);
+        true
+    }
+
     pub(super) fn put_owned_card_into_exile(
         &mut self,
         storage_player_index: usize,

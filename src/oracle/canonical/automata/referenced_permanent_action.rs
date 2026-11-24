@@ -41,6 +41,9 @@ pub(in crate::oracle::canonical) enum OwnerLibraryPlacement {
     /// `their choice of the top or bottom`: the acting player, the owner
     /// whose library it is, chooses on resolution.
     OwnerChoiceTopOrBottom,
+    /// `into LIBRARY ORDINAL from the top` (CR 401.2): this many cards stay
+    /// above it (the shared library-position child).
+    BeneathTopCards(super::NumericAtom),
 }
 
 /// `exile|sacrifice REFERENCE` on a permanent the program bound other than
@@ -213,6 +216,22 @@ fn recognize_owner_library_placement(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<OwnerLibraryPlacement> {
     cursor.enter("effect.referenced-permanent.library-placement");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("into"))
+    {
+        // `into its owner's library third from the top`: the library, then
+        // the shared position beneath its top cards.
+        cursor.consume("into")?;
+        recognize_owner_library(cursor)?;
+        cursor.enter("effect.referenced-permanent.library-placement.beneath-top");
+        let position = super::try_recognize_beneath_top_position(cursor)?
+            .ok_or_else(|| cursor.fail("`ORDINAL from the top` after `into` a library"))?;
+        let super::LibraryPosition::BeneathTopCards(above) = position else {
+            return Err(cursor.fail("a position beneath the top cards of the library"));
+        };
+        return Ok(OwnerLibraryPlacement::BeneathTopCards(above));
+    }
     cursor.consume("on")?;
     let word = |offset: usize, expected: &str| {
         cursor

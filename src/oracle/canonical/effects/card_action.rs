@@ -1694,10 +1694,18 @@ impl CardCollectionMemory {
                     to["faceDown"] = json!(destination.face_down)
                 }
                 if let Some(position) = destination.position {
-                    to["position"] = json!(match position {
-                        LibraryPosition::Top => "top",
-                        LibraryPosition::Bottom => "bottom",
-                    });
+                    let (word, above) = position.engine_position();
+                    to["position"] = json!(word);
+                    // `ORDINAL from the top`: the cards that stay above the
+                    // placed card (CR 401.2).
+                    if let Some(above) = above {
+                        cursor.enter("lower.card-action.move.beneath-top");
+                        cursor.require(
+                            maximum.is_some_and(|maximum| maximum <= 1),
+                            "one card placed beneath the top cards of a library",
+                        )?;
+                        to["cardsAbove"] = lower_numeric_atom(above);
+                    }
                 }
                 if matches!(operand, CardOperandNode::Targets(_))
                     && destination.zone == CardZoneName::Library

@@ -2954,6 +2954,34 @@ fn recognize_put_frame(
     {
         return Ok(effect);
     }
+    // The object-to-zone frame over one bound object: the source card from
+    // a named card zone onto the battlefield, else the source or a bound
+    // permanent into its owner's library (top, bottom, beneath the top).
+    if source_or_anaphor_reference_starts_at(
+        cursor.position() + 1,
+        cursor.peek_ahead(1),
+        inputs.name_links,
+        inputs.name_failure,
+    ) || super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+    {
+        if super::source_card_origin_follows(cursor) {
+            return recognize_source_zone_move_effect(
+                cursor,
+                inputs.name_links,
+                inputs.name_failure,
+                inputs.context,
+            )
+            .map(LocalEffectNode::MoveSource);
+        }
+        return super::referenced_permanent_action::recognize_referenced_permanent_action(
+            cursor,
+            super::ReferencedPermanentAction::PutOnOwnerLibrary(super::OwnerLibraryPlacement::Top),
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction);
+    }
     recognize_move_cards_effect(cursor).map(LocalEffectNode::MoveCards)
 }
 
