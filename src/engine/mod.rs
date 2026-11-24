@@ -24442,6 +24442,11 @@ impl GameEngine {
             combat: true,
             batch: None,
         };
+        self.publish_created_damage_triggers(
+            damage_events::DamageGroup::CombatToPlayer,
+            &record,
+            &decisions,
+        );
         for source in sources {
             let rules = self
                 .effective_rules(&source)

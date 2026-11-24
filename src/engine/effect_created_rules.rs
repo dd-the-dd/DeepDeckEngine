@@ -21,6 +21,7 @@
 use super::*;
 
 use super::cast_events::{CastEventRecord, CastSubject};
+use super::damage_events::{DamageEventRecord, DamageGroup};
 use super::event_model::{CombatEventRecord, PublicationGroup};
 use super::static_modifier_site::BattlefieldStaticModifierSite;
 use super::trigger_multiplicity::{CapturedOccurrence, TriggerOrigin};
@@ -60,6 +61,16 @@ fn combat_variant_published(event: &Value) -> bool {
         })
 }
 
+/// Combat damage to a player, one occurrence per damage record (`one or
+/// more` batches are published by their aggregating sites only).
+fn damage_variant_published(event: &Value) -> bool {
+    super::damage_events::damage_event_pattern(event)
+        .and_then(Result::ok)
+        .is_some_and(|pattern| {
+            pattern.group == DamageGroup::CombatToPlayer && !pattern.aggregated()
+        })
+}
+
 fn cast_variant_published(event: &Value) -> bool {
     value_kind(event) == Some("spellCast")
         && super::cast_events::cast_subject(event) == CastSubject::AnySpell
@@ -72,6 +83,7 @@ fn created_trigger_event_published(event: &Value) -> bool {
     triggered_event_variants(event).iter().all(|variant| {
         zone_change_variant_published(variant)
             || combat_variant_published(variant)
+            || damage_variant_published(variant)
             || cast_variant_published(variant)
     })
 }
@@ -422,6 +434,32 @@ impl GameEngine {
     ) {
         let triggers = self.take_created_triggers(|engine, source, rule| {
             engine.rule_matches_zone_change(rule, group, record, source)
+        });
+        for (source, rule) in triggers {
+            self.publish_triggered_ability(
+                &source,
+                rule,
+                decisions.clone(),
+                None,
+                CapturedOccurrence::Live,
+                TriggerOrigin::Delayed,
+            );
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+
+    /// Publishes the created triggers of one damage record (CR 120.3) with
+    /// the occurrence's decisions; aggregated patterns never reach here.
+    pub(super) fn publish_created_damage_triggers(
+        &mut self,
+        group: DamageGroup,
+        record: &DamageEventRecord,
+        decisions: &BTreeMap<String, Value>,
+    ) {
+        let triggers = self.take_created_triggers(|engine, source, rule| {
+            engine.rule_matches_damage_record(rule, group, record, source) == Some(false)
         });
         for (source, rule) in triggers {
             self.publish_triggered_ability(
