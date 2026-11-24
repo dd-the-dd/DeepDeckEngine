@@ -181,6 +181,182 @@ impl ObjectRelation {
     }
 }
 
+/// A keyword ability an object has whatever its parameters (CR 702): the
+/// keywords whose printed form carries a cost or a number, read by a `with`
+/// qualifier (`cards with cycling`, `a card with a kicker ability`). It is a
+/// fact about the object's abilities, never a grant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum KeywordAbilityName {
+    /// CR 702.29: cycling; typecycling is a cycling ability (CR 702.29e-f).
+    Cycling,
+    /// CR 702.34: flashback.
+    Flashback,
+    /// CR 702.33: kicker (and multikicker, CR 702.33c).
+    Kicker,
+    /// CR 702.113: awaken.
+    Awaken,
+}
+
+impl KeywordAbilityName {
+    /// The Oracle word naming the keyword.
+    pub(in crate::oracle::canonical) fn from_oracle_word(raw: &str) -> Option<Self> {
+        Some(match raw.to_ascii_lowercase().as_str() {
+            "cycling" => Self::Cycling,
+            "flashback" => Self::Flashback,
+            "kicker" => Self::Kicker,
+            "awaken" => Self::Awaken,
+            _ => return None,
+        })
+    }
+
+    /// The keyword-ability rule kinds the runtime records for it: every
+    /// kind is the same keyword (a typecycling ability is a cycling one).
+    pub(in crate::oracle::canonical) const fn ir_kinds(self) -> &'static [&'static str] {
+        match self {
+            Self::Cycling => &["cycling", "typecycling", "basicLandcycling"],
+            Self::Flashback => &["flashback"],
+            Self::Kicker => &["kicker"],
+            Self::Awaken => &["awaken"],
+        }
+    }
+}
+
+/// A class of symbols in an object's mana cost (CR 107.4, 202.1), read from
+/// the printed cost the runtime keeps typed, never from an Oracle string.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ManaCostSymbolClass {
+    /// `{X} in its mana cost` (CR 107.3).
+    VariableX,
+}
+
+/// The value a set constraint compares between chosen objects.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DistinctProperty {
+    /// CR 201.2: two objects have different names.
+    Name,
+    Power,
+    ManaValue,
+}
+
+impl DistinctProperty {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Name => "name",
+            Self::Power => "power",
+            Self::ManaValue => "manaValue",
+        }
+    }
+}
+
+/// Which end of an ordering a superlative names (`the greatest`, `the
+/// least`). Ties are members: every object whose value equals the extreme
+/// value has the greatest value (CR 107.1 compares numbers; an object tied
+/// for the greatest is among those with the greatest).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum Extreme {
+    Greatest,
+    Least,
+}
+
+impl Extreme {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Greatest => "greatest",
+            Self::Least => "least",
+        }
+    }
+}
+
+/// The population a superlative ranks the candidate within, relative to the
+/// candidate itself or to the whole battlefield.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ExtremumPopulation {
+    /// `among creatures on the battlefield`: every permanent of the query.
+    Battlefield,
+    /// `among creatures they control` / `that player controls`, where that
+    /// player is the one choosing among their own permanents: the query's
+    /// permanents controlled by the candidate's controller.
+    CandidateController,
+    /// `among creatures you control`.
+    AbilityController,
+}
+
+impl ExtremumPopulation {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Battlefield => "battlefield",
+            Self::CandidateController => "candidateController",
+            Self::AbilityController => "abilityController",
+        }
+    }
+}
+
+/// The qualifier atoms of the shared object query that are not printed
+/// characteristics of one object read alone: a keyword ability with
+/// parameters, a symbol class of the mana cost, the turn's history of the
+/// object relative to the ability source, a constraint over the whole set
+/// being chosen, and a superlative ranking among a population.
+///
+/// A set constraint (`DistinctValues`, `TotalAtMost`) is not a candidate
+/// filter: only a consumer selecting or counting a set evaluates it, and it
+/// must sit at the top level of the query's conjunction. Every other
+/// consumer refuses it (see [`ObjectPredicate::split_set_constraints`]).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectQualifier {
+    KeywordAbility(KeywordAbilityName),
+    ManaCostSymbol(ManaCostSymbolClass),
+    /// `dealt damage by this creature this turn` (CR 120.1): a damage event
+    /// of this turn whose source is the ability source and whose recipient
+    /// is this permanent.
+    DamagedBySourceThisTurn,
+    /// `with different names|powers|mana values`: no two chosen objects
+    /// share the value.
+    DistinctValues(DistinctProperty),
+    /// `with total mana value N or less`: the sum over the chosen objects.
+    TotalAtMost {
+        property: SelectorNumericProperty,
+        maximum: Box<NumericExpression>,
+    },
+    /// `with the greatest power among creatures they control`.
+    Extremum {
+        property: SelectorNumericProperty,
+        extreme: Extreme,
+        among: Box<ObjectPredicate>,
+        population: ExtremumPopulation,
+    },
+}
+
+impl ObjectQualifier {
+    /// The object domains the atom can be evaluated in.
+    pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
+        match self {
+            Self::KeywordAbility(_)
+            | Self::ManaCostSymbol(_)
+            | Self::DistinctValues(_)
+            | Self::TotalAtMost { .. } => true,
+            Self::DamagedBySourceThisTurn | Self::Extremum { .. } => {
+                domain == ObjectKind::Permanent
+            }
+        }
+    }
+
+    /// A constraint over the chosen set rather than over one candidate.
+    pub(in crate::oracle::canonical) const fn is_set_constraint(&self) -> bool {
+        matches!(self, Self::DistinctValues(_) | Self::TotalAtMost { .. })
+    }
+
+    /// Whether a declaration-time filter can read it: the history and the
+    /// ranking read the game as the targets are chosen (CR 601.2c), the
+    /// printed atoms never change.
+    pub(in crate::oracle::canonical) fn uses_x(&self) -> bool {
+        match self {
+            Self::TotalAtMost { maximum, .. } => maximum.uses_x(),
+            Self::Extremum { among, .. } => among.contains_numeric_comparison(),
+            _ => false,
+        }
+    }
+}
+
 /// A property predicate over an object selected by a surrounding query.
 ///
 /// The surrounding grammar still owns the object domain, zone, controller,
@@ -227,6 +403,9 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     ChosenColor,
     /// A relation to a name, a player or the turn's history.
     Relation(ObjectRelation),
+    /// A keyword ability with parameters, a mana-cost symbol class, a
+    /// history relative to the source, a set constraint or a superlative.
+    Qualifier(ObjectQualifier),
     NumericComparison {
         left: SelectorNumericProperty,
         operator: NumericComparisonOperator,
@@ -238,6 +417,58 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
 }
 
 impl ObjectPredicate {
+    /// Whether some atom satisfies `test`, through Boolean composition.
+    pub(in crate::oracle::canonical) fn contains_qualifier(
+        &self,
+        test: &dyn Fn(&ObjectQualifier) -> bool,
+    ) -> bool {
+        match self {
+            Self::Qualifier(qualifier) => test(qualifier),
+            Self::Not(operand) => operand.contains_qualifier(test),
+            Self::Intersection(operands) | Self::Union(operands) => operands
+                .iter()
+                .any(|operand| operand.contains_qualifier(test)),
+            _ => false,
+        }
+    }
+
+    /// Whether the predicate states a constraint over the chosen set.
+    pub(in crate::oracle::canonical) fn contains_set_constraint(&self) -> bool {
+        self.contains_qualifier(&ObjectQualifier::is_set_constraint)
+    }
+
+    /// The candidate filter and the set constraints of a query, for a
+    /// consumer that selects or counts a set. A set constraint must be a
+    /// member of the top-level conjunction: under a union or a negation it
+    /// has no set to constrain, and `None` is returned. The remaining
+    /// candidate filter keeps its order; it is the whole domain when only
+    /// constraints were stated.
+    pub(in crate::oracle::canonical) fn split_set_constraints(
+        &self,
+    ) -> Option<(ObjectPredicate, Vec<ObjectQualifier>)> {
+        let members: Vec<&ObjectPredicate> = match self {
+            Self::Intersection(operands) => operands.iter().collect(),
+            other => vec![other],
+        };
+        let mut rest = Vec::new();
+        let mut constraints = Vec::new();
+        for member in members {
+            match member {
+                Self::Qualifier(qualifier) if qualifier.is_set_constraint() => {
+                    constraints.push(qualifier.clone());
+                }
+                other if other.contains_set_constraint() => return None,
+                other => rest.push(other.clone()),
+            }
+        }
+        let rest = match rest.len() {
+            0 => return None,
+            1 => rest.remove(0),
+            _ => Self::Intersection(rest),
+        };
+        Some((rest, constraints))
+    }
+
     /// Lets a consumer enforce its proved numeric-context boundary without
     /// duplicating the walk over shared Boolean predicate composition.
     pub(in crate::oracle::canonical) fn contains_numeric_comparison(&self) -> bool {
@@ -310,6 +541,7 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::ChosenColor
             | Self::Relation(_)
+            | Self::Qualifier(_)
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
         }
@@ -344,6 +576,7 @@ impl ObjectPredicate {
             | Self::OwnedByAbilityController { .. }
             | Self::HasCounter(_) => domain == ObjectKind::Permanent,
             Self::Relation(relation) => relation.supports_domain(domain),
+            Self::Qualifier(qualifier) => qualifier.supports_domain(domain),
             Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
@@ -539,6 +772,7 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::ChosenColor
             | Self::Relation(_)
+            | Self::Qualifier(_)
             | Self::NumericComparison { .. } => false,
         }
     }
@@ -579,6 +813,7 @@ impl ObjectPredicate {
             | Self::ChosenCreatureType
             | Self::ChosenColor
             | Self::Relation(_)
+            | Self::Qualifier(_)
             | Self::NumericComparison { .. } => false,
         }
     }

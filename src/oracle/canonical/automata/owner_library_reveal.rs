@@ -57,6 +57,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ChosenColor => false,
         ObjectPredicate::Relation(relation) => relation.supports_domain(ObjectKind::Permanent),
+        ObjectPredicate::Qualifier(qualifier) => qualifier.supports_domain(ObjectKind::Permanent),
         ObjectPredicate::Not(operand) => predicate_is_valid_permanent_target(operand),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
             operands.iter().all(predicate_is_valid_permanent_target)

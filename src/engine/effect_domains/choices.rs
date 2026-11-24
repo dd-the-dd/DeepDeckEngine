@@ -32,6 +32,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("onePerControlledColor")
                     .is_none_or(Value::is_boolean)
                 && effect
+                    .get("extremum")
+                    .is_none_or(candidate_extremum_supported)
+                && effect
+                    .get("setConstraints")
+                    .is_none_or(set_constraints_supported)
+                && effect
                     .get("selection")
                     .is_none_or(|selection| value_kind(selection) == Some("random"))
                 && (bound_choice_supported || candidate_choice_supported)
@@ -707,6 +713,11 @@ impl GameEngine {
                             )
                         });
                     }
+                    // `with the greatest power among ...`: the candidates
+                    // ranked among themselves, ties kept (CR 107.1).
+                    if let Some(extremum) = effect.get("extremum") {
+                        objects = self.retain_candidate_extremum(objects, extremum);
+                    }
                     if effect.get("minimum").is_some() || effect.get("maximum").is_some() {
                         (
                             objects,
@@ -774,6 +785,11 @@ impl GameEngine {
                                 })
                                 .is_empty()
                     });
+                }
+                // `with different names`, `with total mana value 8 or less`:
+                // a constraint over the whole selection, not one candidate.
+                if let Some(constraints) = effect.get("setConstraints") {
+                    values.retain(|selection| self.selection_satisfies(selection, constraints));
                 }
                 if effect["onePerControlledColor"].as_bool().unwrap_or(false) {
                     let choosing_player_index = self.player_index(&player_id)?;
@@ -993,8 +1009,23 @@ impl GameEngine {
 /// example bolster, CR 701.39a). It filters the candidate set; the player
 /// still chooses among the tied candidates.
 fn candidate_extremum_supported(extremum: &Value) -> bool {
-    matches!(extremum["property"].as_str(), Some("power" | "toughness"))
-        && matches!(extremum["direction"].as_str(), Some("least" | "greatest"))
+    matches!(
+        extremum["property"].as_str(),
+        Some("power" | "toughness" | "manaValue")
+    ) && matches!(extremum["direction"].as_str(), Some("least" | "greatest"))
+}
+
+/// `setConstraints`: the constraints a chosen set must satisfy as a whole
+/// (`distinctValues` of names, powers or mana values; `totalAtMost` of one
+/// numeric property with a literal bound). An unknown constraint refuses
+/// the choice rather than being skipped.
+fn set_constraints_supported(constraints: &Value) -> bool {
+    constraints.as_array().is_some_and(|constraints| {
+        !constraints.is_empty()
+            && constraints
+                .iter()
+                .all(object_predicate_eval::set_constraint_supported)
+    })
 }
 
 impl GameEngine {
@@ -1002,10 +1033,10 @@ impl GameEngine {
         let value_of = |instance_id: &String| {
             self.permanent_position(instance_id).map(|(player, index)| {
                 let card = &self.state.players[player].battlefield[index];
-                if extremum["property"].as_str() == Some("power") {
-                    self.current_power(card)
-                } else {
-                    self.current_toughness(card)
+                match extremum["property"].as_str() {
+                    Some("power") => self.current_power(card),
+                    Some("manaValue") => mana_value(&card.definition),
+                    _ => self.current_toughness(card),
                 }
             })
         };

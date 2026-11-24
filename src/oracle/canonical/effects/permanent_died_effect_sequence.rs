@@ -51,10 +51,16 @@ fn lower_event_branch(branch: &PermanentDiedEventBranchNode) -> Value {
             controller: controller_scope,
             exclude_source,
         } => {
+            // A source damage history the matcher cannot lift stays in the
+            // filter, which the runtime validator refuses.
+            let lifted = split_source_damage_history(predicate).flatten();
             let mut event = json!({
                 "kind": "permanentDied",
-                "where": lower_permanent_object_predicate(predicate),
+                "where": lower_permanent_object_predicate(lifted.as_ref().unwrap_or(predicate)),
             });
+            if lifted.is_some() {
+                event["damagedBySourceThisTurn"] = Value::Bool(true);
+            }
             if *exclude_source {
                 event["excludeSource"] = Value::Bool(true);
             }

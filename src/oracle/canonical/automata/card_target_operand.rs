@@ -57,6 +57,7 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
             items.iter().all(declaration_predicate_is_closed)
         }
         ObjectPredicate::Not(item) => declaration_predicate_is_closed(item),
+        ObjectPredicate::Qualifier(qualifier) => !qualifier.uses_x(),
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken
         | ObjectPredicate::CardType(_)
