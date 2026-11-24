@@ -49,6 +49,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     // bound yet, and the shared condition atoms fail explicitly otherwise.
     let mut guard_context = trigger_guard_context(&event.value);
     guard_context.frame = event_frame(&event.value);
+    guard_context.source_attachment = source_attachment;
     // The guard's references (`that creature's power`) resolve against the
     // same binding environment as the body's: the frame the event binds.
     let enclosing =

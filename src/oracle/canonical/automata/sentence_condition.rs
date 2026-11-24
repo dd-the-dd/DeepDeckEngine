@@ -1423,6 +1423,18 @@ fn resolve_object_anaphor(
     if program.card_focus {
         candidates.push(ConditionObjectReference::CardFocus);
     }
+    // Precedence typed by noun kind (CR 400.7): the card the latest card
+    // action put onto the battlefield became the permanent that action
+    // moved, so the singular card result and that permanent are one
+    // antecedent, read as the permanent (`Return target creature card from
+    // your graveyard to the battlefield. If it's an Angel, ...`). The scope
+    // is the moved permanent only right after the move, whose card action is
+    // then the latest one the card focus reads.
+    if candidates.contains(&ConditionObjectReference::Permanent(
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
+    )) {
+        candidates.retain(|candidate| *candidate != ConditionObjectReference::CardFocus);
+    }
     match candidates.as_slice() {
         [reference] => Ok(*reference),
         [] => Err(cursor.fail("one proven singular antecedent for the pronoun")),

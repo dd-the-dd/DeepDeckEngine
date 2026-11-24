@@ -130,6 +130,19 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_antecedent(
     if current_source_link(cursor.position(), name_links).is_some() {
         return recognize_source_reference(cursor, name_links, name_failure);
     }
+    // Without a source binding from the caller, a pronoun names the source
+    // only when the enclosing program's one binding environment resolves it
+    // to the source (`This creature gets +1/+1 until end of turn. Sacrifice
+    // it at the beginning of the next end step.`). Any other antecedent is
+    // not this reader's object and stays a committed diagnostic below.
+    let environment_source = cursor
+        .binding_environment()
+        .and_then(|environment| super::resolve_pronoun_antecedent(environment).ok())
+        .and_then(|reference| match reference {
+            super::PermanentEffectReference::Source(source) => Some(source),
+            _ => None,
+        });
+    let antecedent = antecedent.or(environment_source.as_ref());
     if cursor.peek().is_some_and(is_source_anaphor) {
         let token = cursor
             .peek_token()

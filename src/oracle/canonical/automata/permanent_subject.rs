@@ -263,21 +263,32 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::LoseLife(_)
         | LocalEffectNode::AddMana(_)
         | LocalEffectNode::TemporaryPlayerPermission(_) => previous,
+        // The controller's draw, discard, mill, scry and surveil move cards
+        // between hidden or public card zones and introduce no permanent: a
+        // lexical permanent antecedent an earlier action of the program
+        // declared stays (`Put a +1/+1 counter on target creature. Draw a
+        // card. That creature gains trample`), as for the same actions of
+        // another player above. Their cards are a lexical result of their
+        // own (the card-action scope reads them), so the ability's default
+        // event or source subject is exhausted as before.
+        LocalEffectNode::DrawCards(_)
+        | LocalEffectNode::DiscardCards(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::MillCards(_)
+        | LocalEffectNode::Scry(_)
+        | LocalEffectNode::Surveil(_) => match previous {
+            Local(Some(reference)) => Local(Some(reference)),
+            _ => Local(None),
+        },
         LocalEffectNode::CardAction(_)
         | LocalEffectNode::OptionalSequence(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::Retarget(_)
-        | LocalEffectNode::DrawCards(_)
-        | LocalEffectNode::DiscardCards(_)
-        | LocalEffectNode::OptionalDrawCards(_)
-        | LocalEffectNode::MillCards(_)
         | LocalEffectNode::Amass(_)
         | LocalEffectNode::EmpowerJace(_)
         | LocalEffectNode::Investigate(_)
         | LocalEffectNode::ControllerKeywordAction(_)
-        | LocalEffectNode::Scry(_)
-        | LocalEffectNode::Surveil(_)
         | LocalEffectNode::Earthbend(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::MoveCards(_)

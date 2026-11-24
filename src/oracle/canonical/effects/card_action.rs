@@ -13,6 +13,10 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// The view is a whole zone named by a singular noun (`their hand`), so
     /// `from it` may name the collection, not one card.
     view_zone_noun: bool,
+    /// The view is library cards whose identities this program bound when
+    /// its look or reveal began (CR 608.2c): a later reference to them names
+    /// exactly those cards, wherever an action moves them (CR 400.7).
+    view_from_library_top: bool,
     /// The cards the most recent reveal of this scope revealed (`the
     /// revealed cards`).
     last_revealed: Option<(Value, Option<i64>)>,
@@ -101,6 +105,7 @@ impl CardCollectionMemory {
         self.view_verb = snapshot.view_verb;
         self.view_zone = snapshot.view_zone;
         self.view_zone_noun = snapshot.view_zone_noun;
+        self.view_from_library_top = snapshot.view_from_library_top;
         self.last_revealed = snapshot.last_revealed.clone();
         self.last_exiled = snapshot.last_exiled.clone();
         self.last_cast = snapshot.last_cast.clone();
@@ -119,6 +124,7 @@ impl CardCollectionMemory {
             && self.view_verb == other.view_verb
             && self.view_zone == other.view_zone
             && self.view_zone_noun == other.view_zone_noun
+            && self.view_from_library_top == other.view_from_library_top
             && self.last_revealed == other.last_revealed
             && self.last_exiled == other.last_exiled
             && self.last_cast == other.last_cast
@@ -139,6 +145,7 @@ impl CardCollectionMemory {
         self.view_verb = None;
         self.view_zone = None;
         self.view_zone_noun = false;
+        self.view_from_library_top = false;
         self.last_revealed = None;
         self.last_exiled = None;
         self.last_cast = None;
@@ -565,6 +572,7 @@ impl CardCollectionMemory {
             let id = fresh("topCards", &mut self.next_view);
             self.allocated_ids.insert(id.clone());
             self.observe(&id, maximum);
+            self.view_from_library_top = true;
             // The set is fixed when the action starts (CR 608.2c): later verbs
             // read these identities, not whatever is on top afterwards.
             effects.push(json!({"kind":"bind", "id":id,
@@ -988,6 +996,7 @@ impl CardCollectionMemory {
                     _ => None,
                 };
                 self.observe(&id, maximum);
+                self.view_from_library_top = true;
                 effects.push(json!({"kind":"lookAtTopCards", "zone":{"kind":"library", "player":controller()}, "count":amount_ir, "bind":id}));
             }
             CardActionNode::LookAt(operand) => {
@@ -1014,6 +1023,7 @@ impl CardCollectionMemory {
                         let id = fresh("lookedCards", &mut self.next_view);
                         self.allocated_ids.insert(id.clone());
                         self.observe(&id, maximum);
+                        self.view_from_library_top = true;
                         effects.push(json!({"kind":"lookAtTopCards",
                             "zone":{"kind":"library", "player":player},
                             "count":amount_ir, "bind":id}));
@@ -1321,8 +1331,16 @@ impl CardCollectionMemory {
                             true
                         }
                         CardOperandNode::Reference(_) => {
-                            self.view_verb == Some(CardCollectionVerb::Exiled)
-                                && self.view_zone == Some(CardZoneName::Exile)
+                            (self.view_verb == Some(CardCollectionVerb::Exiled)
+                                && self.view_zone == Some(CardZoneName::Exile))
+                                // The library cards this program looked at or
+                                // revealed: the binding fixed their identities
+                                // when the action began, so the writer moves
+                                // exactly them (`Reveal the top card of your
+                                // library. If it's a land card, put it onto
+                                // the battlefield.`).
+                                || (self.view_from_library_top
+                                    && self.view.as_ref() == Some(&cards))
                         }
                         CardOperandNode::LibraryTop(_) => false,
                     };

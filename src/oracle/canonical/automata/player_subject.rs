@@ -1,7 +1,7 @@
 use super::super::super::super::{MachineResult, OracleTokenCursor};
 use super::super::super::{
-    BindingEnvironment, FrameBindings, PermanentEffectReference, TargetCardinality, TargetListNode,
-    TargetSelector, recognize_defending_player, recognize_object_related_player,
+    PermanentEffectReference, TargetCardinality, TargetListNode, TargetSelector,
+    installed_binding_environment, recognize_defending_player, recognize_object_related_player,
     recognize_target_list, recognize_that_player,
 };
 pub(in crate::oracle::canonical) use super::super::super::{
@@ -66,12 +66,16 @@ pub(in crate::oracle::canonical::automata) fn recognize_object_related_player_su
     antecedent: Option<ObjectSubjectAntecedent>,
 ) -> MachineResult<PlayerEffectSubject> {
     // The frame's event object is read from the environment the enclosing
-    // sequence installed; the lexical antecedent is the caller's.
-    let event_object = cursor
-        .binding_environment()
-        .and_then(|environment| environment.frame.event_object.clone());
-    let reference =
-        recognize_object_related_player(cursor, antecedent.as_ref(), event_object.as_ref(), false)?;
+    // program installed; the lexical antecedent is the caller's, else the
+    // singular object that environment publishes.
+    let environment = installed_binding_environment(cursor);
+    let antecedent = antecedent.or(environment.object);
+    let reference = recognize_object_related_player(
+        cursor,
+        antecedent.as_ref(),
+        environment.frame.event_object.as_ref(),
+        false,
+    )?;
     reference
         .into_effect_subject()
         .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"))
@@ -120,19 +124,17 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
     }
 
     if first.raw.eq_ignore_ascii_case("that") {
-        let environment = BindingEnvironment {
-            frame: FrameBindings {
-                event_player,
-                ..FrameBindings::default()
-            },
-            player: antecedent,
-            ..BindingEnvironment::default()
-        };
-        return recognize_that_player(cursor, &environment).map(|reference| {
-            reference
-                .into_effect_subject()
-                .expect("`that player` is a bound or event player")
-        });
+        // The environment the enclosing program installed (its frame and the
+        // antecedents it publishes), with the bindings this caller proved.
+        let mut environment = installed_binding_environment(cursor);
+        environment.frame.event_player |= event_player;
+        if antecedent.is_some() {
+            environment.player = antecedent;
+        }
+        let reference = recognize_that_player(cursor, &environment)?;
+        return reference
+            .into_effect_subject()
+            .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"));
     }
 
     Err(cursor.fail_with_span(

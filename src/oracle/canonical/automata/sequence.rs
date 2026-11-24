@@ -766,6 +766,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         ..super::BindingEnvironment::default()
                     },
                 )));
+                super::publish_installed_program_antecedents(cursor, &memory.effects);
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
