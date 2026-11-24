@@ -282,7 +282,7 @@ fn try_recognize_activation_program(
                 }
             }
         } else {
-            super::recognize_owned_activation_reminder(cursor, &effects).map(|_| ())
+            super::recognize_owned_ability_reminder(cursor, &effects).map(|_| ())
         };
         if let Err(failure) = parsed {
             return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);

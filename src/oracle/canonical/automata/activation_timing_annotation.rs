@@ -77,7 +77,7 @@ pub(in crate::oracle::canonical) fn recognize_activation_timing_annotation(
 /// symbol or mechanic the ability actually uses; any other parenthetical
 /// keeps its diagnostic.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::oracle::canonical) enum ActivationReminderOwner {
+pub(in crate::oracle::canonical) enum AbilityReminderOwner {
     /// A glossary of a mana symbol printed in the ability (`{C}`, `{S}`,
     /// Phyrexian mana), validated against that symbol.
     ManaSymbol,
@@ -96,16 +96,16 @@ fn is_word(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> boo
 
 /// Reads one reminder parenthetical whose owner is proved by the ability
 /// tokens before it (`0..cursor.position()`) or by its last effect.
-pub(in crate::oracle::canonical) fn recognize_owned_activation_reminder(
+pub(in crate::oracle::canonical) fn recognize_owned_ability_reminder(
     cursor: &mut OracleTokenCursor<'_>,
     effects: &super::EffectSequenceNode,
-) -> MachineResult<ActivationReminderOwner> {
+) -> MachineResult<AbilityReminderOwner> {
     let start = cursor.position();
     let before = cursor.token_slice(0, start);
     if let Some(super::LocalEffectNode::CreateNamedTokens(creation)) = effects.effects.last() {
         let checkpoint = cursor.checkpoint();
         match super::recognize_named_token_creation_reminder(cursor, &creation.creation) {
-            Ok(()) => return Ok(ActivationReminderOwner::NamedToken),
+            Ok(()) => return Ok(AbilityReminderOwner::NamedToken),
             Err(_) => cursor.rollback(checkpoint),
         }
     }
@@ -126,7 +126,7 @@ pub(in crate::oracle::canonical) fn recognize_owned_activation_reminder(
         recognize_mana_symbol_glossary(cursor, &symbol)?;
         cursor.enter("activation.reminder.close");
         cursor.consume(")")?;
-        return Ok(ActivationReminderOwner::ManaSymbol);
+        return Ok(AbilityReminderOwner::ManaSymbol);
     }
     cursor.enter("activation.reminder.mechanic");
     cursor.require(
@@ -144,7 +144,7 @@ pub(in crate::oracle::canonical) fn recognize_owned_activation_reminder(
         }
         cursor.advance_to(cursor.position() + 1)?;
     }
-    Ok(ActivationReminderOwner::Mechanic)
+    Ok(AbilityReminderOwner::Mechanic)
 }
 
 /// A keyword action of the program whose definition the printed reminder

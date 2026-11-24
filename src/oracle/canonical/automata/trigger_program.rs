@@ -133,14 +133,11 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         };
     let program_end = cursor.position();
     let once_each_turn = recognize_optional_trigger_limit(cursor)?;
-    // A token reminder may follow the limit sentence; it still belongs to the
-    // body's last named-token creation and is validated against its catalog.
-    if once_each_turn
-        && cursor.peek() == Some("(")
-        && let Some(LocalEffectNode::CreateNamedTokens(creation)) =
-            value.inner_sequence().effects.last()
-    {
-        recognize_named_token_creation_reminder(cursor, &creation.creation)?;
+    // A reminder may follow the limit sentence; it still belongs to the body
+    // (a named token, a keyword action or keyword it uses) and is validated
+    // by the same ownership reader as an activated ability's reminders.
+    if once_each_turn && cursor.peek() == Some("(") {
+        recognize_owned_ability_reminder(cursor, value.inner_sequence())?;
     }
     cursor.enter("trigger.program.complete");
     cursor.finish()?;
