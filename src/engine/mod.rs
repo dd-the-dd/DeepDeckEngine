@@ -2859,6 +2859,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("triggeringSpellManaValue" | "triggeringSpellManaSpent") => true,
         Some("manaSpentToCastSource" | "colorsOfManaSpentToCastSource") => true,
+        Some("manaSpentToCast") => mana_payment::mana_spent_to_cast_supported(expression),
         Some("sourceCastXValue") => true,
         Some("countObjects") => object_expression_supported(&expression["objects"]),
         Some("maximumManaValue") => {
@@ -9943,6 +9944,7 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.mana_spent_to_cast(expression, source, decisions),
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }
@@ -24801,6 +24803,10 @@ impl GameEngine {
                 Value::from(mana_spent_from_cast_decisions(cast_decisions)),
             ),
             (
+                "triggeringSpellManaSpentBySymbol".to_string(),
+                mana_payment::triggering_spell_mana_spent_record(cast_decisions),
+            ),
+            (
                 "triggeringSpellTypeLine".to_string(),
                 Value::String(spell.type_line.clone()),
             ),
@@ -30024,13 +30030,7 @@ impl GameEngine {
             for flag in casting_cost::CastingMode::of(&stack_object.decisions).follow_up_flags() {
                 card.flags.insert(flag, true);
             }
-            for symbol in ["W", "U", "B", "R", "G"] {
-                let count = mana_symbol_spent_count(&stack_object.decisions, symbol);
-                for threshold in 1..=count {
-                    card.flags
-                        .insert(format!("manaSpent:{symbol}:{threshold}"), true);
-                }
-            }
+            mana_payment::record_mana_spent_flags(&mut card.flags, &stack_object.decisions);
             let was_warped = stack_object
                 .decisions
                 .get("useWarp")
@@ -31517,6 +31517,7 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.runtime_mana_spent_to_cast(expression, stack_object),
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }

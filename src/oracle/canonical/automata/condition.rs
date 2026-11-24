@@ -65,6 +65,14 @@ pub(in crate::oracle::canonical) enum ConditionScope {
 }
 
 impl ConditionScope {
+    /// Whether the scope resolves `atom`: its family, or a cast record the
+    /// source permanent keeps (the mana spent to cast it, CR 601.2h), which
+    /// a continuously evaluated or `unless` condition can still read.
+    pub(in crate::oracle::canonical) fn allows_atom(self, atom: &ConditionAtom) -> bool {
+        self.allows(atom.family())
+            || (matches!(self, Self::Static | Self::Unless) && atom.is_source_cast_record())
+    }
+
     pub(in crate::oracle::canonical) fn allows(self, family: ConditionFamily) -> bool {
         match self {
             Self::Program => true,
@@ -151,6 +159,18 @@ impl ConditionAtom {
             Self::Compare(comparison) => excludes(&comparison.left) || excludes(&comparison.right),
             _ => false,
         }
+    }
+
+    /// A cast fact the source keeps after it resolved: the mana spent to
+    /// cast the ability's own source.
+    pub(in crate::oracle::canonical) fn is_source_cast_record(&self) -> bool {
+        matches!(
+            self,
+            Self::CastFact(CastFactNode {
+                spell: CastSpellReference::Source(_),
+                fact: CastFact::ManaSpent { .. },
+            })
+        )
     }
 
     /// Whether the atom reads the result of the instruction before it.
@@ -380,10 +400,47 @@ pub(in crate::oracle::canonical) enum SourceCastZone {
     Exile,
 }
 
+/// How much mana was spent to cast a spell (CR 601.2h).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ManaSpentAmount {
+    /// Each listed mana was spent at least its count of times (`{R}{R}`,
+    /// `{R}{G}`, `at least three red mana`), in `ManaSpentAmount::SYMBOLS`
+    /// order.
+    Symbols([u8; 6]),
+    /// The total mana spent compared with a fixed value (`five or more
+    /// mana`, `no mana`).
+    Total {
+        operator: NumericComparisonOperator,
+        value: i64,
+    },
+}
+
+impl ManaSpentAmount {
+    /// The mana a cast record distinguishes: the five colors and colorless.
+    pub(in crate::oracle::canonical) const SYMBOLS: [&'static str; 6] =
+        ["W", "U", "B", "R", "G", "C"];
+}
+
+/// The spell a cast fact is about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CastSpellReference {
+    /// The ability's own source (`this spell`, `it` denoting the source).
+    Source(LocalObjectReference),
+    /// The spell a cast event observed (`that spell`, `it` after `Whenever
+    /// you cast a spell`).
+    EventSpell,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CastFact {
     /// CR 702.33d.
     Kicked,
+    /// CR 601.2h: the mana spent to cast the spell; `negated` reads
+    /// `wasn't spent`.
+    ManaSpent {
+        amount: ManaSpentAmount,
+        negated: bool,
+    },
     /// The source was cast; from `zone` when present. `negated` reads
     /// `anywhere other than ZONE`.
     Cast {
@@ -394,7 +451,7 @@ pub(in crate::oracle::canonical) enum CastFact {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CastFactNode {
-    pub spell: LocalObjectReference,
+    pub spell: CastSpellReference,
     pub fact: CastFact,
 }
 

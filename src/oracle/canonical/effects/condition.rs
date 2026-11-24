@@ -87,7 +87,7 @@ fn lower_condition_atom(
         ConditionAtom::Compare(comparison) => lower_comparison(comparison),
         ConditionAtom::ObjectSatisfies(node) => lower_object_condition(node, bindings),
         ConditionAtom::EventHistory(node) => Ok(lower_event_history(node)),
-        ConditionAtom::CastFact(node) => Ok(lower_cast_fact(node)),
+        ConditionAtom::CastFact(node) => lower_cast_fact(node),
         ConditionAtom::ActionOutcome(ActionOutcomeNode::PreviousActionImpossible) => {
             let binding = bindings
                 .and_then(|bindings| bindings.previous_action_result.clone())
@@ -127,9 +127,48 @@ fn lower_player_designation(node: &PlayerDesignationNode) -> Value {
     if node.held { atom } else { not(atom) }
 }
 
-/// A cast fact of the ability's own source (the only spell reference).
-fn lower_cast_fact(node: &CastFactNode) -> Value {
-    match node.fact {
+/// A cast fact of the ability's own source, or the mana spent to cast the
+/// spell a cast event observed.
+fn lower_cast_fact(node: &CastFactNode) -> Lowered {
+    if let CastFact::ManaSpent { amount, negated } = node.fact {
+        let spell = match node.spell {
+            CastSpellReference::Source(_) => self_ref(),
+            CastSpellReference::EventSpell => json!({ "kind": "triggeringSpell" }),
+        };
+        let spent = |symbol: Option<&str>| {
+            let mut amount = json!({ "kind": "manaSpentToCast", "spell": spell.clone() });
+            if let Some(symbol) = symbol {
+                amount["symbol"] = json!(symbol);
+            }
+            amount
+        };
+        let fact = match amount {
+            ManaSpentAmount::Symbols(counts) => {
+                let mut atoms = ManaSpentAmount::SYMBOLS
+                    .iter()
+                    .zip(counts)
+                    .filter(|(_, count)| *count > 0)
+                    .map(|(symbol, count)| {
+                        compare(">=", spent(Some(*symbol)), integer(i64::from(count)))
+                    })
+                    .collect::<Vec<_>>();
+                match atoms.len() {
+                    0 => return Err("at least one spent mana symbol"),
+                    1 => atoms.remove(0),
+                    _ => and(atoms),
+                }
+            }
+            ManaSpentAmount::Total { operator, value } => {
+                compare(operator.ir_operator(), spent(None), integer(value))
+            }
+        };
+        return Ok(if negated { not(fact) } else { fact });
+    }
+    if node.spell != CastSpellReference::Source(LocalObjectReference::SourceSelf) {
+        return Err("a cast fact of the ability's own source");
+    }
+    Ok(match node.fact {
+        CastFact::ManaSpent { .. } => unreachable!("the mana spent was lowered above"),
         CastFact::Kicked => json!({ "kind": "wasKicked", "spell": self_ref() }),
         CastFact::Cast { zone, negated } => {
             let fact = match zone {
@@ -146,7 +185,7 @@ fn lower_cast_fact(node: &CastFactNode) -> Value {
             };
             if negated { not(fact) } else { fact }
         }
-    }
+    })
 }
 
 /// `Compare(left, op, right)` for its player subject. A quantified subject

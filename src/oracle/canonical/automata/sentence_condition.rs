@@ -230,7 +230,7 @@ pub(in crate::oracle::canonical) fn recognize_condition_atom(
     cursor.enter(context.atom_kind_state());
     let atom = read_condition_atom(cursor, context)?;
     cursor.enter("condition.allow-list");
-    cursor.require(context.scope.allows(atom.family()), context.scope.refusal())?;
+    cursor.require(context.scope.allows_atom(&atom), context.scope.refusal())?;
     Ok(atom)
 }
 
@@ -302,6 +302,11 @@ fn read_condition_atom(
         && cast_object_follows(cursor, context)
     {
         return recognize_controller_cast_source_atom(cursor, context);
+    }
+    // CastFact: `{R} was spent to cast this spell`, `at least three red mana
+    // was spent to cast it`, `no mana was spent to cast that spell`.
+    if mana_spent_atom_starts(cursor) {
+        return recognize_mana_spent_atom(cursor, context);
     }
     // EventHistory with a player actor: `an opponent searched their library
     // this turn`, `a player cast two or more spells last turn`.
@@ -642,7 +647,7 @@ fn recognize_source_condition_atom(
         cursor.consume("was")?;
         cursor.consume("kicked")?;
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Kicked,
         }));
     }
@@ -657,7 +662,7 @@ fn recognize_source_condition_atom(
         cursor.consume("from")?;
         let (zone, negated) = recognize_cast_zone(cursor)?;
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Cast {
                 zone: Some(zone),
                 negated,
@@ -697,7 +702,7 @@ fn recognize_controller_cast_source_atom(
     };
     if !word_is(cursor, 0, "from") {
         return Ok(ConditionAtom::CastFact(CastFactNode {
-            spell,
+            spell: CastSpellReference::Source(spell),
             fact: CastFact::Cast {
                 zone: None,
                 negated: false,
@@ -712,11 +717,168 @@ fn recognize_controller_cast_source_atom(
         "`from your hand`; a permanent does not remember another cast zone",
     )?;
     Ok(ConditionAtom::CastFact(CastFactNode {
-        spell,
+        spell: CastSpellReference::Source(spell),
         fact: CastFact::Cast {
             zone: Some(zone),
             negated,
         },
+    }))
+}
+
+/// Lexical lookahead: `AMOUNT was|were|wasn't spent to cast` before the end
+/// of the clause, where AMOUNT is the subject of the cast fact.
+fn mana_spent_atom_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    (1..10)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "," | "." | ";" | ":"))
+        })
+        .any(|offset| {
+            word_is(cursor, offset, "spent")
+                && (word_is(cursor, offset - 1, "was")
+                    || word_is(cursor, offset - 1, "were")
+                    || contraction_is(cursor, offset - 1, "wasn", "t"))
+                && word_is(cursor, offset + 1, "to")
+                && word_is(cursor, offset + 2, "cast")
+        })
+}
+
+/// The color words of mana amounts, in `ManaSpentAmount::SYMBOLS` order.
+const MANA_AMOUNT_COLORS: [&str; 6] = ["white", "blue", "black", "red", "green", "colorless"];
+
+/// The mana symbol at the cursor without its braces (`{R}` is `R`).
+fn mana_symbol_at(cursor: &OracleTokenCursor<'_>) -> Option<String> {
+    cursor
+        .peek()
+        .filter(|raw| raw.starts_with('{') && raw.ends_with('}') && raw.len() > 2)
+        .map(|raw| raw[1..raw.len() - 1].to_ascii_uppercase())
+}
+
+/// `{R}`, `{U}{U}`, `{R}{G}` (each symbol at least its count), `at least
+/// three red mana`, `five or more mana`, `no mana`: the amount subject of a
+/// mana-spent fact. The source of spent mana (`mana from a Treasure`) and
+/// snow or hybrid symbols are not recorded and fail here.
+fn recognize_mana_spent_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ManaSpentAmount> {
+    cursor.enter("condition.cast.mana-spent.amount");
+    if mana_symbol_at(cursor).is_some() {
+        let mut counts = [0_u8; 6];
+        while let Some(symbol) = mana_symbol_at(cursor) {
+            cursor.enter("condition.cast.mana-spent.symbol");
+            let index = ManaSpentAmount::SYMBOLS
+                .iter()
+                .position(|known| *known == symbol)
+                .ok_or_else(|| {
+                    cursor.fail(
+                        "a colored or colorless mana symbol (snow, hybrid and generic mana are not recorded by symbol)",
+                    )
+                })?;
+            counts[index] = counts[index].saturating_add(1);
+            consume_current(cursor)?;
+        }
+        return Ok(ManaSpentAmount::Symbols(counts));
+    }
+    cursor.require(
+        !(word_is(cursor, 0, "mana") && word_is(cursor, 1, "from")),
+        "an amount of spent mana (the source that produced spent mana is not recorded)",
+    )?;
+    if word_is(cursor, 0, "no") && word_is(cursor, 1, "mana") {
+        cursor.consume_phrase(&["no", "mana"])?;
+        return Ok(ManaSpentAmount::Total {
+            operator: NumericComparisonOperator::Equal,
+            value: 0,
+        });
+    }
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.enter("condition.cast.mana-spent.color");
+    let color = cursor.peek().and_then(|raw| {
+        MANA_AMOUNT_COLORS
+            .iter()
+            .position(|color| raw.eq_ignore_ascii_case(color))
+    });
+    if color.is_some() {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.cast.mana-spent.noun");
+    cursor.consume("mana")?;
+    match color {
+        Some(index) => {
+            cursor.require(
+                threshold.operator == ThresholdOperator::AtLeast,
+                "a lower bound on the mana of one color",
+            )?;
+            let mut counts = [0_u8; 6];
+            counts[index] = u8::try_from(threshold.value)
+                .map_err(|_| cursor.fail("a bounded amount of mana of one color"))?;
+            Ok(ManaSpentAmount::Symbols(counts))
+        }
+        None => {
+            let (operator, value) = threshold_comparison(threshold);
+            Ok(ManaSpentAmount::Total { operator, value })
+        }
+    }
+}
+
+/// `this spell` (or the source's name), `that spell` (the spell a cast event
+/// observed) or `it`, which names the observed spell after a cast event and
+/// otherwise must denote the ability's own source.
+fn recognize_cast_spell_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<CastSpellReference> {
+    cursor.enter("condition.cast.mana-spent.spell");
+    let event_spell = context
+        .program
+        .is_some_and(|program| program.effects.frame.event_spell)
+        || cursor
+            .binding_environment()
+            .is_some_and(|environment| environment.frame.event_spell);
+    if word_is(cursor, 0, "that") && word_is(cursor, 1, "spell") {
+        cursor.require(
+            event_spell,
+            "a cast event that records the spell `that spell` names",
+        )?;
+        cursor.consume_phrase(&["that", "spell"])?;
+        return Ok(CastSpellReference::EventSpell);
+    }
+    if word_is(cursor, 0, "it") {
+        cursor.consume("it")?;
+        if event_spell {
+            return Ok(CastSpellReference::EventSpell);
+        }
+        let reference = resolve_object_anaphor(cursor, context)?;
+        cursor.enter("condition.cast.mana-spent.source-pronoun");
+        cursor.require(
+            reference == ConditionObjectReference::SOURCE,
+            "a pronoun that denotes the ability's own source or the spell a cast event observed",
+        )?;
+        return Ok(CastSpellReference::Source(LocalObjectReference::SourceSelf));
+    }
+    recognize_source_reference(cursor, context.name_links, context.name_failure)
+        .map(CastSpellReference::Source)
+}
+
+/// `AMOUNT was|wasn't spent to cast SPELL` (CR 601.2h): the cast record of
+/// the ability's source or of the spell a cast event observed.
+fn recognize_mana_spent_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ConditionAtom> {
+    let amount = recognize_mana_spent_amount(cursor)?;
+    cursor.enter("condition.cast.mana-spent.verb");
+    let negated = contraction_is(cursor, 0, "wasn", "t");
+    cursor.require(
+        negated || word_is(cursor, 0, "was") || word_is(cursor, 0, "were"),
+        "`was`, `were` or `wasn't` before `spent`",
+    )?;
+    consume_current(cursor)?;
+    cursor.consume_phrase(&["spent", "to", "cast"])?;
+    let spell = recognize_cast_spell_reference(cursor, context)?;
+    Ok(ConditionAtom::CastFact(CastFactNode {
+        spell,
+        fact: CastFact::ManaSpent { amount, negated },
     }))
 }
 
