@@ -165,7 +165,12 @@ fn recognize_ward_resource_cost(
             ),
             "a fixed life payment after the Ward separator",
         )?;
-        super::recognize_resource_payment(cursor)?
+        let cost = super::recognize_resource_payment(cursor)?;
+        // `Ward—[cost].` is a sentence: its period precedes the reminder.
+        if cursor.peek() == Some(".") && cursor.peek_ahead(1) == Some("(") {
+            cursor.consume(".")?;
+        }
+        cost
     } else {
         cursor.require(
             cursor

@@ -1,0 +1,1318 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "keyword/casting-keywords-and-keyword-costs",
+  "cases": [
+    {
+      "id": "exact-flare-of-denial",
+      "request": {
+        "cardName": "Flare of Denial",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "You may sacrifice a nontoken blue creature rather than pay this spell's mana cost.\nCounter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dark-triumph",
+      "request": {
+        "cardName": "Dark Triumph",
+        "typeLine": "Instant",
+        "manaCost": "{4}{B}",
+        "oracleText": "If you control a Swamp, you may sacrifice a creature rather than pay this spell's mana cost.\nCreatures you control get +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-snuff-out",
+      "request": {
+        "cardName": "Snuff Out",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fieldmist-borderpost",
+      "request": {
+        "cardName": "Fieldmist Borderpost",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "You may pay {1} and return a basic land you control to its owner's hand rather than pay this spell's mana cost.\nThis artifact enters tapped.\n{T}: Add {W} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cho-arrim-legate",
+      "request": {
+        "cardName": "Cho-Arrim Legate",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "If an opponent controls a Swamp and you control a Plains, you may cast this spell without paying its mana cost.\nProtection from black",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-archive-trap",
+      "request": {
+        "cardName": "Archive Trap",
+        "typeLine": "Instant — Trap",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "If an opponent searched their library this turn, you may pay {0} rather than pay this spell's mana cost.\nTarget opponent mills thirteen cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fireblast",
+      "request": {
+        "cardName": "Fireblast",
+        "typeLine": "Instant",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "You may sacrifice two Mountains rather than pay this spell's mana cost.\nFireblast deals 4 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-abolish",
+      "request": {
+        "cardName": "Abolish",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "You may discard a Plains card rather than pay this spell's mana cost.\nDestroy target artifact or enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-workshop-warchief",
+      "request": {
+        "cardName": "Workshop Warchief",
+        "typeLine": "Creature — Rhino Warrior",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Trample\nWhen this creature enters, you gain 3 life.\nWhen this creature dies, create a 4/4 green Rhino Warrior creature token.\nBlitz {4}{G}{G} (If you cast this spell for its blitz cost, it gains haste and \"When this creature dies, draw a card.\" Sacrifice it at the beginning of the next end step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "blitz"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bitter-ordeal",
+      "request": {
+        "cardName": "Bitter Ordeal",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Search target player's library for a card and exile it. Then that player shuffles.\nGravestorm (When you cast this spell, copy it for each permanent put into a graveyard this turn. You may choose new targets for the copies.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "gravestorm"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-burn-trail",
+      "request": {
+        "cardName": "Burn Trail",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Burn Trail deals 3 damage to any target.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "conspire"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sedgemoor-witch",
+      "request": {
+        "cardName": "Sedgemoor Witch",
+        "typeLine": "Creature — Human Warlock",
+        "manaCost": "{2}{B}",
+        "oracleText": "Menace\nWard—Pay 3 life. (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays 3 life.)\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a 1/1 black and green Pest creature token with \"When this token dies, you gain 1 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "ward"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skewer-the-critics",
+      "request": {
+        "cardName": "Skewer the Critics",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)\nSkewer the Critics deals 3 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              },
+              {
+                "pointer": "/ability/mode",
+                "equals": "spectacle"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deep-analysis",
+      "request": {
+        "cardName": "Deep Analysis",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Target player draws two cards.\nFlashback—{1}{U}, Pay 3 life. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "flashback"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-collective-brutality",
+      "request": {
+        "cardName": "Collective Brutality",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Escalate—Discard a card. (Pay this cost for each mode chosen beyond the first.)\nChoose one or more —\n• Target opponent reveals their hand. You choose an instant or sorcery card from it. That player discards that card.\n• Target creature gets -2/-2 until end of turn.\n• Target opponent loses 2 life and you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "escalate"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-knight-of-grace",
+      "request": {
+        "cardName": "Knight of Grace",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{1}{W}",
+        "oracleText": "First strike (This creature deals combat damage before creatures without first strike.)\nHexproof from black (This creature can't be the target of black spells or abilities your opponents control.)\nThis creature gets +1/+0 as long as any player controls a black permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "hexproofFrom"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-coastal-discovery",
+      "request": {
+        "cardName": "Coastal Discovery",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw two cards.\nAwaken 4—{5}{U} (If you cast this spell for {5}{U}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "awaken"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dream-s-grip",
+      "request": {
+        "cardName": "Dream's Grip",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Choose one —\n• Tap target permanent.\n• Untap target permanent.\nEntwine {1} (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-barbed-lightning",
+      "request": {
+        "cardName": "Barbed Lightning",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Choose one —\n• Barbed Lightning deals 3 damage to target creature.\n• Barbed Lightning deals 3 damage to target player or planeswalker.\nEntwine {2} (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-mayhem-graveyard-cast",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}",
+        "oracleText": "Mayhem {1}{R} (You may cast this card from your graveyard for {1}{R} if you discarded it this turn. Timing rules still apply.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "mayhem"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{1}{R}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-web-slinging-tapped-return",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Spider Hero",
+        "manaCost": "{2}",
+        "oracleText": "Web-slinging {2}{W} (You may cast this spell for {2}{W} if you also return a tapped creature you control to its owner's hand.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              },
+              {
+                "pointer": "/ability/mode",
+                "equals": "webSlinging"
+              },
+              {
+                "pointer": "/ability/costs/1/kind",
+                "equals": "returnPermanentToOwnersHand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-escape-two-cards-no-reminder",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Escape—{1}{W}, Exile two other cards from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "escape"
+              },
+              {
+                "pointer": "/ability/costs/1/quantity/count/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-teamwork-three",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Astartes Warrior",
+        "manaCost": "{2}",
+        "oracleText": "Teamwork 3",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "teamwork"
+              },
+              {
+                "pointer": "/ability/minimumPower/value",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-paradigm-name",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Paradigm (Then exile this spell. After you first resolve a spell with this name, you may cast a copy of it from exile without paying its mana cost at the beginning of each of your first main phases.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "paradigm"
+              },
+              {
+                "pointer": "/ability/spellName",
+                "equals": "Generic Casting Keyword Source"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-disguise-no-reminder",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}",
+        "oracleText": "Disguise {2}{U}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "disguise"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{2}{U}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-equip-quality-halfling",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Legendary Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equip Halfling {1} ({1}: Attach to target Halfling you control. Equip only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "equip"
+              },
+              {
+                "pointer": "/ability/costs/0/manaCost",
+                "equals": "{1}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kicker-sacrifice-land",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "Kicker—Sacrifice a land. (You may sacrifice a land in addition to any other costs as you cast this spell.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "kicker"
+              },
+              {
+                "pointer": "/ability/cost/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-hexproof-from-list",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Spider",
+        "manaCost": "{2}",
+        "oracleText": "Reach, hexproof from blue",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbilityGroup"
+              },
+              {
+                "pointer": "/abilities/0/kind",
+                "equals": "reach"
+              },
+              {
+                "pointer": "/abilities/1/kind",
+                "equals": "hexproofFrom"
+              },
+              {
+                "pointer": "/abilities/1/from/0",
+                "equals": "blue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-entwine-choose-all-reminder",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Entwine {3} (Choose all if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{3}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-flashback-life-and-artifact",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Flashback—Pay 2 life, Sacrifice an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "flashback"
+              },
+              {
+                "pointer": "/ability/cost/kind",
+                "equals": "compositeCost"
+              },
+              {
+                "pointer": "/ability/cost/costs/1/kind",
+                "equals": "sacrificePermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spectacle-foreign-reminder",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Spectacle {R} (You may cast this spell for its spectacle cost rather than its mana cost if an opponent gained life this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-impending-reminder-count",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Enchantment Creature — Horror",
+        "manaCost": "{2}",
+        "oracleText": "Impending 4—{1}{G}{G} (If you cast this spell for its impending cost, it enters with five time counters and isn't a creature until the last is removed. At the beginning of your end step, remove a time counter from it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-blitz-nonmana-payment",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Human Monk",
+        "manaCost": "{2}",
+        "oracleText": "Blitz—{2}{R}{R}, Discard a card. (If you cast this spell for its blitz cost, it gains haste and \"When this creature dies, draw a card.\" Sacrifice it at the beginning of the next end step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-escape-extra-payment",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Turtle",
+        "manaCost": "{2}",
+        "oracleText": "Escape—{4}{G}{U}, Exile a land you control, Exile five other cards from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-equip-life-payment",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equip—Pay 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.equip.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-equip-planeswalker-quality",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equip planeswalker {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.equip.quality"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flashback-several-sacrifices",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Flashback—Sacrifice three creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.flashback.cost-support"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-hexproof-unknown-quality",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{2}",
+        "oracleText": "Hexproof from monocolored",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.protection.quality"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kicker-unknown-cost-atom",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "Kicker—Forage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-alternative-cast-extra-sentence",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Rhino",
+        "manaCost": "{2}",
+        "oracleText": "You may pay {R}{G} rather than pay this spell's mana cost. Spend only mana produced by Treasures to cast it this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "alternative-cast.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-alternative-cast-variable-mana",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "You may pay {X} rather than pay this spell's mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "alternative-cast.lowering"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entwine-several-sacrifices",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Entwine—Sacrifice two lands. (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering"
+          }
+        ]
+      }
+    }
+  ]
+}

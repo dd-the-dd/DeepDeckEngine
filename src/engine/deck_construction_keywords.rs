@@ -4,15 +4,18 @@
 //! and attaches no trigger, permission, cost or modifier to it.
 use super::*;
 
-/// `partner`, `partner—[text]`, `choose a Background` and `Doctor's
-/// companion`, each explicitly scoped to deck construction by the compiler.
+/// `partner`, `partner—[text]`, `choose a Background`, `Doctor's
+/// companion` and `Spell commander`, each explicitly scoped to deck
+/// construction by the compiler.
 pub(super) fn deck_construction_keyword_supported(ability: &Value) -> bool {
     ability["rulesScope"].as_str() == Some("deckConstruction")
         && match value_kind(ability) {
             Some("partner") => ability
                 .get("variant")
                 .is_none_or(|variant| variant.as_str().is_some_and(|name| !name.trim().is_empty())),
-            Some("chooseABackground" | "doctorsCompanion") => ability.get("variant").is_none(),
+            Some("chooseABackground" | "doctorsCompanion" | "spellCommander") => {
+                ability.get("variant").is_none()
+            }
             _ => false,
         }
 }

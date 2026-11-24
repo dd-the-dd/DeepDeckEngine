@@ -1,6 +1,6 @@
 //! Keyword abilities parameterized by one mana cost whose rules the engine
 //! executes from that cost (CR 702.37 morph and megamorph, 702.109 dash,
-//! 702.170 plot, 702.185 warp):
+//! 702.168 disguise, 702.170 plot, 702.185 warp):
 //!
 //! ```text
 //! Atom     := Keyword ManaCost ["(" Reminder ")"]
@@ -20,6 +20,8 @@ pub(in crate::oracle::canonical) enum ManaCostKeyword {
     Morph,
     /// Morph whose permanent gets a +1/+1 counter as it is turned face up.
     Megamorph,
+    /// Morph whose face-down creature has ward {2} (CR 702.168a).
+    Disguise,
     Dash,
     Plot,
     Warp,
@@ -30,6 +32,7 @@ impl ManaCostKeyword {
         Some(match raw.to_ascii_lowercase().as_str() {
             "morph" => Self::Morph,
             "megamorph" => Self::Megamorph,
+            "disguise" => Self::Disguise,
             "dash" => Self::Dash,
             "plot" => Self::Plot,
             "warp" => Self::Warp,
@@ -41,6 +44,7 @@ impl ManaCostKeyword {
         match self {
             Self::Morph => "morph",
             Self::Megamorph => "megamorph",
+            Self::Disguise => "disguise",
             Self::Dash => "dash",
             Self::Plot => "plot",
             Self::Warp => "warp",
@@ -112,6 +116,21 @@ fn recognize_reminder(
                 consume_source_pronoun(cursor, false)?;
             }
             cursor.consume(".")
+        }
+        // CR 702.168a: the face-down spell costs {3} and its permanent has
+        // ward {2}.
+        ManaCostKeyword::Disguise => {
+            consume_words(
+                cursor,
+                &[
+                    "You", "may", "cast", "this", "card", "face", "down", "for", "{3}", "as", "a",
+                    "2/2", "creature", "with", "ward", "{2}", ".", "Turn",
+                ],
+            )?;
+            consume_source_pronoun(cursor, false)?;
+            consume_words(cursor, &["face", "up", "any", "time", "for"])?;
+            consume_source_pronoun(cursor, true)?;
+            consume_words(cursor, &["disguise", "cost", "."])
         }
         ManaCostKeyword::Dash => consume_words(
             cursor,
@@ -253,6 +272,13 @@ pub(in crate::oracle::canonical) fn lower_mana_cost_keyword(
             "kind": "morph",
             "cost": cost,
             "putCounterWhenTurnedFaceUp": node.keyword == ManaCostKeyword::Megamorph,
+        }),
+        // The face-down casting and turning face up are morph's (CR
+        // 702.168b); the runtime gives the face-down permanent ward {2}.
+        ManaCostKeyword::Disguise => serde_json::json!({
+            "kind": "disguise",
+            "cost": cost,
+            "putCounterWhenTurnedFaceUp": false,
         }),
         keyword => serde_json::json!({ "kind": keyword.word(), "cost": cost }),
     }

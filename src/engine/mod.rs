@@ -3644,6 +3644,9 @@ fn alternative_cost_supported(value: &Value) -> bool {
                         && card_filter_supported(&cost["where"])
                 }
                 Some("returnPermanentToOwnersHand") => card_filter_supported(&cost["where"]),
+                Some("sacrificePermanent" | "tap" | "discardCard") => {
+                    keyword_programs::alternative_object_cost_supported(cost)
+                }
                 _ => false,
             })
         })
@@ -3729,7 +3732,7 @@ fn fuse_ability_supported(value: &Value) -> bool {
 }
 
 fn morph_ability_supported(value: &Value) -> bool {
-    value_kind(value) == Some("morph")
+    keyword_programs::is_face_down_casting_keyword(value)
         && value_kind(&value["cost"]) == Some("payMana")
         && value["cost"]["manaCost"]
             .as_str()
@@ -3775,7 +3778,7 @@ fn face_down_creature_definition(card: &CardDefinition) -> CardDefinition {
         mana_cost: String::new(),
         power: Some("2".to_string()),
         toughness: Some("2".to_string()),
-        rules: Vec::new(),
+        rules: keyword_programs::face_down_rules(card),
     }
 }
 
@@ -3913,21 +3916,7 @@ fn graveyard_discard_cast_ability(card: &CardDefinition) -> bool {
 }
 
 fn escape_ability_supported(value: &Value) -> bool {
-    value_kind(value) == Some("escape")
-        && value["costs"].as_array().is_some_and(|costs| {
-            costs.len() == 2
-                && value_kind(&costs[0]) == Some("payMana")
-                && cost_supported(&costs[0])
-                && value_kind(&costs[1]) == Some("exileGraveyardCards")
-                && player_reference_supported(&costs[1]["player"])
-                && card_filter_supported(&costs[1]["where"])
-                && costs[1]["excludeSource"].is_boolean()
-                && value_kind(&costs[1]["quantity"]) == Some("anyNumber")
-                && value_kind(&costs[1]["aggregateCondition"]) == Some("distinctCardTypesAtLeast")
-                && integer_value(&costs[1]["aggregateCondition"]["count"])
-                    .is_some_and(|count| count > 0)
-                && costs[1]["decisionId"].is_string()
-        })
+    keyword_programs::escape_ability_supported(value)
 }
 
 fn escape_ability(card: &CardDefinition) -> Option<&Value> {
@@ -3967,6 +3956,8 @@ fn keyword_rule_supported(rule: &Value) -> bool {
             keyword_kind_supported(&rule["ability"])
                 || ward_ability_supported(&rule["ability"])
                 || protection_ability_supported(&rule["ability"])
+                || keyword_programs::hexproof_from_supported(&rule["ability"])
+                || keyword_programs::entwine_ability_supported(&rule["ability"])
                 || conditional_flash_ability_supported(&rule["ability"])
                 || cycling_ability_supported(&rule["ability"])
                 || kicker_ability_supported(&rule["ability"])
@@ -4033,6 +4024,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                         || ward_ability_supported(ability)
                         || matches!(value_kind(ability), Some("cascade"))
                         || protection_ability_supported(ability)
+                        || keyword_programs::hexproof_from_supported(ability)
                         || (value_kind(ability) == Some("annihilator")
                             && integer_value(&ability["quantity"])
                                 .is_some_and(|quantity| quantity > 0))
@@ -11987,22 +11979,23 @@ impl GameEngine {
         permanent: &CardInstance,
         source: &CardDefinition,
     ) -> bool {
-        self.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("temporaryHexproofFrom")
-                && modifier["permanentIds"].as_array().is_some_and(|ids| {
-                    ids.iter()
-                        .any(|id| id.as_str() == Some(permanent.instance_id.as_str()))
-                })
-                && modifier["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
-                && modifier["from"].as_array().is_some_and(|qualities| {
-                    qualities
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .any(|quality| card_matches_protection_quality(source, quality))
-                })
-        })
+        keyword_programs::printed_hexproof_from(permanent, source)
+            || self.state.rule_modifiers.iter().any(|modifier| {
+                value_kind(modifier) == Some("temporaryHexproofFrom")
+                    && modifier["permanentIds"].as_array().is_some_and(|ids| {
+                        ids.iter()
+                            .any(|id| id.as_str() == Some(permanent.instance_id.as_str()))
+                    })
+                    && modifier["expiresAfterTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
+                    && modifier["from"].as_array().is_some_and(|qualities| {
+                        qualities
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .any(|quality| card_matches_protection_quality(source, quality))
+                    })
+            })
     }
 
     fn spell_casting_prohibited(&self, player_id: &str) -> bool {
@@ -12983,6 +12976,7 @@ impl GameEngine {
                 .unwrap_or(0);
             costs.extend(std::iter::repeat_n(mana_cost, count));
         }
+        costs.extend(keyword_programs::entwine_mana_costs(card, decisions));
         let damping_spheres = self
             .battlefield_static_modifiers()
             .iter()
@@ -14165,6 +14159,9 @@ impl GameEngine {
             self.return_permanent_to_hand(instance_id)?;
             paid_object = Some(instance_id.to_string());
         }
+        if let Some(paid) = self.apply_alternative_object_payments(action, &ability)? {
+            paid_object = Some(paid);
+        }
         self.record_event(
             "alternativeCostPaid",
             Some(action.player_id.clone()),
@@ -15335,7 +15332,6 @@ impl GameEngine {
         let ability = escape_ability(&casting_card.definition)?;
         let exile_cost = ability["costs"].as_array()?.get(1)?;
         let decision_id = exile_cost["decisionId"].as_str()?;
-        let minimum_types = integer_value(&exile_cost["aggregateCondition"]["count"])?;
         let player_index = self.player_index(controller_id).ok()?;
         let candidates = self.state.players[player_index]
             .graveyard
@@ -15345,7 +15341,7 @@ impl GameEngine {
             .map(|card| card.instance_id.clone())
             .collect::<Vec<_>>();
         let mut valid_selections = Vec::new();
-        for count in 1..=candidates.len() {
+        for count in keyword_programs::escape_selection_sizes(exile_cost, candidates.len()) {
             for selection in
                 Self::resolution_selections(&candidates, count, MAX_DECLARATION_OPTIONS)
             {
@@ -15356,7 +15352,7 @@ impl GameEngine {
                         .find(|card| card.instance_id == *instance_id)
                         .map(|card| &card.definition)
                 });
-                if distinct_card_types(selected_definitions).len() as i32 >= minimum_types {
+                if keyword_programs::escape_selection_satisfies(exile_cost, selected_definitions) {
                     valid_selections.push(selection);
                     if valid_selections.len() >= MAX_DECLARATION_OPTIONS {
                         break;
@@ -15687,7 +15683,7 @@ impl GameEngine {
                     kicked
                         .decisions
                         .insert("kicked".to_string(), Value::Bool(true));
-                    expanded.push(kicked);
+                    expanded.extend(self.kicker_cost_declarations(kicked, ability, controller_id));
                 }
                 assignments = expanded;
             }
@@ -16106,6 +16102,8 @@ impl GameEngine {
             }
             assignments = expanded;
         }
+        assignments =
+            self.expand_alternative_object_declarations(controller_id, casting_source, assignments);
         for (instance_index, _) in self.replicate_costs(card, controller_id).iter().enumerate() {
             let decision_id = replicate_decision_id(instance_index);
             let max_count = MAX_REPLICATE_PAYMENTS.min(
@@ -16409,6 +16407,13 @@ impl GameEngine {
                                     break;
                                 }
                             }
+                            next.extend(keyword_programs::entwined_mode_declarations(
+                                card,
+                                decision,
+                                &id,
+                                assignment,
+                                &selections,
+                            ));
                             if next.len() >= MAX_DECLARATION_OPTIONS {
                                 break;
                             }
@@ -17613,6 +17618,12 @@ impl GameEngine {
                 let discard_candidates = player
                     .hand
                     .iter()
+                    .filter(|candidate| {
+                        keyword_programs::graveyard_discard_candidate(
+                            &card.definition,
+                            &candidate.definition,
+                        )
+                    })
                     .map(|candidate| candidate.instance_id.clone())
                     .collect::<Vec<_>>();
                 declarations = declarations
@@ -17629,6 +17640,10 @@ impl GameEngine {
                     })
                     .take(MAX_DECLARATION_OPTIONS)
                     .collect();
+                keyword_programs::mark_graveyard_discard_cast_exile(
+                    &card.definition,
+                    &mut declarations,
+                );
                 if declarations.is_empty() {
                     continue;
                 }
@@ -20535,13 +20550,12 @@ impl GameEngine {
                     })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let minimum_types = integer_value(&exile_cost["aggregateCondition"]["count"])
-            .ok_or_else(|| EngineError::new("escape card-type threshold is invalid"))?;
-        if (distinct_card_types(selected_cards.iter().map(|card| &card.definition)).len() as i32)
-            < minimum_types
-        {
+        if !keyword_programs::escape_selection_satisfies(
+            exile_cost,
+            selected_cards.iter().map(|card| &card.definition),
+        ) {
             return Err(EngineError::new(
-                "the selected escape cards do not contain enough distinct card types",
+                "the selected escape cards do not pay the escape exile cost",
             ));
         }
         Ok(())
@@ -25574,7 +25588,13 @@ impl GameEngine {
                     let discard_index = self.state.players[player_index]
                         .hand
                         .iter()
-                        .position(|card| card.instance_id == discard_id)
+                        .position(|card| {
+                            card.instance_id == discard_id
+                                && keyword_programs::graveyard_discard_candidate(
+                                    &source_definition,
+                                    &card.definition,
+                                )
+                        })
                         .ok_or_else(|| EngineError::new("additional discard card left the hand"))?;
                     let (discarded, graveyard_destination) =
                         self.take_zone_card_for_graveyard(player_index, "hand", discard_index)?;
@@ -25794,6 +25814,10 @@ impl GameEngine {
                     &spell_definition,
                     &action.decisions,
                 ));
+                cost_target_ids.extend(Self::kicker_cost_target_ids(
+                    &spell_definition,
+                    &action.decisions,
+                ));
                 cost_target_ids.extend(self.splice_cost_target_ids(action));
                 if action
                     .decisions
@@ -25913,6 +25937,7 @@ impl GameEngine {
                 self.apply_casting_exile_costs(action, &spell_definition)?;
                 self.apply_casting_put_counter_costs(action, &spell_definition, provider)?;
                 self.apply_escalate_costs_with_provider(action, &spell_definition, provider)?;
+                self.apply_kicker_keyword_cost(action, &spell_definition, provider)?;
                 self.apply_delve_cost(action, &spell_definition, delve_maximum)?;
                 self.apply_flashback_cost(action, &spell_definition, provider)?;
                 self.apply_escape_costs(action, &spell_definition)?;

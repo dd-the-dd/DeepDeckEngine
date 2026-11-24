@@ -47,7 +47,7 @@ fn word_is(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> boo
         .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
 }
 
-fn recognize_protection_quality(
+pub(in crate::oracle::canonical) fn recognize_protection_quality(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ProtectionQuality> {
     cursor.enter("keyword.protection.quality");

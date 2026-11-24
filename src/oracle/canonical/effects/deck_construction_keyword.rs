@@ -25,6 +25,7 @@ fn lower_deck_construction_keyword(keyword: &DeckConstructionKeyword) -> Value {
         }
         DeckConstructionKeyword::ChooseABackground => json!({ "kind": "chooseABackground" }),
         DeckConstructionKeyword::DoctorsCompanion => json!({ "kind": "doctorsCompanion" }),
+        DeckConstructionKeyword::SpellCommander => json!({ "kind": "spellCommander" }),
     };
     ability["rulesScope"] = json!("deckConstruction");
     ability
