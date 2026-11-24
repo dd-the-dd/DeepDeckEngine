@@ -141,8 +141,15 @@ pub(in crate::oracle::canonical) fn recognize_selected_sacrifice_operand(
         }
     };
     cursor.enter("effect.sacrifice.object-query");
-    let object = recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count))?
-        .into_object_query(cursor)?;
+    let mut query = recognize_object_noun_query(cursor, ObjectQueryContext::shared_quota(&count))?;
+    // `a creature other than this creature`: the source is not a candidate.
+    let exclude_source = query.take_source_exclusion();
+    cursor.require(
+        !exclude_source || owner == SacrificeOperandOwner::AbilityController,
+        "a source exclusion among the permanents of the source's controller",
+    )?;
+    let mut object = query.into_object_query(cursor)?;
+    object.exclude_source = exclude_source;
     cursor.require(
         match owner {
             SacrificeOperandOwner::AbilityController => matches!(

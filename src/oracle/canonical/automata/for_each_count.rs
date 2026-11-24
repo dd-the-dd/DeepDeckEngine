@@ -162,7 +162,19 @@ fn recognize_counted_collection(
         return Ok(NumericExpression::CountQuery(Box::new(query)));
     }
     cursor.enter("numeric.for-each.collection");
-    let query = recognize_object_collection(cursor)?;
+    let query = match recognize_counted_object_collection(cursor)? {
+        CountedObjectCollection::Present(query) => query,
+        // `for each creature that died this turn`: a count of the turn's
+        // departures through the shared scoped query (CR 700.4).
+        CountedObjectCollection::Departed(departed) => {
+            cursor.enter("numeric.for-each.departures");
+            cursor.require(
+                !colors && !distinct_names && !basic_land_types,
+                "an object count of the departures of this turn",
+            )?;
+            return Ok(NumericExpression::CountQuery(Box::new(departed)));
+        }
+    };
     let exclude_source = query.exclude_source;
     // CR 110.1: `on the battlefield` names every permanent there, whoever
     // controls it. The explicit zone anchors a nominal head such as `Elves`.

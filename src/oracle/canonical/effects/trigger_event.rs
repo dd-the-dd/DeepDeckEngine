@@ -1002,7 +1002,8 @@ fn lower_object_event(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     return Err(cursor.fail("a positive controller relation for an attacker"));
                 }
@@ -1137,7 +1138,8 @@ fn lower_object_event(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     return Err(cursor.fail("a positive controller relation for a combatant"));
                 }
@@ -1258,7 +1260,11 @@ fn lower_damage_permanent_query(
         Some(ObjectControllerScope::OpponentOfAbilityController) => {
             target["controller"] = json!({"kind": "opponentsOf", "player": controller()});
         }
-        Some(ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer) => {
+        Some(
+            ObjectControllerScope::NotAbilityController
+            | ObjectControllerScope::EventPlayer
+            | ObjectControllerScope::Player(_),
+        ) => {
             return Err(cursor.fail("a positive controller relation for a damage event object"));
         }
     }
@@ -1593,7 +1599,8 @@ fn lower_transition_branch(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     cursor.enter("trigger.program.event-controller-support");
                     return Err(

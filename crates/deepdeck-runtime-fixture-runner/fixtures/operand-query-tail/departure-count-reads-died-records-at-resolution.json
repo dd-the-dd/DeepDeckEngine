@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "operand-query-tail/departure-count-reads-the-died-records-of-this-turn-at-resolution",
+  "seed": 7312,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "effects": [
+      {
+        "kind": "destroyPermanent",
+        "permanent": {
+          "kind": "eachPermanent",
+          "where": { "kind": "cardTypeContains", "value": "Creature" }
+        }
+      },
+      {
+        "kind": "gainLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": {
+          "kind": "countEventsThisTurn",
+          "event": "permanentDied",
+          "where": { "kind": "subtypeContains", "value": "Zubera" }
+        }
+      },
+      {
+        "kind": "loseLife",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+        "amount": {
+          "kind": "countEventsThisTurn",
+          "event": "permanentDied",
+          "where": {
+            "kind": "and",
+            "operands": [
+              { "kind": "not", "operand": { "kind": "isToken" } },
+              { "kind": "cardTypeContains", "value": "Creature" }
+            ]
+          },
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+          "relation": "owner"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "life": 20,
+        "hand": [{ "id": "zubera-wake", "name": "Zubera Wake", "typeLine": "Sorcery", "manaCost": "{B}" }],
+        "battlefield": [
+          { "id": "own-zubera", "name": "Own Zubera", "typeLine": "Creature - Zubera Spirit", "power": "1", "toughness": "2" },
+          { "id": "own-bear", "name": "Own Bear", "typeLine": "Creature - Bear", "power": "2", "toughness": "2" },
+          {
+            "id": "own-zubera-token",
+            "name": "Zubera Token",
+            "typeLine": "Creature - Zubera Spirit",
+            "power": "1",
+            "toughness": "1",
+            "isToken": true
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          { "id": "opposing-zubera", "name": "Opposing Zubera", "typeLine": "Creature - Zubera Spirit", "power": "1", "toughness": "2" },
+          { "id": "opposing-land", "name": "Opposing Land", "typeLine": "Land" }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "zubera-wake"
+  },
+  "assertions": [
+    { "kind": "eventCount", "eventKind": "permanentDied", "equals": 4 },
+    { "kind": "lifeTotal", "playerId": "player-0", "equals": 21 },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "opposing-land", "equals": true },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

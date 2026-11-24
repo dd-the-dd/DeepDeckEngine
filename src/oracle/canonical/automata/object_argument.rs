@@ -295,8 +295,16 @@ pub(in crate::oracle::canonical) fn recognize_object_noun_phrase(
                 "one source exclusion for one noun phrase",
             )?;
             cursor.enter("noun-phrase.query");
-            let query = recognize_object_noun_query(cursor, expected.context)?;
-            (query, other || determiner.excludes_source())
+            let mut query = recognize_object_noun_query(cursor, expected.context)?;
+            // `a creature other than this creature`: the postnominal form of
+            // the same source exclusion, stated once.
+            let postnominal = query.take_source_exclusion();
+            let leading = other || determiner.excludes_source();
+            cursor.require(
+                !(postnominal && leading),
+                "one source exclusion for one noun phrase",
+            )?;
+            (query, leading || postnominal)
         }
     };
     let domain = infer_noun_phrase_domain(&query, expected.domains);

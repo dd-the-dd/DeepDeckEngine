@@ -934,7 +934,9 @@ pub(in crate::oracle::canonical) fn read_static_subject(
             ObjectControllerScope::OpponentOfAbilityController => {
                 json!({ "kind": "opponentsOf", "player": controller() })
             }
-            ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer => {
+            ObjectControllerScope::NotAbilityController
+            | ObjectControllerScope::EventPlayer
+            | ObjectControllerScope::Player(_) => {
                 return Err(
                     cursor.fail("a static controller scope representable as a player relation")
                 );

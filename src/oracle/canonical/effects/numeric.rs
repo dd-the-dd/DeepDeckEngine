@@ -97,8 +97,15 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
                         "where": predicate,
                     }));
                 }
-                // `you don't control`, `that player controls`: no engine
-                // aggregate counts for that player relation yet.
+                // `target opponent controls`, `its controller controls`:
+                // the permanents of that one player.
+                Some(ObjectControllerScope::Player(player)) => json!({
+                    "kind": "countPermanents",
+                    "where": predicate,
+                    "player": lower_related_player(player),
+                }),
+                // `you don't control`: no engine aggregate counts for that
+                // player relation yet.
                 Some(_) => return None,
             }
         }

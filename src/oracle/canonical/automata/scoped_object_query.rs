@@ -8,6 +8,30 @@ pub(in crate::oracle::canonical) struct ScopedObjectQueryNode {
     pub objects: RelatedObjectQueryNode,
     pub zones: Vec<CardZoneName>,
     pub holders: Option<ZoneHolderQueryNode>,
+    /// The query's source set is the departures of this turn instead of
+    /// the objects now in `zones` (`creatures that died this turn`): no
+    /// zone is read and `zones` is empty.
+    pub departures: Option<DepartureHistory>,
+}
+
+/// The player a departure's relation names, relative to the ability
+/// controller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DeparturePlayer {
+    AbilityController,
+    OpponentOfAbilityController,
+}
+
+/// The departures of this turn a query reads (CR 700.4: an object dies when
+/// it is put into a graveyard from the battlefield). The records keep the
+/// last known characteristics of each object (CR 603.10a).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DepartureHistory {
+    /// `died under your control`: the player who controlled it as it died.
+    pub controller: Option<DeparturePlayer>,
+    /// `put into your graveyard`: the owner of the graveyard it went to,
+    /// which is its owner (CR 404.2).
+    pub graveyard_owner: Option<DeparturePlayer>,
 }
 
 impl ScopedObjectQueryNode {
@@ -103,6 +127,7 @@ pub(in crate::oracle::canonical) fn recognize_scoped_object_query(
         objects,
         zones,
         holders,
+        departures: None,
     })
 }
 

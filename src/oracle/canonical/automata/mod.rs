@@ -1206,6 +1206,9 @@ pub(super) enum ObjectControllerScope {
     /// `that player` after an event naming one), resolved by the C2
     /// binding environment.
     EventPlayer,
+    /// One other player the query names (`target opponent controls`, `its
+    /// controller controls`); lowered by `effects::lower_related_player`.
+    Player(RelatedPlayer),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

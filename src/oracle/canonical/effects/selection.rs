@@ -16,6 +16,7 @@ pub(in crate::oracle::canonical) fn lower_object_controller_scope(
         // The player the triggering event records (CR 506.2 defending
         // player), the same reference a `defending player` subject lowers to.
         ObjectControllerScope::EventPlayer => json!({ "kind": "triggeringPlayer" }),
+        ObjectControllerScope::Player(player) => lower_related_player(player),
     }
 }
 

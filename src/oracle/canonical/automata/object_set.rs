@@ -197,6 +197,38 @@ pub(in crate::oracle::canonical) fn recognize_object_collection_in_domain(
     })
 }
 
+/// A counted collection: present objects, or the departures of this turn
+/// (`creatures that died this turn`), which are no longer objects of any
+/// present zone and are counted from the turn's records.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CountedObjectCollection {
+    Present(ObjectQueryNode),
+    Departed(super::ScopedObjectQueryNode),
+}
+
+/// The collection a counting introducer (`for each`, `the number of`)
+/// reads. The shared set reader owns the phrase; this child chooses the
+/// projection its source set needs and ends the operand transactionally: an
+/// unread relative clause after it fails here with its own diagnostic.
+pub(in crate::oracle::canonical) fn recognize_counted_object_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CountedObjectCollection> {
+    let set = recognize_object_set_query(cursor)?;
+    let counted = if set.query.relations().departure().is_some() {
+        let departed = set.query.into_departure_query(cursor, set.exclude_source)?;
+        CountedObjectCollection::Departed(cursor.require_value(
+            departed,
+            "a departure history read by the counted collection",
+        )?)
+    } else {
+        let mut objects = set.query.into_object_query(cursor)?;
+        objects.exclude_source = set.exclude_source;
+        CountedObjectCollection::Present(objects)
+    };
+    super::refuse_unread_relative_tail(cursor)?;
+    Ok(counted)
+}
+
 /// Recognizes a non-targeting object collection. The shared child retains an
 /// optional controller relation so parents can decide whether one is required.
 pub(in crate::oracle::canonical) fn recognize_object_collection(
@@ -255,16 +287,23 @@ pub(in crate::oracle::canonical) fn recognize_object_set_query(
             }
             ObjectSetState::Complete => {
                 cursor.enter("object-set.complete");
-                let query = cursor.require_value(
+                let mut query = cursor.require_value(
                     RecognizedObjectQuery::coordinate(
                         frame.branches,
                         compose_collection_predicates,
                     ),
                     "one or more permanent-set predicates",
                 )?;
+                // `other than this creature` after the set: the same source
+                // exclusion as a leading `other`, stated once.
+                let postnominal = query.take_source_exclusion();
+                cursor.require(
+                    !(postnominal && frame.exclude_source),
+                    "one source exclusion for one object set",
+                )?;
                 return Ok(ObjectSetQuery {
                     query,
-                    exclude_source: frame.exclude_source,
+                    exclude_source: frame.exclude_source || postnominal,
                 });
             }
         };
