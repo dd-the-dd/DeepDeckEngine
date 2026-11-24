@@ -119,3 +119,25 @@ fn auxiliaries_and_the_copula_are_closed_tables_with_agreement() {
     assert_eq!(copula_agreement("Are"), Some(VerbAgreement::Base));
     assert_eq!(copula_agreement("be"), None);
 }
+
+#[test]
+fn event_lemmas_are_lexicon_rows_outside_the_effect_dispatch() {
+    // `activate`, `turn` and `commit` are read by event clauses only: their
+    // forms are lexicon data, but no effect instruction performs them.
+    assert!(!EVENT_LEMMAS.is_empty());
+    for lemma in EVENT_LEMMAS.iter().copied() {
+        let entry = verb_entry(lemma);
+        assert_eq!(entry.lemma, lemma);
+        for form in ALL_FORMS {
+            assert!(is_verb_form(entry.surface(form), lemma, form));
+        }
+        assert!(!EFFECT_LEMMAS.contains(&lemma), "{lemma:?}");
+        assert!(!ALL_LEMMAS.contains(&lemma), "{lemma:?}");
+    }
+    assert!(is_verb_form(
+        "turned",
+        VerbLemma::Turn,
+        VerbForm::PastParticiple
+    ));
+    assert!(lookup_effect_verb("activates").is_none());
+}
