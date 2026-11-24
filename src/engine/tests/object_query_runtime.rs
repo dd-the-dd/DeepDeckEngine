@@ -152,3 +152,144 @@ fn a_modal_spell_resolves_two_chosen_scry_modes_in_order() {
     );
     assert_eq!(engine.state.players[0].library.len(), 4);
 }
+
+fn creature(id: &str, owner: &str) -> CardInstance {
+    let mut definition = test_definition(id, "Creature \u{2014} Bear");
+    definition.power = Some("2".to_string());
+    definition.toughness = Some("2".to_string());
+    test_instance(id, definition, owner)
+}
+
+fn damage_to_player(engine: &mut GameEngine, source: &str, player: &str, combat: bool) {
+    engine.record_event(
+        "damageDealt",
+        Some(player.to_string()),
+        None,
+        json!({ "amount": 2, "combat": combat, "source": source }),
+    );
+}
+
+#[test]
+fn the_damage_recipient_relation_reads_this_turn_damage_to_that_player() {
+    // CR 120.1/510.2: `that dealt [combat] damage to PLAYER this turn` reads
+    // damage events of this turn whose source is the permanent and whose
+    // recipient is that player, relative to the ability controller.
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        creature("raider", "player-1"),
+        creature("pinger", "player-1"),
+        creature("idle", "player-1"),
+    ];
+    damage_to_player(&mut engine, "raider", "player-0", true);
+    damage_to_player(&mut engine, "pinger", "player-0", false);
+    let relation = |recipient: &str, combat_only: bool| json!({ "kind": "dealtDamageToPlayerThisTurn", "recipient": recipient, "combatOnly": combat_only });
+    let reads = |engine: &GameEngine, filter: &Value, controller: &str| {
+        engine.state.players[1]
+            .battlefield
+            .iter()
+            .filter(|permanent| {
+                engine.permanent_dealt_damage_to_player_this_turn(permanent, filter, controller)
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        reads(&engine, &relation("abilityController", false), "player-0"),
+        vec!["raider", "pinger"]
+    );
+    assert_eq!(
+        reads(&engine, &relation("abilityController", true), "player-0"),
+        vec!["raider"],
+        "only combat damage"
+    );
+    // Relative to an ability controlled by player 1, player 0 is an
+    // opponent: the same damage reads as damage to an opponent.
+    assert_eq!(
+        reads(
+            &engine,
+            &relation("opponentOfAbilityController", false),
+            "player-1"
+        ),
+        vec!["raider", "pinger"]
+    );
+    assert!(reads(&engine, &relation("abilityController", false), "player-1").is_empty());
+    // An unknown relation never matches every damage event.
+    assert!(reads(&engine, &relation("everyone", false), "player-0").is_empty());
+    assert!(
+        !super::super::event_history::dealt_damage_to_player_supported(&relation(
+            "everyone", false
+        ))
+    );
+    // A previous turn's damage is not this turn's history.
+    engine.state.turn_number += 1;
+    assert!(reads(&engine, &relation("anyPlayer", false), "player-0").is_empty());
+}
+
+#[test]
+fn destroying_all_creatures_that_dealt_damage_to_you_reads_the_resolving_controller() {
+    let rules = parsed_rules(
+        "History Probe",
+        "Sorcery",
+        "Destroy all creatures that dealt damage to you this turn.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield =
+        vec![creature("raider", "player-1"), creature("idle", "player-1")];
+    damage_to_player(&mut engine, "raider", "player-0", true);
+    let source = spell_source("history-probe", "player-0", BTreeMap::new());
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[0]["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the collection resolves");
+    let survivors = engine.state.players[1]
+        .battlefield
+        .iter()
+        .map(|permanent| permanent.instance_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(survivors, vec!["idle"]);
+}
+
+#[test]
+fn card_types_among_a_filtered_graveyard_collection_count_only_its_cards() {
+    // `for each card type among creature cards in your graveyard`: an
+    // artifact creature and a creature give two types; the instant and the
+    // land are outside the collection.
+    let rules = parsed_rules(
+        "Measure Probe",
+        "Sorcery",
+        "Draw a card for each card type among creature cards in your graveyard.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].graveyard = [
+        ("bear", "Creature \u{2014} Bear"),
+        ("golem", "Artifact Creature \u{2014} Golem"),
+        ("bolt", "Instant"),
+        ("land", "Land"),
+    ]
+    .into_iter()
+    .map(|(id, type_line)| test_instance(id, test_definition(id, type_line), "player-0"))
+    .collect();
+    engine.state.players[0].library = (0..5)
+        .map(|index| {
+            let id = format!("library-{index}");
+            test_instance(&id, test_definition(&id, "Instant"), "player-0")
+        })
+        .collect();
+    let hand = engine.state.players[0].hand.len();
+    let source = spell_source("measure-probe", "player-0", BTreeMap::new());
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[0]["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the measure resolves");
+    assert_eq!(engine.state.players[0].hand.len(), hand + 2);
+}
