@@ -187,6 +187,78 @@
       }
     },
     {
+      "id": "exact-karador-once-each-turn",
+      "request": {
+        "cardName": "Karador, Ghost Chieftain",
+        "typeLine": "Legendary Creature — Centaur Spirit",
+        "manaCost": "{5}{W}{B}{G}",
+        "oracleText": "This spell costs {1} less to cast for each creature card in your graveyard.\nOnce during each of your turns, you may cast a creature spell from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/modifiers/0/onceEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-zaffai-window-waived-cost",
+      "request": {
+        "cardName": "Zaffai and the Tempests",
+        "typeLine": "Legendary Creature — Human Bard Sorcerer",
+        "manaCost": "{5}{U}{R}",
+        "oracleText": "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/modifiers/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/onceEachTurn",
+                "equals": true
+              },
+              {
+                "pointer": "/modifiers/0/duringControllerTurnOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-ghitu-fire-timing-cost",
       "request": {
         "cardName": "Ghitu Fire",

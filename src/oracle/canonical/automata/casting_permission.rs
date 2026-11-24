@@ -421,7 +421,14 @@ fn recognize_permission_clause(
     trial.enter("permission.base-cost");
     let base_cost = if peek_is(trial, 0, "without") {
         *committed = true;
-        trial.consume_phrase(&["without", "paying", "their", "mana", "costs"])?;
+        // The possessive agrees with the permitted spells: `its mana cost`
+        // for one spell, `their mana costs` for a collection.
+        let (possessive, costs) = if manner_pronoun(&actions) == "it" {
+            ("its", "cost")
+        } else {
+            ("their", "costs")
+        };
+        trial.consume_phrase(&["without", "paying", possessive, "mana", costs])?;
         CastingBaseCostPolicyNode::WithoutManaCost
     } else {
         CastingBaseCostPolicyNode::Printed
