@@ -543,13 +543,15 @@ pub(in crate::oracle::canonical) fn departure_clause_at(
 }
 
 /// A finite verb form that can only open a relative clause after a relative
-/// pronoun (`that has`, `that died`, `which share`). Lexical only.
+/// pronoun (`that has`, `that died`, `which share`). Lexical only. The
+/// modal `would` is left out: `damage that would be dealt` belongs to the
+/// replacement frames that own it.
 fn finite_relative_verb(raw: &str) -> bool {
     const VERBS: &[&str] = &[
         "is", "are", "was", "were", "isn't", "aren't", "wasn't", "weren't", "has", "have", "had",
         "hasn't", "haven't", "hadn't", "does", "did", "doesn't", "don't", "didn't", "can", "can't",
-        "could", "couldn't", "would", "will", "shares", "share", "dies", "targets", "entered",
-        "attacked", "blocked", "dealt", "died",
+        "could", "couldn't", "shares", "share", "dies", "targets", "entered", "attacked",
+        "blocked", "dealt", "died",
     ];
     let lower = raw.to_ascii_lowercase().replace('\u{2019}', "'");
     VERBS.contains(&lower.as_str())
