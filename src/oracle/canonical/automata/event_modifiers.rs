@@ -3,7 +3,8 @@
 //! ```text
 //! ModifierTail := ( "and" ("isn't" | "isn’t") "blocked"
 //!                 | "for the first time each turn"
-//!                 | "during" TurnOwner )*
+//!                 | "during" TurnOwner
+//!                 | "during combat" )*
 //! TurnOwner    := "your turn" | "an opponent's turn"
 //! Alone        := "alone"            -- read by the attack verb it follows
 //! ```
@@ -46,11 +47,17 @@ pub(in crate::oracle::canonical) struct EventModifierTail {
     pub first_time_each_turn: bool,
     /// `during your turn` / `during an opponent's turn` (CR 500.1).
     pub turn_owner: Option<EventTurnOwner>,
+    /// `during combat` (CR 506.1): the event happens during the combat
+    /// phase. Only a zone-change pattern that records the step evaluates it.
+    pub during_combat: bool,
 }
 
 impl EventModifierTail {
     pub(in crate::oracle::canonical) fn is_empty(&self) -> bool {
-        !self.not_blocked && !self.first_time_each_turn && self.turn_owner.is_none()
+        !self.not_blocked
+            && !self.first_time_each_turn
+            && self.turn_owner.is_none()
+            && !self.during_combat
     }
 
     /// The written name of the first modifier, for engine-gap diagnostics.
@@ -59,6 +66,8 @@ impl EventModifierTail {
             Some("`and isn't blocked`")
         } else if self.first_time_each_turn {
             Some("`for the first time each turn`")
+        } else if self.during_combat {
+            Some("`during combat`")
         } else {
             self.turn_owner.map(|owner| match owner {
                 EventTurnOwner::ControllerTurn => "`during your turn`",
@@ -135,6 +144,10 @@ fn first_time_starts(cursor: &OracleTokenCursor<'_>) -> bool {
         && word_at(cursor, 1, "the")
         && word_at(cursor, 2, "first")
         && word_at(cursor, 3, "time")
+}
+
+fn during_combat_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "during") && word_at(cursor, 1, "combat")
 }
 
 fn duplicate(cursor: &OracleTokenCursor<'_>) -> MachineFailure {
@@ -264,6 +277,13 @@ pub(in crate::oracle::canonical) fn read_event_modifier_tail(
                 return Err(duplicate(cursor));
             }
             tail.turn_owner = Some(recognize_turn_owner_modifier(cursor)?);
+        } else if during_combat_starts(cursor) {
+            cursor.enter("event.modifier.during-combat");
+            if tail.during_combat {
+                return Err(duplicate(cursor));
+            }
+            cursor.consume_phrase(&["during", "combat"])?;
+            tail.during_combat = true;
         } else {
             return Ok(tail);
         }

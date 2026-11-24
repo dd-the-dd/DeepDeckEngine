@@ -96,6 +96,17 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     TapForMana,
     /// `commit a crime` (CR 700.13).
     CommitCrime,
+    /// `play(s) a land` (CR 305.1): the special action of playing a land.
+    PlayLand,
+    /// `unlock this door` (CR 709.5): the special action unlocking the door
+    /// of the Room face that owns the ability.
+    UnlockSourceDoor,
+    /// `fully unlock a Room` (CR 709.5): unlocking a door leaves that Room
+    /// with every door unlocked.
+    FullyUnlockRoom,
+    /// `expend N` (CR 701.58): the player spends their Nth total mana to
+    /// cast spells this turn.
+    Expend(i64),
 }
 
 impl PlayerEventAction {
@@ -107,16 +118,22 @@ impl PlayerEventAction {
         match self {
             Self::DrawCard => Some((VerbLemma::Draw, &["a", "card"])),
             Self::Attack => Some((VerbLemma::Attack, &[])),
+            Self::PlayLand => Some((VerbLemma::Play, &["a", "land"])),
             _ => None,
         }
     }
 
     /// The fixed phrase of a verb without a lexicon lemma (`face(s) a
-    /// dilemma`, a named mechanic action).
+    /// dilemma`, a named mechanic action). `unlock` names a Room's special
+    /// action (CR 709.5) only; it has no general effect lemma.
     fn fixed_phrase(self, third_person: bool) -> Option<&'static [&'static str]> {
         Some(match (self, third_person) {
             (Self::FaceDilemma, false) => &["face", "a", "dilemma"],
             (Self::FaceDilemma, true) => &["faces", "a", "dilemma"],
+            (Self::UnlockSourceDoor, false) => &["unlock", "this", "door"],
+            (Self::UnlockSourceDoor, true) => &["unlocks", "this", "door"],
+            (Self::FullyUnlockRoom, false) => &["fully", "unlock", "a", "room"],
+            (Self::FullyUnlockRoom, true) => &["fully", "unlocks", "a", "room"],
             _ => return None,
         })
     }
@@ -134,6 +151,7 @@ impl PlayerEventAction {
                 | Self::CycleCard
                 | Self::NamedAction(_)
                 | Self::TapForMana
+                | Self::PlayLand
         )
     }
 
@@ -143,10 +161,13 @@ impl PlayerEventAction {
     }
 }
 
-const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 3] = [
+const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 6] = [
     PlayerEventAction::DrawCard,
     PlayerEventAction::Attack,
     PlayerEventAction::FaceDilemma,
+    PlayerEventAction::PlayLand,
+    PlayerEventAction::UnlockSourceDoor,
+    PlayerEventAction::FullyUnlockRoom,
 ];
 
 /// The card a player discards or cycles. `another` excludes the ability source.
@@ -457,6 +478,26 @@ fn recognize_player_action_frame(
         cursor.enter("event.player.complete");
         return Ok(Some(event(vec![PlayerEventAction::CommitCrime], None)));
     }
+    // `expend N` (CR 701.58) is a keyword action without a general effect
+    // lemma: its surface agrees with the actor and takes a fixed ordinal.
+    let expend = match agreement {
+        VerbAgreement::Base => "expend",
+        VerbAgreement::ThirdPersonSingular => "expends",
+    };
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expend))
+    {
+        cursor.enter("event.player.expend");
+        consume_verb_word(cursor)?;
+        cursor.enter("event.player.expend.amount");
+        let super::NumericAtom::Integer(amount) = super::recognize_numeric_atom(cursor)? else {
+            return Err(cursor.fail("a fixed amount of total mana spent on spells"));
+        };
+        cursor.require(amount >= 1, "a positive expend amount")?;
+        cursor.enter("event.player.complete");
+        return Ok(Some(event(vec![PlayerEventAction::Expend(amount)], None)));
+    }
     Ok(None)
 }
 
@@ -530,29 +571,73 @@ pub(in crate::oracle::canonical) fn recognize_player_attack_declaration(
     })
 }
 
+/// Whether an attacked recipient starts `offset` tokens after the cursor: a
+/// player actor (`you`, `a player`, `an opponent`), the partitive `one of
+/// your opponents`, a determiner of a permanent query (`a planeswalker`) or
+/// a definite player relation (`the player with the most life`), which the
+/// recipient reader owns and rejects at its predicate when unsupported.
+fn attacked_recipient_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let word = |extra: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + extra)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    ["you", "a", "an"].iter().any(|start| word(0, start))
+        || (word(0, "one") && word(1, "of"))
+        || (word(0, "the") && word(1, "player"))
+}
+
 /// Whether an attacked recipient starts at the cursor after `attack(s)`.
 pub(in crate::oracle::canonical) fn attacked_recipient_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
-    cursor.peek().is_some_and(|raw| {
-        ["you", "a", "an"]
-            .iter()
-            .any(|word| raw.eq_ignore_ascii_case(word))
-    })
+    attacked_recipient_starts_at(cursor, 0)
+}
+
+/// `one of your opponents` (CR 102.3): the partitive names one member of the
+/// ability controller's opponents, the same player relation as `an opponent`.
+fn consume_partitive_opponent(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<bool> {
+    let partitive = ["one", "of", "your", "opponents"];
+    if !partitive.iter().enumerate().all(|(offset, word)| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+    }) {
+        return Ok(false);
+    }
+    cursor.enter("event.attacked-recipient.partitive-opponent");
+    cursor.consume_phrase(&partitive)?;
+    Ok(true)
 }
 
 /// Reads `RECIPIENT [or RECIPIENT]...` after `attack(s)` (CR 506.2, 508.1b):
-/// a player relative to the ability controller (`you`, `an opponent`, `a
-/// player`) or a planeswalker or battle (`a planeswalker you control`) read
-/// by the shared object query. The alternatives are one attribute of the
-/// attack pattern, not separate events.
+/// a player relative to the ability controller (`you`, `an opponent`, `one
+/// of your opponents`, `a player`) or a planeswalker or battle (`a
+/// planeswalker you control`) read by the shared object query. The
+/// alternatives are one attribute of the attack pattern, not separate
+/// events. `or` continues the list only when another recipient follows; an
+/// `or` before another verb (`attacks a planeswalker or blocks`) belongs to
+/// the enclosing occurrence union.
 pub(in crate::oracle::canonical) fn recognize_attacked_recipients(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<Vec<AttackedRecipientNode>> {
     let mut recipients = Vec::new();
     loop {
         cursor.enter("event.attacked-recipient");
-        if let Some(actor) = try_recognize_event_actor_scope(cursor)? {
+        if consume_partitive_opponent(cursor)? {
+            recipients.push(AttackedRecipientNode::Player(EventActorScope::Opponent));
+        } else if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        {
+            // `the player with the most life [or tied for most life]`: a
+            // superlative player relation without a typed player predicate.
+            cursor.consume_phrase(&["the", "player"])?;
+            cursor.enter("event.attacked-recipient.player-predicate");
+            return Err(cursor.fail(
+                "a supported attacked-player relation (no superlative player predicate is typed)",
+            ));
+        } else if let Some(actor) = try_recognize_event_actor_scope(cursor)? {
             recipients.push(AttackedRecipientNode::Player(actor));
         } else {
             let article = cursor
@@ -572,9 +657,10 @@ pub(in crate::oracle::canonical) fn recognize_attacked_recipients(
             )?;
             recipients.push(AttackedRecipientNode::Permanent(query));
         }
-        if !cursor
+        if !(cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+            && attacked_recipient_starts_at(cursor, 1))
         {
             return Ok(recipients);
         }

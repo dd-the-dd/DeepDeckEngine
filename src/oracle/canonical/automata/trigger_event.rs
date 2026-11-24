@@ -81,6 +81,24 @@ pub(in crate::oracle::canonical) enum LocalTriggerEventNode {
     AttachedObjectEvent {
         role: AttachedObjectRole,
         action: AttachedObjectEventAction,
+        /// `attacks alone` (CR 506.5); only an attack reads it.
+        alone: bool,
+    },
+    /// `equipped|enchanted creature blocks [QUERY]` or `becomes blocked by
+    /// QUERY` (CR 509.1a, 509.1h): the block of the attached object, with
+    /// the other combatant when written (one occurrence per block pair).
+    AttachedObjectBlock {
+        role: AttachedObjectRole,
+        verb: AttachedBlockVerb,
+        counterpart: Option<super::ObjectQueryNode>,
+    },
+    /// `enchanted PERMANENT leaves the battlefield | is put into a graveyard
+    /// | is put into exile [from the battlefield]` (CR 603.6c, 603.10a): the
+    /// attached object's departure, observed by its attachment looking back.
+    AttachedObjectDeparture {
+        role: AttachedObjectRole,
+        /// `None` for any zone (`leaves the battlefield`).
+        destination: Option<&'static str>,
     },
     /// `enchanted creature becomes the target of STACK-OBJECT` (CR 115.1):
     /// the targeting frame of `become` with the attached object as subject.
@@ -136,14 +154,36 @@ pub(in crate::oracle::canonical) enum AttachedObjectEventAction {
     TappedForMana,
 }
 
-/// Recognizes `equipped|enchanted creature VERB` after the trigger word. The
-/// attachment subject is a reference, not a query: the runtime binds it from
-/// the source's attachment. The enclosing envelope owns the comma and body.
-pub(in crate::oracle::canonical) fn recognize_attached_object_event(
+/// Which combatant of a block the attached object is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum AttachedBlockVerb {
+    /// `blocks`: the attached object is the blocker.
+    Blocks,
+    /// `becomes blocked by`: the attached object is the attacker.
+    BecomesBlocked,
+}
+
+fn attached_word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// Whether an attached-object verb frame starts `offset` tokens after the
+/// cursor (a lexical probe for the occurrence union).
+fn attached_predicate_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    [
+        "attacks", "blocks", "becomes", "dies", "deals", "is", "leaves",
+    ]
+    .iter()
+    .any(|word| attached_word_at(cursor, offset, word))
+}
+
+/// `equipped|enchanted NOUN` (CR 301.5a, 303.4a). The attachment fixes the
+/// object; the noun restates its card type.
+fn recognize_attached_object_subject(
     cursor: &mut OracleTokenCursor<'_>,
-    _name_links: &[ResolvedNameLink],
-    _name_failure: Option<&NameResolutionFailure>,
-) -> MachineResult<LocalTriggerEventNode> {
+) -> MachineResult<(AttachedObjectRole, String)> {
     cursor.enter("event.attached-object.role");
     let role = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some("equipped") => AttachedObjectRole::Equipped,
@@ -152,8 +192,6 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
     };
     cursor.advance_to(cursor.position() + 1)?;
     cursor.enter("event.attached-object.noun");
-    // The attachment fixes the object; the noun restates its card type. Only
-    // a creature takes part in combat, so other nouns admit only tapping.
     let noun = cursor
         .peek()
         .map(str::to_ascii_lowercase)
@@ -162,6 +200,140 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
         })
         .ok_or_else(|| cursor.fail("an attached permanent noun"))?;
     cursor.consume(&noun)?;
+    Ok((role, noun))
+}
+
+/// Recognizes `equipped|enchanted NOUN VERB [or VERB]...` after the trigger
+/// word: one attached subject and one or more verb frames, each an event of
+/// that subject. A union selects one occurrence (`attacks or blocks`); a
+/// trailing block counterpart is shared by a bare preceding `blocks`
+/// (`blocks or becomes blocked by a creature`). The enclosing clause owns
+/// the comma and the body.
+pub(in crate::oracle::canonical) fn recognize_attached_object_occurrence(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::GenericTriggerEventNode> {
+    let (role, noun) = recognize_attached_object_subject(cursor)?;
+    let mut events = vec![recognize_attached_object_predicate(cursor, role, &noun)?];
+    while attached_word_at(cursor, 0, "or") && attached_predicate_starts_at(cursor, 1) {
+        cursor.enter("event.attached-object.union");
+        cursor.consume("or")?;
+        let event = recognize_attached_object_predicate(cursor, role, &noun)?;
+        cursor.enter("event.attached-object.union-distinct");
+        cursor.require(!events.contains(&event), "a distinct event in the union")?;
+        events.push(event);
+    }
+    if let Some(LocalTriggerEventNode::AttachedObjectBlock {
+        counterpart: Some(shared),
+        ..
+    }) = events.last().cloned()
+    {
+        let last = events.len() - 1;
+        for event in &mut events[..last] {
+            if let LocalTriggerEventNode::AttachedObjectBlock {
+                verb: AttachedBlockVerb::Blocks,
+                counterpart,
+                ..
+            } = event
+                && counterpart.is_none()
+            {
+                *counterpart = Some(shared.clone());
+            }
+        }
+    }
+    cursor.enter("event.attached-object.complete");
+    Ok(if events.len() == 1 {
+        super::GenericTriggerEventNode::Local(events.pop().expect("one attached event"))
+    } else {
+        super::GenericTriggerEventNode::Compound(
+            events
+                .into_iter()
+                .map(super::GenericTriggerEventNode::Local)
+                .collect(),
+        )
+    })
+}
+
+/// `blocks [a|an|one or more QUERY]` / `becomes blocked by QUERY`: the other
+/// combatant read by the shared object query (`one or more` is not typed for
+/// an attachment and fails explicitly).
+fn recognize_attached_block_counterpart(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::ObjectQueryNode> {
+    cursor.enter("event.attached-object.counterpart");
+    let article = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| raw == "a" || raw == "an")
+        .ok_or_else(|| cursor.fail("`a` or `an` before the other combatant"))?;
+    cursor.consume(&article)?;
+    super::recognize_object_query(cursor)
+}
+
+/// The departure frames of an attached permanent: `leaves the battlefield`,
+/// `is put into a graveyard|exile [from the battlefield]`. `None` when no
+/// departure verb is at the cursor (nothing consumed).
+fn recognize_attached_departure(
+    cursor: &mut OracleTokenCursor<'_>,
+    role: AttachedObjectRole,
+) -> MachineResult<Option<LocalTriggerEventNode>> {
+    if cursor.peek().is_some_and(|raw| {
+        super::is_verb_form(
+            raw,
+            super::VerbLemma::Leave,
+            super::VerbForm::ThirdPersonSingular,
+        )
+    }) {
+        cursor.enter("event.attached-object.leaves");
+        let verb = cursor.peek().map(str::to_string).unwrap_or_default();
+        cursor.consume(&verb)?;
+        cursor.consume_phrase(&["the", "battlefield"])?;
+        return Ok(Some(LocalTriggerEventNode::AttachedObjectDeparture {
+            role,
+            destination: None,
+        }));
+    }
+    if !(attached_word_at(cursor, 0, "is")
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            super::is_verb_form(raw, super::VerbLemma::Put, super::VerbForm::PastParticiple)
+        }))
+    {
+        return Ok(None);
+    }
+    cursor.enter("event.attached-object.put-into");
+    cursor.consume("is")?;
+    let participle = cursor.peek().map(str::to_string).unwrap_or_default();
+    cursor.consume(&participle)?;
+    cursor.consume("into")?;
+    cursor.enter("event.attached-object.put-into.zone");
+    let destination = if attached_word_at(cursor, 0, "exile") {
+        cursor.consume("exile")?;
+        "exile"
+    } else {
+        // The departing permanent goes to its owner's graveyard (CR 400.3);
+        // an owner relation on it has no matcher.
+        cursor.consume_phrase(&["a", "graveyard"])?;
+        "graveyard"
+    };
+    if attached_word_at(cursor, 0, "from") {
+        cursor.consume_phrase(&["from", "the", "battlefield"])?;
+    }
+    Ok(Some(LocalTriggerEventNode::AttachedObjectDeparture {
+        role,
+        destination: Some(destination),
+    }))
+}
+
+/// One verb frame of an attached-object event.
+fn recognize_attached_object_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    role: AttachedObjectRole,
+    noun: &str,
+) -> MachineResult<LocalTriggerEventNode> {
+    let event = |action: AttachedObjectEventAction| LocalTriggerEventNode::AttachedObjectEvent {
+        role,
+        action,
+        alone: false,
+    };
     cursor.enter("event.attached-object.action");
     // `is tapped for mana` (CR 106.11a): the passive of the `tap` lemma with
     // the mana purpose, for any attached permanent.
@@ -180,19 +352,21 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
         let participle = cursor.peek().map(str::to_string).unwrap_or_default();
         cursor.consume(&participle)?;
         cursor.consume_phrase(&["for", "mana"])?;
-        cursor.enter("event.attached-object.complete");
-        return Ok(LocalTriggerEventNode::AttachedObjectEvent {
-            role,
-            action: AttachedObjectEventAction::TappedForMana,
-        });
+        return Ok(event(AttachedObjectEventAction::TappedForMana));
     }
+    // Departures and death apply to any attached permanent.
+    if let Some(departure) = recognize_attached_departure(cursor, role)? {
+        return Ok(departure);
+    }
+    if attached_word_at(cursor, 0, "dies") {
+        cursor.consume("dies")?;
+        return Ok(event(AttachedObjectEventAction::Die));
+    }
+    // Only a creature takes part in combat, so other nouns admit tapping.
     if noun != "creature" {
+        cursor.enter("event.attached-object.action");
         cursor.consume_phrase(&["becomes", "tapped"])?;
-        cursor.enter("event.attached-object.complete");
-        return Ok(LocalTriggerEventNode::AttachedObjectEvent {
-            role,
-            action: AttachedObjectEventAction::BecomeTapped,
-        });
+        return Ok(event(AttachedObjectEventAction::BecomeTapped));
     }
     // The targeting frame of `become` (CR 115.1) with the attached object as
     // the targeted subject; the stack object is the shared selector.
@@ -211,7 +385,6 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
             cursor,
             super::TargetingControllerPolicy::Optional,
         )?;
-        cursor.enter("event.attached-object.complete");
         return Ok(LocalTriggerEventNode::AttachedObjectTargeted { role, stack });
     }
     // `is dealt [combat|noncombat] damage`: the shared passive damage
@@ -226,42 +399,53 @@ pub(in crate::oracle::canonical) fn recognize_attached_object_event(
         let super::DamageClauseArguments::Kind(damage) = arguments else {
             return Err(cursor.fail("the kind of damage the attached object is dealt"));
         };
-        cursor.enter("event.attached-object.complete");
         return Ok(LocalTriggerEventNode::AttachedObjectDealtDamage { role, damage });
     }
-    let action = if let Some(complement) = recognize_dealt_event_complement(cursor)? {
+    cursor.enter("event.attached-object.action");
+    if let Some(complement) = recognize_dealt_event_complement(cursor)? {
         if !complement.is_combat_damage_to_any_player() {
-            cursor.enter("event.attached-object.complete");
             return Ok(LocalTriggerEventNode::DamageDealt {
                 subject: DamageDealer::Attached(role),
                 complement,
             });
         }
-        AttachedObjectEventAction::DealCombatDamageToPlayer
-    } else if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("attacks"))
-    {
+        return Ok(event(AttachedObjectEventAction::DealCombatDamageToPlayer));
+    }
+    if attached_word_at(cursor, 0, "attacks") {
         cursor.consume("attacks")?;
-        AttachedObjectEventAction::Attack
-    } else if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("dies"))
-    {
-        cursor.consume("dies")?;
-        AttachedObjectEventAction::Die
-    } else if cursor
-        .peek_ahead(1)
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"))
-    {
+        return Ok(LocalTriggerEventNode::AttachedObjectEvent {
+            role,
+            action: AttachedObjectEventAction::Attack,
+            alone: super::consume_alone_modifier(cursor)?,
+        });
+    }
+    if attached_word_at(cursor, 0, "blocks") {
+        cursor.consume("blocks")?;
+        let counterpart = if attached_word_at(cursor, 0, "a") || attached_word_at(cursor, 0, "an") {
+            Some(recognize_attached_block_counterpart(cursor)?)
+        } else {
+            None
+        };
+        return Ok(LocalTriggerEventNode::AttachedObjectBlock {
+            role,
+            verb: AttachedBlockVerb::Blocks,
+            counterpart,
+        });
+    }
+    if attached_word_at(cursor, 0, "becomes") && attached_word_at(cursor, 1, "tapped") {
         cursor.consume_phrase(&["becomes", "tapped"])?;
-        AttachedObjectEventAction::BecomeTapped
-    } else {
-        cursor.consume_phrase(&["becomes", "blocked"])?;
-        AttachedObjectEventAction::BecomeBlocked
-    };
-    cursor.enter("event.attached-object.complete");
-    Ok(LocalTriggerEventNode::AttachedObjectEvent { role, action })
+        return Ok(event(AttachedObjectEventAction::BecomeTapped));
+    }
+    cursor.consume_phrase(&["becomes", "blocked"])?;
+    if attached_word_at(cursor, 0, "by") {
+        cursor.consume("by")?;
+        return Ok(LocalTriggerEventNode::AttachedObjectBlock {
+            role,
+            verb: AttachedBlockVerb::BecomesBlocked,
+            counterpart: Some(recognize_attached_block_counterpart(cursor)?),
+        });
+    }
+    Ok(event(AttachedObjectEventAction::BecomeBlocked))
 }
 
 /// Recognizes the event atom `the last KIND counter is removed from SOURCE`:

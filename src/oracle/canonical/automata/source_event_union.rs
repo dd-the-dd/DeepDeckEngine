@@ -51,6 +51,9 @@ pub(in crate::oracle::canonical) enum SourceEventVerb {
     /// `is turned face up` (CR 708.8): the passive of the `turn` lemma with
     /// its `face up` state complement.
     TurnedFaceUp,
+    /// `becomes monstrous|renowned` (CR 701.37b, 702.112b): the source gains
+    /// a designation an action gives, read by the status registry.
+    BecameDesignated(super::PermanentDesignation),
 }
 
 impl SourceEventVerb {
@@ -94,6 +97,11 @@ pub(in crate::oracle::canonical) enum SourceEventModifier {
     TargetingStack(super::TargetingStackSelectorNode),
     /// `enters from ZONE`: the zone the entering source left.
     EnteredFrom(super::EntryOriginNode),
+    /// `during combat` (CR 506.1): the event happens in a combat step.
+    DuringCombat,
+    /// `attacks RECIPIENT [or RECIPIENT]`: the alternatives of the object the
+    /// source attacks (CR 506.2, 508.1b), the attack verb's own argument.
+    AttackedRecipients(Vec<super::AttackedRecipientNode>),
 }
 
 impl SourceEventModifier {
@@ -108,6 +116,9 @@ impl SourceEventModifier {
         }
         if let Some(owner) = tail.turn_owner {
             modifiers.push(Self::DuringTurn(owner));
+        }
+        if tail.during_combat {
+            modifiers.push(Self::DuringCombat);
         }
         modifiers
     }
@@ -128,12 +139,24 @@ fn peek_is(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
         .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
 }
 
-fn verb_at(cursor: &OracleTokenCursor<'_>, lemma: VerbLemma) -> bool {
-    lemma_at(cursor, lemma, VerbAgreement::ThirdPersonSingular)
+fn verb_at(cursor: &OracleTokenCursor<'_>, lemma: VerbLemma, agreement: VerbAgreement) -> bool {
+    lemma_at(cursor, lemma, agreement)
 }
 
-fn consume_verb(cursor: &mut OracleTokenCursor<'_>, lemma: VerbLemma) -> MachineResult<()> {
-    consume_lemma(cursor, lemma, VerbAgreement::ThirdPersonSingular)
+fn consume_verb(
+    cursor: &mut OracleTokenCursor<'_>,
+    lemma: VerbLemma,
+    agreement: VerbAgreement,
+) -> MachineResult<()> {
+    consume_lemma(cursor, lemma, agreement)
+}
+
+/// The passive auxiliary `be` agreeing with the source subject.
+fn passive_auxiliary(agreement: VerbAgreement) -> &'static str {
+    match agreement {
+        VerbAgreement::ThirdPersonSingular => "is",
+        VerbAgreement::Base => "are",
+    }
 }
 
 /// `AUXILIARY turned face up` at the cursor: the passive participle of the
@@ -194,15 +217,39 @@ fn read_counterpart(
     Ok(())
 }
 
+/// The lemmas that start a source event verb in the singular agreement of
+/// `this PERMANENT`, or the passive auxiliary (`is put into`, `is turned face
+/// up`). A lexical probe that commits nothing.
+pub(in crate::oracle::canonical) fn source_verb_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    source_verb_starts_in(cursor, VerbAgreement::ThirdPersonSingular)
+}
+
+fn source_verb_starts_in(cursor: &OracleTokenCursor<'_>, agreement: VerbAgreement) -> bool {
+    peek_is(cursor, 0, passive_auxiliary(agreement))
+        || [
+            VerbLemma::Enter,
+            VerbLemma::Die,
+            VerbLemma::Attack,
+            VerbLemma::Block,
+            VerbLemma::Exploit,
+            VerbLemma::Leave,
+            VerbLemma::Become,
+        ]
+        .into_iter()
+        .any(|lemma| verb_at(cursor, lemma, agreement))
+}
+
 fn recognize_source_event_verb(
     cursor: &mut OracleTokenCursor<'_>,
     modifiers: &mut Vec<SourceEventModifier>,
+    agreement: VerbAgreement,
 ) -> MachineResult<SourceEventVerb> {
+    let auxiliary = passive_auxiliary(agreement);
     cursor.enter("event.source.verb");
     // Each verb is a lexicon lemma in the subject's agreement (the shared
     // clause); the frame after it is read here as event operands.
-    if verb_at(cursor, VerbLemma::Enter) {
-        consume_verb(cursor, VerbLemma::Enter)?;
+    if verb_at(cursor, VerbLemma::Enter, agreement) {
+        consume_verb(cursor, VerbLemma::Enter, agreement)?;
         if peek_is(cursor, 0, "the") && peek_is(cursor, 1, "battlefield") {
             cursor.consume_phrase(&["the", "battlefield"])?;
         }
@@ -213,45 +260,52 @@ fn recognize_source_event_verb(
         }
         return Ok(SourceEventVerb::Entered);
     }
-    if verb_at(cursor, VerbLemma::Die) {
-        consume_verb(cursor, VerbLemma::Die)?;
+    if verb_at(cursor, VerbLemma::Die, agreement) {
+        consume_verb(cursor, VerbLemma::Die, agreement)?;
         return Ok(SourceEventVerb::Died);
     }
-    if verb_at(cursor, VerbLemma::Attack) {
-        consume_verb(cursor, VerbLemma::Attack)?;
+    if verb_at(cursor, VerbLemma::Attack, agreement) {
+        consume_verb(cursor, VerbLemma::Attack, agreement)?;
+        // The attacked player or permanent is the attack's own argument,
+        // read by the shared recipient reader (CR 506.2).
+        if super::attacked_recipient_starts(cursor) {
+            modifiers.push(SourceEventModifier::AttackedRecipients(
+                super::recognize_attacked_recipients(cursor)?,
+            ));
+        }
         if super::consume_alone_modifier(cursor)? {
             modifiers.push(SourceEventModifier::AttackingAlone);
         }
         return Ok(SourceEventVerb::Attacked);
     }
-    if verb_at(cursor, VerbLemma::Block) {
-        consume_verb(cursor, VerbLemma::Block)?;
+    if verb_at(cursor, VerbLemma::Block, agreement) {
+        consume_verb(cursor, VerbLemma::Block, agreement)?;
         if peek_is(cursor, 0, "a") || peek_is(cursor, 0, "an") || peek_is(cursor, 0, "one") {
             read_counterpart(cursor, SourceEventVerb::Blocked, modifiers)?;
         }
         return Ok(SourceEventVerb::Blocked);
     }
-    if verb_at(cursor, VerbLemma::Exploit) {
+    if verb_at(cursor, VerbLemma::Exploit, agreement) {
         // CR 702.110b: the source's controller sacrificed the counterpart as
         // the source's exploit ability resolved.
-        consume_verb(cursor, VerbLemma::Exploit)?;
+        consume_verb(cursor, VerbLemma::Exploit, agreement)?;
         read_counterpart(cursor, SourceEventVerb::Exploited, modifiers)?;
         return Ok(SourceEventVerb::Exploited);
     }
-    if verb_at(cursor, VerbLemma::Leave) {
+    if verb_at(cursor, VerbLemma::Leave, agreement) {
         cursor.enter("event.source.leaves");
-        consume_verb(cursor, VerbLemma::Leave)?;
+        consume_verb(cursor, VerbLemma::Leave, agreement)?;
         cursor.consume_phrase(&["the", "battlefield"])?;
         return Ok(SourceEventVerb::LeftBattlefield);
     }
-    if turned_face_up_starts(cursor, "is") {
-        consume_turned_face_up(cursor, "is")?;
+    if turned_face_up_starts(cursor, auxiliary) {
+        consume_turned_face_up(cursor, auxiliary)?;
         return Ok(SourceEventVerb::TurnedFaceUp);
     }
-    if peek_is(cursor, 0, "is") && peek_is(cursor, 1, "put") {
+    if peek_is(cursor, 0, auxiliary) && peek_is(cursor, 1, "put") {
         // The passive of `put` (`is put into a graveyard from the battlefield`).
         cursor.enter("event.source.put-into-graveyard");
-        cursor.consume("is")?;
+        cursor.consume(auxiliary)?;
         consume_lemma(cursor, VerbLemma::Put, VerbAgreement::Base)?;
         cursor.consume("into")?;
         if peek_is(cursor, 0, "exile") {
@@ -293,8 +347,8 @@ fn recognize_source_event_verb(
         cursor.consume_phrase(&["from", "the", "battlefield"])?;
         return Ok(SourceEventVerb::PutIntoGraveyardFromBattlefield);
     }
-    if verb_at(cursor, VerbLemma::Become) {
-        consume_verb(cursor, VerbLemma::Become)?;
+    if verb_at(cursor, VerbLemma::Become, agreement) {
+        consume_verb(cursor, VerbLemma::Become, agreement)?;
         // The targeting frame of `become` (CR 115.1): the stack object is
         // a typed attribute; a source observer takes any controller.
         if super::targeting_frame_starts(cursor, 0) {
@@ -307,6 +361,16 @@ fn recognize_source_event_verb(
             return Ok(SourceEventVerb::BecameTarget);
         }
         cursor.enter("event.source.becomes");
+        // A designation an action gives (the shared status registry).
+        if let Some(designation) = cursor
+            .peek()
+            .and_then(super::PermanentDesignation::from_adjective)
+            .filter(|designation| designation.given_by_becomes())
+        {
+            let raw = cursor.peek().map(str::to_string).unwrap_or_default();
+            cursor.consume(&raw)?;
+            return Ok(SourceEventVerb::BecameDesignated(designation));
+        }
         let state = cursor
             .peek()
             .map(str::to_ascii_lowercase)
@@ -337,13 +401,54 @@ pub(in crate::oracle::canonical) fn recognize_source_event_union(
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<SourceEventUnionNode> {
     cursor.enter("event.source.subject");
+    let named = !peek_is(cursor, 0, "this");
     let source = recognize_source_reference(cursor, name_links, name_failure)?;
+    // A card name agrees in its own grammatical number (`When The Notary
+    // Hobbits enter`); `this PERMANENT` is singular.
+    let agreement = if named
+        && !source_verb_starts_in(cursor, VerbAgreement::ThirdPersonSingular)
+        && source_verb_starts_in(cursor, VerbAgreement::Base)
+    {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
+    recognize_source_event_predicate_in(cursor, source, agreement)
+}
+
+/// The verbs, modifiers and tail of a source event after its (already read)
+/// subject. A subject union (`SOURCE or another QUERY VERB`) reads the same
+/// predicate for its source branch.
+pub(in crate::oracle::canonical) fn recognize_source_event_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: LocalObjectReference,
+) -> MachineResult<SourceEventUnionNode> {
+    recognize_source_event_predicate_in(cursor, source, VerbAgreement::ThirdPersonSingular)
+}
+
+fn recognize_source_event_predicate_in(
+    cursor: &mut OracleTokenCursor<'_>,
+    source: LocalObjectReference,
+    agreement: VerbAgreement,
+) -> MachineResult<SourceEventUnionNode> {
     let mut modifiers = Vec::new();
-    let mut verbs = vec![recognize_source_event_verb(cursor, &mut modifiers)?];
+    let mut verbs = vec![recognize_source_event_verb(
+        cursor,
+        &mut modifiers,
+        agreement,
+    )?];
     while peek_is(cursor, 0, "or") {
+        // `or` continues this verb union only before another source verb;
+        // otherwise it belongs to the enclosing occurrence union (`SOURCE
+        // enters or another creature dies`), which reads it after the tail.
+        let before_or = cursor.checkpoint();
         cursor.enter("event.source.union");
         cursor.consume("or")?;
-        let verb = recognize_source_event_verb(cursor, &mut modifiers)?;
+        if !source_verb_starts_in(cursor, agreement) {
+            cursor.rollback(before_or);
+            break;
+        }
+        let verb = recognize_source_event_verb(cursor, &mut modifiers, agreement)?;
         cursor.enter("event.source.union-distinct");
         cursor.require(!verbs.contains(&verb), "a distinct event in the union")?;
         verbs.push(verb);

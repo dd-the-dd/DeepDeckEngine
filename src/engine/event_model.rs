@@ -1533,6 +1533,57 @@ impl GameEngine {
             }
         }
     }
+
+    /// Publishes the abilities of a permanent that gained a designation it
+    /// did not have (CR 701.37b `becomes monstrous`, 702.112b `becomes
+    /// renowned`): the permanent's own `designationGained` observers.
+    pub(super) fn publish_designation_gained_observers(
+        &mut self,
+        instance_id: &str,
+        designation: &str,
+    ) {
+        let Some(source) = self.combat_permanent(instance_id).cloned() else {
+            return;
+        };
+        let rules = self
+            .effective_rules(&source)
+            .iter()
+            .filter(|rule| {
+                triggered_rule_supported(rule)
+                    && self.rule_active_for_source(&source, rule)
+                    && triggered_event_variants(&rule["event"])
+                        .iter()
+                        .any(|event| {
+                            value_kind(event) == Some("designationGained")
+                                && matches!(
+                                    value_kind(&event["object"]),
+                                    Some("self" | "abilitySource")
+                                )
+                                && event["designation"].as_str() == Some(designation)
+                        })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        for rule in rules {
+            self.put_triggered_ability_on_stack(&source, rule);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
+    }
+}
+
+/// `designationGained` of the source (CR 701.37b, 702.112b): `None` for
+/// other kinds. Only designations given by an action are observed.
+pub(super) fn designation_gained_event_supported(event: &Value) -> Option<bool> {
+    (value_kind(event) == Some("designationGained")).then(|| {
+        has_only_fields(event, &["kind", "object", "designation"])
+            && matches!(value_kind(&event["object"]), Some("self" | "abilitySource"))
+            && matches!(
+                event["designation"].as_str(),
+                Some("monstrous" | "renowned")
+            )
+    })
 }
 
 #[cfg(all(

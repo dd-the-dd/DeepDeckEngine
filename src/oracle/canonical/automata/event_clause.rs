@@ -194,6 +194,7 @@ fn close_occurrence(
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<GenericTriggerEventNode> {
     let tail = super::read_event_modifier_tail(cursor)?;
+    let event = split_damage_recipients(event);
     let (event, mut time) = absorb_modifiers(cursor, event, tail)?;
     if super::while_condition_starts(cursor) {
         time.condition = Some(super::recognize_while_condition(
@@ -210,6 +211,11 @@ fn close_occurrence(
             condition: time,
         }
     };
+    // `OCCURRENCE or OCCURRENCE` (CR 603.2): the last member owns the
+    // boundary, so the union is read before it.
+    if word_at(cursor, 0, "or") {
+        return read_occurrence_union(cursor, event, boundary, name_links, name_failure);
+    }
     if compound_continuation_at(cursor) {
         return Ok(event);
     }
@@ -219,6 +225,116 @@ fn close_occurrence(
         node.body_start = cursor.position();
     }
     Ok(event)
+}
+
+/// `OCCURRENCE or OCCURRENCE ...` without a second introducer (CR 603.2):
+/// one trigger condition whose alternatives are complete occurrences. The
+/// alternative after `or` is either a second verb frame of the same object
+/// subject (`a creature you control enters or attacks`) or a complete
+/// occurrence with its own subject (`this creature enters or another
+/// creature dies`), read by the same alternative cascade. The ability
+/// triggers once for each occurrence that matches any alternative; the
+/// union is a flat `Compound` like a trigger condition list. The bindings a
+/// body may use are those every alternative defines (the frame of a
+/// `Compound` binds none beyond the ability source); any other reference
+/// fails explicitly in the body.
+fn read_occurrence_union(
+    cursor: &mut OracleTokenCursor<'_>,
+    first: GenericTriggerEventNode,
+    boundary: &str,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<GenericTriggerEventNode> {
+    cursor.enter("trigger.envelope.occurrence-union");
+    cursor.consume("or")?;
+    // A second verb frame of the first occurrence's subject (`a creature you
+    // control enters or attacks`), when one starts after `or`.
+    let shared_subject = match &first {
+        GenericTriggerEventNode::Object(node)
+            if super::object_event_frame_starts(cursor, &node.subject) =>
+        {
+            cursor.enter("trigger.envelope.occurrence-union.shared-subject");
+            Some(GenericTriggerEventNode::Object(
+                super::recognize_object_event_frame(cursor, node.subject.clone())?,
+            ))
+        }
+        GenericTriggerEventNode::PermanentTransition { subjects, .. } => {
+            read_subject_union_occurrence(cursor, subjects)?
+        }
+        _ => None,
+    };
+    let member = match shared_subject {
+        Some(frame) => close_occurrence(cursor, frame, boundary, name_links, name_failure)?,
+        None => match read_occurrence_alternatives(cursor, name_links, name_failure, boundary) {
+            EventClauseAttempt::Recognized(member) => member,
+            EventClauseAttempt::Rejected(failure) | EventClauseAttempt::Committed(failure) => {
+                return Err(failure);
+            }
+            EventClauseAttempt::NotClaimed => {
+                cursor.enter("trigger.envelope.occurrence-union.member");
+                return Err(cursor.fail("a complete trigger occurrence after `or`"));
+            }
+        },
+    };
+    let mut members = vec![first];
+    match member {
+        GenericTriggerEventNode::Compound(rest) => members.extend(rest),
+        member => members.push(member),
+    }
+    Ok(GenericTriggerEventNode::Compound(members))
+}
+
+/// `deals damage to RECIPIENT or RECIPIENT` (CR 120.1): one damage record
+/// has one recipient, so the alternatives are alternative occurrences of the
+/// same subject's damage event, one flat `Compound` member per recipient.
+fn split_damage_recipients(event: GenericTriggerEventNode) -> GenericTriggerEventNode {
+    match event {
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+            subject,
+            complement,
+        }) if !complement.alternatives.is_empty() => GenericTriggerEventNode::Compound(
+            complement
+                .split_recipients()
+                .into_iter()
+                .map(|complement| {
+                    GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+                        subject,
+                        complement,
+                    })
+                })
+                .collect(),
+        ),
+        GenericTriggerEventNode::Object(node)
+            if node
+                .damage
+                .as_ref()
+                .is_some_and(|damage| !damage.alternatives.is_empty()) =>
+        {
+            let complements = node
+                .damage
+                .as_ref()
+                .map(super::DamageDealtComplement::split_recipients)
+                .unwrap_or_default();
+            GenericTriggerEventNode::Compound(
+                complements
+                    .into_iter()
+                    .map(|complement| {
+                        let mut member = node.clone();
+                        // A player recipient of combat damage keeps the
+                        // established per-object observer.
+                        if complement.is_combat_damage_to_any_player() {
+                            member.verb = ObjectEventVerb::DealCombatDamageToPlayer;
+                            member.damage = None;
+                        } else {
+                            member.damage = Some(complement);
+                        }
+                        GenericTriggerEventNode::Object(member)
+                    })
+                    .collect(),
+            )
+        }
+        event => event,
+    }
 }
 
 /// Whether the per-object attack pattern evaluates the turn owner of this
@@ -249,6 +365,26 @@ fn absorb_modifiers(
     tail: EventModifierTail,
 ) -> MachineResult<(GenericTriggerEventNode, EventTimeConditionNode)> {
     let mut time = EventTimeConditionNode::default();
+    // `during combat` on the source's own battlefield transition is a
+    // modifier of that source event pattern (the zone-change record knows
+    // the step it happened in).
+    let event = match event {
+        GenericTriggerEventNode::SourceTransition(node)
+            if tail.during_combat
+                && !node.is_union()
+                && node.event != super::SourceTriggerEventKind::Tapped =>
+        {
+            GenericTriggerEventNode::SourceEvent(super::SourceEventUnionNode {
+                source: node.source,
+                verbs: vec![match node.event {
+                    super::SourceTriggerEventKind::Entered => SourceEventVerb::Entered,
+                    _ => SourceEventVerb::Died,
+                }],
+                modifiers: Vec::new(),
+            })
+        }
+        event => event,
+    };
     match event {
         GenericTriggerEventNode::SourceEvent(mut node) => {
             for modifier in SourceEventModifier::from_tail(tail) {
@@ -277,18 +413,45 @@ fn absorb_modifiers(
             cursor.require(
                 !(tail.not_blocked && node.modifiers.not_blocked)
                     && !(tail.first_time_each_turn && node.modifiers.first_time_each_turn)
-                    && !(tail.turn_owner.is_some() && node.modifiers.turn_owner.is_some()),
+                    && !(tail.turn_owner.is_some() && node.modifiers.turn_owner.is_some())
+                    && !(tail.during_combat && node.modifiers.during_combat),
                 "each event modifier at most once",
             )?;
             node.modifiers.not_blocked |= tail.not_blocked;
             node.modifiers.first_time_each_turn |= tail.first_time_each_turn;
+            node.modifiers.during_combat |= tail.during_combat;
             node.modifiers.turn_owner = node.modifiers.turn_owner.or(tail.turn_owner);
             if !object_pattern_evaluates_turn_owner(&node) {
                 time.turn_owner = node.modifiers.turn_owner.take();
             }
             Ok((GenericTriggerEventNode::Object(node), time))
         }
-        _ if tail.not_blocked || tail.first_time_each_turn => {
+        // A permanent subject union entering or dying `during combat`: the
+        // zone-change patterns of every branch read the step.
+        GenericTriggerEventNode::PermanentTransition {
+            kind,
+            subjects,
+            entry_state,
+            origin,
+            union_kind,
+            during_combat,
+        } if tail.during_combat && !tail.not_blocked && !tail.first_time_each_turn => {
+            cursor.enter("event.modifier.distinct");
+            cursor.require(!during_combat, "each event modifier at most once")?;
+            time.turn_owner = tail.turn_owner;
+            Ok((
+                GenericTriggerEventNode::PermanentTransition {
+                    kind,
+                    subjects,
+                    entry_state,
+                    origin,
+                    union_kind,
+                    during_combat: true,
+                },
+                time,
+            ))
+        }
+        _ if tail.not_blocked || tail.first_time_each_turn || tail.during_combat => {
             // The modifier was read: the missing piece is the runtime
             // matcher (S0 engine gap), never a grammar failure.
             cursor.enter("trigger.event.modifier-matcher");
@@ -435,6 +598,18 @@ fn read_occurrence_clause(
     if let Err(failure) = cursor.consume(&word) {
         return EventClauseAttempt::Rejected(failure);
     }
+    read_occurrence_alternatives(cursor, name_links, name_failure, boundary)
+}
+
+/// The typed alternatives of one occurrence after its introducer (or after
+/// the `or` of an occurrence union). Each alternative closes with the shared
+/// tail and the boundary; the one that read furthest is the diagnostic.
+fn read_occurrence_alternatives(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    boundary: &str,
+) -> EventClauseAttempt {
     let mut reading = ClauseReading {
         start: cursor.checkpoint(),
         furthest: None,
@@ -561,6 +736,19 @@ fn read_occurrence_clause(
                     Err(failure) => EventClauseAttempt::Committed(failure),
                 };
             }
+            // `SOURCE or another QUERY VERB`: alternative subjects sharing
+            // any other verb frame of the source and object events.
+            if subjects.alternatives.len() >= 2 {
+                match read_subject_union_occurrence(cursor, &subjects) {
+                    Ok(Some(event)) => {
+                        return reading
+                            .finish(cursor, event, BoundaryPolicy::Commit)
+                            .expect("a committed alternative always concludes");
+                    }
+                    Ok(None) => {}
+                    Err(failure) => return EventClauseAttempt::Committed(failure),
+                }
+            }
             cursor.rollback(reading.start);
         }
         Err(failure) => reading.reject(cursor, failure),
@@ -600,12 +788,11 @@ fn read_occurrence_clause(
             Err(failure) => reading.reject(cursor, failure),
         }
     }
-    let local_readers: [LocalReader; 5] = [
+    let local_readers: [LocalReader; 4] = [
         recognize_source_attacked_event,
         recognize_combat_damage_to_player_event,
         recognize_source_dealt_damage_event,
         super::recognize_last_counter_removed_event,
-        super::recognize_attached_object_event,
     ];
     let player_readers: [PlayerReader; 4] = [
         recognize_ordinal_card_drawn_event,
@@ -626,6 +813,16 @@ fn read_occurrence_clause(
             }
             Err(failure) => reading.reject(cursor, failure),
         }
+    }
+    // The attached object as subject (`enchanted creature attacks or
+    // blocks`): one subject with one or more verb frames.
+    match super::recognize_attached_object_occurrence(cursor) {
+        Ok(event) => {
+            return reading
+                .finish(cursor, event, BoundaryPolicy::Commit)
+                .expect("a committed alternative always concludes");
+        }
+        Err(failure) => reading.reject(cursor, failure),
     }
     for reader in player_readers {
         match reader(cursor) {
@@ -686,6 +883,78 @@ fn read_occurrence_clause(
         Err(failure) => reading.reject(cursor, failure),
     }
     reading.unclaimed(cursor)
+}
+
+/// `SUBJECT or SUBJECT VERB-FRAME` (CR 603.2): each subject alternative
+/// reads the same written verb frame with its own subject kind (the source's
+/// event verbs, the per-object event frame of a quantified object), and the
+/// alternatives become one flat `Compound` in written order. `None` when the
+/// verb frame starts no alternative (nothing consumed); a frame that one
+/// subject reads differently from another is an explicit failure.
+fn read_subject_union_occurrence(
+    cursor: &mut OracleTokenCursor<'_>,
+    subjects: &PermanentDiedEventNode,
+) -> MachineResult<Option<GenericTriggerEventNode>> {
+    let verb_start = cursor.checkpoint();
+    let object_subject =
+        |predicate: &super::ObjectPredicate,
+         controller: Option<ObjectControllerScope>,
+         exclude_source: bool| super::QuantifiedEventSubjectNode {
+            multiplicity: EventMultiplicity::PerObject,
+            query: super::ObjectQueryNode {
+                predicate: predicate.clone(),
+                controller,
+                exclude_source: false,
+            },
+            exclude_source,
+        };
+    // The verb must start a frame for every subject kind of the union.
+    let starts = subjects.alternatives.iter().all(|branch| match branch {
+        PermanentDiedEventBranchNode::Source(_) => super::source_verb_starts(cursor),
+        PermanentDiedEventBranchNode::Filtered {
+            predicate,
+            controller,
+            exclude_source,
+        } => super::object_event_frame_starts(
+            cursor,
+            &object_subject(predicate, *controller, *exclude_source),
+        ),
+    });
+    if !starts {
+        return Ok(None);
+    }
+    cursor.enter("trigger.envelope.subject-union");
+    let mut members = Vec::new();
+    let mut end = None;
+    for branch in &subjects.alternatives {
+        cursor.rollback(verb_start);
+        let member = match branch {
+            PermanentDiedEventBranchNode::Source(source) => GenericTriggerEventNode::SourceEvent(
+                super::recognize_source_event_predicate(cursor, *source)?,
+            ),
+            PermanentDiedEventBranchNode::Filtered {
+                predicate,
+                controller,
+                exclude_source,
+            } => GenericTriggerEventNode::Object(super::recognize_object_event_frame(
+                cursor,
+                object_subject(predicate, *controller, *exclude_source),
+            )?),
+        };
+        cursor.enter("trigger.envelope.subject-union.shared-frame");
+        let position = cursor.position();
+        cursor.require(
+            end.is_none_or(|end| end == position),
+            "one verb frame read alike by every subject of the union",
+        )?;
+        end = Some(position);
+        members.push(member);
+    }
+    Ok(Some(if members.len() == 1 {
+        members.pop().expect("one subject member")
+    } else {
+        GenericTriggerEventNode::Compound(members)
+    }))
 }
 
 /// `SUBJECTS enters|dies [the battlefield] [under CONTROLLER control]
@@ -790,6 +1059,7 @@ fn read_permanent_transition(
         entry_state,
         origin,
         union_kind,
+        during_combat: false,
     })
 }
 
