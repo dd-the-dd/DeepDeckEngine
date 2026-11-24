@@ -1515,7 +1515,10 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 // The stack-object target slot (id and candidates) is the one
                 // the counter action declares; only the action differs.
-                let (target_id, candidates, _) = lower_counter_action(slot, false);
+                let (target_id, mut candidates, _) = lower_counter_action(slot, false);
+                if let Some(scope) = copy.controller {
+                    candidates["controller"] = lower_object_controller_scope(scope);
+                }
                 if decisions
                     .iter()
                     .any(|decision| decision["id"].as_str() == Some(target_id))

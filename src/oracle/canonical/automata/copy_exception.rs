@@ -30,6 +30,10 @@ fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> boo
 pub(in crate::oracle::canonical) struct TokenCopyExceptionsNode {
     pub changes: Option<BecomeTypesNode<()>>,
     pub not_legendary: bool,
+    /// `except it has this ability` (CR 707.9b): the copy keeps the ability
+    /// whose effect makes it a copy. Only a copy an ability creates of its
+    /// own object can name `this ability`; other parents reject it.
+    pub retains_this_ability: bool,
 }
 
 /// The start of one exception item: a subject (with or without its
@@ -101,10 +105,20 @@ pub(in crate::oracle::canonical) fn recognize_copy_exceptions(
         } else if word_at(cursor, 0, "has") || word_at(cursor, 0, "have") {
             let raw = cursor.peek().expect("a possession verb").to_string();
             cursor.consume(&raw)?;
-            let list =
-                recognize_effect_owned_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?;
-            changes.characteristics.keywords.extend(list.keywords);
-            changes.characteristics.abilities.extend(list.abilities);
+            if word_at(cursor, 0, "this") && word_at(cursor, 1, "ability") {
+                cursor.enter("token.copy.except.this-ability");
+                cursor.require(
+                    !exceptions.retains_this_ability,
+                    "one `has this ability` exception",
+                )?;
+                cursor.consume_phrase(&["this", "ability"])?;
+                exceptions.retains_this_ability = true;
+            } else {
+                let list =
+                    recognize_effect_owned_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?;
+                changes.characteristics.keywords.extend(list.keywords);
+                changes.characteristics.abilities.extend(list.abilities);
+            }
         } else if word_at(cursor, 0, "isn't") || word_at(cursor, 0, "aren't") {
             let raw = cursor.peek().expect("a negated copula").to_string();
             cursor.consume(&raw)?;
@@ -139,7 +153,7 @@ pub(in crate::oracle::canonical) fn recognize_copy_exceptions(
     let states_changes = changes.names_types_or_characteristics();
     exceptions.changes = states_changes.then_some(changes);
     cursor.require(
-        exceptions.changes.is_some() || exceptions.not_legendary,
+        exceptions.changes.is_some() || exceptions.not_legendary || exceptions.retains_this_ability,
         "at least one copy exception",
     )?;
     Ok(exceptions)

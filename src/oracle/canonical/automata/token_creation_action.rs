@@ -655,7 +655,14 @@ fn recognize_token_copy(
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("except"))
     {
-        recognize_copy_exceptions(trial, !singular)?
+        let exceptions = recognize_copy_exceptions(trial, !singular)?;
+        // A created token is no copy of the ability's own object.
+        trial.enter("token.copy.except.this-ability-scope");
+        trial.require(
+            !exceptions.retains_this_ability,
+            "a copy of the ability's own object for `has this ability`",
+        )?;
+        exceptions
     } else {
         TokenCopyExceptionsNode::default()
     };

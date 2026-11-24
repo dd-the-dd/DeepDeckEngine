@@ -32,8 +32,9 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     BasePowerToughnessNode, ColorComplementNode, EffectDurationNode, GRANTED_OBJECT_TYPE_LINE,
     GrantedKeyword, ObjectCardType, QuotedAbilityNode, RecognizedEffectFragment, TargetListNode,
-    TypeChangeNumber, TypeChangeSubtype, color_complement_starts, numeric_power_toughness_starts,
-    recognize_card_color_set, recognize_clause_subject_equal_amount, recognize_color_complement,
+    TokenCopyExceptionsNode, TypeChangeNumber, TypeChangeSubtype, color_complement_starts,
+    numeric_power_toughness_starts, recognize_card_color_set,
+    recognize_clause_subject_equal_amount, recognize_color_complement, recognize_copy_exceptions,
     recognize_effect_owned_granted_ability_list, recognize_effect_owned_keyword_list,
     recognize_numeric_power_toughness, recognize_trailing_or_supplied_duration,
     recognize_type_change_nouns, type_change_noun_at,
@@ -98,6 +99,9 @@ pub(in crate::oracle::canonical) struct BecomeTypesNode<Subject = TargetListNode
     pub chosen_subtype: Option<ChosenSubtypeClass>,
     /// `becomes a copy of OBJECT` (layer 1, CR 707.2).
     pub copy_of: Option<Subject>,
+    /// `, except ...` after the copy (CR 707.9b), read by the shared
+    /// copy-exception reader.
+    pub copy_exceptions: Option<Box<TokenCopyExceptionsNode>>,
     pub characteristics: BecomeCharacteristicsNode,
     pub retention: TypeChangeRetention,
     /// `None` is a continuous effect without a stated duration (CR 611.2a).
@@ -115,6 +119,7 @@ impl<Subject> BecomeTypesNode<Subject> {
             card_types: Vec::new(),
             chosen_subtype: None,
             copy_of: None,
+            copy_exceptions: None,
             characteristics: BecomeCharacteristicsNode::default(),
             retention: TypeChangeRetention::ReplacesSameClass,
             duration: None,
@@ -329,6 +334,7 @@ enum BecomeTypesState {
     Retention,
     Coordination,
     Duration,
+    CopyExceptions,
     RetentionSentence,
     Complete,
 }
@@ -616,6 +622,20 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
                     )?;
                     None
                 };
+                BecomeTypesState::CopyExceptions
+            }
+            BecomeTypesState::CopyExceptions => {
+                cursor.enter("effect.become-types.copy-exceptions");
+                let change = cursor.require_value(node.as_mut(), "a type-change subject")?;
+                if change.copy_of.is_some()
+                    && cursor.peek() == Some(",")
+                    && word_at(cursor, 1, "except")
+                {
+                    change.copy_exceptions = Some(Box::new(recognize_copy_exceptions(
+                        cursor,
+                        number == TypeChangeNumber::Plural,
+                    )?));
+                }
                 BecomeTypesState::RetentionSentence
             }
             BecomeTypesState::RetentionSentence => {

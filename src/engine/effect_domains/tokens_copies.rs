@@ -81,6 +81,14 @@ fn supports_known_effect(effect: &Value) -> bool {
             super::battlefield_object_operand_supported(&effect["object"])
                 && copied_object_supported(&effect["copy"])
                 && effect["retainResolvingAbility"].is_boolean()
+                // CR 707.9b: the copiable-value exceptions of the copy.
+                && effect.get("except").is_none_or(|exceptions| {
+                    exceptions.as_array().is_some_and(|exceptions| {
+                        exceptions
+                            .iter()
+                            .all(super::super::validation::copy_exception_supported)
+                    })
+                })
                 && effect.get("duration").is_none_or(|duration| {
                     matches!(
                         value_kind(duration),
@@ -441,9 +449,20 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
-                let Some(copied_definition) = self.copied_definition(&copy_id, stack_object) else {
+                let Some(mut copied_definition) = self.copied_definition(&copy_id, stack_object)
+                else {
                     return Ok(());
                 };
+                // CR 707.9b: the exceptions are part of the copied values.
+                for exception in effect["except"].as_array().into_iter().flatten() {
+                    self.apply_copy_exception(
+                        &mut copied_definition,
+                        exception,
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?;
+                }
                 // CR 611.2c: the affected set is locked in at resolution. An
                 // object that would copy itself keeps its copiable values.
                 for object_id in self.battlefield_operand_ids(

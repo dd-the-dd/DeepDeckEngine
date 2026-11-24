@@ -26,6 +26,54 @@ pub(in crate::oracle::canonical) struct CopyStackObjectEffectNode {
     /// `, except the copy isn't legendary` (CR 707.9b, 707.10): the
     /// copiable-value exceptions of every copy, read by the shared reader.
     pub exceptions: TokenCopyExceptionsNode,
+    /// `target triggered ability you control`: the controller relation of
+    /// a stack-item target (CR 113.8, 115.1).
+    pub controller: Option<super::ObjectControllerScope>,
+}
+
+/// `you control` after a stack-ability target: the one relation the copy
+/// parent admits for a stack item. Any other relation stays unread.
+fn recognize_stack_item_controller(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+) -> MachineResult<Option<super::ObjectControllerScope>> {
+    let stack_item = matches!(
+        target.slots.as_slice(),
+        [slot] if matches!(slot.selector, super::TargetSelector::StackItem(_))
+    );
+    if !(stack_item
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("control")))
+    {
+        return Ok(None);
+    }
+    cursor.enter("effect.copy-stack-object.controller");
+    cursor.consume_phrase(&["you", "control"])?;
+    Ok(Some(super::ObjectControllerScope::AbilityController))
+}
+
+/// `and you may choose new targets for the copy` coordinated with the copy
+/// instruction itself (CR 707.10c).
+fn recognize_coordinated_new_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &mut CopyStackObjectEffectNode,
+) -> MachineResult<()> {
+    let mut probe = cursor.clone();
+    if !(probe
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+        && probe.consume("and").is_ok()
+        && copy_new_targets_amendment_starts(&probe))
+    {
+        return Ok(());
+    }
+    cursor.enter("effect.copy-stack-object.coordinated-new-targets");
+    cursor.consume("and")?;
+    recognize_copy_new_targets_amendment(cursor, Some(node))
 }
 
 /// `, except ...` after the copied object and its count.
@@ -123,13 +171,16 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
         cursor.advance_to(cursor.position() + width)?;
         let count = recognize_copy_count(cursor)?;
         let exceptions = recognize_stack_copy_exceptions(cursor, count)?;
-        return Ok(CopyStackObjectEffectNode {
+        let mut node = CopyStackObjectEffectNode {
             target: TargetListNode { slots: Vec::new() },
             event_spell: true,
             may_choose_new_targets: false,
             count,
             exceptions,
-        });
+            controller: None,
+        };
+        recognize_coordinated_new_targets(cursor, &mut node)?;
+        return Ok(node);
     }
     cursor.enter("effect.copy-stack-object.target");
     let target = recognize_target_list(cursor)?;
@@ -145,15 +196,19 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
         stack_domain_selector_supported(&slot.selector),
         "a spell or stack-item selector",
     )?;
+    let controller = recognize_stack_item_controller(cursor, &target)?;
     let count = recognize_copy_count(cursor)?;
     let exceptions = recognize_stack_copy_exceptions(cursor, count)?;
-    Ok(CopyStackObjectEffectNode {
+    let mut node = CopyStackObjectEffectNode {
         target,
         event_spell: false,
         may_choose_new_targets: false,
         count,
         exceptions,
-    })
+        controller,
+    };
+    recognize_coordinated_new_targets(cursor, &mut node)?;
+    Ok(node)
 }
 
 /// The copy instruction a following new-targets sentence amends: the last

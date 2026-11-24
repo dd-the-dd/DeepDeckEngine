@@ -78,6 +78,17 @@ fn lower_stat_component(expression: &NumericExpression) -> Result<Value, &'stati
 pub(in crate::oracle::canonical) fn lower_copy_exception_list(
     exceptions: &TokenCopyExceptionsNode,
 ) -> Result<Vec<Value>, &'static str> {
+    if exceptions.retains_this_ability {
+        return Err("a copy of the ability's own object for `has this ability`");
+    }
+    lower_copied_value_changes(exceptions)
+}
+
+/// The copiable-value modifications of the exceptions, without the
+/// retained ability their parent lowers itself.
+fn lower_copied_value_changes(
+    exceptions: &TokenCopyExceptionsNode,
+) -> Result<Vec<Value>, &'static str> {
     let mut except = match &exceptions.changes {
         Some(changes) => lower_copiable_characteristic_changes(changes)?,
         None => Vec::new(),
@@ -211,12 +222,24 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object_in_scope(
         // CR 707.2: layer 1 copies the copiable values; the copy effect has
         // no other characteristic of its own.
         let copy = copy.ok_or("the lowered object of `becomes a copy of`")?;
+        // CR 707.9b: `except it has this ability` keeps the resolving
+        // ability; every other exception changes the copied values.
+        let (retains, except) = match node.copy_exceptions.as_deref() {
+            Some(exceptions) => (
+                exceptions.retains_this_ability,
+                lower_copied_value_changes(exceptions)?,
+            ),
+            None => (false, Vec::new()),
+        };
         let mut effect = json!({
             "kind": "becomeCopyOfPermanent",
             "object": object,
             "copy": copy,
-            "retainResolvingAbility": false,
+            "retainResolvingAbility": retains,
         });
+        if !except.is_empty() {
+            effect["except"] = Value::Array(except);
+        }
         if duration["kind"] == "untilEndOfCurrentTurn" {
             effect["duration"] = duration.clone();
         }

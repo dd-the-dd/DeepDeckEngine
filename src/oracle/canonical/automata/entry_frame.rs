@@ -275,7 +275,14 @@ fn recognize_entry_copy(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Ent
         cursor.consume_phrase(&["on", "the", "battlefield"])?;
     }
     let exceptions = if cursor.peek() == Some(",") && word_at(cursor, 1, "except") {
-        recognize_copy_exceptions(cursor, false)?
+        let exceptions = recognize_copy_exceptions(cursor, false)?;
+        // An entering copy has no resolving ability to keep (CR 614.1c).
+        cursor.enter("replacement.entry-frame.copy-exception.this-ability");
+        cursor.require(
+            !exceptions.retains_this_ability,
+            "an ability-created copy for `has this ability`",
+        )?;
+        exceptions
     } else {
         TokenCopyExceptionsNode::default()
     };
