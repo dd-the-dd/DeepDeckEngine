@@ -118,6 +118,12 @@ fn intrinsic_casting_keywords_lower_to_their_runtime_kinds() {
             }),
         ),
         (
+            "Wear Down",
+            "Sorcery",
+            "Gift a card (You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)",
+            json!({ "kind": "giftCard", "optional": true }),
+        ),
+        (
             "Ultramarines Honour Guard",
             "Creature — Astartes Warrior",
             "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)",

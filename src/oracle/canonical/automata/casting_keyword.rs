@@ -51,6 +51,8 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Entwine,
     Escalate,
     Escape,
+    /// CR 702.174a with the gift `a card` (the recipient draws a card).
+    GiftACard,
     Gravestorm,
     Impending,
     /// CR 702.133a.
@@ -163,6 +165,15 @@ const DEFINITIONS: &[Definition] = &[
         rules_section: "702.138a",
         parameter: Parameter::CostSequence,
         reminders: &["You may cast this card from your graveyard for its escape cost."],
+    },
+    Definition {
+        keyword: CastingKeyword::GiftACard,
+        lexeme: "gift a card",
+        rules_section: "702.174a",
+        parameter: Parameter::None,
+        reminders: &[
+            "You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.",
+        ],
     },
     Definition {
         keyword: CastingKeyword::Gravestorm,

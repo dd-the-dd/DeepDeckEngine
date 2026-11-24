@@ -592,6 +592,9 @@ fn lower_casting_keyword(
             })
         }
         CastingKeyword::Gravestorm => json!({ "kind": "gravestorm" }),
+        // CR 702.174a: an optional promise as the spell is cast; the
+        // runtime has the chosen opponent draw a card first.
+        CastingKeyword::GiftACard => json!({ "kind": "giftCard", "optional": true }),
         // CR 702.192a: the spell's own name identifies its later copies.
         CastingKeyword::Paradigm => {
             cursor.require(!face_name.trim().is_empty(), "the paradigm spell's name")?;
