@@ -98,28 +98,28 @@
       }
     },
     {
-      "id": "high-tide-sibling-that-player-adds-additional",
+      "id": "lavaleaper-sibling-basic-land-event-produced-type",
       "request": {
-        "cardName": "High Tide",
-        "typeLine": "Instant",
-        "manaCost": "{U}",
-        "oracleText": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
+        "cardName": "Lavaleaper",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{R}",
+        "oracleText": "All creatures have haste.\nWhenever a player taps a basic land for mana, that player adds one mana of any type that land produced.",
         "layout": "normal",
         "faces": []
       },
       "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
-        "abilityCount": 1,
+        "abilityCount": 2,
         "abilities": [
           {
-            "index": 0,
+            "index": 1,
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/kind",
-                "equals": "spellAbility"
+                "pointer": "/effects/0/performer/kind",
+                "equals": "triggeringPlayer"
               }
             ]
           }
