@@ -120,6 +120,24 @@ fn recognize_counted_collection(
         let noun = cursor.peek_ahead(2).unwrap_or_default().to_string();
         cursor.consume_phrase(&["basic", "land", noun.as_str(), "among"])?;
     }
+    // `card type(s) among COLLECTION` (CR 205.2a): the distinct card types
+    // measure over a graveyard collection of the shared scoped query.
+    let card_types = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("card"))
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("type") || raw.eq_ignore_ascii_case("types")
+        })
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("among"));
+    if card_types {
+        cursor.enter("numeric.for-each.card-types");
+        cursor.require(!colors && !basic_land_types, "one counting measure")?;
+        let noun = cursor.peek_ahead(1).unwrap_or_default().to_string();
+        cursor.consume_phrase(&["card", noun.as_str(), "among"])?;
+        return recognize_distinct_card_type_collection(cursor);
+    }
     let distinct_names = cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("differently"))
@@ -208,6 +226,34 @@ fn recognize_counted_collection(
             measure,
         },
     )))
+}
+
+/// The collection of a card-types measure: cards of the shared scoped query
+/// in the controller's graveyard or in all graveyards (the engine reads
+/// those two holder populations). Any other zone or holder is refused.
+fn recognize_distinct_card_type_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.for-each.card-types.collection");
+    let query = recognize_scoped_object_query(cursor)?;
+    cursor.require(
+        query.domain == ObjectKind::Card && query.zones == [CardZoneName::Graveyard],
+        "a card collection in graveyards for the card-types measure",
+    )?;
+    cursor.enter("numeric.for-each.card-types.holders");
+    let zone = match query.holders {
+        Some(ZoneHolderQueryNode::Player(LocalPlayerReference::Controller)) => {
+            GraveyardScope::Controller
+        }
+        Some(ZoneHolderQueryNode::Players(PlayerSetReferenceNode::EachPlayer)) => {
+            GraveyardScope::AllPlayers
+        }
+        _ => return Err(cursor.fail("`your graveyard` or `all graveyards`")),
+    };
+    Ok(NumericExpression::CountDistinctCardTypes {
+        zone,
+        predicate: query.objects.objects.predicate,
+    })
 }
 
 /// `opponent(s) you attacked ...`: the counted players are opponents.

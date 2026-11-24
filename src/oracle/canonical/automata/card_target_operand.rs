@@ -67,6 +67,7 @@ fn declaration_predicate_is_closed(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::OwnedByAbilityController { .. }
         | ObjectPredicate::PermanentCard
         | ObjectPredicate::HasCounter(_)
+        | ObjectPredicate::Relation(_)
         | ObjectPredicate::ObjectKind(_) => true,
     }
 }

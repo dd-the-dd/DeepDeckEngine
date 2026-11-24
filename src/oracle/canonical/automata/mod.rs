@@ -871,8 +871,12 @@ pub(super) enum NumericExpression {
     PermanentCount(Box<PermanentCountNode>),
     SourceCastX,
     EventValue(EventNumericBinding),
+    /// `card types among COLLECTION` (CR 205.2a): the distinct card types
+    /// among the cards of a graveyard collection, read by the shared scoped
+    /// query (`cards in your graveyard`, `creature cards in all graveyards`).
     CountDistinctCardTypes {
         zone: GraveyardScope,
+        predicate: ObjectPredicate,
     },
     /// A quantity an earlier action of the program produced (`the total life
     /// lost this way`). `reader_effect` is the action that reads it; the

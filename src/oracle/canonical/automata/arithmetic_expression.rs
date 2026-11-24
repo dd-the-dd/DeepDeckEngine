@@ -1,8 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EventNumericBinding, LocalObjectReference, LocalPlayerReference, LocalZone, NumericAtom,
-    NumericExpression, NumericRounding, TargetBinding, recognize_numeric_primary_expression,
-    recognize_that_many_event_value,
+    EventNumericBinding, LocalObjectReference, NumericAtom, NumericExpression, NumericRounding,
+    TargetBinding, recognize_numeric_primary_expression, recognize_that_many_event_value,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -277,6 +276,15 @@ fn recognize_primary(
     {
         return super::recognize_subject_possessive_property(cursor, subject);
     }
+    // `where X is its power`: without a parent subject, the possessive
+    // names what the binding environment binds to `it`.
+    if query_context.kind == NumericReadKind::Definition
+        && query_context.subject.is_none()
+        && super::environment_possessive_property_starts(cursor)
+    {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_environment_possessive_property(cursor, &environment);
+    }
     if matches!(
         query_context.kind,
         NumericReadKind::Query | NumericReadKind::Definition
@@ -321,8 +329,11 @@ fn recognize_primary(
             // of this grammar, with the rounding the text states.
             cursor.enter("numeric.arithmetic.half");
             cursor.consume("half")?;
-            let operand = if library_card_count_starts(cursor) {
-                recognize_library_card_count(cursor)?
+            // `half the number of cards in your library`: the same `the
+            // number of COUNTABLE` aggregate every definition reads, over
+            // the zone-holder domain of the shared scoped query.
+            let operand = if super::number_of_count_starts(cursor) {
+                super::recognize_number_of_count(cursor)?
             } else {
                 recognize_primary(cursor, antecedent, event_binding, query_context)?
             };
@@ -336,32 +347,6 @@ fn recognize_primary(
         }
     }
     recognize_numeric_primary_expression(cursor, antecedent)
-}
-
-/// `the number of cards in your library`: the size of a hidden zone (CR
-/// 401.2) is a player's card count, not an object query over its cards.
-fn library_card_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
-    ["the", "number", "of", "cards", "in", "your", "library"]
-        .iter()
-        .enumerate()
-        .all(|(offset, word)| {
-            cursor
-                .peek_ahead(offset)
-                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
-        })
-}
-
-fn recognize_library_card_count(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<NumericExpression> {
-    cursor.enter("numeric.library-count.quantity-noun");
-    cursor.consume_phrase(&["the", "number", "of", "cards", "in"])?;
-    cursor.enter("numeric.library-count.zone");
-    cursor.consume_phrase(&["your", "library"])?;
-    Ok(NumericExpression::CardsInZone {
-        player: LocalPlayerReference::Controller,
-        zone: LocalZone::Library,
-    })
 }
 
 /// `, rounded up|down` (CR 107.1a): a fraction is rounded as the text

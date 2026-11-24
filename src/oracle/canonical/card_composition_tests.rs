@@ -1,7 +1,8 @@
 //! The `another target` relation is resolved against the declaration: only
 //! earlier slots of the same mode whose domain and type head can overlap make it a
 //! distinct-from relation; otherwise the slot keeps its source exclusion.
-use super::compose_other_target_relation;
+use super::{compose_other_target_relation, compose_other_target_relation_for_source};
+use crate::oracle::canonical::automata::type_line_type_heads;
 use serde_json::{Value, json};
 
 fn slot(id: &str, kind: &str, condition: Option<&str>, other: bool) -> Value {
@@ -107,17 +108,13 @@ fn another_contrasts_with_an_earlier_slot_only_through_a_shared_type_head() {
     ] });
     // Amy Rose: `attach up to one target Equipment to her. Then up to one
     // other target attacking creature ...`; Rhino/Jaheira/Kinetic Ooze: an
-    // earlier artifact, enchantment or land slot. A bare earlier `permanent`
-    // proves no shared head either. `other` then names only the source.
+    // earlier artifact, enchantment or land slot. Neither head is a kind of
+    // creature, so `other` then names only the source.
     for earlier in [
         json!({ "kind": "subtypeContains", "value": "Equipment" }),
         json!({ "kind": "or", "operands": [card_type("Artifact"), card_type("Enchantment")] }),
-        Value::Null,
     ] {
-        let mut first = slot("first", "permanents", None, false);
-        if !earlier.is_null() {
-            first = typed(first, earlier);
-        }
+        let first = typed(slot("first", "permanents", None, false), earlier);
         let decisions = vec![
             first,
             typed(
@@ -156,4 +153,111 @@ fn another_contrasts_with_an_earlier_slot_only_through_a_shared_type_head() {
         later["candidates"].get("excludeSource").is_none(),
         "{later}"
     );
+}
+
+fn subtype(value: &str) -> Value {
+    json!({ "kind": "subtypeContains", "value": value })
+}
+
+/// The later slot of a composed triggered declaration `first`, `second`.
+fn later_after(earlier: Value, later: Value, source_type_line: Option<&str>) -> Value {
+    let mut composed = triggered(vec![
+        typed(slot("first", "permanents", None, false), earlier),
+        typed(slot("second", "permanents", None, true), later),
+    ]);
+    let heads = source_type_line.map(type_line_type_heads);
+    compose_other_target_relation_for_source(&mut composed, heads.as_deref());
+    composed["declaration"]["decisions"][1].clone()
+}
+
+#[test]
+fn another_contrasts_with_an_earlier_slot_whose_head_is_a_kind_of_its_own() {
+    // The shared type hierarchy (CR 205.3d, 110.4): a subtype is a kind of
+    // its card type and every permanent type a kind of permanent.
+    // Itzquinth: `target Dinosaur you control ... another target creature`;
+    // `target Aura ... another target enchantment`; `target Equipment ...
+    // another target artifact`; a bare earlier `target permanent`.
+    for (earlier, later, source) in [
+        (
+            subtype("Dinosaur"),
+            card_type("Creature"),
+            "Legendary Creature \u{2014} Dinosaur",
+        ),
+        (
+            subtype("Aura"),
+            card_type("Enchantment"),
+            "Enchantment \u{2014} Aura",
+        ),
+        (
+            subtype("Equipment"),
+            card_type("Artifact"),
+            "Artifact Creature \u{2014} Golem",
+        ),
+        (Value::Null, card_type("Creature"), "Creature \u{2014} Elf"),
+        // The reverse direction: an earlier creature, a later Dinosaur.
+        (
+            card_type("Creature"),
+            subtype("Dinosaur"),
+            "Creature \u{2014} Dinosaur",
+        ),
+    ] {
+        let later = later_after(earlier.clone(), later.clone(), Some(source));
+        assert_eq!(
+            later["distinctFrom"],
+            json!(["first"]),
+            "{earlier} / {later}"
+        );
+        assert!(
+            later["candidates"].get("excludeSource").is_none(),
+            "{later}"
+        );
+    }
+}
+
+#[test]
+fn a_source_the_later_slot_cannot_name_leaves_only_the_earlier_slots() {
+    // The Curse of Fenric III on a Saga: `another target creature` cannot
+    // name the Saga, so it contrasts with the earlier `target Mutant` (and
+    // with an unrelated earlier head too, `target artifact`).
+    for earlier in [subtype("Mutant"), card_type("Artifact")] {
+        let later = later_after(
+            earlier.clone(),
+            card_type("Creature"),
+            Some("Enchantment \u{2014} Saga"),
+        );
+        assert_eq!(
+            later["distinctFrom"],
+            json!(["first"]),
+            "{earlier} / {later}"
+        );
+    }
+    // Near miss: a creature source that the later slot can name keeps its
+    // source contrast after an unrelated earlier head (Kinetic Ooze).
+    let later = later_after(
+        card_type("Artifact"),
+        card_type("Creature"),
+        Some("Creature \u{2014} Ooze"),
+    );
+    assert!(later.get("distinctFrom").is_none(), "{later}");
+    assert_eq!(later["candidates"]["excludeSource"], true, "{later}");
+}
+
+#[test]
+fn type_heads_are_read_from_the_candidate_itself_not_its_relations() {
+    // A negated type and a comparison operand name no head of the
+    // candidate: `nonartifact creature` is not an artifact head, and
+    // `power less than the number of Wizards you control` names no Wizard.
+    let earlier = json!({ "kind": "and", "operands": [
+        { "kind": "not", "operand": card_type("Artifact") },
+        card_type("Enchantment"),
+        { "kind": "compare", "operator": "<", "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+          "right": { "kind": "countPermanents", "where": card_type("Artifact") } },
+    ] });
+    let later = later_after(
+        earlier,
+        card_type("Artifact"),
+        Some("Artifact Creature \u{2014} Golem"),
+    );
+    assert!(later.get("distinctFrom").is_none(), "{later}");
+    assert_eq!(later["candidates"]["excludeSource"], true, "{later}");
 }

@@ -1,0 +1,463 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-query/domain-relations-measures",
+  "cardName": "Object query domain",
+  "cases": [
+    {
+      "id": "sibling-dinosaur-head-is-a-creature-head",
+      "request": {
+        "cardName": "Dinosaur Probe",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{1}",
+        "oracleText": "When this creature enters, target Dinosaur you control deals damage equal to its power to another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Dinosaur"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/distinctFrom",
+                "equals": [
+                  "targetPermanent1"
+                ]
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aura-then-another-enchantment-is-distinct",
+      "request": {
+        "cardName": "Nymph Probe",
+        "typeLine": "Enchantment Creature — Nymph",
+        "manaCost": "{1}",
+        "oracleText": "When this creature enters, destroy target Aura. Destroy another target enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/1/distinctFrom",
+                "equals": [
+                  "targetPermanent1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unrelated-head-keeps-the-source-contrast",
+      "request": {
+        "cardName": "Nymph Probe",
+        "typeLine": "Enchantment Creature — Nymph",
+        "manaCost": "{1}",
+        "oracleText": "When this creature enters, destroy target artifact. Destroy another target enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/1/candidates/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-saga-chapter-another-named-creature",
+      "request": {
+        "cardName": "Fenric Probe",
+        "typeLine": "Enchantment — Saga",
+        "manaCost": "{1}",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Draw a card.\nII — Draw a card.\nIII — Target Mutant fights another target creature named Fenric.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Mutant"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "nameEquals",
+                      "value": "Fenric"
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/distinctFrom",
+                "equals": [
+                  "targetPermanent1"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-collection-that-dealt-damage-to-you",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Destroy all creatures that dealt damage to you this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "dealtDamageToPlayerThisTurn",
+                      "recipient": "abilityController",
+                      "combatOnly": false
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-target-that-dealt-combat-damage-to-an-opponent",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target creature that dealt combat damage to an opponent this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "dealtDamageToPlayerThisTurn",
+                      "recipient": "opponentOfAbilityController",
+                      "combatOnly": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-unknown-relative-clause-fails-typed",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Destroy all creatures that targeted you this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-inclusive-prefix-comparison",
+      "request": {
+        "cardName": "Comparison Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target creature with power less than or equal to 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/operands/1",
+                "equals": {
+                  "kind": "compare",
+                  "left": {
+                    "kind": "powerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  },
+                  "operator": "<=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-card-types-among-creature-cards",
+      "request": {
+        "cardName": "Measure Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Draw a card for each card type among creature cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "countDistinctCardTypes",
+                  "zone": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "where": {
+                    "kind": "cardTypeContains",
+                    "value": "Creature"
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-subtype-headed-collection-subject",
+      "request": {
+        "cardName": "Anthem Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Wizards you control get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Wizard"
+                }
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-coordinated-subtype-collection-subject",
+      "request": {
+        "cardName": "Anthem Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Goblin creatures get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-cards-in-graveyards-lose-all-abilities-stays-refused",
+      "request": {
+        "cardName": "Yixlid Jailer",
+        "typeLine": "Creature — Zombie Wizard",
+        "manaCost": "{1}",
+        "oracleText": "Cards in graveyards lose all abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-murder-investigation",
+      "request": {
+        "cardName": "Murder Investigation",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature you control\nWhen enchanted creature dies, create X 1/1 white Soldier creature tokens, where X is its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    }
+  ]
+}

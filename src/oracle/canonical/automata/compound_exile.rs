@@ -102,6 +102,7 @@ fn predicate_is_permanent_card_type(predicate: &SelectorPredicate) -> bool {
         | SelectorPredicate::HasCounter(_)
         | SelectorPredicate::HasKeyword(_)
         | SelectorPredicate::ExactManaCost(_)
+        | SelectorPredicate::Relation(_)
         | SelectorPredicate::NumericComparison { .. } => true,
         SelectorPredicate::ObjectKind(_)
         | SelectorPredicate::Supertype(_)

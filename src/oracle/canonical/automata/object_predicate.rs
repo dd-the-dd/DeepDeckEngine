@@ -88,6 +88,59 @@ impl CounterPresence {
     }
 }
 
+/// The player a damage history relation names (`to you`, `to an
+/// opponent`, `to a player`), relative to the ability controller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DamagedPlayer {
+    AbilityController,
+    OpponentOfAbilityController,
+    AnyPlayer,
+}
+
+impl DamagedPlayer {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::AbilityController => "abilityController",
+            Self::OpponentOfAbilityController => "opponentOfAbilityController",
+            Self::AnyPlayer => "anyPlayer",
+        }
+    }
+}
+
+/// A relation of the object to a name, a player or the turn's history,
+/// read by a postnominal or relative clause of the shared object query
+/// (`named Fenric`, `that dealt combat damage to you this turn`). Each
+/// relation states the object domains it can be evaluated in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectRelation {
+    /// `named NAME` (CR 201.2): the object's name is NAME.
+    Named(String),
+    /// `that dealt [combat] damage to PLAYER this turn` (CR 120.1, 510.2):
+    /// a damage event of this turn whose source is this permanent and whose
+    /// recipient is that player.
+    DealtDamageToPlayerThisTurn {
+        recipient: DamagedPlayer,
+        combat_only: bool,
+    },
+}
+
+impl ObjectRelation {
+    /// A name is a characteristic of every object (CR 109.3); a damage
+    /// history is read from a battlefield permanent's own events.
+    pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
+        match self {
+            Self::Named(_) => true,
+            Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
+        }
+    }
+
+    /// Whether the relation reads the permanent's state or history rather
+    /// than a characteristic of its definition.
+    pub(in crate::oracle::canonical) fn reads_object_state(&self) -> bool {
+        matches!(self, Self::DealtDamageToPlayerThisTurn { .. })
+    }
+}
+
 /// A property predicate over an object selected by a surrounding query.
 ///
 /// The surrounding grammar still owns the object domain, zone, controller,
@@ -132,6 +185,8 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     /// Has the color chosen by an earlier `choose a color` instruction of the
     /// same effect program (CR 608.2d, 105.1). Symbolic like the chosen type.
     ChosenColor,
+    /// A relation to a name, a player or the turn's history.
+    Relation(ObjectRelation),
     NumericComparison {
         left: SelectorNumericProperty,
         operator: NumericComparisonOperator,
@@ -214,6 +269,7 @@ impl ObjectPredicate {
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::ChosenColor
+            | Self::Relation(_)
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
         }
@@ -247,6 +303,7 @@ impl ObjectPredicate {
             | Self::Designation(_)
             | Self::OwnedByAbilityController { .. }
             | Self::HasCounter(_) => domain == ObjectKind::Permanent,
+            Self::Relation(relation) => relation.supports_domain(domain),
             Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
@@ -439,6 +496,7 @@ impl ObjectPredicate {
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::ChosenColor
+            | Self::Relation(_)
             | Self::NumericComparison { .. } => false,
         }
     }
@@ -478,7 +536,144 @@ impl ObjectPredicate {
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
             | Self::ChosenColor
+            | Self::Relation(_)
             | Self::NumericComparison { .. } => false,
+        }
+    }
+}
+
+/// One nominal type head an object query names positively: the `permanent`
+/// noun, a card type, or a subtype. Heads are ordered by the type hierarchy
+/// (CR 205.3d: a subtype corresponds to its card type; every permanent type
+/// is a kind of permanent, CR 110.4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectTypeHead {
+    Permanent,
+    CardType(ObjectCardType),
+    Subtype(String),
+}
+
+impl ObjectTypeHead {
+    /// A head from its IR spelling (`cardTypeContains` / `subtypeContains`
+    /// values). An unknown card type spelling names no head.
+    pub(in crate::oracle::canonical) fn card_type_from_ir(name: &str) -> Option<Self> {
+        crate::oracle::characteristic_vocabulary::ORACLE_CARD_TYPES
+            .iter()
+            .find(|card_type| card_type.ir_name().eq_ignore_ascii_case(name))
+            .map(|card_type| Self::CardType(*card_type))
+    }
+
+    /// The heads this head implies, itself included: a land, artifact,
+    /// enchantment, planeswalker or battle subtype implies its one card type
+    /// (CR 205.3d), a creature subtype names a creature head (CR 205.3m;
+    /// a Kindred permanent also carries it, CR 308.2, so it never proves the
+    /// creature type for a characteristic read), and a permanent card type
+    /// implies `permanent`.
+    fn lineage(&self) -> Vec<Self> {
+        let mut lineage = vec![self.clone()];
+        let card_type = match self {
+            Self::Permanent => None,
+            Self::CardType(card_type) => Some(*card_type),
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::noncreature_subtype_card_type(name)
+                    .or_else(|| {
+                        crate::oracle::characteristic_vocabulary::lookup_creature_subtype(
+                            name,
+                            crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+                        )
+                        .map(|_| ObjectCardType::Creature)
+                    })
+            }
+        };
+        if let Some(card_type) = card_type {
+            if !matches!(self, Self::CardType(_)) {
+                lineage.push(Self::CardType(card_type));
+            }
+            if card_type.is_permanent_type() {
+                lineage.push(Self::Permanent);
+            }
+        } else if let Self::Subtype(name) = self
+            && crate::oracle::characteristic_vocabulary::noncreature_subtype_implies_permanent(name)
+        {
+            lineage.push(Self::Permanent);
+        }
+        lineage
+    }
+
+    /// Whether one head is a kind of the other: `Dinosaur` and `creature`,
+    /// `Equipment` and `artifact`, `Aura` and `enchantment`, `permanent` and
+    /// any permanent type. Two unrelated types (`artifact`, `creature`) do
+    /// not overlap as heads even though one object can have both.
+    pub(in crate::oracle::canonical) fn overlaps(&self, other: &Self) -> bool {
+        self.is_kind_of(other) || other.is_kind_of(self)
+    }
+
+    /// Whether every object with this head has `other` too (`Saga` is a
+    /// kind of enchantment and of permanent, not of creature).
+    pub(in crate::oracle::canonical) fn is_kind_of(&self, other: &Self) -> bool {
+        self.lineage().contains(other)
+    }
+}
+
+/// Whether an object described by `object_heads` (its printed types and
+/// subtypes) is named by a slot whose heads are `slot_heads`: one of its
+/// heads is a kind of one of the slot's heads.
+pub(in crate::oracle::canonical) fn type_heads_name(
+    object_heads: &[ObjectTypeHead],
+    slot_heads: &[ObjectTypeHead],
+) -> bool {
+    slot_heads
+        .iter()
+        .any(|slot| object_heads.iter().any(|head| head.is_kind_of(slot)))
+}
+
+/// Whether two head sets name a common kind: some head of one is a kind of
+/// some head of the other. An empty set names no head and overlaps nothing.
+pub(in crate::oracle::canonical) fn type_heads_overlap(
+    left: &[ObjectTypeHead],
+    right: &[ObjectTypeHead],
+) -> bool {
+    left.iter()
+        .any(|head| right.iter().any(|other| head.overlaps(other)))
+}
+
+impl ObjectPredicate {
+    /// Whether every value this predicate accepts has a creature subtype
+    /// head (`Dinosaur`, `target Dinosaur you control`): such a permanent is
+    /// a creature or a Kindred permanent (CR 205.3m, 308.2), so its power
+    /// and toughness read the creature's value or the undefined value of a
+    /// noncreature permanent (CR 208.3), never another characteristic.
+    pub(in crate::oracle::canonical) fn has_creature_subtype_head(&self) -> bool {
+        match self {
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::lookup_creature_subtype(
+                    name,
+                    crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+                )
+                .is_some()
+            }
+            Self::Intersection(operands) => operands.iter().any(Self::has_creature_subtype_head),
+            Self::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(Self::has_creature_subtype_head)
+            }
+            _ => false,
+        }
+    }
+
+    /// The type heads this predicate names positively: card types, subtypes
+    /// and the `permanent` noun read through Boolean composition, never
+    /// under a negation (`nonartifact` names no artifact head) and never
+    /// from a numeric comparison's operand.
+    pub(in crate::oracle::canonical) fn positive_type_heads(&self) -> Vec<ObjectTypeHead> {
+        match self {
+            Self::CardType(card_type) => vec![ObjectTypeHead::CardType(*card_type)],
+            Self::Subtype(name) => vec![ObjectTypeHead::Subtype(name.clone())],
+            Self::ObjectKind(ObjectKind::Permanent) => vec![ObjectTypeHead::Permanent],
+            Self::Intersection(operands) | Self::Union(operands) => operands
+                .iter()
+                .flat_map(Self::positive_type_heads)
+                .collect(),
+            _ => Vec::new(),
         }
     }
 }

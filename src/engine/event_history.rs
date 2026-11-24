@@ -451,3 +451,64 @@ impl GameEngine {
         )
     }
 }
+
+/// The players a damage history relation names (`to you`, `to an opponent`,
+/// `to a player`) relative to the ability controller. An unknown relation
+/// names no player, so the predicate is false and refused by its support
+/// check rather than matching every damage event.
+fn damaged_player_relation_holds(
+    relation: &str,
+    damaged: &str,
+    ability_controller: &str,
+) -> Option<bool> {
+    match relation {
+        "abilityController" => Some(damaged == ability_controller),
+        // Two-player and free-for-all games: every other player is an
+        // opponent (CR 102.2, 102.3).
+        "opponentOfAbilityController" => Some(damaged != ability_controller),
+        "anyPlayer" => Some(true),
+        _ => None,
+    }
+}
+
+/// Whether `{ kind: dealtDamageToPlayerThisTurn, recipient, combatOnly }`
+/// is well formed.
+pub(super) fn dealt_damage_to_player_supported(filter: &Value) -> bool {
+    filter["recipient"]
+        .as_str()
+        .is_some_and(|relation| damaged_player_relation_holds(relation, "", "").is_some())
+        && filter.get("combatOnly").is_none_or(Value::is_boolean)
+}
+
+impl GameEngine {
+    /// `that dealt [combat] damage to PLAYER this turn` (CR 120.1, 510.2):
+    /// a damage event of this turn whose source is this permanent, whose
+    /// recipient is a player of the relation (relative to the ability
+    /// controller) and, when `combatOnly`, that was combat damage. Only
+    /// positive amounts are damage dealt (CR 120.8).
+    pub(super) fn permanent_dealt_damage_to_player_this_turn(
+        &self,
+        permanent: &CardInstance,
+        filter: &Value,
+        ability_controller: &str,
+    ) -> bool {
+        let Some(relation) = filter["recipient"].as_str() else {
+            return false;
+        };
+        let combat_only = filter["combatOnly"].as_bool().unwrap_or(false);
+        self.state.events.iter().any(|event| {
+            event.turn_number == self.state.turn_number
+                && event.kind == "damageDealt"
+                && event.card_instance_id.is_none()
+                && event.detail["source"].as_str() == Some(permanent.instance_id.as_str())
+                && event.detail["amount"]
+                    .as_i64()
+                    .is_some_and(|amount| amount > 0)
+                && (!combat_only || event.detail["combat"].as_bool() == Some(true))
+                && event.player_id.as_deref().is_some_and(|damaged| {
+                    damaged_player_relation_holds(relation, damaged, ability_controller)
+                        .unwrap_or(false)
+                })
+        })
+    }
+}

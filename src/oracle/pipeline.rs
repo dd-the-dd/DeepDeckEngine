@@ -6,7 +6,7 @@ use crate::card_catalog::{named_token_names, ordinary_card_names};
 
 use super::audit::{build_stages, iterations_for_rule, semantic_kind, unsupported_iteration};
 use super::canonical::{
-    CanonicalParseOutcome, compose_card_rules_native, expand_keyword_template_line,
+    CanonicalParseOutcome, compose_card_rules_for_request, expand_keyword_template_line,
     parse_canonical_rule_native,
 };
 use super::card_structure::{
@@ -520,7 +520,7 @@ pub fn parse_oracle_card_native(request: OracleCardParseRequest) -> OracleCardPa
             }
         }
     }
-    compose_card_rules_native(&mut abilities);
+    compose_card_rules_for_request(&request, &mut abilities);
     // Binding validity is checked after composition in the owning face context.
     validate_native_contextual_bindings(&request, &mut abilities);
     reject_parts_without_layout_runtime(&card_structure, &mut abilities);
