@@ -450,6 +450,27 @@
       }
     },
     {
+      "id": "other-player-possessive-not-guessed",
+      "request": {
+        "cardName": "Search Zone Proof",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card, put that card into an opponent's graveyard, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "plural-destination-not-one-zone",
       "request": {
         "cardName": "Search Zone Proof",

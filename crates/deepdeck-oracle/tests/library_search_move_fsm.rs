@@ -132,6 +132,12 @@ fn claimed_near_misses_fail_in_the_responsible_local_state() {
             "lower.card-action.bindings",
             None,
         ),
+        // A comma or `then` joins the later shuffle; juxtaposition does not.
+        (
+            "Search your library for a Forest card, put it onto the battlefield tapped shuffle.",
+            "sequence.connector-or-end",
+            Some("shuffle"),
+        ),
     ] {
         let parsed = parse_spell("Test Search", oracle_text);
         let ability = &parsed.abilities[0];
