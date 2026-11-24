@@ -359,6 +359,11 @@ fn lower_local_effect_sequence_with_collections(
     // player chosen on resolution is lowered as the value its choice binds.
     let mut color_chosen = false;
     let mut resolution_players = Vec::<String>::new();
+    // Permanents and numbers chosen on resolution, read through bindings;
+    // `the rest` of a choice is acted on once every chooser has chosen.
+    let mut chosen_object_bindings = Vec::<String>::new();
+    let mut chosen_numbers = Vec::<String>::new();
+    let mut pending_choice_remainder = Vec::<Value>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
         declare_query_possessor_targets(
@@ -374,6 +379,7 @@ fn lower_local_effect_sequence_with_collections(
             &target_bindings,
             &declared_player_targets,
         )?;
+        effects.append(&mut pending_choice_remainder);
         if let Some(Some(performer)) = performers.get(effect_index) {
             declare_performer_target(
                 cursor,
@@ -1860,6 +1866,52 @@ fn lower_local_effect_sequence_with_collections(
                             domain,
                         ));
                     }
+                    ChoiceDomainNode::Objects(choice) => {
+                        // CR 608.2d: permanents chosen on resolution, not
+                        // targets (CR 115.1). A later `it` / `those
+                        // creatures` reads the binding the choice writes.
+                        cursor.enter("lower.choose.objects");
+                        let declarations = match context {
+                            EffectSequenceLoweringContext::NoExternalX => {
+                                TargetlessDeclarationSupport::None
+                            }
+                            EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                                TargetlessDeclarationSupport::XValue
+                            }
+                        };
+                        let lowered = super::resolution_object_choice::lower_object_choice(
+                            choice,
+                            effect_index,
+                            declarations,
+                        )
+                        .map_err(|expected| {
+                            EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                cursor.fail(expected),
+                            )
+                        })?;
+                        effects.extend(lowered.choice);
+                        pending_choice_remainder = lowered.remainder;
+                        if let Some(binding) = lowered.chosen {
+                            let key = resolution_choice_binding(effect_index);
+                            target_bindings.push((key, binding.clone()));
+                            target_bindings.push((
+                                super::permanent_subject::target_set_binding_key(key),
+                                binding.clone(),
+                            ));
+                            chosen_object_bindings.push(binding);
+                        }
+                    }
+                    ChoiceDomainNode::Number(node) => {
+                        // CR 608.2d: a number chosen on resolution; `that
+                        // many` binds it through the action-result quantity.
+                        cursor.enter("lower.choose.number");
+                        let id =
+                            super::resolution_object_choice::chosen_number_decision(effect_index);
+                        effects.push(super::resolution_object_choice::lower_number_choice(
+                            *node, &id,
+                        ));
+                        chosen_numbers.push(id);
+                    }
                     ChoiceDomainNode::Player(node) => {
                         // A player chosen on resolution, not a target (CR
                         // 115.1): a later `that player` reads its binding.
@@ -2518,6 +2570,7 @@ fn lower_local_effect_sequence_with_collections(
         &target_bindings,
         &declared_player_targets,
     )?;
+    effects.append(&mut pending_choice_remainder);
     conditional_scopes.at_boundary(
         cursor,
         sequence,
@@ -2568,6 +2621,22 @@ fn lower_local_effect_sequence_with_collections(
     )?;
     for effect in &mut effects {
         super::resolution_choice::rebind_resolution_players(effect, &resolution_players);
+        super::resolution_object_choice::rebind_chosen_objects(effect, &chosen_object_bindings);
+    }
+    cursor.enter("lower.choose.objects.consumer");
+    if !super::resolution_object_choice::every_chosen_object_is_read(
+        &effects,
+        &chosen_object_bindings,
+    ) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "an executable binding consumer for objects chosen on resolution",
+        )));
+    }
+    cursor.enter("lower.choose.number.consumer");
+    if !super::resolution_object_choice::every_chosen_number_is_read(&effects, &chosen_numbers) {
+        return Err(EffectSequenceLoweringFailure::FailedSupport(cursor.fail(
+            "a later `that many` / `that much` reading the number chosen on resolution",
+        )));
     }
     cursor.enter("lower.choose.player.consumer");
     if !super::resolution_choice::every_resolution_player_is_read(&effects, &resolution_players) {
@@ -3070,7 +3139,10 @@ fn install_action_result_quantities(
             let producers = (from..to)
                 .filter_map(|position| {
                     let field = kind.produced_by(effects[position]["kind"].as_str()?)?;
-                    Some((position, field))
+                    // Only a number chosen as its own instruction is a quantity;
+                    // the count decision of another action is not.
+                    super::resolution_object_choice::number_choice_produces(&effects[position])
+                        .then_some((position, field))
                 })
                 .collect::<Vec<_>>();
             (!producers.is_empty()).then_some((index, producers))
@@ -3803,12 +3875,17 @@ fn apply_performer(
                     effect
                 })
                 .collect::<Vec<_>>();
-            effects.push(json!({
+            let collect = super::resolution_object_choice::player_loop_collection(&body);
+            let mut lowered = json!({
                 "kind": "forEachPlayer",
                 "bind": bind,
                 "players": {"kind": "chosenTargets", "id": id},
                 "effects": body,
-            }));
+            });
+            if let Some(collect) = collect {
+                lowered["collect"] = collect;
+            }
+            effects.push(lowered);
             return Ok(());
         }
         PerformerNode::Population {
@@ -3830,12 +3907,19 @@ fn apply_performer(
                     effect
                 })
                 .collect::<Vec<_>>();
-            effects.push(json!({
+            // Each player's chosen permanents are republished after the
+            // loop: a later `those creatures` / `the rest` reads all of them.
+            let collect = super::resolution_object_choice::player_loop_collection(&body);
+            let mut lowered = json!({
                 "kind": "forEachPlayer",
                 "bind": bind,
                 "players": players,
                 "effects": body,
-            }));
+            });
+            if let Some(collect) = collect {
+                lowered["collect"] = collect;
+            }
+            effects.push(lowered);
             return Ok(());
         }
     };

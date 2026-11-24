@@ -211,9 +211,10 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "Choose an opponent. Draw a card.",
             "lower.choose.player.consumer",
         ),
+        // An unbounded number has no decision protocol.
         (
-            "Choose a number between 0 and 13. Each player sacrifices that many creatures.",
-            "choose.domain.number",
+            "Choose a number. Draw a card.",
+            "choose.domain.number.range",
         ),
         (
             "Choose any target. Draw a card.",

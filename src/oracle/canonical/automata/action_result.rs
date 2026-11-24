@@ -265,6 +265,9 @@ impl ActionResultQuantity {
     ) -> Option<ActionResultField> {
         match (self, runtime_kind) {
             (Self::LifeLost | Self::Amount, "loseLife") => Some(ActionResultField::Integer),
+            // A number chosen on resolution (CR 608.2d) is the amount or the
+            // count a later `that much` / `that many` restates.
+            (Self::Amount | Self::ObjectCount, "chooseNumber") => Some(ActionResultField::Integer),
             (
                 Self::ObjectCount,
                 "discardCards"
