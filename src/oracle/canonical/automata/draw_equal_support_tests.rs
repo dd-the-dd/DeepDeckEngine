@@ -8,7 +8,6 @@ fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
     for text in [
         "Draw cards equal to the least power among creatures you control.",
         "Draw cards equal to the number of cards in target player's hand.",
-        "Draw cards equal to the number of cards named Rite of Flame in all graveyards.",
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);
@@ -25,11 +24,30 @@ fn unsupported_equal_count_families_reject_and_roll_back_the_shared_sequence() {
     }
 }
 
+/// `named NAME` is a relation of the shared object query, so the counted
+/// collection of the `equal to` quantity needs no draw-specific reader.
+#[test]
+fn a_named_card_count_is_the_shared_counted_collection() {
+    let tokens = recognize_entities(
+        "Draw cards equal to the number of cards named Rite of Flame in all graveyards",
+    );
+    let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);
+    let DrawCardsEffectParseAttempt::Parsed(_) = try_recognize_draw_cards_effect_with_context(
+        &mut cursor,
+        &EffectRecognitionContext::default(),
+    ) else {
+        panic!("a named card count is a counted collection");
+    };
+    cursor.finish().expect("complete named count");
+}
+
 #[test]
 fn supported_half_library_count_keeps_its_typed_value() {
-    for direction in ["up", "down"] {
+    // The rounding after the comma belongs to `half`, never to the zone list,
+    // for the library and for any other counted zone.
+    for (zone, direction) in [("library", "up"), ("library", "down"), ("hand", "up")] {
         let text = format!(
-            "Draw cards equal to half the number of cards in your library, rounded {direction}"
+            "Draw cards equal to half the number of cards in your {zone}, rounded {direction}"
         );
         let tokens = recognize_entities(&text);
         let mut cursor = OracleTokenCursor::new("draw-equal-support-test", &tokens);
@@ -57,11 +75,6 @@ fn malformed_supported_half_family_keeps_its_original_committed_diagnostic() {
             "Draw cards equal to half a library",
             "numeric.arithmetic.half.rounding",
             "library",
-        ),
-        (
-            "Draw cards equal to half the number of cards in your hand, rounded up",
-            "zone-list.zone",
-            "rounded",
         ),
     ] {
         let tokens = recognize_entities(text);

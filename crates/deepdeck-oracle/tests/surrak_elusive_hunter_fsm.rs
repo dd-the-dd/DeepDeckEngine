@@ -237,7 +237,7 @@ fn the_source_subject_composes_with_the_targeting_frame() {
 
 /// Valiant: the shared turn-ordinal modifier on the source targeting frame.
 #[test]
-fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_engine_gap() {
+fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_event_time_condition() {
     let parsed = parse(
         "Valiant Probe",
         "Creature — Soldier",
@@ -253,9 +253,11 @@ fn a_targeting_turn_ordinal_is_typed_and_a_turn_owner_is_an_engine_gap() {
         "Creature — Soldier",
         "Whenever this creature becomes the target of a spell during your turn, draw a card.",
     );
-    assert_eq!(parsed.status, "unsupported");
-    assert_eq!(
-        parsed.abilities[0].diagnostics[0].state.as_deref(),
-        Some("engine.gap.event-matcher")
-    );
+    // The targeting matcher has no turn field, so the turn owner is the
+    // ability's event-time condition, checked when the event happens.
+    assert_eq!(parsed.status, "canonical");
+    let rule = parsed.abilities[0].rule.as_ref().expect("rule");
+    assert_eq!(rule["event"]["kind"], "becameTarget");
+    assert!(rule["event"].get("duringControllerTurn").is_none());
+    assert_eq!(rule["eventCondition"]["kind"], "duringControllerTurn");
 }

@@ -147,17 +147,42 @@ fn quantified_whole_hand_verb_and_then_continuation() {
     assert_eq!(kinds(&program).last(), Some(&"sacrificePermanents"));
 }
 
+/// A declared target player performs ordinary verbs over its own zones:
+/// another revealed object is the library-top operand, not the whole hand,
+/// and a counted exile from the performer's hand is the performer's choice.
+#[test]
+fn a_declared_player_performs_other_zone_verbs_than_the_whole_hand() {
+    let program = effects(
+        "Probe",
+        "Sorcery",
+        "Target opponent reveals the top card of their library.",
+    );
+    assert_eq!(kinds(&program), ["bind", "revealCards"]);
+    assert_eq!(program[0]["value"]["kind"], "libraryTopCards");
+    assert_eq!(program[1]["performer"]["kind"], "chosenTarget");
+    let program = effects(
+        "Probe",
+        "Sorcery",
+        "Target opponent exiles a card from their hand.",
+    );
+    assert_eq!(kinds(&program), ["chooseCards", "moveCards"]);
+    assert_eq!(program[0]["from"]["zone"]["kind"], "hand");
+    assert!(
+        program
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|effect| effect["performer"] == target_player())
+    );
+}
+
 #[test]
 fn near_misses_without_a_revealed_hand_or_owned_object_fail_explicitly() {
     for text in [
         // `from it` names a collection only through a revealed hand.
         "You choose a card from it. Exile that card.",
-        // Another revealed object is not the whole-hand verb.
-        "Target opponent reveals the top card of their library.",
         // The acting player's own hand only.
         "Target opponent reveals your hand.",
-        // A counted exile by a player has no reader yet.
-        "Target opponent exiles a card from their hand.",
     ] {
         assert_ne!(
             parse("Probe", "Sorcery", text).status,

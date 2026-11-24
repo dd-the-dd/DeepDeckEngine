@@ -253,20 +253,40 @@ fn replacement_animation_and_base_power_toughness_tail() {
     assert_eq!(rule["effects"][1]["mode"], "replace");
 }
 
+/// A bare color is a characteristic of the same `becomes` frame: it sets
+/// the color (CR 105.3, layer 5) and leaves the types untouched.
+#[test]
+fn a_bare_color_is_a_characteristic_of_the_becomes_frame() {
+    let rule = parse("Until end of turn, target creature becomes blue.").expect("color change");
+    assert_eq!(rule["effects"].as_array().unwrap().len(), 1);
+    assert_eq!(rule["effects"][0]["kind"], "setColors");
+    assert_eq!(rule["effects"][0]["colors"], json!(["U"]));
+    assert_eq!(
+        rule["effects"][0]["duration"]["kind"],
+        "untilEndOfCurrentTurn"
+    );
+    // A land subtype names the land subtype class, never the creature one.
+    let rule = parse("Until end of turn, target land becomes a Forest.").expect("land subtype");
+    assert_eq!(rule["effects"][0]["kind"], "modifySubtypeSet");
+    assert_eq!(rule["effects"][0]["subtypeClass"], "land");
+    // Coordinated verbs share one subject and one trailing duration, as a
+    // coordinated `gets +N/+N and gains K until end of turn` does.
+    let rule = parse("Target creature becomes a Doctor and gains flying until end of turn.")
+        .expect("coordinated characteristic chain");
+    assert_eq!(
+        rule["effects"][0]["duration"], rule["effects"][1]["duration"],
+        "{rule}"
+    );
+}
+
 /// Near misses stay explicit failures instead of being approximated.
 #[test]
 fn unsupported_type_change_shapes_fail_explicitly() {
     for text in [
-        // A color word is not a type list.
-        "Until end of turn, target creature becomes blue.",
-        // A noncreature subtype cannot use the creature-subtype primitive.
-        "Until end of turn, target land becomes a Forest.",
         // Two durations for one continuous effect.
         "Until end of turn, target creature becomes a Doctor until your next turn.",
         // A duration that the runtime cannot end.
         "Until your next turn, target creature becomes a Doctor.",
-        // A trailing duration of a coordinated chain is not propagated back.
-        "Target creature becomes a Doctor and gains flying until end of turn.",
         // Elision needs a preceding permanent subject.
         "Draw a card and becomes a Doctor.",
         // Only a creature has power and toughness (CR 208.1).

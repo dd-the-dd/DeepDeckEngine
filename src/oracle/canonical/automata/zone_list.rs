@@ -55,7 +55,10 @@ pub(in crate::oracle::canonical) fn recognize_card_zone_list(
             State::Connector => {
                 cursor.enter("zone-list.connector-or-complete");
                 match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-                    Some(",") => {
+                    // A comma continues the list only when a connector or
+                    // another zone follows; otherwise it is the parent's
+                    // boundary (`cards in your library, rounded up`).
+                    Some(",") if comma_continues_zone_list(cursor.peek_ahead(1)) => {
                         cursor.consume(",")?;
                         State::AfterComma
                     }
@@ -85,6 +88,25 @@ pub(in crate::oracle::canonical) fn recognize_card_zone_list(
             }
         }
     }
+}
+
+fn comma_continues_zone_list(next: Option<&str>) -> bool {
+    next.is_some_and(|word| {
+        matches!(
+            word.to_ascii_lowercase().as_str(),
+            "and"
+                | "or"
+                | "and/or"
+                | "graveyard"
+                | "graveyards"
+                | "library"
+                | "libraries"
+                | "exile"
+                | "hand"
+                | "hands"
+                | "battlefield"
+        )
+    })
 }
 
 #[cfg(test)]

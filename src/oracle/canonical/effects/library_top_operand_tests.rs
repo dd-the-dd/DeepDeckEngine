@@ -163,16 +163,31 @@ fn unbounded_permission_over_exiled_cards_lasts_while_they_remain_exiled() {
     assert_not_canonical("Reveal the top card of your library. You may play that card.");
 }
 
+/// The library holder is the shared possessive: a target player's library
+/// declares that player, and the permission reads the same bound card.
+#[test]
+fn a_target_players_library_top_is_the_same_operand() {
+    let parsed = parse(
+        "Sorcery",
+        "{1}{R}",
+        "Exile the top card of target player's library. You may play that card this turn.",
+    );
+    let effects = effects_of(&parsed, 0);
+    assert_eq!(kinds(&effects), ["bind", "moveCards", "grantPermission"]);
+    let rule = parsed.abilities[0].rule.as_ref().unwrap();
+    let holder = &rule["declaration"]["decisions"][0];
+    assert_eq!(holder["candidates"]["kind"], "players");
+    assert_eq!(effects[0]["value"]["zone"]["player"]["id"], holder["id"]);
+    assert_eq!(effects[2]["action"]["card"]["binding"], effects[0]["id"]);
+}
+
 #[test]
 fn unsupported_neighbours_fail_explicitly() {
     // The runtime ends a window at a turn boundary, not before it starts.
     assert_not_canonical(
         "Exile the top card of your library. You may play that card until your next turn.",
     );
-    // Another zone or owner is not this operand.
-    assert_not_canonical(
-        "Exile the top card of target player's library. You may play that card this turn.",
-    );
+    // Another zone is not this operand.
     assert_not_canonical("Exile the top card of your graveyard. You may play that card this turn.");
     // `revealed this way` must restate the verb that produced the collection.
     assert_not_canonical(

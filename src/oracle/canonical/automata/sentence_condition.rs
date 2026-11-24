@@ -249,6 +249,15 @@ fn read_condition_atom(
             ActionOutcomeNode::PreviousActionImpossible,
         ));
     }
+    // `you don't control QUERY` is the negated control proposition, the
+    // absence count of the shared controlled-permanent query, not a denied
+    // payment.
+    if word_is(cursor, 0, "you")
+        && contraction_is(cursor, 1, "don", "t")
+        && word_is(cursor, 2, "control")
+    {
+        return recognize_controlled_quantity_atom(cursor);
+    }
     if word_is(cursor, 0, "you") && contraction_is(cursor, 1, "don", "t") {
         cursor.enter("condition.action-outcome.payment-omitted");
         let payment = cursor.require_value(
@@ -382,18 +391,44 @@ pub(in crate::oracle::canonical) fn recognize_controlled_permanents_atom(
 }
 
 /// `you control THRESHOLD [other] QUERY` with a quantifier the fixed count
-/// query does not read (`no`, `exactly N`): the controller's count of the
-/// shared permanent query compared with the shared threshold.
+/// query does not read (`no`, `exactly N`), or its negation `you don't
+/// control a|another QUERY`: the controller's count of the shared permanent
+/// query compared with the shared threshold.
 fn recognize_controlled_quantity_atom(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ConditionAtom> {
     cursor.enter("condition.controlled-permanents.quantity.subject");
     cursor.consume("you")?;
+    let negated = contraction_is(cursor, 0, "don", "t");
+    if negated {
+        consume_current(cursor)?;
+    }
     cursor.consume("control")?;
     cursor.enter("condition.controlled-permanents.quantity.threshold");
-    let threshold = recognize_count_threshold(cursor, false)?;
+    // `you don't control a|an|another QUERY` (CR 109.4): no permanent of the
+    // query; `another` is the query's source exclusion.
+    let mut another = false;
+    let threshold = if negated {
+        if word_is(cursor, 0, "a") || word_is(cursor, 0, "an") {
+            consume_current(cursor)?;
+        } else if word_is(cursor, 0, "another") {
+            consume_current(cursor)?;
+            another = true;
+        }
+        CountThreshold {
+            operator: ThresholdOperator::AtMost,
+            value: 0,
+        }
+    } else {
+        recognize_count_threshold(cursor, false)?
+    };
     cursor.enter("condition.controlled-permanents.quantity.query");
-    let query = super::recognize_query_excluding_source(cursor, recognize_object_query)?;
+    let mut query = super::recognize_query_excluding_source(cursor, recognize_object_query)?;
+    cursor.require(
+        !(another && query.exclude_source),
+        "one source exclusion for one object query",
+    )?;
+    query.exclude_source |= another;
     cursor.require(
         query.controller.is_none(),
         "an unscoped permanent selector after `you control`",

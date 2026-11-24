@@ -3774,10 +3774,6 @@ fn parsed_bounded_free_hand_cast_evaluates_the_current_permanent_count() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Thorin, King of Durin's Folk; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_counted_lord_bonus_tracks_only_matching_controlled_permanents() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4120,10 +4116,6 @@ fn parsed_linked_global_destruction_gains_life_for_actual_destructions_only() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Long-Lost Lances; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -4959,10 +4951,6 @@ fn saga_is_sacrificed_only_after_its_final_chapter_ability_leaves_the_stack() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Burn, Burn, Tree and Fern; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -25591,10 +25579,6 @@ fn parsed_enduring_story_bonus_updates_source_stats_and_keyword() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bombur, Gentle Dreamer; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_conditional_untap_restriction_turns_off_after_enduring_story() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

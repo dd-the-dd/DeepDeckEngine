@@ -65,13 +65,20 @@ fn collection_support_is_explicit_and_opens_every_zone_action_and_slot() {
     )
     .expect("a plural return agrees with its plural possessive");
     assert_eq!(returned.target.slots[0].cardinality.minimum, 0);
-    // Near misses: number agreement, malformed selector, and an `other`
-    // relation to an earlier slot that no declaration represents.
+    // A later `other target` slot is admitted; card composition records its
+    // distinctness from the earlier slot.
+    let other = zone_change(
+        "Destroy target creature and up to one other target creature",
+        ZoneChangeTargetSupport::TargetCollection,
+    )
+    .expect("an `other target` slot");
+    assert_eq!(other.target.slots.len(), 2);
+    assert_eq!(other.target.slots[1].cardinality.minimum, 0);
+    // Near misses: number agreement and a malformed selector.
     for text in [
         "Return two target creatures to its owner's hand",
         "Return target creature to their owners' hands",
         "Destroy two target noncreature",
-        "Destroy target creature and up to one other target creature",
     ] {
         assert!(
             zone_change(text, ZoneChangeTargetSupport::TargetCollection).is_err(),

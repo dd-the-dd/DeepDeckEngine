@@ -140,9 +140,10 @@ fn indefinite_land_is_not_source_excluding_and_other_types_fail_locally() {
     // that read furthest; the player-action families (`play a land`, `draw
     // your Nth card`) all stop at the same verb, so the diagnostic is an
     // event action slot at the misconjugated verb, whichever family won.
+    // The attack declaration names that slot `verb` (`you attack with`).
     let state = ability.diagnostics[0].state.as_deref().unwrap_or_default();
     assert!(
-        state.starts_with("event.") && state.ends_with(".action"),
+        state.starts_with("event.") && (state.ends_with(".action") || state.ends_with(".verb")),
         "{state}"
     );
     assert_eq!(ability.diagnostics[0].found.as_deref(), Some("plays"));

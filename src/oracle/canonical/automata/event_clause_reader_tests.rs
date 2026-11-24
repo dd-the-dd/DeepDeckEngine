@@ -149,7 +149,13 @@ fn a_trigger_condition_list_reads_every_member_with_its_own_introducer() {
                 .all(|member| !matches!(member, GenericTriggerEventNode::Compound(_))),
             "{text}"
         );
-        assert_eq!(next.as_deref(), Some(","), "{text}");
+        // The last member consumes the clause boundary, exactly as a single
+        // clause does; the body starts at the cursor.
+        let body = text
+            .rsplit(", ")
+            .next()
+            .and_then(|body| body.split(' ').next());
+        assert_eq!(next.as_deref(), body, "{text}");
     }
 }
 

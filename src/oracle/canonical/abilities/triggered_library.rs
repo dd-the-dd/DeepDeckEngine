@@ -41,29 +41,9 @@ pub(in crate::oracle::canonical) fn parse_promoted_library_search_trigger(
         ability.event.player == PlayerPredicate::Opponent,
         "an opponent library-search event",
     )?;
-    let [
-        LocalEffectNode::PutCounters(put_counters),
-        LocalEffectNode::DrawCards(draw_cards),
-    ] = ability.effects.effects.as_slice()
-    else {
-        return Err(cursor.fail("putCounters followed by drawCards"));
-    };
-    cursor.require(
-        put_counters.permanent == PermanentOperandNode::Reference(LocalObjectReference::SourceSelf),
-        "counter placement on the source permanent",
-    )?;
-    cursor.require(
-        draw_cards.player == LocalPlayerReference::Controller,
-        "a draw for the source controller",
-    )?;
-    let counter_count = cursor.require_value(
-        lower_numeric_expression(&put_counters.count),
-        "a target-independent counter count",
-    )?;
-    let draw_count = cursor.require_value(
-        lower_numeric_expression(&draw_cards.count),
-        "a target-independent draw count",
-    )?;
+    // The body is any effect program: the shared effect-sequence lowering
+    // owns every action, performer and binding (`and an opponent draws`).
+    let lowered = lower_local_effect_sequence(&mut cursor, &ability.effects)?;
 
     let trace = cursor
         .transitions()
@@ -71,32 +51,27 @@ pub(in crate::oracle::canonical) fn parse_promoted_library_search_trigger(
         .map(|transition| transition.state)
         .collect::<Vec<_>>()
         .join(" -> ");
+    let mut rule = json!({
+        "kind": "triggeredAbility",
+        "source": self_ref(),
+        "event": {
+            "kind": "librarySearched",
+            "anyPlayer": true,
+            "opponentOfSourceController": true,
+        },
+        "effects": lowered.effects,
+    });
+    if !lowered.decisions.is_empty() {
+        rule["declaration"] = json!({
+            "kind": "castingDeclaration",
+            "decisions": lowered.decisions,
+        });
+    }
     Ok(draft(
-        json!({
-            "kind": "triggeredAbility",
-            "source": self_ref(),
-            "event": {
-                "kind": "librarySearched",
-                "anyPlayer": true,
-                "opponentOfSourceController": true,
-            },
-            "effects": [
-                {
-                    "kind": "putCounters",
-                    "permanent": self_ref(),
-                    "counter": put_counters.counter,
-                    "count": counter_count,
-                },
-                {
-                    "kind": "drawCards",
-                    "player": controller(),
-                    "count": draw_count,
-                },
-            ],
-        }),
+        rule,
         &[
             "Recognize a library-search event and opponent relation from the shared token stream",
-            "Compose counter placement and card draw as independent atomic effects",
+            "Lower the triggered body through the shared effect-sequence lowering",
             "Resolve the source reference through lexical name links or a typed source anaphor",
             "Delegate `and` and sentence-level `then` semantics to the shared effect sequence",
             &trace,

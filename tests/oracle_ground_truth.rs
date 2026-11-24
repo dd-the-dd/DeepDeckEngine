@@ -2721,18 +2721,17 @@ fn offspring_parses_its_cost_and_complete_enter_trigger() {
         rule["ability"]["trigger"]["condition"]["kind"],
         "offspringCostWasPaid"
     );
-    assert_eq!(
-        rule["ability"]["trigger"]["effects"][0]["kind"],
-        "createTokenCopy"
-    );
-    assert_eq!(
-        rule["ability"]["trigger"]["effects"][0]["basePower"]["value"],
-        1
-    );
-    assert_eq!(
-        rule["ability"]["trigger"]["effects"][0]["baseToughness"]["value"],
-        1
-    );
+    // Every token copy is one `createTokens` whose token is a copy with the
+    // copiable exceptions (CR 707.9b): here the 1/1 base power/toughness.
+    let created = &rule["ability"]["trigger"]["effects"][0];
+    assert_eq!(created["kind"], "createTokens");
+    assert_eq!(created["token"]["kind"], "copyOf");
+    assert_eq!(created["token"]["object"]["kind"], "self");
+    let except = created["token"]["except"].as_array().expect("exceptions");
+    assert_eq!(except.len(), 1);
+    assert_eq!(except[0]["kind"], "setBasePowerToughness");
+    assert_eq!(except[0]["power"]["value"], 1);
+    assert_eq!(except[0]["toughness"]["value"], 1);
 }
 
 #[test]

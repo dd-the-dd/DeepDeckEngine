@@ -129,23 +129,36 @@ fn a_modal_spell_resolves_two_chosen_scry_modes_in_order() {
         .collect();
     let mut decisions = BTreeMap::from([(decision_id, chosen)]);
     let source = spell_source("two-scry-modes", "player-0", decisions.clone());
+    let mut bindings = BTreeMap::new();
     execute_effects_at_resolution_start(
         &mut engine,
         &spell["effects"],
         &source,
-        &mut BTreeMap::new(),
+        &mut bindings,
         &mut decisions,
         &mut EmeritusDecisionProvider,
     )
     .expect("both chosen modes resolve");
+    // Scry is a composition of primitives closed by its ability signal: one
+    // signal per chosen mode, each mode looking at its own count of cards
+    // through its own mode-scoped binding.
     let scries = engine
         .state
         .events
         .iter()
-        .filter(|event| event.kind == "scried")
-        .map(|event| event.detail["count"].clone())
-        .collect::<Vec<_>>();
-    assert_eq!(scries, vec![json!(1), json!(2)]);
+        .filter(|event| event.kind == "abilityPerformed" && event.detail["abilityId"] == "scry")
+        .count();
+    assert_eq!(scries, 2);
+    let looked = ["mode1", "mode2"].map(|mode| {
+        bindings
+            .iter()
+            .find(|(id, _)| id.starts_with(&format!("{mode}:")) && id.ends_with("scryLookedCards"))
+            .map(|(_, binding)| match binding {
+                RuntimeBinding::Objects(objects) => objects.len(),
+                _ => usize::MAX,
+            })
+    });
+    assert_eq!(looked, [Some(1), Some(2)]);
     assert_eq!(
         engine.state.players[0].life, 20,
         "the third mode was not chosen"

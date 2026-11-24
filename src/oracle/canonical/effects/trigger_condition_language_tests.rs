@@ -4,12 +4,14 @@
 //! state triggers (CR 603.8). Each case lowers through the one envelope and
 //! the one event lowering; bodies are composed elsewhere.
 use super::*;
-use crate::oracle::syntax::recognize_entities;
+use crate::oracle::syntax::{recognize_entities, resolve_counter_name_spans};
 
 /// The lowered event and the ability's event-time condition, or the
 /// failure of the envelope or of the lowering.
 fn lowered(text: &str) -> Result<(Value, Option<Value>), MachineFailure> {
-    let tokens = recognize_entities(text);
+    // The pipeline's contextual counter-name pass (`ice counters`).
+    let mut tokens = recognize_entities(text);
+    resolve_counter_name_spans(&mut tokens);
     let mut cursor = OracleTokenCursor::new("trigger-condition-language-test", &tokens);
     let envelope = match try_recognize_generic_trigger_envelope(&mut cursor, &[], None) {
         GenericTriggerEnvelopeAttempt::Recognized(envelope) => envelope,

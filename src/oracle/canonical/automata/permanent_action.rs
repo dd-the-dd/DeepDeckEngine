@@ -85,6 +85,11 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
     if let Some(attempt) = try_recognize_antecedent_characteristic(cursor, context) {
         return attempt;
     }
+    // `each QUERY` is a distributive, grammatically singular subject
+    // (`each land you control becomes a creature`); `all QUERY` is plural.
+    let distributive_subject = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("each"));
     let mut subject_end = cursor.clone();
     let subject = match recognize_contextual_permanent_operand(
         &mut subject_end,
@@ -226,9 +231,15 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             };
         }
     }
-    let Some(predicate) =
-        classify_permanent_predicate(&subject_end, action, action_offset, bare, &subject, context)
-    else {
+    let Some(predicate) = classify_permanent_predicate(
+        &subject_end,
+        action,
+        action_offset,
+        bare,
+        &subject,
+        distributive_subject,
+        context,
+    ) else {
         return PermanentActionAttempt::NotClaimed;
     };
     match predicate {
@@ -269,7 +280,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             // A type-change frame is only a candidate: other readers own the
             // `becomes a P/T ...` animation shapes, so a non-matching type list
             // must not commit this parent.
-            let (agreement, number) = characteristic_subject_agreement(&subject, bare);
+            let (agreement, number) =
+                characteristic_subject_agreement(&subject, distributive_subject, bare);
             let mut trial = cursor.clone();
             let fragment = match super::become_types::recognize_become_types_subject(
                 &mut trial,
@@ -407,6 +419,7 @@ fn classify_permanent_predicate(
     action_offset: usize,
     bare: bool,
     subject: &PermanentOperandNode,
+    distributive_subject: bool,
     context: &EffectRecognitionContext,
 ) -> Option<PermanentPredicate> {
     // Only `gain` admits the adverb `also` before it.
@@ -414,7 +427,7 @@ fn classify_permanent_predicate(
     if adjacent && !bare && super::combat_clause_starts(subject_end) {
         return Some(PermanentPredicate::Combat);
     }
-    let (agreement, number) = characteristic_subject_agreement(subject, bare);
+    let (agreement, number) = characteristic_subject_agreement(subject, distributive_subject, bare);
     if adjacent
         && super::become_types::characteristic_change_verb_starts(subject_end, agreement, number)
     {
@@ -592,9 +605,14 @@ fn recognize_verb_chain_action(
 /// verb; only a plural subject takes plural type nouns.
 fn characteristic_subject_agreement(
     subject: &PermanentOperandNode,
+    distributive_subject: bool,
     bare: bool,
 ) -> (VerbAgreement, super::TypeChangeNumber) {
-    let number = if permanent_operand_is_plural(subject) {
+    // A distributive `each` collection agrees in the singular with its verb
+    // and its type list, although it denotes several permanents.
+    let plural = permanent_operand_is_plural(subject)
+        && !(distributive_subject && matches!(subject, PermanentOperandNode::Collection { .. }));
+    let number = if plural {
         super::TypeChangeNumber::Plural
     } else {
         super::TypeChangeNumber::Singular

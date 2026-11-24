@@ -581,6 +581,7 @@ fn recognize_source_object(
     }
     cursor.enter("cost.payment.source.reference");
     let noun_raw = cursor.peek_ahead(1).map(str::to_owned);
+    let reference_start = cursor.checkpoint();
     recognize_source_reference(cursor, &[], None)?;
     cursor.enter("cost.payment.source.noun");
     let noun_raw = cursor.require_value(noun_raw, "a source noun after `this`")?;
@@ -588,17 +589,20 @@ fn recognize_source_object(
         == Some(ObjectDomain::Card)
     {
         PaymentSourceNoun::Card
+    } else if lookup_object_domain(&noun_raw, AcceptedForms::SingularOnly)
+        != Some(ObjectDomain::Spell)
+        && !lookup_card_type(&noun_raw, AcceptedForms::SingularOnly)
+            .is_some_and(|kind| !kind.may_appear_on_permanent())
+    {
+        PaymentSourceNoun::Permanent
     } else {
         // A spell or a nonpermanent card type never names a payable
-        // battlefield source (CR 110.4a).
-        cursor.require(
-            lookup_object_domain(&noun_raw, AcceptedForms::SingularOnly)
-                != Some(ObjectDomain::Spell)
-                && !lookup_card_type(&noun_raw, AcceptedForms::SingularOnly)
-                    .is_some_and(|kind| !kind.may_appear_on_permanent()),
-            "a source noun naming a permanent or `this card`",
-        )?;
-        PaymentSourceNoun::Permanent
+        // battlefield source (CR 110.4a). The refusal is located at the
+        // noun the shared reference reader accepted.
+        cursor.rollback(reference_start);
+        cursor.advance_to(cursor.position() + 1)?;
+        cursor.enter("cost.payment.source.noun");
+        return Err(cursor.fail("a source noun naming a permanent or `this card`"));
     };
     source_noun_in_domain(cursor, noun, domain, admits_permanent)
 }

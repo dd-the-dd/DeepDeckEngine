@@ -119,6 +119,24 @@ fn prefix_negation_is_typed_and_repeated_not_cancels() {
     }
 }
 
+/// `you don't control a|another QUERY` is the negated control proposition:
+/// the absence count of the shared controlled-permanent query, never a
+/// denied optional payment.
+#[test]
+fn a_negated_control_proposition_is_the_absence_count() {
+    for text in [
+        "if you don't control an artifact, draw a card.",
+        "if you don't control another Dinosaur, draw a card.",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
+        let Some(BooleanConditionNode::Atom(_)) = guard(&mut cursor).unwrap() else {
+            panic!("{text}: one absence atom");
+        };
+        assert_eq!(cursor.peek(), Some(","), "{text}");
+    }
+}
+
 #[test]
 fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
     for text in [
@@ -126,7 +144,6 @@ fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
         "if you control an instant, draw a card.",
         "if you control a creature you don't control, draw a card.",
         "if you control an artifact and a creature, draw a card.",
-        "if you don't control an artifact, draw a card.",
         "if you control an artifact or banana, draw a card.",
         "if you control an artifact or, draw a card.",
         "if you control an artifact draw a card.",

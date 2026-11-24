@@ -179,8 +179,10 @@ fn migrated_bushido_and_living_weapon_keep_their_executable_ir() {
                         "types": ["Creature"],
                         "subtypes": ["Phyrexian", "Germ"],
                         "colors": ["Black"],
-                        "power": 0,
-                        "toughness": 0,
+                        // Token stats are the shared numeric expression
+                        // (`X/X` tokens use the same field).
+                        "power": { "kind": "integer", "value": 0 },
+                        "toughness": { "kind": "integer", "value": 0 },
                         "abilities": [],
                     },
                     // The attach reads the created token: the creation binds

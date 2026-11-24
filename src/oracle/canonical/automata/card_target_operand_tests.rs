@@ -128,7 +128,10 @@ fn shared_characteristic_syntax_stays_unpromoted_without_a_checked_card_context(
     ] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("target-card-operand-test", &tokens);
-        let CollectionOperandAttempt::RejectedCandidate(failure) =
+        // An explicit `from ZONE` commits the card-target reading, so the
+        // unproved predicate is a committed, located refusal; the caller's
+        // cursor is untouched either way.
+        let CollectionOperandAttempt::FailedCommitted(failure) =
             try_recognize_target_card_action(&mut cursor)
         else {
             panic!("unproved predicate must not be admitted: {text}")

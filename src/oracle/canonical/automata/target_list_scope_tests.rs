@@ -91,8 +91,17 @@ fn every_instance_of_target_is_its_own_declaration_in_one_collection() {
     );
     assert_eq!(rule["effects"][0]["kind"], "returnToOwnersHand");
     assert_eq!(rule["effects"][0]["object"]["kind"], "union");
-    // A later `other target` slot names a relation no declaration carries.
-    unsupported("Destroy target artifact and up to one other target artifact.");
+    // A later `other target` slot is its own declaration; card composition
+    // records that it must differ from the earlier slot (CR 115.3).
+    let rule = canonical(
+        "Other Target Probe",
+        "Sorcery",
+        "Destroy target artifact and up to one other target artifact.",
+    );
+    let decisions = rule["declaration"]["decisions"].as_array().unwrap();
+    assert_eq!(decisions.len(), 2);
+    assert_eq!(decisions[1]["minimum"], 0);
+    assert_eq!(decisions[1]["distinctFrom"], json!([decisions[0]["id"]]));
     unsupported("Return target creature and target land to its owner's hand.");
 }
 
