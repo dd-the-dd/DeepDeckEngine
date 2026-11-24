@@ -135,3 +135,41 @@ fn distributed_counters_divide_among_one_declaration() {
     );
     assert!(parse("Distribute two +1/+1 counters on target creature.").is_err());
 }
+
+/// `can't be regenerated DURATION` (CR 701.15): a temporary marker on any
+/// permanent subject, read with the modal's single form for every number.
+#[test]
+fn a_permanent_subject_cant_be_regenerated_for_a_duration() {
+    for text in [
+        // Furnace Brood.
+        "Target creature can't be regenerated this turn.",
+        // Sibling: a plural subject takes the same modal form.
+        "Up to two target creatures can't be regenerated this turn.",
+        // An unused combination: a counter then the anaphor's prohibition.
+        "Put a -1/-1 counter on target creature. It can't be regenerated this turn.",
+    ] {
+        let sequence = parse(text).unwrap_or_else(|failure| panic!("{text}: {failure:?}"));
+        let Some(LocalEffectNode::TemporaryKeywordGrant(node)) = sequence.effects.last() else {
+            panic!("{text}: a temporary marker")
+        };
+        assert_eq!(
+            node.keywords,
+            vec![GrantedKeyword::CantBeRegenerated],
+            "{text}"
+        );
+        assert_eq!(
+            node.duration,
+            EffectDurationNode::UntilEndOfCurrentTurn,
+            "{text}"
+        );
+    }
+}
+
+/// Without a duration the prohibition is a destruction's amendment, owned
+/// by the destroy frames: this frame makes no claim on it.
+#[test]
+fn an_undated_regeneration_prohibition_is_not_a_lasting_marker() {
+    let failure = parse("Target creature can't be regenerated.")
+        .expect_err("no lasting marker without a duration");
+    assert_ne!(failure.state, "object-rule.cannot-be-regenerated.duration");
+}

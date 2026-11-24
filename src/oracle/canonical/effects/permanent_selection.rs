@@ -29,12 +29,23 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
                 json!({"kind":"returnToOwnersHand", "object":objects})
             }
             // The shared permanent exile writer evaluates the collection on
-            // resolution (CR 608.2c), like `destroy all`.
+            // resolution (CR 608.2c), like `destroy all`. `until SOURCE
+            // leaves the battlefield` links each exiled object to the source
+            // (CR 610.3).
             SelectedPermanentAction::Exile => {
-                json!({"kind":"exilePermanent", "permanent":objects})
+                let mut exile = json!({"kind":"exilePermanent", "permanent":objects});
+                if let Some(ZoneChangeUntilNode::SourceLeavesBattlefield) = effect.until {
+                    exile["until"] = json!({"kind":"sourceLeavesBattlefield"});
+                }
+                exile
             }
         }]);
     };
+    // A chosen set is moved by the card mover, which links no exiled card
+    // to its source: a timed exile of a choice stays unsupported.
+    if effect.until.is_some() {
+        return Err(TargetlessLoweringError::UnsupportedEffect);
+    }
     let minimum = lower_targetless_numeric_expression(
         &NumericExpression::Atom(bounds.minimum),
         declarations,

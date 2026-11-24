@@ -55,7 +55,7 @@ pub(in crate::oracle::canonical) struct EnteringCountersNode {
 }
 
 /// `with N COUNTER counter(s) on it|them` after a battlefield destination.
-fn recognize_entering_counters(
+pub(in crate::oracle::canonical) fn recognize_entering_counters(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<EnteringCountersNode> {
     cursor.enter("collection.destination.entering-counters");

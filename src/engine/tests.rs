@@ -33163,6 +33163,9 @@ mod player_designations_runtime;
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/clause_subject_cells_runtime.rs"]
+mod clause_subject_cells_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/combat_restriction_family_runtime.rs"]
 mod combat_restriction_family_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]

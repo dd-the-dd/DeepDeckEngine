@@ -566,6 +566,22 @@ impl GameEngine {
     ) -> PreparedGraveyardDestination {
         use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
         use super::*;
+        // The finality counter (CR 122): a permanent with one on it that
+        // would be put into a graveyard from the battlefield is exiled
+        // instead. The counter is read before the permanent leaves.
+        if card.counters.get("finality").copied().unwrap_or(0) > 0
+            && self.permanent_position(&card.instance_id).is_some()
+        {
+            return PreparedGraveyardDestination::Exile {
+                source_card_id: card.instance_id.clone(),
+                one_shot_modifier: None,
+                detail: json!({
+                    "destination": "exile",
+                    "replacementSourceId": card.instance_id,
+                    "counter": "finality",
+                }),
+            };
+        }
         let graveyard_owner_id = self.state.players[player_index].id.clone();
         // Every proposal sends the card to exile; they differ only in
         // attribution, so the first proposal in precedence order applies.

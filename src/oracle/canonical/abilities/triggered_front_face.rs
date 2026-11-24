@@ -61,6 +61,12 @@ pub(in crate::oracle::canonical) fn parse_promoted_attack_investigate(
         effect.player == LocalPlayerReference::Controller,
         "the source controller investigating",
     )?;
+    // This envelope lowers one investigation; a repeated one belongs to
+    // the shared effect program, which lowers its repetition.
+    cursor.require(
+        effect.times == NumericExpression::from(1_i64),
+        "one investigation in this trigger envelope",
+    )?;
 
     Ok(draft(
         json!({

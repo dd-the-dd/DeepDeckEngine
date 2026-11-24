@@ -126,6 +126,9 @@ pub(in crate::oracle::canonical) enum CombatClause {
     BlocksEachCombat,
     /// `must be blocked [this turn] if able` (CR 509.1c).
     MustBeBlocked,
+    /// `can attack [this turn] as though it didn't have defender` (CR
+    /// 702.3b): defender does not restrict the objects' attacks.
+    AttackAsThoughNoDefender,
 }
 
 impl CombatClause {
@@ -139,6 +142,7 @@ impl CombatClause {
             Self::AttacksEachCombat => GrantedKeyword::AttackEachCombatIfAble,
             Self::BlocksEachCombat => GrantedKeyword::BlockEachCombatIfAble,
             Self::MustBeBlocked => GrantedKeyword::MustBeBlockedIfAble,
+            Self::AttackAsThoughNoDefender => GrantedKeyword::AttackAsThoughNoDefender,
             Self::CantBeBlockedBy(_)
             | Self::CantBeBlockedExceptBy(_)
             | Self::CantBlockObjects(_)
@@ -206,6 +210,26 @@ fn duration_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
             && (word_at(cursor, offset + 1, "turn") || word_at(cursor, offset + 1, "combat")))
 }
 
+/// `as though it|they didn't have defender` at `offset`, after an optional
+/// temporary duration (`this turn`).
+fn defender_exception_follows(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let start = (offset..offset + 4).find(|offset| word_at(cursor, *offset, "as"));
+    start.is_some_and(|start| {
+        word_at(cursor, start + 1, "though")
+            && (word_at(cursor, start + 2, "it") || word_at(cursor, start + 2, "they"))
+            && cursor
+                .peek_ahead(start + 3)
+                .is_some_and(is_negated_past_have_auxiliary)
+            && word_at(cursor, start + 4, "have")
+            && word_at(cursor, start + 5, "defender")
+    })
+}
+
+/// `didn't`, with either apostrophe.
+fn is_negated_past_have_auxiliary(raw: &str) -> bool {
+    raw.replace('\u{2019}', "'").eq_ignore_ascii_case("didn't")
+}
+
 /// True when the tokens at the cursor begin a combat clause: the lexical
 /// envelope a parent checks before it hands the clause to this child. The
 /// clause itself commits only after its combat action word.
@@ -219,7 +243,10 @@ pub(in crate::oracle::canonical) fn combat_clause_starts(cursor: &OracleTokenCur
         |offset: usize| word_at(cursor, offset, "each") || duration_starts_at(cursor, offset);
     match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some(word) if is_prohibition_word(word) => action_follows(1),
-        Some("can") => word_at(cursor, 1, "block") && word_at(cursor, 2, "only"),
+        Some("can") => {
+            (word_at(cursor, 1, "block") && word_at(cursor, 2, "only"))
+                || (word_at(cursor, 1, "attack") && defender_exception_follows(cursor, 2))
+        }
         Some("attack" | "attacks" | "block" | "blocks") => requirement_follows(1),
         Some("must") => word_at(cursor, 1, "be") && word_at(cursor, 2, "blocked"),
         _ => false,
@@ -380,6 +407,7 @@ fn bare_block_prohibition_ends(cursor: &OracleTokenCursor<'_>) -> bool {
 ///              | ("block" | "blocks") Requirement
 ///              | "must be blocked" Requirement
 ///              | "can block only" Query
+///              | "can attack" Duration? "as though" (it|they) "didn't have defender"
 ///              | "can't" Prohibition
 /// Requirement := "each combat if able" | Duration "if able"   (temporary only)
 /// Prohibition := "attack" ["or" "block"] | "attack you" ["or planeswalkers you control"]
@@ -418,6 +446,38 @@ pub(in crate::oracle::canonical) fn recognize_combat_clause(
             *committed = true;
             recognize_requirement_tail(cursor, context, true, duration)?;
             clauses.push(CombatClause::MustBeBlocked);
+            return Ok(());
+        }
+        Some("can") if word_at(cursor, 1, "attack") => {
+            // CR 702.3b: `can attack [DURATION] as though it didn't have
+            // defender`; a temporary clause may carry its own duration.
+            cursor.consume("can")?;
+            cursor.enter("combat-clause.defender-exception");
+            cursor.consume("attack")?;
+            *committed = true;
+            if duration_starts_at(cursor, 0) {
+                cursor.require(
+                    context == CombatClauseContext::Temporary && duration.is_none(),
+                    "one duration for a temporary defender exception",
+                )?;
+                *duration = Some(recognize_effect_duration(cursor)?);
+            }
+            cursor.enter("combat-clause.defender-exception.as-though");
+            cursor.consume_phrase(&["as", "though"])?;
+            let pronoun = cursor
+                .peek()
+                .filter(|raw| raw.eq_ignore_ascii_case("it") || raw.eq_ignore_ascii_case("they"))
+                .map(str::to_owned)
+                .ok_or_else(|| cursor.fail("`it` or `they` naming the restricted objects"))?;
+            cursor.consume(&pronoun)?;
+            let negated = cursor
+                .peek()
+                .filter(|raw| is_negated_past_have_auxiliary(raw))
+                .map(str::to_owned)
+                .ok_or_else(|| cursor.fail("`didn't have defender`"))?;
+            cursor.consume(&negated)?;
+            cursor.consume_phrase(&["have", "defender"])?;
+            clauses.push(CombatClause::AttackAsThoughNoDefender);
             return Ok(());
         }
         Some("can") => {

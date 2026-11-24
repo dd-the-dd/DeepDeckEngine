@@ -34,6 +34,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 controller: SourceMoveController::Preserve,
                 tapped: false,
                 attached_to: None,
+                entering_counters: None,
             })
         }
         Some("return") => {
@@ -81,6 +82,18 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 if tapped {
                     cursor.consume("tapped")?;
                 }
+                // `with N COUNTER counter(s) on it`: the shared entry-counter
+                // reader of card moves; the source enters with them (CR
+                // 122.6), it does not receive them after entering.
+                let entering_counters = if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
+                {
+                    cursor.enter("effect.move-source.return.entering-counters");
+                    Some(super::recognize_entering_counters(cursor)?)
+                } else {
+                    None
+                };
                 // `attached to OBJECT`: the shared permanent operand names
                 // the permanent the source enters attached to (CR 303.4f).
                 let attached_to = if cursor
@@ -107,6 +120,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     controller: SourceMoveController::Preserve,
                     tapped,
                     attached_to,
+                    entering_counters,
                 });
             }
             if origin == Some(SourceZone::Graveyard) {
@@ -121,6 +135,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     controller: SourceMoveController::Preserve,
                     tapped: false,
                     attached_to: None,
+                    entering_counters: None,
                 });
             }
             if origin.is_none()
@@ -151,6 +166,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     controller: SourceMoveController::Owner,
                     tapped: false,
                     attached_to: None,
+                    entering_counters: None,
                 });
             }
             cursor.consume_phrase(&["the", "battlefield"])?;
@@ -182,6 +198,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 controller: SourceMoveController::Owner,
                 tapped: false,
                 attached_to: None,
+                entering_counters: None,
             })
         }
         _ => Err(cursor.fail("`exile` or `return` source-zone action")),

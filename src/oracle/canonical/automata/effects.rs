@@ -148,6 +148,16 @@ fn recognize_damage_equal_amount(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("effect.damage.equal-amount");
+    recognize_clause_subject_equal_amount(cursor)
+}
+
+/// `equal to EXPR` inside a clause whose subject the parent installed in
+/// the binding environment (`with_clause_subject`): that subject is the
+/// only antecedent of a possessive `its` (`deals damage equal to its
+/// power`, `with power and toughness each equal to its mana value`).
+pub(in crate::oracle::canonical) fn recognize_clause_subject_equal_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
     let subject = cursor
         .binding_environment()
         .and_then(|environment| environment.subject);
@@ -892,6 +902,7 @@ fn recognize_untargeted_zone_change(
                         bounds: None,
                         query: objects,
                     },
+                    until: None,
                 },
             ))
         }
@@ -905,6 +916,7 @@ fn recognize_untargeted_zone_change(
                 super::SelectedPermanentsEffectNode {
                     action: super::SelectedPermanentAction::ReturnToOwnerHand,
                     operand,
+                    until: None,
                 },
             ))
         }
@@ -919,6 +931,7 @@ fn recognize_untargeted_zone_change(
                         bounds: None,
                         query: objects,
                     },
+                    until: None,
                 },
             ))
         }
@@ -928,6 +941,7 @@ fn recognize_untargeted_zone_change(
                 super::SelectedPermanentsEffectNode {
                     action: super::SelectedPermanentAction::Exile,
                     operand,
+                    until: None,
                 },
             ))
         }

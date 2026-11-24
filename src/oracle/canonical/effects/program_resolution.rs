@@ -127,7 +127,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Proliferate(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ExtraTurn
             | SingularPlayerAction::Designation(_)

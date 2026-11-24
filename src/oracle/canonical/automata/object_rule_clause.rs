@@ -6,6 +6,7 @@
 //! Clause    := SUBJECT Predicate
 //! Predicate := (phases|phase) "out"                         -- CR 702.26b
 //!            | (assigns|assign) "no" "combat" "damage" DURATION -- CR 510.1
+//!            | "can't" "be" "regenerated" DURATION          -- CR 701.15
 //! ```
 //!
 //! The subject is the shared permanent operand; its number selects the
@@ -24,12 +25,16 @@ use super::{
     permanent_operand_is_plural, recognize_contextual_permanent_operand,
     recognize_trailing_or_supplied_duration,
 };
+use crate::oracle::canonical::automata::{Auxiliary, is_verb_form, lookup_auxiliary};
 
 /// The predicate a permanent subject takes in this frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ObjectRulePredicate {
     PhaseOut,
     AssignsNoCombatDamage,
+    /// `can't be regenerated DURATION` (CR 701.15): no regeneration shield
+    /// replaces the object's destruction while the marker lasts.
+    CannotBeRegenerated,
 }
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -42,6 +47,19 @@ fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> boo
 /// agreement, with the verb form it is written in.
 fn predicate_at(cursor: &OracleTokenCursor<'_>) -> Option<(ObjectRulePredicate, Vec<VerbForm>)> {
     let verb = cursor.peek()?;
+    // The modal prohibition takes no agreement: every subject number writes
+    // `can't be regenerated`.
+    if lookup_auxiliary(verb).is_some_and(|(auxiliary, _)| auxiliary == Auxiliary::Cannot)
+        && word_at(cursor, 1, "be")
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Regenerate, VerbForm::PastParticiple))
+    {
+        return Some((
+            ObjectRulePredicate::CannotBeRegenerated,
+            vec![VerbForm::Base, VerbForm::ThirdPersonSingular],
+        ));
+    }
     if let Some((_, forms)) = lookup_verb(verb, &[VerbLemma::Phase])
         && word_at(cursor, 1, "out")
     {
@@ -79,6 +97,14 @@ pub(in crate::oracle::canonical) fn try_recognize_object_rule_clause(
     let Some((predicate, forms)) = predicate_at(&subject_end) else {
         return PermanentActionAttempt::NotClaimed;
     };
+    // Without a duration, `It can't be regenerated.` is the amendment of a
+    // destruction (CR 701.19c), owned by the destroy frames: no claim here.
+    if predicate == ObjectRulePredicate::CannotBeRegenerated
+        && context.preposed_duration.is_none()
+        && !(word_at(&subject_end, 3, "this") || word_at(&subject_end, 3, "until"))
+    {
+        return PermanentActionAttempt::NotClaimed;
+    }
     let mut trial = subject_end;
     match recognize_object_rule_predicate(
         &mut trial,
@@ -121,6 +147,30 @@ fn recognize_object_rule_predicate(
     )?;
     cursor.advance_to(cursor.position() + 1)?;
     match predicate {
+        ObjectRulePredicate::CannotBeRegenerated => {
+            cursor.enter("object-rule.cannot-be-regenerated");
+            cursor.consume("be")?;
+            cursor.advance_to(cursor.position() + 1)?;
+            cursor.enter("object-rule.cannot-be-regenerated.duration");
+            let duration = recognize_trailing_or_supplied_duration(
+                cursor,
+                context.preposed_duration.as_ref(),
+            )?;
+            // `It can't be regenerated.` after `destroy` amends that
+            // destruction (CR 701.19c); it is not a lasting rule here.
+            cursor.require(
+                duration != EffectDurationNode::Indefinite,
+                "a duration for the regeneration prohibition (`this turn`)",
+            )?;
+            Ok(LocalEffectNode::TemporaryKeywordGrant(
+                TemporaryKeywordGrantNode {
+                    objects: subject,
+                    keywords: vec![GrantedKeyword::CantBeRegenerated],
+                    abilities: Vec::new(),
+                    duration,
+                },
+            ))
+        }
         ObjectRulePredicate::PhaseOut => {
             cursor.enter("object-rule.phase-out");
             cursor.consume("out")?;
