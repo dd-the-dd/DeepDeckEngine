@@ -203,6 +203,7 @@ mod player_damage_replacement_order;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
+mod player_static_modifiers;
 mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
@@ -227,7 +228,6 @@ mod source_lki;
 #[path = "spell_cast_event_tests.rs"]
 mod spell_cast_event_tests;
 mod state;
-mod player_static_modifiers;
 mod static_condition_capability;
 mod subtypes;
 mod suspend_keyword;
