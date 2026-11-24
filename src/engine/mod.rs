@@ -7599,7 +7599,20 @@ impl GameEngine {
                 .filter_map(|amount| usize::try_from(amount).ok())
                 .sum::<usize>()
         };
-        let per_draw_additional = self
+        // CR 614.5 and 616.1: each `draw N cards instead` replacement turns
+        // every draw it can still apply to into N draws, and the next one
+        // applies to the draws the previous one produced, so the counts
+        // multiply. A replacement excepting the first draw of the draw step
+        // leaves that one draw single. Replacements without the exception
+        // apply first, so the exempt draw is the first of their results.
+        let first_draw_of_draw_step = self.state.step == GameStep::Draw
+            && !self.state.events.iter().any(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.step == GameStep::Draw
+                    && event.kind == "cardDrawn"
+                    && event.player_id.as_deref() == Some(player_id)
+            });
+        let mut per_draw: Vec<(bool, usize)> = self
             .battlefield_static_modifiers()
             .iter()
             .filter(|(source, modifier)| {
@@ -7607,26 +7620,24 @@ impl GameEngine {
                     && value_kind(modifier) == Some("increaseEachDrawCount")
             })
             .filter_map(|(_, modifier)| {
-                let mut eligible_draws = count;
-                if modifier["exceptFirstInDrawStep"].as_bool() == Some(true)
-                    && self.state.step == GameStep::Draw
-                    && !self.state.events.iter().any(|event| {
-                        event.turn_number == self.state.turn_number
-                            && event.step == GameStep::Draw
-                            && event.kind == "cardDrawn"
-                            && event.player_id.as_deref() == Some(player_id)
-                    })
-                {
-                    eligible_draws = eligible_draws.saturating_sub(1);
-                }
+                let excepts_first = modifier["exceptFirstInDrawStep"].as_bool() == Some(true);
                 integer_value(&modifier["amount"])
                     .and_then(|amount| usize::try_from(amount).ok())
-                    .map(|amount| amount.saturating_mul(eligible_draws))
+                    .map(|amount| (excepts_first, amount))
             })
-            .sum::<usize>();
-        count
-            .saturating_add(additional_count)
-            .saturating_add(per_draw_additional)
+            .collect();
+        per_draw.sort_by_key(|(excepts_first, _)| *excepts_first);
+        per_draw.into_iter().fold(
+            count.saturating_add(additional_count),
+            |total, (excepts_first, amount)| {
+                let eligible = if excepts_first && first_draw_of_draw_step {
+                    total.saturating_sub(1)
+                } else {
+                    total
+                };
+                total.saturating_add(amount.saturating_mul(eligible))
+            },
+        )
     }
 
     fn draw_one_card_without_state_check(&mut self, player_id: &str) -> Result<(), EngineError> {
@@ -21716,8 +21727,7 @@ impl GameEngine {
         let stack_id = format!("stack:{}", self.stack_sequence);
         let mut card = original.card;
         card.instance_id = format!("copy:spell:{}:{}", card.instance_id, self.copy_sequence);
-        card.flags.insert("isSpellCopy".to_string(), true);
-        card.flags.remove("wasCast");
+        cast_events::mark_spell_copy(&mut card.flags);
         let card_id = card.instance_id.clone();
         let copied_definition = card.definition.clone();
         self.state.stack.push(StackObject {

@@ -159,23 +159,113 @@ fn lower_entry_copy(
     Ok((decision, operation))
 }
 
-/// `you may reveal CARD from your hand. If you don't, SOURCE enters tapped.`:
-/// the optional reveal is one decision; revealing no matching card applies
-/// the tapped state.
-fn lower_entry_reveal(
+/// The entering state's own operations: `setEnteringState` for `tapped`
+/// and one `putEnteringCounters` per counter kind. A copy carries its own
+/// tapped state, so the caller passes `tapped` only without one.
+fn lower_entering_state_operations(
     cursor: &mut OracleTokenCursor<'_>,
-    reveal: &EntryRevealNode,
+    tapped: bool,
+    counters: &[EntryCounterNode],
+) -> MachineResult<Vec<Value>> {
+    let mut operations = Vec::new();
+    if tapped {
+        operations.push(json!({
+            "kind": "setEnteringState",
+            "object": self_ref(),
+            "tapped": true,
+        }));
+    }
+    for counter in counters {
+        cursor.enter("replacement.entry-frame.counters.lowering");
+        let count = cursor.require_value(
+            lower_numeric_expression(&counter.count),
+            "a counter quantity the entry replacement can evaluate",
+        )?;
+        operations.push(json!({
+            "kind": "putEnteringCounters",
+            "counter": counter.counter.as_str(),
+            "count": count,
+        }));
+    }
+    Ok(operations)
+}
+
+/// The `if` / `unless` condition checked as the permanent enters, read by
+/// the shared sentence-condition lowering with no bound objects.
+fn lower_entry_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    clause: &SourceEntryConditionNode,
+) -> MachineResult<Value> {
+    cursor.enter("replacement.entry-frame.condition-lowering");
+    let condition = lower_sentence_condition(
+        cursor,
+        &clause.condition,
+        &ConditionObjectBindings {
+            permanent_targets: &[],
+            card_targets: &[],
+            card_focus: None,
+            previous_action_result: None,
+        },
+    )?;
+    Ok(if clause.unless {
+        negation(condition)
+    } else {
+        condition
+    })
+}
+
+/// The one optional entry cost the entry replacement runtime applies: one
+/// card the controller chooses to reveal from their hand (a
+/// `chooseRevealCard` decision). Every other payment action stays an
+/// explicit engine gap; none is approximated by a reveal.
+fn entry_revealed_card_filter<'a>(
+    cursor: &mut OracleTokenCursor<'_>,
+    cost: &'a PaymentActionNode,
+) -> MachineResult<&'a ObjectPredicate> {
+    cursor.enter("replacement.entry-cost.runtime");
+    match cost {
+        PaymentActionNode::Reveal {
+            objects:
+                PaymentObjectsNode::Chosen(ChosenPaymentObjectsNode {
+                    count: NumericAtom::Integer(1),
+                    exclude_source: false,
+                    filter: PaymentObjectFilter::Cards(filter),
+                    method: CollectionSelectionMethod::Choice,
+                }),
+            origin: Some(PaymentOriginZone::Hand),
+        } => Ok(filter),
+        _ => Err(cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::ResolutionCostAction,
+            "an optional entry cost the entry replacement applies: revealing one chosen card from your hand",
+        )),
+    }
+}
+
+/// `you may COST. If you do|don't, SOURCE enters STATE [CONDITION].`: the
+/// cost is one decision; the stated outcome of that decision, and the
+/// state's own condition, gate the shared entering-state operations.
+fn lower_entry_optional_cost(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &EntryOptionalCostNode,
 ) -> MachineResult<(Value, Value)> {
-    cursor.enter("replacement.entry-reveal.lowering");
+    let card = entry_revealed_card_filter(cursor, &node.cost)?;
+    cursor.enter("replacement.entry-cost.lowering");
     cursor.require(
-        domain_filter_is_representable(&reveal.card),
+        domain_filter_is_representable(card),
         "a revealed-card predicate representable without erasing a Boolean branch",
     )?;
-    let filter = lower_card_object_predicate(&reveal.card);
+    let filter = lower_card_object_predicate(card);
     cursor.require(
         !filter.is_null(),
         "a revealed-card predicate that constrains the card",
     )?;
+    cursor.enter("replacement.entry-cost.outcome-state");
+    cursor.require(
+        node.state.copy.is_none(),
+        "an outcome entering state without a copy (the copy choice is made before the cost)",
+    )?;
+    let operations =
+        lower_entering_state_operations(cursor, node.state.tapped, &node.state.counters)?;
     let decision = json!({
         "id": ENTRY_REVEAL_DECISION,
         "kind": "chooseRevealCard",
@@ -183,19 +273,28 @@ fn lower_entry_reveal(
         "minimum": integer(0),
         "maximum": integer(1),
     });
+    let revealed = json!({
+        "kind": "countDecisionCardsMatching",
+        "decisionId": ENTRY_REVEAL_DECISION,
+        "where": filter,
+    });
+    let outcome = json!({
+        "kind": "compare",
+        "operator": match node.outcome {
+            PerformanceOutcome::Declined => "==",
+            _ => ">",
+        },
+        "left": revealed,
+        "right": integer(0),
+    });
+    let condition = match &node.state.condition {
+        Some(clause) => and(vec![outcome, lower_entry_condition(cursor, clause)?]),
+        None => outcome,
+    };
     let operation = json!({
         "kind": "conditional",
-        "condition": {
-            "kind": "compare",
-            "operator": "==",
-            "left": {
-                "kind": "countDecisionCardsMatching",
-                "decisionId": ENTRY_REVEAL_DECISION,
-                "where": filter,
-            },
-            "right": integer(0),
-        },
-        "then": [{ "kind": "setEnteringState", "object": self_ref(), "tapped": true }],
+        "condition": condition,
+        "then": operations,
         "else": [],
     });
     Ok((decision, operation))
@@ -218,39 +317,23 @@ fn lower_entry_frame(
         let (decision, operation) = lower_entry_copy(cursor, copy, node.optional, node.tapped)?;
         decisions.push(decision);
         replacement.push(operation);
-    } else {
-        if node.optional {
-            // CR 614.1c: the controller chooses, as it enters, whether the
-            // optional replacement applies.
-            decisions.push(json!({ "id": OPTIONAL_ENTRY_DECISION, "kind": "chooseWhether" }));
-            conditions.push(json!({
-                "kind": "decisionWas",
-                "decisionId": OPTIONAL_ENTRY_DECISION,
-                "value": true,
-            }));
-        }
-        if node.tapped {
-            replacement.push(json!({
-                "kind": "setEnteringState",
-                "object": self_ref(),
-                "tapped": true,
-            }));
-        }
-    }
-    for counter in &node.counters {
-        cursor.enter("replacement.entry-frame.counters.lowering");
-        let count = cursor.require_value(
-            lower_numeric_expression(&counter.count),
-            "a counter quantity the entry replacement can evaluate",
-        )?;
-        replacement.push(json!({
-            "kind": "putEnteringCounters",
-            "counter": counter.counter.as_str(),
-            "count": count,
+    } else if node.optional {
+        // CR 614.1c: the controller chooses, as it enters, whether the
+        // optional replacement applies.
+        decisions.push(json!({ "id": OPTIONAL_ENTRY_DECISION, "kind": "chooseWhether" }));
+        conditions.push(json!({
+            "kind": "decisionWas",
+            "decisionId": OPTIONAL_ENTRY_DECISION,
+            "value": true,
         }));
     }
-    if let Some(reveal) = &node.reveal {
-        let (decision, operation) = lower_entry_reveal(cursor, reveal)?;
+    replacement.extend(lower_entering_state_operations(
+        cursor,
+        node.tapped && node.copy.is_none(),
+        &node.counters,
+    )?);
+    if let Some(optional_cost) = &node.optional_cost {
+        let (decision, operation) = lower_entry_optional_cost(cursor, optional_cost)?;
         decisions.push(decision);
         replacement.push(operation);
     }
@@ -267,22 +350,7 @@ fn lower_entry_frame(
         }));
     }
     if let Some(clause) = &node.condition {
-        cursor.enter("replacement.entry-frame.condition-lowering");
-        let condition = lower_sentence_condition(
-            cursor,
-            &clause.condition,
-            &ConditionObjectBindings {
-                permanent_targets: &[],
-                card_targets: &[],
-                card_focus: None,
-                previous_action_result: None,
-            },
-        )?;
-        conditions.push(if clause.unless {
-            negation(condition)
-        } else {
-            condition
-        });
+        conditions.push(lower_entry_condition(cursor, clause)?);
     }
     cursor.enter("replacement.entry-frame.program");
     cursor.require(
@@ -313,7 +381,7 @@ fn lower_entry_frame(
         rule,
         &[
             "Recognize the entering source and each entry element independently",
-            "Compose copy, entering state, counters, reveal and stored choice primitives",
+            "Compose copy, entering state, counters, optional cost outcome and stored choice primitives",
             "Apply one ordered entering replacement program",
             &trace,
         ],

@@ -282,6 +282,121 @@ fn draw_replacement_turns_a_draw_outside_the_draw_step_into_two() {
     assert_eq!(engine.state.players[0].hand.len(), before + 2);
 }
 
+/// The rules the Oracle compiler emits for one real card.
+fn parsed_rules(name: &str, type_line: &str, oracle: &str) -> Vec<Value> {
+    let request = OracleCardParseRequest {
+        card_name: name.to_string(),
+        type_line: type_line.to_string(),
+        mana_cost: Some("{1}".to_string()),
+        oracle_text: Some(oracle.to_string()),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    let parsed = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || parse_oracle_card(request))
+        .expect("parser thread starts")
+        .join()
+        .expect("parser thread completes");
+    assert_eq!(parsed.status, "canonical", "{oracle}");
+    parsed
+        .abilities
+        .into_iter()
+        .filter_map(|ability| ability.rule)
+        .collect()
+}
+
+fn draw_replacement_permanent(id: &str, name: &str, type_line: &str, oracle: &str) -> CardInstance {
+    let mut definition = test_definition(name, type_line);
+    definition.rules = parsed_rules(name, type_line, oracle);
+    test_instance(id, definition, "player-0")
+}
+
+#[test]
+fn draw_replacements_apply_to_the_draws_the_previous_one_produced() {
+    // CR 614.5 and 616.1: the second `draw two cards instead` replaces each
+    // of the two draws produced by the first, so one draw becomes four.
+    let thought_reflection = |id: &str| {
+        draw_replacement_permanent(
+            id,
+            "Thought Reflection",
+            "Enchantment",
+            "If you would draw a card, draw two cards instead.",
+        )
+    };
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        thought_reflection("reflection-a"),
+        thought_reflection("reflection-b"),
+    ];
+    let before = engine.state.players[0].hand.len();
+    engine
+        .draw_cards("player-0", 1)
+        .expect("the draw is replaced");
+    assert_eq!(engine.state.players[0].hand.len(), before + 4);
+
+    // The draw-step exception leaves only the first draw of the draw step
+    // single; the other replacement's second draw is still doubled.
+    let mut engine = test_engine(2);
+    engine.state.step = GameStep::Draw;
+    engine.state.players[0].battlefield = vec![
+        thought_reflection("reflection"),
+        draw_replacement_permanent(
+            "archive",
+            "Probe Archive",
+            "Artifact",
+            "If you would draw a card except the first one you draw in each of your draw steps, draw two cards instead.",
+        ),
+    ];
+    let before = engine.state.players[0].hand.len();
+    engine
+        .draw_cards("player-0", 1)
+        .expect("the draw is replaced");
+    assert_eq!(engine.state.players[0].hand.len(), before + 3);
+}
+
+#[test]
+fn parsed_optional_entry_cost_fallback_applies_the_shared_entering_state() {
+    // A fallback state no reveal card printed before (tapped with a counter)
+    // composes from the shared cost, outcome and entering-state children.
+    let mut definition = test_definition("Probe Drake", "Creature - Dragon");
+    definition.rules = parsed_rules(
+        "Probe Drake",
+        "Creature — Dragon",
+        "As this creature enters, you may reveal a Dragon card from your hand. If you don't, this creature enters tapped with a -1/-1 counter on it.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].hand.push(test_instance(
+        "dragon-in-hand",
+        test_definition("dragon-in-hand", "Creature - Dragon"),
+        "player-0",
+    ));
+
+    let mut revealed = test_instance("drake-a", definition.clone(), "player-0");
+    engine
+        .apply_enter_replacements(
+            &mut revealed,
+            &mut LabelProvider {
+                labels: vec!["Reveal dragon-in-hand"],
+            },
+        )
+        .expect("revealing applies");
+    assert!(!revealed.tapped);
+    assert_eq!(revealed.counters.get("-1/-1"), None);
+
+    let mut declined = test_instance("drake-b", definition, "player-0");
+    engine
+        .apply_enter_replacements(
+            &mut declined,
+            &mut LabelProvider {
+                labels: vec!["Do not reveal a card"],
+            },
+        )
+        .expect("declining to reveal applies");
+    assert!(declined.tapped);
+    assert_eq!(declined.counters.get("-1/-1"), Some(&1));
+}
+
 #[test]
 fn a_spending_union_admits_spells_and_abilities_of_the_same_objects() {
     let restricted = FloatingMana {

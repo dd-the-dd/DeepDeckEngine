@@ -417,6 +417,73 @@
       }
     },
     {
+      "id": "sibling-optional-reveal-fallback-with-counter-no-new-code",
+      "request": {
+        "cardName": "Probe Drake",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}",
+        "oracleText": "As this creature enters, you may reveal a Dragon card from your hand. If you don't, this creature enters tapped with a -1/-1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseRevealCard"
+              },
+              {
+                "pointer": "/replacement/0/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/replacement/0/then/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/0/then/1/kind",
+                "equals": "putEnteringCounters"
+              },
+              {
+                "pointer": "/replacement/0/then/1/counter",
+                "equals": "-1/-1"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-optional-entry-discard-has-no-entry-runtime",
+      "request": {
+        "cardName": "Probe Discard Drake",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}",
+        "oracleText": "As this creature enters, you may discard a Dragon card. If you don't, this creature enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "revealing one chosen card from your hand"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-mondrak-passive-token-doubling",
       "request": {
         "cardName": "Mondrak, Glory Dominus",

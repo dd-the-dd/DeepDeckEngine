@@ -87,8 +87,7 @@ impl GameEngine {
                 let mut card = stack_object.card.clone();
                 card.instance_id =
                     format!("copy:spell:{}:{}", card.instance_id, self.copy_sequence);
-                card.flags.insert("isSpellCopy".to_string(), true);
-                card.flags.remove("wasCast");
+                super::super::cast_events::mark_spell_copy(&mut card.flags);
                 self.state.stack.push(StackObject {
                     id: copy_stack_id.clone(),
                     controller: stack_object.controller.clone(),
