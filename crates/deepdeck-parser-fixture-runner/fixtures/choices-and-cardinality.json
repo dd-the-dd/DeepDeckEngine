@@ -614,6 +614,110 @@
       }
     },
     {
+      "id": "exact-boundless-realms-where-x-search",
+      "request": {
+        "cardName": "Boundless Realms",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{G}",
+        "oracleText": "Search your library for up to X basic land cards, where X is the number of lands you control, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "whereX"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/minimum",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-up-to-x-spell-search",
+      "request": {
+        "cardName": "Generic Gathering Call",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}",
+        "oracleText": "Search your library for up to X creature cards, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unbounded-search-count",
+      "request": {
+        "cardName": "Generic Endless Search",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Search your library for any number of basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.library-search.expressed-count"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-card-name-without-consumer",
       "request": {
         "cardName": "Generic Idle Naming",
