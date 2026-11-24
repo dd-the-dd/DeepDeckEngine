@@ -42,6 +42,22 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         /// The base verb of each option and its sequence, in written order.
         options: Vec<(&'static str, EffectSequenceNode)>,
     },
+    /// `any [other] player|opponent may INSTRUCTION. If a player does, A.
+    /// If no one does, B.` (CR 608.2d, 101.4): the instruction is offered to
+    /// each player of the population in turn order until one performs it.
+    /// The instruction is read in the performer's person (`their` reads as
+    /// the performer's own); the outcomes observe whether any player
+    /// actually performed it, and resolve as the controller's instructions.
+    Offer {
+        players: PlayerSetReferenceNode,
+        /// `any other player`: the population minus the ability controller.
+        excluding_controller: bool,
+        producer: EffectSequenceNode,
+        /// `If a player does, ...`.
+        performed: Option<EffectSequenceNode>,
+        /// `If no one does, ...` / `If no player does, ...`.
+        declined: Option<EffectSequenceNode>,
+    },
 }
 
 /// What an outcome block's connector observes.
@@ -73,6 +89,13 @@ impl EffectProgramNode {
                     .expect("alternatives have at least two options")
                     .1
             }
+            // The last written outcome sentence, else the offered one.
+            Self::Offer {
+                producer,
+                performed,
+                declined,
+                ..
+            } => declined.as_ref().or(performed.as_ref()).unwrap_or(producer),
         }
     }
     /// Program steps in written order; a single program is its own one step.
@@ -108,6 +131,16 @@ impl EffectProgramNode {
                 .map(|(_, sequence)| sequence.effects.len())
                 .max()
                 .unwrap_or(0),
+            Self::Offer {
+                producer,
+                performed,
+                declined,
+                ..
+            } => {
+                producer.effects.len()
+                    + performed.as_ref().map_or(0, |body| body.effects.len())
+                    + declined.as_ref().map_or(0, |body| body.effects.len())
+            }
         }
     }
 }
@@ -143,6 +176,12 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     {
         let block = recognize_preposed_unless(cursor, name_links, name_failure, context)?;
         return complete_outcome_block(cursor, block, name_links, name_failure, context);
+    }
+    // `any [other] player|opponent may ...`: an offer to every player of
+    // the population in turn order (CR 608.2d).
+    if offered_permission_width(cursor).is_some() {
+        let offer = recognize_offered_program(cursor, name_links, name_failure, context)?;
+        return complete_outcome_block(cursor, offer, name_links, name_failure, context);
     }
     if !optional_program_starts(cursor) {
         let sequence = cursor.attempt(|attempt| {
@@ -262,6 +301,129 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         return Ok(EffectProgramNode::Sequence(sequence));
     }
     recognize_permission_program(cursor, name_links, name_failure, context)
+}
+
+/// The width of `any [other] player|opponent` before `may` at the cursor,
+/// with the population it offers to. Lexical lookahead only.
+fn offered_permission_width(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(usize, PlayerSetReferenceNode, bool)> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !word(0, "any") {
+        return None;
+    }
+    let other = word(1, "other");
+    let noun = 1 + usize::from(other);
+    let players = if word(noun, "player") {
+        PlayerSetReferenceNode::EachPlayer
+    } else if word(noun, "opponent") {
+        PlayerSetReferenceNode::OpponentsOfAbilityController
+    } else {
+        return None;
+    };
+    // `any other opponent` names no population the engine distinguishes
+    // from `any opponent`; it stays unclaimed here.
+    if other && players != PlayerSetReferenceNode::EachPlayer {
+        return None;
+    }
+    word(noun + 1, "may").then_some((noun + 1, players, other))
+}
+
+/// The outcome of an offer at a sentence start, with its token width: `If a
+/// player does,` / `If they do,` (a player performed it) or `If no one
+/// does,` / `If no player does,` / `If no opponent does,` (nobody did).
+fn offer_outcome_at(cursor: &OracleTokenCursor<'_>) -> Option<(PerformanceOutcome, usize)> {
+    let words = (0..5)
+        .map(|offset| cursor.peek_ahead(offset).map(str::to_ascii_lowercase))
+        .collect::<Vec<_>>();
+    let word = |offset: usize| words[offset].as_deref().unwrap_or("");
+    if word(0) != "if" {
+        return None;
+    }
+    match (word(1), word(2), word(3), word(4)) {
+        ("a", "player", "does", ",") => Some((PerformanceOutcome::Performed, 5)),
+        ("they", "do", ",", _) => Some((PerformanceOutcome::Performed, 4)),
+        ("no", "one" | "player" | "opponent", "does", ",") => {
+            Some((PerformanceOutcome::Declined, 5))
+        }
+        _ => None,
+    }
+}
+
+/// `any [other] player|opponent may INSTRUCTION. [OUTCOME, BODY.]`
+/// (CR 608.2d, 101.4). The instruction after `may` is the performer's own,
+/// read in the performer's person by the shared person shift and the shared
+/// effect sequence; a written `you` in it names the ability's controller
+/// and fails explicitly. Each outcome owns its own sentence; a performed and
+/// a declined outcome may both be written, once each.
+fn recognize_offered_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.offer.population");
+    let (width, players, excluding_controller) = offered_permission_width(cursor)
+        .ok_or_else(|| cursor.fail("`any player`, `any other player` or `any opponent`"))?;
+    cursor.advance_to(cursor.position() + width)?;
+    cursor.enter("program.offer.permission");
+    cursor.consume("may")?;
+    let description = "a player offered the instruction (`any player may`)";
+    let tokens = person_shifted_tokens(cursor, VerbAgreement::Base, description)?;
+    let mut shifted = cursor.with_tokens(&tokens);
+    shifted.enter("program.offer.instruction");
+    let end = permission_sentence_end(&shifted)?;
+    // CR 118.12: no `unless` payer is ordered with the offer.
+    let mut instruction_context = context.clone();
+    instruction_context.unless_frames = UnlessFrameSupport::Unsupported;
+    let producer = shifted.bounded(end + 1, |body| {
+        recognize_effect_sequence_with_context(body, name_links, name_failure, &instruction_context)
+    })?;
+    if let Some(ambiguous) = controller_reference_failure(cursor, cursor.position(), end) {
+        return Err(ambiguous);
+    }
+    cursor.advance_to(end)?;
+    cursor.enter("program.offer.sentence-end");
+    cursor.consume(".")?;
+    let mut performed = None;
+    let mut declined = None;
+    while let Some((outcome, connector)) = offer_outcome_at(cursor) {
+        let slot = match outcome {
+            PerformanceOutcome::Performed => &mut performed,
+            PerformanceOutcome::Declined | PerformanceOutcome::Reflexive => &mut declined,
+        };
+        if slot.is_some() {
+            cursor.enter("program.offer.outcome.repeated");
+            return Err(cursor.fail("one outcome sentence of each kind after the offer"));
+        }
+        cursor.enter("program.offer.outcome.connector");
+        cursor.advance_to(cursor.position() + connector)?;
+        let body = recognize_outcome_body(
+            cursor,
+            "program.offer.outcome.body",
+            outcome,
+            name_links,
+            name_failure,
+            context,
+        )?;
+        let EffectProgramNode::Sequence(body) = body else {
+            cursor.enter("program.offer.outcome.body-kind");
+            return Err(cursor.fail("one ordinary sentence as the offer's outcome"));
+        };
+        *slot = Some(body);
+    }
+    cursor.enter("program.offer.complete");
+    Ok(EffectProgramNode::Offer {
+        players,
+        excluding_controller,
+        producer,
+        performed,
+        declined,
+    })
 }
 
 /// `Unless PLAYER pays COST, ACTIONS.`: the shared `unless` clause child

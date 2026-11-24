@@ -195,6 +195,7 @@ mod object_predicate;
 mod object_predicate_eval;
 mod object_relation_eval;
 mod object_snapshot;
+mod offered_action;
 mod one_shot_modifier;
 mod opponent_extremum;
 mod optional_action;
@@ -4078,7 +4079,7 @@ fn mana_value_supported(value: &Value) -> bool {
         Some("chooseCommanderColor") => value["amount"]
             .as_i64()
             .is_none_or(|amount| (1..=10).contains(&amount)),
-        Some("manaTypesLandsYouControlCouldProduce") => {
+        Some("manaTypesLandsYouControlCouldProduce" | "manaTypesProducedByEvent") => {
             integer_value(&value["amount"]).is_some_and(|amount| (1..=10).contains(&amount))
         }
         Some("manaTypesOfSacrificedPermanent") => {
@@ -4560,6 +4561,9 @@ fn permanent_attacks_event_supported(event: &Value) -> bool {
 
 pub fn effect_supported(effect: &Value) -> bool {
     if let Some(supported) = effect_performer::performer_effect_supported(effect) {
+        return supported;
+    }
+    if let Some(supported) = offered_action::offered_action_supported(effect) {
         return supported;
     }
     if let Some(supported) = player_iteration::player_iteration_supported(effect) {
@@ -30761,14 +30765,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .controller
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .controller
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Controller,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -30807,14 +30819,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .owner
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .owner
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Owner,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -33336,6 +33356,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.execute_player_iteration(effect, stack_object, bindings, decisions, provider)? {
+            return Ok(());
+        }
+        if self.execute_offered_action(effect, stack_object, bindings, decisions, provider)? {
             return Ok(());
         }
         if self.execute_ability_signal_effect(effect, stack_object, bindings)? {

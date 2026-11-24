@@ -788,11 +788,29 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
+                let first_decision = decisions.len();
                 effects.extend(
                     collections
                         .lower_action(cursor, action, declarations, &mut decisions)
                         .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                 );
+                // `look at target player's hand`: the declared zone owner is
+                // the player a later `that player` names (CR 115.1, 608.2c).
+                if let [id] = decisions[first_decision..]
+                    .iter()
+                    .filter_map(|decision| decision["id"].as_str())
+                    .filter(|id| id.starts_with("targetZonePlayer"))
+                    .collect::<Vec<_>>()
+                    .as_slice()
+                {
+                    let key = PlayerTargetBinding { effect_index };
+                    if !declared_player_targets
+                        .iter()
+                        .any(|(declared, _)| *declared == key)
+                    {
+                        declared_player_targets.push((key, (*id).to_string()));
+                    }
+                }
             }
             // `exile all graveyards`: the shared card mover over a zone query.
             LocalEffectNode::ZoneBatch(batch) => {
@@ -3886,6 +3904,49 @@ fn apply_performer(
                 lowered["collect"] = collect;
             }
             effects.push(lowered);
+            return Ok(());
+        }
+        // `For each OBJECT VERBed this way, its controller ACTION` (CR
+        // 608.2c, 608.2h): one pass per object the earlier action affected,
+        // each performed by that object's player (last known information).
+        PerformerNode::EachAffectedObject {
+            relation,
+            effect_index: producer,
+            filter,
+        } => {
+            let bind = format!("performedObject{effect_index}");
+            let bound = json!({
+                "kind": "boundObjects",
+                "binding": action_result_binding(*producer),
+            });
+            let objects = match filter {
+                ActionResultFilter::All => bound,
+                ActionResultFilter::Cards(predicate) => json!({
+                    "kind": "filterObjects",
+                    "objects": bound,
+                    "where": lower_card_object_predicate(predicate),
+                }),
+            };
+            let player = json!({
+                "kind": match relation {
+                    ObjectPlayerRelation::Controller => "controllerOf",
+                    ObjectPlayerRelation::Owner => "ownerOf",
+                },
+                "object": {"kind": "boundValue", "id": bind},
+            });
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = player.clone();
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachObject",
+                "objects": objects,
+                "bind": bind,
+                "effects": body,
+            }));
             return Ok(());
         }
         PerformerNode::Population {

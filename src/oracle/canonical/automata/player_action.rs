@@ -9,7 +9,7 @@ use super::source_sacrifice::atomic_action::player_discard::{
 };
 use super::source_sacrifice::atomic_action::player_subject::{
     ObjectSubjectAntecedent, defending_player_starts, object_related_player_head_length,
-    recognize_defending_player_subject, recognize_object_related_player_subject,
+    player_anaphor_at, recognize_defending_player_subject, recognize_object_related_player_subject,
     recognize_player_effect_subject,
 };
 use super::{
@@ -341,10 +341,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         && cursor.peek_ahead(1).is_some_and(|raw| {
             raw.eq_ignore_ascii_case("player") || raw.eq_ignore_ascii_case("opponent")
         });
-    let explicit_bound = head.eq_ignore_ascii_case("that")
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("player"));
+    let explicit_bound = player_anaphor_at(cursor).is_some();
     let explicit_you = inherited.is_some() && head.eq_ignore_ascii_case("you");
     // `they` (CR 109.5: singular they) names the same player `that player`
     // would: the program's player binding, else the event's player. It takes

@@ -525,6 +525,17 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             action: AttachedObjectEventAction::Die,
             ..
         }) => permanent(creature(), true, true),
+        // `a player taps a land for mana`: the tapped permanent the mana
+        // ability record binds (CR 106.11a, 605.1b), named with its nominal
+        // (`that land`); the player is the event's subject, not the land.
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::PlayerEvent {
+            actions,
+            one_or_more: false,
+            permanent: Some(tapped),
+            ..
+        }) if matches!(actions.as_slice(), [PlayerEventAction::TapForMana]) => {
+            permanent(tapped.query.predicate.clone(), false, false)
+        }
         _ => None,
     }
 }

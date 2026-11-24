@@ -85,6 +85,10 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
             ManaChoiceDomain::LandTypesControlledByAbilityController => {
                 json!({"kind":"manaTypesLandsYouControlCouldProduce","amount":effect.amount})
             }
+            // The triggering mana ability's record carries what it produced.
+            ManaChoiceDomain::EventProducedTypes => {
+                json!({"kind":"manaTypesProducedByEvent","amount":effect.amount})
+            }
             ManaChoiceDomain::LandColorsControlledBy(
                 ObjectControllerScope::OpponentOfAbilityController,
             ) => json!({

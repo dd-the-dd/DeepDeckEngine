@@ -77,4 +77,32 @@ impl GameEngine {
             TargetRef::Card { .. } | TargetRef::Player { .. } => None,
         }
     }
+
+    /// The related player of a permanent that is no longer on the
+    /// battlefield, read from its latest departure record (CR 608.2h, 400.7):
+    /// the controller it had as it left, and its owner. A permanent still on
+    /// the battlefield, or one without a departure record, yields no player.
+    pub(super) fn departed_permanent_player(
+        &self,
+        relation: ObjectPlayerRelation,
+        instance_id: &str,
+    ) -> Option<String> {
+        if self.permanent_position(instance_id).is_some() {
+            return None;
+        }
+        let departure = self.state.events.iter().rev().find(|event| {
+            event.kind == "permanentLeftBattlefield"
+                && event.card_instance_id.as_deref() == Some(instance_id)
+        })?;
+        match relation {
+            ObjectPlayerRelation::Controller => departure.player_id.clone(),
+            ObjectPlayerRelation::Owner => departure.detail["owner"]
+                .as_str()
+                .map(str::to_string)
+                .or_else(|| {
+                    self.card_outside_battlefield(instance_id)
+                        .map(|card| card.owner.clone())
+                }),
+        }
+    }
 }

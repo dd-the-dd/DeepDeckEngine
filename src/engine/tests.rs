@@ -288,6 +288,10 @@ mod optional_cost_outcome_runtime;
 mod optional_action_outcome_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/player_performer_cells_runtime.rs"]
+mod player_performer_cells_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/tap_objects_cost_runtime.rs"]
 mod tap_objects_cost_runtime;
 

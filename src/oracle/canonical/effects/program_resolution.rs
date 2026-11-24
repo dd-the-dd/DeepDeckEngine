@@ -254,7 +254,8 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         // two sentences of an outcome action keep the native lowering checks.
         EffectProgramNode::Steps(_)
         | EffectProgramNode::Outcome { .. }
-        | EffectProgramNode::Alternatives { .. } => false,
+        | EffectProgramNode::Alternatives { .. }
+        | EffectProgramNode::Offer { .. } => false,
     }
 }
 

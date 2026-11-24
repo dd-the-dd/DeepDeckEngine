@@ -7,8 +7,8 @@
 //! that player's.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::player_subject::{
-    recognize_defending_player_subject, recognize_object_related_player_subject,
-    recognize_player_effect_subject,
+    PlayerAnaphor, player_anaphor_at, recognize_defending_player_subject,
+    recognize_object_related_player_subject, recognize_player_effect_subject,
 };
 use super::{
     ObjectPlayerRelation, ObjectSubjectAntecedent, PlayerBinding, PlayerEffectSubject,
@@ -46,6 +46,16 @@ pub(in crate::oracle::canonical) enum PerformerNode {
     /// The same declared players, already declared by an earlier verb of
     /// the clause (`each lose 2 life and sacrifice a creature`).
     BoundPlayers(PlayerBinding),
+    /// `For each OBJECT VERBed this way, its controller|owner ACTION`: the
+    /// action is performed once per object the earlier action at
+    /// `effect_index` affected, each time by that object's player, read by
+    /// its last known information once it left the battlefield (CR 608.2c,
+    /// 608.2h, 108.3, 109.4).
+    EachAffectedObject {
+        relation: ObjectPlayerRelation,
+        effect_index: usize,
+        filter: super::ActionResultFilter,
+    },
 }
 
 impl PerformerNode {
@@ -251,7 +261,7 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             }));
         }
     }
-    if is(0, "that") && is(1, "player") {
+    if let Some(anaphor) = player_anaphor_at(cursor) {
         // Without a player binding, `that player` is the player the previous
         // action named through its object; it is resolved from that object
         // when the action resolves (last known information, CR 608.2h).
@@ -260,7 +270,12 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             && let Some((relation, object)) = context.object_player_antecedent
         {
             cursor.enter("clause.performer.object-player-anaphor");
-            return Some(cursor.consume_phrase(&["that", "player"]).map(|()| {
+            let written = match anaphor {
+                PlayerAnaphor::ThatPlayer => ["that", "player"],
+                PlayerAnaphor::ThePlayer => ["the", "player"],
+                PlayerAnaphor::ThatOpponent => ["that", "opponent"],
+            };
+            return Some(cursor.consume_phrase(&written).map(|()| {
                 (
                     PerformerNode::Player(PlayerEffectSubject::ObjectRelation { relation, object }),
                     VerbAgreement::ThirdPersonSingular,
@@ -337,6 +352,18 @@ fn recognize_declared_players(
         },
         VerbAgreement::Base,
     ))
+}
+
+/// `its controller` / `its owner` at the cursor: the player of the object a
+/// preposed `for each OBJECT VERBed this way` iterates. Lexical lookahead.
+pub(in crate::oracle::canonical) fn affected_object_player_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<ObjectPlayerRelation> {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        .then(|| cursor.peek_ahead(1).and_then(written_player_relation))
+        .flatten()
 }
 
 /// The relation an object-related player subject writes before `of`.
@@ -459,7 +486,20 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     let mut depth = 0usize;
     let mut quoted = false;
     let mut after_coordinator = false;
-    for token in tokens.iter_mut().skip(verb + 1) {
+    // `of their choice` already names the acting player as the chooser
+    // (CR 101.4); the shared choice marker reads it as written.
+    let chooser_marker = tokens
+        .windows(2)
+        .enumerate()
+        .filter(|(_, pair)| {
+            pair[0].raw.eq_ignore_ascii_case("their") && pair[1].raw.eq_ignore_ascii_case("choice")
+        })
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    for (index, token) in tokens.iter_mut().enumerate().skip(verb + 1) {
+        if chooser_marker.contains(&index) {
+            continue;
+        }
         // A verb coordinated with the performer's verb (`searches ..., then
         // shuffles and puts ...`, `searches ..., puts it ...`) has the same
         // subject and agreement; it is read in the base form like the head
@@ -516,6 +556,9 @@ pub(in crate::oracle::canonical) fn performer_description(
         PerformerNode::Chosen { .. } => "a player chosen on resolution (`an opponent`)",
         PerformerNode::DeclaredPlayers { .. } | PerformerNode::BoundPlayers(_) => {
             "declared target players (`two target players each`)"
+        }
+        PerformerNode::EachAffectedObject { .. } => {
+            "the player of each affected object (`its controller` after `for each`)"
         }
     }
 }

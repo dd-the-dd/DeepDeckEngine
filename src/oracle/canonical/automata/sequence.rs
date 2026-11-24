@@ -1586,9 +1586,59 @@ fn recognize_effect_sequence_attempt_scoped(
                                 trial.enter("sequence.for-each.preposed-separator");
                                 trial.consume(",")?;
                                 *cursor = trial;
-                                preposed_for_each = Some(count);
                                 attempt_frame.clear();
                                 effect_start = cursor.position();
+                                // `For each OBJECT VERBed this way, its
+                                // controller|owner ACTION.`: one pass per
+                                // affected object, performed by that
+                                // object's player (CR 608.2c, 608.2h). The
+                                // action is that player's own instruction.
+                                if let PreposedForEach::ActionResult(reference) = &count
+                                    && let Some(relation) = super::affected_object_player_at(cursor)
+                                {
+                                    attempt_frame.commit();
+                                    cursor.enter("sequence.for-each.affected-object-player");
+                                    let mut written = memory.effects.clone();
+                                    written.extend(memory.effects.last().cloned());
+                                    let (producer, filter) = cursor.require_value(
+                                        super::resolve_action_result_antecedent(
+                                            &written, reference,
+                                        ),
+                                        "an earlier action of this program whose affected objects the phrase restates",
+                                    )?;
+                                    cursor.advance_to(cursor.position() + 2)?;
+                                    let performer = super::PerformerNode::EachAffectedObject {
+                                        relation,
+                                        effect_index: producer,
+                                        filter,
+                                    };
+                                    let tokens = super::person_shifted_tokens(
+                                        cursor,
+                                        super::VerbAgreement::ThirdPersonSingular,
+                                        super::performer_description(&performer),
+                                    )?;
+                                    let mut shifted = cursor.with_tokens(&tokens);
+                                    let controller = super::PlayerEffectSubject::Controller;
+                                    let action = read_action(
+                                        &mut shifted,
+                                        Some(&controller),
+                                        attempt_frame,
+                                    )?;
+                                    let end = shifted.position();
+                                    if let Some(ambiguous) = super::controller_reference_failure(
+                                        cursor,
+                                        cursor.position(),
+                                        end,
+                                    ) {
+                                        return Err(ambiguous);
+                                    }
+                                    cursor.advance_to(end)?;
+                                    break LocalEffectNode::Performed(super::PerformedEffectNode {
+                                        performer,
+                                        effect: Box::new(action),
+                                    });
+                                }
+                                preposed_for_each = Some(count);
                                 continue;
                             }
                             // `Until DURATION, EFFECTS.`: the introducer is read
@@ -1830,6 +1880,14 @@ fn recognize_effect_sequence_attempt_scoped(
                         // target: the permanent subject scope names them.
                         super::ChoiceDomainNode::Objects(_) => memory.last_target = None,
                     }
+                }
+                // `look at target player's hand`, `reveal the top card of
+                // target opponent's library`: the declared zone owner is the
+                // player a later `that player` names (CR 115.1, 608.2c).
+                if let LocalEffectNode::CardAction(action) = &effect
+                    && card_action_declares_zone_owner(action)
+                {
+                    memory.last_player_target = Some(PlayerTargetBinding { effect_index });
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect
                     && life.declares_target
@@ -3422,6 +3480,26 @@ fn object_player_mention(
     }
     super::other_player_controlled_antecedent(antecedent)
         .map(|object| (super::ObjectPlayerRelation::Controller, object))
+}
+
+/// True when a card action declares the one player whose hand or library it
+/// reads (`target player's hand`, `target opponent's library`).
+fn card_action_declares_zone_owner(action: &super::CardActionNode) -> bool {
+    let operand = match action {
+        super::CardActionNode::LookAt(operand)
+        | super::CardActionNode::Reveal(operand)
+        | super::CardActionNode::Move { cards: operand, .. } => operand,
+        _ => return false,
+    };
+    match operand {
+        super::CardOperandNode::ZoneCollection(zone) => {
+            matches!(zone.owner, super::CardZoneOwnerNode::TargetPlayer(_))
+        }
+        super::CardOperandNode::LibraryTop(top) => {
+            matches!(top.owner, super::CardLibraryOwnerNode::TargetPlayer(_))
+        }
+        _ => false,
+    }
 }
 
 /// The agreement of a performer's continued verb: plural after `they`, else

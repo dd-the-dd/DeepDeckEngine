@@ -46,6 +46,55 @@ pub(in crate::oracle::canonical) struct ObjectSubjectAntecedent {
     pub selector: Option<TargetSelector>,
 }
 
+/// The written form of a bound player anaphor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PlayerAnaphor {
+    /// `that player`.
+    ThatPlayer,
+    /// `the player` (not `the player who|with|whose ...`, a new description).
+    ThePlayer,
+    /// `that opponent`: the same antecedent, which is an opponent.
+    ThatOpponent,
+}
+
+/// The bound player anaphor at the cursor, if any. Lexical lookahead only;
+/// the shared resolver proves its antecedent.
+pub(in crate::oracle::canonical) fn player_anaphor_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<PlayerAnaphor> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(0, "that") && word(1, "player") {
+        Some(PlayerAnaphor::ThatPlayer)
+    } else if word(0, "that") && word(1, "opponent") {
+        Some(PlayerAnaphor::ThatOpponent)
+    } else if word(0, "the")
+        && word(1, "player")
+        && !["who", "with", "whose", "that", "to", "on", "of"]
+            .iter()
+            .any(|word_after| word(2, word_after))
+    {
+        Some(PlayerAnaphor::ThePlayer)
+    } else {
+        None
+    }
+}
+
+/// The written token reclassified as `word` by the shared tokenizer.
+fn reclassify(token: &mut crate::oracle::model::RecognizedEntity, word: &str) {
+    if let Some(class) = crate::oracle::syntax::recognize_entities(word)
+        .into_iter()
+        .next()
+    {
+        token.category = class.category;
+        token.token_type = class.token_type;
+    }
+    token.raw = word.to_string();
+}
+
 /// `defending player` in an attack trigger (CR 506.2), resolved by the shared
 /// binding environment.
 pub(in crate::oracle::canonical::automata) fn recognize_defending_player_subject(
@@ -123,7 +172,7 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
         });
     }
 
-    if first.raw.eq_ignore_ascii_case("that") {
+    if let Some(written) = player_anaphor_at(cursor) {
         // The environment the enclosing program installed (its frame, the
         // event object whose controller `that player` names (CR 109.4), and
         // the player antecedents it publishes), with the bindings this
@@ -135,7 +184,23 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
         if antecedent.is_some() {
             environment.player = antecedent;
         }
-        let reference = recognize_that_player(cursor, &environment)?;
+        // `the player` / `that opponent` name the same antecedent as `that
+        // player` (the opponent being one the antecedent already is): the
+        // shared resolver reads them over a view of the same tokens whose
+        // words are `that player` (equal length, indices and spans).
+        let reference = match written {
+            PlayerAnaphor::ThatPlayer => recognize_that_player(cursor, &environment)?,
+            PlayerAnaphor::ThePlayer | PlayerAnaphor::ThatOpponent => {
+                let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
+                let at = cursor.position();
+                reclassify(&mut tokens[at], "that");
+                reclassify(&mut tokens[at + 1], "player");
+                let mut view = cursor.with_tokens(&tokens);
+                let reference = recognize_that_player(&mut view, &environment)?;
+                cursor.advance_to(view.position())?;
+                reference
+            }
+        };
         return reference
             .into_effect_subject()
             .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"));

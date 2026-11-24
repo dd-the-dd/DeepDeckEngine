@@ -1,0 +1,687 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "player-performer-cells-batch6",
+  "cases": [
+    {
+      "id": "mana-flare-exact-that-player-adds-event-produced-type",
+      "request": {
+        "cardName": "Mana Flare",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever a player taps a land for mana, that player adds one mana of any type that land produced.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/performer",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              },
+              {
+                "pointer": "/effects/0/mana",
+                "equals": {
+                  "kind": "manaTypesProducedByEvent",
+                  "amount": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "heartbeat-of-spring-exact",
+      "request": {
+        "cardName": "Heartbeat of Spring",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a player taps a land for mana, that player adds one mana of any type that land produced.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "manaTypesProducedByEvent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "wild-growth-attached-mana-trigger-stays-an-engine-gap",
+      "request": {
+        "cardName": "Wild Growth",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{G}",
+        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "lavaleaper-sibling-basic-land-event-produced-type",
+      "request": {
+        "cardName": "Lavaleaper",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{R}",
+        "oracleText": "All creatures have haste.\nWhenever a player taps a basic land for mana, that player adds one mana of any type that land produced.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "triggeringPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "crypt-ghast-sibling-controller-additional-symbol",
+      "request": {
+        "cardName": "Crypt Ghast",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{B}",
+        "oracleText": "Extort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nWhenever you tap a Swamp for mana, add an additional {B}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mirari-s-wake-sibling-controller-event-produced-type",
+      "request": {
+        "cardName": "Mirari's Wake",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}{W}",
+        "oracleText": "Creatures you control get +1/+1.\nWhenever you tap a land for mana, add one mana of any type that land produced.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "manaTypesProducedByEvent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-produced-type-without-a-tapped-permanent",
+      "request": {
+        "cardName": "Synthetic Produced Type",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a player casts a spell, that player adds one mana of any type that land produced.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-another-player-adds-in-a-mana-ability-after-a-choice",
+      "request": {
+        "cardName": "Synthetic Chosen Adder",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: Choose a player. That player adds {G}{G}{G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "desecration-demon-exact-offer-sacrifice",
+      "request": {
+        "cardName": "Desecration Demon",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Flying\nAt the beginning of each combat, any opponent may sacrifice a creature of their choice. If a player does, tap this creature and put a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "sacrificePermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "prowling-pangolin-sibling-any-player-two-creatures",
+      "request": {
+        "cardName": "Prowling Pangolin",
+        "typeLine": "Creature — Pangolin Beast",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "When this creature enters, any player may sacrifice two creatures of their choice. If a player does, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/players/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "phantasmagorian-sibling-offer-discard",
+      "request": {
+        "cardName": "Phantasmagorian",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{5}{B}{B}",
+        "oracleText": "When you cast this spell, any player may discard three cards. If a player does, counter Phantasmagorian.\nDiscard three cards: Return this card from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/action/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-offer-declined-outcome-draw",
+      "request": {
+        "cardName": "Synthetic Tithe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of your upkeep, any opponent may discard a card. If no one does, you draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "offerAction"
+              },
+              {
+                "pointer": "/effects/0/onDeclined/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-offer-names-the-controller",
+      "request": {
+        "cardName": "Synthetic Extortion",
+        "typeLine": "Creature — Rogue",
+        "manaCost": "{2}{R}",
+        "oracleText": "When this creature enters, any opponent may have you draw a card. If a player does, sacrifice this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-offer-without-measured-performance",
+      "request": {
+        "cardName": "Browbeat",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Any player may have Browbeat deal 5 damage to them. If no one does, target player draws three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "thrull-surgeon-exact-that-player-discards-that-card",
+      "request": {
+        "cardName": "Thrull Surgeon",
+        "typeLine": "Creature — Thrull",
+        "manaCost": "{1}{B}",
+        "oracleText": "{1}{B}, Sacrifice this creature: Look at target player's hand and choose a card from it. That player discards that card. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "mind-warp-exact-that-player-discards-those-cards",
+      "request": {
+        "cardName": "Mind Warp",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{3}{B}",
+        "oracleText": "Look at target player's hand and choose X cards from it. That player discards those cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "doomsday-specter-sibling-the-player-discards",
+      "request": {
+        "cardName": "Doomsday Specter",
+        "typeLine": "Creature — Specter",
+        "manaCost": "{2}{U}{B}",
+        "oracleText": "Flying\nWhen this creature enters, return a blue or black creature you control to its owner's hand.\nWhenever this creature deals combat damage to a player, look at that player's hand and choose a card from it. The player discards that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "zhang-liao-exact-that-opponent-discards",
+      "request": {
+        "cardName": "Zhang Liao, Hero of Hefei",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Whenever Zhang Liao deals damage to an opponent, that opponent discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-the-player-without-antecedent",
+      "request": {
+        "cardName": "Synthetic Orphan",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "The player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "march-of-souls-exact-each-destroyed-creature-controller-creates",
+      "request": {
+        "cardName": "March of Souls",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}",
+        "oracleText": "Destroy all creatures. They can't be regenerated. For each creature destroyed this way, its controller creates a 1/1 white Spirit creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rampage-of-the-clans-sibling-each-destroyed-permanent",
+      "request": {
+        "cardName": "Rampage of the Clans",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Destroy all artifacts and enchantments. For each permanent destroyed this way, its controller creates a 3/3 green Centaur creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "descent-of-the-dragons-exact-destroyed-targets",
+      "request": {
+        "cardName": "Descent of the Dragons",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Destroy any number of target creatures. For each creature destroyed this way, its controller creates a 4/4 red Dragon creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-each-destroyed-artifact-owner-draws",
+      "request": {
+        "cardName": "Synthetic Scrap Dividend",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Destroy all artifacts. For each artifact destroyed this way, its owner draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/performer/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-its-controller-without-object-antecedent",
+      "request": {
+        "cardName": "Synthetic Orphan Token",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Its controller creates a 1/1 white Spirit creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

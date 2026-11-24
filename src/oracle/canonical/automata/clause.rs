@@ -32,7 +32,7 @@ use super::damage_clause::{
 };
 use super::source_sacrifice::atomic_action::player_subject::{
     ObjectSubjectAntecedent, defending_player_starts, object_related_player_head_length,
-    recognize_defending_player_subject, recognize_object_related_player_subject,
+    player_anaphor_at, recognize_defending_player_subject, recognize_object_related_player_subject,
     recognize_player_effect_subject,
 };
 use super::verb_lexicon::{
@@ -425,8 +425,7 @@ fn read_effect_player(
             .map_or(PlayerEffectSubject::EventPlayer, PlayerEffectSubject::Bound);
         return SubjectRead::Read(ClauseSubject::Player(player), VerbAgreement::Base);
     }
-    if !(head_is(0, "you") || head_is(0, "target") || (head_is(0, "that") && head_is(1, "player")))
-    {
+    if !(head_is(0, "you") || head_is(0, "target") || player_anaphor_at(cursor).is_some()) {
         return SubjectRead::Absent;
     }
     match recognize_player_effect_subject(

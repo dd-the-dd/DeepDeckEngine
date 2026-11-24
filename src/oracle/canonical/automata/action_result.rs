@@ -495,6 +495,20 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
             ..
         }) => guaranteed_by(&reference.predicate, &sacrifice.object.predicate)
             .then_some(ActionResultFilter::All)?,
+        // Destroyed targets left the battlefield as well; the noun must be
+        // one every declared slot's own predicate guarantees.
+        LocalEffectNode::ZoneChange(node) => node
+            .target
+            .slots
+            .iter()
+            .all(|slot| match &slot.selector {
+                super::TargetSelector::Object(predicate)
+                | super::TargetSelector::ControlledObject { predicate, .. } => {
+                    guaranteed_by(&reference.predicate, predicate)
+                }
+                _ => false,
+            })
+            .then_some(ActionResultFilter::All)?,
         // Exiled target cards keep their characteristics in exile.
         LocalEffectNode::TargetCardZoneChange(_) => {
             if reference.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
