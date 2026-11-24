@@ -1461,13 +1461,16 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
-                // The spell the triggering cast record binds (CR 707.10).
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": {"kind": "triggeringStackObject"},
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                // The spell the triggering cast record binds (CR 707.10);
+                // `twice` is two ordinary copies of it.
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": {"kind": "triggeringStackObject"},
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -1493,12 +1496,14 @@ fn lower_local_effect_sequence_with_collections(
                     i64::from(slot.cardinality.minimum),
                     i64::from(slot.cardinality.maximum),
                 ));
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": chosen_target(target_id),
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": chosen_target(target_id),
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
                 let quantity = match &keyword_action.quantity {

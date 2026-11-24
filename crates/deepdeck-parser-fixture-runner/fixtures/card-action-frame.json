@@ -794,6 +794,109 @@
       }
     },
     {
+      "id": "sibling-copy-target-spell-twice",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell twice. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/1/object/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copies-noun-disagrees-with-one-copy",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-copy-count",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell X times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fork-color-exception-has-no-copy-modification",
+      "request": {
+        "cardName": "Fork",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except that the copy is red. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-flash-player-rule-is-not-a-cast",
       "request": {
         "cardName": "Frame Witness",
