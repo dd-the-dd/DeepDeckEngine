@@ -23,6 +23,7 @@ fn failure_state(text: &str) -> String {
     recognize_choose_instruction(&mut cursor)
         .expect_err(text)
         .state
+        .to_string()
 }
 
 /// Positive card shape (Final Showdown, Guard Dogs): one permanent of the

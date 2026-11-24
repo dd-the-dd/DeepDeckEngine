@@ -55,6 +55,7 @@ pub(crate) fn validate_native_contextual_bindings(
         if rule["kind"].as_str() != Some("spellAbility")
             && references_kind(rule, "colorsOfManaSpentToCastSource")
         {
+            let found = rule["kind"].as_str().unwrap_or("unknown rule").to_string();
             let source_span_end = ability.source.text.len();
             ability.status = "unsupported".to_string();
             ability.rule = None;
@@ -69,7 +70,7 @@ pub(crate) fn validate_native_contextual_bindings(
                 span_start: Some(0),
                 span_end: Some(source_span_end),
                 expected: Some("a spell ability whose own cast payment records the colors".to_string()),
-                found: Some(rule["kind"].as_str().unwrap_or("unknown rule").to_string()),
+                found: Some(found),
                 trace: Vec::new(),
                 owner: None,
             });

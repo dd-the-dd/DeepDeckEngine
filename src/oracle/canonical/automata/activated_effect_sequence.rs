@@ -83,7 +83,19 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::RevealCards(_)
                 | Cost::Mill { .. }
                 | Cost::ExertSelf
-                | Cost::Blight(_) => {}
+                | Cost::Blight(_)
+                | Cost::Designated(
+                    super::DesignatedActivationCost::DiscardHand
+                    | super::DesignatedActivationCost::ExileLibraryTop { .. }
+                    | super::DesignatedActivationCost::ExileGraveyardTop { .. }
+                    | super::DesignatedActivationCost::TapAttached,
+                ) => {}
+                // Sacrificing the enchanted permanent puts an Aura source
+                // into its owner's graveyard before the ability resolves
+                // (CR 704.5m); an Equipment source stays.
+                Cost::Designated(super::DesignatedActivationCost::SacrificeAttached) => {
+                    possibly_departed = true
+                }
                 // `Sacrifice X ...` without `another` may choose the source.
                 Cost::ChosenX(chosen) => {
                     possibly_departed |= !chosen.exclude_source
