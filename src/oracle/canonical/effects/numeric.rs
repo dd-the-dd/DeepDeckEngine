@@ -308,14 +308,20 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
             json!({ "kind": "countDistinctPermanentNames", "player": controller(), "where": predicate })
         }
         PermanentCountMeasure::DistinctBasicLandTypes => {
-            // The engine's Domain count reads every land its player controls.
-            if count.controller != Some(ObjectControllerScope::AbilityController)
-                || count.exclude_source
+            // The engine's Domain count reads every land its player controls:
+            // the ability controller's, or the triggering event's player's
+            // (`basic land types among lands they control`).
+            let player = match count.controller {
+                Some(ObjectControllerScope::AbilityController) => controller(),
+                Some(ObjectControllerScope::EventPlayer) => json!({ "kind": "triggeringPlayer" }),
+                _ => return None,
+            };
+            if count.exclude_source
                 || count.predicate != ObjectPredicate::CardType(ObjectCardType::Land)
             {
                 return None;
             }
-            return Some(json!({ "kind": "domainCount", "player": controller() }));
+            return Some(json!({ "kind": "domainCount", "player": player }));
         }
     };
     if count.exclude_source {
