@@ -87,6 +87,11 @@ pub(in crate::oracle::canonical) fn lower_static_combat_clause(
         CombatClause::AttacksEachCombat => marker(GrantedKeyword::AttackEachCombatIfAble),
         CombatClause::BlocksEachCombat => marker(GrantedKeyword::BlockEachCombatIfAble),
         CombatClause::MustBeBlocked => marker(GrantedKeyword::MustBeBlockedIfAble),
+        // CR 702.3b: the standing exception is the engine's static
+        // defender modifier, the same one the continuous frame lowers.
+        CombatClause::AttackAsThoughNoDefender => json!({
+            "kind":"allowAttackWithDefender", "objects":objects.clone(),
+        }),
         CombatClause::CantBeBlockedBy(query) => json!({
             "kind":"blockRestriction", "attackers":objects.clone(),
             "blockers":lower_combat_object_selector(cursor, query, None)?,

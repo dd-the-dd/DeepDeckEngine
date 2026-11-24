@@ -8,7 +8,9 @@
 //!              | ColorComplement                                (layer 5)
 //!              | "the" ("creature" | "basic" "land") "type" "of" "your" "choice"
 //!              | "all" "abilities" | KeywordList                (after `lose`, layer 6)
-//!              | "base" "power" "and" "toughness" PT            (after `have`, layer 7b)
+//!              | BaseStats StatValue                            (after `have`, layer 7b)
+//! BaseStats   := "base" "power" "and" "base"? "toughness" | "power" "and" "toughness" (after `with`)
+//! StatValue   := PT | "each" "equal" "to" Amount     (the clause subject is `its` antecedent)
 //!              | GrantedList                                    (after `gain`, layer 6)
 //! ```
 //!
@@ -30,7 +32,7 @@ use super::{
     BasePowerToughnessNode, ColorComplementNode, EffectDurationNode, GRANTED_OBJECT_TYPE_LINE,
     GrantedKeyword, ObjectCardType, QuotedAbilityNode, RecognizedEffectFragment, TargetListNode,
     TypeChangeNumber, TypeChangeSubtype, color_complement_starts, numeric_power_toughness_starts,
-    recognize_card_color_set, recognize_color_complement,
+    recognize_card_color_set, recognize_clause_subject_equal_amount, recognize_color_complement,
     recognize_effect_owned_granted_ability_list, recognize_effect_owned_keyword_list,
     recognize_numeric_power_toughness, recognize_trailing_or_supplied_duration,
     recognize_type_change_nouns, type_change_noun_at,
@@ -244,10 +246,50 @@ fn characteristic_verb_at(
     {
         return Some(CharacteristicVerb::Lose);
     }
-    if verb_at(cursor, offset, VerbLemma::Have, agreement) && word_at(cursor, offset + 1, "base") {
+    if verb_at(cursor, offset, VerbLemma::Have, agreement)
+        && base_stats_length(cursor, offset + 1).is_some_and(|(_, base)| base)
+    {
         return Some(CharacteristicVerb::HaveBase);
     }
     None
+}
+
+/// The token length of the stated pair `[base] power and [base] toughness`
+/// at `offset`, and whether it is written with `base`. A single stat (`base
+/// power 0`) is no pair: layer 7b of one characteristic is not represented.
+fn base_stats_length(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(usize, bool)> {
+    let base = word_at(cursor, offset, "base");
+    let mut at = offset + usize::from(base);
+    if !(word_at(cursor, at, "power") && word_at(cursor, at + 1, "and")) {
+        return None;
+    }
+    at += 2;
+    if base && word_at(cursor, at, "base") {
+        at += 1;
+    }
+    word_at(cursor, at, "toughness").then_some((at + 1 - offset, base))
+}
+
+/// `[base] power and [base] toughness` then its value: a numeric pair, or
+/// `each equal to AMOUNT` (CR 208.1: one amount for both characteristics),
+/// whose possessive `its` names the clause subject the parent installed.
+fn recognize_stated_base_stats(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<BasePowerToughnessNode> {
+    cursor.enter("effect.become-types.base-stats");
+    let (length, _) = base_stats_length(cursor, 0)
+        .ok_or_else(|| cursor.fail("`[base] power and [base] toughness`"))?;
+    cursor.advance_to(cursor.position() + length)?;
+    cursor.enter("effect.become-types.base-stats.value");
+    if word_at(cursor, 0, "each") {
+        cursor.consume("each")?;
+        let amount = recognize_clause_subject_equal_amount(cursor)?;
+        return Ok(BasePowerToughnessNode {
+            power: amount.clone(),
+            toughness: amount,
+        });
+    }
+    recognize_numeric_power_toughness(cursor)
 }
 
 /// Whether the cursor is at a verb this frame owns, in the agreement the
@@ -556,12 +598,15 @@ pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subj
                     // does not own would scope the whole chain; it is not
                     // propagated backwards, so an open-ended change followed
                     // by one is refused.
+                    // A coordinated `get(s) +N/+N` is the enclosing verb
+                    // chain's next action: its trailing duration scopes this
+                    // change too, and the sequence gives it to this node.
                     cursor.require(
                         !(word_at(cursor, 0, "and")
                             && cursor.peek_ahead(1).is_some_and(|raw| {
                                 [
-                                    "gain", "gains", "become", "becomes", "get", "gets", "lose",
-                                    "loses", "has", "have",
+                                    "gain", "gains", "become", "becomes", "lose", "loses", "has",
+                                    "have",
                                 ]
                                 .iter()
                                 .any(|verb| raw.eq_ignore_ascii_case(verb))
@@ -672,8 +717,7 @@ fn recognize_have_base_into<Subject>(
         change.base_power_toughness().is_none(),
         "one stated base power/toughness",
     )?;
-    cursor.consume_phrase(&["base", "power", "and", "toughness"])?;
-    change.characteristics.base_power_toughness = Some(recognize_numeric_power_toughness(cursor)?);
+    change.characteristics.base_power_toughness = Some(recognize_stated_base_stats(cursor)?);
     Ok(())
 }
 
@@ -773,13 +817,12 @@ fn recognize_become_characteristic_item(
         )?;
         cursor.consume_phrase(&["all", "creature", "types"])?;
         characteristics.all_creature_types = true;
-    } else if word_at(cursor, 0, "base") {
+    } else if base_stats_length(cursor, 0).is_some() {
         cursor.require(
             characteristics.base_power_toughness.is_none(),
             "one base power/toughness characteristic",
         )?;
-        cursor.consume_phrase(&["base", "power", "and", "toughness"])?;
-        characteristics.base_power_toughness = Some(recognize_numeric_power_toughness(cursor)?);
+        characteristics.base_power_toughness = Some(recognize_stated_base_stats(cursor)?);
     } else {
         recognize_granted_into(cursor, characteristics)?;
     }

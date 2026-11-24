@@ -104,11 +104,8 @@ impl GameEngine {
                     ))
                 },
             )?;
-            let has_regeneration_shield = !cannot_regenerate
-                && self.state.rule_modifiers.iter().any(|modifier| {
-                    value_kind(modifier) == Some("regenerationShield")
-                        && modifier["cardInstanceId"].as_str() == Some(instance_id.as_str())
-                });
+            let has_regeneration_shield =
+                !cannot_regenerate && self.regeneration_shield_available(&instance_id);
             let has_shield_counter = permanent.counters.get("shield").copied().unwrap_or(0) > 0;
             validate_destruction_replacement_choice(
                 &instance_id,

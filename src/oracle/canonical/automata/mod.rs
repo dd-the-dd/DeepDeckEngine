@@ -196,6 +196,7 @@ mod rebound;
 mod reference;
 mod regenerate;
 mod relative_clause;
+mod repetition;
 mod replicate;
 mod resolution_cost;
 mod resource_payment;
@@ -458,6 +459,7 @@ pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
 pub(super) use relative_clause::*;
+pub(super) use repetition::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
 pub(super) use resource_payment::*;
@@ -1292,6 +1294,12 @@ pub(super) enum GrantedKeyword {
     /// `assigns no combat damage` (CR 510.1): the object assigns no combat
     /// damage while the marker lasts.
     AssignsNoCombatDamage,
+    /// `can attack as though it didn't have defender` (CR 702.3b): defender
+    /// does not prevent the object from attacking while the marker lasts.
+    AttackAsThoughNoDefender,
+    /// `can't be regenerated` (CR 701.15): no regeneration shield replaces
+    /// the object's destruction while the marker lasts.
+    CantBeRegenerated,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1355,6 +1363,8 @@ impl GrantedKeyword {
             Self::MaxOneBlocker => "maxOneBlocker",
             Self::MustBeBlockedIfAble => "mustBeBlockedIfAble",
             Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
+            Self::AttackAsThoughNoDefender => "canAttackAsThoughNoDefender",
+            Self::CantBeRegenerated => "cantBeRegenerated",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -1667,6 +1677,9 @@ pub(in crate::oracle::canonical) struct AmassEffectNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct InvestigateEffectNode {
     pub player: LocalPlayerReference,
+    /// `investigate twice` / `investigate X times`: the number of separate
+    /// investigations, 1 for the bare action.
+    pub times: NumericExpression,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1714,6 +1727,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     /// `to the battlefield attached to OBJECT` (CR 303.4f, 301.5c): the
     /// permanent the entering Aura or Equipment becomes attached to.
     pub attached_to: Option<PermanentOperandNode>,
+    /// `to the battlefield with N COUNTER counters on it` (CR 122.6): the
+    /// source enters with these counters.
+    pub entering_counters: Option<EnteringCountersNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -3347,6 +3347,8 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "menace"
                 | "mustBeBlockedIfAble"
                 | "assignsNoCombatDamage"
+                | "canAttackAsThoughNoDefender"
+                | "cantBeRegenerated"
                 | "allMustBlockIfAble"
                 | "maxOneBlocker"
                 | "openingHandBattlefield"
@@ -33620,11 +33622,7 @@ impl GameEngine {
             return Ok(());
         }
         if matches!(reason, "destroyed" | "lethalDamage") {
-            let has_regeneration_shield = self.state.rule_modifiers.iter().any(|modifier| {
-                value_kind(modifier) == Some("regenerationShield")
-                    && modifier["cardInstanceId"].as_str() == Some(instance_id)
-            });
-            if has_regeneration_shield {
+            if self.regeneration_shield_available(instance_id) {
                 self.consume_regeneration_shield(instance_id, reason);
                 return Ok(());
             }
@@ -36540,6 +36538,7 @@ impl GameEngine {
                 && !card.tapped
                 && (!card.summoning_sick || self.permanent_has_keyword(card, "haste"))
                 && (!self.permanent_has_keyword(card, "defender")
+                    || self.permanent_has_keyword(card, "canAttackAsThoughNoDefender")
                     || self
                         .battlefield_static_modifiers()
                         .iter()

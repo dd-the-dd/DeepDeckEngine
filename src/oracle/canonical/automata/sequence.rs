@@ -1661,6 +1661,17 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.sentence_duration = Some(duration.clone());
                     }
                 }
+                // `X becomes TYPES and gets +N/+N until end of turn`: one
+                // trailing duration scopes the whole verb chain (CR 611.2a).
+                // The type change before it stated none and waited for it.
+                if base_action_context.verb_chain_subject.is_some()
+                    && let LocalEffectNode::ModifyStats(stats) = &effect
+                    && stats.duration != super::EffectDurationNode::Indefinite
+                    && let Some(LocalEffectNode::BecomeTypes(change)) = memory.effects.last_mut()
+                    && change.duration.is_none()
+                {
+                    change.duration = Some(stats.duration.clone());
+                }
                 if matches!(
                     &effect,
                     LocalEffectNode::CardAction(_) | LocalEffectNode::OptionalSequence(_)
@@ -2351,6 +2362,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             zone_change.until = Some(until);
                         }
                         SequenceState::ConnectorOrEnd
+                    }
+                    // `ACTION twice` / `ACTION N times`: the repetition is
+                    // read by an action whose node repeats as a whole
+                    // (`investigate twice`). After any other action it is no
+                    // multiplied quantity (`draw a card twice` is not `draw
+                    // two cards` for triggers counting draws): explicit.
+                    _ if super::repetition_adjunct_starts(cursor) => {
+                        cursor.enter("sequence.repetition.action");
+                        return Err(cursor.fail(
+                            "an action that owns its repetition (`investigate twice`); this action is not repeated as a whole",
+                        ));
                     }
                     _ => return Err(cursor.fail("`and`, `then`, or sentence terminator")),
                 }

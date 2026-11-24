@@ -23,6 +23,10 @@ pub(in crate::oracle::canonical) enum PermanentDesignation {
     Kicked,
     /// A face-down permanent (CR 708.2).
     FaceDown,
+    /// A prepared permanent (the prepare mechanic): while it is prepared,
+    /// its controller may cast a copy of its prepare spell; doing so
+    /// unprepares it. The engine's `setPrepared` owns that permission.
+    Prepared,
 }
 
 impl PermanentDesignation {
@@ -33,6 +37,7 @@ impl PermanentDesignation {
             "suspected" => Some(Self::Suspected),
             "kicked" => Some(Self::Kicked),
             "face-down" => Some(Self::FaceDown),
+            "prepared" => Some(Self::Prepared),
             _ => None,
         }
     }
@@ -45,13 +50,14 @@ impl PermanentDesignation {
             Self::Suspected => "suspected",
             Self::Kicked => "kicked",
             Self::FaceDown => "faceDown",
+            Self::Prepared => "prepared",
         }
     }
 
     /// Whether `becomes DESIGNATION` gives it. Suspected is given only by
     /// the suspect action, which also grants its rules (CR 701.60c).
     pub(in crate::oracle::canonical) const fn given_by_becomes(self) -> bool {
-        matches!(self, Self::Monstrous | Self::Renowned)
+        matches!(self, Self::Monstrous | Self::Renowned | Self::Prepared)
     }
 }
 

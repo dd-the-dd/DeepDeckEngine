@@ -1261,11 +1261,15 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 for object in objects {
                     effects.extend(
-                        lower_become_types_to_object(
+                        lower_become_types_to_object_in_scope(
                             change,
                             &object,
                             copy.as_ref(),
                             &format!("characteristicObjects{effect_index}"),
+                            Some(TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            }),
                         )
                         .map_err(|expected| cursor.fail(expected))?,
                     );

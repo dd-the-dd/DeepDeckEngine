@@ -1,0 +1,755 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "clause-subject-cells/object-subject-cells-and-action-adjuncts",
+  "cases": [
+    {
+      "id": "exact-skycoach-waypoint-target-becomes-prepared",
+      "request": {
+        "cardName": "Skycoach Waypoint",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{3}, {T}: Target creature becomes prepared. (Only creatures with prepare spells can become prepared.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "setPrepared"
+              },
+              {
+                "pointer": "/effects/1/value",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kirol-named-source-becomes-prepared",
+      "request": {
+        "cardName": "Kirol, History Buff // Pack a Punch",
+        "typeLine": "Legendary Creature — Vampire Cleric // Sorcery",
+        "manaCost": "{R}{W} // {1}{R}{W}",
+        "oracleText": null,
+        "layout": "prepare",
+        "faces": [
+          {
+            "id": "df1c0d06-2109-4297-9271-8a003fc892bc:face-0",
+            "name": "Kirol, History Buff",
+            "typeLine": "Legendary Creature — Vampire Cleric",
+            "manaCost": "{R}{W}",
+            "oracleText": "Whenever one or more cards leave your graveyard, Kirol becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
+            "power": "2",
+            "toughness": "3",
+            "loyalty": null
+          },
+          {
+            "id": "df1c0d06-2109-4297-9271-8a003fc892bc:face-1",
+            "name": "Pack a Punch",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{R}{W}",
+            "oracleText": "Mill a card. Put two +1/+1 counters on target creature. It gains trample until end of turn.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "setPrepared",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "value": true
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-encouraging-aviator-anaphor-becomes-prepared",
+      "request": {
+        "cardName": "Encouraging Aviator // Jump",
+        "typeLine": "Creature — Bird Wizard // Instant",
+        "manaCost": "{2}{U} // {U}",
+        "oracleText": null,
+        "layout": "prepare",
+        "faces": [
+          {
+            "id": "d6accaed-ff35-4324-b31b-35e6837bc079:face-0",
+            "name": "Encouraging Aviator",
+            "typeLine": "Creature — Bird Wizard",
+            "manaCost": "{2}{U}",
+            "oracleText": "Flying\nWhenever this creature attacks, it becomes prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
+            "power": "2",
+            "toughness": "3",
+            "loyalty": null
+          },
+          {
+            "id": "d6accaed-ff35-4324-b31b-35e6837bc079:face-1",
+            "name": "Jump",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "oracleText": "Target creature gains flying until end of turn.",
+            "power": null,
+            "toughness": null,
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setPrepared"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-player-subject-cannot-become-prepared",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target player becomes prepared.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mizzium-tank-chain-duration-scopes-type-change",
+      "request": {
+        "cardName": "Mizzium Tank",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Trample\nWhenever you cast a noncreature spell, this Vehicle becomes an artifact creature and gets +1/+1 until end of turn.\nCrew 1 (Tap any number of creatures you control with total power 1 or more: This Vehicle becomes an artifact creature until end of turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/effects/0/cardType",
+                "equals": "Artifact"
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              },
+              {
+                "pointer": "/effects/1/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-viridescent-wisps-color-and-stats-chain",
+      "request": {
+        "cardName": "Viridescent Wisps",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Target creature becomes green and gets +1/+0 until end of turn.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setColors"
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-open-ended-type-change-before-coordinated-gain",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature becomes a Zombie and gains.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-karns-touch-stats-each-equal-to-subject-mana-value",
+      "request": {
+        "cardName": "Karn's Touch",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "Target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value until end of turn. (It retains its abilities.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/effects/2/power/kind",
+                "equals": "manaValueOf"
+              },
+              {
+                "pointer": "/effects/2/toughness/kind",
+                "equals": "manaValueOf"
+              },
+              {
+                "pointer": "/effects/2/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-has-base-stats-each-equal-after-type-retention",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target artifact becomes a creature in addition to its other types and has base power and base toughness each equal to its mana value until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/effects/1/power/kind",
+                "equals": "manaValueOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-single-base-stat-is-not-a-pair",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature has base power 0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wall-of-one-thousand-cuts-attack-as-though-no-defender",
+      "request": {
+        "cardName": "Wall of One Thousand Cuts",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Defender, flying\n{W}: This creature can attack this turn as though it didn't have defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantKeyword",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "keyword": "canAttackAsThoughNoDefender",
+                  "duration": {
+                    "kind": "untilEndOfCurrentTurn"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-skyclave-squid-landfall-defender-exception",
+      "request": {
+        "cardName": "Skyclave Squid",
+        "typeLine": "Creature — Squid",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender\nLandfall — Whenever a land you control enters, this creature can attack this turn as though it didn't have defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "canAttackAsThoughNoDefender"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attack-as-though-it-had-defender",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{0}",
+        "oracleText": "{W}: This creature can attack this turn as though it had defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-furnace-brood-target-cant-be-regenerated",
+      "request": {
+        "cardName": "Furnace Brood",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{R}",
+        "oracleText": "{R}: Target creature can't be regenerated this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "cantBeRegenerated"
+              },
+              {
+                "pointer": "/effects/0/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-hurr-jackal-tap-cost",
+      "request": {
+        "cardName": "Hurr Jackal",
+        "typeLine": "Creature — Jackal",
+        "manaCost": "{R}",
+        "oracleText": "{T}: Target creature can't be regenerated this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "cantBeRegenerated"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-regeneration-prohibition-without-duration",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-retrofitted-transmogrant-return-tapped-with-counters",
+      "request": {
+        "cardName": "Retrofitted Transmogrant",
+        "typeLine": "Artifact Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "{3}{B}: Return this card from your graveyard to the battlefield tapped with two +1/+1 counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/to/enterWithCounters",
+                "equals": [
+                  {
+                    "counter": "+1/+1",
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gastal-thrillroller-return-with-finality-counter",
+      "request": {
+        "cardName": "Gastal Thrillroller",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{2}{R}",
+        "oracleText": "Trample, haste\nWhen this Vehicle enters, it becomes an artifact creature until end of turn.\nCrew 2\n{2}{R}, Discard a card: Return this card from your graveyard to the battlefield with a finality counter on it. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/to/enterWithCounters",
+                "equals": [
+                  {
+                    "counter": "finality",
+                    "count": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activated-return-with-finality-counter",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "{2}{B}: Return this card from your graveyard to the battlefield with a finality counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/to/enterWithCounters/0/counter",
+                "equals": "finality"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-counter-noun-number-disagrees",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "{3}{B}: Return this card from your graveyard to the battlefield with two +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wavesifter-investigate-twice",
+      "request": {
+        "cardName": "Wavesifter",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Flying\nWhen this creature enters, investigate twice. (To investigate, create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nEvoke {G}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/effects/0/effects/0/token",
+                "equals": {
+                  "kind": "namedToken",
+                  "name": "Clue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-investigate-x-times-mana-x",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Investigate X times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-draw-a-card-twice-has-no-repetition",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card twice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.repetition.action"
+          }
+        ]
+      }
+    }
+  ]
+}
