@@ -382,13 +382,11 @@ pub(in crate::oracle::canonical) fn recognize_player_comparative_atom(
         comparative_subject_at(cursor).ok_or_else(|| cursor.fail("a player subject"))?;
     if subject == ConditionPlayerSubject::EventPlayer {
         let environment = super::installed_binding_environment(cursor);
-        cursor.require(
-            matches!(
-                super::recognize_that_player(cursor, &environment)?,
-                super::BoundPlayerReference::EventPlayer
-            ),
-            "the player the triggering event records",
-        )?;
+        let event_player = matches!(
+            super::recognize_that_player(cursor, &environment)?,
+            super::BoundPlayerReference::EventPlayer
+        );
+        cursor.require(event_player, "the player the triggering event records")?;
     } else {
         for _ in 0..length {
             consume_current(cursor)?;

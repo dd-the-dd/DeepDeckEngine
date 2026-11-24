@@ -264,13 +264,13 @@ fn a_cast_permanent_keeps_the_mana_spent_to_cast_it() {
     let source = &mut engine.state.players[0].battlefield[0];
     source.flags.insert("wasCast".to_string(), true);
     mana_payment::record_mana_spent_flags(&mut source.flags, &cast_decisions(&["W", "W", "U"]));
-    assert!(condition_holds(&engine), "{W}{W} was spent");
+    assert!(condition_holds(&engine), "{{W}}{{W}} was spent");
 
     let mut engine = engine_with_source(at_least(mana_spent(Some("R")), 1));
     let source = &mut engine.state.players[0].battlefield[0];
     source.flags.insert("wasCast".to_string(), true);
     mana_payment::record_mana_spent_flags(&mut source.flags, &cast_decisions(&["W", "W", "U"]));
-    assert!(!condition_holds(&engine), "no {R} was spent");
+    assert!(!condition_holds(&engine), "no {{R}} was spent");
 
     let mut engine = engine_with_source(at_least(mana_spent(None), 3));
     let source = &mut engine.state.players[0].battlefield[0];
@@ -306,8 +306,8 @@ fn a_resolving_spell_reads_the_mana_its_cast_decisions_spent() {
             &spell.decisions,
         )
     };
-    assert_eq!(read(Some("G")), Some(1), "{G} was spent");
-    assert_eq!(read(Some("R")), Some(0), "{R} was not spent");
+    assert_eq!(read(Some("G")), Some(1), "{{G}} was spent");
+    assert_eq!(read(Some("R")), Some(0), "{{R}} was not spent");
     assert_eq!(read(Some("C")), Some(1));
     assert_eq!(read(None), Some(2));
 

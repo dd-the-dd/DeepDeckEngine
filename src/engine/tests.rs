@@ -309,14 +309,14 @@ mod parameterized_keyword_runtime;
 #[path = "tests/event_count_runtime.rs"]
 mod event_count_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[path = "tests/keyword_template_runtime.rs"]
-mod keyword_template_runtime;
+#[path = "tests/graveyard_source_return_runtime.rs"]
+mod graveyard_source_return_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_crew_runtime.rs"]
 mod keyword_template_crew_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[path = "tests/graveyard_source_return_runtime.rs"]
-mod graveyard_source_return_runtime;
+#[path = "tests/keyword_template_runtime.rs"]
+mod keyword_template_runtime;
 #[path = "tests/numeric_expression_runtime.rs"]
 mod numeric_expression_runtime;
 #[path = "tests/object_qualifier_runtime.rs"]

@@ -73,6 +73,7 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::PayLife(_)
                 | Cost::PayPlayerCounters(_)
                 | Cost::TapObjects(_)
+                | Cost::TapTotalPower(_)
                 | Cost::DiscardCard(_)
                 | Cost::RemoveSourceCounters(_)
                 | Cost::RemoveControlledCounters(_)
