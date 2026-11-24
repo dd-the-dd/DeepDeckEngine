@@ -162,7 +162,7 @@ fn unsupported_payers_scopes_and_costs_fail_at_their_own_state() {
     for (text, state) in [
         (
             "sacrifice this enchantment unless any player pays {3}.",
-            "sequence.unless.payer.any-player",
+            "sequence.unless.payer.indefinite-player",
         ),
         // An indefinite payer with a payment is a payer clause, refused at
         // the payer, never read as a state condition.

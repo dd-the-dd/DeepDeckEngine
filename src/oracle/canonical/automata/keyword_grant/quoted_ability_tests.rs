@@ -222,20 +222,33 @@ fn a_grant_the_engine_cannot_scope_to_its_duration_fails_explicitly() {
 }
 
 #[test]
-fn a_static_grant_of_a_triggered_ability_fails_because_the_engine_does_not_publish_it() {
-    // Medic's Kitesail
+fn a_static_grant_of_a_triggered_ability_lowers_to_the_layer_six_trigger_grant() {
+    // Medic's Kitesail: the quote is a trigger of the equipped creature.
     let parsed = parse(
         "Artifact \u{2014} Equipment",
         "Equipped creature gets +1/+0 and has flying and \"Whenever this creature attacks, you gain 1 life.\"",
     );
-    assert_ne!(parsed.status, "canonical");
-    assert!(
-        parsed
-            .diagnostic
-            .contains("engine.gap.granted-nonactivated-ability"),
-        "{}",
-        parsed.diagnostic
+    assert_eq!(parsed.status, "canonical", "{}", parsed.diagnostic);
+    let rule = parsed.rule.expect("rule");
+    let granted = &rule["modifiers"][2];
+    assert_eq!(granted["kind"], "grantTriggeredAbility");
+    assert_eq!(granted["objects"]["kind"], "attachedPermanent");
+    assert_eq!(granted["ability"]["kind"], "triggeredAbility");
+    // `this creature` inside the quote is the grantee, not the Equipment.
+    assert_eq!(
+        granted["ability"]["event"]["object"],
+        json!({ "kind": "self" })
     );
+}
+
+#[test]
+fn a_static_grant_with_a_non_canonical_quote_grants_nothing() {
+    let parsed = parse(
+        "Enchantment \u{2014} Aura",
+        "Enchanted creature has \"Whenever this creature becomes tapped for the first time each turn, put a +1/+1 counter on it.\"",
+    );
+    assert_ne!(parsed.status, "canonical");
+    assert!(parsed.rule.is_none());
 }
 
 #[test]

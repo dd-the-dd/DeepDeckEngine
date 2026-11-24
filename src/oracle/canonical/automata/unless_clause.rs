@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! UnlessClause := "unless" (Payer CostSequence | Condition)
-//! Payer        := "you" | "they" | PERFORMER
+//! Payer        := "you" | "they" | PERFORMER | QUANTIFIED-PLAYER (refused)
 //! PERFORMER    := the shared performer subject (`its controller`, `that
 //!                 NOUN's controller`, `that player`, ...), bound by the
 //!                 guarded actions
@@ -23,8 +23,9 @@ use super::{
     ConditionContext, ConditionNode, ConditionScope, CostListGrammar, ObjectPlayerRelation,
     ObjectSubjectAntecedent, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode,
     PerformerContext, PerformerNode, PermanentEffectReference, PlayerBinding, PlayerEffectSubject,
-    PlayerTargetBinding, ResolutionCostNode, TargetBinding, conjugated_payment_action_starts,
-    object_related_player_head_length, project_resolution_cost_sequence,
+    PlayerQuantifier, PlayerTargetBinding, ResolutionCostNode, TargetBinding,
+    conjugated_payment_action_starts, object_related_player_head_length,
+    project_resolution_cost_sequence, quantified_player_head,
     recognize_boolean_condition_list_before_separator, recognize_condition_atom,
     recognize_conjugated_cost_sequence, recognize_performer,
 };
@@ -131,23 +132,22 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
         trial.advance_to(trial.position() + length).is_ok()
             && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
     });
-    // `an opponent` / `a player` / `each opponent` followed by a payment
+    // A quantified player of the shared player grammar (`an opponent`, `a
+    // player`, `any player`, `each opponent`) followed by a payment
     // conjugated for it is a payer clause too, never a state condition.
-    let indefinite_payer = ((word(cursor, 0, "an") && word(cursor, 1, "opponent"))
-        || (word(cursor, 0, "a") && word(cursor, 1, "player"))
-        || (word(cursor, 0, "each") && (word(cursor, 1, "opponent") || word(cursor, 1, "player"))))
-        && {
+    let quantified_payer = quantified_player_head(cursor)
+        .filter(|(quantifier, _)| *quantifier != PlayerQuantifier::None)
+        .filter(|_| {
             let mut trial = cursor.clone();
             trial.advance_to(trial.position() + 2).is_ok()
                 && conjugated_payment_action_starts(&trial, ActingSubject::THIRD_SINGULAR)
-        };
+        });
     let payer_starts = you_pay
-        || indefinite_payer
+        || quantified_payer.is_some()
         || related_payer
         || (word(cursor, 0, "its") && word(cursor, 1, "controller"))
         || (word(cursor, 0, "that") && word(cursor, 1, "player"))
-        || word(cursor, 0, "they")
-        || (word(cursor, 0, "any") && word(cursor, 1, "player"));
+        || word(cursor, 0, "they");
     let (payer, form) = if !payer_starts {
         cursor.enter("sequence.unless.condition");
         let context = ConditionContext::standalone(ConditionScope::Unless, &[], None, false);
@@ -184,16 +184,18 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             UnlessPayerNode::QuantifiedPlayer,
             ActingSubject::THIRD_PLURAL,
         )
-    } else if indefinite_payer {
+    } else if let Some((quantifier, _)) = quantified_payer {
+        // Several possible payers are polled in APNAP order (CR 101.4); the
+        // frame lowers exactly one payer.
         cursor.enter("sequence.unless.payer.indefinite-player");
-        return Err(cursor.fail(
-            "one payer (an indefinite player or opponent payer polls players in APNAP order, CR 101.4; unsupported)",
-        ));
-    } else if word(cursor, 0, "any") && word(cursor, 1, "player") {
-        cursor.enter("sequence.unless.payer.any-player");
-        return Err(cursor.fail(
-            "one payer (`any player may pay` polls players in APNAP order, CR 101.4; unsupported)",
-        ));
+        return Err(cursor.fail(match quantifier {
+            PlayerQuantifier::Every => {
+                "one payer (each player of a population pays or suffers the action, CR 101.4; unsupported)"
+            }
+            PlayerQuantifier::Some | PlayerQuantifier::None => {
+                "one payer (an indefinite or `any` player payer polls players in APNAP order, CR 101.4; unsupported)"
+            }
+        }));
     } else {
         return Err(cursor.fail(
             "an `unless` payer (`you`, `its controller`, a bound `that player`) or a state condition",

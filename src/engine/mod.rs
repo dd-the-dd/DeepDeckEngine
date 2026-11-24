@@ -5829,6 +5829,9 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
             static_object_selector_supported(&modifier["objects"])
                 && triggered_rule_supported(&modifier["ability"])
         }
+        Some("grantKeywordAbility" | "grantStaticAbility") => {
+            effective_rules::granted_rule_modifier_supported(modifier).unwrap_or(false)
+        }
         Some("grantManaAbility") => {
             static_object_selector_supported(&modifier["objects"])
                 && mana_value_supported(&modifier["mana"])
@@ -10214,11 +10217,13 @@ impl GameEngine {
     }
 
     fn battlefield_static_modifiers(&self) -> Vec<(CardInstance, Value)> {
-        self.battlefield_static_modifier_sites()
-            .into_iter()
-            .filter(|site| self.static_modifier_site_is_active(site))
-            .map(|site| (site.source, site.modifier))
-            .collect()
+        self.with_granted_static_modifiers(
+            self.battlefield_static_modifier_sites()
+                .into_iter()
+                .filter(|site| self.static_modifier_site_is_active(site))
+                .map(|site| (site.source, site.modifier))
+                .collect(),
+        )
     }
 
     fn eminence_static_modifiers(&self) -> Vec<(CardInstance, Value)> {
@@ -10321,6 +10326,7 @@ impl GameEngine {
                 .filter(|rule| keyword_rule_supported(rule))
                 .filter(|rule| self.rule_active_for_source(permanent, rule))
                 .any(|rule| rule_contains_kind(rule, keyword))
+            || self.has_granted_keyword_rule(permanent, keyword)
             || self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("temporaryKeywordUntilTurn")
                     && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
@@ -10551,6 +10557,7 @@ impl GameEngine {
             .filter(|ability| value_kind(ability) == Some(keyword))
             .filter_map(|ability| integer_value(&ability[field]))
             .sum::<i32>()
+            .saturating_add(self.granted_keyword_parameter_total(permanent, keyword, field))
             .max(0)
     }
 
@@ -10782,7 +10789,7 @@ impl GameEngine {
                     })
                     || marker_membership == Some(true)
                     || (object_predicate::is_creature_subtype(subtype)
-                        && self.permanent_has_keyword(permanent, "changeling"))
+                        && self.permanent_has_changeling(permanent))
                     || set_subtypes.as_ref().is_some_and(|values| {
                         values
                             .iter()
@@ -28538,7 +28545,7 @@ impl GameEngine {
                         .filter(|permanent| {
                             permanent.controller == card.controller
                                 && self.permanent_is_creature(permanent)
-                                && (self.permanent_has_keyword(permanent, "changeling")
+                                && (self.permanent_has_changeling(permanent)
                                     || type_line_contains(
                                         &permanent.definition.type_line,
                                         chosen_type,

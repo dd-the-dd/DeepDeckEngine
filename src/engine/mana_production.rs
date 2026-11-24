@@ -471,7 +471,7 @@ impl GameEngine {
                                 .iter()
                                 .filter(|candidate| {
                                     self.permanent_is_creature(candidate)
-                                        && (self.permanent_has_keyword(candidate, "changeling")
+                                        && (self.permanent_has_changeling(candidate)
                                             || type_line_contains(
                                                 &candidate.definition.type_line,
                                                 chosen_type,

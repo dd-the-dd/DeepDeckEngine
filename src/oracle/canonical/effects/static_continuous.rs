@@ -693,26 +693,33 @@ fn condition_context<'a>(
     }
 }
 
-/// A granted activated or mana ability is read by the engine from the static
-/// grant (CR 113.1, 604.1). Granted triggered and static rules are not
-/// observed through static grants by the engine's event publishers.
+/// A complete rule granted by a static ability (CR 113.1, 604.1, 613.1f):
+/// the rule's own kind selects the layer-6 grant the engine reads. Inside the
+/// rule, `this creature` is the object that has it (the quote was compiled
+/// as an ability of the granted object), so a granted trigger fires from the
+/// grantee and a granted static ability applies with the grantee as source.
+/// A parameterized keyword (`annihilator 1`, `toxic 2`) arrives as its
+/// compiled keyword rule. Any other rule kind fails explicitly.
 fn lower_static_quoted_ability(
     cursor: &mut OracleTokenCursor<'_>,
     objects: &Value,
     ability: QuotedAbilityNode,
 ) -> MachineResult<Value> {
     cursor.enter("static.continuous.quoted-ability");
-    if !matches!(
-        ability.rule["kind"].as_str(),
-        Some("activatedAbility" | "manaAbility")
-    ) {
-        return Err(cursor.engine_gap(
-            crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
-            "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
-        ));
-    }
+    let kind = match ability.rule["kind"].as_str() {
+        Some("activatedAbility" | "manaAbility") => "grantActivatedAbility",
+        Some("triggeredAbility") => "grantTriggeredAbility",
+        Some("staticAbility") => "grantStaticAbility",
+        Some("keywordAbility" | "keywordAbilityGroup") => "grantKeywordAbility",
+        _ => {
+            return Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
+                "a granted activated, mana, triggered, static or keyword rule",
+            ));
+        }
+    };
     Ok(json!({
-        "kind": "grantActivatedAbility",
+        "kind": kind,
         "objects": objects.clone(),
         "ability": ability.rule,
     }))
