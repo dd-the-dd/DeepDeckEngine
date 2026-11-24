@@ -6,6 +6,7 @@
 //!             | [Subject] ("has"|"have") GrantedList
 //!             | [Subject] ("isn't"|"aren't") "legendary"
 //! Subject    := "it" | "they" | "the" ("copy"|"copies"|"token"|"tokens")
+//!             | "those" PLURAL-CARD-TYPE
 //! Complement := "not" "legendary" | [Article] [PT] [Colors] [TypeNouns
 //!               "in" "addition" "to" ("its"|"their") "other" "types"]
 //! ```
@@ -49,16 +50,23 @@ fn exception_item_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool 
 
 /// The subject of an exception item: the object being made (`it`, `they`)
 /// or its definite description (`the copy`, `the copies`, `the token`,
-/// `the tokens`, CR 707.9b). Returns its token width.
+/// `the tokens`, `those creatures`, CR 707.9b). Returns its token width.
 fn copy_subject_width(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
     if word_at(cursor, offset, "it") || word_at(cursor, offset, "they") {
         return Some(1);
     }
-    (word_at(cursor, offset, "the")
+    let definite = word_at(cursor, offset, "the")
         && ["copy", "copies", "token", "tokens"]
             .iter()
-            .any(|noun| word_at(cursor, offset + 1, noun)))
-    .then_some(2)
+            .any(|noun| word_at(cursor, offset + 1, noun));
+    // `those creatures`: the plural objects that become copies.
+    let demonstrative = word_at(cursor, offset, "those")
+        && cursor.peek_ahead(offset + 1).is_some_and(|raw| {
+            use crate::oracle::characteristic_vocabulary::{AcceptedForms, lookup_card_type};
+            lookup_card_type(raw, AcceptedForms::SingularOrPlural).is_some()
+                && lookup_card_type(raw, AcceptedForms::SingularOnly).is_none()
+        });
+    (definite || demonstrative).then_some(2)
 }
 
 /// `, except it's 1/1 and it's a Nightmare in addition to its other types`,
