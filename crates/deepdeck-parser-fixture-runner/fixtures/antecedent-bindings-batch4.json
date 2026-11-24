@@ -677,6 +677,107 @@
       }
     },
     {
+      "id": "contaminated-ground-exact-attached-event-subject-controller",
+      "request": {
+        "cardName": "Contaminated Ground",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Enchant land\nEnchanted land is a Swamp.\nWhenever enchanted land becomes tapped, its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "ragged-veins-exact-attached-dealt-damage-controller",
+      "request": {
+        "cardName": "Ragged Veins",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Flash\nEnchant creature\nWhenever enchanted creature is dealt damage, its controller loses that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "corrupted-roots-exact-attached-tapped-controller",
+      "request": {
+        "cardName": "Corrupted Roots",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{B}",
+        "oracleText": "Enchant Forest or Plains\nWhenever enchanted land becomes tapped, its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "visions-of-brutality-exact-attached-damage-dealer-controller",
+      "request": {
+        "cardName": "Visions of Brutality",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Devoid (This card has no color.)\nEnchant creature\nEnchanted creature can't block.\nWhenever enchanted creature deals damage, its controller loses that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4
+      }
+    },
+    {
+      "id": "sibling-equipped-tapped-nominal-controller-gains-life",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever equipped creature becomes tapped, that creature's controller gains 1 life.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-aura-attached-nominal-is-not-proven",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature becomes tapped, that creature's controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "deathknell-pronoun-source-through-environment",
       "request": {
         "cardName": "Antecedent Probe",
