@@ -2,9 +2,9 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CardZoneName, CollectionBinding, LibrarySearchEffectNode, LocalPlayerReference, ObjectKind,
     ObjectPredicate, SearchDestination, SearchShuffleOrder, TargetBinding, TargetCardinality,
-    TargetListNode, recognize_card_zone_atom, recognize_card_zone_list, recognize_player_reference,
-    recognize_possessive_target_player, recognize_search_card_alternatives,
-    recognize_target_cardinality,
+    TargetListNode, expressed_target_count_starts, recognize_card_zone_atom,
+    recognize_card_zone_list, recognize_player_reference, recognize_possessive_target_player,
+    recognize_search_card_alternatives, recognize_target_cardinality, recognize_target_count,
 };
 
 /// The zones of the searched player a search looks through (CR 701.23a):
@@ -79,6 +79,8 @@ struct LibrarySearchMemory {
     filter: Option<ObjectPredicate>,
     slots: Vec<ObjectPredicate>,
     cardinality: Option<TargetCardinality>,
+    /// The typed count when it is not two positive literals.
+    count: Option<super::TargetCount>,
     destination: Option<SearchDestination>,
     reveal: bool,
     shuffle_order: Option<SearchShuffleOrder>,
@@ -180,13 +182,30 @@ fn recognize_library_search(
             }
             LibrarySearchState::FilterArticle => {
                 cursor.enter("effect.library-search.filter-article");
-                let cardinality = recognize_target_cardinality(cursor)?;
-                cursor.enter("effect.library-search.cardinality-bounds");
-                cursor.require(
-                    cardinality.maximum <= i32::MAX as u32,
-                    "a search cardinality representable by the runtime count domain",
-                )?;
-                memory.cardinality = Some(cardinality);
+                // `up to X`, `X`, `that many`: the shared typed count; the
+                // literal envelope keeps every literal reader plural.
+                if expressed_target_count_starts(cursor) {
+                    let count = recognize_target_count(cursor)?;
+                    cursor.enter("effect.library-search.expressed-count");
+                    cursor.require(
+                        !count.is_unbounded(),
+                        "a bounded search count; `any number of` has no search maximum",
+                    )?;
+                    if let Some(literal) = count.literal() {
+                        memory.cardinality = Some(literal);
+                    } else {
+                        memory.cardinality = Some(TargetCardinality::EXPRESSED);
+                        memory.count = Some(count);
+                    }
+                } else {
+                    let cardinality = recognize_target_cardinality(cursor)?;
+                    cursor.enter("effect.library-search.cardinality-bounds");
+                    cursor.require(
+                        cardinality.maximum <= i32::MAX as u32,
+                        "a search cardinality representable by the runtime count domain",
+                    )?;
+                    memory.cardinality = Some(cardinality);
+                }
                 LibrarySearchState::Filter
             }
             LibrarySearchState::Filter => {
@@ -485,11 +504,22 @@ fn recognize_library_search(
                 let filter = cursor.require_value(memory.filter, "a resolved card filter")?;
                 let cardinality = memory.cardinality.expect("recognized search cardinality");
                 // Hidden-zone searches with a stated quality may fail to find.
-                let minimum = if filter == ObjectPredicate::ObjectKind(ObjectKind::Card) {
+                let finds_any_card = filter == ObjectPredicate::ObjectKind(ObjectKind::Card);
+                let minimum = if finds_any_card {
                     cardinality.minimum
                 } else {
                     0
                 };
+                let count = memory.count.map(|count| {
+                    if finds_any_card {
+                        count
+                    } else {
+                        super::TargetCount {
+                            minimum: super::NumericExpression::from(0),
+                            maximum: count.maximum,
+                        }
+                    }
+                });
                 return Ok(LibrarySearchEffectNode {
                     player: cursor.require_value(memory.player, "a resolved searching player")?,
                     origin: cursor.require_value(memory.origin, "the resolved searched zones")?,
@@ -497,6 +527,7 @@ fn recognize_library_search(
                     slots: memory.slots,
                     minimum,
                     maximum: cardinality.maximum,
+                    count,
                     destination: cursor
                         .require_value(memory.destination, "a resolved search destination")?,
                     reveal: memory.reveal,

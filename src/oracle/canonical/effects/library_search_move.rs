@@ -57,6 +57,19 @@ fn lower_search_effects(
         search.minimum <= search.maximum,
         "a search minimum no greater than its maximum",
     )?;
+    // A typed count is read by the one choice of the found cards; a slot
+    // search always has one literal card per slot.
+    cursor.require(
+        search.count.is_none() || search.slots.is_empty(),
+        "a typed search count over one card phrase",
+    )?;
+    let typed_bounds =
+        match &search.count {
+            Some(count) => Some(lower_search_count_bounds(count).ok_or_else(|| {
+                cursor.fail("a search count the shared numeric lowering represents")
+            })?),
+            None => None,
+        };
 
     let binding = lower_collection_binding(search.binding);
     let filter = lower_card_object_predicate(&search.filter);
@@ -76,9 +89,12 @@ fn lower_search_effects(
     let move_effect = lower_search_move(cursor, search, found_cards.clone(), &player, &holder)?;
     let found = |zones: &[CardZoneName]| {
         let mut effects = if search.slots.is_empty() {
-            vec![search_choice(
-                search, &binding, &player, &holder, zones, &filter,
-            )]
+            let mut choice = search_choice(search, &binding, &player, &holder, zones, &filter);
+            if let Some((minimum, maximum)) = &typed_bounds {
+                choice["minimum"] = minimum.clone();
+                choice["maximum"] = maximum.clone();
+            }
+            vec![choice]
         } else {
             search_slot_choices(search, &slot_ids, &player, &holder, zones)
         };
@@ -158,6 +174,18 @@ fn lower_search_effects(
     };
     effects.push(record);
     Ok(effects)
+}
+
+/// The bounds of a typed search count (`up to X`, `that many`): the shared
+/// target-count amounts. An unbounded count is refused by the search parent.
+fn lower_search_count_bounds(count: &TargetCount) -> Option<(Value, Value)> {
+    let TargetCountBound::Amount(maximum) = &count.maximum else {
+        return None;
+    };
+    Some((
+        lower_target_count_amount(&count.minimum)?,
+        lower_target_count_amount(maximum)?,
+    ))
 }
 
 /// One choice of the found cards among the searched zones (CR 701.23a): the
