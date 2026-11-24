@@ -121,6 +121,66 @@ pub(super) fn printed_hexproof_from(permanent: &CardInstance, source: &CardDefin
     })
 }
 
+/// CR 702.42a: `Entwine [mana cost]`.
+pub(super) fn entwine_ability_supported(value: &Value) -> bool {
+    value_kind(value) == Some("entwine")
+        && value_kind(&value["cost"]) == Some("payMana")
+        && cost_supported(&value["cost"])
+}
+
+fn entwine_mana_cost(card: &CardDefinition) -> Option<&str> {
+    card.printed_rules().iter().find_map(|rule| {
+        (value_kind(rule) == Some("keywordAbility") && entwine_ability_supported(&rule["ability"]))
+            .then(|| rule["ability"]["cost"]["manaCost"].as_str())
+            .flatten()
+    })
+}
+
+const ENTWINED: &str = "entwined";
+
+/// CR 702.42a: a modal spell with entwine may choose all of its modes
+/// instead of the number its header allows; that declaration is marked
+/// `entwined` and pays the entwine cost. A header that already allows every
+/// mode adds nothing.
+pub(super) fn entwined_mode_declarations(
+    card: &CardDefinition,
+    decision: &Value,
+    id: &str,
+    assignment: &CastingDeclaration,
+    selections: &[Value],
+) -> Vec<CastingDeclaration> {
+    let Some(options) = decision["options"].as_array() else {
+        return Vec::new();
+    };
+    let every_mode = Value::Array(options.clone());
+    if entwine_mana_cost(card).is_none()
+        || options.len() < 2
+        || selections.contains(&every_mode)
+        || assignment.decisions.contains_key(ENTWINED)
+    {
+        return Vec::new();
+    }
+    let mut entwined = assignment.clone();
+    entwined.decisions.insert(id.to_string(), every_mode);
+    entwined
+        .decisions
+        .insert(ENTWINED.to_string(), Value::Bool(true));
+    vec![entwined]
+}
+
+/// The entwine cost an entwined declaration adds to the spell (CR 601.2f).
+pub(super) fn entwine_mana_costs(
+    card: &CardDefinition,
+    decisions: &BTreeMap<String, Value>,
+) -> Vec<String> {
+    if decisions.get(ENTWINED).and_then(Value::as_bool) != Some(true) {
+        return Vec::new();
+    }
+    entwine_mana_cost(card)
+        .map(|cost| vec![cost.to_string()])
+        .unwrap_or_default()
+}
+
 /// Morph (CR 702.37a) and disguise (CR 702.168a) both cast their card face
 /// down as a 2/2 creature for {3} and turn it face up for the keyword cost.
 pub(super) fn is_face_down_casting_keyword(value: &Value) -> bool {

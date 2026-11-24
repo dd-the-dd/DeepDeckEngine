@@ -269,6 +269,86 @@ fn disguise_face_down_creature_has_ward_two() {
     assert!(ward_costs(face_down_creature_definition(&morph).printed_rules()).is_empty());
 }
 
+/// `Choose one — … Entwine {1}`: a declaration choosing every mode is marked
+/// entwined and adds the entwine cost (CR 702.42a).
+#[test]
+fn entwine_declares_every_mode_and_adds_its_cost() {
+    let mut engine = test_engine();
+    engine.state.players[0].mana_pool = pool(&["C", "C"]);
+    let mut card = test_definition("entwine-spell", "Instant");
+    card.mana_cost = "{1}".to_string();
+    let gain = |amount: i64| {
+        json!([{
+            "kind": "gainLife",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+            "amount": { "kind": "integer", "value": amount },
+        }])
+    };
+    card.rules.push(json!({
+        "kind": "spellAbility",
+        "source": { "kind": "self" },
+        "declaration": { "kind": "castingDeclaration", "decisions": [{
+            "id": "chosenModes", "kind": "chooseModes", "minimum": 1,
+            "maximum": { "kind": "integer", "value": 1 },
+            "options": ["mode-1", "mode-2"], "allowRepeated": false,
+        }] },
+        "effects": [
+            {
+                "kind": "conditional",
+                "condition": {
+                    "kind": "selectionContains",
+                    "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                    "value": "mode-1",
+                },
+                "then": gain(1),
+            },
+            {
+                "kind": "conditional",
+                "condition": {
+                    "kind": "selectionContains",
+                    "selection": { "kind": "decisionResult", "decisionId": "chosenModes" },
+                    "value": "mode-2",
+                },
+                "then": gain(2),
+            },
+        ],
+    }));
+    card.rules.push(keyword_rule(json!({
+        "kind": "entwine",
+        "cost": { "kind": "payMana", "manaCost": "{1}" },
+    })));
+    assert!(keyword_rule_supported(&card.rules[1]));
+    engine.state.players[0]
+        .hand
+        .push(test_instance("entwine-spell", card.clone(), "player-0"));
+    let entwined = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.card_instance_id.as_deref() == Some("entwine-spell")
+                && action.decisions.get("entwined").and_then(Value::as_bool) == Some(true)
+        })
+        .expect("two mana pay for the spell and its entwine cost");
+    assert_eq!(
+        entwined.decisions["chosenModes"],
+        json!(["mode-1", "mode-2"])
+    );
+    assert_eq!(
+        engine.casting_additional_mana_costs(&card, "player-0", &entwined.decisions),
+        vec!["{1}".to_string()]
+    );
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .apply_priority_action(&entwined, &mut FirstOption)
+        .expect("the entwined spell is cast");
+    engine
+        .resolve_top_stack(&mut FirstOption)
+        .expect("the entwined spell resolves");
+    assert_eq!(engine.state.players[0].life, 23, "both modes resolved");
+}
+
 /// `Hexproof from black` stops black sources of opponents only (CR 702.11d).
 #[test]
 fn printed_hexproof_from_a_quality_stops_only_opponents_matching_sources() {

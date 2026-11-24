@@ -92,6 +92,12 @@ fn intrinsic_casting_keywords_lower_to_their_runtime_kinds() {
             json!({ "kind": "escalate", "cost": pay("{G}") }),
         ),
         (
+            "Dream's Grip",
+            "Instant",
+            "Entwine {1} (Choose both if you pay the entwine cost.)",
+            json!({ "kind": "entwine", "cost": pay("{1}") }),
+        ),
+        (
             "Ultramarines Honour Guard",
             "Creature — Astartes Warrior",
             "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)",

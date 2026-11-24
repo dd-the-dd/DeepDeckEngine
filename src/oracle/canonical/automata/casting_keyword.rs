@@ -8,7 +8,7 @@
 //! Parameter := ε                         (conspire, gravestorm, paradigm)
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem)
-//!            | MANA | "—" COSTS          (blitz, escalate)
+//!            | MANA | "—" COSTS          (blitz, escalate, entwine)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
 //!            | MANA "—" P "/" T          (prototype)
@@ -43,6 +43,8 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Awaken,
     Blitz,
     Conspire,
+    /// CR 702.42a.
+    Entwine,
     Escalate,
     Escape,
     Gravestorm,
@@ -118,6 +120,17 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.",
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Entwine,
+        lexeme: "entwine",
+        rules_section: "702.42a",
+        parameter: Parameter::ManaOrCostSequence,
+        reminders: &[
+            "Choose both if you pay the entwine cost.",
+            "Choose all if you pay the entwine cost.",
+            "Choose all of them if you pay the entwine cost.",
         ],
     },
     Definition {

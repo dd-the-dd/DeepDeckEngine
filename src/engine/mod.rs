@@ -3951,6 +3951,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || ward_ability_supported(&rule["ability"])
                 || protection_ability_supported(&rule["ability"])
                 || keyword_programs::hexproof_from_supported(&rule["ability"])
+                || keyword_programs::entwine_ability_supported(&rule["ability"])
                 || conditional_flash_ability_supported(&rule["ability"])
                 || cycling_ability_supported(&rule["ability"])
                 || kicker_ability_supported(&rule["ability"])
@@ -12970,6 +12971,7 @@ impl GameEngine {
                 .unwrap_or(0);
             costs.extend(std::iter::repeat_n(mana_cost, count));
         }
+        costs.extend(keyword_programs::entwine_mana_costs(card, decisions));
         let damping_spheres = self
             .battlefield_static_modifiers()
             .iter()
@@ -16395,6 +16397,13 @@ impl GameEngine {
                                     break;
                                 }
                             }
+                            next.extend(keyword_programs::entwined_mode_declarations(
+                                card,
+                                decision,
+                                &id,
+                                assignment,
+                                &selections,
+                            ));
                             if next.len() >= MAX_DECLARATION_OPTIONS {
                                 break;
                             }

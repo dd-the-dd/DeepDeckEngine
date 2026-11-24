@@ -217,7 +217,7 @@
       "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
-        "abilityCount": 5,
+        "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
@@ -297,6 +297,72 @@
               {
                 "pointer": "/ability/kind",
                 "equals": "awaken"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dream-s-grip",
+      "request": {
+        "cardName": "Dream's Grip",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Choose one —\n• Tap target permanent.\n• Untap target permanent.\nEntwine {1} (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-barbed-lightning",
+      "request": {
+        "cardName": "Barbed Lightning",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Choose one —\n• Barbed Lightning deals 3 damage to target creature.\n• Barbed Lightning deals 3 damage to target player or planeswalker.\nEntwine {2} (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
               }
             ]
           }
@@ -645,6 +711,43 @@
       }
     },
     {
+      "id": "sibling-entwine-choose-all-reminder",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Entwine {3} (Choose all if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "entwine"
+              },
+              {
+                "pointer": "/ability/cost/manaCost",
+                "equals": "{3}"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-flashback-life-and-artifact",
       "request": {
         "cardName": "Generic Casting Keyword Source",
@@ -877,6 +980,28 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entwine-several-sacrifices",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Entwine—Sacrifice two lands. (Choose both if you pay the entwine cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering"
           }
         ]
       }

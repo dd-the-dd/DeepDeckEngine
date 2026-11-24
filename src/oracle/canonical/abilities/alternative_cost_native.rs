@@ -384,6 +384,15 @@ fn lower_casting_keyword(
             "kind": "escalate",
             "cost": single_keyword_payment(cursor, node, "one escalate payment")?,
         }),
+        // CR 702.42a: choosing every mode adds the entwine mana cost.
+        CastingKeyword::Entwine => json!({
+            "kind": "entwine",
+            "cost": keyword_mana(
+                cursor,
+                node,
+                "a mana entwine cost (a nonmana entwine payment has no runtime)",
+            )?,
+        }),
         // CR 702.33a: a kicked spell also pays the nonmana kicker cost.
         CastingKeyword::Kicker => json!({
             "kind": "kicker",
