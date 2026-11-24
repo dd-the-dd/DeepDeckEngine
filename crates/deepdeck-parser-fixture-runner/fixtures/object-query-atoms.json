@@ -1,0 +1,471 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/object-query-atoms",
+  "cases": [
+    {
+      "id": "exact-cower-in-fear-opponent-population-collection",
+      "request": {
+        "cardName": "Cower in Fear",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Creatures your opponents control get -1/-1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "modifyPowerToughness" },
+              { "pointer": "/effects/0/object/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/object/player/kind", "equals": "opponentsOf" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-subjugator-angel-tap-opponent-population",
+      "request": {
+        "cardName": "Subjugator Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Flying\nWhen this creature enters, tap all creatures your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "tapPermanent" },
+              { "pointer": "/effects/0/permanent/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/permanent/player/kind", "equals": "opponentsOf" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-not-controlled-population-collection",
+      "request": {
+        "cardName": "Synthetic Psychic Defense",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Tap all creatures you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "tapPermanent" },
+              { "pointer": "/effects/0/permanent/player/kind", "equals": "playersExcept" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-smite-blocked-status-target",
+      "request": {
+        "cardName": "Smite",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Destroy target blocked creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+              { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "permanents" },
+              { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "and" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operands/0/kind", "equals": "isBlocked" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unblocked-status-collection",
+      "request": {
+        "cardName": "Synthetic Unblocked Surge",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Each unblocked creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "modifyPowerToughness" },
+              { "pointer": "/effects/0/object/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/object/where/operands/0/kind", "equals": "isUnblockedAttacker" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-status-adjective-keeps-its-diagnostic",
+      "request": {
+        "cardName": "Synthetic Saddle Snare",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Destroy target saddled creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.predicate.start"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-unholy-hunger-coordinated-type-adjectives",
+      "request": {
+        "cardName": "Unholy Hunger",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Destroy target creature.\nSpell mastery — If there are two or more instant and/or sorcery cards in your graveyard, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-open-the-gates-headed-card-alternatives",
+      "request": {
+        "cardName": "Open the Gates",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for a basic land card or Gate card, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+              { "pointer": "/effects/0/minimum", "equals": 0 },
+              { "pointer": "/effects/0/candidates/where/kind", "equals": "or" },
+              { "pointer": "/effects/0/candidates/where/operands/1/kind", "equals": "subtypeContains" },
+              { "pointer": "/effects/0/candidates/where/operands/1/value", "equals": "Gate" },
+              { "pointer": "/effects/1/kind", "equals": "revealCards" },
+              { "pointer": "/effects/2/kind", "equals": "moveCards" },
+              { "pointer": "/effects/3/kind", "equals": "shuffleZone" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bogbrew-witch-alternative-names",
+      "request": {
+        "cardName": "Bogbrew Witch",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{B}",
+        "oracleText": "{2}, {T}: Search your library for a card named Festering Newt or Bubbling Cauldron, put it onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/candidates/where/kind", "equals": "or" },
+              { "pointer": "/effects/0/candidates/where/operands/0/value", "equals": "Festering Newt" },
+              { "pointer": "/effects/0/candidates/where/operands/1/value", "equals": "Bubbling Cauldron" },
+              { "pointer": "/effects/1/to/tapped", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-tower-winder-conditional-shuffle",
+      "request": {
+        "cardName": "Tower Winder",
+        "typeLine": "Creature — Snake",
+        "manaCost": "{3}{U}",
+        "oracleText": "When this creature enters, search your library and/or graveyard for a card named Command Tower, reveal it, and put it into your hand. If you search your library this way, shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "chooseOneEffect" },
+              { "pointer": "/effects/0/options/0/effects/0/from/kind", "equals": "union" },
+              { "pointer": "/effects/0/options/0/effects/0/from/sets/0/where/value", "equals": "Command Tower" },
+              { "pointer": "/effects/0/options/0/effects/2/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/options/0/effects/3/kind", "equals": "shuffleZone" },
+              { "pointer": "/effects/0/options/0/effects/4/kind", "equals": "recordLibrarySearch" },
+              { "pointer": "/effects/0/options/1/effects/0/from/kind", "equals": "cardsInZone" },
+              { "pointer": "/effects/0/options/1/effects/0/from/zone/kind", "equals": "graveyard" },
+              { "pointer": "/effects/0/options/1/effects/2/kind", "equals": "moveCards" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-epithet-name-conditional-shuffle",
+      "request": {
+        "cardName": "Synthetic Strategist's Herald",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, search your library and/or graveyard for a card named Jace, Arcane Strategist, reveal it, and put it into your hand. If you search your library this way, shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "chooseOneEffect" },
+              { "pointer": "/effects/0/options/0/effects/0/from/sets/0/where/value", "equals": "Jace, Arcane Strategist" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-conditional-shuffle-needs-another-zone",
+      "request": {
+        "cardName": "Synthetic Library Only",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Search your library for a creature card and put it into your hand. If you search your library this way, shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-turn-aside-spell-targets-relation",
+      "request": {
+        "cardName": "Turn Aside",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell that targets a permanent you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/id", "equals": "targetSpell" },
+              { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "spells" },
+              { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "targets" },
+              { "pointer": "/declaration/decisions/0/candidates/where/permanents/controller", "equals": "abilityController" },
+              { "pointer": "/effects/0/kind", "equals": "counterSpell" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-hindering-light-player-or-permanent",
+      "request": {
+        "cardName": "Hindering Light",
+        "typeLine": "Instant",
+        "manaCost": "{G}{W}{U}",
+        "oracleText": "Counter target spell that targets you or a permanent you control.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/candidates/where/players", "equals": "abilityController" },
+              { "pointer": "/declaration/decisions/0/candidates/where/permanents/controller", "equals": "abilityController" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-combination-targets-relation-with-status-and-type",
+      "request": {
+        "cardName": "Synthetic Combat Rebuff",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target instant spell that targets an opponent or a blocked creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "and" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operands/0/value", "equals": "Instant" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operands/1/kind", "equals": "targets" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operands/1/players", "equals": "opponentOfAbilityController" },
+              { "pointer": "/declaration/decisions/0/candidates/where/operands/1/permanents/where/operands/0/kind", "equals": "isBlocked" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-only-a-single-target-is-not-the-relation",
+      "request": {
+        "cardName": "Synthetic Single Rebuff",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Counter target spell that targets only a single creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-targets-relation-is-not-a-permanent-characteristic",
+      "request": {
+        "cardName": "Synthetic Misplaced Relation",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy target creature that targets a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

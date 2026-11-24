@@ -231,6 +231,10 @@ pub(in crate::oracle::canonical) struct ObjectQueryContext {
     /// comparisons may read pure expressions and, when available, the
     /// ability source (its counters, by last-known information).
     source_available: Option<bool>,
+    /// The query describes declared target candidates, which may be objects
+    /// on the stack: a `that targets ...` relative clause relates such an
+    /// object to its own targets (CR 115.1).
+    stack_targets: bool,
 }
 
 impl ObjectQueryContext {
@@ -238,6 +242,15 @@ impl ObjectQueryContext {
     pub(in crate::oracle::canonical) const ORDINARY: Self = Self {
         quota: QueryQuota::ExistingQuery,
         source_available: None,
+        stack_targets: false,
+    };
+
+    /// The candidates of a declared target slot (CR 115.1): an ordinary
+    /// query whose stack objects may be related to their own targets.
+    pub(in crate::oracle::canonical) const DECLARED_TARGET: Self = Self {
+        quota: QueryQuota::ExistingQuery,
+        source_available: None,
+        stack_targets: true,
     };
 
     /// A resolution-owned query. Source proof is distinct from implicit
@@ -246,6 +259,7 @@ impl ObjectQueryContext {
         Self {
             quota: QueryQuota::ExistingQuery,
             source_available: Some(source_available),
+            stack_targets: false,
         }
     }
 
@@ -260,6 +274,7 @@ impl ObjectQueryContext {
                 ),
             },
             source_available: None,
+            stack_targets: false,
         }
     }
 }
@@ -726,7 +741,7 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
-                } else if super::relative_clause_starts(cursor) {
+                } else if super::relative_clause_starts_in(cursor, context.stack_targets) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.
                     let predicate = super::recognize_relative_clause(cursor)?;
@@ -745,6 +760,7 @@ fn recognize_object_query_frame(
                         ObjectQueryContext {
                             quota: context.quota,
                             source_available: query_source_available,
+                            stack_targets: context.stack_targets,
                         },
                         true,
                     )?
@@ -1496,7 +1512,8 @@ pub(in crate::oracle::canonical) fn recognize_target_slot_selector(
         return Ok(TargetSelector::StackItem(stack_item));
     }
 
-    let query = recognize_object_query(cursor)?;
+    let query = recognize_object_noun_query(cursor, ObjectQueryContext::DECLARED_TARGET)?
+        .into_object_query(cursor)?;
     Ok(match query.controller {
         Some(controller) => TargetSelector::ControlledObject {
             predicate: query.predicate,
@@ -2632,6 +2649,10 @@ pub(in crate::oracle::canonical) fn recognize_search_card_alternatives(
 #[cfg(test)]
 #[path = "selector_transactional_coordinator_tests.rs"]
 mod transactional_coordinator_tests;
+
+#[cfg(test)]
+#[path = "selector_object_query_atoms_tests.rs"]
+mod object_query_atoms_tests;
 
 #[cfg(test)]
 #[path = "selector_negative_modifier_tests.rs"]

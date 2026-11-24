@@ -126,6 +126,33 @@ fn lower_object_predicate(
             "recipient": recipient.ir_name(),
             "combatOnly": combat_only,
         })),
+        // CR 115.1: a stack object one of whose targets is a listed player
+        // or a permanent of the listed query. Players and controllers are
+        // roles relative to the ability controller choosing the candidates.
+        ObjectPredicate::Relation(ObjectRelation::Targets(targeted)) => {
+            let mut atom = json!({ "kind": "targets" });
+            if let Some(player) = targeted.players {
+                atom["players"] = json!(player.ir_name());
+            }
+            if let Some(permanents) = &targeted.permanents {
+                let mut query = json!({
+                    "where": lower_permanent_object_predicate(&permanents.predicate),
+                });
+                if let Some(controller) = permanents.controller {
+                    query["controller"] = json!(match controller {
+                        ObjectControllerScope::AbilityController => "abilityController",
+                        ObjectControllerScope::NotAbilityController => "notAbilityController",
+                        ObjectControllerScope::OpponentOfAbilityController => {
+                            "opponentOfAbilityController"
+                        }
+                        // Refused by the engine's target-relation validator.
+                        ObjectControllerScope::EventPlayer => "eventPlayer",
+                    });
+                }
+                atom["permanents"] = query;
+            }
+            Some(atom)
+        }
         ObjectPredicate::ChosenCreatureType => Some(json!({
             "kind": "chosenCreatureType",
             "decisionId": crate::oracle::contextual_binding::RESOLUTION_CREATURE_TYPE_DECISION,

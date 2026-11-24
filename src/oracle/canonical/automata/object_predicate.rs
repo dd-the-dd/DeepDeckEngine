@@ -2,8 +2,8 @@ use crate::oracle::counter_name::CounterName;
 
 use super::{
     CardColor, CardSupertype, CharacteristicBatch, ColorQuantity, GrantedKeyword, ManaCostNode,
-    NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectKind, PermanentDesignation,
-    SelectorNumericProperty,
+    NumericComparisonOperator, NumericExpression, ObjectCardType, ObjectControllerScope,
+    ObjectKind, PermanentDesignation, SelectorNumericProperty,
 };
 
 #[cfg(test)]
@@ -97,8 +97,8 @@ impl CounterPresence {
     }
 }
 
-/// The player a damage history relation names (`to you`, `to an
-/// opponent`, `to a player`), relative to the ability controller.
+/// The player a relation names (`to you`, `to an opponent`, `to a player`;
+/// `that targets you`), relative to the ability controller.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DamagedPlayer {
     AbilityController,
@@ -116,6 +116,24 @@ impl DamagedPlayer {
     }
 }
 
+/// The permanents a spell's targets may be (`that targets a creature you
+/// control`): the shared permanent predicate and its controller relative to
+/// the ability controller.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TargetedPermanents {
+    pub predicate: Box<ObjectPredicate>,
+    pub controller: Option<ObjectControllerScope>,
+}
+
+/// What a spell targets (CR 115.1, 115.10): one of its targets is one of the
+/// listed players or a permanent of the listed query (`that targets you or a
+/// permanent you control`). At least one alternative is present.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TargetedObjects {
+    pub players: Option<DamagedPlayer>,
+    pub permanents: Option<TargetedPermanents>,
+}
+
 /// A relation of the object to a name, a player or the turn's history,
 /// read by a postnominal or relative clause of the shared object query
 /// (`named Fenric`, `that dealt combat damage to you this turn`). Each
@@ -131,6 +149,9 @@ pub(in crate::oracle::canonical) enum ObjectRelation {
         recipient: DamagedPlayer,
         combat_only: bool,
     },
+    /// `that targets OBJECT|PLAYER` (CR 115.1): a spell one of whose
+    /// targets is a listed player or a permanent of the listed query.
+    Targets(TargetedObjects),
 }
 
 impl ObjectRelation {
@@ -140,13 +161,18 @@ impl ObjectRelation {
         match self {
             Self::Named(_) => true,
             Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
+            // The targets of an object on the stack (CR 115.1).
+            Self::Targets(_) => domain == ObjectKind::Spell,
         }
     }
 
     /// Whether the relation reads the permanent's state or history rather
     /// than a characteristic of its definition.
     pub(in crate::oracle::canonical) fn reads_object_state(&self) -> bool {
-        matches!(self, Self::DealtDamageToPlayerThisTurn { .. })
+        matches!(
+            self,
+            Self::DealtDamageToPlayerThisTurn { .. } | Self::Targets(_)
+        )
     }
 }
 

@@ -3211,7 +3211,9 @@ fn target_candidates_supported(candidates: &Value) -> bool {
                     .is_none_or(Value::is_boolean)
         }
         Some("spells") => {
-            candidates.get("where").is_none_or(stack_filter_supported)
+            candidates
+                .get("where")
+                .is_none_or(object_predicate_eval::spell_candidate_filter_supported)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || player_complement_reference_supported(controller)
@@ -14974,7 +14976,7 @@ impl GameEngine {
                         })
                         .filter(|object| {
                             candidates.get("where").is_none_or(|filter| {
-                                matches_stack_filter(&object.card.definition, filter)
+                                self.spell_candidate_matches(object, filter, controller_id)
                             })
                         })
                         .map(|object| TargetRef::StackObject {
