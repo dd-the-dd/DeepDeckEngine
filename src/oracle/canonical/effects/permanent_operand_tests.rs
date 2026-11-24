@@ -43,15 +43,28 @@ fn source_ir_is_exact_and_collection_reuses_the_same_primitive() {
 }
 
 #[test]
-fn player_sets_are_refused_instead_of_becoming_all_players() {
-    for scope in [
-        ObjectControllerScope::OpponentOfAbilityController,
-        ObjectControllerScope::NotAbilityController,
+fn player_sets_keep_their_population_instead_of_becoming_all_players() {
+    // `creatures your opponents control`, `creatures you don't control`,
+    // `creatures defending player controls`: the collection keeps the
+    // shared controller reference; it never widens to every player.
+    for (scope, player) in [
+        (
+            ObjectControllerScope::OpponentOfAbilityController,
+            json!({"kind": "opponentsOf", "player": controller()}),
+        ),
+        (
+            ObjectControllerScope::NotAbilityController,
+            json!({"kind": "playersExcept", "player": controller()}),
+        ),
+        (
+            ObjectControllerScope::EventPlayer,
+            json!({"kind": "triggeringPlayer"}),
+        ),
     ] {
-        assert_eq!(
-            lower_nontargeted_permanent_operand(&collection(Some(scope))).unwrap_err(),
-            TargetlessLoweringError::UnsupportedCollectionController
-        );
+        let lowered = lower_nontargeted_permanent_operand(&collection(Some(scope))).unwrap();
+        assert_eq!(lowered["kind"], "eachPermanent");
+        assert_eq!(lowered["player"], player);
+        assert_eq!(lowered["where"], card_type("Creature"));
     }
 }
 

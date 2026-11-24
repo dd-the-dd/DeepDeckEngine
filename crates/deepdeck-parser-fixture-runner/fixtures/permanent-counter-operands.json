@@ -326,9 +326,9 @@
       }
     },
     {
-      "id": "synthetic-near-opponent-set-not-supported-in-this-version",
+      "id": "sibling-opponent-population-collection",
       "request": {
-        "cardName": "Synthetic collection near miss",
+        "cardName": "Synthetic opponent collection",
         "typeLine": "Sorcery",
         "manaCost": "{G}",
         "oracleText": "Put a +1/+1 counter on each creature your opponents control.",
@@ -336,13 +336,20 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "putCounters" },
+              { "pointer": "/effects/0/permanent/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/permanent/player/kind", "equals": "opponentsOf" },
+              { "pointer": "/effects/0/permanent/player/player/kind", "equals": "controllerOf" }
+            ]
           }
         ]
       }

@@ -1908,6 +1908,10 @@ pub(super) enum SearchShuffleOrder {
     /// The searched player's own later instruction shuffles (`Then that
     /// player shuffles.`); the search itself does not.
     ByHolderInstruction,
+    /// `If you search your library this way, shuffle.` after a search of
+    /// the library and other zones: the searcher chooses whether the
+    /// library is searched, and only then is it shuffled (CR 701.23a).
+    IfLibrarySearched,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1915,7 +1919,13 @@ pub(super) struct LibrarySearchEffectNode {
     pub player: LocalPlayerReference,
     /// The searched player's zones (`library_search.rs`).
     pub origin: SearchOrigin,
+    /// The predicate every found card satisfies: the one card phrase, or
+    /// the union of the slots below.
     pub filter: ObjectPredicate,
+    /// `a Forest card and a Plains card`: one card for each listed phrase,
+    /// each chosen among the cards no earlier slot took. Empty for a search
+    /// with one card phrase and one quantity.
+    pub slots: Vec<ObjectPredicate>,
     pub minimum: u32,
     pub maximum: u32,
     pub destination: SearchDestination,

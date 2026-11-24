@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "object-query-atoms/zealous-persecution-shrinks-only-opponents-creatures",
+  "seed": 7022,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": { "kind": "self" },
+    "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
+    "effects": [
+      {
+        "kind": "modifyPowerToughness",
+        "object": {
+          "kind": "eachPermanent",
+          "where": { "kind": "cardTypeContains", "value": "Creature" },
+          "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+        },
+        "power": { "kind": "integer", "value": 1 },
+        "toughness": { "kind": "integer", "value": 1 },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      },
+      {
+        "kind": "modifyPowerToughness",
+        "object": {
+          "kind": "eachPermanent",
+          "where": { "kind": "cardTypeContains", "value": "Creature" },
+          "player": {
+            "kind": "opponentsOf",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        },
+        "power": { "kind": "integer", "value": -1 },
+        "toughness": { "kind": "integer", "value": -1 },
+        "duration": { "kind": "untilEndOfCurrentTurn" }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Persecutor",
+        "battlefield": [
+          { "id": "persecution-source", "name": "Persecution Source", "typeLine": "Artifact" },
+          { "id": "own-bear", "name": "Own Bear", "typeLine": "Creature - Bear", "power": "2", "toughness": "2" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent",
+        "battlefield": [
+          { "id": "opposing-bear", "name": "Opposing Bear", "typeLine": "Creature - Bear", "power": "2", "toughness": "2" },
+          { "id": "opposing-giant", "name": "Opposing Giant", "typeLine": "Creature - Giant", "power": "3", "toughness": "3" }
+        ]
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "persecution-source",
+      "abilityRuleIndex": 0
+    },
+    { "kind": "resolveTopStack" }
+  ],
+  "assertions": [
+    { "kind": "permanentPowerToughness", "playerId": "player-0", "definitionId": "own-bear", "power": 3, "toughness": 3 },
+    { "kind": "permanentPowerToughness", "playerId": "player-1", "definitionId": "opposing-bear", "power": 1, "toughness": 1 },
+    { "kind": "permanentPowerToughness", "playerId": "player-1", "definitionId": "opposing-giant", "power": 2, "toughness": 2 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

@@ -495,7 +495,7 @@
       }
     },
     {
-      "id": "Whisper Squad (named search filter, not yet a shared predicate)",
+      "id": "Whisper Squad (named search filter through the shared name relation)",
       "request": {
         "cardName": "Whisper Squad",
         "typeLine": "Creature — Human Soldier",
@@ -505,11 +505,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "chooseCards" },
+              { "pointer": "/effects/0/minimum", "equals": 0 },
+              { "pointer": "/effects/0/candidates/where/kind", "equals": "nameEquals" },
+              { "pointer": "/effects/0/candidates/where/value", "equals": "Whisper Squad" },
+              { "pointer": "/effects/1/kind", "equals": "moveCards" },
+              { "pointer": "/effects/1/to/tapped", "equals": true },
+              { "pointer": "/effects/2/kind", "equals": "shuffleZone" }
+            ]
           }
         ]
       }

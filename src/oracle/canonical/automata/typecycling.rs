@@ -276,6 +276,7 @@ fn expansion_search(filter: ObjectPredicate) -> LibrarySearchEffectNode {
         player: LocalPlayerReference::Controller,
         origin: super::SearchOrigin::library(),
         filter,
+        slots: Vec::new(),
         minimum: 0,
         maximum: 1,
         destination: SearchDestination::Zone(CardZoneName::Hand),
