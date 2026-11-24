@@ -49,6 +49,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     // bound yet, and the shared condition atoms fail explicitly otherwise.
     let mut guard_context = trigger_guard_context(&event.value);
     guard_context.frame = event_frame(&event.value);
+    guard_context.source_attachment = source_attachment;
     // The guard's references (`that creature's power`) resolve against the
     // same binding environment as the body's: the frame the event binds.
     let enclosing =
@@ -400,6 +401,28 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 _ => None,
             }
         }
+        // The permanent the source is attached to as the event's subject
+        // (`whenever enchanted land becomes tapped`, `enchanted creature is
+        // dealt damage`, `equipped creature deals damage`): the attached
+        // reference, live while it is on the battlefield. A death keeps the
+        // observed record of the dying permanent its parent binds.
+        GenericTriggerEventNode::Local(
+            LocalTriggerEventNode::AttachedObjectEvent {
+                role,
+                action:
+                    AttachedObjectEventAction::BecomeTapped
+                    | AttachedObjectEventAction::BecomeBlocked
+                    | AttachedObjectEventAction::TappedForMana,
+            }
+            | LocalTriggerEventNode::AttachedObjectTargeted { role, .. }
+            | LocalTriggerEventNode::AttachedObjectDealtDamage { role, .. },
+        ) => attached_event_subject(*role),
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
+            subject: DamageDealer::Attached(role),
+            complement,
+        }) if !matches!(complement.recipient, Some(DamageRecipient::Permanent(_))) => {
+            attached_event_subject(*role)
+        }
         GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
             complement, ..
         }) => match complement.recipient.as_ref()? {
@@ -433,6 +456,27 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
         }) => permanent(creature(), true, true),
         _ => None,
     }
+}
+
+/// What the attachment guarantees about the attached permanent: an
+/// Equipment equips only a creature (CR 301.5); an Aura's attached object is
+/// a permanent of the kind its enchant ability names, unknown here.
+fn attached_nominal(role: AttachedObjectRole) -> ObjectPredicate {
+    match role {
+        AttachedObjectRole::Equipped => ObjectPredicate::CardType(ObjectCardType::Creature),
+        AttachedObjectRole::Enchanted => ObjectPredicate::ObjectKind(ObjectKind::Permanent),
+    }
+}
+
+/// The attached permanent as the grammatical subject of the event.
+fn attached_event_subject(role: AttachedObjectRole) -> Option<EventObjectSlot> {
+    Some(EventObjectSlot {
+        reference: PermanentEffectReference::Attached(role),
+        predicate: attached_nominal(role),
+        subject: true,
+        departed: false,
+        controller: None,
+    })
 }
 
 /// The controller relation every branch of a transition event writes for

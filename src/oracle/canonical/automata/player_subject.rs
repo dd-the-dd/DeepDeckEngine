@@ -1,7 +1,7 @@
 use super::super::super::super::{MachineResult, OracleTokenCursor};
 use super::super::super::{
-    BindingEnvironment, FrameBindings, PermanentEffectReference, TargetCardinality, TargetListNode,
-    TargetSelector, recognize_defending_player, recognize_object_related_player,
+    PermanentEffectReference, TargetCardinality, TargetListNode, TargetSelector,
+    installed_binding_environment, recognize_defending_player, recognize_object_related_player,
     recognize_target_list, recognize_that_player,
 };
 pub(in crate::oracle::canonical) use super::super::super::{
@@ -66,12 +66,16 @@ pub(in crate::oracle::canonical::automata) fn recognize_object_related_player_su
     antecedent: Option<ObjectSubjectAntecedent>,
 ) -> MachineResult<PlayerEffectSubject> {
     // The frame's event object is read from the environment the enclosing
-    // sequence installed; the lexical antecedent is the caller's.
-    let event_object = cursor
-        .binding_environment()
-        .and_then(|environment| environment.frame.event_object.clone());
-    let reference =
-        recognize_object_related_player(cursor, antecedent.as_ref(), event_object.as_ref(), false)?;
+    // program installed; the lexical antecedent is the caller's, else the
+    // singular object that environment publishes.
+    let environment = installed_binding_environment(cursor);
+    let antecedent = antecedent.or(environment.object);
+    let reference = recognize_object_related_player(
+        cursor,
+        antecedent.as_ref(),
+        environment.frame.event_object.as_ref(),
+        false,
+    )?;
     reference
         .into_effect_subject()
         .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"))
@@ -120,28 +124,21 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
     }
 
     if first.raw.eq_ignore_ascii_case("that") {
-        // The parent's player binding and event player decide first; the
-        // event object the installed frame binds (`a creature an opponent
-        // controls dies`) is the shared fallback whose controller `that
-        // player` names (CR 109.4). A lexical object antecedent stays with
-        // the clause layer's performer slot.
-        let event_object = cursor
-            .binding_environment()
-            .and_then(|environment| environment.frame.event_object.clone());
-        let environment = BindingEnvironment {
-            frame: FrameBindings {
-                event_player,
-                event_object,
-                ..FrameBindings::default()
-            },
-            player: antecedent,
-            ..BindingEnvironment::default()
-        };
-        return recognize_that_player(cursor, &environment).map(|reference| {
-            reference
-                .into_effect_subject()
-                .expect("`that player` is a bound or event player")
-        });
+        // The environment the enclosing program installed (its frame, the
+        // event object whose controller `that player` names (CR 109.4), and
+        // the player antecedents it publishes), with the bindings this
+        // caller proved. A lexical object antecedent stays with the clause
+        // layer's performer slot.
+        let mut environment = installed_binding_environment(cursor);
+        environment.object = None;
+        environment.frame.event_player |= event_player;
+        if antecedent.is_some() {
+            environment.player = antecedent;
+        }
+        let reference = recognize_that_player(cursor, &environment)?;
+        return reference
+            .into_effect_subject()
+            .ok_or_else(|| cursor.fail("a player relation with an effect-subject lowering"));
     }
 
     Err(cursor.fail_with_span(

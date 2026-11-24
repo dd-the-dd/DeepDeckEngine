@@ -1168,13 +1168,34 @@ fn recognize_referenced_object_atom(
             context.program,
             "a nominal anaphor of an effect program's proven antecedent",
         )?;
-        ConditionObjectReference::Permanent(recognize_nominal_object_read(
-            cursor,
-            &BindingEnvironment::for_permanent_context(program.effects),
-        )?)
+        let environment = condition_binding_environment(cursor, program.effects);
+        ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
     };
     let predicate = recognize_object_state_predicate(cursor, false)?;
     finish_referenced_object(cursor, context, object, predicate)
+}
+
+/// The environment a condition's nominal anaphor reads: the condition
+/// position's proven antecedent (its scope may be the one after the gated
+/// action of a postposed condition), with the declared selector the
+/// enclosing program published for that same antecedent when the condition
+/// context does not carry it (`Target creature you control gains
+/// indestructible until end of turn. Draw a card if that creature has a
+/// +1/+1 counter on it.`). The selector belongs to the one declaration both
+/// name; a different antecedent is never borrowed.
+fn condition_binding_environment(
+    cursor: &OracleTokenCursor<'_>,
+    effects: &EffectRecognitionContext,
+) -> BindingEnvironment {
+    let mut environment = BindingEnvironment::for_permanent_context(effects);
+    let installed = installed_binding_environment(cursor);
+    if let (Some(object), Some(published)) = (environment.object.as_mut(), installed.object)
+        && object.selector.is_none()
+        && object.reference == published.reference
+    {
+        object.selector = published.selector;
+    }
+    environment
 }
 
 /// The verb phrase after a referenced object: a copula with a registered
@@ -1422,6 +1443,18 @@ fn resolve_object_anaphor(
     }
     if program.card_focus {
         candidates.push(ConditionObjectReference::CardFocus);
+    }
+    // Precedence typed by noun kind (CR 400.7): the card the latest card
+    // action put onto the battlefield became the permanent that action
+    // moved, so the singular card result and that permanent are one
+    // antecedent, read as the permanent (`Return target creature card from
+    // your graveyard to the battlefield. If it's an Angel, ...`). The scope
+    // is the moved permanent only right after the move, whose card action is
+    // then the latest one the card focus reads.
+    if candidates.contains(&ConditionObjectReference::Permanent(
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
+    )) {
+        candidates.retain(|candidate| *candidate != ConditionObjectReference::CardFocus);
     }
     match candidates.as_slice() {
         [reference] => Ok(*reference),

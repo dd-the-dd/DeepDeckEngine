@@ -320,6 +320,7 @@ fn recognize_optional_cost_block(
     let body = recognize_outcome_body(
         cursor,
         "program.optional-cost.body",
+        outcome,
         name_links,
         name_failure,
         context,
@@ -352,6 +353,7 @@ fn recognize_optional_action_block(
     let body = recognize_outcome_body(
         cursor,
         "program.optional-action.body",
+        outcome,
         name_links,
         name_failure,
         context,
@@ -468,6 +470,7 @@ fn recognize_mandatory_outcome_block(
     let body = recognize_outcome_body(
         cursor,
         "program.reflexive-action.body",
+        outcome,
         name_links,
         name_failure,
         context,
@@ -480,20 +483,78 @@ fn recognize_mandatory_outcome_block(
     })
 }
 
-/// The outcome governs its own sentence (and its reminder) only (CR 608.2c).
+/// An `If you do` / `If you don't` outcome governs its own sentence (and its
+/// reminder) only (CR 608.2c). A reflexive `When you do` creates a triggered
+/// ability whose text is the rest of the enclosing ability (CR 603.12): its
+/// later sentences read the reflexive ability's own targets (`When you do,
+/// put a +1/+1 counter on target creature. That creature gains trample`),
+/// so they are one sequence with one binding environment. The extended body
+/// stops before a trigger-limit sentence, which belongs to the enclosing
+/// ability; when the rest is not one supported sequence, the body keeps its
+/// own sentence and the later sentences stay independent steps.
 fn recognize_outcome_body(
     cursor: &mut OracleTokenCursor<'_>,
     state: &'static str,
+    outcome: PerformanceOutcome,
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
     cursor.enter(state);
     let body_end = sentence_end_with_reminders(cursor);
+    if outcome == PerformanceOutcome::Reflexive {
+        let ability_end = reflexive_ability_end(cursor, context);
+        if ability_end > body_end
+            && let Ok(body) = cursor.attempt(|attempt| {
+                attempt.bounded(ability_end, |cursor| {
+                    recognize_effect_sequence_with_context(
+                        cursor,
+                        name_links,
+                        name_failure,
+                        context,
+                    )
+                })
+            })
+        {
+            return Ok(EffectProgramNode::Sequence(body));
+        }
+    }
     let body = cursor.bounded(body_end, |cursor| {
         recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
     })?;
     Ok(EffectProgramNode::Sequence(body))
+}
+
+/// The end (exclusive, absolute) of the text a reflexive ability owns from
+/// the cursor: the end of the enclosing program, or the start of the
+/// enclosing trigger's limit sentence (`This ability triggers only once
+/// each turn.`). Lexical scan of top-level sentence starts only.
+fn reflexive_ability_end(
+    cursor: &OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> usize {
+    let end = cursor.position() + cursor.token_slice(cursor.position(), usize::MAX).len();
+    if context.ability_restriction_owner != AbilityRestrictionOwner::Triggered {
+        return end;
+    }
+    let mut depth = 0usize;
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => {
+                let start = cursor.position() + offset + 1;
+                let mut probe = cursor.clone();
+                if probe.advance_to(start).is_ok() && trigger_limit_starts(&probe) {
+                    return start;
+                }
+            }
+            _ => {}
+        }
+        offset += 1;
+    }
+    end
 }
 
 /// An outcome block ends the program, yields to the enclosing trigger's
