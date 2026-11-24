@@ -489,7 +489,7 @@
       }
     },
     {
-      "id": "enduring-innocence-ability-reference-copula",
+      "id": "known-gap-enduring-innocence-returned-object-copula",
       "request": {
         "cardName": "Enduring Probe",
         "typeLine": "Enchantment Creature — Sheep Glimmer",
@@ -499,22 +499,16 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/kind",
-                "equals": "triggeredAbility"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "permanent-action.antecedent-characteristic",
+            "found": "It's"
           }
-        ],
-        "abilityCount": 1
+        ]
       }
     },
     {
@@ -583,7 +577,10 @@
               },
               {
                 "pointer": "/effects/0/token/power",
-                "equals": 1
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
               }
             ]
           }
@@ -733,7 +730,10 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "clause.verb.unsupported",
+            "found": "becomes"
           }
         ]
       }

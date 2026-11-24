@@ -120,9 +120,18 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
     }
 
     if first.raw.eq_ignore_ascii_case("that") {
+        // The parent's player binding and event player decide first; the
+        // event object the installed frame binds (`a creature an opponent
+        // controls dies`) is the shared fallback whose controller `that
+        // player` names (CR 109.4). A lexical object antecedent stays with
+        // the clause layer's performer slot.
+        let event_object = cursor
+            .binding_environment()
+            .and_then(|environment| environment.frame.event_object.clone());
         let environment = BindingEnvironment {
             frame: FrameBindings {
                 event_player,
+                event_object,
                 ..FrameBindings::default()
             },
             player: antecedent,

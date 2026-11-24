@@ -437,6 +437,17 @@ fn scan_token_ranges(text: &str) -> Vec<(usize, usize)> {
                     break;
                 }
             }
+            // A symbolic stat pair (`X/X`, `1/X`, `X/2`, CR 107.3) is three
+            // tokens, component, separator, component, like the signed and
+            // literal pairs the stat grammar reads; a pair of two literals
+            // stays one compact `counterValue` token.
+            if let Some(slash) = symbolic_stat_pair_slash(&text[position..end]) {
+                ranges.push((position, position + slash));
+                ranges.push((position + slash, position + slash + 1));
+                ranges.push((position + slash + 1, end));
+                position = end;
+                continue;
+            }
             ranges.push((position, end));
             position = end;
             continue;
@@ -448,6 +459,18 @@ fn scan_token_ranges(text: &str) -> Vec<(usize, usize)> {
         position = character_end;
     }
     ranges
+}
+
+/// The byte offset of the slash of `COMPONENT/COMPONENT` where each
+/// component is the variable `X` or a digit literal and at least one is `X`.
+fn symbolic_stat_pair_slash(word: &str) -> Option<usize> {
+    let (left, right) = word.split_once('/')?;
+    let component = |part: &str| {
+        part.eq_ignore_ascii_case("x")
+            || (!part.is_empty() && part.bytes().all(|byte| byte.is_ascii_digit()))
+    };
+    let variable = left.eq_ignore_ascii_case("x") || right.eq_ignore_ascii_case("x");
+    (component(left) && component(right) && variable).then_some(left.len())
 }
 
 fn scan_power_toughness(text: &str, start: usize) -> Option<usize> {

@@ -659,8 +659,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "cost.payment.verb",
-            "found": "Exhaust"
+            "state": "activation.restriction.lowering",
+            "expectedContains": "a non-mana activated ability for its labeling keyword"
           }
         ]
       }

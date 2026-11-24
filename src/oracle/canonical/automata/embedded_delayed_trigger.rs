@@ -174,11 +174,25 @@ pub(in crate::oracle::canonical) fn effect_created_rule_starts(
     if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && word_at(cursor, 2, "time") {
         return true;
     }
-    // `If OBJECT would die`: the bound object is at most a determiner and a
-    // noun, or a pronoun; the lookahead stays within that width.
-    word_at(cursor, 0, "if")
-        && (1..=3)
-            .any(|offset| word_at(cursor, offset, "would") && word_at(cursor, offset + 1, "die"))
+    // `If OBJECT would die`: a bound object (a pronoun, `that NOUN`, `that
+    // creature or planeswalker`) whose clause reaches `would die` before the
+    // comma that opens the replacing action.
+    if !word_at(cursor, 0, "if") {
+        return false;
+    }
+    let mut object = cursor.clone();
+    if object.advance_to(cursor.position() + 1).is_err()
+        || !super::bound_object_reference_starts(&object)
+    {
+        return false;
+    }
+    (1..)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| raw != "," && raw != ".")
+        })
+        .any(|offset| word_at(cursor, offset, "would") && word_at(cursor, offset + 1, "die"))
 }
 
 /// Reads one created rule's introducer, event and lifetime, up to (not

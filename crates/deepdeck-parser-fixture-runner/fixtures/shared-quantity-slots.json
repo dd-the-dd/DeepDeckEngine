@@ -208,18 +208,43 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "numeric.event-anaphor.resolve"
+            "state": "numeric.atom.start",
+            "code": "oracle_machine_failure",
+            "found": "that"
           }
         ]
       }
     },
     {
-      "id": "exact-major-teroh-sacrifice-by-name",
+      "id": "known-gap-major-teroh-exile-all-black-creatures",
       "request": {
         "cardName": "Major Teroh",
         "typeLine": "Legendary Creature — Bird Soldier",
         "manaCost": "{3}{W}",
         "oracleText": "Flying\n{3}{W}{W}, Sacrifice Major Teroh: Exile all black creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-batch.collection",
+            "found": "black"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-by-name-then-destroy-all-black-creatures",
+      "request": {
+        "cardName": "Major Teroh",
+        "typeLine": "Legendary Creature — Bird Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\n{3}{W}{W}, Sacrifice Major Teroh: Destroy all black creatures.",
         "layout": "normal",
         "faces": []
       },
@@ -332,7 +357,10 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.atom.start",
+            "found": "Mindslaver"
           }
         ]
       }
@@ -712,7 +740,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "effect.player-discard.any-number.noun"
+            "state": "effect.player-discard.any-number",
+            "code": "oracle_machine_failure",
+            "expectedContains": "of"
           }
         ]
       }

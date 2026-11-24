@@ -444,7 +444,12 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     replace_word(&mut tokens[verb], entry.surface(super::VerbForm::Base));
     let mut depth = 0usize;
     let mut quoted = false;
+    let mut after_coordinator = false;
     for token in tokens.iter_mut().skip(verb + 1) {
+        // A verb coordinated with the performer's verb (`searches ..., then
+        // shuffles and puts ...`) has the same subject and agreement; it is
+        // read in the base form like the head verb.
+        let coordinated = std::mem::take(&mut after_coordinator);
         match token.raw.as_str() {
             "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
             _ if quoted => {}
@@ -453,6 +458,19 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
             "." if depth == 0 => break,
             raw if depth == 0 && raw.eq_ignore_ascii_case("they") => replace_word(token, "you"),
             raw if depth == 0 && raw.eq_ignore_ascii_case("their") => replace_word(token, "your"),
+            raw if depth == 0
+                && (raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")) =>
+            {
+                after_coordinator = true;
+            }
+            raw if depth == 0 && coordinated && agreement != VerbAgreement::Base => {
+                if let Some((entry, forms)) = lookup_verb(raw, &super::ALL_LEMMAS)
+                    && forms.contains(&agreement.form())
+                    && !forms.contains(&super::VerbForm::Base)
+                {
+                    replace_word(token, entry.surface(super::VerbForm::Base));
+                }
+            }
             _ => {}
         }
     }

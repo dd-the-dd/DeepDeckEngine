@@ -853,7 +853,7 @@
       }
     },
     {
-      "id": "exact-winter-cursed-rider-exhaust",
+      "id": "known-gap-winter-cursed-rider-exile-x-cards-cost",
       "request": {
         "cardName": "Winter, Cursed Rider",
         "typeLine": "Legendary Creature — Human Warlock",
@@ -863,27 +863,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 2,
-            "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "activatedAbility",
-            "ruleAssertions": [
-              {
-                "pointer": "/abilityClass",
-                "equals": "exhaust"
-              },
-              {
-                "pointer": "/activationLimit",
-                "equals": {
-                  "kind": "oncePerGameObjectAbility",
-                  "id": "exhaust"
-                }
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.activation-cost-action",
+            "expectedContains": "a literal number of objects chosen while paying"
           }
         ]
       }
@@ -1086,7 +1072,9 @@
         ],
         "diagnostics": [
           {
-            "abilityIndex": 1
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.activation-cost-action"
           }
         ]
       }

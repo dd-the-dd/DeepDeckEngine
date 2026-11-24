@@ -289,7 +289,7 @@
       }
     },
     {
-      "id": "sibling-unseen-moved-creature-deals-damage-equal-to-its-power",
+      "id": "known-gap-moved-creature-as-damage-source",
       "request": {
         "cardName": "Generalized Grave Volley",
         "typeLine": "Sorcery",
@@ -299,9 +299,16 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 1
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.damage.object-source",
+            "expectedContains": "a damage source declared as a target"
+          }
+        ]
       }
     },
     {

@@ -19,7 +19,7 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     LocalObjectReference, NumericExpression, recognize_distinct_card_type_count,
     recognize_equal_to_amount_expression, recognize_numeric_expression, recognize_source_reference,
-    with_prior_number,
+    registered_possessive_object, with_prior_number,
 };
 
 /// The stat(s) a characteristic-defining ability defines.
@@ -176,11 +176,27 @@ pub(in crate::oracle::canonical) fn recognize_characteristic_defining_power_toug
         state = match state {
             State::Source => {
                 cursor.enter("characteristic.power-toughness.source");
-                frame.object = Some(recognize_source_reference(
-                    cursor,
-                    name_links,
-                    name_failure,
-                )?);
+                // `This creature's power`: the source named by `this` and a
+                // registered possessive object word, the same source
+                // reference a numeric `this creature's power` reads.
+                let possessive_this = cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+                    && cursor
+                        .token_slice(cursor.position() + 1, cursor.position() + 2)
+                        .first()
+                        .is_some_and(|token| {
+                            token.token_type == "possessiveTypeWord"
+                                && registered_possessive_object(&token.raw)
+                        });
+                frame.object = Some(if possessive_this {
+                    cursor.enter("characteristic.power-toughness.source.possessive");
+                    cursor.consume("this")?;
+                    cursor.consume_type("possessiveTypeWord")?;
+                    LocalObjectReference::SourceSelf
+                } else {
+                    recognize_source_reference(cursor, name_links, name_failure)?
+                });
                 State::Stats
             }
             State::Stats => {

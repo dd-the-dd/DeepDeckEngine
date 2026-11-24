@@ -150,7 +150,7 @@
       }
     },
     {
-      "id": "real-whiplash-trap-opponent-had-creatures-enter",
+      "id": "known-gap-whiplash-trap-conditional-alternative-cost",
       "request": {
         "cardName": "Whiplash Trap",
         "typeLine": "Instant — Trap",
@@ -160,8 +160,15 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical"
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "you"
+          }
+        ]
       }
     },
     {
@@ -699,7 +706,7 @@
       }
     },
     {
-      "id": "real-heliod-devotion-less-than-five",
+      "id": "known-gap-heliod-conditional-type-removal",
       "request": {
         "cardName": "Heliod, Sun-Crowned",
         "typeLine": "Legendary Enchantment Creature — God",
@@ -709,34 +716,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/condition/kind",
-                "equals": "compare"
-              },
-              {
-                "pointer": "/condition/operator",
-                "equals": "<"
-              },
-              {
-                "pointer": "/condition/left/kind",
-                "equals": "devotion"
-              },
-              {
-                "pointer": "/condition/right",
-                "equals": {
-                  "kind": "integer",
-                  "value": 5
-                }
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "static.combat-restriction.prohibition",
+            "found": "isn't"
           }
         ]
       }

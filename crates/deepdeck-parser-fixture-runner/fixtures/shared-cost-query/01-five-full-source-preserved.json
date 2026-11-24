@@ -94,11 +94,17 @@
                     "colors": [
                       "White"
                     ],
-                    "power": 1,
+                    "power": {
+                      "kind": "integer",
+                      "value": 1
+                    },
                     "subtypes": [
                       "Warrior"
                     ],
-                    "toughness": 1,
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 1
+                    },
                     "types": [
                       "Creature"
                     ]

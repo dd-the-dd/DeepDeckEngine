@@ -984,7 +984,12 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
                 SearchedPlayer::Searcher => {
-                    effects.extend(lower_controller_library_search_effects(cursor, search)?);
+                    let lowered = lower_controller_library_search_effects(cursor, search)?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
                 }
                 // `Search target player's library ...`: the holder is one
                 // declared player target of this action (CR 115.1).
@@ -998,11 +1003,13 @@ fn lower_local_effect_sequence_with_collections(
                         &mut decisions,
                         &mut declared_player_targets,
                     )?;
-                    effects.extend(lower_controller_search_of_holder(
-                        cursor,
-                        search,
-                        chosen_target(&id),
-                    )?);
+                    let lowered =
+                        lower_controller_search_of_holder(cursor, search, chosen_target(&id))?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
                 }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
@@ -1013,10 +1020,15 @@ fn lower_local_effect_sequence_with_collections(
                 ) {
                     return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure));
                 }
+                let lowered = lower_controller_library_search_effects(cursor, search)?;
+                collections.register_collection_binding_ids(
+                    &lowered,
+                    &lower_collection_binding(search.binding),
+                );
                 effects.push(json!({
                     "kind": "optionalEffects",
                     "player": controller(),
-                    "effects": lower_controller_library_search_effects(cursor, search)?,
+                    "effects": lowered,
                 }));
             }
             LocalEffectNode::OptionalCardDeployment(deployment) => {

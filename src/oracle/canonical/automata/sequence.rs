@@ -3037,8 +3037,10 @@ fn recognize_subject_frame(
         );
     }
     match (head.subject, head.modality, head.lemma) {
-        // `you may draw` / `its controller may draw`: the referenced draw.
-        (Subject::Controller | Subject::Possessed, super::ClauseModality::May, Some(lemma))
+        // `you may draw`: the controller's referenced draw. A possessed
+        // player's draw (`its controller may draw`) is that player's own
+        // permission, read by the clause layer's performer slot.
+        (Subject::Controller, super::ClauseModality::May, Some(lemma))
             if lemma == VerbLemma::Draw =>
         {
             attempt_frame.commit();

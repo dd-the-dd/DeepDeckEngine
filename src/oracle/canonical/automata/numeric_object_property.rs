@@ -207,7 +207,9 @@ pub(in crate::oracle::canonical) fn recognize_sacrificed_cost_object_property(
     Ok(NumericExpression::SacrificedCostObjectProperty(property))
 }
 
-fn registered_possessive_object(raw: &str) -> bool {
+/// A possessive registered card type or object domain (`creature's`,
+/// `permanent's`): the object word of `this NOUN's PROPERTY`.
+pub(in crate::oracle::canonical) fn registered_possessive_object(raw: &str) -> bool {
     let Some(base) = raw.strip_suffix("'s").or_else(|| raw.strip_suffix("’s")) else {
         return false;
     };

@@ -311,7 +311,7 @@
       }
     },
     {
-      "id": "selected-sacrifice-could-remove-source",
+      "id": "selected-sacrifice-may-name-retained-or-departed-source",
       "request": {
         "cardName": "Signed Stat Witness",
         "typeLine": "Creature",
@@ -321,12 +321,52 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/0/object",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sacrificed-source-has-no-later-stat-subject",
+      "request": {
+        "cardName": "Signed Stat Witness",
+        "typeLine": "Creature",
+        "manaCost": "{0}",
+        "oracleText": "Sacrifice this creature: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "permanent.operand.complete",
+            "found": "gets"
           }
         ]
       }

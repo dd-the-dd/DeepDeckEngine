@@ -219,7 +219,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "ability-frame.keyword.expansion"
+            "state": "ability-frame.static.subject",
+            "code": "oracle_machine_failure",
+            "found": "Crew"
           }
         ]
       }

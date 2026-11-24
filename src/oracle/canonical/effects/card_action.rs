@@ -76,6 +76,43 @@ impl CardCollectionMemory {
             .insert(MOVED_ONTO_BATTLEFIELD_BINDING.to_string())
     }
 
+    /// Records the decision IDs a library search lowered from its parse-time
+    /// collection binding (`searchedCards`, `searchedCards:N`, and their
+    /// `/slotN` choices). The parse-time allocator already made them unique in
+    /// the program, so a nested optional scope may carry them.
+    pub(in crate::oracle::canonical) fn register_collection_binding_ids(
+        &mut self,
+        effects: &[Value],
+        binding: &str,
+    ) {
+        fn visit(value: &Value, binding: &str, allocated: &mut std::collections::BTreeSet<String>) {
+            match value {
+                Value::Array(items) => {
+                    for item in items {
+                        visit(item, binding, allocated);
+                    }
+                }
+                Value::Object(object) => {
+                    if let Some(id) = object.get("id").and_then(Value::as_str)
+                        && (id == binding
+                            || id
+                                .strip_prefix(binding)
+                                .is_some_and(|rest| rest.starts_with('/')))
+                    {
+                        allocated.insert(id.to_string());
+                    }
+                    for item in object.values() {
+                        visit(item, binding, allocated);
+                    }
+                }
+                _ => {}
+            }
+        }
+        for effect in effects {
+            visit(effect, binding, &mut self.allocated_ids);
+        }
+    }
+
     /// Selection bindings share one allocator across nested program scopes.
     pub(in crate::oracle::canonical) fn allocate_selection_id(&mut self, prefix: &str) -> String {
         let id = fresh(prefix, &mut self.next_selection);

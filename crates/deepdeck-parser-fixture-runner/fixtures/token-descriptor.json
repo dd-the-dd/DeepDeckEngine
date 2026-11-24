@@ -62,8 +62,14 @@
                     "value": 1
                   },
                   "token": {
-                    "power": 1,
-                    "toughness": 1,
+                    "power": {
+                      "kind": "integer",
+                      "value": 1
+                    },
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 1
+                    },
                     "colors": [
                       "Red"
                     ],

@@ -421,6 +421,12 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,
             ..
         }) => permanent(creature(), true, false),
+        // `When enchanted creature dies`: the dying permanent the source was
+        // attached to, read by its last known information (CR 603.10a).
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            action: AttachedObjectEventAction::Die,
+            ..
+        }) => permanent(creature(), true, true),
         _ => None,
     }
 }

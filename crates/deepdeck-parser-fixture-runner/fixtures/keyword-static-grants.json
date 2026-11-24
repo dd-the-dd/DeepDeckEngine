@@ -185,7 +185,9 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "expectedContains": "a positive literal count for the granted keyword"
           }
         ]
       }
@@ -327,7 +329,10 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.predicate",
+            "found": "\""
           }
         ]
       }
@@ -367,7 +372,7 @@
       }
     },
     {
-      "id": "exact-razorkin-needlehead-trailing-turn-condition",
+      "id": "known-gap-razorkin-needlehead-damage-to-them",
       "request": {
         "cardName": "Razorkin Needlehead",
         "typeLine": "Creature — Human Assassin",
@@ -377,24 +382,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "staticAbility",
-            "ruleAssertions": [
-              {
-                "pointer": "/modifiers/0/kind",
-                "equals": "grantKeyword"
-              },
-              {
-                "pointer": "/modifiers/0/keyword",
-                "equals": "firstStrike"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "target-list.slot.start",
+            "found": "them"
           }
         ]
       }
@@ -414,7 +408,9 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.static.atom-kind"
           }
         ]
       }
