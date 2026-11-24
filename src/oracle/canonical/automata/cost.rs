@@ -1,5 +1,8 @@
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{NumericAtom, NumericExpression, TapSelfCostNode};
+use super::{
+    NumericAtom, NumericExpression, ObjectControllerScope, ObjectKind, ObjectQueryNode,
+    TapSelfCostNode, recognize_numeric_atom, recognize_object_query,
+};
 
 /// `sacrifice this PERMANENT`: the shared source reference proved the noun
 /// names the source permanent; lowering pays the cost with the source itself.
@@ -255,6 +258,114 @@ fn recognize_mana_sequence(
             }
         };
     }
+}
+
+/// `tap any number of [other] [untapped] QUERY with total power N or greater`
+/// (Crew CR 702.122a, Saddle CR 702.171a, printed tap costs): untapped
+/// permanents the payer controls, chosen while paying, whose powers sum to
+/// at least N. The quantity is not a count but an aggregate bound on the
+/// chosen set; the cost parent projects it onto its own schema.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct TotalPowerTapCostNode {
+    pub object: ObjectQueryNode,
+    /// `other`: the ability's source cannot be one of the tapped permanents.
+    pub exclude_source: bool,
+    pub minimum_power: i64,
+}
+
+/// Lookahead only: the `any number of` quantity of a total-power tap cost.
+pub(in crate::oracle::canonical) fn total_power_tap_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("any"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("number"))
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+}
+
+/// The first `with total power` after the cursor, which ends the shared
+/// object query of a total-power tap cost.
+fn total_power_boundary(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let tokens = cursor.token_slice(cursor.position(), usize::MAX);
+    tokens
+        .windows(3)
+        .position(|window| {
+            window[0].raw.eq_ignore_ascii_case("with")
+                && window[1].raw.eq_ignore_ascii_case("total")
+                && window[2].raw.eq_ignore_ascii_case("power")
+        })
+        .map(|offset| cursor.position() + offset)
+}
+
+/// Reads the operand of `tap` after the verb:
+///
+/// ```text
+/// "any" "number" "of" ["other"] ["untapped"] QUERY
+///     "with" "total" "power" N "or" ("greater" | "more")
+/// ```
+///
+/// The query is the shared object query, bounded by `with total power`; it
+/// must name permanents the payer controls (`you control`). N is a positive
+/// literal: a variable bound would need a producer this cost has not.
+pub(in crate::oracle::canonical) fn recognize_total_power_tap_cost(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<TotalPowerTapCostNode> {
+    cursor.enter("cost.total-power-tap.quantity");
+    cursor.consume_phrase(&["any", "number", "of"])?;
+    let exclude_source = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("other"));
+    if exclude_source {
+        cursor.consume("other")?;
+    }
+    // Only untapped permanents can be tapped (CR 701.26a): the written
+    // status is redundant evidence of the same requirement.
+    cursor.enter("cost.total-power-tap.status");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("untapped"))
+    {
+        cursor.consume("untapped")?;
+    }
+    cursor.enter("cost.total-power-tap.object-query");
+    let boundary = cursor.require_value(
+        total_power_boundary(cursor),
+        "`with total power N or greater` after the tapped permanents",
+    )?;
+    let object = cursor.bounded(boundary, recognize_object_query)?;
+    cursor.enter("cost.total-power-tap.domain");
+    cursor.require(
+        object.controller == Some(ObjectControllerScope::AbilityController)
+            && !object.exclude_source
+            && object.predicate.supports_domain(ObjectKind::Permanent)
+            && object.predicate.has_nominal_head(),
+        "battlefield permanents with a nominal head controlled by the payer (`you control`)",
+    )?;
+    cursor.enter("cost.total-power-tap.aggregate");
+    cursor.consume_phrase(&["with", "total", "power"])?;
+    cursor.enter("cost.total-power-tap.minimum");
+    let minimum_power = match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) if value > 0 => value,
+        _ => return Err(cursor.fail("a positive literal total power")),
+    };
+    cursor.enter("cost.total-power-tap.comparison");
+    cursor.consume("or")?;
+    cursor.require(
+        cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("greater") || raw.eq_ignore_ascii_case("more")
+        }),
+        "`or greater` or `or more` (a lower bound on the total power)",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("cost.total-power-tap.complete");
+    Ok(TotalPowerTapCostNode {
+        object,
+        exclude_source,
+        minimum_power,
+    })
 }
 
 pub(in crate::oracle::canonical) fn recognize_tap_self_cost(

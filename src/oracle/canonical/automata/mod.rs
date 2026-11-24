@@ -1273,6 +1273,9 @@ pub(super) enum GrantedKeyword {
     Flanking,
     Flash,
     Flying,
+    /// CR 702.102a: a split card cast from hand may be cast as both halves
+    /// (the engine's fused split definition).
+    Fuse,
     Haste,
     Hexproof,
     Horsemanship,
@@ -1329,6 +1332,7 @@ impl GrantedKeyword {
             Self::Flanking => "flanking",
             Self::Flash => "flash",
             Self::Flying => "flying",
+            Self::Fuse => "fuse",
             Self::Haste => "haste",
             Self::Hexproof => "hexproof",
             Self::Horsemanship => "horsemanship",
@@ -1661,6 +1665,8 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     pub to: SourceZone,
     pub face_change: SourceFaceChange,
     pub controller: SourceMoveController,
+    /// `to the battlefield tapped` (CR 110.5): the source enters tapped.
+    pub tapped: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

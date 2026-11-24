@@ -157,6 +157,7 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         // Actions the resolution cost program has no schema for fail here,
         // never approximated by another program.
         PaymentActionNode::Untap(_)
+        | PaymentActionNode::TapTotalPower(_)
         | PaymentActionNode::ReturnToHand(_)
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }

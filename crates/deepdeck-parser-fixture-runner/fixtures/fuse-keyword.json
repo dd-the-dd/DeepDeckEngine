@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/fuse-keyword",
+  "cases": [
+    {
+      "id": "sibling-split-halves-with-fuse",
+      "request": {
+        "cardName": "Draw // Gain",
+        "typeLine": "Instant // Instant",
+        "manaCost": "{2}{U} // {1}{R}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "left",
+            "name": "Draw",
+            "typeLine": "Instant",
+            "manaCost": "{2}{U}",
+            "oracleText": "Draw a card.\nFuse (You may cast one or both halves of this card from your hand.)"
+          },
+          {
+            "id": "right",
+            "name": "Gain",
+            "typeLine": "Instant",
+            "manaCost": "{1}{R}",
+            "oracleText": "You gain 3 life.\nFuse (You may cast one or both halves of this card from your hand.)"
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "fuse"
+              }
+            }
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "fuse"
+              }
+            }
+          }
+        ],
+        "abilityCount": 4
+      }
+    },
+    {
+      "id": "sibling-bare-fuse-line",
+      "request": {
+        "cardName": "Fuse Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Fuse",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "fuse"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fuse-foreign-reminder",
+      "request": {
+        "cardName": "Fuse Reminder Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Fuse (You may cast both halves of this card from exile.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.reminder.body"
+          }
+        ]
+      }
+    }
+  ]
+}

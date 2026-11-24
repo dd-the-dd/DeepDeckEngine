@@ -284,6 +284,7 @@ fn payer_relative(payment: &PaymentActionNode) -> bool {
         // Tapped permanents and counter holders are written `you control`;
         // exiled cards come `from your` zone; a source belongs to the ability.
         PaymentActionNode::Tap(_)
+        | PaymentActionNode::TapTotalPower(_)
         | PaymentActionNode::Exile { .. }
         | PaymentActionNode::RemoveCounters(_)
         | PaymentActionNode::Untap(_)

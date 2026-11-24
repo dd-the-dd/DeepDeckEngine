@@ -28,6 +28,11 @@ fn activation_cost_tap_id(cost: &ChosenTapCostNode) -> String {
     format!("activationCostTap{}", cost.cost_index)
 }
 
+/// The declared choice of a total-power tap cost: the chosen permanents.
+fn activation_cost_tap_power_id(cost: &ChosenTotalPowerTapCostNode) -> String {
+    format!("activationCostTapPower{}", cost.cost_index)
+}
+
 fn activation_cost_card_id(cost: &ChosenDiscardCostNode) -> String {
     format!("activationCostCard{}", cost.cost_index)
 }
@@ -370,6 +375,21 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             // Without a named kind, each removed counter may be of any kind.
             if let Some(counter) = &cost.counter {
                 value["counter"] = json!(counter.as_str());
+            }
+            value
+        }
+        // The engine declares the chosen set while paying (`decisionId`):
+        // any number of matching untapped permanents whose total power meets
+        // the bound (`src/engine/creature_tap_cost.rs`).
+        LocalActivationCostNode::TapTotalPower(cost) => {
+            let mut value = json!({
+                "kind": "tapPermanentsWithTotalPower",
+                "decisionId": activation_cost_tap_power_id(cost),
+                "where": lower_permanent_object_predicate(&cost.tap.object.predicate),
+                "minimumPower": integer(cost.tap.minimum_power),
+            });
+            if cost.tap.exclude_source {
+                value["excludeSource"] = json!(true);
             }
             value
         }
