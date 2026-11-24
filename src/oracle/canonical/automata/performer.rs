@@ -11,9 +11,9 @@ use super::source_sacrifice::atomic_action::player_subject::{
     recognize_player_effect_subject,
 };
 use super::{
-    ObjectSubjectAntecedent, PlayerBinding, PlayerEffectSubject, PlayerSetReferenceNode,
-    VerbAgreement, clause_verb_unsupported, defending_player_starts, lookup_verb,
-    object_related_player_head_length,
+    ObjectPlayerRelation, ObjectSubjectAntecedent, PlayerBinding, PlayerEffectSubject,
+    PlayerSetReferenceNode, VerbAgreement, clause_verb_unsupported, defending_player_starts,
+    lookup_verb, object_related_player_head_length,
 };
 use crate::oracle::model::RecognizedEntity;
 use crate::oracle::syntax::recognize_entities;
@@ -131,6 +131,11 @@ pub(in crate::oracle::canonical) struct PerformerContext {
     pub event_player: bool,
     pub defending_player: bool,
     pub object_antecedent: Option<ObjectSubjectAntecedent>,
+    /// The one player an earlier action named only through its singular
+    /// object (`return target permanent to its owner's hand`, `target
+    /// creature an opponent controls`): the antecedent of `that player` when
+    /// no player was declared or bound (CR 108.3, 109.4).
+    pub object_player_antecedent: Option<(ObjectPlayerRelation, super::PermanentEffectReference)>,
 }
 
 /// A performer subject at the cursor and the agreement its verb takes.
@@ -231,6 +236,21 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         }
     }
     if is(0, "that") && is(1, "player") {
+        // Without a player binding, `that player` is the player the previous
+        // action named through its object; it is resolved from that object
+        // when the action resolves (last known information, CR 608.2h).
+        if context.player_antecedent.is_none()
+            && !context.event_player
+            && let Some((relation, object)) = context.object_player_antecedent
+        {
+            cursor.enter("clause.performer.object-player-anaphor");
+            return Some(cursor.consume_phrase(&["that", "player"]).map(|()| {
+                (
+                    PerformerNode::Player(PlayerEffectSubject::ObjectRelation { relation, object }),
+                    VerbAgreement::ThirdPersonSingular,
+                )
+            }));
+        }
         return Some(single(recognize_player_effect_subject(
             cursor,
             PlayerBinding(usize::MAX),
@@ -251,6 +271,81 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
         )));
     }
     None
+}
+
+/// The relation an object-related player subject writes before `of`.
+fn written_player_relation(raw: &str) -> Option<ObjectPlayerRelation> {
+    if raw.eq_ignore_ascii_case("owner") {
+        Some(ObjectPlayerRelation::Owner)
+    } else if raw.eq_ignore_ascii_case("controller") {
+        Some(ObjectPlayerRelation::Controller)
+    } else {
+        None
+    }
+}
+
+/// True when the cursor starts `the owner|controller of target ...`: a
+/// player subject that declares the object it is related to.
+pub(in crate::oracle::canonical) fn object_relation_declaration_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| written_player_relation(raw).is_some())
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("of"))
+        && cursor
+            .peek_ahead(3)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+}
+
+/// `the owner|controller of TARGET VERBs ...` (CR 108.3, 109.4, 115.1): the
+/// subject declares one target permanent, and the player related to it
+/// performs the clause. The declaration is the ordinary `choose target`
+/// instruction, so a later `it` names the target; the caller continues the
+/// clause with the related player as its performer. The subject must be
+/// followed by a finite verb of the lexicon: a modal or a missing verb fails
+/// here, never silently.
+pub(in crate::oracle::canonical) fn recognize_object_relation_declaration(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(ObjectPlayerRelation, super::ChooseInstructionNode)> {
+    cursor.enter("clause.performer.object-relation-declaration");
+    cursor.consume("the")?;
+    let relation = cursor
+        .peek()
+        .and_then(written_player_relation)
+        .ok_or_else(|| cursor.fail("`owner` or `controller`"))?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume("of")?;
+    cursor.enter("clause.performer.object-relation-declaration.target");
+    let targets = super::recognize_target_list(cursor)?;
+    cursor.require(
+        matches!(
+            targets.slots.as_slice(),
+            [slot] if slot.cardinality == super::TargetCardinality::EXACTLY_ONE
+                && super::selector_guarantees_permanent(&slot.selector)
+        ),
+        "exactly one target permanent whose owner or controller performs the clause",
+    )?;
+    cursor.enter("clause.performer.object-relation-declaration.verb");
+    cursor.require(
+        cursor.peek().is_some_and(|raw| {
+            lookup_verb(raw, &super::ALL_LEMMAS)
+                .is_some_and(|(_, forms)| forms.contains(&super::VerbForm::ThirdPersonSingular))
+        }),
+        "a finite verb performed by the declared object's player",
+    )?;
+    Ok((
+        relation,
+        super::ChooseInstructionNode {
+            chooser: super::ChooserNode::Controller,
+            domain: super::ChoiceDomainNode::PermanentTargets(targets),
+        },
+    ))
 }
 
 /// The predicate tokens read as the performer's own instruction: the verb at

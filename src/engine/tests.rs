@@ -33140,6 +33140,14 @@ mod player_action_sacrifice_runtime;
 #[path = "tests/subject_verb_actions_runtime.rs"]
 mod subject_verb_actions_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/performer_subjects_runtime.rs"]
+mod performer_subjects_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/extra_turn_runtime.rs"]
+mod extra_turn_runtime;
+
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

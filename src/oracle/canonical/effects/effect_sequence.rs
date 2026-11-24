@@ -578,6 +578,12 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "proliferate", "player": lowered.player}));
                         continue;
                     }
+                    // CR 500.7: the acting player takes the next turn.
+                    SingularPlayerAction::ExtraTurn => {
+                        cursor.enter("lower.player-action.extra-turn");
+                        effects.push(json!({"kind": "grantExtraTurn", "player": lowered.player}));
+                        continue;
+                    }
                     SingularPlayerAction::Scry(count) => {
                         cursor.enter("lower.player-action.scry");
                         let amount = lower_sequence_bound_amount(

@@ -209,6 +209,7 @@ mod selector_atom;
 mod sentence_condition;
 mod sequence;
 mod set_anaphora;
+mod shuffle_into;
 mod simple_keyword;
 mod source_cast_x_entry;
 mod source_entry;
@@ -464,6 +465,7 @@ pub(super) use selector::*;
 pub(super) use selector_atom::*;
 pub(super) use sequence::*;
 pub(super) use set_anaphora::*;
+pub(super) use shuffle_into::*;
 pub(super) use simple_keyword::*;
 pub(super) use source_cast_x_entry::*;
 pub(super) use source_entry::*;
@@ -2366,9 +2368,9 @@ mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    performer_description, performer_modality, permission_sentence_end,
-    person_shifted_permission_tokens, person_shifted_tokens, recognize_declaring_performer,
-    recognize_performer,
+    object_relation_declaration_starts, performer_description, performer_modality,
+    permission_sentence_end, person_shifted_permission_tokens, person_shifted_tokens,
+    recognize_declaring_performer, recognize_object_relation_declaration, recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
