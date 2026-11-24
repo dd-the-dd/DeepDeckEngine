@@ -2,10 +2,124 @@
 
 use serde_json::{Value, json};
 
+use std::collections::BTreeMap;
+
 use super::{
-    CardDefinition, card_filter_supported, cost_supported, distinct_card_types, integer_value,
-    player_reference_supported, value_kind,
+    CardDefinition, CardInstance, CastingDeclaration, DecisionProvider, EngineError, GameEngine,
+    LegalAction, card_filter_supported, card_matches_protection_quality, cost_supported,
+    distinct_card_types, integer_value, kicker_ability_supported, player_reference_supported,
+    value_kind,
 };
+
+/// The declared choice of a kicker cost that is not mana (CR 702.33a).
+const KICKER_COST_TARGET: &str = "kickerCost";
+
+/// The one nonmana kicker cost of a card (`Kicker—Sacrifice a land.`).
+/// Mana kicker costs are added to the spell's total cost instead; a
+/// multi-kicker (`costs`) lists mana alternatives.
+fn nonmana_kicker_cost(card: &CardDefinition) -> Option<&Value> {
+    card.printed_rules().iter().find_map(|rule| {
+        let ability = &rule["ability"];
+        (value_kind(rule) == Some("keywordAbility")
+            && kicker_ability_supported(ability)
+            && !ability["costs"].is_array()
+            && value_kind(&ability["cost"]) != Some("payMana"))
+        .then_some(&ability["cost"])
+    })
+}
+
+fn kicked(decisions: &BTreeMap<String, Value>) -> bool {
+    decisions.get("kicked").and_then(Value::as_bool) == Some(true)
+}
+
+impl GameEngine {
+    /// The declarations of a kicked cast: a nonmana kicker cost declares the
+    /// object it pays with, like any keyword cost; without a payable object
+    /// the spell cannot be kicked.
+    pub(super) fn kicker_cost_declarations(
+        &self,
+        kicked_declaration: CastingDeclaration,
+        ability: &Value,
+        controller_id: &str,
+    ) -> Vec<CastingDeclaration> {
+        let cost = &ability["cost"];
+        if ability["costs"].is_array() || value_kind(cost) == Some("payMana") {
+            return vec![kicked_declaration];
+        }
+        self.declarations_for_keyword_cost(
+            vec![kicked_declaration],
+            cost,
+            controller_id,
+            KICKER_COST_TARGET,
+        )
+        .unwrap_or_default()
+    }
+
+    /// The declared kicker payment is a cost choice, never a spell target.
+    pub(super) fn kicker_cost_target_ids(
+        card: &CardDefinition,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Vec<String> {
+        nonmana_kicker_cost(card)
+            .filter(|cost| {
+                kicked(decisions)
+                    && matches!(value_kind(cost), Some("sacrificePermanent" | "discardCard"))
+            })
+            .map(|_| vec![KICKER_COST_TARGET.to_string()])
+            .unwrap_or_default()
+    }
+
+    /// Pays a nonmana kicker cost of a kicked spell as it is cast (CR
+    /// 601.2h), with its declared object.
+    pub(super) fn apply_kicker_keyword_cost<P: DecisionProvider>(
+        &mut self,
+        action: &LegalAction,
+        card: &CardDefinition,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        if !kicked(&action.decisions) {
+            return Ok(());
+        }
+        let Some(cost) = nonmana_kicker_cost(card).cloned() else {
+            return Ok(());
+        };
+        self.apply_keyword_cost(action, &cost, KICKER_COST_TARGET, provider)
+    }
+}
+
+/// CR 702.11d: `hexproof from [quality]`, each quality one the protection
+/// evaluator reads (a color, a card type, `everything`).
+pub(super) fn hexproof_from_supported(value: &Value) -> bool {
+    value_kind(value) == Some("hexproofFrom")
+        && value["from"].as_array().is_some_and(|qualities| {
+            !qualities.is_empty() && qualities.iter().all(Value::is_string)
+        })
+}
+
+/// Whether a printed `hexproof from` of `permanent` covers spells and
+/// abilities from `source` (CR 702.11d). Hexproof only stops opponents: the
+/// caller checks the targeting player.
+pub(super) fn printed_hexproof_from(permanent: &CardInstance, source: &CardDefinition) -> bool {
+    permanent.definition.printed_rules().iter().any(|rule| {
+        let abilities: Vec<&Value> = match value_kind(rule) {
+            Some("keywordAbility") => vec![&rule["ability"]],
+            Some("keywordAbilityGroup") => rule["abilities"]
+                .as_array()
+                .map(|abilities| abilities.iter().collect())
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        abilities.into_iter().any(|ability| {
+            hexproof_from_supported(ability)
+                && ability["from"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .any(|quality| card_matches_protection_quality(source, quality))
+        })
+    })
+}
 
 /// Morph (CR 702.37a) and disguise (CR 702.168a) both cast their card face
 /// down as a 2/2 creature for {3} and turn it face up for the keyword cost.
@@ -161,3 +275,10 @@ pub(super) fn cascade_trigger_rule(source_mana_value: i32) -> Value {
 ))]
 #[path = "keyword_programs_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "casting_keyword_runtime_tests.rs"]
+mod casting_keyword_runtime_tests;

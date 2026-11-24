@@ -3950,6 +3950,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
             keyword_kind_supported(&rule["ability"])
                 || ward_ability_supported(&rule["ability"])
                 || protection_ability_supported(&rule["ability"])
+                || keyword_programs::hexproof_from_supported(&rule["ability"])
                 || conditional_flash_ability_supported(&rule["ability"])
                 || cycling_ability_supported(&rule["ability"])
                 || kicker_ability_supported(&rule["ability"])
@@ -4016,6 +4017,7 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                         || ward_ability_supported(ability)
                         || matches!(value_kind(ability), Some("cascade"))
                         || protection_ability_supported(ability)
+                        || keyword_programs::hexproof_from_supported(ability)
                         || (value_kind(ability) == Some("annihilator")
                             && integer_value(&ability["quantity"])
                                 .is_some_and(|quantity| quantity > 0))
@@ -11963,22 +11965,23 @@ impl GameEngine {
         permanent: &CardInstance,
         source: &CardDefinition,
     ) -> bool {
-        self.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("temporaryHexproofFrom")
-                && modifier["permanentIds"].as_array().is_some_and(|ids| {
-                    ids.iter()
-                        .any(|id| id.as_str() == Some(permanent.instance_id.as_str()))
-                })
-                && modifier["expiresAfterTurn"]
-                    .as_u64()
-                    .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
-                && modifier["from"].as_array().is_some_and(|qualities| {
-                    qualities
-                        .iter()
-                        .filter_map(Value::as_str)
-                        .any(|quality| card_matches_protection_quality(source, quality))
-                })
-        })
+        keyword_programs::printed_hexproof_from(permanent, source)
+            || self.state.rule_modifiers.iter().any(|modifier| {
+                value_kind(modifier) == Some("temporaryHexproofFrom")
+                    && modifier["permanentIds"].as_array().is_some_and(|ids| {
+                        ids.iter()
+                            .any(|id| id.as_str() == Some(permanent.instance_id.as_str()))
+                    })
+                    && modifier["expiresAfterTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| turn >= u64::from(self.state.turn_number))
+                    && modifier["from"].as_array().is_some_and(|qualities| {
+                        qualities
+                            .iter()
+                            .filter_map(Value::as_str)
+                            .any(|quality| card_matches_protection_quality(source, quality))
+                    })
+            })
     }
 
     fn spell_casting_prohibited(&self, player_id: &str) -> bool {
@@ -15670,7 +15673,7 @@ impl GameEngine {
                     kicked
                         .decisions
                         .insert("kicked".to_string(), Value::Bool(true));
-                    expanded.push(kicked);
+                    expanded.extend(self.kicker_cost_declarations(kicked, ability, controller_id));
                 }
                 assignments = expanded;
             }
@@ -25776,6 +25779,10 @@ impl GameEngine {
                     &spell_definition,
                     &action.decisions,
                 ));
+                cost_target_ids.extend(Self::kicker_cost_target_ids(
+                    &spell_definition,
+                    &action.decisions,
+                ));
                 cost_target_ids.extend(self.splice_cost_target_ids(action));
                 if action
                     .decisions
@@ -25895,6 +25902,7 @@ impl GameEngine {
                 self.apply_casting_exile_costs(action, &spell_definition)?;
                 self.apply_casting_put_counter_costs(action, &spell_definition, provider)?;
                 self.apply_escalate_costs_with_provider(action, &spell_definition, provider)?;
+                self.apply_kicker_keyword_cost(action, &spell_definition, provider)?;
                 self.apply_delve_cost(action, &spell_definition, delve_maximum)?;
                 self.apply_flashback_cost(action, &spell_definition, provider)?;
                 self.apply_escape_costs(action, &spell_definition)?;

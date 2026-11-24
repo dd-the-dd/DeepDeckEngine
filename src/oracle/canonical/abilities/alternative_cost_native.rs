@@ -235,6 +235,23 @@ fn keyword_mana(
         .ok_or_else(|| cursor.fail(expected))
 }
 
+/// One keyword payment: the printed mana cost, or the only payment of the
+/// shared cost sequence through the keyword-cost lowering.
+fn single_keyword_payment(
+    cursor: &OracleTokenCursor<'_>,
+    node: &CastingKeywordNode,
+    expected: &str,
+) -> MachineResult<Value> {
+    match node.cost.as_ref() {
+        Some(KeywordCostNode::Mana(mana)) => Ok(lower_resource_mana_payment(mana)),
+        Some(KeywordCostNode::Sequence(sequence)) => match sequence.costs.as_slice() {
+            [payment] => lower_keyword_cost_payment(cursor, payment),
+            _ => Err(cursor.fail(expected)),
+        },
+        None => Err(cursor.fail(expected)),
+    }
+}
+
 fn keyword_count(cursor: &OracleTokenCursor<'_>, node: &CastingKeywordNode) -> MachineResult<i64> {
     cursor.require_value(node.count, "the keyword's printed count")
 }
@@ -361,14 +378,17 @@ fn lower_casting_keyword(
             "kind": "mayhem",
             "cost": keyword_mana(cursor, node, "a mayhem mana cost")?,
         }),
-        // CR 702.120a: the runtime adds the mana cost once per extra mode.
+        // CR 702.120a: the runtime pays the cost once per extra mode, with a
+        // declared object for each nonmana payment.
         CastingKeyword::Escalate => json!({
             "kind": "escalate",
-            "cost": keyword_mana(
-                cursor,
-                node,
-                "a mana escalate cost (a nonmana escalate payment has no runtime)",
-            )?,
+            "cost": single_keyword_payment(cursor, node, "one escalate payment")?,
+        }),
+        // CR 702.33a: a kicked spell also pays the nonmana kicker cost.
+        CastingKeyword::Kicker => json!({
+            "kind": "kicker",
+            "cost": single_keyword_payment(cursor, node, "one nonmana kicker payment")?,
+            "repeatable": false,
         }),
         CastingKeyword::Impending => json!({
             "kind": "impending",

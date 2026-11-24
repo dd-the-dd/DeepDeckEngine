@@ -1042,6 +1042,20 @@ fn parse_existing_native_rule(
         };
     }
 
+    // CR 702.11d: `hexproof from QUALITY`.
+    if claims_hexproof_from_family(input) {
+        return match parse_hexproof_from_line(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_parameterized_keyword_family(input) {
         return match parse_parameterized_keyword(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

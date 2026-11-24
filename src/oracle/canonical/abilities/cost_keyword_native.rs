@@ -138,3 +138,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_cost_keyword(
         ],
     ))
 }
+
+#[cfg(test)]
+#[path = "keyword_cost_tests.rs"]
+mod keyword_cost_tests;

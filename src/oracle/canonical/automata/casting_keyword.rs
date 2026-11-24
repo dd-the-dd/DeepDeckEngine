@@ -9,13 +9,16 @@
 //!            | N                         (teamwork)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem)
 //!            | MANA | "—" COSTS          (blitz, escalate)
-//!            | "—" COSTS                 (escape)
+//!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
 //!            | MANA "—" P "/" T          (prototype)
 //! COSTS     := the shared activation-cost sequence (`compound_activated.rs`)
 //! Reminder  := one of the row's registered renderings, instantiated with the
 //!              printed parameter (`$cost`, `$N`, `$Nw`), compared token by
 //!              token
+//!            | "You may" COSTS "in addition to any other costs as you cast
+//!              this spell." — an additional-cost reminder restating the
+//!              printed payments, read again by the shared cost sequence
 //! ```
 //!
 //! This child only types the line: the lexeme, the parameter read by the
@@ -44,6 +47,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Escape,
     Gravestorm,
     Impending,
+    /// CR 702.33a with a nonmana cost (`Kicker—Sacrifice a land.`); a mana
+    /// kicker cost is read by `keyword.rs`.
+    Kicker,
     Mayhem,
     Paradigm,
     Prototype,
@@ -147,6 +153,13 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "If you cast this spell for its impending cost, it enters with $Nw time counters and isn't a creature until the last is removed. At the beginning of your end step, remove a time counter from it.",
         ],
+    },
+    Definition {
+        keyword: CastingKeyword::Kicker,
+        lexeme: "kicker",
+        rules_section: "702.33a",
+        parameter: Parameter::CostSequence,
+        reminders: &[],
     },
     Definition {
         keyword: CastingKeyword::Mayhem,
@@ -390,6 +403,9 @@ fn read_reminder(
         .position(|token| token.raw == ")")
         .map(|offset| body_start + offset);
     let body_end = cursor.require_value(close, "a reminder closing the keyword ability")?;
+    if definition.reminders.is_empty() {
+        return read_restated_cost_reminder(cursor, node, body_end);
+    }
     cursor.enter("keyword.casting.reminder.body");
     let printed = cursor.token_slice(body_start, body_end);
     let arguments = KeywordTemplateArguments {
@@ -410,6 +426,39 @@ fn read_reminder(
         "the keyword's reminder instantiated with the printed parameter",
     )?;
     cursor.advance_to(body_end)?;
+    cursor.enter("keyword.casting.reminder.close");
+    cursor.consume(")")
+}
+
+/// `(You may COSTS in addition to any other costs as you cast this spell.)`:
+/// the additional-cost reminder restates the printed payments, which the
+/// shared cost sequence reads again; connectors may differ (`, ` / `and`).
+fn read_restated_cost_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: &CastingKeywordNode,
+    body_end: usize,
+) -> MachineResult<()> {
+    cursor.enter("keyword.casting.reminder.permission");
+    cursor.consume_phrase(&["you", "may"])?;
+    cursor.enter("keyword.casting.reminder.cost");
+    let restated = cursor.bounded(body_end, |cursor| {
+        let costs = recognize_activation_cost_sequence(cursor)?;
+        cursor.enter("keyword.casting.reminder.additional");
+        cursor.consume_phrase(&[
+            "in", "addition", "to", "any", "other", "costs", "as", "you", "cast", "this", "spell",
+            ".",
+        ])?;
+        Ok(costs)
+    })?;
+    cursor.enter("keyword.casting.reminder.cost-match");
+    let printed = match &node.cost {
+        Some(KeywordCostNode::Sequence(sequence)) => Some(&sequence.costs),
+        _ => None,
+    };
+    cursor.require(
+        printed == Some(&restated.costs),
+        "a reminder restating the printed keyword cost",
+    )?;
     cursor.enter("keyword.casting.reminder.close");
     cursor.consume(")")
 }
