@@ -293,7 +293,7 @@ enum BecomeTypesState {
 /// The frame after a subject the parent recognized. `copy_object` reads the
 /// object of `becomes a copy of`, with the same reference grammar as the
 /// subject; it is called only after that complement has been seen.
-pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subject>(
+pub(in crate::oracle::canonical) fn recognize_become_types_subject<'tokens, Subject: Clone>(
     cursor: &mut OracleTokenCursor<'tokens>,
     mut subject: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
     mut copy_object: impl FnMut(&mut OracleTokenCursor<'tokens>) -> MachineResult<Subject>,
