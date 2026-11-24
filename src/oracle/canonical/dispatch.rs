@@ -243,6 +243,25 @@ fn parse_ability_body(
     } else {
         existing
     };
+    // CR 614.1c-e, 614.12: the shared entry-replacement frame reads what no
+    // historical family completed. A family's own failure keeps priority
+    // unless the frame completes the ability.
+    let existing = match existing {
+        parsed @ CanonicalParseOutcome::Parsed { .. } => parsed,
+        existing => match (existing, try_parse_replacement_frame(input)) {
+            (_, ReplacementFrameAttempt::Parsed(draft)) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            (CanonicalParseOutcome::Unsupported, ReplacementFrameAttempt::Committed(failure)) => {
+                CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer: RecognizerProvenance::Native,
+                }
+            }
+            (existing, _) => existing,
+        },
+    };
     match preserve_committed_generic_failure(existing, committed_generic_failure) {
         // CR 113.3: every ability belongs to a structural frame. When no
         // reader owned it, that frame owns it and reports where it stopped.

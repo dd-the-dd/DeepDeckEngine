@@ -4,15 +4,34 @@ use super::{
     positive_object_selector_atom,
 };
 
+/// A characteristic value chosen as a permanent enters and stored on it
+/// (CR 614.12). Later abilities of the same permanent read the stored value
+/// through the reference kind of the same binding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CharacteristicChoiceBinding {
     CreatureType,
+    Color,
+    BasicLandType,
+    CardType,
 }
 
 impl CharacteristicChoiceBinding {
     pub(in crate::oracle::canonical) const fn decision_id(self) -> &'static str {
         match self {
             Self::CreatureType => "chosenCreatureType",
+            Self::Color => "chosenColor",
+            Self::BasicLandType => "chosenBasicLandType",
+            Self::CardType => "chosenCardType",
+        }
+    }
+
+    /// The decision primitive that produces the stored value.
+    pub(in crate::oracle::canonical) const fn decision_kind(self) -> &'static str {
+        match self {
+            Self::CreatureType => "chooseCreatureType",
+            Self::Color => "chooseColor",
+            Self::BasicLandType => "chooseBasicLandType",
+            Self::CardType => "chooseCardType",
         }
     }
 }

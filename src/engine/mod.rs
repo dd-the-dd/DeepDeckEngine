@@ -231,6 +231,7 @@ mod source_lki;
 mod spell_cast_event_tests;
 mod state;
 mod static_condition_capability;
+mod stored_choice_binding;
 mod subtypes;
 mod suspend_keyword;
 mod target_incarnation;
@@ -28515,6 +28516,11 @@ impl GameEngine {
                         "decisionId": decision_id,
                         "value": chosen_value,
                     }));
+                    stored_choice_binding::bind_stored_choice(
+                        &mut card.definition,
+                        decision_id,
+                        &chosen_value,
+                    );
                     let gains_chosen_subtype =
                         card.definition.printed_rules().iter().any(|rule| {
                             value_kind(rule) == Some("staticAbility")

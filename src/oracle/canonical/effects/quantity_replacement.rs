@@ -71,7 +71,11 @@ fn lower_quantity_replacement(
         event_ir["recipientKind"] = json!("permanent");
     }
     if let Some(object) = &event.object {
-        let predicate = lower_permanent_object_predicate(object);
+        let predicate = match event.domain {
+            // A created token is matched by its definition (CR 111.4).
+            QuantityEventDomain::TokenCreation => lower_card_object_predicate(object),
+            QuantityEventDomain::CounterPlacement => lower_permanent_object_predicate(object),
+        };
         if !predicate.is_null() {
             event_ir["where"] = predicate;
         }
