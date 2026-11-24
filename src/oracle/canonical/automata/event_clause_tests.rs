@@ -58,10 +58,14 @@ fn combat_event_modifiers_compile_and_unsupported_ones_are_engine_gaps() {
 
 #[test]
 fn a_player_set_names_the_verb_it_does_not_read() {
-    let (status, state, expected) = parse(
+    // The clause layer reads a player set's zone shuffle (Timetwister);
+    // `exert` is a lexicon lemma no player-set reader takes.
+    let (status, _, _) = parse(
         "Sorcery",
         "Each player shuffles their hand and graveyard into their library.",
     );
+    assert_eq!(status, "canonical");
+    let (status, state, expected) = parse("Sorcery", "Each player exerts a creature they control.");
     assert_ne!(status, "canonical");
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
     let expected = expected.unwrap_or_default();
@@ -69,12 +73,9 @@ fn a_player_set_names_the_verb_it_does_not_read() {
     // A lexicon lemma is named by its base form, after `may` too: the
     // population's permission reads the performer's instruction, whose
     // unread verb stays the clause's diagnostic.
-    let (_, state, expected) = parse(
-        "Sorcery",
-        "Each player may shuffle their hand and graveyard into their library.",
-    );
+    let (_, state, expected) = parse("Sorcery", "Each player may exert a creature they control.");
     assert_eq!(state.as_deref(), Some("clause.verb.unsupported"));
-    assert!(expected.unwrap_or_default().contains("lemma `shuffle`"));
+    assert!(expected.unwrap_or_default().contains("lemma `exert`"));
 }
 
 #[test]

@@ -176,6 +176,32 @@ fn removing_all_counters_of_a_kind_reads_the_recipient_count() {
     assert_eq!(counters(0).get("-1/-1").copied().unwrap_or_default(), 0);
     assert_eq!(counters(0).get("+1/+1").copied().unwrap_or_default(), 1);
     assert_eq!(counters(1).get("-1/-1").copied().unwrap_or_default(), 0);
+    // A literal count composes with the same object slot (Clockwork Beetle's
+    // delayed `remove a +1/+1 counter from it` on a captured object).
+    engine.state.players[1].battlefield[0]
+        .counters
+        .insert("+1/+1".to_string(), 2);
+    execute(
+        &mut engine,
+        &source,
+        json!([{
+            "kind": "removeCounters",
+            "permanent": { "kind": "chosenTarget", "id": "targetPermanent" },
+            "counter": "+1/+1",
+            "count": 1,
+        }]),
+        &mut BTreeMap::new(),
+        BTreeMap::from([(
+            "targetPermanent".to_string(),
+            TargetRef::Permanent {
+                instance_id: "other".to_string(),
+            },
+        )]),
+    );
+    assert_eq!(
+        engine.state.players[1].battlefield[0].counters.get("+1/+1"),
+        Some(&1)
+    );
 }
 
 /// Rites of Spring: `Discard any number of cards` is a choice of zero to
@@ -192,6 +218,10 @@ fn any_number_discard_discards_exactly_the_chosen_cards() {
             test_instance(&id, test_definition(&id, "Instant"), "player-0")
         })
         .collect();
+    // The chosen cards are bound by their admitted incarnations.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let mut decisions = BTreeMap::new();
     execute(
         &mut engine,

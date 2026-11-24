@@ -651,9 +651,11 @@ fn another_players_permission_and_its_outcome_connector() {
         "Whenever an opponent draws a card, that player may discard a card.",
     );
     assert_eq!(status, "canonical", "{states:?}");
+    // The shared performer slot runs the optional wrapper as that player's
+    // instruction, so the player who decides is the event's player.
     assert_eq!(rules[0]["effects"][0]["kind"], "optionalEffects");
     assert_eq!(
-        rules[0]["effects"][0]["player"],
+        rules[0]["effects"][0]["performer"],
         json!({"kind":"triggeringPlayer"})
     );
     let (status, rules, states) = parse(

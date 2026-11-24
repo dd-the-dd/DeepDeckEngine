@@ -30423,10 +30423,6 @@ fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bolg, Erebor's Reckoning; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {

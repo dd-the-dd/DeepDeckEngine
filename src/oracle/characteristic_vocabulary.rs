@@ -579,6 +579,13 @@ impl PlayerRole {
             Self::Opponent => "opponent",
         }
     }
+
+    pub(in crate::oracle) const fn oracle_plural(self) -> &'static str {
+        match self {
+            Self::Any => "players",
+            Self::Opponent => "opponents",
+        }
+    }
 }
 
 const PLAYER_ROLES: &[PlayerRole] = &[PlayerRole::Any, PlayerRole::Opponent];
@@ -588,6 +595,17 @@ pub(in crate::oracle) fn lookup_player_role(raw: &str) -> Option<PlayerRole> {
         .iter()
         .copied()
         .find(|role| raw.eq_ignore_ascii_case(role.oracle_singular()))
+}
+
+/// The player role in either number (`target player`, `two target
+/// players`); the parent's target count decides which number it admits.
+pub(in crate::oracle) fn lookup_player_role_any_number(raw: &str) -> Option<PlayerRole> {
+    lookup_player_role(raw).or_else(|| {
+        PLAYER_ROLES
+            .iter()
+            .copied()
+            .find(|role| raw.eq_ignore_ascii_case(role.oracle_plural()))
+    })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

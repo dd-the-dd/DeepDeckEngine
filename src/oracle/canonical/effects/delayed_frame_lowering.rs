@@ -283,7 +283,12 @@ fn lower_created_replacement(
         governed.len() == 1 && governed[0] == exile,
         "exactly one exile of the object that would die as the replacing action",
     )?;
-    Ok(json!({"kind": "installDeathExileReplacement", "object": object}))
+    let CreatedRuleLifetime::ThisTurn = replacement.lifetime;
+    Ok(json!({
+        "kind": "installDeathExileReplacement",
+        "object": object,
+        "duration": {"kind": "untilEndOfCurrentTurn"},
+    }))
 }
 
 /// Moves each governed range into the rule its frame creates. Ranges run

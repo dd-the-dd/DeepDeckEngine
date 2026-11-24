@@ -1,5 +1,5 @@
 use crate::oracle::characteristic_vocabulary::{
-    AcceptedForms, PlayerRole, lookup_card_type, lookup_player_role, lookup_supertype,
+    AcceptedForms, PlayerRole, lookup_card_type, lookup_player_role_any_number, lookup_supertype,
 };
 
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
@@ -2253,7 +2253,7 @@ mod search_card_selector_tests;
 mod state_qualifier_tests;
 
 fn player_predicate(raw: &str) -> Option<PlayerPredicate> {
-    match lookup_player_role(raw)? {
+    match lookup_player_role_any_number(raw)? {
         PlayerRole::Any => Some(PlayerPredicate::Any),
         PlayerRole::Opponent => Some(PlayerPredicate::Opponent),
     }

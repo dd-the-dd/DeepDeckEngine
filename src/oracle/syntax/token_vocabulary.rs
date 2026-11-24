@@ -265,6 +265,8 @@ const RULES: &[LexicalRule] = &[
             "searches",
             "shuffle",
             "shuffles",
+            "take",
+            "takes",
         ],
         ("magicVocabulary", "actionWord"),
     ),

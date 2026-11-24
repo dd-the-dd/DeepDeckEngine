@@ -161,7 +161,15 @@ pub(in crate::oracle::canonical) fn effect_created_rule_starts(
         return false;
     }
     if word_at(cursor, 0, "when") || word_at(cursor, 0, "whenever") {
-        return true;
+        // The created rule's event is a bound object's departure or the
+        // controller's next spell. Another event after `when` (a reflexive
+        // `When an opponent does,`) is not this frame's to claim.
+        if word_at(cursor, 1, "you") && (word_at(cursor, 2, "next") || word_at(cursor, 2, "cast")) {
+            return true;
+        }
+        let mut event = cursor.clone();
+        return event.advance_to(cursor.position() + 1).is_ok()
+            && super::bound_object_reference_starts(&event);
     }
     if word_at(cursor, 0, "the") && word_at(cursor, 1, "next") && word_at(cursor, 2, "time") {
         return true;

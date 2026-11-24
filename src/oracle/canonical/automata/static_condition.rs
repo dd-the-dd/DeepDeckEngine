@@ -763,13 +763,14 @@ fn recognize_history_scope(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
 /// bound over a population (`an opponent cast fewer ...`) needs the least
 /// per-player count and is refused.
 fn history_aggregate(
-    cursor: &OracleTokenCursor<'_>,
+    cursor: &mut OracleTokenCursor<'_>,
     player: HistoryPlayer,
     threshold: CountThreshold,
 ) -> MachineResult<HistoryAggregate> {
     if player == HistoryPlayer::Controller {
         return Ok(HistoryAggregate::Total);
     }
+    cursor.enter("condition.history.aggregate");
     match threshold.operator {
         ThresholdOperator::AtLeast if threshold.value <= 1 => Ok(HistoryAggregate::Total),
         ThresholdOperator::AtLeast => Ok(HistoryAggregate::GreatestPerPlayer),

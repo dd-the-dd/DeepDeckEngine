@@ -130,6 +130,38 @@ fn recognize_earthbend_reminder(
     })
 }
 
+/// The reminder of one Earthbend action (CR 701.65), validated against the
+/// action's own quantity: whichever ability envelope performs the action
+/// (the activation family or the shared activated program) reads it here.
+pub(in crate::oracle::canonical) fn recognize_earthbend_action_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    quantity: &NumericAtom,
+) -> MachineResult<EarthbendReminderNode> {
+    let reminder = recognize_earthbend_reminder(cursor)?;
+    cursor.enter("earthbend.reminder.quantity-match");
+    cursor.require(
+        reminder.counter_count == *quantity,
+        "a reminder counter quantity equal to the Earthbend quantity",
+    )?;
+    cursor.require(
+        reminder.power_toughness
+            == (PowerToughnessNode {
+                power: 0,
+                toughness: 0,
+            }),
+        "the canonical 0/0 Earthbend base characteristics",
+    )?;
+    cursor.require(
+        reminder.keyword == GrantedKeyword::Haste,
+        "the canonical Earthbend haste grant",
+    )?;
+    cursor.require(
+        reminder.counter == "+1/+1",
+        "the canonical Earthbend +1/+1 counter kind",
+    )?;
+    Ok(reminder)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum State {
     Costs,
@@ -203,31 +235,9 @@ pub(in crate::oracle::canonical) fn recognize_earthbend_activation(
             State::ReminderOrComplete => {
                 cursor.enter("earthbend.activation.reminder-or-complete");
                 if cursor.peek().is_some_and(|raw| raw == "(") {
-                    let reminder = recognize_earthbend_reminder(cursor)?;
                     let quantity =
                         cursor.require_value(frame.quantity.clone(), "the Earthbend quantity")?;
-                    cursor.enter("earthbend.reminder.quantity-match");
-                    cursor.require(
-                        reminder.counter_count == quantity,
-                        "a reminder counter quantity equal to the Earthbend quantity",
-                    )?;
-                    cursor.require(
-                        reminder.power_toughness
-                            == (PowerToughnessNode {
-                                power: 0,
-                                toughness: 0,
-                            }),
-                        "the canonical 0/0 Earthbend base characteristics",
-                    )?;
-                    cursor.require(
-                        reminder.keyword == GrantedKeyword::Haste,
-                        "the canonical Earthbend haste grant",
-                    )?;
-                    cursor.require(
-                        reminder.counter == "+1/+1",
-                        "the canonical Earthbend +1/+1 counter kind",
-                    )?;
-                    frame.reminder = Some(reminder);
+                    frame.reminder = Some(recognize_earthbend_action_reminder(cursor, &quantity)?);
                 }
                 State::Complete
             }

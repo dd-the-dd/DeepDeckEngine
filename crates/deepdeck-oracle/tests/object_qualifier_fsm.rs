@@ -142,11 +142,13 @@ Draw two cards.",
     assert_eq!(cost.status, "canonical", "{:#?}", cost.diagnostics);
     let cost = cost.abilities[0].rule.as_ref().expect("canonical rule");
     assert!(cost.to_string().contains("dealtDamageThisTurn"), "{cost}");
-    // Near misses: a past clause without `this turn`, and a relative this
-    // slot does not read (a bound player, a stack relation).
+    // Near misses: a past clause without `this turn`, and a stack relation
+    // on an object that has no targets.
     for text in [
         "Destroy target creature that was dealt damage.",
-        "Counter target spell that targets a creature.",
+        // A permanent has no targets: the stack relation is a spell's
+        // (`Counter target spell that targets a creature` now reads it).
+        "Destroy target creature that targets a creature.",
     ] {
         assert_eq!(
             parse("Near Miss", "Instant", text).status,

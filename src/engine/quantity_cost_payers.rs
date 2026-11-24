@@ -10,10 +10,10 @@
 
 use super::*;
 
-/// `removeCounters` support: the source with a positive literal count (the
-/// historical contract), or any resolvable permanent reference whose count
-/// is the shared numeric expression (`counterCountOf` the same object for
-/// `remove all KIND counters`).
+/// `removeCounters` support: the source or any resolvable permanent
+/// reference (a target, or an object a delayed trigger captured), with a
+/// positive literal count or the shared numeric expression (`counterCountOf`
+/// the same object for `remove all KIND counters`).
 pub(super) fn counter_removal_supported(effect: &Value) -> bool {
     let source = matches!(
         value_kind(&effect["permanent"]),
@@ -23,8 +23,8 @@ pub(super) fn counter_removal_supported(effect: &Value) -> bool {
     let counted =
         integer_value(&effect["count"]).is_none() && numeric_expression_supported(&effect["count"]);
     effect["counter"].is_string()
-        && ((source && (literal || counted))
-            || (counted && target_reference_supported(&effect["permanent"])))
+        && (literal || counted)
+        && (source || target_reference_supported(&effect["permanent"]))
         && effect.get("bind").is_none_or(Value::is_string)
 }
 

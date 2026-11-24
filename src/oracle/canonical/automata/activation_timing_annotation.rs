@@ -109,6 +109,12 @@ pub(in crate::oracle::canonical) fn recognize_owned_ability_reminder(
             Err(_) => cursor.rollback(checkpoint),
         }
     }
+    // A keyword action with a typed reminder grammar validates its reminder
+    // against the action it explains, instead of being skipped as text.
+    if let Some(super::LocalEffectNode::Earthbend(action)) = effects.effects.last() {
+        return super::recognize_earthbend_action_reminder(cursor, &action.quantity)
+            .map(|_| AbilityReminderOwner::Mechanic);
+    }
     cursor.enter("activation.reminder.open");
     cursor.consume("(")?;
     if let Some(symbol) = cursor

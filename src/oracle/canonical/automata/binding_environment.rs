@@ -1545,7 +1545,18 @@ pub(in crate::oracle::canonical) fn with_object_antecedent<T>(
         return read(cursor);
     };
     let mut environment = installed_binding_environment(cursor);
-    environment.object = Some(antecedent);
+    // The closed clause's object is what a possessive `its` names first.
+    // It replaces the lexical antecedent only when it is itself a declared
+    // target (whose selector a nominal anaphor follows from); a source or
+    // event subject keeps the earlier target reachable for `that NOUN`
+    // (`Destroy target artifact. This creature gets +X/+0 ..., where X is
+    // that artifact's mana value.`).
+    environment.subject = Some(antecedent.reference);
+    if environment.object.is_none()
+        || matches!(antecedent.reference, PermanentEffectReference::Target(_))
+    {
+        environment.object = Some(antecedent);
+    }
     with_installed_environment(cursor, environment, read)
 }
 

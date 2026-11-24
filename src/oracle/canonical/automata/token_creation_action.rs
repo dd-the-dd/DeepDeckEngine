@@ -149,6 +149,10 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action_in_conte
         LocalPlayerReference::Controller
     } else {
         match recognize_player_reference(&mut trial, antecedent) {
+            // A player the binding environment names (`its controller` of
+            // an event object) is a performer: the clause layer's performer
+            // slot runs the ordinary creation as that player's instruction.
+            Ok(LocalPlayerReference::Bound(_)) => return TokenCreationAttempt::NotClaimed,
             Ok(player) => player,
             Err(_) => return TokenCreationAttempt::NotClaimed,
         }
