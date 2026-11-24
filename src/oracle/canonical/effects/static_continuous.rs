@@ -394,10 +394,9 @@ fn read_player_predicates(
             if !static_player_predicate_starts(cursor) {
                 // An independent clause with its own player subject.
                 cursor.enter("static.continuous.player-clause");
-                let next = cursor.require_value(
-                    read_optional_player_subject(cursor)?,
-                    "a player predicate or a player clause after `and`",
-                )?;
+                let subject = read_optional_player_subject(cursor)?;
+                let next = cursor
+                    .require_value(subject, "a player predicate or a player clause after `and`")?;
                 reading = next;
                 players =
                     lower_static_player_subject(cursor, reading.subject, input.face_type_line)?;
@@ -567,10 +566,9 @@ fn read_object_predicates(
                 *committed = true;
                 cursor.enter("static.continuous.base-power-toughness");
                 cursor.consume_phrase(&["base", "power", "and", "toughness"])?;
-                let statistics = cursor.require_value(
-                    recognize_numeric_power_toughness(cursor)?.literal(),
-                    "a literal base power and toughness",
-                )?;
+                let statistics = recognize_numeric_power_toughness(cursor)?.literal();
+                let statistics =
+                    cursor.require_value(statistics, "a literal base power and toughness")?;
                 modifiers.push(json!({
                     "kind": "setBasePowerToughness",
                     "objects": objects.clone(),

@@ -417,7 +417,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                     AttachedObjectEventAction::BecomeTapped
                     | AttachedObjectEventAction::BecomeBlocked
                     | AttachedObjectEventAction::TappedForMana,
+                ..
             }
+            | LocalTriggerEventNode::AttachedObjectBlock { role, .. }
             | LocalTriggerEventNode::AttachedObjectTargeted { role, .. }
             | LocalTriggerEventNode::AttachedObjectDealtDamage { role, .. },
         ) => attached_event_subject(*role),
