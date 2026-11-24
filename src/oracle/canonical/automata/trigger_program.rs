@@ -135,14 +135,18 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     let program_end = cursor.position();
     let once_each_turn = recognize_optional_trigger_limit(cursor)?;
     // A token reminder may follow the limit sentence; it still belongs to the
-    // body's last named-token creation and is validated against its catalog.
-    // Any other parenthetical stays unread and fails at completion.
+    // body's last catalog token creation and is validated against its
+    // catalog by the shared token reminder reader. Any other parenthetical
+    // stays unread and fails at completion.
     if once_each_turn
         && cursor.peek() == Some("(")
-        && let Some(LocalEffectNode::CreateNamedTokens(creation)) =
-            value.inner_sequence().effects.last()
+        && let Some(creation) = value
+            .inner_sequence()
+            .effects
+            .last()
+            .and_then(super::reminded_token_creation)
     {
-        recognize_named_token_creation_reminder(cursor, &creation.creation)?;
+        super::recognize_token_creation_reminder(cursor, &creation)?;
     }
     cursor.enter("trigger.program.complete");
     cursor.finish()?;
