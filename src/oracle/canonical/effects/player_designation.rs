@@ -12,10 +12,10 @@ pub(in crate::oracle::canonical) fn lower_player_designation_action(
     player: Value,
 ) -> Value {
     match action {
-        PlayerDesignationAction::Acquire(PlayerDesignation::Monarch) => {
+        PlayerDesignationAction::Acquire(AcquiredDesignation::Monarch) => {
             json!({ "kind": "becomeMonarch", "player": player })
         }
-        PlayerDesignationAction::Acquire(PlayerDesignation::Initiative) => {
+        PlayerDesignationAction::Acquire(AcquiredDesignation::Initiative) => {
             json!({ "kind": "takeInitiative", "player": player })
         }
         PlayerDesignationAction::RingTemptation => {

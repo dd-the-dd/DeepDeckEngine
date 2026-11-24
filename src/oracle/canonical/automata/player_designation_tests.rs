@@ -4,7 +4,7 @@ use super::super::{
     PlayerProhibition, SingularPlayerAction, SkipTurnPartNode, SkippedTurnPart,
     recognize_effect_sequence_with_context,
 };
-use super::{PlayerDesignation, PlayerDesignationAction};
+use super::{AcquiredDesignation, PlayerDesignationAction};
 use crate::oracle::syntax::recognize_entities;
 
 fn parse(text: &str) -> Result<EffectSequenceNode, super::super::super::MachineFailure> {
@@ -51,7 +51,7 @@ fn designations_are_registry_nouns_of_their_own_lemma() {
     assert_eq!(
         *action,
         SingularPlayerAction::Designation(PlayerDesignationAction::Acquire(
-            PlayerDesignation::Monarch
+            AcquiredDesignation::Monarch
         ))
     );
     let sequence = parse("Target player becomes the monarch.").unwrap();
@@ -63,7 +63,7 @@ fn designations_are_registry_nouns_of_their_own_lemma() {
     assert_eq!(
         *player_action(&sequence.effects[0]).1,
         SingularPlayerAction::Designation(PlayerDesignationAction::Acquire(
-            PlayerDesignation::Initiative
+            AcquiredDesignation::Initiative
         ))
     );
     // Near misses: the registry pairs each noun with one lemma.

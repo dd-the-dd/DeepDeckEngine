@@ -19,7 +19,7 @@ use super::{
 
 /// A designation a player has (CR 724.1, 725.1): at most one player has it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(in crate::oracle::canonical) enum PlayerDesignation {
+pub(in crate::oracle::canonical) enum AcquiredDesignation {
     /// CR 724: the monarch draws at the beginning of their end step.
     Monarch,
     /// CR 725: the initiative ventures into Undercity.
@@ -28,19 +28,19 @@ pub(in crate::oracle::canonical) enum PlayerDesignation {
 
 /// One registry row: the noun after `the` and the lemma that gives it.
 struct DesignationEntry {
-    designation: PlayerDesignation,
+    designation: AcquiredDesignation,
     noun: &'static str,
     lemma: VerbLemma,
 }
 
 const PLAYER_DESIGNATIONS: &[DesignationEntry] = &[
     DesignationEntry {
-        designation: PlayerDesignation::Monarch,
+        designation: AcquiredDesignation::Monarch,
         noun: "monarch",
         lemma: VerbLemma::Become,
     },
     DesignationEntry {
-        designation: PlayerDesignation::Initiative,
+        designation: AcquiredDesignation::Initiative,
         noun: "initiative",
         lemma: VerbLemma::Take,
     },
@@ -51,7 +51,7 @@ const PLAYER_DESIGNATIONS: &[DesignationEntry] = &[
 pub(in crate::oracle::canonical) enum PlayerDesignationAction {
     /// `PLAYER becomes the monarch` / `takes the initiative`: the acting
     /// player gets the designation; whoever had it loses it (CR 724.4, 725.4).
-    Acquire(PlayerDesignation),
+    Acquire(AcquiredDesignation),
     /// `the Ring tempts PLAYER` (CR 701.54a): the player chooses a creature
     /// they control as their Ring-bearer and the Ring's level rises.
     RingTemptation,
@@ -61,7 +61,7 @@ pub(in crate::oracle::canonical) enum PlayerDesignationAction {
 /// agreement: the registry lemma followed by `the NOUN`. `None` makes no claim.
 pub(in crate::oracle::canonical) fn player_designation_follows(
     cursor: &OracleTokenCursor<'_>,
-) -> Option<PlayerDesignation> {
+) -> Option<AcquiredDesignation> {
     let verb = cursor.peek()?;
     PLAYER_DESIGNATIONS
         .iter()
@@ -83,7 +83,7 @@ pub(in crate::oracle::canonical) fn player_designation_follows(
 pub(in crate::oracle::canonical) fn recognize_player_designation_fragment(
     cursor: &mut OracleTokenCursor<'_>,
     form: VerbAgreement,
-) -> MachineResult<PlayerDesignation> {
+) -> MachineResult<AcquiredDesignation> {
     cursor.enter("player-designation.verb");
     let designation = player_designation_follows(cursor).ok_or_else(|| {
         cursor.fail("a player designation (`become the monarch`, `take the initiative`)")

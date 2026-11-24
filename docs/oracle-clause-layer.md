@@ -564,3 +564,37 @@ couvre pas les antécédents ciblés (ceux-ci passent par l'anaphore nominale
   `player_reference_supported` (`mod.rs`, voie B). Le morceau moteur est
   préparé dans `.tmp/staging/lane-a/players-except-support.md` ; le chemin
   quantifié bascule dès qu'il est appliqué.
+
+### Lot 4 : ellipse verbale, prédicats d'objet et état des joueurs
+
+- **Coordination à verbe élidé.** Quand aucun lecteur ne prend le conjoint
+  après `and` ou une virgule de coordination, et que l'action précédente de
+  la même phrase était impérative, le conjoint est lu comme un cadre
+  d'arguments du même lemme : le verbe est réécrit dans la case de la
+  conjonction (`connector.rs::elided_verb_tokens`, vue de jetons aux spans
+  d'origine) et les lecteurs ordinaires lisent une clause complète
+  (`destroy A and all B`, `put N counters on A, M counters on B`). Un
+  conjoint qui n'est pas une clause complète du lemme garde l'échec
+  ordinaire ; deux lemmes distincts restent une séquence ordinaire. La
+  distinction des cibles (`another target`) vient de la liste de cibles
+  partagée et de la composition (`distinctFrom`).
+- **Prédicats d'objet** (`object_rule_clause.rs`) : `SUBJECT phases out`
+  (action mot-clé `PhaseOut`, CR 702.26b) et `SUBJECT assigns no combat
+  damage DURATION` (marqueur temporaire, CR 510.1) pour tout opérande de
+  permanent ; l'accord du verbe suit le nombre du sujet (`each` est
+  distributif). `remove OBJECT from combat` est l'action `RemoveFromCombat`
+  (CR 506.4).
+- **État des joueurs** (`player_designation.rs`, `player_action.rs`) :
+  `become the monarch`, `take the initiative` (registre désignation → lemme),
+  `the Ring tempts you` (le joueur est l'objet), `skip your next [N]
+  turn(s)|untap step|draw step|combat phase [this turn]` et `can't cast
+  spells this turn`. Les exécutants (`target player`, `each opponent`, `its
+  controller`) lisent les mêmes fragments ; `can't` garde sa place devant
+  le verbe nu dans le décalage de personne. `take the initiative` s'abaisse
+  vers `takeInitiative`, que le moteur refuse tant que la désignation
+  (aventure dans Undercity à l'entretien, vol par dégâts de combat) n'existe
+  pas.
+- **Répartition** (`distribute N counters among TARGETS`, CR 601.2d) : la
+  déclaration partagée `divideQuantityAmongTargets` (au moins un par cible)
+  puis `putDividedCounters`. Une énumération de cardinaux consécutifs
+  (`one, two, or three`) est un intervalle de cibles.

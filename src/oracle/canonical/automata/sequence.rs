@@ -1353,7 +1353,15 @@ fn recognize_effect_sequence_attempt_scoped(
                                 && !attempt_frame.is_committed()
                                 && memory.connectors.last() == Some(&EffectConnector::And)
                                 && memory.effects.len() > memory.sentence_start
-                                && cursor.position() > 0 =>
+                                && cursor.position() > 0
+                                // The slot is the written conjunction (`and`
+                                // or a coordinating comma) the connector read.
+                                && cursor
+                                    .token_slice(cursor.position() - 1, cursor.position())
+                                    .first()
+                                    .is_some_and(|token| {
+                                        token.raw == "," || token.raw.eq_ignore_ascii_case("and")
+                                    }) =>
                         {
                             match (memory.elided_lemma, memory.connector_start) {
                                 (Some(lemma), Some(connector_start)) => {
