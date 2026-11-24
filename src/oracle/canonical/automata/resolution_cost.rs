@@ -21,10 +21,10 @@ use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CollectionSelectionMethod, CostListGrammar, CostSequenceNode, CounterHolderNode,
+    CollectionSelectionMethod, CostListGrammar, CostSequenceNode, CounterHolderNode, NumericAtom,
     ObjectPredicate, ObjectQueryNode, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode,
     PaymentOriginZone, PaymentSourceNoun, RemoveCountersPaymentNode, ResourcePaymentNode,
-    TapObjectsCostNode, payment_action_starts, recognize_cost_sequence,
+    TapObjectsCostNode, literal_quantity, payment_action_starts, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,6 +71,8 @@ enum CostResource {
     Graveyard,
     /// Mana, life and battlefield objects: mana abilities may consume any.
     Battlefield,
+    /// The payer's own counters (`{E}`): no other part consumes them.
+    PlayerCounters,
 }
 
 impl ResolutionCostNode {
@@ -88,6 +90,7 @@ impl ResolutionCostNode {
                 zone: PaymentOriginZone::Graveyard,
                 ..
             } => CostResource::Graveyard,
+            Self::Payment(ResourcePaymentNode::PlayerCounters(_)) => CostResource::PlayerCounters,
             _ => CostResource::Battlefield,
         }
     }
@@ -170,17 +173,17 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("cost.resolution.sacrifice.source");
             cursor.require(
-                matches!(
-                    noun,
-                    PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token
-                ),
+                noun == PaymentSourceNoun::Permanent,
                 "a permanent source noun",
             )?;
             Ok(ResolutionCostNode::SacrificeSource)
         }
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Chosen(chosen)) => {
             cursor.enter("cost.resolution.sacrifice.quantity");
-            cursor.require(chosen.count == 1, "one sacrificed permanent")?;
+            cursor.require(
+                chosen.count == NumericAtom::Integer(1),
+                "one sacrificed permanent",
+            )?;
             let PaymentObjectFilter::Permanents(object) = chosen.filter else {
                 return Err(cursor.fail("a permanent operand"));
             };
@@ -191,7 +194,10 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         }
         PaymentActionNode::Discard(PaymentObjectsNode::Chosen(chosen)) => {
             cursor.enter("cost.resolution.discard.quantity");
-            cursor.require(chosen.count == 1, "one discarded card")?;
+            cursor.require(
+                chosen.count == NumericAtom::Integer(1),
+                "one discarded card",
+            )?;
             cursor.enter("cost.resolution.discard.source-exclusion");
             cursor.require(!chosen.exclude_source, "a discarded card without `another`")?;
             cursor.enter("cost.resolution.discard.selection-method");
@@ -212,8 +218,11 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
             let PaymentObjectFilter::Permanents(object) = chosen.filter else {
                 return Err(cursor.fail("a permanent operand"));
             };
+            cursor.enter("cost.resolution.tap.quantity");
+            let count = literal_quantity(chosen.count)
+                .ok_or_else(|| cursor.fail("a literal number of tapped permanents"))?;
             Ok(ResolutionCostNode::TapObjects(TapObjectsCostNode {
-                count: chosen.count,
+                count,
                 object,
                 exclude_source: chosen.exclude_source,
             }))
@@ -227,7 +236,7 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
             origin,
         } => {
             cursor.enter("cost.resolution.exile.quantity");
-            cursor.require(chosen.count == 1, "one exiled card")?;
+            cursor.require(chosen.count == NumericAtom::Integer(1), "one exiled card")?;
             cursor.enter("cost.resolution.exile.origin");
             let zone = cursor.require_value(origin, "`from your hand` or `from your graveyard`")?;
             cursor.enter("cost.resolution.exile.selection-method");
@@ -261,14 +270,12 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         }) => {
             cursor.enter("cost.resolution.remove-counters.holder");
             cursor.require(
-                matches!(
-                    holder,
-                    CounterHolderNode::Source(
-                        PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token
-                    )
-                ),
+                holder == CounterHolderNode::Source(PaymentSourceNoun::Permanent),
                 "counters removed from the source permanent (`from this PERMANENT`)",
             )?;
+            cursor.enter("cost.resolution.remove-counters.quantity");
+            let count = literal_quantity(count)
+                .ok_or_else(|| cursor.fail("a literal number of removed counters"))?;
             cursor.enter("cost.resolution.remove-counters.unnamed-quantity");
             cursor.require(
                 counter.is_some() || count == 1,

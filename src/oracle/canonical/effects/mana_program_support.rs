@@ -225,6 +225,7 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         LocalActivationCostNode::PayMana(_)
         | LocalActivationCostNode::TapSelf(_)
         | LocalActivationCostNode::PayLife(_)
+        | LocalActivationCostNode::PayPlayerCounters(_)
         | LocalActivationCostNode::SacrificeSelf(_)
         | LocalActivationCostNode::DiscardSelf(_)
         | LocalActivationCostNode::ExileSelf(_)
@@ -343,6 +344,10 @@ pub(in crate::oracle::canonical) fn require_supported_mana_cost_context(
                     | LocalActivationCostNode::ExileCards(_)
                     | LocalActivationCostNode::RemoveControlledCounters(_)
             ) && !matches!(cost, LocalActivationCostNode::PayMana(mana) if mana.contains_variable_x())
+                // Nor a random discard: the engine selects it only while
+                // paying a non-mana activation.
+                && !matches!(cost, LocalActivationCostNode::DiscardCard(discard)
+                    if discard.method == CollectionSelectionMethod::Random)
         }),
         "battlefield mana costs without an unresolved variable payment; hand-zone, graveyard-zone and variable mana activation support require backend context",
     )

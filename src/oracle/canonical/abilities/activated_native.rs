@@ -95,7 +95,7 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                     }),
                     cost.exclude_source,
                 ),
-                json!({ "kind": "exactly", "value": integer(1) }),
+                json!({ "kind": "exactly", "value": integer(cost.count) }),
             )),
             LocalActivationCostNode::TapObjects(cost) => Some(object_choice(
                 &activation_cost_tap_id(cost),
@@ -142,15 +142,21 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                 }),
                 json!({ "kind": "exactly", "value": integer(1) }),
             )),
-            LocalActivationCostNode::DiscardCard(cost) => Some(object_choice(
-                &activation_cost_card_id(cost),
-                json!({
-                    "kind": "cards",
-                    "zone": hand(controller()),
-                    "where": lower_card_object_predicate(&cost.filter),
-                }),
-                json!({ "kind": "exactly", "value": integer(1) }),
-            )),
+            // A random discard is selected by the engine while paying
+            // (CR 701.9b): the payer declares no card.
+            LocalActivationCostNode::DiscardCard(cost)
+                if cost.method == CollectionSelectionMethod::Choice =>
+            {
+                Some(object_choice(
+                    &activation_cost_card_id(cost),
+                    json!({
+                        "kind": "cards",
+                        "zone": hand(controller()),
+                        "where": lower_card_object_predicate(&cost.filter),
+                    }),
+                    json!({ "kind": "exactly", "value": integer(cost.count) }),
+                ))
+            }
             _ => None,
         })
         .collect()
@@ -234,6 +240,40 @@ pub(in crate::oracle::canonical) fn lower_local_activation_costs(
                 })
                 .collect()
         }
+        // One sacrifice per chosen permanent, each naming its own choice.
+        LocalActivationCostNode::SacrificeObject(cost) => {
+            chosen_object_ids(&activation_cost_object_id(cost), cost.count)
+                .into_iter()
+                .map(|id| {
+                    json!({
+                        "kind": "sacrificePermanent",
+                        "permanent": { "kind": "chosenObject", "id": id },
+                    })
+                })
+                .collect()
+        }
+        // One discard per chosen card; a random discard is one counted
+        // payment whose cards the engine selects while paying.
+        LocalActivationCostNode::DiscardCard(cost) => match cost.method {
+            CollectionSelectionMethod::Choice => {
+                chosen_object_ids(&activation_cost_card_id(cost), cost.count)
+                    .into_iter()
+                    .map(|id| {
+                        json!({
+                            "kind": "discardCard",
+                            "card": { "kind": "chosenObject", "id": id },
+                        })
+                    })
+                    .collect()
+            }
+            CollectionSelectionMethod::Random => vec![json!({
+                "kind": "discardCards",
+                "player": controller(),
+                "count": integer(cost.count),
+                "where": lower_card_object_predicate(&cost.filter),
+                "selection": { "kind": "random" },
+            })],
+        },
         // One return per chosen permanent, each naming its own choice.
         LocalActivationCostNode::ReturnObjects(cost) => {
             chosen_object_ids(&activation_cost_return_id(cost), cost.count)
@@ -262,16 +302,15 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
         LocalActivationCostNode::PayLife(payment) => {
             lower_resource_life_payment(payment, ResourcePaymentPayer::ActivationController)
         }
-        LocalActivationCostNode::SacrificeSelf(sacrifice) => {
-            let _confirmed_source_type = sacrifice.source_type;
-            json!({
-                "kind": "sacrificePermanent",
-                "permanent": self_ref(),
-            })
+        LocalActivationCostNode::PayPlayerCounters(payment) => {
+            lower_resource_player_counter_payment(
+                payment,
+                Some(ResourcePaymentPayer::ActivationController),
+            )
         }
-        LocalActivationCostNode::SacrificeObject(cost) => json!({
+        LocalActivationCostNode::SacrificeSelf(_) => json!({
             "kind": "sacrificePermanent",
-            "permanent": { "kind": "chosenObject", "id": activation_cost_object_id(cost) },
+            "permanent": self_ref(),
         }),
         LocalActivationCostNode::DiscardSelf(_) => json!({
             "kind": "discardCard",
@@ -282,13 +321,13 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             "object": self_ref(),
             "zone": match exile.source_zone {
                 ExileSelfSourceZone::Graveyard => "graveyard",
+                ExileSelfSourceZone::Battlefield => "battlefield",
             },
         }),
-        LocalActivationCostNode::DiscardCard(cost) => json!({
-            "kind": "discardCard",
-            "card": { "kind": "chosenObject", "id": activation_cost_card_id(cost) },
-        }),
-        LocalActivationCostNode::TapObjects(_) | LocalActivationCostNode::ReturnObjects(_) => {
+        LocalActivationCostNode::TapObjects(_)
+        | LocalActivationCostNode::ReturnObjects(_)
+        | LocalActivationCostNode::SacrificeObject(_)
+        | LocalActivationCostNode::DiscardCard(_) => {
             unreachable!("a chosen multi-object cost lowers through lower_local_activation_costs")
         }
         LocalActivationCostNode::ReturnSelf => json!({
@@ -315,7 +354,8 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
                 || json!({ "kind": "decisionResult", "decisionId": activation_cost_counter_id(cost) }),
                 |counter| json!(counter.as_str()),
             ),
-            "count": integer(cost.count),
+            // A literal or this activation's chosen X (`xValue`).
+            "count": lower_numeric_atom(cost.count),
         }),
         LocalActivationCostNode::RemoveControlledCounters(cost) => {
             let mut value = json!({

@@ -192,6 +192,9 @@ fn recognize_ward_resource_cost(
             (0..=i64::from(i32::MAX)).contains(&life.amount),
             "a fixed nonnegative life amount fitting i32 for Ward",
         )?,
+        ResourcePaymentNode::PlayerCounters(_) => {
+            return Err(cursor.fail("a mana or life Ward payment"));
+        }
     }
     Ok(cost)
 }

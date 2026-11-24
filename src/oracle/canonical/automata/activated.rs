@@ -81,11 +81,21 @@ pub(in crate::oracle::canonical) fn recognize_activated_mana_ability(
                 cursor.enter("activation.mana.followup");
                 // The only consumer lowers the followup through the shared
                 // sequence lowerer, which owns sentence-conditional ranges.
+                // The costs prove whether the battlefield source is named
+                // by a followup's self-reference (`This land doesn't untap`).
+                let mut context =
+                    super::EffectRecognitionContext::default().with_sentence_conditionals();
+                context.activation_source_availability =
+                    super::ExplicitActivationSourceAvailability::from_costs(
+                        cursor
+                            .require_value(memory.costs.as_ref(), "populated activation costs")?,
+                        false,
+                    );
                 memory.followup = Some(super::recognize_effect_sequence_with_context(
                     cursor,
                     name_links,
                     name_failure,
-                    &super::EffectRecognitionContext::default().with_sentence_conditionals(),
+                    &context,
                 )?);
                 ActivationState::Complete
             }

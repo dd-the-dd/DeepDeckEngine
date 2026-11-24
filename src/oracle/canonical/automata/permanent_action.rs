@@ -431,8 +431,9 @@ fn subject_context_failure(
     let explicit_activation_source_available = matches!(
         subject,
         PermanentOperandNode::Reference(LocalObjectReference::SourceSelf)
-    ) && context.activation_source_availability
-        == ExplicitActivationSourceAvailability::RetainedBattlefieldPermanent;
+    ) && context
+        .activation_source_availability
+        .names_battlefield_source();
     if matches!(subject, PermanentOperandNode::Reference(_))
         && context.source.is_none()
         && !explicit_activation_source_available

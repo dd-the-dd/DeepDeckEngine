@@ -58,12 +58,15 @@ fn removal(node: PaymentActionNode) -> RemoveCountersPaymentNode {
 #[test]
 fn remove_reads_quantity_optional_kind_and_three_holder_forms() {
     let typed = removal(payment("Remove two charge counters from this artifact").unwrap());
-    assert_eq!(typed.count, 2);
+    assert_eq!(typed.count, NumericAtom::Integer(2));
     assert_eq!(typed.counter.as_ref().map(|c| c.as_str()), Some("charge"));
     assert!(matches!(typed.holder, CounterHolderNode::Source(_)));
 
     let untyped = removal(payment("Remove a counter from this creature").unwrap());
-    assert_eq!((untyped.count, untyped.counter), (1, None));
+    assert_eq!(
+        (untyped.count, untyped.counter),
+        (NumericAtom::Integer(1), None)
+    );
 
     let one = removal(payment("Remove a +1/+1 counter from a creature you control").unwrap());
     assert_eq!(one.counter.as_ref().map(|c| c.as_str()), Some("+1/+1"));
@@ -71,7 +74,7 @@ fn remove_reads_quantity_optional_kind_and_three_holder_forms() {
 
     let among =
         removal(payment("Remove two +1/+1 counters from among artifacts you control").unwrap());
-    assert_eq!(among.count, 2);
+    assert_eq!(among.count, NumericAtom::Integer(2));
     assert!(matches!(among.holder, CounterHolderNode::Among(_)));
 }
 
@@ -124,7 +127,7 @@ fn counter_removal_projects_onto_activation_and_resolution_schemas() {
         ),
         (Some("+1/+1"), 1)
     );
-    assert_eq!(typed.count, 2);
+    assert_eq!(typed.count, NumericAtom::Integer(2));
     assert_eq!((untyped.counter.clone(), untyped.cost_index), (None, 3));
 
     // Several unnamed counters are a distribution: each may be of any kind.

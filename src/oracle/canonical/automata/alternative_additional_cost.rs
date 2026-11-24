@@ -98,7 +98,7 @@ fn recognize_additional_cost_option(
             Ok(AlternativeAdditionalCostOptionNode::PayLife(life))
         }
         PaymentActionNode::Discard(PaymentObjectsNode::Chosen(chosen))
-            if chosen.count == 1
+            if chosen.count == super::NumericAtom::Integer(1)
                 && !chosen.exclude_source
                 && chosen.method == CollectionSelectionMethod::Choice
                 && chosen.filter.is_any_card() =>

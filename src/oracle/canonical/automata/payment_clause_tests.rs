@@ -52,7 +52,7 @@ fn every_cost_lemma_reads_its_operand_frame() {
     assert!(matches!(
         payment_by("Put a -1/-1 counter on this creature", me),
         Ok(PaymentActionNode::PutCounters(PutCountersPaymentNode {
-            count: 1,
+            count: NumericAtom::Integer(1),
             holder: CounterHolderNode::Source(_),
             ..
         }))
@@ -60,7 +60,7 @@ fn every_cost_lemma_reads_its_operand_frame() {
     assert!(matches!(
         payment_by("Put two +1/+1 counters on a creature you control", me),
         Ok(PaymentActionNode::PutCounters(PutCountersPaymentNode {
-            count: 2,
+            count: NumericAtom::Integer(2),
             holder: CounterHolderNode::One(_),
             ..
         }))

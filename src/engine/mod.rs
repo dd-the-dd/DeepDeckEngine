@@ -4139,7 +4139,7 @@ fn mana_rule_supported(rule: &Value) -> bool {
             && !costs.iter().any(|cost| {
                 matches!(
                     value_kind(cost),
-                    Some("removeCountersFromControlledPermanents" | "move")
+                    Some("removeCountersFromControlledPermanents" | "move" | "discardCards")
                 )
             })
     });
@@ -4383,7 +4383,7 @@ fn cost_supported(cost: &Value) -> bool {
                 && integer_value(&cost["count"]).is_some_and(|count| count > 0)
         }
         Some("payPlayerCounters") => {
-            player_reference_supported(&cost["player"])
+            cost.get("player").is_none_or(player_reference_supported)
                 && cost["counter"].is_string()
                 && integer_value(&cost["count"]).is_some_and(|count| count > 0)
         }
@@ -4396,6 +4396,7 @@ fn cost_supported(cost: &Value) -> bool {
             card_filter_supported(&cost["where"])
                 && integer_value(&cost["count"]).is_some_and(|count| count > 0)
         }
+        Some("discardCards") => cost_payment::random_discard_cost_supported(cost),
         Some("discardCard") => {
             target_reference_supported(&cost["card"])
                 || value_kind(&cost["card"]) == Some("self")
@@ -4436,7 +4437,7 @@ fn cost_supported(cost: &Value) -> bool {
             ) && (cost["counter"].is_string()
                 || (value_kind(&cost["counter"]) == Some("decisionResult")
                     && cost["counter"]["decisionId"].is_string()))
-                && integer_value(&cost["count"]).is_some_and(|count| count > 0)
+                && cost_payment::activated_cost_count_supported(&cost["count"])
         }
         Some("exileHistoricManaValue") => {
             integer_value(&cost["minimum"]).is_some_and(|minimum| minimum > 0)
@@ -13161,7 +13162,9 @@ impl GameEngine {
     }
 
     fn remove_counter_cost_has_option(permanent: &CardInstance, cost: &Value) -> bool {
-        let count = integer_value(&cost["count"]).unwrap_or(0);
+        let Some(count) = integer_value(&cost["count"]) else {
+            return value_kind(&cost["count"]) == Some("decisionResult");
+        };
         if count <= 0 {
             return false;
         }
@@ -13180,8 +13183,8 @@ impl GameEngine {
         cost: &Value,
         decisions: &BTreeMap<String, Value>,
     ) -> bool {
-        let count = integer_value(&cost["count"]).unwrap_or(0);
-        count > 0
+        let count = cost_payment::activated_cost_count(&cost["count"], decisions).unwrap_or(-1);
+        count >= 0
             && Self::remove_counter_cost_name(cost, decisions).is_some_and(|counter| {
                 permanent.counters.get(&counter).copied().unwrap_or(0) >= count
             })
@@ -18958,7 +18961,7 @@ impl GameEngine {
                         continue;
                     }
                     for (declaration_index, declaration) in declarations.into_iter().enumerate() {
-                        if !self.activated_sacrifice_costs_are_payable(
+                        if !self.activated_nonmana_costs_are_payable(
                             rule,
                             &player.id,
                             &card.instance_id,
@@ -19715,7 +19718,7 @@ impl GameEngine {
                     continue;
                 }
                 for (declaration_index, declaration) in declarations.into_iter().enumerate() {
-                    if !self.activated_sacrifice_costs_are_payable(
+                    if !self.activated_nonmana_costs_are_payable(
                         &rule,
                         &player.id,
                         &permanent.instance_id,
@@ -27189,7 +27192,11 @@ impl GameEngine {
                         .ok_or_else(|| {
                             EngineError::new("activated ability counter cost has no choice")
                         })?;
-                    let count = integer_value(&cost["count"]).unwrap_or(0);
+                    let count =
+                        cost_payment::activated_cost_count(&cost["count"], &action.decisions)
+                            .ok_or_else(|| {
+                                EngineError::new("activated ability counter cost has no count")
+                            })?;
                     let available = self.state.players[controller_index].battlefield[card_index]
                         .counters
                         .get(&counter)

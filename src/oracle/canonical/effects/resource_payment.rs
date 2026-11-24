@@ -23,6 +23,24 @@ pub(in crate::oracle::canonical) fn lower_resource_life_payment(
     value
 }
 
+/// `payPlayerCounters`: the payer removes N counters of one kind from
+/// themself (CR 107.14 for `{E}`). An activation names its controller; a
+/// resolution cost program is paid by its enclosing program's player.
+pub(in crate::oracle::canonical) fn lower_resource_player_counter_payment(
+    cost: &PlayerCounterPaymentNode,
+    payer: Option<ResourcePaymentPayer>,
+) -> Value {
+    let mut value = json!({
+        "kind": "payPlayerCounters",
+        "counter": cost.counter.as_str(),
+        "count": integer(cost.count),
+    });
+    if matches!(payer, Some(ResourcePaymentPayer::ActivationController)) {
+        value["player"] = controller();
+    }
+    value
+}
+
 pub(in crate::oracle::canonical) fn lower_resource_payment(
     cost: &ResourcePaymentNode,
     payer: ResourcePaymentPayer,
@@ -30,6 +48,9 @@ pub(in crate::oracle::canonical) fn lower_resource_payment(
     match cost {
         ResourcePaymentNode::Mana(cost) => lower_resource_mana_payment(cost),
         ResourcePaymentNode::Life(cost) => lower_resource_life_payment(cost, payer),
+        ResourcePaymentNode::PlayerCounters(cost) => {
+            lower_resource_player_counter_payment(cost, Some(payer))
+        }
     }
 }
 

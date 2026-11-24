@@ -4,16 +4,20 @@
 //! activation semantics: the source zone implied by `this card` actions, the
 //! ordinal of each declared choice and the X producer. An action without an
 //! activation representation fails here at its own state.
+//!
+//! Quantity slots are the shared numeric atom. A variable quantity is bound
+//! only by this activation's own `{X}` mana cost (CR 107.3, 601.2b via
+//! 602.2b): without it the activation fails binding before any lowering.
 use crate::oracle::counter_name::CounterName;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CollectionSelectionMethod, CostListGrammar, CounterHolderNode, DiscardSelfCostNode,
-    ExileSelfCostNode, ExileSelfSourceZone, ManaCostNode, ObjectPredicate, ObjectQueryNode,
-    PayLifeCostNode, PaymentActionNode, PaymentObjectFilter, PaymentObjectsNode, PaymentOriginZone,
-    PaymentSourceNoun, RemoveCountersPaymentNode, ResourcePaymentNode, SacrificeSelfCostNode,
-    SacrificeSelfSourceNoun, TapObjectsCostNode, TapSelfCostNode, object_predicate_uses_x,
-    recognize_cost_sequence,
+    CollectionSelectionMethod, CostConnector, CostListGrammar, CounterHolderNode,
+    DiscardSelfCostNode, ExileSelfCostNode, ExileSelfSourceZone, ManaCostNode, NumericAtom,
+    ObjectPredicate, ObjectQueryNode, PayLifeCostNode, PaymentActionNode, PaymentObjectFilter,
+    PaymentObjectsNode, PaymentOriginZone, PaymentSourceNoun, PlayerCounterPaymentNode,
+    RemoveCountersPaymentNode, ResourcePaymentNode, SacrificeSelfCostNode, TapObjectsCostNode,
+    TapSelfCostNode, literal_quantity, object_predicate_uses_x, recognize_cost_sequence,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,6 +25,8 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     PayMana(ManaCostNode),
     TapSelf(TapSelfCostNode),
     PayLife(PayLifeCostNode),
+    /// `pay {E}{E}`: counters removed from the activating player.
+    PayPlayerCounters(PlayerCounterPaymentNode),
     SacrificeSelf(SacrificeSelfCostNode),
     SacrificeObject(SelectedSacrificeCostNode),
     DiscardSelf(DiscardSelfCostNode),
@@ -65,11 +71,12 @@ pub(in crate::oracle::canonical) struct ChosenCounterPlacementCostNode {
 }
 
 /// Counters removed from the ability's source (on the battlefield). An
-/// unnamed kind is one counter whose kind is declared while paying.
+/// unnamed kind is one counter whose kind is declared while paying. The
+/// count is a literal or this activation's chosen X.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SourceCounterRemovalCostNode {
     pub counter: Option<CounterName>,
-    pub count: i64,
+    pub count: NumericAtom,
     pub cost_index: usize,
 }
 
@@ -102,10 +109,12 @@ pub(in crate::oracle::canonical) struct ChosenExileCostNode {
     pub cost_index: usize,
 }
 
-/// One chosen permanent paid as an activation cost. The cost parent assigns
-/// its stable ordinal; the shared query retains every characteristic filter.
+/// N chosen permanents sacrificed as an activation cost. The cost parent
+/// assigns the stable ordinal naming the declared choice; the shared query
+/// retains every characteristic filter.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SelectedSacrificeCostNode {
+    pub count: i64,
     pub object: ObjectQueryNode,
     /// `another`: the ability's source cannot be the sacrificed permanent.
     pub exclude_source: bool,
@@ -120,18 +129,22 @@ pub(in crate::oracle::canonical) struct ChosenTapCostNode {
     pub cost_index: usize,
 }
 
-/// One card chosen from the payer's hand and discarded as a cost. Unlike
-/// `DiscardSelf`, it constrains no source zone: the source is only the
-/// ability's host, never the discarded card.
+/// N cards from the payer's hand discarded as a cost, chosen by the payer or
+/// at random (CR 701.9b). Unlike `DiscardSelf`, it constrains no source zone:
+/// the source is only the ability's host, never the discarded card.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct ChosenDiscardCostNode {
+    pub count: i64,
     pub filter: ObjectPredicate,
+    pub method: CollectionSelectionMethod,
     pub cost_index: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum ActivationCostConnector {
     Comma,
+    /// `Sacrifice a Swamp and a Forest`: one all-or-nothing payment.
+    And,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -157,6 +170,7 @@ impl ActivationCostSequenceNode {
                 LocalActivationCostNode::DiscardSelf(_) => requirements.hand = true,
                 LocalActivationCostNode::ExileSelf(exile) => match exile.source_zone {
                     ExileSelfSourceZone::Graveyard => requirements.graveyard = true,
+                    ExileSelfSourceZone::Battlefield => requirements.battlefield = true,
                 },
                 LocalActivationCostNode::TapSelf(_)
                 | LocalActivationCostNode::SacrificeSelf(_)
@@ -171,6 +185,7 @@ impl ActivationCostSequenceNode {
                 ) => requirements.battlefield = true,
                 LocalActivationCostNode::PayMana(_)
                 | LocalActivationCostNode::PayLife(_)
+                | LocalActivationCostNode::PayPlayerCounters(_)
                 | LocalActivationCostNode::DiscardCard(_)
                 | LocalActivationCostNode::TapObjects(_)
                 | LocalActivationCostNode::SacrificeObject(_)
@@ -192,7 +207,7 @@ pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
         cursor,
         CostListGrammar {
             comma: true,
-            and: false,
+            and: true,
         },
     )?;
     cursor.enter("activation.compound.cost-continuation");
@@ -200,7 +215,25 @@ pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
         sequence.costs.len() == sequence.connectors.len() + 1,
         "one connector between each activation cost",
     )?;
-    let connectors = vec![ActivationCostConnector::Comma; sequence.connectors.len()];
+    let connectors = sequence
+        .connectors
+        .iter()
+        .map(|connector| match connector {
+            CostConnector::Comma => ActivationCostConnector::Comma,
+            CostConnector::And => ActivationCostConnector::And,
+        })
+        .collect();
+    // X in a quantity slot is this activation's chosen X: its producer is the
+    // activation's own `{X}` mana cost, checked before any projection.
+    cursor.enter("activation.compound.quantity-x-producer");
+    cursor.require(
+        !sequence.costs.iter().any(payment_quantity_uses_x)
+            || sequence.costs.iter().any(|payment| {
+                matches!(payment, PaymentActionNode::Pay(ResourcePaymentNode::Mana(mana))
+                    if mana.contains_variable_x())
+            }),
+        "an {X} mana cost in this activation producing X for its cost quantity",
+    )?;
     let costs = sequence
         .costs
         .into_iter()
@@ -278,6 +311,9 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         PaymentActionNode::Pay(ResourcePaymentNode::Life(life)) => {
             Ok(LocalActivationCostNode::PayLife(life))
         }
+        PaymentActionNode::Pay(ResourcePaymentNode::PlayerCounters(counters)) => {
+            Ok(LocalActivationCostNode::PayPlayerCounters(counters))
+        }
         PaymentActionNode::Tap(PaymentObjectsNode::Source(PaymentSourceNoun::TapSymbol)) => {
             Ok(LocalActivationCostNode::TapSelf(TapSelfCostNode))
         }
@@ -297,9 +333,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&object.predicate),
                 "no {X} in the tapped-permanent predicate",
             )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.tap-objects")?;
             Ok(LocalActivationCostNode::TapObjects(ChosenTapCostNode {
                 tap: TapObjectsCostNode {
-                    count: chosen.count,
+                    count,
                     object,
                     exclude_source: chosen.exclude_source,
                 },
@@ -308,30 +345,23 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         }
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.sacrifice-self.source-type");
-            let source_type = match noun {
-                PaymentSourceNoun::PermanentType(card_type) => {
-                    SacrificeSelfSourceNoun::PermanentType(card_type)
-                }
-                PaymentSourceNoun::Token => SacrificeSelfSourceNoun::Token,
-                PaymentSourceNoun::TapSymbol | PaymentSourceNoun::Card => {
-                    return Err(cursor.fail("a permanent type or `token` after `sacrifice this`"));
-                }
-            };
+            cursor.require(
+                noun == PaymentSourceNoun::Permanent,
+                "a source noun naming a permanent after `sacrifice`",
+            )?;
             Ok(LocalActivationCostNode::SacrificeSelf(
-                SacrificeSelfCostNode { source_type },
+                SacrificeSelfCostNode,
             ))
         }
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Chosen(chosen)) => {
-            cursor.enter("activation.selected-sacrifice.quantity");
-            cursor.require(
-                chosen.count == 1,
-                "`a`, `an` or `another` before one chosen permanent",
-            )?;
             let PaymentObjectFilter::Permanents(object) = chosen.filter else {
                 return Err(cursor.fail("a permanent operand"));
             };
+            let count =
+                declared_object_count(cursor, chosen.count, "activation.selected-sacrifice")?;
             Ok(LocalActivationCostNode::SacrificeObject(
                 SelectedSacrificeCostNode {
+                    count,
                     object,
                     exclude_source: chosen.exclude_source,
                     cost_index,
@@ -342,12 +372,12 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             Ok(LocalActivationCostNode::DiscardSelf(DiscardSelfCostNode))
         }
         PaymentActionNode::Discard(PaymentObjectsNode::Chosen(chosen)) => {
-            // Quantity beyond one card and the random selection method have
-            // no activation-cost representation.
-            cursor.enter("activation.discard-card.quantity");
+            // `another card` names no source card in hand: the exclusion has
+            // no object to exclude in a hand discard.
+            cursor.enter("activation.discard-card.source-exclusion");
             cursor.require(
-                chosen.count == 1 && !chosen.exclude_source,
-                "`a`, `an` or `one` (a single discarded card per activation cost)",
+                !chosen.exclude_source,
+                "discarded cards without `another` or `other`",
             )?;
             let PaymentObjectFilter::Cards(filter) = chosen.filter else {
                 return Err(cursor.fail("a card operand"));
@@ -357,30 +387,40 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&filter),
                 "no {X} in the discarded-card predicate",
             )?;
-            cursor.enter("activation.discard-card.selection-support");
-            cursor.require(
-                chosen.method == CollectionSelectionMethod::Choice,
-                "a payer-chosen discarded card (random cost discard is unsupported)",
-            )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.discard-card")?;
             Ok(LocalActivationCostNode::DiscardCard(
-                ChosenDiscardCostNode { filter, cost_index },
+                ChosenDiscardCostNode {
+                    count,
+                    filter,
+                    method: chosen.method,
+                    cost_index,
+                },
             ))
         }
         PaymentActionNode::Exile {
-            objects: PaymentObjectsNode::Source(_),
+            objects: PaymentObjectsNode::Source(noun),
             origin,
         } => {
-            // The named zone is where the ability is activated from.
+            // The named zone is where the ability is activated from; a
+            // source permanent (`exile this artifact`) is on the battlefield.
             cursor.enter("activation.exile-self.origin");
-            let origin =
-                cursor.require_value(origin, "`from your graveyard` after `exile this card`")?;
-            cursor.enter("activation.exile-self.source-zone");
-            cursor.require(
-                origin == PaymentOriginZone::Graveyard,
-                "`graveyard` (the only source zone an exile-self activation cost supports)",
-            )?;
+            let source_zone = match (noun, origin) {
+                (PaymentSourceNoun::Permanent, None) => ExileSelfSourceZone::Battlefield,
+                (PaymentSourceNoun::Card, Some(PaymentOriginZone::Graveyard)) => {
+                    ExileSelfSourceZone::Graveyard
+                }
+                (PaymentSourceNoun::Card, None) => {
+                    return Err(cursor.fail("`from your graveyard` after `exile this card`"));
+                }
+                _ => {
+                    cursor.enter("activation.exile-self.source-zone");
+                    return Err(cursor.fail(
+                        "`graveyard` for `this card` or no zone for a source permanent (the source zones an exile-self activation cost supports)",
+                    ));
+                }
+            };
             Ok(LocalActivationCostNode::ExileSelf(ExileSelfCostNode {
-                source_zone: ExileSelfSourceZone::Graveyard,
+                source_zone,
             }))
         }
         PaymentActionNode::Exile {
@@ -402,8 +442,9 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 chosen.method == CollectionSelectionMethod::Choice,
                 "payer-chosen exiled cards (a random cost exile is unsupported)",
             )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.exile-cards")?;
             Ok(LocalActivationCostNode::ExileCards(ChosenExileCostNode {
-                count: chosen.count,
+                count,
                 filter,
                 zone,
                 exclude_source: chosen.exclude_source,
@@ -423,11 +464,8 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
         PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.return-self.source-type");
             cursor.require(
-                matches!(
-                    noun,
-                    PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token
-                ),
-                "a permanent type or `token` after `return this`",
+                noun == PaymentSourceNoun::Permanent,
+                "a source noun naming a permanent after `return`",
             )?;
             Ok(LocalActivationCostNode::ReturnSelf)
         }
@@ -440,9 +478,10 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 !object_predicate_uses_x(&object.predicate),
                 "no {X} in the returned-permanent predicate",
             )?;
+            let count = declared_object_count(cursor, chosen.count, "activation.return-objects")?;
             Ok(LocalActivationCostNode::ReturnObjects(
                 ChosenReturnCostNode {
-                    count: chosen.count,
+                    count,
                     object,
                     exclude_source: chosen.exclude_source,
                     cost_index,
@@ -450,24 +489,26 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             ))
         }
         PaymentActionNode::PutCounters(placement) => match placement.holder {
-            CounterHolderNode::Source(
-                PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token,
-            ) => Ok(LocalActivationCostNode::PutSourceCounters(
-                SourceCounterPlacementCostNode {
-                    counter: placement.counter,
-                    count: placement.count,
-                },
-            )),
+            CounterHolderNode::Source(PaymentSourceNoun::Permanent) => {
+                let count = literal_counter_count(cursor, placement.count)?;
+                Ok(LocalActivationCostNode::PutSourceCounters(
+                    SourceCounterPlacementCostNode {
+                        counter: placement.counter,
+                        count,
+                    },
+                ))
+            }
             CounterHolderNode::One(object) => {
                 cursor.enter("activation.put-counters.numeric-context");
                 cursor.require(
                     !object_predicate_uses_x(&object.predicate),
                     "no {X} in the counter-holder predicate",
                 )?;
+                let count = literal_counter_count(cursor, placement.count)?;
                 Ok(LocalActivationCostNode::PutChosenCounters(
                     ChosenCounterPlacementCostNode {
                         counter: placement.counter,
-                        count: placement.count,
+                        count,
                         object,
                         cost_index,
                     },
@@ -510,15 +551,13 @@ fn activation_counter_removal(
         CounterHolderNode::Source(noun) => {
             cursor.enter("activation.remove-counters.source-noun");
             cursor.require(
-                matches!(
-                    noun,
-                    PaymentSourceNoun::PermanentType(_) | PaymentSourceNoun::Token
-                ),
+                noun == PaymentSourceNoun::Permanent,
                 "a permanent source noun",
             )?;
             // Several unnamed counters may be of several kinds: each removed
             // counter is chosen, so they are a distribution on the source.
-            if counter.is_none() && count > 1 {
+            if counter.is_none() && count != NumericAtom::Integer(1) {
+                let count = literal_counter_count(cursor, count)?;
                 return Ok(LocalActivationCostNode::RemoveControlledCounters(
                     ControlledCounterRemovalCostNode {
                         holder: CounterDistributionHolder::Source,
@@ -527,6 +566,8 @@ fn activation_counter_removal(
                     },
                 ));
             }
+            // Counters of one named kind on the source: a literal count or
+            // the activation's chosen X (`Remove X +1/+1 counters`).
             Ok(LocalActivationCostNode::RemoveSourceCounters(
                 SourceCounterRemovalCostNode {
                     counter,
@@ -540,15 +581,70 @@ fn activation_counter_removal(
             // distribution among several; only one counter is equivalent.
             cursor.enter("activation.remove-counters.one-holder-quantity");
             cursor.require(
-                count == 1,
+                count == NumericAtom::Integer(1),
                 "one counter when removing from one chosen permanent",
             )?;
-            controlled_counter_removal(cursor, object, counter, count)
+            controlled_counter_removal(cursor, object, counter, 1)
         }
         CounterHolderNode::Among(object) => {
+            let count = literal_counter_count(cursor, count)?;
             controlled_counter_removal(cursor, object, counter, count)
         }
     }
+}
+
+/// True when a payment action's quantity slot is the variable X.
+fn payment_quantity_uses_x(payment: &PaymentActionNode) -> bool {
+    match payment {
+        PaymentActionNode::Tap(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::Untap(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::Sacrifice(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::Discard(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::Exert(PaymentObjectsNode::Chosen(chosen))
+        | PaymentActionNode::Exile {
+            objects: PaymentObjectsNode::Chosen(chosen),
+            ..
+        }
+        | PaymentActionNode::Reveal {
+            objects: PaymentObjectsNode::Chosen(chosen),
+            ..
+        } => chosen.count == NumericAtom::VariableX,
+        PaymentActionNode::RemoveCounters(removal) => removal.count == NumericAtom::VariableX,
+        PaymentActionNode::PutCounters(placement) => placement.count == NumericAtom::VariableX,
+        _ => false,
+    }
+}
+
+/// A declared object choice is enumerated with a literal cardinality: the
+/// engine's `chooseObjects` declaration takes an exact literal quantity, so a
+/// chosen-X number of objects is a typed engine gap, never approximated.
+fn declared_object_count(
+    cursor: &mut OracleTokenCursor<'_>,
+    count: NumericAtom,
+    state: &'static str,
+) -> MachineResult<i64> {
+    literal_quantity(count).ok_or_else(|| {
+        cursor.enter(state);
+        cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
+            "a literal number of objects chosen while paying (a declaration of X chosen objects has no engine schema)",
+        )
+    })
+}
+
+/// Counter placement and distributed removal pay a literal number of counters.
+fn literal_counter_count(
+    cursor: &mut OracleTokenCursor<'_>,
+    count: NumericAtom,
+) -> MachineResult<i64> {
+    literal_quantity(count).ok_or_else(|| {
+        cursor.enter("activation.counters.variable-quantity");
+        cursor.engine_gap(
+            crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
+            "a literal counter quantity for this counter cost (only removal of named counters from the source takes X)",
+        )
+    })
 }
 
 fn controlled_counter_removal(
