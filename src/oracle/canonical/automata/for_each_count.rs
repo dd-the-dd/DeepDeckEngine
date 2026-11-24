@@ -331,7 +331,6 @@ fn history_count_event(lemma: VerbLemma) -> Option<(HistoryEvent, ObjectKind)> {
         VerbLemma::Discard => (HistoryEvent::CardDiscarded, ObjectKind::Card),
         VerbLemma::Cycle => (HistoryEvent::CardCycled, ObjectKind::Card),
         VerbLemma::Sacrifice => (HistoryEvent::PermanentSacrificed, ObjectKind::Permanent),
-        VerbLemma::Die => (HistoryEvent::PermanentDied, ObjectKind::Permanent),
         _ => return None,
     })
 }
@@ -342,7 +341,6 @@ const HISTORY_COUNT_LEMMAS: &[VerbLemma] = &[
     VerbLemma::Discard,
     VerbLemma::Cycle,
     VerbLemma::Sacrifice,
-    VerbLemma::Die,
 ];
 
 /// The relative clause of a counted history collection at `offset`: its
@@ -360,21 +358,17 @@ fn history_relative_at(
         (1, HistoryPlayer::Controller, VerbForm::PastParticiple)
     } else if word(offset, "you") && word(offset + 1, "have") {
         (2, HistoryPlayer::Controller, VerbForm::PastParticiple)
-    } else if word(offset, "that") {
-        (1, HistoryPlayer::Any, VerbForm::Past)
     } else {
         return None;
     };
     let raw = cursor.peek_ahead(offset + width)?;
     let (entry, forms) = lookup_verb(raw, HISTORY_COUNT_LEMMAS)?;
-    // `that VERBed` reads only the intransitive `died`; a transitive
-    // relative (`that you cast`) has an actor.
-    let intransitive = entry.lemma == VerbLemma::Die;
-    (forms.contains(&form) && (player == HistoryPlayer::Controller) != intransitive).then_some((
-        width,
-        player,
-        entry.lemma,
-    ))
+    // `NOUN that died this turn` is a departure of the shared object query
+    // (`relative_clause.rs`), counted through the scoped query; this reader
+    // owns only the controller's own recorded actions.
+    forms
+        .contains(&form)
+        .then_some((width, player, entry.lemma))
 }
 
 /// Offset of the relative clause after the counted noun phrase.
@@ -388,16 +382,14 @@ fn history_relative_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
         .find(|offset| history_relative_at(cursor, *offset).is_some())
 }
 
-/// Lexical lookahead for `NOUN you've VERBed this turn` / `NOUN that died
-/// this turn`.
+/// Lexical lookahead for `NOUN you've VERBed this turn`.
 pub(in crate::oracle::canonical) fn history_count_collection_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
     history_relative_offset(cursor).is_some()
 }
 
-/// `spells you've cast this turn`, `cards you've drawn this turn`,
-/// `creatures that died this turn`: the number of recorded events of one
+/// `spells you've cast this turn`, `cards you've drawn this turn`: the number of recorded events of one
 /// history pattern (CR 601.2i, 121.1, 701.9, 700.4) — the same pattern the
 /// condition language's EventHistory atom compares, here counted. The noun is
 /// the shared object query; its domain must be the event's object domain.
