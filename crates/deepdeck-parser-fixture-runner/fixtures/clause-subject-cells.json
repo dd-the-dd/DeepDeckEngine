@@ -750,6 +750,165 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-consulate-crackdown-exile-collection-until-source-leaves",
+      "request": {
+        "cardName": "Consulate Crackdown",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "When this enchantment enters, exile all artifacts your opponents control until this enchantment leaves the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/0/until",
+                "equals": {
+                  "kind": "sourceLeavesBattlefield"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-temporary-lockdown-each-query-until-source-leaves",
+      "request": {
+        "cardName": "Temporary Lockdown",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "When this enchantment enters, exile each nonland permanent with mana value 2 or less until this enchantment leaves the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/until",
+                "equals": {
+                  "kind": "sourceLeavesBattlefield"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-aligned-hedron-network-reminder-after-until",
+      "request": {
+        "cardName": "Aligned Hedron Network",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "When this artifact enters, exile all creatures with power 5 or greater until this artifact leaves the battlefield. (Those creatures return under their owners' control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/until",
+                "equals": {
+                  "kind": "sourceLeavesBattlefield"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-collection-exile-until-end-of-turn",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Exile all creatures until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fendeep-summoner-floating-each-become",
+      "request": {
+        "cardName": "Fendeep Summoner",
+        "typeLine": "Creature — Treefolk Shaman",
+        "manaCost": "{4}{B}",
+        "oracleText": "{T}: Up to two target Swamps each become 3/5 Treefolk Warrior creatures in addition to their other types until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-floating-each-with-singular-become",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Up to two target Swamps each becomes a 3/5 Treefolk creature until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

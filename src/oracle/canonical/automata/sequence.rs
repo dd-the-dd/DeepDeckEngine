@@ -2363,6 +2363,28 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         SequenceState::ConnectorOrEnd
                     }
+                    // The same adjunct after an exile of every permanent a
+                    // query matches (`exile all artifacts your opponents
+                    // control until this enchantment leaves the battlefield`).
+                    Some("until")
+                        if super::zone_change_until_starts(cursor)
+                            && matches!(
+                                memory.effects.last(),
+                                Some(LocalEffectNode::SelectedPermanents(selected))
+                                    if selected.action == super::SelectedPermanentAction::Exile
+                                        && selected.until.is_none()
+                            ) =>
+                    {
+                        attempt_frame.commit();
+                        let until =
+                            super::recognize_zone_change_until(cursor, name_links, name_failure)?;
+                        if let Some(LocalEffectNode::SelectedPermanents(selected)) =
+                            memory.effects.last_mut()
+                        {
+                            selected.until = Some(until);
+                        }
+                        SequenceState::ConnectorOrEnd
+                    }
                     // `ACTION twice` / `ACTION N times`: the repetition is
                     // read by an action whose node repeats as a whole
                     // (`investigate twice`). After any other action it is no

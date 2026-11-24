@@ -901,6 +901,7 @@ fn recognize_untargeted_zone_change(
                         bounds: None,
                         query: objects,
                     },
+                    until: None,
                 },
             ))
         }
@@ -914,6 +915,7 @@ fn recognize_untargeted_zone_change(
                 super::SelectedPermanentsEffectNode {
                     action: super::SelectedPermanentAction::ReturnToOwnerHand,
                     operand,
+                    until: None,
                 },
             ))
         }
@@ -928,6 +930,7 @@ fn recognize_untargeted_zone_change(
                         bounds: None,
                         query: objects,
                     },
+                    until: None,
                 },
             ))
         }
@@ -937,6 +940,7 @@ fn recognize_untargeted_zone_change(
                 super::SelectedPermanentsEffectNode {
                     action: super::SelectedPermanentAction::Exile,
                     operand,
+                    until: None,
                 },
             ))
         }

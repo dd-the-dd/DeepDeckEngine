@@ -115,7 +115,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
     };
     // A floating `each` after a plural subject distributes the action over
-    // its members (`Up to two target creatures each get +2/+2`). Each
+    // its members (`Up to two target creatures each get +2/+2`, `Up to two
+    // target Swamps each become 3/5 Treefolk Warrior creatures`). Each
     // member already receives its own modification, so the quantifier adds
     // no operation; a singular subject keeps rejecting it.
     if subject_end
@@ -125,6 +126,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         && subject_end.peek_ahead(1).is_some_and(|raw| {
             is_verb_form(raw, VerbLemma::Get, VerbForm::Base)
                 || is_verb_form(raw, VerbLemma::Gain, VerbForm::Base)
+                || is_verb_form(raw, VerbLemma::Become, VerbForm::Base)
         })
     {
         subject_end.enter("permanent-action.distributive-each");

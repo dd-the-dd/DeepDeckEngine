@@ -9,9 +9,10 @@
 //!              | "the" ("creature" | "basic" "land") "type" "of" "your" "choice"
 //!              | "all" "abilities" | KeywordList                (after `lose`, layer 6)
 //!              | BaseStats StatValue                            (after `have`, layer 7b)
-//! BaseStats   := "base" "power" "and" "base"? "toughness" | "power" "and" "toughness" (after `with`)
-//! StatValue   := PT | "each" "equal" "to" Amount     (the clause subject is `its` antecedent)
 //!              | GrantedList                                    (after `gain`, layer 6)
+//! BaseStats   := "base" "power" "and" "base"? "toughness"
+//!              | "power" "and" "toughness"                      (after `with`)
+//! StatValue   := PT | "each" "equal" "to" Amount     (`its` names the clause subject)
 //! ```
 //!
 //! The parent owns the subject and tells the frame its grammatical number
