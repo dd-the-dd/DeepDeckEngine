@@ -241,14 +241,14 @@ fn lower_compound_trigger_event(
             }
             lowered["eventCondition"] = lower_event_time_condition(cursor, condition)?;
         }
-        match lowered["kind"].as_str() {
-            Some("oneOf") => events.extend(
-                lowered["events"]
-                    .as_array()
-                    .cloned()
-                    .ok_or_else(|| cursor.fail("a lowered event union"))?,
-            ),
-            _ => events.push(lowered),
+        if lowered["kind"] == "oneOf" {
+            let members = lowered["events"]
+                .as_array()
+                .cloned()
+                .ok_or_else(|| cursor.fail("a lowered event union"))?;
+            events.extend(members);
+        } else {
+            events.push(lowered);
         }
     }
     Ok(json!({"kind": "oneOf", "events": events}))
