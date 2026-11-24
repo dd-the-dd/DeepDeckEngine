@@ -526,7 +526,7 @@ impl GameEngine {
             }
         }
         self.record_event("permanentLeftBattlefield", Some(source.controller.clone()), Some(instance_id.clone()),
-            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
+            json!({ "destination": movement.destination, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone(), "lastKnownState": state_condition_atoms::departure_state_record(source) }));
     }
 
     pub(super) fn publish_installed_battlefield_leave_triggers(

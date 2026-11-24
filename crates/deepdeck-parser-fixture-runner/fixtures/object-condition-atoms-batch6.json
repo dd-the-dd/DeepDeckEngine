@@ -880,6 +880,50 @@
           }
         ]
       }
+    },
+    {
+      "id": "real-rite-of-the-serpent-last-known-counter",
+      "request": {
+        "cardName": "Rite of the Serpent",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Destroy target creature. If that creature had a +1/+1 counter on it, create a 1/1 green Snake creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-brackish-blunder-last-known-tapped",
+      "request": {
+        "cardName": "Brackish Blunder",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return target creature to its owner's hand. If it was tapped, create a Map token. (It's an artifact with \"{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }

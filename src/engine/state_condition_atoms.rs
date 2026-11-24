@@ -65,6 +65,93 @@ fn zones_contain(zones: &Value, zone: &str) -> bool {
     })
 }
 
+/// The permanent state a departure record keeps beside its type line (CR
+/// 608.2h): its counters, tapped and combat status and token status as it
+/// last existed on the battlefield.
+pub(super) fn departure_state_record(permanent: &CardInstance) -> Value {
+    let flag = |name: &str| permanent.flags.get(name).copied().unwrap_or(false);
+    json!({
+        "counters": permanent.counters,
+        "tapped": permanent.tapped,
+        "attacking": flag("attacking"),
+        "blocking": flag("blocking"),
+        "token": permanent.definition.is_token,
+    })
+}
+
+/// The permanent-state atoms a departure record answers.
+pub(super) fn departure_record_atom(kind: &str) -> bool {
+    matches!(
+        kind,
+        "hasCounter" | "isTapped" | "isAttacking" | "isBlocking" | "isToken"
+    )
+}
+
+pub(super) fn departure_record_atom_supported(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some("hasCounter") => {
+            filter.get("counter").is_none_or(Value::is_string)
+                && filter
+                    .get("minimum")
+                    .is_none_or(|value| integer_value(value).is_some())
+                && filter
+                    .get("maximum")
+                    .is_none_or(|value| integer_value(value).is_some())
+        }
+        Some(kind) => departure_record_atom(kind),
+        None => false,
+    }
+}
+
+/// A predicate over a permanent that left the battlefield, read from its
+/// departure record: the recorded type line for type-line atoms, and the
+/// recorded last known state for counters, tapped and combat status and
+/// token status. A record without that state answers nothing (`None`), so
+/// the condition is false rather than read on the card in its new zone.
+pub(super) fn departure_record_matches(
+    detail: &Value,
+    filter: &Value,
+    depth: usize,
+) -> Option<bool> {
+    if depth >= 32 {
+        return None;
+    }
+    let state = &detail["lastKnownState"];
+    match value_kind(filter) {
+        Some("not") => {
+            departure_record_matches(detail, &filter["operand"], depth + 1).map(|value| !value)
+        }
+        Some("and") => {
+            let mut all = true;
+            for operand in filter["operands"].as_array()? {
+                all &= departure_record_matches(detail, operand, depth + 1)?;
+            }
+            Some(all)
+        }
+        Some("or") => {
+            let mut any = false;
+            for operand in filter["operands"].as_array()? {
+                any |= departure_record_matches(detail, operand, depth + 1)?;
+            }
+            Some(any)
+        }
+        Some("hasCounter") => {
+            let counters: BTreeMap<String, i32> =
+                serde_json::from_value(state.get("counters")?.clone()).ok()?;
+            Some(counter_presence_matches(&counters, filter))
+        }
+        Some("isTapped") => state.get("tapped")?.as_bool(),
+        Some("isAttacking") => state.get("attacking")?.as_bool(),
+        Some("isBlocking") => state.get("blocking")?.as_bool(),
+        _ => event_history::type_line_filter(
+            detail["typeLine"].as_str()?,
+            detail["wasCreature"].as_bool(),
+            state.get("token").and_then(Value::as_bool),
+            filter,
+        ),
+    }
+}
+
 impl GameEngine {
     /// The zone an object is in now, by its instance: the battlefield, the
     /// stack, or the card zone that holds it.

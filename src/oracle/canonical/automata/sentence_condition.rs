@@ -2236,7 +2236,7 @@ fn finish_referenced_object(
             // instead of being read on the new object.
             cursor.require(
                 last_known_information_answers(&predicate),
-                "a mana value, power, toughness or type-line characteristic of a moved permanent (its other last-known information is not captured)",
+                "a mana value, power, toughness, type-line, counter, tapped, combat or token characteristic of a moved permanent (its other last-known information is not captured)",
             )?;
             ConditionObjectReference::DepartedTarget(binding)
         }
@@ -2260,21 +2260,32 @@ fn finish_referenced_object(
 
 /// Whether a departed permanent's recorded last known information answers
 /// the predicate: one numeric property comparison (the captured mana value,
-/// power or toughness), or a predicate over the recorded type line.
+/// power or toughness), or a predicate over what its departure record keeps:
+/// the type line, the counters, the tapped and combat status and the token
+/// status (CR 608.2h). Colors and other characteristics are not recorded.
 fn last_known_information_answers(predicate: &ObjectPredicate) -> bool {
-    fn type_line(predicate: &ObjectPredicate) -> bool {
+    fn recorded(predicate: &ObjectPredicate) -> bool {
         match predicate {
             ObjectPredicate::CardType(_)
             | ObjectPredicate::Subtype(_)
-            | ObjectPredicate::Supertype(_) => true,
-            ObjectPredicate::Not(operand) => type_line(operand),
+            | ObjectPredicate::Supertype(_)
+            | ObjectPredicate::HasCounter(_)
+            | ObjectPredicate::IsToken
+            | ObjectPredicate::ObjectKind(ObjectKind::Permanent)
+            | ObjectPredicate::Status(
+                ObjectStatus::Tapped
+                | ObjectStatus::Untapped
+                | ObjectStatus::Attacking
+                | ObjectStatus::Blocking,
+            ) => true,
+            ObjectPredicate::Not(operand) => recorded(operand),
             ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
-                !operands.is_empty() && operands.iter().all(type_line)
+                !operands.is_empty() && operands.iter().all(recorded)
             }
             _ => false,
         }
     }
-    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || type_line(predicate)
+    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || recorded(predicate)
 }
 
 pub(in crate::oracle::canonical) fn sentence_condition_depends_on_cast_choice(
