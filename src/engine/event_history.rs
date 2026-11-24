@@ -554,6 +554,78 @@ impl GameEngine {
     }
 }
 
+/// `departedObjectMatches { object, where }`: a target's type-line predicate
+/// read on its last known information (CR 608.2h). Only type-line atoms are
+/// recorded by a departure.
+pub(super) fn departed_object_condition_supported(condition: &Value) -> bool {
+    fn type_line_atoms(filter: &Value, depth: usize) -> bool {
+        depth < 32
+            && match value_kind(filter) {
+                Some(
+                    "cardTypeContains" | "subtypeContains" | "typeLineContains" | "isLegendary"
+                    | "isBasic",
+                ) => filter["value"].is_string() || filter.get("value").is_none(),
+                Some("not") => type_line_atoms(&filter["operand"], depth + 1),
+                Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
+                    !operands.is_empty()
+                        && operands
+                            .iter()
+                            .all(|operand| type_line_atoms(operand, depth + 1))
+                }),
+                _ => false,
+            }
+    }
+    target_reference_supported(&condition["object"]) && type_line_atoms(&condition["where"], 0)
+}
+
+impl GameEngine {
+    /// The target while it is still on the battlefield, else the type line
+    /// its latest departure from the battlefield recorded. A target without
+    /// either has no characteristic: the condition is false.
+    pub(super) fn departed_object_matches(
+        &self,
+        condition: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> bool {
+        let Some(TargetRef::Permanent { instance_id }) =
+            self.resolve_target(&condition["object"], stack_object, bindings)
+        else {
+            return false;
+        };
+        if self.permanent_position(&instance_id).is_some() {
+            let current = json!({
+                "kind": "objectMatchesFilter",
+                "object": condition["object"].clone(),
+                "where": condition["where"].clone(),
+            });
+            return self.object_condition_matches(
+                &current,
+                stack_object,
+                bindings,
+                &stack_object.decisions,
+            );
+        }
+        let Some(departure) = self.state.events.iter().rev().find(|event| {
+            event.kind == "permanentLeftBattlefield"
+                && event.card_instance_id.as_deref() == Some(instance_id.as_str())
+        }) else {
+            return false;
+        };
+        departure.detail["typeLine"]
+            .as_str()
+            .and_then(|type_line| {
+                type_line_filter(
+                    type_line,
+                    departure.detail["wasCreature"].as_bool(),
+                    None,
+                    &condition["where"],
+                )
+            })
+            .unwrap_or(false)
+    }
+}
+
 /// The players a damage history relation names (`to you`, `to an opponent`,
 /// `to a player`) relative to the ability controller. An unknown relation
 /// names no player, so the predicate is false and refused by its support

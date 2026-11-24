@@ -31,6 +31,11 @@ pub(in crate::oracle::canonical) enum ConditionObjectReference {
     /// The singular card result of the current card-collection scope (the
     /// looked-at, revealed or chosen card).
     CardFocus,
+    /// A declared permanent target that an earlier action of the program
+    /// moved off the battlefield, read with its last known information
+    /// (CR 608.2h): the numeric properties and the type line its departure
+    /// recorded.
+    DepartedTarget(TargetBinding),
 }
 
 impl ConditionObjectReference {
@@ -1398,22 +1403,29 @@ fn finish_referenced_object(
     predicate: ObjectPredicate,
 ) -> MachineResult<ReferencedObjectConditionNode> {
     cursor.enter("condition.sentence.object.last-known-information");
-    if let (
-        ConditionObjectReference::Permanent(PermanentEffectReference::Target(binding)),
-        Some(program),
-    ) = (object, context.program)
-    {
-        // CR 608.2h: an object moved out of the battlefield by an earlier
-        // instruction is tested with its last known information, which this
-        // condition does not capture. Refuse instead of reading the new object.
-        cursor.require(
-            !program.departed_targets.contains(&binding),
-            "a referenced permanent still on the battlefield; last-known information of a moved object is not captured",
-        )?;
-    }
+    let object = match (object, context.program) {
+        (
+            ConditionObjectReference::Permanent(PermanentEffectReference::Target(binding)),
+            Some(program),
+        ) if program.departed_targets.contains(&binding) => {
+            // CR 608.2h: an object moved out of the battlefield by an earlier
+            // instruction is tested with its last known information: the
+            // numeric properties and the type line its departure recorded.
+            // Any other characteristic is not captured and is refused
+            // instead of being read on the new object.
+            cursor.require(
+                last_known_information_answers(&predicate),
+                "a mana value, power, toughness or type-line characteristic of a moved permanent (its other last-known information is not captured)",
+            )?;
+            ConditionObjectReference::DepartedTarget(binding)
+        }
+        _ => object,
+    };
     cursor.enter("condition.sentence.object.domain");
     let domain = match object {
-        ConditionObjectReference::Permanent(_) => ObjectKind::Permanent,
+        ConditionObjectReference::Permanent(_) | ConditionObjectReference::DepartedTarget(_) => {
+            ObjectKind::Permanent
+        }
         ConditionObjectReference::CardTarget(_) | ConditionObjectReference::CardFocus => {
             ObjectKind::Card
         }
@@ -1423,6 +1435,25 @@ fn finish_referenced_object(
         "a characteristic evaluable in the referenced object's domain",
     )?;
     Ok(ReferencedObjectConditionNode { object, predicate })
+}
+
+/// Whether a departed permanent's recorded last known information answers
+/// the predicate: one numeric property comparison (the captured mana value,
+/// power or toughness), or a predicate over the recorded type line.
+fn last_known_information_answers(predicate: &ObjectPredicate) -> bool {
+    fn type_line(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::CardType(_)
+            | ObjectPredicate::Subtype(_)
+            | ObjectPredicate::Supertype(_) => true,
+            ObjectPredicate::Not(operand) => type_line(operand),
+            ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(type_line)
+            }
+            _ => false,
+        }
+    }
+    matches!(predicate, ObjectPredicate::NumericComparison { .. }) || type_line(predicate)
 }
 
 pub(in crate::oracle::canonical) fn sentence_condition_depends_on_cast_choice(

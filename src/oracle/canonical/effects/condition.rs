@@ -497,7 +497,41 @@ fn lower_object_condition(
         }
         return Ok(json!({ "kind": "objectMatchesFilter", "object": self_ref(), "where": filter }));
     };
+    if let ConditionObjectReference::DepartedTarget(binding) = node.object {
+        // CR 608.2h: the target's last known information. A numeric
+        // property reads the target's captured values; a type-line
+        // predicate reads its departure record (the current object wins
+        // while it is still on the battlefield).
+        let target = bound_permanent_reference_value(
+            PermanentEffectReference::Target(binding),
+            bindings.permanent_targets,
+        )
+        .ok_or("the previously declared permanent target slot in this lexical scope")?;
+        if let ObjectPredicate::NumericComparison {
+            left,
+            operator,
+            right,
+        } = &node.predicate
+        {
+            let mut comparison = lower_selector_numeric_comparison(*left, *operator, right)
+                .ok_or("a numeric bound the last-known comparison can evaluate")?;
+            comparison["left"]["object"] = target;
+            return Ok(comparison);
+        }
+        let filter = lower_permanent_object_predicate(&node.predicate);
+        if filter.is_null() {
+            return Err("a characteristic that lowers to a nonempty object filter");
+        }
+        return Ok(json!({
+            "kind": "departedObjectMatches",
+            "object": target,
+            "where": filter,
+        }));
+    }
     let (object, filter) = match node.object {
+        ConditionObjectReference::DepartedTarget(_) => {
+            unreachable!("a departed target was lowered above")
+        }
         ConditionObjectReference::Permanent(reference) => (
             bound_permanent_reference_value(reference, bindings.permanent_targets)
                 .ok_or("the previously declared permanent target slot in this lexical scope")?,

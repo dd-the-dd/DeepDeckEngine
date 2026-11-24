@@ -164,7 +164,6 @@ use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
 mod event_history;
-mod opponent_extremum;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -188,6 +187,7 @@ mod object_identity_test_setup;
 mod object_predicate;
 mod object_snapshot;
 mod one_shot_modifier;
+mod opponent_extremum;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -3023,6 +3023,9 @@ fn condition_supported(condition: &Value) -> bool {
             })
         }
         Some("noManaSpentToCastTargetSpell") => target_reference_supported(&condition["spell"]),
+        Some("departedObjectMatches") => {
+            event_history::departed_object_condition_supported(condition)
+        }
         Some("not") => condition_supported(&condition["operand"]),
         Some("or" | "and") => condition["operands"]
             .as_array()
@@ -8635,6 +8638,9 @@ impl GameEngine {
                     | RuntimeBinding::Target(_)
                     | RuntimeBinding::Integer(_) => true,
                 }),
+            Some("departedObjectMatches") => {
+                self.departed_object_matches(condition, stack_object, bindings)
+            }
             Some("noManaSpentToCastTargetSpell") => self
                 .resolve_target(&condition["spell"], stack_object, bindings)
                 .and_then(|target| match target {
@@ -31521,7 +31527,9 @@ impl GameEngine {
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
             Some("manaSpentToCast") => self.runtime_mana_spent_to_cast(expression, stack_object),
-            Some("opponentExtremum") => self.opponent_extremum(expression, &stack_object.controller),
+            Some("opponentExtremum") => {
+                self.opponent_extremum(expression, &stack_object.controller)
+            }
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }
