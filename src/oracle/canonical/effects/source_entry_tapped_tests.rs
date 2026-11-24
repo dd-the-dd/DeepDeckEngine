@@ -152,14 +152,23 @@ fn conditional_named_entry_composes_the_shared_condition_program() {
     );
 
     // The entry machine owns the `if|unless` introducer, then delegates the
-    // proposition; an unsupported proposition fails in the shared child.
-    let failure = parse_named_source(
+    // proposition: the shared monarch designation atom needs no entry code.
+    let draft = parse_named_source(
         "Clockwork Harbor",
         "Artifact Land",
         "Clockwork Harbor enters tapped unless you're the monarch.",
     )
-    .expect_err("no shared atom reads the monarch designation");
-    assert_eq!(failure.state, "condition.sentence.atom-kind");
+    .expect("the shared monarch designation atom");
+    assert_eq!(draft.rule["condition"]["kind"], "not");
+    // An unsupported proposition still fails in the shared child: the
+    // monarch designation is read in the present tense only.
+    let failure = parse_named_source(
+        "Clockwork Harbor",
+        "Artifact Land",
+        "Clockwork Harbor enters tapped unless you were the monarch.",
+    )
+    .expect_err("a past monarch designation is not read");
+    assert!(failure.state.starts_with("condition."), "{}", failure.state);
 }
 
 #[test]
@@ -222,7 +231,7 @@ fn turn_conditioned_entry_near_misses_fail_explicitly() {
     for text in [
         "This creature enters prepared if it's not your turn.",
         "This creature enters tapped if it's not your upkeep.",
-        "This creature enters tapped if it's not your turn and you're the monarch.",
+        "This creature enters tapped if it's not your turn and you were the monarch.",
         "This creature enters tapped if not your turn.",
     ] {
         assert!(parse_typed_source("Creature", text).is_err(), "{text}");

@@ -610,6 +610,55 @@
       }
     },
     {
+      "id": "sibling-counter-target-permanent-spell",
+      "request": {
+        "cardName": "Synthetic Essence Scatter",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target permanent spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where/kind",
+                "equals": "isPermanentCard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-restated-collection-names-other-objects",
+      "request": {
+        "cardName": "Synthetic Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}",
+        "oracleText": "Destroy all artifacts. Creatures destroyed this way can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "expectedContains": "own noun"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-scourglass-except-for-two-card-types",
       "request": {
         "cardName": "Scourglass",

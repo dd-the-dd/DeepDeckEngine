@@ -596,11 +596,13 @@ fn recognize_comparison_tail(
             false,
         ));
     }
-    let threshold = recognize_count_threshold(cursor, false)?;
+    // The quantifier `no` counts objects; a number compared with `0 or
+    // less` is an ordinary upper bound (a power can be negative).
     cursor.require(
-        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        !word_is(cursor, 0, "no"),
         "a numeric threshold rather than `no`",
     )?;
+    let threshold = recognize_count_threshold(cursor, false)?;
     let (operator, value) = threshold_comparison(threshold);
     Ok((operator, ConditionNumber::Integer(value), false))
 }
@@ -879,11 +881,13 @@ fn recognize_numeric_comparison_atom(
     cursor.enter("condition.sentence.numeric.copula");
     cursor.consume("is")?;
     cursor.enter("condition.sentence.numeric.threshold");
-    let threshold = recognize_count_threshold(cursor, false)?;
+    // The quantifier `no` counts objects; a number compared with `0 or
+    // less` is an ordinary upper bound (a power can be negative).
     cursor.require(
-        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        !word_is(cursor, 0, "no"),
         "a numeric threshold rather than `no`",
     )?;
+    let threshold = recognize_count_threshold(cursor, false)?;
     let (operator, value) = threshold_comparison(threshold);
     Ok(ConditionAtom::Compare(ConditionComparison {
         subject: ConditionPlayerSubject::Controller,

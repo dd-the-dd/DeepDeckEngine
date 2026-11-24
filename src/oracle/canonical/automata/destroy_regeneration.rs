@@ -95,6 +95,57 @@ pub(in crate::oracle::canonical) fn recognize_plural_regeneration_amendment(
     recognize_pronoun_regeneration_amendment(cursor, "they")
 }
 
+/// `. Creatures destroyed this way can't be regenerated` after a destroyed
+/// collection: the restated collection names the destroyed objects (CR
+/// 608.2c, 701.19c). Its noun must be the collection's own query, or
+/// `permanents`, so the amendment never reaches objects the collection did
+/// not destroy. Returns false without consuming when it does not start here.
+pub(in crate::oracle::canonical) fn recognize_restated_collection_regeneration_amendment(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &super::ObjectQueryNode,
+) -> MachineResult<bool> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(cursor.peek() == Some(".")
+        && word(2, "destroyed")
+        && word(3, "this")
+        && word(4, "way")
+        && cursor.peek_ahead(5).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("can't") || raw.eq_ignore_ascii_case("can’t")
+        }))
+    {
+        return Ok(false);
+    }
+    let mut trial = cursor.clone();
+    trial.enter("sequence.collection-regeneration.restated");
+    trial.consume(".")?;
+    let Ok(noun) = recognize_object_predicate_atom(&mut trial, AcceptedForms::SingularOrPlural)
+    else {
+        return Ok(false);
+    };
+    if trial
+        .peek()
+        .is_none_or(|raw| !raw.eq_ignore_ascii_case("destroyed"))
+    {
+        return Ok(false);
+    }
+    *cursor = trial;
+    cursor.require(
+        noun == objects.predicate
+            || noun == ObjectPredicate::ObjectKind(super::ObjectKind::Permanent),
+        "the destroyed collection's own noun or `permanents`",
+    )?;
+    cursor.consume_phrase(&["destroyed", "this", "way"])?;
+    let modal = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&modal)?;
+    cursor.enter("sequence.collection-regeneration.regenerated");
+    cursor.consume_phrase(&["be", "regenerated"])?;
+    Ok(true)
+}
+
 /// `. It can't be regenerated` after the destruction of one bound object.
 pub(in crate::oracle::canonical) fn recognize_scalar_regeneration_amendment(
     cursor: &mut OracleTokenCursor<'_>,

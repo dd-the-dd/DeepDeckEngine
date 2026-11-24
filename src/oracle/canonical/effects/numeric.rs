@@ -337,6 +337,21 @@ pub(in crate::oracle::canonical) enum NumericQueryLoweringSupport {
     CastingCost,
 }
 
+/// Lowers an expression at an effect-program position whose target
+/// properties read the declarations `resolve` names (a condition reading
+/// `that creature's power` after the action that declared it).
+pub(in crate::oracle::canonical) fn lower_numeric_expression_with_bound_targets(
+    expression: &NumericExpression,
+    resolve: &dyn Fn(TargetBinding) -> Option<Value>,
+) -> Option<Value> {
+    lower_numeric_expression_in_context(
+        expression,
+        None,
+        Some(resolve),
+        NumericQueryLoweringSupport::Unavailable,
+    )
+}
+
 pub(in crate::oracle::canonical) fn lower_numeric_expression_with_query_support(
     expression: &NumericExpression,
     support: NumericQueryLoweringSupport,

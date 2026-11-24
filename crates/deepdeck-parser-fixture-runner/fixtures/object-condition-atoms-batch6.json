@@ -358,7 +358,7 @@
         "cardName": "Their Turn Probe",
         "typeLine": "Creature — Spirit",
         "manaCost": "{2}",
-        "oracleText": "At the beginning of each end step, if it's not their turn, draw a card.",
+        "oracleText": "At the beginning of your end step, if it's not their turn, draw a card.",
         "layout": "normal",
         "faces": []
       },
@@ -477,7 +477,7 @@
       }
     },
     {
-      "id": "real-sold-out-was-dealt-damage-this-turn",
+      "id": "known-gap-sold-out-departed-damage-history",
       "request": {
         "cardName": "Sold Out",
         "typeLine": "Instant",
@@ -487,13 +487,13 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native"
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.last-known-information"
           }
         ]
       }
@@ -745,7 +745,7 @@
       }
     },
     {
-      "id": "near-miss-bound-target-zone-is-no-characteristic",
+      "id": "sibling-bound-target-zone-atom",
       "request": {
         "cardName": "Zone Probe",
         "typeLine": "Instant",
@@ -755,19 +755,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "condition.bound-object.characteristic"
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/condition/kind",
+                "equals": "objectInZone"
+              }
+            ]
           }
         ]
       }
@@ -818,10 +817,10 @@
     {
       "id": "sibling-mortal-combat-cards-in-your-graveyard",
       "request": {
-        "cardName": "Mortal Combat",
+        "cardName": "Synthetic Mortal Combat",
         "typeLine": "Enchantment",
         "manaCost": "{2}{B}{B}",
-        "oracleText": "At the beginning of your upkeep, if twenty or more creature cards are in your graveyard, you win the game.",
+        "oracleText": "At the beginning of your upkeep, if twenty or more creature cards are in your graveyard, draw a card.",
         "layout": "normal",
         "faces": []
       },

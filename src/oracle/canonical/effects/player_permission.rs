@@ -16,6 +16,9 @@ fn lower_temporary_rule_duration(
         TemporaryRuleDuration::Effect(EffectDurationNode::UntilNextTurn {
             player: LocalPlayerReference::Controller,
         }) => Ok(json!({"kind": "untilNextTurn", "player": controller()})),
+        TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfNextTurn {
+            player: LocalPlayerReference::Controller,
+        }) => Ok(json!({"kind": "untilEndOfNextTurn", "player": controller()})),
         TemporaryRuleDuration::RestOfGame => Ok(json!({"kind": "restOfGame"})),
         TemporaryRuleDuration::Effect(_) => {
             Err(TargetlessLoweringError::UnsupportedPermissionLifetime)

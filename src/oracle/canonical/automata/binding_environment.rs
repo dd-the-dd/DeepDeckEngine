@@ -1555,6 +1555,12 @@ pub(in crate::oracle::canonical) fn condition_object_antecedent(
                 _ => None,
             }
         }
+        // `As long as this creature's power is 5 or greater`: a comparison
+        // of one object's numeric property with a fixed number is about
+        // that object as much as a predicate over it is.
+        super::BooleanConditionNode::Atom(super::ConditionAtom::Compare(comparison)) => {
+            compared_object(comparison)
+        }
         super::BooleanConditionNode::Atom(_) => None,
         super::BooleanConditionNode::Not(inner) => condition_object_antecedent(inner),
         super::BooleanConditionNode::And(operands) | super::BooleanConditionNode::Or(operands) => {
@@ -1564,6 +1570,23 @@ pub(in crate::oracle::canonical) fn condition_object_antecedent(
                 .all(|operand| condition_object_antecedent(operand) == Some(reference))
                 .then_some(reference)
         }
+    }
+}
+
+/// The one object a comparison reads: a numeric property of one object
+/// compared with a fixed number. Any other operand pair names no object.
+fn compared_object(comparison: &super::ConditionComparison) -> Option<PermanentEffectReference> {
+    let object_of = |number: &super::ConditionNumber| match number {
+        super::ConditionNumber::Expression(
+            NumericExpression::ObjectProperty { object, .. }
+            | NumericExpression::CountCounters { object, .. },
+        ) => Some(PermanentEffectReference::Source(*object)),
+        _ => None,
+    };
+    match (&comparison.left, &comparison.right) {
+        (object, super::ConditionNumber::Integer(_))
+        | (super::ConditionNumber::Integer(_), object) => object_of(object),
+        _ => None,
     }
 }
 

@@ -3625,6 +3625,14 @@ fn sequence_numeric_target_slots(
                     source: PermanentOperandNode::Targets(targets),
                     ..
                 }) => (targets, false),
+                // `This creature deals damage ... to target creature. That
+                // creature deals damage equal to its power ...`: a recipient
+                // slot declares the object when the source declares none.
+                LocalEffectNode::DealDamage(DamageEffectNode {
+                    source,
+                    recipient: DamageRecipientNode::Targets(targets),
+                    ..
+                }) if !matches!(source, PermanentOperandNode::Targets(_)) => (targets, false),
                 _ => return None,
             };
             let slot = targets.slots.get(binding.slot_index)?;

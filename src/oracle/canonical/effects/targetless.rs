@@ -466,6 +466,10 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
                 // An attachment needs the sequence's operand lowering.
                 && movement.attached_to.is_none()
                 && (movement.from == SourceZone::Graveyard
+                    // `put this card from your hand onto the battlefield`:
+                    // the ability is activated from hand, where the card is.
+                    || (movement.from == SourceZone::Hand
+                        && movement.to == SourceZone::Battlefield)
                     // `return SOURCE to its owner's hand` (CR 108.3).
                     || (movement.from == SourceZone::Battlefield
                         && movement.to == SourceZone::Hand

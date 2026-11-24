@@ -177,10 +177,18 @@ pub(in crate::oracle::canonical) fn recognize_referenced_permanent_action(
             name_failure,
             context,
         )?;
-        let super::PermanentOperandNode::BoundReference(object) = operand else {
-            return Err(cursor.fail("a bound permanent reference"));
-        };
-        object
+        match (operand, &action) {
+            (super::PermanentOperandNode::BoundReference(object), _) => object,
+            // `put this creature on top of its owner's library`: the source
+            // is the one permanent the placement moves (CR 400.3). The zone
+            // action claim above still leaves source exile/sacrifice to
+            // their own readers.
+            (
+                super::PermanentOperandNode::Reference(source),
+                ReferencedPermanentAction::PutOnOwnerLibrary(_),
+            ) => super::PermanentEffectReference::Source(source),
+            _ => return Err(cursor.fail("a bound permanent reference")),
+        }
     };
     let action = match action {
         ReferencedPermanentAction::PutOnOwnerLibrary(_) => {

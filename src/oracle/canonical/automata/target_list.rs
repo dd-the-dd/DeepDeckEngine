@@ -660,7 +660,9 @@ pub(in crate::oracle::canonical) fn starts_explicit_target_slot(
 }
 
 /// `a second|third|fourth|fifth target`: an ordinal target head.
-fn ordinal_target_head_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+pub(in crate::oracle::canonical) fn ordinal_target_head_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("a"))

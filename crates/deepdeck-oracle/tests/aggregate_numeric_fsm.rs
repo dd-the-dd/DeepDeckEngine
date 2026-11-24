@@ -69,11 +69,23 @@ fn counts_read_the_query_control_relation_beyond_you_control() {
         find_kind(&pump, "countPermanentsControlledByOpponents").is_some(),
         "{pump:#}"
     );
-    // Near miss: no engine aggregate counts for the defending player yet;
-    // the card fails explicitly instead of counting the wrong player.
-    let parsed = parse(
+    // The same count over the defending player: an attack trigger records
+    // that player as its event player (CR 506.2), so the shared relation
+    // counts their permanents with no new code.
+    let attack = rule(
         "Creature \u{2014} Human",
         "Whenever this creature attacks, it gets +1/+0 until end of turn for each artifact defending player controls.",
+    );
+    assert_eq!(
+        find_kind(&attack, "countPermanents").map(|count| &count["player"]),
+        Some(&json!({ "kind": "triggeringPlayer" })),
+        "{attack:#}"
+    );
+    // Near miss: without an attack event no defending player is recorded,
+    // so the card fails explicitly instead of counting the wrong player.
+    let parsed = parse(
+        "Creature \u{2014} Human",
+        "This creature gets +1/+0 for each artifact defending player controls.",
     );
     assert_ne!(parsed.status, "canonical");
 }

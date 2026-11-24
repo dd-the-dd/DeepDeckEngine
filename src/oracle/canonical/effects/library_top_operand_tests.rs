@@ -183,10 +183,18 @@ fn a_target_players_library_top_is_the_same_operand() {
 
 #[test]
 fn unsupported_neighbours_fail_explicitly() {
-    // The runtime ends a window at a turn boundary, not before it starts.
-    assert_not_canonical(
-        "Exile the top card of your library. You may play that card until your next turn.",
+    // `until your next turn` is the same permission reader with a window that
+    // ends when that turn begins (CR 611.2b); it is no longer a neighbour.
+    let effects = effects_of(
+        &parse(
+            "Sorcery",
+            "{1}{R}",
+            "Exile the top card of your library. You may play that card until your next turn.",
+        ),
+        0,
     );
+    assert_eq!(kinds(&effects), ["bind", "moveCards", "grantPermission"]);
+    assert_eq!(effects[2]["duration"]["kind"], "untilNextTurn");
     // Another zone is not this operand.
     assert_not_canonical("Exile the top card of your graveyard. You may play that card this turn.");
     // `revealed this way` must restate the verb that produced the collection.
@@ -231,9 +239,19 @@ fn bounded_reveal_observes_every_revealed_card_and_names_the_matching_ones() {
 
 #[test]
 fn bounded_reveal_rejects_what_the_runtime_cannot_yet_prove() {
-    // Battlefield entry needs admitted identities and replacement proofs.
-    assert_not_canonical(
-        "Reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+    // The reveal fixes the identities, so a battlefield entry of the matching
+    // card reads the same bounded observation as a hand destination.
+    let effects = effects_of(
+        &parse(
+            "Sorcery",
+            "{2}{G}",
+            "Reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+        ),
+        0,
+    );
+    assert_eq!(
+        kinds(&effects),
+        ["revealFromTopUntilCount", "moveCards", "moveCards"]
     );
     // Another library owner is a different (targeted) operand.
     assert_not_canonical(

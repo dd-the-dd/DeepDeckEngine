@@ -649,8 +649,15 @@ pub(in crate::oracle::canonical) fn static_permission_kind(
             && recognize_source_reference(&mut probe, name_links, name_failure).is_ok()
             && word_is(&probe, 0, expected)
     };
+    // A word that only might start an unresolved name (`cast historic
+    // spells`) is not the source: the source reference must read.
+    let source_reads = || {
+        let mut probe = cursor.clone();
+        probe.advance_to(cursor.position() + 3).is_ok()
+            && recognize_source_reference(&mut probe, name_links, name_failure).is_ok()
+    };
     match lemma {
-        VerbLemma::Cast if source_follows => Some(StaticPermissionKind::SelfCast),
+        VerbLemma::Cast if source_follows && source_reads() => Some(StaticPermissionKind::SelfCast),
         VerbLemma::Exert if source_follows && after_source("as") => {
             Some(StaticPermissionKind::Exert)
         }

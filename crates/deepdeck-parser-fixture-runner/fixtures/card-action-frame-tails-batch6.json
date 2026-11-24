@@ -73,7 +73,7 @@
       }
     },
     {
-      "id": "exact-kellan-equal-or-lesser-than-the-cast-spell",
+      "id": "known-gap-kellan-if-you-dont-after-a-cast",
       "request": {
         "cardName": "Kellan, the Kid",
         "typeLine": "Legendary Creature — Human Faerie Rogue",
@@ -83,11 +83,33 @@
         "faces": []
       },
       "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.measured-performance"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kellan-permanent-spell-with-equal-or-lesser-mana-value",
+      "request": {
+        "cardName": "Synthetic Kellan",
+        "typeLine": "Legendary Creature — Human Faerie Rogue",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever you cast a spell from anywhere other than your hand, you may cast a permanent spell with equal or lesser mana value from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
         "abilities": [
           {
-            "index": 1,
+            "index": 0,
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [

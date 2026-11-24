@@ -84,7 +84,7 @@ fn lower_condition_atom(
     bindings: Option<&ConditionObjectBindings<'_>>,
 ) -> Lowered {
     match atom {
-        ConditionAtom::Compare(comparison) => lower_comparison(comparison),
+        ConditionAtom::Compare(comparison) => lower_comparison(comparison, bindings),
         ConditionAtom::ObjectSatisfies(node) => lower_object_condition(node, bindings),
         ConditionAtom::EventHistory(node) => Ok(lower_event_history(node)),
         ConditionAtom::CastFact(node) => lower_cast_fact(node),
@@ -323,7 +323,12 @@ fn lower_cast_fact(node: &CastFactNode) -> Lowered {
 /// `Compare(left, op, right)` for its player subject. A quantified subject
 /// wraps the same comparison in `playerQuantifier`, whose inner condition
 /// names the member with `quantifiedPlayer` (CR 102.2-102.3).
-fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
+fn lower_comparison(
+    comparison: &ConditionComparison,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let lower_condition_number =
+        |number: &ConditionNumber, player: Value| lower_condition_number(number, player, bindings);
     let operator = comparison.operator.ir_operator();
     match comparison.subject {
         ConditionPlayerSubject::Controller => Ok(compare(
@@ -405,10 +410,26 @@ fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
     }
 }
 
-fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
+fn lower_condition_number(
+    number: &ConditionNumber,
+    player: Value,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
     match number {
         ConditionNumber::Integer(value) => Ok(integer(*value)),
+        // A target property (`that creature's power`) reads the permanent
+        // target the program declared before the condition (CR 608.2c).
         ConditionNumber::Expression(expression) => lower_numeric_expression(expression)
+            .or_else(|| {
+                let targets = bindings?.permanent_targets;
+                let resolve = |binding: TargetBinding| {
+                    targets
+                        .iter()
+                        .find(|(declared, _)| *declared == binding)
+                        .map(|(_, id)| json!({ "kind": "chosenTarget", "id": id }))
+                };
+                lower_numeric_expression_with_bound_targets(expression, &resolve)
+            })
             .ok_or("a numeric expression without a target binding"),
         // Bound by the program lowering to the action before the condition.
         ConditionNumber::ActionResultObjects(reference) => lower_action_result_objects(reference),

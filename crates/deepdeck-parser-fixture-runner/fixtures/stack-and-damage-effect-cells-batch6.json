@@ -611,7 +611,7 @@
       "request": {
         "cardName": "Synthetic Deflector",
         "typeLine": "Instant",
-        "manaCost": "{1}{R}",
+        "manaCost": "{X}{R}",
         "oracleText": "The next X damage that would be dealt to you this turn is dealt to any target instead.",
         "layout": "normal",
         "faces": []

@@ -117,6 +117,10 @@ impl GameEngine {
                         triggered_rule_supported(rule)
                             && value_kind(&rule["event"])
                                 == Some("attachedPermanentManaAbilityActivated")
+                            // CR 605.1b: only a program that adds mana is a
+                            // triggered mana ability; any other one is an
+                            // ordinary trigger that waits for the stack.
+                            && adds_mana(&rule["effects"])
                             && self.rule_active_for_source(attachment, rule)
                     })
             })
@@ -345,6 +349,18 @@ impl GameEngine {
             },
             Instant::now(),
         )
+    }
+}
+
+/// Whether a lowered program adds mana anywhere in its nested effects.
+fn adds_mana(value: &Value) -> bool {
+    match value {
+        Value::Object(map) => {
+            map.get("kind").and_then(Value::as_str) == Some("addMana")
+                || map.values().any(adds_mana)
+        }
+        Value::Array(items) => items.iter().any(adds_mana),
+        _ => false,
     }
 }
 

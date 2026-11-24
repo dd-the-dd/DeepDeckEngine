@@ -17,7 +17,8 @@
 //!   through the one static modifier site collector.
 //!
 //! Lifetimes: `untilEndOfCurrentTurn` (CR 514.2), `untilNextTurn` of a
-//! player (CR 611.2b) and `restOfGame`.
+//! player (CR 611.2b), `untilEndOfNextTurn` of a player (through the cleanup
+//! step of that player's next turn, CR 514.2) and `restOfGame`.
 use super::*;
 
 use super::cast_events::{CastEventRecord, CastSubject};
@@ -38,7 +39,9 @@ const CREATED_DECISIONS: &str = "createdTriggerDecisions";
 fn lifetime_supported(duration: &Value) -> bool {
     match value_kind(duration) {
         Some("untilEndOfCurrentTurn" | "restOfGame") => true,
-        Some("untilNextTurn") => player_reference_supported(&duration["player"]),
+        Some("untilNextTurn" | "untilEndOfNextTurn") => {
+            player_reference_supported(&duration["player"])
+        }
         _ => false,
     }
 }
@@ -177,6 +180,12 @@ impl GameEngine {
                     .and_then(|player_id| self.next_turn_number_for_player(&player_id));
                 json!({ "endsBeforeTurn": ends_before_turn })
             }
+            // The effect lasts through that player's next turn; a player
+            // who takes no more turns leaves it until the end of the game.
+            Some("untilEndOfNextTurn") => self
+                .resolve_player(&duration["player"], stack_object, bindings)
+                .and_then(|player_id| self.next_turn_number_for_player(&player_id))
+                .map_or_else(|| json!({}), |last| json!({ "expiresAfterTurn": last })),
             _ => json!({}),
         }
     }

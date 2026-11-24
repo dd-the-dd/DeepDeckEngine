@@ -372,7 +372,7 @@
       }
     },
     {
-      "id": "known-gap-razorkin-needlehead-damage-to-them",
+      "id": "exact-razorkin-needlehead-damage-to-them",
       "request": {
         "cardName": "Razorkin Needlehead",
         "typeLine": "Creature — Human Assassin",
@@ -382,13 +382,18 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "target-list.slot.start",
-            "found": "them"
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "triggeringPlayer"
+              }
+            ]
           }
         ]
       }

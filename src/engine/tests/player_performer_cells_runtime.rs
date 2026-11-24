@@ -156,6 +156,8 @@ fn nobody_taking_an_offer_runs_the_declined_outcome() {
     let held = card(&mut engine, "held", "Instant", "player-1");
     engine.state.players[0].battlefield = vec![source.clone()];
     engine.state.players[0].library = vec![drawn];
+    // The test engine deals opening hands; the controller's starts empty.
+    engine.state.players[0].hand = Vec::new();
     engine.state.players[1].hand = vec![held];
     resolve_rule(
         &mut engine,
@@ -173,6 +175,8 @@ fn nobody_taking_an_offer_runs_the_declined_outcome() {
     let held = card(&mut engine, "held", "Instant", "player-1");
     engine.state.players[0].battlefield = vec![source.clone()];
     engine.state.players[0].library = vec![drawn];
+    // The test engine deals opening hands; the controller's starts empty.
+    engine.state.players[0].hand = Vec::new();
     engine.state.players[1].hand = vec![held];
     resolve_rule(
         &mut engine,

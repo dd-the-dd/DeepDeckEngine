@@ -135,10 +135,16 @@ impl GenericTriggerEventNode {
                 LocalTriggerEventNode::CombatDamageToPlayer { amount, .. }
                 | LocalTriggerEventNode::SourceDealtDamage { amount, .. },
             ) => Some(*amount),
-            // The runtime exports the dealt amount of every dealt-damage observer.
+            // The runtime exports the dealt amount of every dealt-damage
+            // observer, the attached permanent's combat damage to a player
+            // included (the same combat-to-player publication).
             Self::Local(
                 LocalTriggerEventNode::DamageDealt { .. }
-                | LocalTriggerEventNode::AttachedObjectDealtDamage { .. },
+                | LocalTriggerEventNode::AttachedObjectDealtDamage { .. }
+                | LocalTriggerEventNode::AttachedObjectEvent {
+                    action: super::AttachedObjectEventAction::DealCombatDamageToPlayer,
+                    ..
+                },
             )
             | Self::Object(super::ObjectEventNode {
                 verb: super::ObjectEventVerb::DealDamage,

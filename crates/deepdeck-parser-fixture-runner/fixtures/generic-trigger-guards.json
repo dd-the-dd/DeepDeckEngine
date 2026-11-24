@@ -631,7 +631,7 @@
       }
     },
     {
-      "id": "near-miss-unproved-subject-ellipsis",
+      "id": "sibling-elided-control-subject-conjunction",
       "request": {
         "cardName": "Condition Program Probe",
         "typeLine": "Creature — Human Wizard",
@@ -641,12 +641,19 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "and"
+              }
+            ]
           }
         ]
       }

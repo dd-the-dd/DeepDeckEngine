@@ -208,9 +208,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "numeric.atom.start",
-            "code": "oracle_machine_failure",
-            "found": "that"
+            "state": "numeric.event-anaphor.resolve",
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -662,7 +661,7 @@
       }
     },
     {
-      "id": "near-miss-remove-all-counters-without-kind",
+      "id": "sibling-remove-all-counters-of-every-kind",
       "request": {
         "cardName": "Quantity Hexer",
         "typeLine": "Creature — Vampire",
@@ -672,13 +671,19 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "effect.remove-counters.kind"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "removeAllCounters"
+              }
+            ]
           }
         ]
       }

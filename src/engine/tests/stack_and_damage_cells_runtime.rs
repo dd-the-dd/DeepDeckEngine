@@ -234,14 +234,18 @@ fn targeted_spell(id: &str, targets: Vec<(&str, TargetRef)>) -> StackObject {
         "declaration": { "kind": "castingDeclaration", "decisions": decisions },
         "effects": [],
     });
+    // A spell on the stack is its card (CR 112.1): no ability kind or rule
+    // of its own; its declaration is the card's printed spell ability.
+    let mut definition = test_definition(id, "Sorcery");
+    definition.rules = vec![rule];
     let mut object = StackObject {
         id: format!("stack:{id}"),
         controller: "player-1".to_string(),
-        card: test_instance(id, test_definition(id, "Sorcery"), "player-1"),
+        card: test_instance(id, definition, "player-1"),
         cant_be_countered: false,
         exile_on_leave_stack: false,
-        ability_kind: Some("spellAbility".to_string()),
-        ability_rule: Some(rule),
+        ability_kind: None,
+        ability_rule: None,
         decisions: BTreeMap::new(),
         targets: BTreeMap::new(),
     };

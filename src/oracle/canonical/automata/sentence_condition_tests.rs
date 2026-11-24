@@ -124,16 +124,33 @@ fn an_ambiguous_missing_or_departed_antecedent_fails_explicitly() {
         node.object,
         ConditionObjectReference::DepartedTarget(TARGET)
     );
-    // A characteristic the departure does not record is refused, not read
-    // on the new object.
-    let uncaptured = read(
+    // The departure records its tapped status (CR 608.2h), so the same
+    // last-known reader answers it.
+    let tapped = read(
         "If it was tapped,",
         &permanent_target_context(),
         None,
         false,
         &[TARGET],
     )
-    .expect_err("a moved permanent's status is not captured");
+    .expect("the departure records the tapped status");
+    let BooleanConditionNode::Atom(ConditionAtom::ObjectSatisfies(node)) = tapped else {
+        panic!("a referenced-object atom");
+    };
+    assert_eq!(
+        node.object,
+        ConditionObjectReference::DepartedTarget(TARGET)
+    );
+    // A characteristic the departure does not record (its colors) is
+    // refused, not read on the new object.
+    let uncaptured = read(
+        "If it was white,",
+        &permanent_target_context(),
+        None,
+        false,
+        &[TARGET],
+    )
+    .expect_err("a moved permanent's colors are not captured");
     assert_eq!(
         uncaptured.0,
         "condition.sentence.object.last-known-information"

@@ -579,6 +579,35 @@ fn a_temporary_gain_life_prohibition_lasts_this_turn() {
     assert_eq!(life_of(&engine, "player-1"), life + 3, "the rule ended");
 }
 
+/// Unused combination: the same temporary prohibition lasting through the
+/// controller's next turn (CR 611.2a, 514.2), read by the shared window.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_temporary_prohibition_lasts_through_the_end_of_the_next_turn() {
+    let rule = parsed_rule(
+        "Test Next Turn Prohibition",
+        "Sorcery",
+        "Players can't gain life until the end of your next turn.",
+    );
+    assert_eq!(
+        rule["effects"][0]["duration"]["kind"], "untilEndOfNextTurn",
+        "{rule:#}"
+    );
+    let mut engine = test_engine(2);
+    install_created(&mut engine, &rule, 0, "next-turn-prohibition");
+    let life = life_of(&engine, "player-1");
+    // This turn, the opponent's turn and the controller's next turn.
+    for _ in 0..3 {
+        engine
+            .gain_life("player-1", 3)
+            .expect("the gain is attempted");
+        assert_eq!(life_of(&engine, "player-1"), life, "no player gains life");
+        engine.state.turn_number += 1;
+    }
+    engine.gain_life("player-1", 3).expect("the gain applies");
+    assert_eq!(life_of(&engine, "player-1"), life + 3, "the rule ended");
+}
+
 /// A `next N damage` shield keeps what is left across damage events
 /// (CR 615.7).
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]

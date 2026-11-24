@@ -103,8 +103,8 @@ fn temporary_duration_starts(cursor: &OracleTokenCursor<'_>) -> bool {
         || (word_at(cursor, 0, "for") && word_at(cursor, 1, "the") && word_at(cursor, 2, "rest"))
 }
 
-/// `this turn`, `until your next turn`, `until end of turn` or `for the
-/// rest of the game`.
+/// `this turn`, `until your next turn`, `until end of turn`, `until the
+/// end of your next turn` or `for the rest of the game`.
 fn recognize_temporary_duration(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<TemporaryRuleDuration> {
@@ -113,7 +113,9 @@ fn recognize_temporary_duration(
         cursor.consume_phrase(&["for", "the", "rest", "of", "the", "game"])?;
         return Ok(TemporaryRuleDuration::RestOfGame);
     }
-    recognize_effect_duration(cursor).map(TemporaryRuleDuration::Effect)
+    // The shared window reader: a temporary rule lasts through any turn
+    // boundary the permission windows read (CR 611.2a, 611.2b).
+    super::recognize_play_window_duration(cursor).map(TemporaryRuleDuration::Effect)
 }
 
 /// The lifetime after a complete rule body: absent, the clause is a static

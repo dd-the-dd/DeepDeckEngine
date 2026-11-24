@@ -487,14 +487,18 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     let mut quoted = false;
     let mut after_coordinator = false;
     // `of their choice` already names the acting player as the chooser
-    // (CR 101.4); the shared choice marker reads it as written.
+    // (CR 101.4); the shared choice marker reads it as written. Any other
+    // `their choice` (`on their choice of the top or bottom of their
+    // library`) is the performer's own possessive and shifts like the rest.
     let chooser_marker = tokens
-        .windows(2)
+        .windows(3)
         .enumerate()
-        .filter(|(_, pair)| {
-            pair[0].raw.eq_ignore_ascii_case("their") && pair[1].raw.eq_ignore_ascii_case("choice")
+        .filter(|(_, triple)| {
+            triple[0].raw.eq_ignore_ascii_case("of")
+                && triple[1].raw.eq_ignore_ascii_case("their")
+                && triple[2].raw.eq_ignore_ascii_case("choice")
         })
-        .map(|(index, _)| index)
+        .map(|(index, _)| index + 1)
         .collect::<Vec<_>>();
     for (index, token) in tokens.iter_mut().enumerate().skip(verb + 1) {
         if chooser_marker.contains(&index) {

@@ -994,6 +994,8 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         cursor.enter("permanent.subject.distributive-targets");
         cursor.consume_phrase(&["each", "of"])?;
     }
+    // `a second|third target creature` is the same slot head as `another
+    // target creature` (the shared target-list lookahead).
     if cursor.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("target")
             || raw.eq_ignore_ascii_case("another")
@@ -1002,6 +1004,7 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
         .peek_token()
         .is_some_and(|token| token.token_type == "quantity")
         || super::expressed_target_count_starts(cursor)
+        || super::ordinal_target_head_follows(cursor)
     {
         // The shared lowering reads a slot's typed count (`X target`, `any
         // number of target`); see `lower_ordinary_permanent_subject`.

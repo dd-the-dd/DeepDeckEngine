@@ -619,7 +619,7 @@ fn backend_returns_working_rules_even_when_other_oracle_text_is_unsupported() {
             "cardName": "Talon Gates of Madara",
             "typeLine": "Land - Gate",
             "manaCost": null,
-            "oracleText": "When Talon Gates of Madara enters the battlefield, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: Put Talon Gates of Madara from your hand onto the battlefield."
+            "oracleText": "When Talon Gates of Madara enters the battlefield, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: You win the game."
         })
         .to_string(),
     );
@@ -630,7 +630,9 @@ fn backend_returns_working_rules_even_when_other_oracle_text_is_unsupported() {
     assert_eq!(body["status"], "unsupported");
     assert_eq!(body["engineStatus"], "incomplete");
     // The enters trigger phases its target out (CR 702.26b); the two mana
-    // abilities execute; the `{4}` put-from-hand activation stays unsupported.
+    // abilities execute; a `{4}` ability without a grammar (winning the game)
+    // stays unsupported. (The printed `{4}` put-from-hand activation is now
+    // read by the shared source-move frame.)
     assert_eq!(rules.len(), 3);
     assert_eq!(rules[0]["kind"], "triggeredAbility");
     assert_eq!(rules[0]["effects"][1]["kind"], "phaseOutPermanent");

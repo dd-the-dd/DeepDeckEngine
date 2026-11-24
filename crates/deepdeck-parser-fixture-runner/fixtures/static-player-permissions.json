@@ -874,8 +874,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "traceContainsState": "permission.condition.introducer"
+            "code": "oracle_context_binding_failure",
+            "state": "binding.x-value.source"
           }
         ]
       }
@@ -963,7 +963,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "permission.alternative-cost.mana"
+            "state": "cost.mana.complete"
           }
         ]
       }

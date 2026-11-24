@@ -299,7 +299,7 @@
       }
     },
     {
-      "id": "phantasmagorian-sibling-offer-discard",
+      "id": "known-gap-phantasmagorian-counter-the-source-spell",
       "request": {
         "cardName": "Phantasmagorian",
         "typeLine": "Creature — Horror",
@@ -309,23 +309,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "offerAction"
-              },
-              {
-                "pointer": "/effects/0/action/kind",
-                "equals": "discardCards"
-              }
-            ]
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "target-list.slot.start",
+            "found": "Phantasmagorian"
           }
         ]
       }

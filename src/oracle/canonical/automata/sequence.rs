@@ -1126,13 +1126,40 @@ fn recognize_effect_sequence_attempt_scoped(
                             Err(failure) => Err(failure),
                         }
                     };
-                    let parsed = cursor.attempt(|attempt| {
-                        read_action(
-                            attempt,
-                            memory.current_player_subject.as_ref(),
-                            attempt_frame,
-                        )
-                    });
+                    // A subjectless verb coordinated by `and` with a clause
+                    // whose explicit performer opened the sentence shares
+                    // that subject (`Any number of target players each lose
+                    // 2 life and sacrifice a creature of their choice`): it is
+                    // never the controller's imperative (CR 608.2c).
+                    let continues_performer = !causative
+                        && memory.connectors.last() == Some(&EffectConnector::And)
+                        && memory.effects.len() > memory.sentence_start
+                        // Only a plural performer's base form reads like an
+                        // imperative; a singular performer's verb agrees
+                        // with it and its ordinary readers keep it.
+                        && memory
+                            .current_performer
+                            .as_ref()
+                            .is_some_and(|(_, agreement, sentence)| {
+                                *sentence == memory.sentence_start
+                                    && *agreement == super::VerbAgreement::Base
+                            })
+                        && cursor
+                            .peek()
+                            .and_then(|raw| super::lookup_verb(raw, &super::ALL_LEMMAS))
+                            .is_some_and(|(_, forms)| forms.contains(&VerbForm::Base));
+                    let parsed = if continues_performer {
+                        cursor.enter("sequence.performer.continued");
+                        Err(cursor.fail("the coordinated clause of the same performer"))
+                    } else {
+                        cursor.attempt(|attempt| {
+                            read_action(
+                                attempt,
+                                memory.current_player_subject.as_ref(),
+                                attempt_frame,
+                            )
+                        })
+                    };
                     // `you VERB ...`: the controller named as the explicit
                     // subject performs the same clause as the imperative
                     // (CR 109.5); every action reader takes it as the
@@ -3078,7 +3105,12 @@ fn recognize_put_frame(
         cursor.peek_ahead(1),
         inputs.name_links,
         inputs.name_failure,
-    ) || super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+    ) || (super::operand_determiner(cursor, 1) == super::OperandDeterminer::That
+        // `that card` names a card the program observed outside the
+        // battlefield; the card-move readers own it.
+        && !cursor
+            .peek_ahead(2)
+            .is_some_and(|noun| noun.eq_ignore_ascii_case("card")))
     {
         if super::source_card_origin_follows(cursor) {
             return recognize_source_zone_move_effect(
@@ -3113,7 +3145,11 @@ fn recognize_destroy_frame(
                 cursor,
                 inputs.context.source_numeric_reads,
             )?;
-            collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?;
+            collection.cannot_regenerate = super::recognize_plural_regeneration_amendment(cursor)?
+                || super::recognize_restated_collection_regeneration_amendment(
+                    cursor,
+                    &collection.objects,
+                )?;
             Ok(LocalEffectNode::DestroyCollection(collection))
         }
         super::OperandDeterminer::Those => {

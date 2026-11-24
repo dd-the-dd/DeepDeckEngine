@@ -137,13 +137,26 @@ fn a_negated_control_proposition_is_the_absence_count() {
     }
 }
 
+/// An elided `you control` before a second bare object phrase is the
+/// conjunction of two presence propositions over the shared query.
+#[test]
+fn an_elided_control_conjunct_is_two_presence_atoms() {
+    let text = "if you control an artifact and a creature, draw a card.";
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("test.trigger-guard", &tokens);
+    let Some(BooleanConditionNode::And(operands)) = guard(&mut cursor).unwrap() else {
+        panic!("{text}: a conjunction");
+    };
+    assert_eq!(operands.len(), 2, "{text}");
+    assert_eq!(cursor.peek(), Some(","), "{text}");
+}
+
 #[test]
 fn unsupported_atoms_counts_and_scopes_fail_explicitly() {
     for text in [
         "if you control X or more creatures, draw a card.",
         "if you control an instant, draw a card.",
         "if you control a creature you don't control, draw a card.",
-        "if you control an artifact and a creature, draw a card.",
         "if you control an artifact or banana, draw a card.",
         "if you control an artifact or, draw a card.",
         "if you control an artifact draw a card.",

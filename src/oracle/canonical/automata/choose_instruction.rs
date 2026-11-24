@@ -34,8 +34,9 @@ use super::{
     ObjectCardType, ObjectPredicate, ObjectQueryNode, ObjectSetAntecedent, ObjectSetDenotation,
     PerformerNode, PermanentEffectReference, PlayerPredicate, TargetBinding, TargetCountSupport,
     TargetListNode, TargetSelector, VerbForm, VerbLemma, lookup_verb,
-    recognize_expressed_target_cardinality, recognize_object_predicate_atom,
-    recognize_object_query, recognize_target_list_with_counts, selector_guarantees_permanent,
+    recognize_expressed_target_cardinality, recognize_object_collection,
+    recognize_object_predicate_atom, recognize_object_query, recognize_target_list_with_counts,
+    selector_guarantees_permanent,
 };
 use crate::oracle::characteristic_vocabulary::AcceptedForms;
 
@@ -573,7 +574,9 @@ fn recognize_choice_remainder(
         Some(VerbLemma::Destroy) if word_at(&probe, 1, "all") && word_at(&probe, 2, "other") => {
             probe.advance_to(probe.position() + 3)?;
             cursor.enter("choose.domain.object.remainder.others");
-            let query = recognize_object_query(&mut probe)?;
+            // `all other creatures and planeswalkers`: the shared coordinated
+            // set reader, as for any universal collection.
+            let query = recognize_object_collection(&mut probe)?;
             probe.require(
                 query.controller.is_none() && !query.exclude_source,
                 "an unrestricted query of the permanents no chooser chose",
