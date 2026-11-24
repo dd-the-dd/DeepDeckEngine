@@ -909,6 +909,112 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-expansion-algorithm-proliferate-x-times",
+      "request": {
+        "cardName": "Expansion Algorithm",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}{U}",
+        "oracleText": "Proliferate X times. (To proliferate, choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "proliferate"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-investigate-three-times",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Investigate three times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-proliferate-twice-then-draw",
+      "request": {
+        "cardName": "Clause Subject Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Proliferate twice, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "repeatEffects"
+              },
+              {
+                "pointer": "/effects/0/count",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

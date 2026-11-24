@@ -86,7 +86,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Proliferate(_)
             | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::CreateTokens(_)

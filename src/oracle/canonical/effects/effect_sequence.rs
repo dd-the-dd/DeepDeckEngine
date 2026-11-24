@@ -580,8 +580,26 @@ fn lower_local_effect_sequence_with_collections(
                         );
                         continue;
                     }
-                    SingularPlayerAction::Proliferate => {
-                        effects.push(json!({"kind": "proliferate", "player": lowered.player}));
+                    SingularPlayerAction::Proliferate(times) => {
+                        let proliferation =
+                            json!({"kind": "proliferate", "player": lowered.player});
+                        if *times == NumericExpression::from(1_i64) {
+                            effects.push(proliferation);
+                        } else {
+                            // `proliferate twice|X times`: separate actions.
+                            cursor.enter("lower.player-action.proliferate.repetition");
+                            let count = lower_sequence_bound_amount(
+                                cursor,
+                                times,
+                                sequence,
+                                &target_bindings,
+                                context,
+                            )?;
+                            effects.push(json!({
+                                "kind": "repeatEffects", "count": count,
+                                "effects": [proliferation],
+                            }));
+                        }
                         continue;
                     }
                     // CR 500.7: the acting player takes the next turn.

@@ -242,7 +242,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             }
             super::SingularPlayerAction::Sacrifice(_)
             | super::SingularPlayerAction::Venture(_)
-            | super::SingularPlayerAction::Proliferate
+            | super::SingularPlayerAction::Proliferate(_)
             | super::SingularPlayerAction::CreateTokens(_)
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
             // A hand action changes no permanent: the subject antecedent stays.
