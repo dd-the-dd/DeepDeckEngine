@@ -515,6 +515,60 @@
       }
     },
     {
+      "id": "exact-reverent-hunter-a-number-of-counters-equal-to-devotion",
+      "request": {
+        "cardName": "Reverent Hunter",
+        "typeLine": "Creature — Human Archer",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, put a number of +1/+1 counters on it equal to your devotion to green. (Each {G} in the mana costs of permanents you control counts toward your devotion to green.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-a-number-of-counters-equal-to-before-the-object",
+      "request": {
+        "cardName": "Synthetic Rally",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Put a number of +1/+1 counters equal to the number of creatures you control on target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-a-number-of-counters-without-an-amount",
+      "request": {
+        "cardName": "Synthetic Vague Boon",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "Put a number of +1/+1 counters on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-remove-a-counter-without-kind",
       "request": {
         "cardName": "Synthetic Eraser",

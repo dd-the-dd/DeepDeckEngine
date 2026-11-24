@@ -24,6 +24,31 @@ struct PutCountersMemory {
     counter: Option<crate::oracle::counter_name::CounterName>,
     count: Option<NumericExpression>,
     kinds: CounterKindsNode,
+    /// `a number of KIND counters ... equal to AMOUNT`: the count is the
+    /// shared `equal to` amount, written after the noun or the object.
+    equal_amount: bool,
+}
+
+/// True at `a number of`: the quantity of a counter action whose amount is
+/// a later `equal to` phrase.
+fn equal_amount_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["a", "number", "of"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `equal to AMOUNT`: the shared definition amount of the counter count.
+fn recognize_equal_counter_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("effect.put-counters.equal-amount");
+    cursor.consume_phrase(&["equal", "to"])?;
+    super::recognize_equal_to_amount_expression(cursor, None)
 }
 
 /// One `COUNT KIND counter(s)` placement of a counter action.
@@ -265,8 +290,9 @@ pub(in crate::oracle::canonical) fn claims_put_counters_effect(
     {
         return false;
     }
-    // `put your choice of COUNT KIND ...`: a choice among counter kinds.
-    if counter_kind_choice_starts(&probe) {
+    // `put your choice of COUNT KIND ...`: a choice among counter kinds;
+    // `put a number of KIND counters ... equal to AMOUNT`.
+    if counter_kind_choice_starts(&probe) || equal_amount_count_starts(&probe) {
         return true;
     }
     if recognize_counter_count(&mut probe, &EffectRecognitionContext::default()).is_err()
@@ -376,6 +402,11 @@ pub(in crate::oracle::canonical) fn recognize_put_counter_placements_effect(
                     memory.count = Some(first.count);
                     memory.kinds = CounterKindsNode::ChosenAmong(options.collect());
                     PutCountersState::Relation
+                } else if equal_amount_count_starts(cursor) {
+                    // `a number of KIND counters`: the amount follows later.
+                    cursor.consume_phrase(&["a", "number", "of"])?;
+                    memory.equal_amount = true;
+                    PutCountersState::CounterKind
                 } else {
                     memory.count = Some(recognize_counter_count(cursor, context)?);
                     PutCountersState::CounterKind
@@ -397,6 +428,14 @@ pub(in crate::oracle::canonical) fn recognize_put_counter_placements_effect(
                     "counters"
                 };
                 cursor.consume(noun)?;
+                if memory.equal_amount
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("equal"))
+                {
+                    // `a number of KIND counters equal to AMOUNT on X`.
+                    memory.count = Some(recognize_equal_counter_amount(cursor)?);
+                }
                 PutCountersState::Relation
             }
             PutCountersState::Relation => {
@@ -424,6 +463,10 @@ pub(in crate::oracle::canonical) fn recognize_put_counter_placements_effect(
                     name_failure,
                     context,
                 )?);
+                if memory.equal_amount && memory.count.is_none() {
+                    // `a number of KIND counters on X equal to AMOUNT`.
+                    memory.count = Some(recognize_equal_counter_amount(cursor)?);
+                }
                 PutCountersState::Complete
             }
             PutCountersState::Complete => {
