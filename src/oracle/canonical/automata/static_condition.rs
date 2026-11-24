@@ -261,6 +261,7 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
     Ok(ConditionAtom::PlayerDesignation(PlayerDesignationNode {
         designation: PlayerDesignation::EnduringStory,
         held: true,
+        subject: ConditionPlayerSubject::Controller,
     }))
 }
 
@@ -276,6 +277,7 @@ fn recognize_completed_dungeon_atom(
         ConditionAtom::PlayerDesignation(PlayerDesignationNode {
             designation: PlayerDesignation::CompletedDungeon { dungeon },
             held: completed,
+            subject: ConditionPlayerSubject::Controller,
         })
     };
     if word_is(cursor, 0, "a") && word_is(cursor, 1, "dungeon") {

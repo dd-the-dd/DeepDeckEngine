@@ -234,6 +234,7 @@ mod source_lki;
 #[path = "spell_cast_event_tests.rs"]
 mod spell_cast_event_tests;
 mod state;
+mod state_condition_atoms;
 mod static_condition_capability;
 mod stored_choice_binding;
 mod subtypes;
@@ -3128,6 +3129,9 @@ fn condition_supported(condition: &Value) -> bool {
             player_reference_supported(&condition["player"])
         }
         Some("sourceNeedsEcho") => true,
+        Some(kind) if state_condition_atoms::owns(kind) => {
+            state_condition_atoms::supported(condition)
+        }
         _ => false,
     }
 }
@@ -8725,6 +8729,8 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == condition["mode"].as_str()
             }
+            Some(kind) if state_condition_atoms::owns(kind) => self
+                .state_condition_atom_at_resolution(condition, stack_object, bindings, decisions),
             _ => self.condition_value_with_source(
                 condition,
                 &stack_object.controller,
@@ -9247,6 +9253,9 @@ impl GameEngine {
                     })
                     .count()
                     == 1
+            }
+            Some(kind) if state_condition_atoms::owns(kind) => {
+                self.state_condition_atom_with_source(condition, controller_id, source)
             }
             _ => false,
         }

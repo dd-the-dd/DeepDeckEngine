@@ -118,19 +118,26 @@ pub(in crate::oracle::canonical) enum ConditionAtom {
     ActionOutcome(ActionOutcomeNode),
     /// `it's [not] your turn`.
     TurnOwnership(ControllerTurnPropositionNode),
-    /// A designation the controller holds (CR 309.7, enduring story).
+    /// `it's [not] their turn`, `it's an opponent's turn`: the turn of a
+    /// player other than the controller (CR 102.1, 500.1).
+    PlayerTurn(PlayerTurnNode),
+    /// A designation a player holds (CR 309.7, enduring story, CR 724 the
+    /// monarch, CR 103.1 the starting player).
     PlayerDesignation(PlayerDesignationNode),
+    /// The zone a referenced object is in (`this creature is on the
+    /// battlefield`, CR 400.1): typed zones, never an object predicate.
+    ObjectZone(ObjectZoneConditionNode),
 }
 
 impl ConditionAtom {
     pub(in crate::oracle::canonical) fn family(&self) -> ConditionFamily {
         match self {
             Self::Compare(_) => ConditionFamily::Compare,
-            Self::ObjectSatisfies(_) => ConditionFamily::ObjectSatisfies,
+            Self::ObjectSatisfies(_) | Self::ObjectZone(_) => ConditionFamily::ObjectSatisfies,
             Self::EventHistory(_) => ConditionFamily::EventHistory,
             Self::CastFact(_) => ConditionFamily::CastFact,
             Self::ActionOutcome(_) => ConditionFamily::ActionOutcome,
-            Self::TurnOwnership(_) => ConditionFamily::TurnOwnership,
+            Self::TurnOwnership(_) | Self::PlayerTurn(_) => ConditionFamily::TurnOwnership,
             Self::PlayerDesignation(_) => ConditionFamily::PlayerDesignation,
         }
     }
@@ -505,6 +512,19 @@ pub(in crate::oracle::canonical) enum PlayerDesignation {
     CompletedDungeon {
         dungeon: Option<String>,
     },
+    /// CR 724.1: `the monarch`, a designation one player at most holds.
+    Monarch,
+    /// CR 103.1: the player who took the game's first turn. It is a fact
+    /// of the game, so its present and past forms state the same thing.
+    StartingPlayer,
+}
+
+impl PlayerDesignation {
+    /// Whether the designation is recorded for one player of the game
+    /// (any player can be asked), rather than for the controller only.
+    pub(in crate::oracle::canonical) const fn is_per_player(&self) -> bool {
+        matches!(self, Self::Monarch | Self::StartingPlayer)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -512,6 +532,96 @@ pub(in crate::oracle::canonical) struct PlayerDesignationNode {
     pub designation: PlayerDesignation,
     /// False for `you haven't completed ...`.
     pub held: bool,
+    /// The player asked: the controller, a quantified population or the
+    /// player the triggering event records.
+    pub subject: ConditionPlayerSubject,
+}
+
+/// The turn of a player other than the controller (`it's not their turn`,
+/// `it's an opponent's turn`). `is_turn` is false for the negated form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerTurnNode {
+    pub player: ConditionPlayerSubject,
+    pub is_turn: bool,
+}
+
+/// A zone of the game (CR 400.1) as an object condition names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ConditionZone {
+    Battlefield,
+    Graveyard,
+    Exile,
+    Hand,
+    Library,
+    Stack,
+    Command,
+}
+
+impl ConditionZone {
+    /// The zone a prepositional phrase names at `offset` (`on the
+    /// battlefield`, `in your graveyard`, `in exile`, `in the command
+    /// zone`), with its width. A personal zone is the referenced card's own
+    /// (its owner's, CR 400.3): only `your` and `a` name it.
+    pub(in crate::oracle::canonical) fn at(
+        cursor: &OracleTokenCursor<'_>,
+        offset: usize,
+    ) -> Option<(Self, usize)> {
+        let word = |at: usize, expected: &str| {
+            cursor
+                .peek_ahead(offset + at)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+        };
+        if word(0, "on") && word(1, "the") && word(2, "battlefield") {
+            return Some((Self::Battlefield, 3));
+        }
+        if word(0, "on") && word(1, "the") && word(2, "stack") {
+            return Some((Self::Stack, 3));
+        }
+        if !word(0, "in") {
+            return None;
+        }
+        if word(1, "exile") {
+            return Some((Self::Exile, 2));
+        }
+        if word(1, "the") && word(2, "command") && word(3, "zone") {
+            return Some((Self::Command, 4));
+        }
+        if word(1, "your") || word(1, "a") {
+            let zone = if word(2, "graveyard") {
+                Self::Graveyard
+            } else if word(2, "hand") {
+                Self::Hand
+            } else if word(2, "library") {
+                Self::Library
+            } else {
+                return None;
+            };
+            return Some((zone, 3));
+        }
+        None
+    }
+
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Battlefield => "battlefield",
+            Self::Graveyard => "graveyard",
+            Self::Exile => "exile",
+            Self::Hand => "hand",
+            Self::Library => "library",
+            Self::Stack => "stack",
+            Self::Command => "commandZone",
+        }
+    }
+}
+
+/// `OBJECT is [not] [still] in ZONE [or ZONE]`: the referenced object is in
+/// one of the zones (CR 400.1). The object is resolved like every object
+/// condition subject; the zones are a typed disjunction.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectZoneConditionNode {
+    pub object: ConditionObjectReference,
+    pub zones: Vec<ConditionZone>,
+    pub negated: bool,
 }
 
 /// Typed turn-ownership proposition `it's [not] your turn`. The enclosing
@@ -816,7 +926,74 @@ enum ControlledPermanentPresenceState {
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ControlledPermanentCountConditionNode> {
-    let mut state = ControlledPermanentPresenceState::Player;
+    controlled_permanent_presence_from(cursor, ControlledPermanentPresenceState::Player)
+}
+
+/// Words after which a backward scan for an elided `you control` stops: a
+/// subject or a finite verb other than `control` opens another clause.
+const ELLIPSIS_CLAUSE_BOUNDARIES: &[&str] = &[
+    ",", ".", ";", ":", "if", "unless", "as", "controls", "has", "have", "had", "is", "are", "was",
+    "were", "it", "it's", "they", "that", "this", "there", "you've", "you're",
+];
+
+/// Coordination ellipsis of a shared subject and verb (`if you control an
+/// artifact and an enchantment`, `as long as you control a Forest or a
+/// Plains`): true at the determiner of a conjunct directly after `and|or`
+/// whose preceding conjunct in the same clause is `you control a|an|another
+/// PERMANENT`. Lexical lookbehind only; the conjunct is read by the same
+/// presence query, so `you control A and B` is `you control A` and `you
+/// control B` (their Boolean connector belongs to the list parent).
+pub(in crate::oracle::canonical) fn elided_controlled_presence_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let at = |index: usize| {
+        cursor
+            .token_slice(index, index + 1)
+            .first()
+            .map(|token| token.raw.replace('\u{2019}', "'").to_ascii_lowercase())
+    };
+    let determiner = |raw: Option<String>| matches!(raw.as_deref(), Some("a" | "an" | "another"));
+    let position = cursor.position();
+    if position < 4
+        || !determiner(at(position))
+        || !matches!(at(position - 1).as_deref(), Some("and" | "or"))
+    {
+        return false;
+    }
+    for index in (1..position - 1).rev() {
+        let Some(raw) = at(index) else {
+            return false;
+        };
+        if raw == "control" {
+            return at(index - 1).as_deref() == Some("you") && determiner(at(index + 1));
+        }
+        if ELLIPSIS_CLAUSE_BOUNDARIES.contains(&raw.as_str()) {
+            return false;
+        }
+    }
+    false
+}
+
+/// Reads the conjunct whose `you control` was elided (see
+/// `elided_controlled_presence_starts`): the presence query from its
+/// determiner, the same controller comparison as the stated conjunct.
+pub(in crate::oracle::canonical) fn recognize_elided_controlled_presence_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.controlled-permanent-presence.elided");
+    cursor.require(
+        elided_controlled_presence_starts(cursor),
+        "a conjunct after `you control a PERMANENT and|or`",
+    )?;
+    controlled_permanent_presence_from(cursor, ControlledPermanentPresenceState::Determiner)
+        .map(ControlledPermanentCountConditionNode::into_atom)
+}
+
+fn controlled_permanent_presence_from(
+    cursor: &mut OracleTokenCursor<'_>,
+    start: ControlledPermanentPresenceState,
+) -> MachineResult<ControlledPermanentCountConditionNode> {
+    let mut state = start;
     let mut predicate = None;
     let mut exclude_source = false;
     loop {

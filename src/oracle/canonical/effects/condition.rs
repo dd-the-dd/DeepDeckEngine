@@ -107,24 +107,127 @@ fn lower_condition_atom(
         } else {
             json!({ "kind": "notYourTurn" })
         }),
-        ConditionAtom::PlayerDesignation(node) => Ok(lower_player_designation(node)),
+        ConditionAtom::PlayerTurn(node) => lower_player_turn(node),
+        ConditionAtom::PlayerDesignation(node) => lower_player_designation(node),
+        ConditionAtom::ObjectZone(node) => lower_object_zone(node, bindings),
     }
 }
 
-fn lower_player_designation(node: &PlayerDesignationNode) -> Value {
-    let atom = match &node.designation {
-        PlayerDesignation::EnduringStory => {
-            json!({ "kind": "hasEnduringStory", "player": controller() })
-        }
-        PlayerDesignation::CompletedDungeon { dungeon } => {
-            let mut atom = json!({ "kind": "completedDungeon", "player": controller() });
-            if let Some(dungeon) = dungeon {
-                atom["name"] = json!(dungeon);
-            }
-            atom
-        }
+/// `it's [not] their turn`: whether the active player is the player the
+/// triggering event records (CR 500.1). `an opponent's turn` is the turn of
+/// a player other than the controller, the negated controller turn.
+fn lower_player_turn(node: &PlayerTurnNode) -> Lowered {
+    let fact = match node.player {
+        ConditionPlayerSubject::EventPlayer => json!({
+            "kind": "isPlayersTurn",
+            "player": { "kind": "triggeringPlayer" },
+        }),
+        ConditionPlayerSubject::Quantified {
+            quantifier: PlayerQuantifier::Some,
+            population: PlayerPopulation::Opponents,
+        } => negation(json!({ "kind": "duringControllerTurn", "player": controller() })),
+        _ => return Err("the turn of the controller, of an opponent or of the event's player"),
     };
-    if node.held { atom } else { not(atom) }
+    Ok(if node.is_turn { fact } else { negation(fact) })
+}
+
+/// A player designation for its holder: the controller, the player the
+/// triggering event records, or each member of a quantified population
+/// (`playerQuantifier` over `quantifiedPlayer`, CR 102.2-102.3).
+fn lower_player_designation(node: &PlayerDesignationNode) -> Lowered {
+    let held = |player: Value| -> Lowered {
+        let atom = match &node.designation {
+            PlayerDesignation::EnduringStory => {
+                json!({ "kind": "hasEnduringStory", "player": player })
+            }
+            PlayerDesignation::CompletedDungeon { dungeon } => {
+                let mut atom = json!({ "kind": "completedDungeon", "player": player });
+                if let Some(dungeon) = dungeon {
+                    atom["name"] = json!(dungeon);
+                }
+                atom
+            }
+            PlayerDesignation::Monarch => json!({ "kind": "playerIsMonarch", "player": player }),
+            PlayerDesignation::StartingPlayer => {
+                json!({ "kind": "playerWasStartingPlayer", "player": player })
+            }
+        };
+        Ok(if node.held { atom } else { not(atom) })
+    };
+    if !node.designation.is_per_player() && node.subject != ConditionPlayerSubject::Controller {
+        return Err("a designation the runtime records for the ability's controller");
+    }
+    match node.subject {
+        ConditionPlayerSubject::Controller => held(controller()),
+        ConditionPlayerSubject::EventPlayer => held(json!({ "kind": "triggeringPlayer" })),
+        ConditionPlayerSubject::Quantified {
+            quantifier,
+            population,
+        } => {
+            let players = match population {
+                PlayerPopulation::Opponents => {
+                    json!({ "kind": "opponentsOf", "player": controller() })
+                }
+                PlayerPopulation::Players => json!({ "kind": "eachPlayer" }),
+            };
+            let inner = held(json!({ "kind": "quantifiedPlayer" }))?;
+            let quantified = |quantifier: &str| {
+                json!({
+                    "kind": "playerQuantifier",
+                    "quantifier": quantifier,
+                    "players": players,
+                    "condition": inner,
+                })
+            };
+            Ok(match quantifier {
+                PlayerQuantifier::Some => quantified("some"),
+                PlayerQuantifier::Every => quantified("every"),
+                PlayerQuantifier::None => not(quantified("some")),
+            })
+        }
+        ConditionPlayerSubject::DefendingPlayer | ConditionPlayerSubject::OpponentsTogether => {
+            Err("a designation holder the condition lowering binds")
+        }
+    }
+}
+
+/// `OBJECT is [not] in ZONE [or ZONE]` (CR 400.1). The source on the
+/// battlefield is the continuous evaluator's `sourceOnBattlefield`; any
+/// other object or zone is the generic `objectInZone` over the referenced
+/// object, resolved like every object condition subject.
+fn lower_object_zone(
+    node: &ObjectZoneConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let fact = if node.object == ConditionObjectReference::SOURCE
+        && node.zones == [ConditionZone::Battlefield]
+    {
+        json!({ "kind": "sourceOnBattlefield" })
+    } else {
+        let object = match (node.object, bindings) {
+            (object, _) if object == ConditionObjectReference::SOURCE => self_ref(),
+            (ConditionObjectReference::Permanent(reference), Some(bindings)) => {
+                bound_permanent_reference_value(reference, bindings.permanent_targets)
+                    .ok_or("the previously declared permanent target slot in this lexical scope")?
+            }
+            (ConditionObjectReference::CardTarget(binding), Some(bindings)) => bindings
+                .card_targets
+                .iter()
+                .find_map(|(candidate, id)| (*candidate == binding).then(|| chosen_target(id)))
+                .ok_or("the singular card target declared earlier in this sequence")?,
+            (ConditionObjectReference::CardFocus, Some(bindings)) => bindings
+                .card_focus
+                .clone()
+                .ok_or("a singular card result in the current card-collection scope")?,
+            _ => return Err("an object whose current zone the runtime can read"),
+        };
+        json!({
+            "kind": "objectInZone",
+            "object": object,
+            "zones": node.zones.iter().map(|zone| zone.ir_name()).collect::<Vec<_>>(),
+        })
+    };
+    Ok(if node.negated { not(fact) } else { fact })
 }
 
 /// A cast fact of the ability's own source, or the mana spent to cast the

@@ -150,6 +150,10 @@ mod conditional_static_runtime;
 mod condition_atom_language_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/state_condition_atoms_runtime.rs"]
+mod state_condition_atoms_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/static_characteristics_runtime.rs"]
 mod static_characteristics_runtime;
 
