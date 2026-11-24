@@ -40,6 +40,24 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
         PermanentEffectReference::Target(target) => bindings
             .iter()
             .find_map(|(binding, id)| (*binding == target).then(|| chosen_target(id))),
+        // `those creatures`: every object the plural slot declared.
+        PermanentEffectReference::TargetSet(target) => {
+            let key = target_set_binding_key(target);
+            bindings.iter().find_map(|(binding, id)| {
+                (*binding == key).then(|| json!({"kind":"chosenTargets","id":id}))
+            })
+        }
+    }
+}
+
+/// The key a plural slot's binding is recorded under. Plural slots live in a
+/// key space disjoint from singular slot keys, so a singular reference
+/// (`it`, `its power`) never resolves to a set of targets.
+fn target_set_binding_key(slot: TargetBinding) -> TargetBinding {
+    const TARGET_SET_SLOT_OFFSET: usize = 1 << 16;
+    TargetBinding {
+        effect_index: slot.effect_index,
+        slot_index: slot.slot_index + TARGET_SET_SLOT_OFFSET,
     }
 }
 
@@ -150,8 +168,17 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
             i64::from(slot.cardinality.maximum),
         ));
         if plural {
-            // A target collection has no singular anaphor binding; a later
-            // `it` / `that creature` keeps its explicit missing-slot failure.
+            // A target collection has no singular anaphor binding (the
+            // parser never names a plural slot with `it` / `that creature`);
+            // its binding serves only a `TargetSet` reference (`those
+            // creatures`), which lowers to the same collection.
+            bindings.push((
+                target_set_binding_key(TargetBinding {
+                    effect_index,
+                    slot_index,
+                }),
+                id.clone(),
+            ));
             objects.push(json!({"kind":"chosenTargets","id":id}));
             continue;
         }

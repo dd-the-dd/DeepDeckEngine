@@ -47,6 +47,8 @@ fn permanent_operand_is_plural(operand: &PermanentOperandNode) -> bool {
                     .any(|slot| slot.cardinality.maximum > 1)
         }
         PermanentOperandNode::Collection { .. } => true,
+        // `those creatures` / `they` naming a declared target set.
+        PermanentOperandNode::BoundReference(PermanentEffectReference::TargetSet(_)) => true,
         PermanentOperandNode::BoundReference(_) | PermanentOperandNode::Reference(_) => false,
     }
 }
@@ -98,6 +100,17 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         context,
     ) {
         Ok(subject) => subject,
+        // A demonstrative subject (`that creature`, `those creatures`, `that
+        // token`) is read by this frame only: its unresolved antecedent is
+        // the clause's diagnostic. `they` may still be a player subject.
+        Err(failure)
+            if super::demonstrative_binding_failure(&failure)
+                && !cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("they")) =>
+        {
+            return PermanentActionAttempt::FailedCommitted(failure);
+        }
         Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
     };
     // A floating `each` after a plural subject distributes the action over

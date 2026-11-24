@@ -1213,6 +1213,26 @@ fn lower_local_effect_sequence_with_collections(
                     UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
                 };
                 for object in objects {
+                    // A plural operand (`those creatures`, `up to two target
+                    // creatures`, `all nonblue creatures`) restricts each of
+                    // its permanents.
+                    if matches!(
+                        object["kind"].as_str(),
+                        Some("chosenTargets" | "eachPermanent")
+                    ) {
+                        let id = format!("effect{effect_index}:untapRestricted");
+                        effects.push(json!({
+                            "kind": "forEachObject",
+                            "objects": object,
+                            "bind": id.clone(),
+                            "effects": [{
+                                "kind": "installUntapRestriction",
+                                "permanent": {"kind": "boundValue", "id": id},
+                                "duration": {"kind": duration},
+                            }],
+                        }));
+                        continue;
+                    }
                     effects.push(json!({
                         "kind": "installUntapRestriction",
                         "permanent": object,
@@ -3454,7 +3474,8 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
         | PermanentOperandNode::Reference(_) => true,
         PermanentOperandNode::BoundReference(reference) => match reference {
             PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
-            PermanentEffectReference::Target(binding) => sequence
+            PermanentEffectReference::Target(binding)
+            | PermanentEffectReference::TargetSet(binding) => sequence
                 .effects
                 .get(binding.effect_index)
                 .and_then(ordinary_action_targets)

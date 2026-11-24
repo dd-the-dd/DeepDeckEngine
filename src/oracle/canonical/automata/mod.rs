@@ -582,6 +582,9 @@ pub(in crate::oracle::canonical) enum TypedObservedEventObject {
 pub(in crate::oracle::canonical) enum PermanentEffectReference {
     Source(LocalObjectReference),
     Target(TargetBinding),
+    /// Every object one plural target slot declared (`those creatures`,
+    /// `they` after `tap up to two target creatures`, CR 115.1, 608.2c).
+    TargetSet(TargetBinding),
     Observed(TypedObservedEventObject),
     /// `enchanted creature` / `equipped creature`: the permanent the ability
     /// source is attached to (CR 301.5a, 303.4a), resolved at execution.

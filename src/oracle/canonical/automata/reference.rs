@@ -321,6 +321,14 @@ pub(in crate::oracle::canonical) fn recognize_player_reference_with_support(
         return Ok(LocalPlayerReference::ControllerOf(object));
     }
 
+    // `its controller` / `that NOUN's owner` without this reader's own
+    // target binding: the object the shared binding environment names (an
+    // event object, the source, a moved card), never a guessed target.
+    if antecedent.is_none() && super::object_related_player_head_length(cursor).is_some() {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_bound_player_reference(cursor, &environment)
+            .map(LocalPlayerReference::Bound);
+    }
     let object = if support == super::TargetReferenceSupport::Unqualified {
         super::TypedTargetReference {
             binding: recognize_anaphoric_target_reference(cursor, antecedent)?,
