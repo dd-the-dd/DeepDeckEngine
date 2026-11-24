@@ -40,6 +40,86 @@ pub(in crate::oracle::canonical) struct CardMoveDestinationNode {
     /// lowerer proves the cards are such an observation; the cards' owner's
     /// library is that library (CR 400.3).
     pub origin_library: bool,
+    /// `tapped and attacking [DEFENDER]`: the permanents enter attacking
+    /// (CR 508.4); they were never declared as attackers, so nothing that
+    /// triggers on an attack declaration sees them (CR 508.3a, 508.4).
+    /// Battlefield only, always together with `tapped`.
+    pub attacking: Option<EnteringAttackNode>,
+}
+
+/// Whom permanents put onto the battlefield attacking attack (CR 508.4):
+/// the controller chooses among the defenders the effect admits.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum EnteringAttackNode {
+    /// No defender is named: any player, planeswalker or battle the
+    /// controller's creatures could attack (CR 508.4).
+    AnyDefender,
+    /// `attacking that player|that opponent|defending player`.
+    Player(super::BoundPlayerReference),
+    /// `attacking defending player or a planeswalker they control`.
+    PlayerOrPlaneswalkerTheyControl(super::BoundPlayerReference),
+}
+
+/// `that player|that opponent|defending player` after `attacking`. In an
+/// attack trigger whose program declared no player of its own, `that
+/// player|opponent` is the attacked player the event records (CR 506.2,
+/// 603.2), as `defending player` is; every other reading is the shared
+/// bound-player resolver's, which fails explicitly without a binding.
+fn recognize_attacked_player(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::BoundPlayerReference> {
+    cursor.enter("collection.destination.entry.attacking.defender");
+    let environment = cursor
+        .binding_environment()
+        .cloned()
+        .ok_or_else(|| cursor.fail("a binding environment naming the attacked player"))?;
+    let that = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"));
+    let opponent = that
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("opponent"));
+    let event_attacked = environment.player_target.is_none()
+        && environment.player.is_none()
+        && (environment.frame.defending_player || environment.frame.event_player);
+    if that && event_attacked {
+        let noun = if opponent { "opponent" } else { "player" };
+        cursor.consume_phrase(&["that", noun])?;
+        return Ok(super::BoundPlayerReference::EventPlayer);
+    }
+    cursor.require(
+        !opponent,
+        "an attack event that records the attacked opponent",
+    )?;
+    super::recognize_bound_player_reference(cursor, &environment)
+}
+
+/// `attacking [that player|that opponent|defending player [or a planeswalker
+/// they control]]` after `tapped and` (CR 508.4).
+pub(in crate::oracle::canonical) fn recognize_entering_attack(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EnteringAttackNode> {
+    cursor.enter("collection.destination.entry.attacking");
+    cursor.consume("attacking")?;
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let names_player = (word(cursor, 0, "that")
+        && (word(cursor, 1, "player") || word(cursor, 1, "opponent")))
+        || (word(cursor, 0, "defending") && word(cursor, 1, "player"));
+    if !names_player {
+        return Ok(EnteringAttackNode::AnyDefender);
+    }
+    let player = recognize_attacked_player(cursor)?;
+    if word(cursor, 0, "or") && word(cursor, 1, "a") && word(cursor, 2, "planeswalker") {
+        cursor.enter("collection.destination.entry.attacking.planeswalker");
+        cursor.consume_phrase(&["or", "a", "planeswalker", "they", "control"])?;
+        return Ok(EnteringAttackNode::PlayerOrPlaneswalkerTheyControl(player));
+    }
+    Ok(EnteringAttackNode::Player(player))
 }
 
 /// The one permanent `attached to` names, read by the shared readers: the
@@ -114,6 +194,8 @@ pub(in crate::oracle::canonical) struct EntryModifiers {
     pub controller: CardMoveOwnerNode,
     pub entering_counters: Option<EnteringCountersNode>,
     pub attached_to: Option<EntryAttachmentNode>,
+    /// `tapped and attacking`: read only right after `tapped and`.
+    pub attacking: Option<EnteringAttackNode>,
     explicit_controller: bool,
 }
 
@@ -126,14 +208,15 @@ impl EntryModifiers {
             controller,
             entering_counters: None,
             attached_to: None,
+            attacking: None,
             explicit_controller: false,
         }
     }
 }
 
 /// A modifier word that may follow `and` inside the modifier list. Any other
-/// `and` belongs to the parent's connector (`tapped and attacking` is not an
-/// entry modifier this reader owns).
+/// `and` belongs to the parent's connector. `attacking` is read only as the
+/// `tapped and attacking` pair (CR 508.4), never on its own.
 fn entry_modifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize, battlefield: bool) -> bool {
     match cursor
         .peek_ahead(offset)
@@ -173,6 +256,30 @@ pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
                 cursor.require(!modifiers.tapped, "one `tapped` entry modifier")?;
                 cursor.consume("tapped")?;
                 modifiers.tapped = true;
+                // `tapped and attacking` (CR 508.4): the pair enters combat.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("attacking"))
+                {
+                    cursor.consume("and")?;
+                    modifiers.attacking = Some(recognize_entering_attack(cursor)?);
+                }
+            }
+            // `tapped and attacking` after another destination: only a
+            // permanent can attack (CR 506.3a).
+            Some("tapped")
+                if cursor
+                    .peek_ahead(1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && cursor
+                        .peek_ahead(2)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("attacking")) =>
+            {
+                cursor.enter("collection.destination.entry.attacking.zone");
+                return Err(cursor.fail("the battlefield as the destination of an attacking entry"));
             }
             Some("transformed") if battlefield => {
                 cursor.enter("collection.destination.entry.transformed");
@@ -360,6 +467,7 @@ fn recognize_back_destination(
             shuffle: false,
             attached_to: None,
             origin_library: false,
+            attacking: None,
         }
     };
     cursor.enter("collection.destination.back.library-top");
@@ -537,6 +645,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             controller: owner,
             entering_counters,
             attached_to,
+            attacking,
             ..
         } = modifiers;
         let order = if trial
@@ -564,6 +673,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             shuffle: false,
             attached_to,
             origin_library,
+            attacking,
         })
     })();
     match result {

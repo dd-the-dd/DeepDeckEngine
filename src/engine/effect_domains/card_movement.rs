@@ -87,6 +87,13 @@ fn supports_known_effect(effect: &Value) -> bool {
                             && effect["to"]
                                 .get("retainExistingTypes")
                                 .is_none_or(Value::is_boolean)
+                            // CR 508.4: `tapped and attacking`.
+                            && effect["to"].get("attacking").is_none_or(|policy| {
+                                effect["to"]["tapped"].as_bool() == Some(true)
+                                    && super::super::entering_attacking::entering_attack_supported(
+                                        policy,
+                                    )
+                            })
                     }
                     Some("library") => {
                         (player_reference_supported(&effect["to"]["player"])
@@ -637,6 +644,20 @@ impl GameEngine {
                             prepared_entries.push((entry_player_index, card));
                         }
                         self.commit_identity_checked_battlefield_entries(prepared_entries)?;
+                        if let Some(policy) = effect["to"].get("attacking") {
+                            let entered = moved_ids
+                                .iter()
+                                .filter(|id| self.permanent_position(id).is_some())
+                                .cloned()
+                                .collect::<Vec<_>>();
+                            self.put_permanents_into_combat_attacking(
+                                &entered,
+                                policy,
+                                stack_object,
+                                bindings,
+                                provider,
+                            )?;
+                        }
                     }
                     _ => {}
                 }

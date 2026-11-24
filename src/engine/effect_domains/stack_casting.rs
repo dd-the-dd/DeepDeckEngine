@@ -91,18 +91,44 @@ fn cast_any_number_supported(effect: &Value) -> bool {
                 && effect["alternativeCost"]["counter"].is_string()
                 && value_kind(&effect["alternativeCost"]["count"]) == Some("manaValueOfCastCard")
         }
+        // CR 118.9: life equal to the mana value of the spell actually cast.
+        (Some(false), Some("payLife")) => {
+            alternative_costs_allowed == Some(false)
+                && value_kind(&effect["alternativeCost"]["amount"]) == Some("manaValueOfCastCard")
+        }
         _ => false,
     };
+    // The cards are an object expression, or the caster's own command zone
+    // filtered by `cardsWhere` (CR 408.1: only its holder casts from it).
+    let cards_supported = match (effect.get("cards"), effect.get("cardsWhere")) {
+        (Some(cards), None) => object_expression_supported(cards),
+        (None, Some(filter)) => {
+            effect["sourceZone"].as_str() == Some("commandZone") && card_filter_supported(filter)
+        }
+        _ => false,
+    };
+    let zones_supported = match (effect.get("sourceZone"), effect.get("sourceZones")) {
+        (None, None) => true,
+        (Some(zone), None) => matches!(
+            zone.as_str(),
+            Some("exile" | "graveyard" | "hand" | "commandZone")
+        ),
+        (None, Some(zones)) => zones.as_array().is_some_and(|zones| {
+            zones.len() >= 2
+                && zones
+                    .iter()
+                    .all(|zone| matches!(zone.as_str(), Some("exile" | "graveyard" | "hand")))
+        }),
+        (Some(_), Some(_)) => false,
+    };
     player_reference_supported(&effect["player"])
-        && object_expression_supported(&effect["cards"])
+        && cards_supported
         && value_kind(&effect["where"]) == Some("canBeCastAsSpell")
         && value_kind(&effect["timing"]) == Some("duringResolution")
         && payment_supported
         && effect["additionalCostsApply"].as_bool() == Some(true)
         && integer_value(&effect["variableManaValue"]) == Some(0)
-        && effect
-            .get("sourceZone")
-            .is_none_or(|zone| matches!(zone.as_str(), Some("exile" | "graveyard" | "hand")))
+        && zones_supported
         && effect
             .get("maximum")
             .is_none_or(|maximum| integer_value(maximum).is_some_and(|value| value > 0))
@@ -110,6 +136,10 @@ fn cast_any_number_supported(effect: &Value) -> bool {
             .get("castVia")
             .is_none_or(suspend_keyword::cast_via_supported)
         && effect.get("mandatory").is_none_or(Value::is_boolean)
+        // `you may play`: a land is played as the player's land play.
+        && effect.get("playLands").is_none_or(|play| {
+            play.is_boolean() && effect.get("mandatory").is_none_or(|m| m != &Value::Bool(true))
+        })
         && effect
             .get("exileInsteadOfGraveyard")
             .is_none_or(cast_graveyard_exile_supported)
@@ -151,11 +181,8 @@ impl GameEngine {
         match value_kind(effect) {
             Some("castAnyNumber") => {
                 // The offered cards, fixed before any of them is cast.
-                let offered = self
-                    .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
-                    .unwrap_or_default()
-                    .into_iter()
-                    .collect::<BTreeSet<_>>();
+                let offered =
+                    self.resolution_cast_offered(effect, stack_object, bindings, decisions);
                 if let Some(binding) = effect["bind"].as_str() {
                     // Bound even when nothing is cast: a later `that weren't
                     // cast` subtracts an empty set, never a missing binding.
@@ -550,10 +577,136 @@ impl GameEngine {
         Ok(())
     }
 
-    /// CR 608.2g: the player casts the offered cards while this effect
-    /// resolves, one decision at a time, at their printed cost, without
-    /// their mana cost, or with the player-counter alternative cost. An
-    /// optional cast offers a finishing choice; a `mandatory` cast (an
+    /// The zones a resolution-time cast reads its cards from.
+    fn resolution_cast_zones(effect: &Value) -> Vec<String> {
+        match effect.get("sourceZones").and_then(Value::as_array) {
+            Some(zones) => zones
+                .iter()
+                .filter_map(Value::as_str)
+                .map(ToOwned::to_owned)
+                .collect(),
+            None => vec![effect["sourceZone"].as_str().unwrap_or("exile").to_string()],
+        }
+    }
+
+    /// The cards a resolution-time cast offers, fixed before any of them is
+    /// cast: its object expression, or the caster's own cards in their
+    /// command zone matching `cardsWhere` (CR 903.3: a commander they own).
+    fn resolution_cast_offered(
+        &self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> BTreeSet<String> {
+        if effect.get("cards").is_some() {
+            return self
+                .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
+                .unwrap_or_default()
+                .into_iter()
+                .collect();
+        }
+        let Some(player_id) = self.resolve_player(&effect["player"], stack_object, bindings) else {
+            return BTreeSet::new();
+        };
+        let Ok(player_index) = self.player_index(&player_id) else {
+            return BTreeSet::new();
+        };
+        self.state.players[player_index]
+            .command_zone
+            .iter()
+            .filter(|card| {
+                card.owner == player_id
+                    && matches_card_filter(&card.definition, &effect["cardsWhere"])
+            })
+            .map(|card| card.instance_id.clone())
+            .collect()
+    }
+
+    /// The commander tax of a cast from the command zone during resolution
+    /// (CR 903.8): an additional cost paid even without the mana cost.
+    pub(in super::super) fn resolution_cast_command_tax(
+        &self,
+        card: &CardInstance,
+        source_zone: &str,
+    ) -> Vec<String> {
+        if source_zone != "commandZone" {
+            return Vec::new();
+        }
+        let tax = self
+            .state
+            .commanders
+            .iter()
+            .find(|commander| commander.card_instance_id == card.instance_id)
+            .map(|commander| commander.casts_from_command_zone.saturating_mul(2))
+            .unwrap_or(0);
+        (tax > 0)
+            .then(|| format!("{{{tax}}}"))
+            .into_iter()
+            .collect()
+    }
+
+    /// The land plays a `you may play` offers while an effect resolves: a
+    /// land among the cards is played only during its player's own turn and
+    /// only with a land play left (CR 305.2, 305.3), from the zone it is in.
+    fn resolution_land_play_actions(
+        &self,
+        player_index: usize,
+        cards: &[CardInstance],
+        source_zone: &str,
+    ) -> Vec<LegalAction> {
+        let player_id = self.state.players[player_index].id.clone();
+        if self.state.players[self.state.active_player].id != player_id {
+            return Vec::new();
+        }
+        let played = self
+            .state
+            .events
+            .iter()
+            .filter(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.kind == "landPlayed"
+                    && event.player_id.as_deref() == Some(player_id.as_str())
+            })
+            .count();
+        let allowed = 1_i64
+            .saturating_add(i64::from(self.additional_land_play_count(&player_id)))
+            .max(0);
+        if i64::try_from(played).unwrap_or(i64::MAX) >= allowed {
+            return Vec::new();
+        }
+        cards
+            .iter()
+            .filter(|card| is_land(&card.definition))
+            .filter(|card| {
+                !self
+                    .battlefield_entry_admission_for_id(&card.instance_id, source_zone)
+                    .is_prohibited()
+            })
+            .map(|card| LegalAction {
+                id: format!("playLand:duringResolution:{}", card.instance_id),
+                kind: ActionKind::PlayLand,
+                player_id: player_id.clone(),
+                label: format!("Play {}", card.definition.name),
+                card_instance_id: Some(card.instance_id.clone()),
+                payment_sources: Vec::new(),
+                decisions: BTreeMap::from([(
+                    "castSourceZone".to_string(),
+                    Value::String(source_zone.to_string()),
+                )]),
+                targets: BTreeMap::new(),
+                target_order: Vec::new(),
+                attacker_id: None,
+                blocker_id: None,
+            })
+            .collect()
+    }
+
+    /// CR 608.2g: the cards are cast while this effect resolves, from the
+    /// zones they are in, without their mana cost, at their printed cost,
+    /// with the player-counter or life alternative cost (CR 118.9), and a
+    /// land among them is played when the effect says `play` (CR 305.3).
+    /// An optional cast offers a finishing choice; a `mandatory` cast (an
     /// imperative `cast`, performed if able) offers it only once no legal
     /// cast remains or the maximum is reached. Each spell cast this way
     /// carries the stated graveyard exile replacement.
@@ -569,49 +722,99 @@ impl GameEngine {
             return Ok(());
         };
         let player_index = self.player_index(&player_id)?;
-        let object_ids = self
-            .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
-            .unwrap_or_default()
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-        let source_zone = effect["sourceZone"].as_str().unwrap_or("exile");
+        let object_ids = self.resolution_cast_offered(effect, stack_object, bindings, decisions);
+        let source_zones = Self::resolution_cast_zones(effect);
         let maximum =
             integer_value(&effect["maximum"]).and_then(|value| usize::try_from(value).ok());
         let alternative_counter = (value_kind(&effect["alternativeCost"])
             == Some("payPlayerCounters"))
         .then(|| effect["alternativeCost"]["counter"].as_str())
         .flatten();
+        let alternative_life = value_kind(&effect["alternativeCost"]) == Some("payLife");
+        let play_lands = effect["playLands"].as_bool() == Some(true);
         let mut cast_count = 0;
+        let mut performed = 0;
         loop {
-            if maximum.is_some_and(|maximum| cast_count >= maximum) {
+            if maximum.is_some_and(|maximum| performed >= maximum) {
                 break;
             }
-            let cards = match source_zone {
-                "hand" => self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.hand.iter())
-                    .filter(|card| object_ids.contains(&card.instance_id))
+            let normal_costs_apply = effect["withoutPayingManaCost"].as_bool() == Some(false)
+                && alternative_counter.is_none()
+                && !alternative_life;
+            let mut offered_cards = Vec::new();
+            let mut options = Vec::new();
+            for source_zone in &source_zones {
+                let cards = match source_zone.as_str() {
+                    "hand" | "graveyard" | "exile" | "commandZone" => self
+                        .state
+                        .players
+                        .iter()
+                        .flat_map(|player| match source_zone.as_str() {
+                            "hand" => player.hand.iter(),
+                            "graveyard" => player.graveyard.iter(),
+                            "exile" => player.exile.iter(),
+                            _ => player.command_zone.iter(),
+                        })
+                        .filter(|card| object_ids.contains(&card.instance_id))
+                        .cloned()
+                        .collect::<Vec<_>>(),
+                    _ => continue,
+                };
+                if let Some(counter) = alternative_counter {
+                    let available = self.state.players[player_index]
+                        .counters
+                        .get(counter)
+                        .copied()
+                        .unwrap_or(0);
+                    for card in cards
+                        .iter()
+                        .filter(|card| mana_value(&card.definition) <= available)
+                    {
+                        if !self.state.permissions.iter().any(|permission| {
+                            value_kind(permission)
+                                == Some("resolutionPlayerCounterAlternativePermission")
+                                && permission["cardInstanceId"].as_str()
+                                    == Some(card.instance_id.as_str())
+                                && permission["playerId"].as_str() == Some(player_id.as_str())
+                                && permission["sourceStackId"].as_str()
+                                    == Some(stack_object.id.as_str())
+                        }) {
+                            self.state.permissions.push(json!({
+                                "kind": "resolutionPlayerCounterAlternativePermission",
+                                "cardInstanceId": card.instance_id,
+                                "playerId": player_id,
+                                "sourceStackId": stack_object.id,
+                                "counter": counter,
+                            }));
+                        }
+                    }
+                }
+                options.extend(self.cast_actions_from_zone(
+                    player_index,
+                    &cards,
+                    "duringResolution",
+                    source_zone,
+                    normal_costs_apply,
+                )?);
+                if play_lands {
+                    options.extend(self.resolution_land_play_actions(
+                        player_index,
+                        &cards,
+                        source_zone,
+                    ));
+                }
+                offered_cards.extend(cards);
+            }
+            let card_of = |action: &LegalAction| {
+                action
+                    .card_instance_id
+                    .as_deref()
+                    .and_then(|instance_id| {
+                        offered_cards
+                            .iter()
+                            .find(|card| card.instance_id == instance_id)
+                    })
                     .cloned()
-                    .collect::<Vec<_>>(),
-                "graveyard" => self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.graveyard.iter())
-                    .filter(|card| object_ids.contains(&card.instance_id))
-                    .cloned()
-                    .collect::<Vec<_>>(),
-                "exile" => self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.exile.iter())
-                    .filter(|card| object_ids.contains(&card.instance_id))
-                    .cloned()
-                    .collect::<Vec<_>>(),
-                _ => return Ok(()),
             };
             if let Some(counter) = alternative_counter {
                 let available = self.state.players[player_index]
@@ -619,52 +822,8 @@ impl GameEngine {
                     .get(counter)
                     .copied()
                     .unwrap_or(0);
-                for card in cards
-                    .iter()
-                    .filter(|card| mana_value(&card.definition) <= available)
-                {
-                    if !self.state.permissions.iter().any(|permission| {
-                        value_kind(permission)
-                            == Some("resolutionPlayerCounterAlternativePermission")
-                            && permission["cardInstanceId"].as_str()
-                                == Some(card.instance_id.as_str())
-                            && permission["playerId"].as_str() == Some(player_id.as_str())
-                            && permission["sourceStackId"].as_str()
-                                == Some(stack_object.id.as_str())
-                    }) {
-                        self.state.permissions.push(json!({
-                            "kind": "resolutionPlayerCounterAlternativePermission",
-                            "cardInstanceId": card.instance_id,
-                            "playerId": player_id,
-                            "sourceStackId": stack_object.id,
-                            "counter": counter,
-                        }));
-                    }
-                }
-            }
-            let normal_costs_apply = effect["withoutPayingManaCost"].as_bool() == Some(false)
-                && alternative_counter.is_none();
-            let mut options = self.cast_actions_from_zone(
-                player_index,
-                &cards,
-                "duringResolution",
-                source_zone,
-                normal_costs_apply,
-            )?;
-            if let Some(counter) = alternative_counter {
-                let available = self.state.players[player_index]
-                    .counters
-                    .get(counter)
-                    .copied()
-                    .unwrap_or(0);
                 options.retain(|action| {
-                    action
-                        .card_instance_id
-                        .as_deref()
-                        .and_then(|instance_id| {
-                            cards.iter().find(|card| card.instance_id == instance_id)
-                        })
-                        .is_some_and(|card| mana_value(&card.definition) <= available)
+                    card_of(action).is_some_and(|card| mana_value(&card.definition) <= available)
                 });
                 for action in &mut options {
                     action.decisions.remove("withoutPayingManaCost");
@@ -676,9 +835,7 @@ impl GameEngine {
                         "alternativePlayerCounter".to_string(),
                         Value::String(counter.to_string()),
                     );
-                    if let Some(card) = action.card_instance_id.as_deref().and_then(|instance_id| {
-                        cards.iter().find(|card| card.instance_id == instance_id)
-                    }) {
+                    if let Some(card) = card_of(action) {
                         action.label = format!(
                             "Cast {} by paying {} {} counter(s)",
                             card.definition.name,
@@ -687,6 +844,38 @@ impl GameEngine {
                         );
                     }
                 }
+            }
+            if alternative_life {
+                // CR 118.9, 119.4: life equal to the cast card's mana value,
+                // with the spell's other life costs; a player pays life only
+                // with a life total at least that amount.
+                let life = self.state.players[player_index].life;
+                let mut admitted = Vec::with_capacity(options.len());
+                for mut action in options {
+                    let Some(card) = card_of(&action) else {
+                        continue;
+                    };
+                    let required = mana_value(&card.definition).max(0);
+                    let total = action
+                        .decisions
+                        .get("castingLifePayment")
+                        .and_then(integer_value)
+                        .unwrap_or(0)
+                        .max(0)
+                        .saturating_add(required);
+                    if life < total {
+                        continue;
+                    }
+                    if total > 0 {
+                        action
+                            .decisions
+                            .insert("castingLifePayment".to_string(), Value::from(total));
+                    }
+                    action.label =
+                        format!("Cast {} by paying {} life", card.definition.name, required);
+                    admitted.push(action);
+                }
+                options = admitted;
             }
             if options.is_empty() {
                 break;
@@ -718,7 +907,7 @@ impl GameEngine {
             let action = self.choose_action(
                 provider,
                 EngineDecisionRequest {
-                    id: format!("castAnyNumber:{}:{cast_count}", stack_object.id),
+                    id: format!("castAnyNumber:{}:{performed}", stack_object.id),
                     kind: DecisionKind::ResolutionChoice,
                     player_id: player_id.clone(),
                     source_card: Some(stack_object.card.clone()),
@@ -730,15 +919,19 @@ impl GameEngine {
             if action.kind == ActionKind::ChooseResolution {
                 break;
             }
-            if action.kind != ActionKind::CastSpell {
+            let land_play = play_lands && action.kind == ActionKind::PlayLand;
+            if action.kind != ActionKind::CastSpell && !land_play {
                 return Err(EngineError::new(
                     "cast-any-number decision returned an invalid action",
                 ));
             }
             let cast_card_id = action.card_instance_id.clone();
             self.apply_priority_action(&action, provider)?;
-            cast_count += 1;
-            self.install_cast_graveyard_exile(effect, stack_object, cast_card_id.as_deref());
+            performed += 1;
+            if !land_play {
+                cast_count += 1;
+                self.install_cast_graveyard_exile(effect, stack_object, cast_card_id.as_deref());
+            }
             if self.state.outcome.is_some() {
                 break;
             }

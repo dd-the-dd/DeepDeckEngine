@@ -241,6 +241,7 @@ mod suspend_keyword;
 mod target_incarnation;
 
 mod echo_upkeep;
+mod entering_attacking;
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
@@ -17169,7 +17170,7 @@ impl GameEngine {
                         &declaration.decisions,
                         Some(card),
                         Vec::new(),
-                        Vec::new(),
+                        self.resolution_cast_command_tax(card, source_zone),
                         0,
                     )?
                 };
