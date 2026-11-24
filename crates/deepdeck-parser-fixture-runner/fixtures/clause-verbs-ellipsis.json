@@ -735,12 +735,20 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/1/kind",
+                "pointer": "/effects/0/kind",
                 "equals": "grantKeyword"
               },
               {
-                "pointer": "/effects/1/keyword",
+                "pointer": "/effects/0/keyword",
                 "equals": "assignsNoCombatDamage"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/object/id",
+                "equals": "targetPermanent"
               }
             ]
           }
@@ -769,7 +777,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "state": "object-rule.no-combat-damage.duration"
+            "code": "oracle_machine_failure",
+            "state": "duration.indefinite",
+            "expectedContains": "duration for the combat-damage rule"
           }
         ]
       }
@@ -829,7 +839,7 @@
       }
     },
     {
-      "id": "exact-incremental-growth-three-frames",
+      "id": "known-gap-incremental-growth-ordinal-target",
       "request": {
         "cardName": "Incremental Growth",
         "typeLine": "Sorcery",
@@ -839,19 +849,20 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native"
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "three"
           }
         ]
       }
     },
     {
-      "id": "exact-arc-trail-gapped-damage-distinct-target",
+      "id": "known-gap-arc-trail-gapped-subject-clause",
       "request": {
         "cardName": "Arc Trail",
         "typeLine": "Sorcery",
@@ -861,13 +872,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native"
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "1"
           }
         ]
       }

@@ -235,6 +235,12 @@ mod object_state_predicate_runtime;
 #[path = "tests/characteristic_batch_runtime.rs"]
 mod characteristic_batch_runtime;
 
+#[path = "tests/coordinated_static_subject_runtime.rs"]
+mod coordinated_static_subject_runtime;
+
+#[path = "tests/alternative_life_payment_runtime.rs"]
+mod alternative_life_payment_runtime;
+
 #[path = "tests/object_domain_inference_runtime.rs"]
 mod object_domain_inference_runtime;
 
@@ -565,7 +571,7 @@ fn counter_history_selectors_and_linked_ability_loss_execute_and_expire() {
         type_line: "Legendary Creature - Human Hero".to_string(),
         mana_cost: Some("{2}{U}".to_string()),
         oracle_text: Some(
-            "Wasp's Sting — When The Wondrous Wasp enters, tap up to one target creature. It loses all abilities for as long as The Wondrous Wasp remains on the battlefield."
+            "Wasp's Sting â€” When The Wondrous Wasp enters, tap up to one target creature. It loses all abilities for as long as The Wondrous Wasp remains on the battlefield."
                 .to_string(),
         ),
         layout: None,
@@ -763,7 +769,7 @@ fn parsed_filtered_discard_alternative_executes_available_and_fallback_modes() {
 fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Captain America, Super-Soldier".to_string(),
-        type_line: "Legendary Creature — Human Soldier Hero".to_string(),
+        type_line: "Legendary Creature â€” Human Soldier Hero".to_string(),
         mana_cost: Some("{1}{W}{W}".to_string()),
         oracle_text: Some(
             "First strike\nCaptain America enters with a shield counter on him. (If he would be dealt damage or destroyed, remove a shield counter from him instead.)\nAs long as Captain America has a shield counter on him, you and other Heroes you control have hexproof."
@@ -939,7 +945,7 @@ fn parsed_shield_counter_and_conditional_shared_hexproof_execute() {
 fn parsed_attacking_alone_activation_filters_target_and_executes_sequence() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
         card_name: "Crowd of True Believers".to_string(),
-        type_line: "Creature — Human Citizen".to_string(),
+        type_line: "Creature â€” Human Citizen".to_string(),
         mana_cost: Some("{2}{W}".to_string()),
         oracle_text: Some(
             "{T}: Target creature you control that's attacking alone gets +1/+0 until end of turn. You gain 1 life."
@@ -1408,7 +1414,7 @@ fn parsed_temporal_conditions_conditional_flash_and_attachment_counts_execute() 
         type_line: "Legendary Creature - Kree Hero".to_string(),
         mana_cost: Some("{2}{W}{U}".to_string()),
         oracle_text: Some(
-            "Cosmic Awareness — As long as an opponent has cast a spell this turn, you may cast spells as though they had flash."
+            "Cosmic Awareness â€” As long as an opponent has cast a spell this turn, you may cast spells as though they had flash."
                 .to_string(),
         ),
         layout: None,
@@ -4985,7 +4991,7 @@ fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
         card_name: "Burn, Burn, Tree and Fern".to_string(),
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{2}{R}".to_string()),
-        oracle_text: Some("III, IV — Add {R}.".to_string()),
+        oracle_text: Some("III, IV â€” Add {R}.".to_string()),
         layout: None,
         faces: Vec::new(),
     });
@@ -5025,16 +5031,16 @@ fn parsed_multi_chapter_saga_adds_fixed_mana_when_each_chapter_resolves() {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
 #[cfg_attr(
     not(feature = "coverage-targets"),
-    ignore = "coverage target: Dáin Ironfoot; see docs/coverage-targets.md"
+    ignore = "coverage target: DÃ¡in Ironfoot; see docs/coverage-targets.md"
 )]
 #[test]
 fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
-        card_name: "Dáin Ironfoot".to_string(),
+        card_name: "DÃ¡in Ironfoot".to_string(),
         type_line: "Legendary Creature - Dwarf Warrior".to_string(),
         mana_cost: Some("{2}{R}{R}".to_string()),
         oracle_text: Some(
-            "When Dáin enters, create a colorless Equipment artifact token named Axe with \"Equipped creature gets +1/+0\" and equip {2}. When you do, attach it to target creature you control.\nWhenever Dáin attacks, each equipped attacking creature gains double strike until end of turn."
+            "When DÃ¡in enters, create a colorless Equipment artifact token named Axe with \"Equipped creature gets +1/+0\" and equip {2}. When you do, attach it to target creature you control.\nWhenever DÃ¡in attacks, each equipped attacking creature gains double strike until end of turn."
                 .to_string(),
         ),
         layout: None,
@@ -5043,13 +5049,13 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     let rules = parsed
         .abilities
         .iter()
-        .map(|ability| ability.rule.clone().expect("each Dáin ability parses"))
+        .map(|ability| ability.rule.clone().expect("each DÃ¡in ability parses"))
         .collect::<Vec<_>>();
     assert!(rules.iter().all(rule_is_executable));
 
     let mut dain_definition =
         test_definition("dain-ironfoot", "Legendary Creature - Dwarf Warrior");
-    dain_definition.name = "Dáin Ironfoot".to_string();
+    dain_definition.name = "DÃ¡in Ironfoot".to_string();
     dain_definition.rules = rules;
     let dain = test_instance("dain-ironfoot", dain_definition, "player-0");
     let companion = test_instance(
@@ -5063,7 +5069,7 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     engine.enqueue_enter_battlefield_triggers(&dain);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("Dáin creates Axe and its reflexive trigger");
+        .expect("DÃ¡in creates Axe and its reflexive trigger");
     assert_eq!(engine.state.stack.len(), 1);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
@@ -5107,7 +5113,7 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
     engine.enqueue_declared_attacker_triggers(&["dain-ironfoot".to_string()]);
     engine
         .resolve_top_stack(&mut EmeritusDecisionProvider)
-        .expect("Dáin's attack trigger resolves");
+        .expect("DÃ¡in's attack trigger resolves");
 
     let companion = engine.state.players[0]
         .battlefield
@@ -5118,7 +5124,7 @@ fn parsed_reflexive_equipment_attaches_then_filters_attacking_creatures() {
         .battlefield
         .iter()
         .find(|permanent| permanent.instance_id == "dain-ironfoot")
-        .expect("Dáin remains");
+        .expect("DÃ¡in remains");
     assert_eq!(
         engine.permanent_has_keyword(companion, "doubleStrike"),
         equipped_id == "dain-companion"
@@ -10181,7 +10187,7 @@ fn sunburst_counts_distinct_paid_colors_not_x_or_colorless_mana() {
             5,
         ),
     ] {
-        for type_line in ["Artifact", "Artifact Creature — Construct"] {
+        for type_line in ["Artifact", "Artifact Creature â€” Construct"] {
             let mut engine = test_engine(2);
             let mut definition = test_definition("sunburst", type_line);
             definition
@@ -10254,8 +10260,8 @@ fn engineered_explosives_resolution_uses_sacrificed_sources_charge_counters() {
     engine.state.active_player = 0;
     engine.state.players[0].hand = vec![test_instance("explosives", definition, "player-0")];
     engine.state.players[0].battlefield = vec![
-        mana_source("island", "Basic Land — Island", "{U}", None),
-        mana_source("swamp", "Basic Land — Swamp", "{B}", None),
+        mana_source("island", "Basic Land â€” Island", "{U}", None),
+        mana_source("swamp", "Basic Land â€” Swamp", "{B}", None),
     ];
     engine
         .admit_explicit_test_fixture_objects()
@@ -18770,7 +18776,7 @@ fn parsed_conditional_source_sacrifice_only_creates_the_reward_after_sacrifice()
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{3}{R}".to_string()),
         oracle_text: Some(
-            "I, II, III, IV — Create a Treasure token. Then if you control four or more Treasures, sacrifice this Saga. If you do, create a 6/6 red Dragon creature token with flying."
+            "I, II, III, IV â€” Create a Treasure token. Then if you control four or more Treasures, sacrifice this Saga. If you do, create a 6/6 red Dragon creature token with flying."
                 .to_string(),
         ),
         layout: None,
@@ -25468,7 +25474,7 @@ fn parsed_saga_chapters_trigger_and_execute_shared_engine_effects() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{2}{W}".to_string()),
         oracle_text: Some(
-            "I — Recruit. (Draw a card, then discard a card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token.)\nII — Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nIII — Put a +1/+1 counter on up to one target creature."
+            "I â€” Recruit. (Draw a card, then discard a card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token.)\nII â€” Return target creature card with mana value 3 or less from your graveyard to the battlefield.\nIII â€” Put a +1/+1 counter on up to one target creature."
                 .to_string(),
         ),
         layout: None,
@@ -25938,7 +25944,7 @@ fn linked_exile_saga_searches_retrieves_and_installs_targeted_attack_bonus() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{3}{W}".to_string()),
         oracle_text: Some(
-            "I — Search your library for up to two basic Plains cards, exile them, then shuffle. You gain 2 life.\nII, III — Put a card exiled with this Saga into its owner's hand.\nIV — Whenever you attack this turn, target creature you control gets +1/+1 until end of turn for each Plains you control."
+            "I â€” Search your library for up to two basic Plains cards, exile them, then shuffle. You gain 2 life.\nII, III â€” Put a card exiled with this Saga into its owner's hand.\nIV â€” Whenever you attack this turn, target creature you control gets +1/+1 until end of turn for each Plains you control."
                 .to_string(),
         ),
         layout: None,
@@ -27291,7 +27297,7 @@ fn parsed_landfall_can_temporarily_set_the_sources_base_power_and_toughness() {
         type_line: "Creature - Elf Druid".to_string(),
         mana_cost: Some("{2}{U}".to_string()),
         oracle_text: Some(
-            "Landfall — Whenever a land you control enters, you may have this creature's base power and toughness become 4/2 until end of turn."
+            "Landfall â€” Whenever a land you control enters, you may have this creature's base power and toughness become 4/2 until end of turn."
                 .to_string(),
         ),
         layout: None,
@@ -27357,7 +27363,7 @@ fn parsed_graveyard_threshold_and_mill_selection_mutate_the_expected_zones() {
         type_line: "Creature - Bird".to_string(),
         mana_cost: Some("{2}{U}".to_string()),
         oracle_text: Some(
-            "Threshold — This creature gets +1/+1 as long as there are seven or more cards in your graveyard."
+            "Threshold â€” This creature gets +1/+1 as long as there are seven or more cards in your graveyard."
                 .to_string(),
         ),
         layout: None,
@@ -27482,7 +27488,7 @@ fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{1}{U}".to_string()),
         oracle_text: Some(
-            "I — Target creature you control gains hexproof for as long as this Saga remains on the battlefield."
+            "I â€” Target creature you control gains hexproof for as long as this Saga remains on the battlefield."
                 .to_string(),
         ),
         layout: None,
@@ -27497,7 +27503,7 @@ fn parsed_saga_links_end_when_the_saga_leaves_battlefield() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{1}{U}".to_string()),
         oracle_text: Some(
-            "II — Prevent all damage that would be dealt by up to one target creature for as long as this Saga remains on the battlefield."
+            "II â€” Prevent all damage that would be dealt by up to one target creature for as long as this Saga remains on the battlefield."
                 .to_string(),
         ),
         layout: None,
@@ -27805,7 +27811,7 @@ fn parsed_saga_multi_chapter_blink_exiles_and_returns_the_selected_land() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{3}{U}".to_string()),
         oracle_text: Some(
-            "I, II, III, IV — Exile up to one target creature or land you control. If you do, return it to the battlefield under its owner's control at the beginning of the next end step."
+            "I, II, III, IV â€” Exile up to one target creature or land you control. If you do, return it to the battlefield under its owner's control at the beginning of the next end step."
                 .to_string(),
         ),
         layout: None,
@@ -29738,7 +29744,7 @@ fn parsed_damage_then_death_replacement_exiles_the_lethally_damaged_target() {
         type_line: "Sorcery".to_string(),
         mana_cost: Some("{1}{R}".to_string()),
         oracle_text: Some(
-            "Choose one or both —\n• Pinecone Strike deals 3 damage to target creature. If that creature would die this turn, exile it instead.\n• Destroy target artifact token."
+            "Choose one or both â€”\nâ€¢ Pinecone Strike deals 3 damage to target creature. If that creature would die this turn, exile it instead.\nâ€¢ Destroy target artifact token."
                 .to_string(),
         ),
         layout: None,
@@ -31040,7 +31046,7 @@ fn greatest_toughness_draw_then_hand_creatures_enter_together() {
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[cfg_attr(
     not(feature = "coverage-targets"),
-    ignore = "coverage target: Gríma, Saruman's Footman; see docs/coverage-targets.md"
+    ignore = "coverage target: GrÃ­ma, Saruman's Footman; see docs/coverage-targets.md"
 )]
 #[test]
 fn exile_until_matching_card_can_be_cast_from_another_players_exile() {
@@ -31369,7 +31375,7 @@ fn final_saga_chapter_resolution_triggers_observer_and_puts_revealed_saga_in_pla
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[cfg_attr(
     not(feature = "coverage-targets"),
-    ignore = "coverage target: Andúril, Flame of the West, Andúril, Narsil Reforged; see docs/coverage-targets.md"
+    ignore = "coverage target: AndÃºril, Flame of the West, AndÃºril, Narsil Reforged; see docs/coverage-targets.md"
 )]
 #[test]
 fn equipped_attack_alternates_tokens_and_counters_from_trigger_context() {
@@ -31813,6 +31819,9 @@ fn ring_temptation_levels_drive_bearer_combat_rules() {
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![bearer.clone()];
     engine.state.players[1].battlefield = vec![stronger_blocker.clone()];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let stack_object = StackObject {
         id: "stack:ring-temptation".to_string(),
         controller: "player-0".to_string(),
@@ -31825,7 +31834,7 @@ fn ring_temptation_levels_drive_bearer_combat_rules() {
         targets: BTreeMap::new(),
     };
     let temptation = json!({
-        "kind": "ringTemptsPlayer",
+        "kind": "temptWithRing",
         "player": { "kind": "controllerOf", "object": { "kind": "self" } },
     });
     for _ in 0..4 {
@@ -32398,7 +32407,7 @@ fn parsed_power_up_deploys_and_optionally_transforms_selected_double_faced_card(
         type_line: "Legendary Creature - Human Hero".to_string(),
         mana_cost: Some("{2}{W}".to_string()),
         oracle_text: Some(
-            "Power-up — {W}{U}{B}{R}{G}: Put two +1/+1 counters on Nick Fury, then look at the top seven cards of your library. You may put a Hero, Equipment, or Vehicle card from among them onto the battlefield. If it's a double-faced card, you may transform it. Put the rest on the bottom of your library in a random order. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)"
+            "Power-up â€” {W}{U}{B}{R}{G}: Put two +1/+1 counters on Nick Fury, then look at the top seven cards of your library. You may put a Hero, Equipment, or Vehicle card from among them onto the battlefield. If it's a double-faced card, you may transform it. Put the rest on the bottom of your library in a random order. (Activate each power-up ability only once. Reduce the cost by his mana cost if he entered this turn.)"
                 .to_string(),
         ),
         layout: None,
@@ -32517,7 +32526,7 @@ fn parsed_saga_optional_hand_deployment_draws_only_when_no_target_was_chosen() {
         type_line: "Enchantment - Saga".to_string(),
         mana_cost: Some("{2}{W}".to_string()),
         oracle_text: Some(
-            "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Scry 2.\nII — You may put a Hero creature card with mana value 3 or less from your hand onto the battlefield. If you don't, draw a card.\nIII — Put a +1/+1 counter on each creature you control."
+            "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI â€” Scry 2.\nII â€” You may put a Hero creature card with mana value 3 or less from your hand onto the battlefield. If you don't, draw a card.\nIII â€” Put a +1/+1 counter on each creature you control."
                 .to_string(),
         ),
         layout: Some("saga".to_string()),
@@ -32721,7 +32730,7 @@ fn parsed_inline_modal_trigger_executes_each_selected_primitive_branch() {
         type_line: "Legendary Creature - Human Spy".to_string(),
         mana_cost: Some("{2}{W}".to_string()),
         oracle_text: Some(
-            "When White Widow enters, choose one — • Put a +1/+1 counter on each of up to two target creatures. • Return target artifact or enchantment card from your graveyard to your hand."
+            "When White Widow enters, choose one â€” â€¢ Put a +1/+1 counter on each of up to two target creatures. â€¢ Return target artifact or enchantment card from your graveyard to your hand."
                 .to_string(),
         ),
         layout: None,

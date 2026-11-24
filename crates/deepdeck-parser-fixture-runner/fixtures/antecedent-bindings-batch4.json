@@ -256,7 +256,41 @@
       "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
-        "abilityCount": 2
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "createReflexiveTrigger"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/keyword",
+                "equals": "trample"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/object/id",
+                "equals": "targetPermanent"
+              }
+            ]
+          }
+        ]
       }
     },
     {

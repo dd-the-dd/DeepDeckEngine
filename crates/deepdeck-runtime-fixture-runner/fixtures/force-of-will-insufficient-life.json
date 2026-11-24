@@ -20,7 +20,7 @@
           },
           "amount": {
             "kind": "integer",
-            "value": 1
+            "value": 2
           }
         },
         {
@@ -74,7 +74,7 @@
                       },
                       "amount": {
                         "kind": "integer",
-                        "value": 1
+                        "value": 2
                       }
                     },
                     {

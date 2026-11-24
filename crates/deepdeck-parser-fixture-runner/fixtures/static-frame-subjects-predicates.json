@@ -1040,19 +1040,21 @@
               {
                 "pointer": "/modifiers/0/objects/where",
                 "equals": {
-                  "kind": "subtypeContains",
-                  "value": "Goblin"
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Goblin"
+                    },
+                    {
+                      "kind": "subtypeContains",
+                      "value": "Elemental"
+                    }
+                  ]
                 }
               },
               {
-                "pointer": "/modifiers/1/objects/where",
-                "equals": {
-                  "kind": "subtypeContains",
-                  "value": "Elemental"
-                }
-              },
-              {
-                "pointer": "/modifiers/1/objects/controller",
+                "pointer": "/modifiers/0/objects/controller",
                 "equals": {
                   "kind": "controllerOf",
                   "object": {
@@ -1279,7 +1281,11 @@
               },
               {
                 "pointer": "/modifiers/1/condition/kind",
-                "equals": "not"
+                "equals": "notYourTurn"
+              },
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "duringControllerTurn"
               }
             ]
           }
@@ -1287,7 +1293,7 @@
       }
     },
     {
-      "id": "exact-so-tiny-instead-sentence",
+      "id": "known-gap-so-tiny-attached-controller-condition",
       "request": {
         "cardName": "So Tiny",
         "typeLine": "Enchantment — Aura",
@@ -1297,27 +1303,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 2,
-            "status": "canonical",
-            "recognizer": "native",
-            "abilityType": "staticAbility",
-            "ruleAssertions": [
-              {
-                "pointer": "/modifiers/0/condition/kind",
-                "equals": "not"
-              },
-              {
-                "pointer": "/modifiers/1/power",
-                "equals": {
-                  "kind": "integer",
-                  "value": -6
-                }
-              }
-            ]
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.property",
+            "found": "controller"
           }
         ]
       }
@@ -1356,12 +1349,33 @@
       }
     },
     {
-      "id": "exact-sylvan-advocate-source-and-collection-subjects",
+      "id": "known-gap-sylvan-advocate-source-overlaps-collection",
       "request": {
         "cardName": "Sylvan Advocate",
         "typeLine": "Creature — Elf Druid Ally",
         "manaCost": "{1}{G}",
         "oracleText": "Vigilance\nAs long as you control six or more lands, this creature and land creatures you control get +2/+2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-source-and-other-collection-are-disjoint",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{1}{G}",
+        "oracleText": "Vigilance\nAs long as you control six or more lands, this creature and other Elves you control get +2/+2.",
         "layout": "normal",
         "faces": []
       },
@@ -1615,12 +1629,58 @@
       }
     },
     {
-      "id": "sibling-coordination-keeps-each-subject-qualifier",
+      "id": "near-miss-coordination-overlapping-unmergeable-subjects",
       "request": {
         "cardName": "Static frame probe",
         "typeLine": "Creature — Goblin Shaman",
         "manaCost": "{2}",
         "oracleText": "Goblins you control and Elementals have menace.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.subject.union",
+            "found": "have"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-death-baron-overlapping-source-exclusion",
+      "request": {
+        "cardName": "Death Baron",
+        "typeLine": "Creature — Zombie Skeleton Wizard",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Skeletons you control and other Zombies you control get +1/+1 and have deathtouch.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.subject.union",
+            "found": "get"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-coordination-disjoint-controllers",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Creature — Human",
+        "manaCost": "{2}",
+        "oracleText": "Creatures you control and creatures your opponents control have flying.",
         "layout": "normal",
         "faces": []
       },
@@ -1644,12 +1704,14 @@
                 }
               },
               {
-                "pointer": "/modifiers/1/objects",
+                "pointer": "/modifiers/1/objects/controller",
                 "equals": {
-                  "kind": "permanents",
-                  "where": {
-                    "kind": "subtypeContains",
-                    "value": "Elemental"
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
                   }
                 }
               }
@@ -1820,7 +1882,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "static.continuous.block-requirement"
+            "state": "static.continuous.predicate",
+            "found": "able"
           }
         ]
       }

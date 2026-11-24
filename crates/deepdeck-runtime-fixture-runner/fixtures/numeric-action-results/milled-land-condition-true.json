@@ -81,9 +81,9 @@
         ],
         "library": [
           {
-            "id": "top-sorcery",
-            "name": "Top Sorcery",
-            "typeLine": "Sorcery"
+            "id": "third-card",
+            "name": "Third Card",
+            "typeLine": "Instant"
           },
           {
             "id": "second-land",
@@ -91,9 +91,9 @@
             "typeLine": "Land"
           },
           {
-            "id": "third-card",
-            "name": "Third Card",
-            "typeLine": "Instant"
+            "id": "top-sorcery",
+            "name": "Top Sorcery",
+            "typeLine": "Sorcery"
           }
         ]
       },

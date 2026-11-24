@@ -241,27 +241,38 @@ fn is_resolution_creature_type(value: &Value) -> bool {
 }
 
 /// Counts references to the resolution creature-type choice, and those read
-/// by a battlefield count (the engine consumer that reads resolution choices).
+/// by a battlefield query the engine evaluates against resolution choices: a
+/// permanent count, or the collection a one-shot battlefield action reads
+/// once as it resolves (`destroy all creatures that aren't of the chosen
+/// type`). The collection of an action with a duration is not such a reader.
 fn resolution_creature_type_references(value: &Value, inside_count: bool) -> (usize, usize) {
-    if is_resolution_creature_type(value) {
-        return (1, usize::from(inside_count));
-    }
-    let counted = value["kind"].as_str() == Some("countPermanents");
-    let children: Box<dyn Iterator<Item = (&String, &Value)>> = match value {
-        Value::Object(values) => Box::new(values.iter()),
-        Value::Array(values) => {
-            return values.iter().fold((0, 0), |(total, read), value| {
-                let (more, more_read) = resolution_creature_type_references(value, inside_count);
-                (total + more, read + more_read)
-            });
+    fn visit(value: &Value, inside_count: bool, durable: bool) -> (usize, usize) {
+        if is_resolution_creature_type(value) {
+            return (1, usize::from(inside_count));
         }
-        _ => return (0, 0),
-    };
-    children.fold((0, 0), |(total, read), (key, value)| {
-        let (more, more_read) =
-            resolution_creature_type_references(value, inside_count || (counted && key == "where"));
-        (total + more, read + more_read)
-    })
+        let durable = durable || value.get("duration").is_some();
+        let counted = match value["kind"].as_str() {
+            Some("countPermanents") => true,
+            Some("eachPermanent") => !durable,
+            _ => false,
+        };
+        let children: Box<dyn Iterator<Item = (&String, &Value)>> = match value {
+            Value::Object(values) => Box::new(values.iter()),
+            Value::Array(values) => {
+                return values.iter().fold((0, 0), |(total, read), value| {
+                    let (more, more_read) = visit(value, inside_count, durable);
+                    (total + more, read + more_read)
+                });
+            }
+            _ => return (0, 0),
+        };
+        children.fold((0, 0), |(total, read), (key, value)| {
+            let (more, more_read) =
+                visit(value, inside_count || (counted && key == "where"), durable);
+            (total + more, read + more_read)
+        })
+    }
+    visit(value, inside_count, false)
 }
 
 /// Whether a lowered value reads the color chosen on resolution.
@@ -382,7 +393,7 @@ fn resolution_creature_type_binding_failure(rule: &Value) -> Option<(&'static st
     }
     (counted != references).then_some((
         "binding.chosen-creature-type.consumer",
-        "a battlefield count reading the chosen creature type",
+        "a battlefield count or one-shot collection reading the chosen creature type",
     ))
 }
 

@@ -419,6 +419,9 @@ fn lower_numeric_expression_in_context(
         NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisCombat) => {
             Some(json!({ "kind": "countOpponentsAttackedThisCombat", "player": controller() }))
         }
+        NumericExpression::OpponentCount(OpponentFact::Any) => {
+            Some(json!({ "kind": "countOpponents", "player": controller() }))
+        }
         NumericExpression::CountDistinctCardTypes { zone, predicate } => {
             let mut count = json!({
                 "kind": "countDistinctCardTypes",

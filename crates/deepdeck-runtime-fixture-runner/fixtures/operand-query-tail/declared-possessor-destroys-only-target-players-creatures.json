@@ -69,7 +69,8 @@
     { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "target-bear", "equals": true },
     { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "target-giant", "equals": true },
     { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "target-land", "equals": true },
-    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "borrowed-elf", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "borrowed-elf", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "borrowed-elf", "equals": false },
     { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "own-bear", "equals": true },
     { "kind": "decisionCount", "equals": 0 },
     { "kind": "stackDepth", "equals": 0 }

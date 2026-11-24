@@ -495,8 +495,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "trigger.envelope.separator",
-            "found": "or"
+            "found": "sacrifice",
+            "traceContainsState": "trigger.envelope.occurrence-union"
           }
         ]
       }

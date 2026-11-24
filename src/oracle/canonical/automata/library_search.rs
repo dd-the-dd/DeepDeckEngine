@@ -85,6 +85,8 @@ struct LibrarySearchMemory {
     cardinality: Option<TargetCardinality>,
     /// The typed count when it is not two positive literals.
     count: Option<super::TargetCount>,
+    /// `, where X is EXPR` after the counted card phrase (CR 107.3).
+    where_x: Option<super::NumericExpression>,
     destination: Option<SearchDestination>,
     reveal: bool,
     shuffle_order: Option<SearchShuffleOrder>,
@@ -340,6 +342,13 @@ fn run_library_search(
                     });
                     memory.filter = Some(ObjectPredicate::Union(slots.clone()));
                     memory.slots = slots;
+                }
+                // `up to X basic land cards, where X is EXPR, put them ...`:
+                // the postposed definition of the count's X directly after
+                // the counted phrase, read by the shared definition child.
+                if memory.count.is_some() && super::where_x_definition_starts(cursor) {
+                    cursor.enter("effect.library-search.where-x");
+                    memory.where_x = Some(super::recognize_where_x_definition(cursor)?);
                 }
                 LibrarySearchState::SelectionComplete
             }
@@ -676,6 +685,7 @@ fn run_library_search(
                     minimum,
                     maximum: cardinality.maximum,
                     count,
+                    where_x: memory.where_x,
                     destination: cursor
                         .require_value(memory.destination, "a resolved search destination")?,
                     reveal: memory.reveal,

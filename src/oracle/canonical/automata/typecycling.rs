@@ -280,6 +280,7 @@ fn expansion_search(filter: ObjectPredicate) -> LibrarySearchEffectNode {
         minimum: 0,
         maximum: 1,
         count: None,
+        where_x: None,
         destination: SearchDestination::Zone(CardZoneName::Hand),
         reveal: true,
         shuffle_order: SearchShuffleOrder::MoveThenShuffle,

@@ -1178,7 +1178,9 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "keyword.equip.quality"
+            "state": "selector.predicate-atom.complete",
+            "found": "{1}",
+            "expectedContains": "creature quality"
           }
         ]
       }
