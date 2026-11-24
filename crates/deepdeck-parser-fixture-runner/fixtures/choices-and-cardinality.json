@@ -718,6 +718,78 @@
       }
     },
     {
+      "id": "exact-phyrexian-revoker-stored-nonland-name",
+      "request": {
+        "cardName": "Phyrexian Revoker",
+        "typeLine": "Artifact Creature — Phyrexian Horror",
+        "manaCost": "{2}",
+        "oracleText": "As this creature enters, choose a nonland card name.\nActivated abilities of sources with the chosen name can't be activated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/decisions/0/where",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-pithing-needle-stored-unrestricted-name",
+      "request": {
+        "cardName": "Pithing Needle",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "As this artifact enters, choose a card name.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/decisions/0/where",
+                "equals": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-card-name-without-consumer",
       "request": {
         "cardName": "Generic Idle Naming",

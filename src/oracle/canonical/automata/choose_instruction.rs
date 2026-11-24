@@ -281,13 +281,15 @@ fn recognize_player_choice(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
 /// `a [CHARACTERISTIC[,] ...] card name [other than a basic land card name]`
 /// (CR 201.3): the admitted names are those of cards with the shared card
 /// characteristics. Each characteristic is the shared predicate atom; the
-/// list is their intersection. Anything else fails at this state.
-fn recognize_card_name_domain(
+/// list is their intersection. Anything else fails at this state. The same
+/// domain serves a resolution choice and a choice stored as a permanent
+/// enters (`As this creature enters, choose a nonland card name`).
+pub(in crate::oracle::canonical) fn recognize_card_name_domain(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CardNameDomainNode> {
     cursor.enter(ResolutionDomain::CardName.state());
     cursor.require(
-        word_at(cursor, 0, "a") || word_at(cursor, 0, "an"),
+        word_at(cursor, 0, "a") || word_at(cursor, 0, "an") || word_at(cursor, 0, "any"),
         ResolutionDomain::CardName.expectation(),
     )?;
     cursor.advance_to(cursor.position() + 1)?;

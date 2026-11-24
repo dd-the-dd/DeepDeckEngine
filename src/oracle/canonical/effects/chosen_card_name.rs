@@ -8,28 +8,34 @@ fn token_is(input: &AbilityInput<'_>, index: usize, expected: &str) -> bool {
         .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
 }
 
-fn is_permanent_type(raw: &str) -> bool {
-    matches!(
-        raw.to_ascii_lowercase().as_str(),
-        "artifact" | "battle" | "creature" | "enchantment" | "land" | "planeswalker"
-    )
-}
-
-/// Claims the structural `as SOURCE enters, choose ... card name` family.
-/// The source width and optional card-type domain remain owned by the FSM.
+/// Claims the structural `as SOURCE enters, choose ... card name` family:
+/// `enters , choose a|an|any` followed by the `card name` head before the
+/// sentence ends. The source width and the shared card-name domain remain
+/// owned by the FSM, which fails explicitly on any other domain.
 pub(in crate::oracle::canonical) fn claims_promoted_as_enters_named_object_choice_family(
     input: &AbilityInput<'_>,
 ) -> bool {
     if !token_is(input, 0, "as") {
         return false;
     }
-    input.tokens.windows(5).any(|window| {
+    let tokens = input.tokens;
+    (0..tokens.len().saturating_sub(4)).any(|start| {
+        let window = &tokens[start..start + 4];
         window[0].raw.eq_ignore_ascii_case("enters")
             && window[1].raw == ","
             && window[2].raw.eq_ignore_ascii_case("choose")
-            && (window[3].raw.eq_ignore_ascii_case("a")
-                || window[3].raw.eq_ignore_ascii_case("any"))
-            && (window[4].raw.eq_ignore_ascii_case("card") || is_permanent_type(&window[4].raw))
+            && ["a", "an", "any"]
+                .iter()
+                .any(|article| window[3].raw.eq_ignore_ascii_case(article))
+            && tokens[start + 4..]
+                .iter()
+                .take_while(|token| token.raw != ".")
+                .collect::<Vec<_>>()
+                .windows(2)
+                .any(|pair| {
+                    pair[0].raw.eq_ignore_ascii_case("card")
+                        && pair[1].raw.eq_ignore_ascii_case("name")
+                })
     })
 }
 
@@ -71,11 +77,11 @@ fn lower_player(reference: &LocalPlayerReference) -> Value {
     }
 }
 
-fn lower_card_name_domain(domain: CardNameDomain) -> Value {
-    match domain {
-        CardNameDomain::Any => Value::Null,
-        CardNameDomain::CardType(card_type_node) => card_type(card_type_node.ir_name()),
-    }
+fn lower_card_name_domain(domain: &CardNameDomainNode) -> Value {
+    domain
+        .predicate
+        .as_ref()
+        .map_or(Value::Null, lower_card_object_predicate)
 }
 
 fn lower_stored_card_name(predicate: ChosenCardNamePredicateNode) -> Value {
@@ -101,10 +107,7 @@ pub(in crate::oracle::canonical) fn lower_resolution_card_name_choice(
         "kind": "chooseCardName",
         "id": crate::oracle::contextual_binding::RESOLUTION_CARD_NAME_DECISION,
         "player": controller(),
-        "where": domain
-            .predicate
-            .as_ref()
-            .map_or(Value::Null, lower_card_object_predicate),
+        "where": lower_card_name_domain(domain),
     })
 }
 
@@ -142,7 +145,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_as_enters_named_object_choice
     // in the established primitive contract. Validate the typed player now,
     // while preserving that stable IR shape.
     let _choice_player = lower_player(&node.choice.player);
-    let domain = lower_card_name_domain(node.choice.domain);
+    let domain = lower_card_name_domain(&node.choice.domain);
     let transition_trace = trace(&cursor);
     Ok(draft(
         json!({
