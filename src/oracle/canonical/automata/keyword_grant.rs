@@ -7,6 +7,7 @@ use super::{
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 use crate::oracle::characteristic_vocabulary::lookup_landwalk_word;
 
+mod compiled_keyword;
 mod quoted_ability;
 mod reminder;
 
@@ -46,7 +47,10 @@ pub(in crate::oracle::canonical) enum KeywordAtomNode {
     },
     /// A keyword parameterized by one mana cost (morph, dash, plot, warp).
     ManaCost(super::ManaCostKeywordNode),
-    /// Produced only by a parent that grants abilities to another object.
+    /// One complete rule granted to another object: a quoted ability, or a
+    /// rule of a parameterized keyword compiled for the granted object
+    /// (`toxic 1`, `bushido 2`). Produced only by a parent that grants
+    /// abilities to another object.
     Quoted(QuotedAbilityNode),
 }
 
@@ -196,6 +200,32 @@ fn recognize_ward_resource_cost(
     Ok(cost)
 }
 
+/// One list item. In a grant context (`quoted_type_line`), a parameterized
+/// keyword compiles to the rules it grants, so one item may stand for several
+/// granted rules (a template keyword's definition).
+fn recognize_keyword_atoms(
+    cursor: &mut OracleTokenCursor<'_>,
+    allow_parameterized: bool,
+    quoted_type_line: Option<&str>,
+    resource_commitment: &mut KeywordResourceCommitment,
+) -> MachineResult<Vec<KeywordAtomNode>> {
+    if let Some(type_line) = quoted_type_line
+        && let Some(head) = compiled_keyword::compiled_keyword_head(cursor)
+    {
+        // The lexeme followed by its parameter commits the granted keyword.
+        let rules = compiled_keyword::recognize_compiled_keyword(cursor, head, type_line)
+            .inspect_err(|_| *resource_commitment = KeywordResourceCommitment::Failed)?;
+        return Ok(rules.into_iter().map(KeywordAtomNode::Quoted).collect());
+    }
+    recognize_keyword_atom(
+        cursor,
+        allow_parameterized,
+        quoted_type_line,
+        resource_commitment,
+    )
+    .map(|atom| vec![atom])
+}
+
 fn recognize_keyword_atom(
     cursor: &mut OracleTokenCursor<'_>,
     allow_parameterized: bool,
@@ -310,7 +340,7 @@ fn recognize_keyword_atom_list_in_context(
     loop {
         state = match state {
             KeywordListState::Item => {
-                keywords.push(recognize_keyword_atom(
+                keywords.extend(recognize_keyword_atoms(
                     cursor,
                     allow_parameterized,
                     quoted_type_line,
@@ -336,7 +366,7 @@ fn recognize_keyword_atom_list_in_context(
                     {
                         trial.consume("and")?;
                     }
-                    if recognize_keyword_atom(
+                    if recognize_keyword_atoms(
                         &mut trial,
                         allow_parameterized,
                         quoted_type_line,
@@ -394,48 +424,40 @@ pub(in crate::oracle::canonical) fn recognize_keyword_list(
         .collect()
 }
 
-pub(in crate::oracle::canonical) fn recognize_effect_owned_keyword_list(
-    cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<Vec<GrantedKeyword>> {
-    recognize_keyword_atom_list_in_context(
-        cursor,
-        false,
-        None,
-        &mut KeywordResourceCommitment::None,
-        true,
-    )?
-    .keywords
-    .into_iter()
-    .map(|atom| match atom {
-        KeywordAtomNode::Parameterless(keyword) => Ok(keyword),
-        KeywordAtomNode::Ward { .. }
-        | KeywordAtomNode::Protection { .. }
-        | KeywordAtomNode::ManaCost(_)
-        | KeywordAtomNode::Quoted(_) => Err(cursor.fail("a parameterless token keyword")),
-    })
-    .collect()
-}
-
 pub(in crate::oracle::canonical) fn recognize_standalone_keyword_list(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<KeywordListNode> {
     recognize_keyword_atom_list(cursor, true)
 }
 
-/// Parameterless keywords and complete quoted abilities granted to another
-/// object (CR 113.1). Parameterized keywords keep their own grant frames.
+/// Keywords and complete quoted abilities granted to another object
+/// (CR 113.1). A parameterized keyword carries its whole payload: Ward's
+/// cost, protection's qualities, or a count/template keyword's compiled rules
+/// become complete keyword rules of the granted object.
 pub(in crate::oracle::canonical) fn recognize_granted_ability_list(
     cursor: &mut OracleTokenCursor<'_>,
     granted_type_line: &str,
 ) -> MachineResult<GrantedAbilityListNode> {
     let list = recognize_keyword_atom_list_in_context(
         cursor,
-        false,
+        true,
         Some(granted_type_line),
         &mut KeywordResourceCommitment::None,
         false,
     )?;
     split_granted_atoms(cursor, list)
+}
+
+/// The keyword rule a granted Ward or protection atom adds to the object
+/// that gains it: the same `keywordAbility` a printed keyword line lowers to.
+fn granted_keyword_rule(ability: serde_json::Value) -> QuotedAbilityNode {
+    QuotedAbilityNode {
+        rule: serde_json::json!({
+            "kind": "keywordAbility",
+            "source": super::super::self_ref(),
+            "ability": ability,
+        }),
+    }
 }
 
 fn split_granted_atoms(
@@ -450,10 +472,29 @@ fn split_granted_atoms(
         match atom {
             KeywordAtomNode::Parameterless(keyword) => granted.keywords.push(keyword),
             KeywordAtomNode::Quoted(ability) => granted.abilities.push(ability),
-            KeywordAtomNode::Ward { .. }
-            | KeywordAtomNode::Protection { .. }
-            | KeywordAtomNode::ManaCost(_) => {
-                return Err(cursor.fail("a parameterless keyword or quoted ability"));
+            KeywordAtomNode::Ward { cost } => {
+                granted
+                    .abilities
+                    .push(granted_keyword_rule(serde_json::json!({
+                        "kind": "ward",
+                        "cost": super::super::lower_resource_payment(
+                            &cost,
+                            super::super::ResourcePaymentPayer::WardTargetingPlayer,
+                        ),
+                    })))
+            }
+            KeywordAtomNode::Protection { qualities } => {
+                granted
+                    .abilities
+                    .push(granted_keyword_rule(serde_json::json!({
+                        "kind": "protection",
+                        "from": super::lower_protection_qualities(&qualities),
+                    })))
+            }
+            KeywordAtomNode::ManaCost(_) => {
+                return Err(cursor.fail(
+                    "a keyword another object can gain (a mana-cost keyword is read from the card itself)",
+                ));
             }
         }
     }
@@ -468,27 +509,12 @@ pub(in crate::oracle::canonical) fn recognize_effect_owned_granted_ability_list(
 ) -> MachineResult<GrantedAbilityListNode> {
     let list = recognize_keyword_atom_list_in_context(
         cursor,
-        false,
+        true,
         Some(granted_type_line),
         &mut KeywordResourceCommitment::None,
         true,
     )?;
     split_granted_atoms(cursor, list)
-}
-
-/// Standalone keyword list of a static predicate, optionally with quoted
-/// abilities of the objects it affects.
-pub(in crate::oracle::canonical) fn recognize_standalone_granted_list(
-    cursor: &mut OracleTokenCursor<'_>,
-    granted_type_line: &str,
-) -> MachineResult<KeywordListNode> {
-    recognize_keyword_atom_list_in_context(
-        cursor,
-        true,
-        Some(granted_type_line),
-        &mut KeywordResourceCommitment::None,
-        false,
-    )
 }
 
 /// The same granted list when the parent owns a following `, and VERB`

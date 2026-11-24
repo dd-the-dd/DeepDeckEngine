@@ -336,7 +336,10 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
                 return PermanentActionAttempt::FailedCommitted(failure);
             }
             let mut trial = cursor.clone();
-            let result = if predicate == PermanentPredicate::KeywordGrant {
+            let result = if predicate == PermanentPredicate::KeywordGrant
+                && !super::temporary_power_toughness::granted_stats_coordination_starts(
+                    &subject_end,
+                ) {
                 super::keyword_grant::recognize_temporary_keyword_grant_subject(
                     &mut trial,
                     |cursor| {

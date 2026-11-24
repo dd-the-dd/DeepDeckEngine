@@ -2,8 +2,9 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     EffectDurationNode, GRANTED_OBJECT_TYPE_LINE, GrantedKeyword, NumericExpression,
     PowerToughnessDeltaNode, QuotedAbilityNode, RecognizedEffectFragment, TargetListNode,
-    recognize_granted_ability_list, recognize_signed_numeric_power_toughness_delta,
-    recognize_target_list, recognize_trailing_or_supplied_duration,
+    recognize_effect_owned_granted_ability_list, recognize_granted_ability_list,
+    recognize_signed_numeric_power_toughness_delta, recognize_target_list,
+    recognize_trailing_or_supplied_duration,
 };
 use crate::oracle::canonical::automata::{VerbForm, VerbLemma, is_verb_form};
 
@@ -53,6 +54,7 @@ pub(in crate::oracle::canonical) fn recognize_temporary_power_toughness_subject<
     let mut keywords = Vec::new();
     let mut abilities = Vec::new();
     let mut duration = None;
+    let mut leading_grant = false;
 
     loop {
         state = match state {
@@ -74,6 +76,26 @@ pub(in crate::oracle::canonical) fn recognize_temporary_power_toughness_subject<
             }
             TemporaryPowerToughnessState::Action => {
                 cursor.enter("effect.temporary-power-toughness.action");
+                if gain_verb_at(cursor, 0) {
+                    // `gain KEYWORDS and get +N/+N DURATION` (CR 611.2a): both
+                    // coordinated predicates share the subject and the one
+                    // trailing duration, like the `get ... and gain` order.
+                    cursor.enter("effect.temporary-power-toughness.leading-keyword-grant");
+                    let action = cursor.consume_type("actionWord")?;
+                    cursor.require(
+                        gain_verb(&action.raw),
+                        "`gain` or `gains` before the coordinated stat change",
+                    )?;
+                    let list = recognize_effect_owned_granted_ability_list(
+                        cursor,
+                        GRANTED_OBJECT_TYPE_LINE,
+                    )?;
+                    keywords = list.keywords;
+                    abilities = list.abilities;
+                    leading_grant = true;
+                    cursor.enter("effect.temporary-power-toughness.leading-keyword-grant.and");
+                    cursor.consume("and")?;
+                }
                 let action = cursor.consume_type("actionWord")?;
                 cursor.require(
                     action.raw.eq_ignore_ascii_case("get")
@@ -92,23 +114,16 @@ pub(in crate::oracle::canonical) fn recognize_temporary_power_toughness_subject<
                 // `and` belongs to this action only when it introduces a
                 // keyword grant of the same subject; any other continuation
                 // (`and target creature gets ...`) is a sequence connector.
-                if cursor
-                    .peek()
-                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
-                    && cursor.peek_ahead(1).is_some_and(|raw| {
-                        is_verb_form(&raw, VerbLemma::Gain, VerbForm::Base)
-                            || is_verb_form(&raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
-                    })
+                if !leading_grant
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && gain_verb_at(cursor, 1)
                 {
                     cursor.consume("and")?;
                     let action = cursor.consume_type("actionWord")?;
                     cursor.require(
-                        is_verb_form(&action.raw, VerbLemma::Gain, VerbForm::Base)
-                            || is_verb_form(
-                                &action.raw,
-                                VerbLemma::Gain,
-                                VerbForm::ThirdPersonSingular,
-                            ),
+                        gain_verb(&action.raw),
                         "`gain` or `gains` after the effect connector",
                     )?;
                     let list = recognize_granted_ability_list(cursor, GRANTED_OBJECT_TYPE_LINE)?;
@@ -141,6 +156,37 @@ pub(in crate::oracle::canonical) fn recognize_temporary_power_toughness_subject<
             }
         };
     }
+}
+
+fn gain_verb(raw: &str) -> bool {
+    is_verb_form(raw, VerbLemma::Gain, VerbForm::Base)
+        || is_verb_form(raw, VerbLemma::Gain, VerbForm::ThirdPersonSingular)
+}
+
+fn gain_verb_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(gain_verb)
+}
+
+/// True at `gain(s) KEYWORDS and get(s)`: a keyword grant coordinated with a
+/// stat change of the same subject. The predicate parent routes this clause
+/// to the stat machine, which owns the shared trailing duration; a grant
+/// followed by anything else stays a plain keyword grant.
+pub(in crate::oracle::canonical) fn granted_stats_coordination_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    if !gain_verb_at(cursor, 0) {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    trial.consume_type("actionWord").is_ok()
+        && recognize_effect_owned_granted_ability_list(&mut trial, GRANTED_OBJECT_TYPE_LINE).is_ok()
+        && trial
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+        && trial.peek_ahead(1).is_some_and(|raw| {
+            is_verb_form(raw, VerbLemma::Get, VerbForm::Base)
+                || is_verb_form(raw, VerbLemma::Get, VerbForm::ThirdPersonSingular)
+        })
 }
 
 #[cfg(test)]

@@ -178,6 +178,16 @@ fn quantified_subject_at(
     Some((quantifier, population))
 }
 
+/// The shared quantified player head at the cursor (`an opponent`, `a
+/// player`, `any player`, `each opponent`, `no player`), two tokens long.
+/// Parents that read another verb after it (an `unless` payer) reuse this
+/// one grammar instead of their own word list.
+pub(in crate::oracle::canonical) fn quantified_player_head(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(PlayerQuantifier, PlayerPopulation)> {
+    quantified_subject_at(cursor)
+}
+
 /// True at `your opponents control`, the collective subject of a summed count.
 pub(in crate::oracle::canonical) fn collective_opponents_condition_starts(
     cursor: &OracleTokenCursor<'_>,

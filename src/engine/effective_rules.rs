@@ -11,8 +11,14 @@
 //!   currently has after layer 6 (CR 613.1f): printed rules whose metadata
 //!   gate is open (class level CR 716, Room doors CR 709.5), removed when the
 //!   permanent loses all abilities, plus complete rules granted by static
-//!   grants (`grantTriggeredAbility`, `grantActivatedAbility` and the
-//!   zone-linked activated grants).
+//!   grants (`grantTriggeredAbility`, `grantKeywordAbility`,
+//!   `grantActivatedAbility` and the zone-linked activated grants). Each
+//!   granted triggered or keyword rule carries its grantor
+//!   (`grantedByInstanceId`): two grantors give two instances (CR 113.2c).
+//!
+//! A granted static ability (`grantStaticAbility`, CR 613.1f) contributes its
+//! modifiers to the static-modifier collection with the grantee as their
+//! source, so `this creature` inside it is the grantee.
 //!
 //! The static-modifier collector reads the printed layer filtered by
 //! `rule_active_for_source`: grants are themselves static modifiers, so the
@@ -21,12 +27,74 @@
 use super::*;
 
 /// Modifier kinds whose `ability` field is one complete granted rule.
-const RULE_GRANT_KINDS: [&str; 4] = [
+const RULE_GRANT_KINDS: [&str; 5] = [
     "grantTriggeredAbility",
+    "grantKeywordAbility",
     "grantActivatedAbility",
     "grantActivatedAbilitiesFromLinkedExile",
     "grantActivatedAbilitiesFromZone",
 ];
+
+/// Granted rule kinds merged into the effective layer as complete rules.
+const MERGED_RULE_GRANT_KINDS: [&str; 2] = ["grantTriggeredAbility", "grantKeywordAbility"];
+
+/// Modifiers a granted static ability may not carry: rule grants and ability
+/// loss (layer 6 is computed from the printed layer, never from itself), and
+/// type, subtype, control or mana-production changes, whose ordered
+/// projections read the printed static layer only (`static_modifier_site.rs`).
+const GRANTED_STATIC_EXCLUDED_MODIFIERS: [&str; 19] = [
+    "grantTriggeredAbility",
+    "grantKeywordAbility",
+    "grantStaticAbility",
+    "grantActivatedAbility",
+    "grantActivatedAbilitiesFromLinkedExile",
+    "grantActivatedAbilitiesFromZone",
+    "grantAbility",
+    "grantManaAbility",
+    "loseAllAbilities",
+    "addCardType",
+    "removeCardTypeWhile",
+    "addSubtype",
+    "setSubtypes",
+    "setLandSubtype",
+    "nonbasicLandsBecomeMountains",
+    "addAllBasicLandTypes",
+    "multiplyManaProduction",
+    "dampingSphereMana",
+    "controlAttachedPermanent",
+];
+
+/// Validation of the layer-6 rule grants this module owns. `None` for any
+/// other modifier kind.
+pub(super) fn granted_rule_modifier_supported(modifier: &Value) -> Option<bool> {
+    let condition_supported_or_absent = modifier.get("condition").is_none_or(condition_supported);
+    match value_kind(modifier) {
+        Some("grantKeywordAbility") => Some(
+            static_object_selector_supported(&modifier["objects"])
+                && keyword_rule_supported(&modifier["ability"])
+                && condition_supported_or_absent,
+        ),
+        Some("grantStaticAbility") => Some(
+            static_object_selector_supported(&modifier["objects"])
+                && granted_static_rule_supported(&modifier["ability"])
+                && condition_supported_or_absent,
+        ),
+        _ => None,
+    }
+}
+
+/// A static ability another permanent can have: a supported battlefield
+/// static rule carrying none of the excluded modifiers.
+fn granted_static_rule_supported(rule: &Value) -> bool {
+    value_kind(rule) == Some("staticAbility")
+        && battlefield_static_rule_supported(rule)
+        && rule["modifiers"].as_array().is_some_and(|modifiers| {
+            modifiers.iter().all(|modifier| {
+                value_kind(modifier)
+                    .is_none_or(|kind| !GRANTED_STATIC_EXCLUDED_MODIFIERS.contains(&kind))
+            })
+        })
+}
 
 impl CardDefinition {
     /// Printed (copiable) rules of this definition, before continuous effects.
@@ -164,7 +232,7 @@ impl GameEngine {
     /// Layer 6 is computed from the printed layer: a static condition or
     /// selector evaluated while grants are collected sees no grants, so the
     /// grant layer never depends on itself.
-    fn with_rule_grant_collection<T>(&self, work: impl FnOnce(&Self) -> T) -> T {
+    pub(super) fn with_rule_grant_collection<T>(&self, work: impl FnOnce(&Self) -> T) -> T {
         self.collecting_rule_grants.set(true);
         let result = work(self);
         self.collecting_rule_grants.set(false);
@@ -198,14 +266,26 @@ impl GameEngine {
         object: &CardInstance,
         modifiers: &[(CardInstance, Value)],
     ) -> Vec<Value> {
-        let mut granted = modifiers
-            .iter()
-            .filter(|(source, modifier)| {
-                value_kind(modifier) == Some("grantTriggeredAbility")
-                    && Self::static_selector_matches(source, &modifier["objects"], object)
-            })
-            .map(|(_, modifier)| modifier["ability"].clone())
-            .collect::<Vec<_>>();
+        let mut granted = Vec::new();
+        for (source, modifier) in modifiers.iter().filter(|(source, modifier)| {
+            value_kind(modifier).is_some_and(|kind| MERGED_RULE_GRANT_KINDS.contains(&kind))
+                && Self::static_selector_matches(source, &modifier["objects"], object)
+                && modifier.get("condition").is_none_or(|condition| {
+                    self.condition_value_with_source(
+                        condition,
+                        &source.controller,
+                        &BTreeMap::new(),
+                        Some(source),
+                    )
+                })
+        }) {
+            // Each grantor gives its own instance of the rule (CR 113.2c).
+            let mut rule = modifier["ability"].clone();
+            rule["grantedByInstanceId"] = Value::String(source.instance_id.clone());
+            if !granted.contains(&rule) {
+                granted.push(rule);
+            }
+        }
         for rule in self.granted_activated_abilities_from(object, modifiers) {
             if !granted.contains(&rule) {
                 granted.push(rule);
@@ -371,6 +451,127 @@ impl GameEngine {
     pub(super) fn rule_active_for_source(&self, source: &CardInstance, rule: &Value) -> bool {
         Self::rule_metadata_active_for_source(source, rule)
             && !self.permanent_loses_all_abilities(source)
+    }
+
+    /// The active static modifiers plus those of static abilities granted by
+    /// active `grantStaticAbility` modifiers (CR 613.1f). A granted
+    /// modifier's source is the grantee, so its selectors and conditions read
+    /// `self` as the permanent that has the ability. Grants are computed from
+    /// the printed layer: while they are collected, a nested read sees no
+    /// granted static ability, so the layer never depends on itself.
+    pub(super) fn with_granted_static_modifiers(
+        &self,
+        mut modifiers: Vec<(CardInstance, Value)>,
+    ) -> Vec<(CardInstance, Value)> {
+        if self.collecting_rule_grants.get()
+            || !modifiers
+                .iter()
+                .any(|(_, modifier)| value_kind(modifier) == Some("grantStaticAbility"))
+        {
+            return modifiers;
+        }
+        let granted = self.with_rule_grant_collection(|engine| {
+            let mut granted = Vec::new();
+            for (grantor, modifier) in modifiers
+                .iter()
+                .filter(|(_, modifier)| value_kind(modifier) == Some("grantStaticAbility"))
+            {
+                let rule = &modifier["ability"];
+                if !granted_static_rule_supported(rule)
+                    || modifier.get("condition").is_some_and(|condition| {
+                        !engine.condition_value_with_source(
+                            condition,
+                            &grantor.controller,
+                            &BTreeMap::new(),
+                            Some(grantor),
+                        )
+                    })
+                {
+                    continue;
+                }
+                for grantee in engine
+                    .state
+                    .players
+                    .iter()
+                    .flat_map(|player| player.battlefield.iter())
+                    .filter(|grantee| !grantee.flags.get("phasedOut").copied().unwrap_or(false))
+                    .filter(|grantee| {
+                        Self::static_selector_matches(grantor, &modifier["objects"], grantee)
+                    })
+                {
+                    if engine.permanent_loses_all_abilities(grantee)
+                        || rule.get("condition").is_some_and(|condition| {
+                            !engine.condition_value_with_source(
+                                condition,
+                                &grantee.controller,
+                                &BTreeMap::new(),
+                                Some(grantee),
+                            )
+                        })
+                    {
+                        continue;
+                    }
+                    for inner in rule["modifiers"].as_array().into_iter().flatten() {
+                        granted.push((grantee.clone(), inner.clone()));
+                    }
+                }
+            }
+            granted
+        });
+        modifiers.extend(granted);
+        modifiers
+    }
+
+    /// Keyword abilities of the rules granted to a permanent by static
+    /// `grantKeywordAbility` modifiers (`has toxic 2`, `has annihilator 1`).
+    fn granted_keyword_abilities(&self, permanent: &CardInstance) -> Vec<Value> {
+        // Cheap printed scan first: keyword reads are frequent.
+        let any_keyword_grant = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|source| source.definition.rules.iter())
+            .filter_map(|rule| rule["modifiers"].as_array())
+            .flatten()
+            .any(|modifier| value_kind(modifier) == Some("grantKeywordAbility"));
+        if !any_keyword_grant {
+            return Vec::new();
+        }
+        self.effective_rules(permanent)
+            .granted
+            .iter()
+            .flat_map(|rule| match value_kind(rule) {
+                Some("keywordAbility") => vec![rule["ability"].clone()],
+                Some("keywordAbilityGroup") => {
+                    rule["abilities"].as_array().cloned().unwrap_or_default()
+                }
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    /// The summed parameter (`count`, `quantity`) of a keyword granted by a
+    /// static rule grant; printed and resolved grants are counted by the
+    /// printed reader.
+    pub(super) fn granted_keyword_parameter_total(
+        &self,
+        permanent: &CardInstance,
+        keyword: &str,
+        field: &str,
+    ) -> i32 {
+        self.granted_keyword_abilities(permanent)
+            .iter()
+            .filter(|ability| value_kind(ability) == Some(keyword))
+            .filter_map(|ability| integer_value(&ability[field]))
+            .fold(0i32, i32::saturating_add)
+    }
+
+    /// Whether a static rule grant gives the permanent this keyword.
+    pub(super) fn has_granted_keyword_rule(&self, permanent: &CardInstance, keyword: &str) -> bool {
+        self.granted_keyword_abilities(permanent)
+            .iter()
+            .any(|ability| value_kind(ability) == Some(keyword))
     }
 }
 

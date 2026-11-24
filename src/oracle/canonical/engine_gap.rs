@@ -15,8 +15,9 @@ pub(crate) enum EngineGap {
     /// An event pattern the runtime matcher cannot evaluate (a modifier,
     /// counterpart predicate or self matcher without a runtime observer).
     EventMatcher,
-    /// A static grant of a triggered or static ability: the engine only
-    /// observes granted activated and mana abilities.
+    /// A static grant of a rule whose kind has no layer-6 grant the engine
+    /// reads (granted activated, mana, triggered, static and keyword rules
+    /// each have one; any other rule kind stops here).
     GrantedNonActivatedAbility,
     /// A reflexive or optional program whose instruction performance the
     /// runtime does not measure (CR 603.12, 608.2c "if you do").

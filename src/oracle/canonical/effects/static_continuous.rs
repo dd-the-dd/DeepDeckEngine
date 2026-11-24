@@ -3,7 +3,9 @@
 //! ```text
 //! Static    := [ability word "—"] [("as long as" Condition | TurnCondition) ","]
 //!              (Subject Predicate ("and" Predicate)* | "you control" AttachedObject)
-//!              ["as long as" Condition] "." [keyword reminder]
+//!              [Gate] "." [keyword reminder]
+//! Gate      := "as long as" Condition | "if" Condition | "unless" Condition
+//!            | TurnCondition
 //! TurnCondition := "during your turn" | "during turns other than yours"
 //! Subject   := source reference | "equipped creature" | "enchanted" PERMANENT
 //!            | ["each" | "all"] ["other"] permanent collection
@@ -331,17 +333,13 @@ fn read_static_continuous_effect(
         }
         match cursor.peek() {
             Some(raw) if raw.eq_ignore_ascii_case("and") => cursor.consume("and")?,
-            Some(_) if as_long_as_starts(cursor) => {
-                cursor.require(
-                    condition.is_none(),
-                    "one `as long as` condition for the static ability",
-                )?;
+            Some(_) if trailing_condition_starts(cursor) => {
+                // One trailing gate of the whole ability (CR 611.3a): `as
+                // long as C`, `if C`, `unless C` (not-C) or a turn condition
+                // (`during your turn`), read by the shared condition readers.
+                cursor.require(condition.is_none(), "one condition for the static ability")?;
                 cursor.enter("static.continuous.trailing-condition");
-                cursor.consume_phrase(&["as", "long", "as"])?;
-                condition = Some(recognize_static_condition(
-                    cursor,
-                    condition_context(input, source_subject),
-                )?);
+                condition = Some(read_trailing_condition(cursor, input, source_subject)?);
                 cursor.enter("static.continuous.trailing-condition.terminator");
                 cursor.consume(".")?;
                 break;
@@ -645,6 +643,35 @@ fn serial_predicate_follows(cursor: &OracleTokenCursor<'_>) -> bool {
             && predicate_starts_at(cursor, 2))
 }
 
+/// A trailing gate of the static ability: `as long as`, `unless`, `if` (not
+/// a requirement's `if able`) or a `during` turn condition.
+fn trailing_condition_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    as_long_as_starts(cursor)
+        || word_in(cursor.peek(), &["unless", "during"])
+        || (word_in(cursor.peek(), &["if"]) && !word_in(cursor.peek_ahead(1), &["able"]))
+}
+
+fn read_trailing_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+    source_subject: bool,
+) -> MachineResult<StaticConditionNode> {
+    if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
+        return Ok(turn_condition);
+    }
+    if as_long_as_starts(cursor) {
+        cursor.consume_phrase(&["as", "long", "as"])?;
+        return recognize_static_condition(cursor, condition_context(input, source_subject));
+    }
+    if word_in(cursor.peek(), &["if"]) {
+        cursor.consume("if")?;
+        return recognize_static_condition(cursor, condition_context(input, source_subject));
+    }
+    cursor.consume("unless")?;
+    recognize_static_condition(cursor, condition_context(input, source_subject))
+        .map(|condition| BooleanConditionNode::Not(Box::new(condition)))
+}
+
 fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     ["as", "long", "as"]
         .iter()
@@ -693,26 +720,33 @@ fn condition_context<'a>(
     }
 }
 
-/// A granted activated or mana ability is read by the engine from the static
-/// grant (CR 113.1, 604.1). Granted triggered and static rules are not
-/// observed through static grants by the engine's event publishers.
+/// A complete rule granted by a static ability (CR 113.1, 604.1, 613.1f):
+/// the rule's own kind selects the layer-6 grant the engine reads. Inside the
+/// rule, `this creature` is the object that has it (the quote was compiled
+/// as an ability of the granted object), so a granted trigger fires from the
+/// grantee and a granted static ability applies with the grantee as source.
+/// A parameterized keyword (`annihilator 1`, `toxic 2`) arrives as its
+/// compiled keyword rule. Any other rule kind fails explicitly.
 fn lower_static_quoted_ability(
     cursor: &mut OracleTokenCursor<'_>,
     objects: &Value,
     ability: QuotedAbilityNode,
 ) -> MachineResult<Value> {
     cursor.enter("static.continuous.quoted-ability");
-    if !matches!(
-        ability.rule["kind"].as_str(),
-        Some("activatedAbility" | "manaAbility")
-    ) {
-        return Err(cursor.engine_gap(
-            crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
-            "a granted activated or mana ability (the engine observes no static grant of a triggered or static ability)",
-        ));
-    }
+    let kind = match ability.rule["kind"].as_str() {
+        Some("activatedAbility" | "manaAbility") => "grantActivatedAbility",
+        Some("triggeredAbility") => "grantTriggeredAbility",
+        Some("staticAbility") => "grantStaticAbility",
+        Some("keywordAbility" | "keywordAbilityGroup") => "grantKeywordAbility",
+        _ => {
+            return Err(cursor.engine_gap(
+                crate::oracle::canonical::engine_gap::EngineGap::GrantedNonActivatedAbility,
+                "a granted activated, mana, triggered, static or keyword rule",
+            ));
+        }
+    };
     Ok(json!({
-        "kind": "grantActivatedAbility",
+        "kind": kind,
         "objects": objects.clone(),
         "ability": ability.rule,
     }))

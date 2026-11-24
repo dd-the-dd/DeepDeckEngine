@@ -1,9 +1,10 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, GrantedKeyword, ObjectQueryNode, StaticConditionContext,
-    StaticConditionNode, TemporaryKeywordGrantNode, TemporaryKeywordGrantObjectsNode,
-    recognize_effect_duration, recognize_object_query, recognize_source_reference,
-    recognize_static_condition, recognize_target_list, recognize_trailing_or_supplied_duration,
+    BooleanConditionNode, EffectDurationNode, GrantedKeyword, ObjectQueryNode,
+    StaticConditionContext, StaticConditionNode, TemporaryKeywordGrantNode,
+    TemporaryKeywordGrantObjectsNode, recognize_effect_duration, recognize_object_query,
+    recognize_source_reference, recognize_static_condition, recognize_target_list,
+    recognize_trailing_or_supplied_duration,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -177,6 +178,28 @@ fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     word_at(cursor, 0, "as") && word_at(cursor, 1, "long") && word_at(cursor, 2, "as")
 }
 
+/// The word that introduces a trailing condition of a standing restriction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TrailingCondition {
+    AsLongAs,
+    If,
+    Unless,
+}
+
+/// `as long as`, `unless`, or `if` not followed by `able` (a requirement's
+/// own `if able` belongs to the clause).
+fn trailing_condition_introducer(cursor: &OracleTokenCursor<'_>) -> Option<TrailingCondition> {
+    if as_long_as_starts(cursor) {
+        Some(TrailingCondition::AsLongAs)
+    } else if word_at(cursor, 0, "unless") {
+        Some(TrailingCondition::Unless)
+    } else if word_at(cursor, 0, "if") && !word_at(cursor, 1, "able") {
+        Some(TrailingCondition::If)
+    } else {
+        None
+    }
+}
+
 fn duration_starts_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
     word_at(cursor, offset, "until")
         || (word_at(cursor, offset, "this")
@@ -252,21 +275,34 @@ pub(in crate::oracle::canonical) fn recognize_source_combat_restriction(
         }
         break;
     }
-    if as_long_as_starts(cursor) {
+    if let Some(introducer) = trailing_condition_introducer(cursor) {
+        // `as long as C` and `if C` gate the restriction on C; `unless C`
+        // gates it on not-C (CR 508.1c, 509.1b: checked as the attack or
+        // block is declared, which a continuously evaluated static condition
+        // observes). Each is the one shared static condition language.
         cursor.require(
             condition.is_none(),
-            "one `as long as` condition for the combat restriction",
+            "one condition for the combat restriction",
         )?;
         cursor.enter("static.combat-restriction.trailing-condition");
-        cursor.consume_phrase(&["as", "long", "as"])?;
-        condition = Some(recognize_static_condition(
+        match introducer {
+            TrailingCondition::AsLongAs => cursor.consume_phrase(&["as", "long", "as"])?,
+            TrailingCondition::If => cursor.consume("if")?,
+            TrailingCondition::Unless => cursor.consume("unless")?,
+        }
+        *committed = true;
+        let read = recognize_static_condition(
             cursor,
             StaticConditionContext {
                 source_subject: true,
                 name_links,
                 name_failure,
             },
-        )?);
+        )?;
+        condition = Some(match introducer {
+            TrailingCondition::AsLongAs | TrailingCondition::If => read,
+            TrailingCondition::Unless => BooleanConditionNode::Not(Box::new(read)),
+        });
     }
     if cursor.peek() == Some(".") {
         cursor.consume(".")?;
@@ -312,7 +348,7 @@ fn recognize_requirement_tail(
 fn bare_block_prohibition_ends(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek().is_none_or(|raw| raw == "." || raw == ",")
         || word_at(cursor, 0, "and")
-        || as_long_as_starts(cursor)
+        || trailing_condition_introducer(cursor).is_some()
         || duration_starts_at(cursor, 0)
 }
 
