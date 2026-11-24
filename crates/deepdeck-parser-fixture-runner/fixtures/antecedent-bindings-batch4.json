@@ -570,6 +570,113 @@
       }
     },
     {
+      "id": "reinforcements-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Reinforcements",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Put up to three target creature cards from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOrder"
+              },
+              {
+                "pointer": "/effects/1/order",
+                "equals": {
+                  "decisionId": "remainderOrder",
+                  "kind": "decisionOrder"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "footbottom-feast-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Footbottom Feast",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "gravepurge-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Gravepurge",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sawtooth-loon-exact-hand-cards-to-library-bottom",
+      "request": {
+        "cardName": "Sawtooth Loon",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flying\nWhen this creature enters, return a white or blue creature you control to its owner's hand.\nWhen this creature enters, draw two cards, then put two cards from your hand on the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "near-miss-cards-of-another-owner-need-a-written-order",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put up to two target creature cards from a single graveyard on top of their owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings",
+            "messageContains": "explicit ordering policy"
+          }
+        ]
+      }
+    },
+    {
       "id": "deathknell-pronoun-source-through-environment",
       "request": {
         "cardName": "Antecedent Probe",

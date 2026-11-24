@@ -1294,7 +1294,24 @@ impl CardCollectionMemory {
                     ));
                 }
                 let mut order = None;
-                match destination.order {
+                // CR 401.4: cards put into one library position at the same
+                // time are ordered by their owner. When every moved card
+                // comes from the controller's own zone, that owner is the
+                // controller, who orders them as a written `in any order`.
+                let owner_orders = destination.order.is_none()
+                    && destination.zone == CardZoneName::Library
+                    && !maximum.is_some_and(|maximum| maximum <= 1)
+                    && matches!(
+                        destination.owner,
+                        CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
+                    )
+                    && moved_cards_owned_by_controller(operand);
+                let order_policy = if owner_orders {
+                    Some(CollectionOrder::Chosen)
+                } else {
+                    destination.order
+                };
+                match order_policy {
                     Some(CollectionOrder::Chosen) => {
                         let id = fresh("remainderOrder", &mut self.next_order);
                         self.allocated_ids.insert(id.clone());
@@ -1400,6 +1417,32 @@ impl CardCollectionMemory {
             }
         }
         Ok(effects)
+    }
+}
+
+/// True when every card an operand names is owned by the ability's
+/// controller: declared targets or a chosen collection in the controller's
+/// own zone (CR 400.3: a card is only ever in its owner's hand, library or
+/// graveyard).
+fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
+    match operand {
+        CardOperandNode::Targets(target) => {
+            target.owner == CardTargetZoneOwner::Player(LocalPlayerReference::Controller)
+                && matches!(
+                    target.zone,
+                    CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Library
+                )
+        }
+        CardOperandNode::ZoneCollection(query) => {
+            query.owner == CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
+                && matches!(
+                    query.zone,
+                    CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Library
+                )
+        }
+        CardOperandNode::Reference(_)
+        | CardOperandNode::Selection(_)
+        | CardOperandNode::LibraryTop(_) => false,
     }
 }
 
