@@ -263,8 +263,10 @@ fn followed_object(
     }
 }
 
-/// `If OBJECT would die this turn, exile it instead.` (CR 614.1a): the range
-/// is exactly the replacing exile of the followed object.
+/// `If OBJECT would die this turn, exile it instead.` / `If OBJECT would
+/// leave the battlefield, exile it instead [of putting it anywhere else].`
+/// (CR 614.1a): the range is exactly the replacing exile of the followed
+/// object.
 fn lower_created_replacement(
     cursor: &mut OracleTokenCursor<'_>,
     replacement: &CreatedReplacementNode,
@@ -276,19 +278,40 @@ fn lower_created_replacement(
         replacement.instead,
         "a replacement action closed by `instead`",
     )?;
-    let object = followed_object(cursor, replacement.object, target_bindings)?;
+    let object = match replacement.object {
+        // The permanent a move of the same program put onto the battlefield
+        // (CR 400.7): the move binds it before the replacement is created.
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield)
+            if replacement.event == ObjectDeparture::LeavesBattlefield =>
+        {
+            lower_bound_permanent_reference(cursor, replacement.object, target_bindings)
+                .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?
+        }
+        _ => followed_object(cursor, replacement.object, target_bindings)?,
+    };
     cursor.enter("lower.created-replacement.action");
     let exile = json!({"kind": "exilePermanent", "permanent": object.clone()});
     cursor.require(
         governed.len() == 1 && governed[0] == exile,
-        "exactly one exile of the object that would die as the replacing action",
+        "exactly one exile of the object that would die or leave as the replacing action",
     )?;
-    let CreatedRuleLifetime::ThisTurn = replacement.lifetime;
-    Ok(json!({
-        "kind": "installDeathExileReplacement",
-        "object": object,
-        "duration": {"kind": "untilEndOfCurrentTurn"},
-    }))
+    cursor.enter("lower.created-replacement.event");
+    match (replacement.event, replacement.lifetime) {
+        (ObjectDeparture::Dies, Some(CreatedRuleLifetime::ThisTurn)) => Ok(json!({
+            "kind": "installDeathExileReplacement",
+            "object": object,
+            "duration": {"kind": "untilEndOfCurrentTurn"},
+        })),
+        // It applies to that object for as long as it is that object; a
+        // new object after a zone change is not followed (CR 400.7).
+        (ObjectDeparture::LeavesBattlefield, None) => Ok(json!({
+            "kind": "installLeaveBattlefieldExileReplacement",
+            "object": object,
+        })),
+        _ => Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+            "a death replacement lasting this turn or an unbounded leave-the-battlefield replacement",
+        ))),
+    }
 }
 
 /// Moves each governed range into the rule its frame creates. Ranges run

@@ -61,6 +61,17 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         LocalEffectNode::OptionalCardDeployment(deployment) => {
             Some(Some(TargetSelector::Object(deployment.filter.clone())))
         }
+        // `return this card from your graveyard to the battlefield`: the
+        // permanent the source card became (CR 400.7), named without a
+        // declared predicate (`It gains haste`).
+        LocalEffectNode::MoveSource(movement)
+            if movement.source == LocalObjectReference::SourceSelf
+                && movement.from == SourceZone::Graveyard
+                && movement.to == SourceZone::Battlefield
+                && movement.attached_to.is_none() =>
+        {
+            Some(None)
+        }
         _ => None,
     }
 }
