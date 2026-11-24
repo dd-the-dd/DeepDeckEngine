@@ -584,6 +584,21 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "grantExtraTurn", "player": lowered.player}));
                         continue;
                     }
+                    SingularPlayerAction::Designation(action) => {
+                        cursor.enter("lower.player-action.designation");
+                        effects.push(lower_player_designation_action(*action, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Skip(skip) => {
+                        cursor.enter("lower.player-action.skip");
+                        effects.push(lower_skip_turn_part(*skip, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Prohibition(prohibition) => {
+                        cursor.enter("lower.player-action.prohibition");
+                        effects.push(lower_player_prohibition(*prohibition, lowered.player));
+                        continue;
+                    }
                     SingularPlayerAction::Scry(count) => {
                         cursor.enter("lower.player-action.scry");
                         let amount = lower_sequence_bound_amount(

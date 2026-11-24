@@ -113,6 +113,7 @@ fn payload_risk(value: &Value, source: Option<&CardDefinition>, depth: usize) ->
             | "copyNextLessonThisTurn"
             | "dungeonRoom"
             | "ventureDungeon"
+            | "temptWithRing"
             | "installAttackTrigger"
             | "installOpponentAttackTrigger"
             | "installDelayedTriggeredAbility"

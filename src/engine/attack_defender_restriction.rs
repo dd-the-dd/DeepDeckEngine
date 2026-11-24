@@ -64,5 +64,6 @@ pub(super) fn is_combat_restriction_marker(keyword: &str) -> bool {
             | "mustBeBlockedIfAble"
             | "attackEachCombatIfAble"
             | "blockEachCombatIfAble"
+            | "assignsNoCombatDamage"
     )
 }

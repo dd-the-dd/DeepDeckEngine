@@ -11,8 +11,20 @@ impl GameEngine {
     /// Chooses the active player of the next turn once the current turn has
     /// ended: the player of the most recent extra turn created for the turn
     /// just completed, else the next live player in turn order. The caller
-    /// still advances the turn number.
+    /// still advances the turn number. A player who must skip their next
+    /// turn (CR 500.11) does not take it: the turn after it is chosen the
+    /// same way, from that player.
     pub(super) fn advance_to_next_turn_player(&mut self) {
+        loop {
+            self.select_next_turn_player();
+            let player_id = self.state.players[self.state.active_player].id.clone();
+            if !self.consume_skipped_turn_part(&player_id, "turn") {
+                return;
+            }
+        }
+    }
+
+    fn select_next_turn_player(&mut self) {
         let turn_number = u64::from(self.state.turn_number);
         let extra_turn = self.state.rule_modifiers.iter().enumerate().rev().find_map(
             |(modifier_index, modifier)| {

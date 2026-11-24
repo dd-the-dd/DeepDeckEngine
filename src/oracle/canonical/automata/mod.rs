@@ -148,6 +148,7 @@ mod numeric;
 mod numeric_object_property;
 mod object_argument;
 mod object_predicate;
+mod object_rule_clause;
 mod object_set;
 mod opening_hand_battlefield;
 mod opponent_library_search;
@@ -174,6 +175,7 @@ mod phyrexian_mana;
 mod player_action;
 mod player_condition;
 mod player_counter_sweep;
+mod player_designation;
 mod player_event;
 mod player_numeric_fact;
 mod player_permission;
@@ -407,6 +409,7 @@ pub(super) use numeric::*;
 pub(super) use numeric_object_property::*;
 pub(super) use object_argument::*;
 pub(super) use object_predicate::*;
+pub(super) use object_rule_clause::*;
 pub(super) use object_set::*;
 pub(super) use opening_hand_battlefield::*;
 pub(super) use opponent_library_search::*;
@@ -432,6 +435,7 @@ pub(super) use phase_trigger_sequence::*;
 pub(super) use phyrexian_mana::*;
 pub(super) use player_action::*;
 pub(super) use player_counter_sweep::*;
+pub(super) use player_designation::*;
 pub(super) use player_event::*;
 pub(super) use player_numeric_fact::*;
 pub(super) use player_permission::*;
@@ -1256,6 +1260,9 @@ pub(super) enum GrantedKeyword {
     BlockEachCombatIfAble,
     MaxOneBlocker,
     MustBeBlockedIfAble,
+    /// `assigns no combat damage` (CR 510.1): the object assigns no combat
+    /// damage while the marker lasts.
+    AssignsNoCombatDamage,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1318,6 +1325,7 @@ impl GrantedKeyword {
             Self::BlockEachCombatIfAble => "blockEachCombatIfAble",
             Self::MaxOneBlocker => "maxOneBlocker",
             Self::MustBeBlockedIfAble => "mustBeBlockedIfAble",
+            Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -2136,6 +2144,8 @@ pub(super) enum PermanentKeywordAction {
     /// `OBJECT becomes DESIGNATION` (CR 701.37b, 702.112b): the designating
     /// half of monstrosity and renown, read from the shared registry.
     BecomeDesignated(PermanentDesignation),
+    /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
+    PhaseOut,
 }
 
 impl PermanentKeywordAction {
@@ -2176,7 +2186,8 @@ impl PermanentKeywordAction {
             | Self::Suspect
             | Self::Detain
             | Self::Explore
-            | Self::BecomeDesignated(_) => KeywordQuantityPolicy::None,
+            | Self::BecomeDesignated(_)
+            | Self::PhaseOut => KeywordQuantityPolicy::None,
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2203,6 +2214,7 @@ impl PermanentKeywordAction {
             Self::Adapt => "adapt",
             Self::Monstrosity => "monstrosity",
             Self::BecomeDesignated(designation) => designation.flag(),
+            Self::PhaseOut => "phase out",
         }
     }
 }
@@ -2435,7 +2447,8 @@ mod permanent_subject;
 mod token_window;
 mod unsupported_word;
 pub(in crate::oracle::canonical) use permanent_action::{
-    PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
+    PermanentActionAttempt, ordinary_keyword_subject, permanent_operand_is_plural,
+    try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
     ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,

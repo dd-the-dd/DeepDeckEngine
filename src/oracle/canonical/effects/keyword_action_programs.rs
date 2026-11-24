@@ -274,6 +274,12 @@ pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
                 vec![set_designation(object, designation)]
             })
         }
+        // CR 702.26b: each permanent phases out (with what is attached to
+        // it, CR 702.26d); it phases in during its controller's next untap
+        // step.
+        PermanentKeywordAction::PhaseOut => for_each_object(object, scope, |object| {
+            vec![json!({ "kind": "phaseOutPermanent", "permanent": object })]
+        }),
     })
 }
 

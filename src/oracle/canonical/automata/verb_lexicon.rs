@@ -130,6 +130,14 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// `descend` (a permanent card put into its owner's graveyard from
     /// anywhere), an event verb read by turn histories.
     Descend,
+    /// `skip your next turn|untap step|draw step|combat phase` (CR 500.11,
+    /// 614.10): a player's own future turn part does not happen.
+    Skip,
+    /// `the Ring tempts PLAYER` (CR 701.54a): the subject is the Ring, the
+    /// object the tempted player.
+    Tempt,
+    /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
+    Phase,
 }
 
 /// One inflected form of a lemma.
@@ -250,7 +258,11 @@ impl ArgumentFrame {
             | Self::ManaProduction
             | Self::DamagePrevention
             | Self::Doubling
-            | Self::ExtraTurn => None,
+            | Self::ExtraTurn
+            | Self::SkippedTurnPart
+            | Self::PlayerDesignation
+            | Self::PlayerObject
+            | Self::PhasingDirection => None,
         }
     }
 }
@@ -572,7 +584,7 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "become",
             present_participle: "becoming",
         },
-        frames: &[ArgumentFrame::StateChange],
+        frames: &[ArgumentFrame::StateChange, ArgumentFrame::PlayerDesignation],
         voices: &[Voice::Active],
     },
     VerbEntry {
@@ -752,7 +764,19 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "taken",
             present_participle: "taking",
         },
-        frames: &[ArgumentFrame::ExtraTurn],
+        frames: &[ArgumentFrame::ExtraTurn, ArgumentFrame::PlayerDesignation],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Skip,
+        forms: VerbForms {
+            base: "skip",
+            third_person_singular: "skips",
+            past: "skipped",
+            past_participle: "skipped",
+            present_participle: "skipping",
+        },
+        frames: &[ArgumentFrame::SkippedTurnPart],
         voices: &[Voice::Active],
     },
 ];
@@ -767,6 +791,30 @@ const VERB_LEXICON: &[VerbEntry] = &[
 /// a performed row: the engine runs the ordinary primitive as the
 /// performer's instruction (CR 608.2c).
 const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
+    VerbEntry {
+        lemma: VerbLemma::Tempt,
+        forms: VerbForms {
+            base: "tempt",
+            third_person_singular: "tempts",
+            past: "tempted",
+            past_participle: "tempted",
+            present_participle: "tempting",
+        },
+        frames: &[ArgumentFrame::PlayerObject],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Phase,
+        forms: VerbForms {
+            base: "phase",
+            third_person_singular: "phases",
+            past: "phased",
+            past_participle: "phased",
+            present_participle: "phasing",
+        },
+        frames: &[ArgumentFrame::PhasingDirection],
+        voices: &[Voice::Active],
+    },
     VerbEntry {
         lemma: VerbLemma::Support,
         forms: VerbForms {

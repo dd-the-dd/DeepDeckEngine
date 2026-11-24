@@ -108,3 +108,71 @@ fn comma_never_hides_missing_effect_alternatives_or_an_unproved_subject() {
     ));
     assert_eq!(cursor.position(), 0);
 }
+
+fn parse_sequence(
+    text: &str,
+) -> Result<super::super::EffectSequenceNode, super::super::super::MachineFailure> {
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("gapped-conjunct-unit", &tokens);
+    recognize_effect_sequence_with_context(
+        &mut cursor,
+        &[],
+        None,
+        &EffectRecognitionContext::default(),
+    )
+}
+
+#[test]
+fn a_gapped_conjunct_reads_the_previous_imperative_lemma() {
+    // Stand Together: two counter frames of one `put`; the second slot is
+    // `another target creature` from the shared target list.
+    let sequence = parse_sequence(
+        "Put two +1/+1 counters on target creature and two +1/+1 counters on another target creature.",
+    )
+    .unwrap();
+    assert!(matches!(
+        sequence.effects.as_slice(),
+        [LocalEffectNode::PutCounters(_), LocalEffectNode::PutCounters(second)]
+            if matches!(&second.permanent, super::super::PermanentOperandNode::Targets(targets)
+                if targets.slots[0].exclude_source)
+    ));
+    assert_eq!(sequence.connectors, [EffectConnector::And]);
+    // A comma list of three frames (Incremental Growth's shape).
+    let sequence = parse_sequence(
+        "Put a +1/+1 counter on target creature, two +1/+1 counters on another target creature, and three +1/+1 counters on another target creature.",
+    )
+    .unwrap();
+    assert_eq!(sequence.effects.len(), 3);
+    // In Garruk's Wake: two universal collections of one `destroy`.
+    let sequence = parse_sequence(
+        "Destroy all creatures you don't control and all planeswalkers you don't control.",
+    )
+    .unwrap();
+    assert!(matches!(
+        sequence.effects.as_slice(),
+        [
+            LocalEffectNode::DestroyCollection(_),
+            LocalEffectNode::DestroyCollection(_)
+        ]
+    ));
+}
+
+#[test]
+fn a_conjunct_with_its_own_verb_or_another_sentence_is_not_gapped() {
+    // `and` joining two different lemmas stays an ordinary sequence.
+    let sequence = parse_sequence("Destroy all artifacts and draw a card.").unwrap();
+    assert!(matches!(
+        sequence.effects.as_slice(),
+        [
+            LocalEffectNode::DestroyCollection(_),
+            LocalEffectNode::DrawCards(_)
+        ] | [
+            LocalEffectNode::DestroyCollection(_),
+            LocalEffectNode::PlayerAction(_)
+        ]
+    ));
+    // A sentence boundary ends the ellipsis scope.
+    assert!(parse_sequence("Destroy all artifacts. All enchantments.").is_err());
+    // A conjunct that is not a complete frame of the lemma keeps failing.
+    assert!(parse_sequence("Put a +1/+1 counter on target creature and two counters.").is_err());
+}

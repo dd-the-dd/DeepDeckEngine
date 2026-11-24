@@ -3343,6 +3343,7 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "lifelink"
                 | "menace"
                 | "mustBeBlockedIfAble"
+                | "assignsNoCombatDamage"
                 | "allMustBlockIfAble"
                 | "maxOneBlocker"
                 | "openingHandBattlefield"
@@ -36321,6 +36322,7 @@ impl GameEngine {
             .map(ToOwned::to_owned)
             .collect::<BTreeSet<_>>();
         remain_tapped.extend(skip_next_untap.iter().cloned());
+        self.skip_untap_step_if_scheduled(active, &mut remain_tapped);
         self.state.rule_modifiers.retain(|modifier| {
             value_kind(modifier) != Some("skipNextUntap")
                 || !modifier["cardInstanceId"]
@@ -36379,8 +36381,9 @@ impl GameEngine {
             && self.state.turn_number == 1
             && active == self.starting_player;
         let player_id = self.state.players[active].id.clone();
-        let skips_draw_step =
-            self.player_has_battlefield_static_modifier(&player_id, "skipDrawStep");
+        let skips_draw_step = self
+            .player_has_battlefield_static_modifier(&player_id, "skipDrawStep")
+            || self.consume_skipped_turn_part(&player_id, "drawStep");
         if !skips_first_draw && !skips_draw_step {
             self.draw_cards_with_replacements(&player_id, 1, provider)?;
             self.check_state_based_actions_with_provider(Some(provider))?;
@@ -36965,7 +36968,8 @@ impl GameEngine {
         if self.state.rule_modifiers.iter().any(|modifier| {
             value_kind(modifier) == Some("assignsNoCombatDamage")
                 && modifier["cardInstanceId"].as_str() == Some(card.instance_id.as_str())
-        }) {
+        }) || self.permanent_has_keyword(card, "assignsNoCombatDamage")
+        {
             return false;
         }
         match step {
@@ -37141,6 +37145,9 @@ impl GameEngine {
     }
 
     fn run_combat<P: DecisionProvider>(&mut self, provider: &mut P) -> Result<(), EngineError> {
+        if self.skip_combat_phase_if_scheduled() {
+            return Ok(());
+        }
         self.clear_combat_state();
         self.transition_to_step(GameStep::BeginningOfCombat);
         self.enqueue_step_triggers("beginCombat");

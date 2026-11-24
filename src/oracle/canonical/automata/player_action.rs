@@ -73,6 +73,60 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `takes an extra turn after this one` (CR 500.7): the acting player
     /// takes the next turn after the current one.
     ExtraTurn,
+    /// `becomes the monarch` / `takes the initiative` / `the Ring tempts
+    /// you`: the acting player's designation (`player_designation.rs`).
+    Designation(super::PlayerDesignationAction),
+    /// `skips their next [N] turn(s)|untap step|draw step|combat phase`
+    /// (CR 500.11): that part of the acting player's future turns does not
+    /// happen.
+    Skip(SkipTurnPartNode),
+    /// `can't cast spells this turn` (CR 101.2): a prohibition on the acting
+    /// player for the rest of the turn.
+    Prohibition(PlayerProhibition),
+}
+
+/// The part of a player's turn a `skip` instruction names (CR 500.11).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) enum SkippedTurnPart {
+    /// A whole turn (CR 500.11).
+    Turn,
+    /// The untap step (CR 502).
+    UntapStep,
+    /// The draw step (CR 504).
+    DrawStep,
+    /// The combat phase (CR 506).
+    CombatPhase,
+}
+
+impl SkippedTurnPart {
+    /// The engine name of the skipped part.
+    pub(in crate::oracle::canonical) fn name(self) -> &'static str {
+        match self {
+            Self::Turn => "turn",
+            Self::UntapStep => "untapStep",
+            Self::DrawStep => "drawStep",
+            Self::CombatPhase => "combatPhase",
+        }
+    }
+}
+
+/// `skip your next [N] PART [this turn]`: the next `count` occurrences of
+/// the acting player's own `part` are skipped. `this_turn` limits the skip
+/// to an occurrence in the current turn (`skips their next combat phase
+/// this turn`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) struct SkipTurnPartNode {
+    pub part: SkippedTurnPart,
+    pub count: u32,
+    pub this_turn: bool,
+}
+
+/// A rule-changing prohibition on the acting player until end of turn
+/// (CR 101.2, 611.2a). Only prohibitions the engine runs are read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in crate::oracle::canonical) enum PlayerProhibition {
+    /// `can't cast spells this turn`.
+    CastSpells,
 }
 
 /// Counters a player gets: the canonical counter name and the amount.
@@ -265,6 +319,18 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     context: &EffectRecognitionContext,
 ) -> MachineResult<Option<PlayerActionNode>> {
     let checkpoint = cursor.checkpoint();
+    // `the Ring tempts you` (CR 701.54a): the Ring is the grammatical
+    // subject and the tempted player its object. The clause owns its
+    // failures once `the Ring tempts` is read.
+    if super::ring_temptation_starts(cursor) {
+        let player = super::recognize_ring_temptation(cursor)?;
+        return Ok(Some(PlayerActionNode {
+            player,
+            action: SingularPlayerAction::Designation(
+                super::PlayerDesignationAction::RingTemptation,
+            ),
+        }));
+    }
     // After a causative `have`, the explicit subject takes a bare verb and
     // keeps every other argument of the same action (`have target player
     // lose 3 life`, `have that player discard a card`).
@@ -322,6 +388,10 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     } else if is_verb_form(&head, VerbLemma::Mill, VerbForm::Base)
         || (is_verb_form(&head, VerbLemma::Get, VerbForm::Base) && player_counters_follow(cursor))
         || (is_verb_form(&head, VerbLemma::Take, VerbForm::Base) && extra_turn_follows(cursor))
+        || (is_verb_form(&head, VerbLemma::Skip, VerbForm::Base) && skip_turn_part_follows(cursor))
+        || ((is_verb_form(&head, VerbLemma::Become, VerbForm::Base)
+            || is_verb_form(&head, VerbLemma::Take, VerbForm::Base))
+            && super::player_designation_follows(cursor).is_some())
         || head.eq_ignore_ascii_case("venture")
         || head.eq_ignore_ascii_case("proliferate")
     {
@@ -386,8 +456,16 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     // imperative of the controller (CR 500.7). The fragment checks the
     // subject's agreement.
     let is_extra_turn = extra_turn_follows(cursor);
+    // `becomes the monarch` / `takes the initiative`, `skips their next
+    // ...`, `can't cast spells this turn`: every player subject.
+    let is_designation = super::player_designation_follows(cursor).is_some();
+    let is_skip = skip_turn_part_follows(cursor);
+    let is_prohibition = player_prohibition_follows(cursor);
     let claimed = is_counters
         || is_extra_turn
+        || is_designation
+        || is_skip
+        || is_prohibition
         || is_create
         || is_scry
         || is_draw
@@ -422,7 +500,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         || (is_create && !matches!(&player, Ok(PlayerEffectSubject::DeclaredTarget { .. })))
         || (is_scry && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
         // An unresolved subject leaves the performer reader in charge.
-        || (is_extra_turn && player.is_err())
+        || ((is_extra_turn || is_designation || is_skip || is_prohibition) && player.is_err())
     {
         cursor.rollback(checkpoint);
         return Ok(None);
@@ -443,7 +521,22 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
     } else {
         ActingSubject::THIRD_SINGULAR
     };
-    let action = if is_create {
+    // The acting player's own turn parts: `your` for the controller, else
+    // `their` (CR 109.5).
+    let possessive = if player == PlayerEffectSubject::Controller {
+        "your"
+    } else {
+        "their"
+    };
+    let action = if is_designation {
+        SingularPlayerAction::Designation(super::PlayerDesignationAction::Acquire(
+            super::recognize_player_designation_fragment(cursor, form)?,
+        ))
+    } else if is_skip {
+        SingularPlayerAction::Skip(recognize_skip_turn_part_fragment(cursor, form, possessive)?)
+    } else if is_prohibition {
+        SingularPlayerAction::Prohibition(recognize_player_prohibition_fragment(cursor)?)
+    } else if is_create {
         cursor.enter("player-action.create-tokens.verb");
         cursor.consume(
             crate::oracle::canonical::automata::verb_entry(VerbLemma::Create).surface(form.form()),
@@ -750,6 +843,130 @@ pub(in crate::oracle::canonical) fn recognize_extra_turn_fragment(
     cursor.enter("player-action.extra-turn.order");
     cursor.consume_phrase(&["after", "this", "one"])?;
     Ok(())
+}
+
+/// True when `skip(s) your|their next ...` is at the cursor, in any
+/// agreement: the `skip` frame of a player's own future turn part. A skip
+/// without `next` (`skip your draw step`, a static rule) is not claimed.
+pub(in crate::oracle::canonical) fn skip_turn_part_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| lookup_verb(raw, &[VerbLemma::Skip]).is_some())
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("your") || raw.eq_ignore_ascii_case("their")
+        })
+        && cursor
+            .peek_ahead(2)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("next"))
+}
+
+/// Subject-free `skip(s) POSSESSIVE next [N] PART [this turn]` (CR 500.11);
+/// the caller resolves the acting player, the agreement and its possessive.
+/// A missing or unknown turn part fails here explicitly.
+pub(in crate::oracle::canonical) fn recognize_skip_turn_part_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: VerbAgreement,
+    possessive: &str,
+) -> MachineResult<SkipTurnPartNode> {
+    cursor.enter("player-action.skip.verb");
+    cursor.consume(super::verb_entry(VerbLemma::Skip).surface(form.form()))?;
+    cursor.enter("player-action.skip.possessive");
+    cursor.consume(possessive)?;
+    cursor.consume("next")?;
+    cursor.enter("player-action.skip.count");
+    let count = if cursor
+        .peek_token()
+        .is_some_and(|token| token.token_type == "quantity")
+    {
+        match super::recognize_numeric_atom(cursor)? {
+            super::NumericAtom::Integer(value) if value > 0 => u32::try_from(value)
+                .map_err(|_| cursor.fail("a literal number of skipped turns"))?,
+            _ => return Err(cursor.fail("a positive literal number of skipped turns")),
+        }
+    } else {
+        1
+    };
+    cursor.enter("player-action.skip.part");
+    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let part = if word(cursor, 0, "turn") || word(cursor, 0, "turns") {
+        cursor.consume(if count == 1 { "turn" } else { "turns" })?;
+        SkippedTurnPart::Turn
+    } else {
+        let (part, phrase): (SkippedTurnPart, &[&str]) = if word(cursor, 0, "untap") {
+            (SkippedTurnPart::UntapStep, &["untap", "step"])
+        } else if word(cursor, 0, "draw") {
+            (SkippedTurnPart::DrawStep, &["draw", "step"])
+        } else if word(cursor, 0, "combat") {
+            (SkippedTurnPart::CombatPhase, &["combat", "phase"])
+        } else {
+            return Err(cursor.fail(
+                "the skipped turn part (`turn`, `untap step`, `draw step`, `combat phase`)",
+            ));
+        };
+        cursor.require(count == 1, "one skipped step or phase")?;
+        cursor.consume_phrase(phrase)?;
+        part
+    };
+    cursor.enter("player-action.skip.this-turn");
+    let this_turn = word(cursor, 0, "this") && word(cursor, 1, "turn");
+    if this_turn {
+        cursor.require(
+            part != SkippedTurnPart::Turn,
+            "a step or phase of the current turn after `this turn`",
+        )?;
+        cursor.consume_phrase(&["this", "turn"])?;
+    }
+    Ok(SkipTurnPartNode {
+        part,
+        count,
+        this_turn,
+    })
+}
+
+/// True when `can't VERB` at the cursor is a prohibition on the acting
+/// player's own action (`can't cast spells`, `can't play lands`).
+pub(in crate::oracle::canonical) fn player_prohibition_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    cursor
+        .peek()
+        .and_then(super::lookup_auxiliary)
+        .is_some_and(|(auxiliary, _)| auxiliary == super::Auxiliary::Cannot)
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            lookup_verb(raw, &[VerbLemma::Cast, VerbLemma::Play])
+                .is_some_and(|(_, forms)| forms.contains(&VerbForm::Base))
+        })
+}
+
+/// Subject-free `can't cast spells this turn` (CR 101.2): the acting
+/// player's prohibition for the rest of the turn. A prohibition the engine
+/// does not run (`can't play lands`, a qualified spell) fails explicitly.
+pub(in crate::oracle::canonical) fn recognize_player_prohibition_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PlayerProhibition> {
+    cursor.enter("player-action.prohibition.modal");
+    cursor.require(
+        player_prohibition_follows(cursor),
+        "`can't` and the prohibited action",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("player-action.prohibition.action");
+    cursor.require(
+        cursor
+            .peek()
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Cast, VerbForm::Base)),
+        "`cast spells`, the player prohibition the runtime installs",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.enter("player-action.prohibition.spells");
+    cursor.consume("spells")?;
+    cursor.enter("player-action.prohibition.duration");
+    cursor.consume_phrase(&["this", "turn"])?;
+    Ok(PlayerProhibition::CastSpells)
 }
 
 /// `venture into` opens the imperative keyword action (CR 701.49).

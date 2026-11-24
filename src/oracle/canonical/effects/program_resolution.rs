@@ -127,6 +127,9 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ExtraTurn
+            | SingularPlayerAction::Designation(_)
+            | SingularPlayerAction::Skip(_)
+            | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),

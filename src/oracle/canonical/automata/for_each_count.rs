@@ -494,6 +494,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ExtraTurn
+            | SingularPlayerAction::Designation(_)
+            | SingularPlayerAction::Skip(_)
+            | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,

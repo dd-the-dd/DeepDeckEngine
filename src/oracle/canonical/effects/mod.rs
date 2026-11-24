@@ -102,6 +102,7 @@ mod permanent_died_effect_sequence;
 mod permanent_entered_effect_sequence;
 mod phase_trigger_sequence;
 mod player_counter_sweep;
+mod player_designation;
 
 mod casting_permission;
 mod damage_prevention;
@@ -246,6 +247,7 @@ pub(super) use permanent_died_effect_sequence::*;
 pub(super) use permanent_entered_effect_sequence::*;
 pub(super) use phase_trigger_sequence::*;
 pub(super) use player_counter_sweep::*;
+pub(super) use player_designation::*;
 
 pub(super) use casting_permission::*;
 pub(super) use damage_prevention::*;

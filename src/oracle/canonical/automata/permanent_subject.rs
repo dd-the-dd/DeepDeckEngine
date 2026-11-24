@@ -244,9 +244,11 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             | super::SingularPlayerAction::CreateTokens(_)
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
             // A hand action changes no permanent: the subject antecedent stays.
-            super::SingularPlayerAction::Hand(_) | super::SingularPlayerAction::ExtraTurn => {
-                previous
-            }
+            super::SingularPlayerAction::Hand(_)
+            | super::SingularPlayerAction::ExtraTurn
+            | super::SingularPlayerAction::Designation(_)
+            | super::SingularPlayerAction::Skip(_)
+            | super::SingularPlayerAction::Prohibition(_) => previous,
         },
         // A list that only changes life totals leaves the permanent subject
         // alone; any other action replaces the antecedent.
