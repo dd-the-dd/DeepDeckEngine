@@ -9,11 +9,14 @@
 //! ```text
 //! Compare(Num, op, Num, player subject)   counts, life, X, power, ...
 //! ObjectSatisfies(BindingRef, Pred)       the source, a target, a bound card
+//!   ObjectZone(BindingRef, zones)         `is still on the battlefield`
+//!   ObjectControl(BindingRef)             `you controlled that permanent`
 //! EventHistory(Pattern, scope)            this-turn / last-turn event counts
 //! CastFact                                kicked, cast, cast from a zone
 //! ActionOutcome                           `if you can't`, `if you don't`
-//! TurnOwnership                           `it's [not] your turn`
-//! PlayerDesignation                       enduring story, completed dungeon
+//! TurnOwnership                           `it's [not] your|their turn`
+//! PlayerDesignation(holder)               enduring story, completed dungeon,
+//!                                         the monarch, the starting player
 //! ```
 //!
 //! A parent declares which families its evaluation moment can resolve

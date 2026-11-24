@@ -10,6 +10,16 @@
 //! creature's power`). Every parent supplies a `ConditionContext` whose scope
 //! is the allow-list of atom families its evaluation moment can resolve.
 //!
+//! After a referenced object, one verb phrase grammar reads every predicate
+//! of the object: the copula and possession predicates, the relative-clause
+//! verb phrases of the shared object query (`shares a color with ...`,
+//! `entered this turn`, `is attached to a creature`), a typed zone (`is
+//! still on the battlefield`), the source's cast record, and the object's
+//! (last known) controller (`you controlled it`). A player copula reads the
+//! player designations (`the monarch`, `the starting player`) and poison; an
+//! elided `you control` of a coordinated conjunct is restored from the
+//! conjunct that states it.
+//!
 //! The effect-sequence parent owns the introducer position, the sentence
 //! boundaries and the branch ranges; this child owns only the Boolean
 //! program between `if` and its comma. A referenced object is a symbolic
