@@ -15,8 +15,18 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && matches!(effect["destination"].as_str(), Some("hand" | "battlefield"))
         }
         Some("createTokens") => {
+            // A written description states its power and toughness, or none
+            // at all with at least one card type: a noncreature token, or a
+            // creature defined by its own ability (CR 604.3).
+            let written_without_statistics = effect["token"].get("power").is_none()
+                && effect["token"].get("toughness").is_none()
+                && value_kind(&effect["token"]).is_none()
+                && effect["token"]["types"]
+                    .as_array()
+                    .is_some_and(|types| !types.is_empty() && types.iter().all(Value::is_string));
             let token_supported = (numeric_expression_supported(&effect["token"]["power"])
                 && numeric_expression_supported(&effect["token"]["toughness"]))
+                || written_without_statistics
                 || (value_kind(&effect["token"]) == Some("namedToken")
                     && effect["token"]["name"].as_str().is_some_and(|name| {
                         named_token_rules(name).is_some()
@@ -43,6 +53,13 @@ fn supports_known_effect(effect: &Value) -> bool {
                     })
                 })
                 && effect.get("tapped").is_none_or(Value::is_boolean)
+                // CR 508.4: tokens put onto the battlefield attacking.
+                && effect.get("attacking").is_none_or(Value::is_boolean)
+                // CR 111.3, 303.4f: an Aura token entering attached to one
+                // object (the source, a target, a bound or observed object).
+                && effect.get("attachTo").is_none_or(|object| {
+                    copied_object_supported(object) || object_expression_supported(object)
+                })
                 // CR 205.4: supertypes named by the effect precede the types.
                 && effect["token"].get("supertypes").is_none_or(|supertypes| {
                     supertypes.as_array().is_some_and(|supertypes| {

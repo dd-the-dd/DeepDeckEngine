@@ -93,6 +93,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_numeric_expression(
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
+        | NumericExpression::EventHistoryCount(_)
         | NumericExpression::Devotion(_)
         | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::Add { .. }
@@ -181,7 +182,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
     scope: Option<&str>,
 ) -> Result<Vec<Value>, TargetlessLoweringError> {
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
-        return lower_explicit_token_creation(node, declarations).map(|effect| vec![effect]);
+        return lower_explicit_token_creations(node, declarations);
     }
     // `to each creature and each player`: the same source and amount reach
     // every recipient group; each group is one shared damage atom.
@@ -389,6 +390,11 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
         LocalEffectNode::PutCounters(effect)
+            if effect.direction == CounterChangeDirection::Divided =>
+        {
+            Err(TargetlessLoweringError::UnsupportedEffect)
+        }
+        LocalEffectNode::PutCounters(effect)
             if effect.direction == CounterChangeDirection::Remove =>
         {
             lower_counter_removal(
@@ -441,6 +447,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         // primitive here; the other source moves need a caller-owned binding.
         LocalEffectNode::MoveSource(movement)
             if movement.source == LocalObjectReference::SourceSelf
+                // An attachment needs the sequence's operand lowering.
+                && movement.attached_to.is_none()
                 && (movement.from == SourceZone::Graveyard
                     // `return SOURCE to its owner's hand` (CR 108.3).
                     || (movement.from == SourceZone::Battlefield

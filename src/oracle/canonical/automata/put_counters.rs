@@ -346,6 +346,164 @@ fn recognize_counters_from(
     })
 }
 
+/// True when `distribute COUNT KIND counters among ...` starts here: the
+/// `distribute` lemma with its counter noun before `among`.
+pub(in crate::oracle::canonical) fn claims_distribute_counters_effect(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let mut probe = cursor.clone();
+    if crate::oracle::canonical::automata::consume_lemma(
+        &mut probe,
+        crate::oracle::canonical::automata::VerbLemma::Distribute,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )
+    .is_err()
+    {
+        return false;
+    }
+    let mut counter_seen = false;
+    for raw in (0..).map_while(|offset| probe.peek_ahead(offset)) {
+        if matches!(raw, "." | "," | ";" | ":") {
+            return false;
+        }
+        if raw.eq_ignore_ascii_case("among") {
+            return counter_seen;
+        }
+        counter_seen |= raw.eq_ignore_ascii_case("counters");
+    }
+    false
+}
+
+/// `distribute COUNT KIND counters among TARGETS` (CR 601.2d): the counters
+/// are divided among the declared targets as the spell or ability is put on
+/// the stack, each target receiving at least one. The count, counter name
+/// and target list are the shared children of `put ... on`; only the
+/// division (`CounterChangeDirection::Divided`) is this frame's.
+///
+/// ```text
+/// Targets := Cardinals? TargetList          -- `one, two, or three target creatures`
+/// Cardinals := N ("," N)* "," "or"          -- consecutive literals, a range
+/// ```
+pub(in crate::oracle::canonical) fn recognize_distribute_counters_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PutCountersOnObjectEffectNode> {
+    cursor.enter("effect.distribute-counters.action");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        crate::oracle::canonical::automata::VerbLemma::Distribute,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.distribute-counters.count");
+    let count = recognize_counter_count(cursor, context)?;
+    cursor.require(
+        !matches!(count, NumericExpression::Atom(NumericAtom::Integer(1))),
+        "several counters to distribute",
+    )?;
+    cursor.enter("effect.distribute-counters.kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("effect.distribute-counters.noun");
+    cursor.consume("counters")?;
+    cursor.enter("effect.distribute-counters.among");
+    cursor.consume("among")?;
+    cursor.enter("effect.distribute-counters.cardinals");
+    let enumerated_minimum = recognize_cardinal_enumeration(cursor)?;
+    cursor.enter("effect.distribute-counters.targets");
+    let mut targets =
+        super::recognize_target_list_with_counts(cursor, super::TargetCountSupport::Expressed)?;
+    cursor.enter("effect.distribute-counters.target-slot");
+    let [slot] = targets.slots.as_mut_slice() else {
+        return Err(cursor.fail("one target declaration that receives the divided counters"));
+    };
+    cursor.require(
+        super::selector_guarantees_permanent(&slot.selector),
+        "target permanents for the divided counters",
+    )?;
+    let literal_count = match &count {
+        NumericExpression::Atom(NumericAtom::Integer(value)) => u32::try_from(*value).ok(),
+        _ => None,
+    };
+    if let Some(declared) = slot.count.take() {
+        // `any number of target creatures`: each chosen target receives at
+        // least one counter, so at most COUNT targets can be chosen.
+        match (declared.literal(), declared.maximum, literal_count) {
+            (Some(cardinality), _, _) => slot.cardinality = cardinality,
+            (None, super::TargetCountBound::Unbounded, Some(count)) => {
+                slot.cardinality = super::TargetCardinality {
+                    minimum: 0,
+                    maximum: count,
+                };
+            }
+            _ => {
+                return Err(cursor.fail(
+                    "a literal number of targets, or a literal number of counters for `any number of` targets",
+                ));
+            }
+        }
+    }
+    if let Some(minimum) = enumerated_minimum {
+        cursor.require(
+            minimum < slot.cardinality.minimum
+                && slot.cardinality.minimum == slot.cardinality.maximum,
+            "an increasing enumeration of target counts (`one, two, or three`)",
+        )?;
+        slot.cardinality.minimum = minimum;
+    }
+    if let Some(count) = literal_count {
+        cursor.require(
+            slot.cardinality.minimum <= count,
+            "no more required targets than counters to divide",
+        )?;
+    }
+    Ok(PutCountersOnObjectEffectNode {
+        permanent: super::PermanentOperandNode::Targets(targets),
+        counter,
+        count,
+        direction: CounterChangeDirection::Divided,
+    })
+}
+
+/// `N, N+1, ..., or` before the last count of a target list: consecutive
+/// positive literals naming a range of target counts (`one, two, or three
+/// target creatures`). Returns the first literal; the target list reads the
+/// last one. `None` (nothing consumed) when no enumeration starts here.
+fn recognize_cardinal_enumeration(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<u32>> {
+    let literal_at = |cursor: &OracleTokenCursor<'_>| {
+        let mut probe = cursor.clone();
+        match recognize_numeric_atom(&mut probe) {
+            Ok(NumericAtom::Integer(value)) => u32::try_from(value).ok().filter(|value| *value > 0),
+            _ => None,
+        }
+    };
+    if literal_at(cursor).is_none() || cursor.peek_ahead(1) != Some(",") {
+        return Ok(None);
+    }
+    let first = literal_at(cursor).expect("checked literal");
+    let mut previous = first;
+    recognize_numeric_atom(cursor)?;
+    cursor.consume(",")?;
+    loop {
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        {
+            cursor.consume("or")?;
+            let last = literal_at(cursor)
+                .ok_or_else(|| cursor.fail("the last target count of the enumeration"))?;
+            cursor.require(last == previous + 1, "consecutive target counts")?;
+            return Ok(Some(first));
+        }
+        let next =
+            literal_at(cursor).ok_or_else(|| cursor.fail("a target count of the enumeration"))?;
+        cursor.require(next == previous + 1, "consecutive target counts")?;
+        previous = next;
+        recognize_numeric_atom(cursor)?;
+        cursor.consume(",")?;
+    }
+}
+
 #[cfg(test)]
 #[path = "keyword_action_verb_tests.rs"]
 mod keyword_action_verb_tests;

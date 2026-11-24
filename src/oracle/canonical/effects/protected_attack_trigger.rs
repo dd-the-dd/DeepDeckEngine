@@ -29,7 +29,8 @@ fn lower_attack_defender(predicate: &AttackDefenderPredicateNode) -> Value {
             controller:
                 ObjectControllerScope::OpponentOfAbilityController
                 | ObjectControllerScope::NotAbilityController
-                | ObjectControllerScope::EventPlayer,
+                | ObjectControllerScope::EventPlayer
+                | ObjectControllerScope::Player(_),
             ..
         } => unreachable!("protected-attack grammar binds controlled planeswalkers"),
         AttackDefenderPredicateNode::Union(operands) => json!({

@@ -1,0 +1,1232 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "clause-verbs-ellipsis/player-rules-and-gapped-coordination",
+  "cases": [
+    {
+      "id": "exact-claim-the-precious-ring-tempts",
+      "request": {
+        "cardName": "Claim the Precious",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Destroy target creature. The Ring tempts you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "kind": "temptWithRing",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-took-reaper-dies-ring-tempts",
+      "request": {
+        "cardName": "Took Reaper",
+        "typeLine": "Creature — Halfling Peasant",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this creature dies, the Ring tempts you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "temptWithRing"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-birthday-escape-draw-then-ring",
+      "request": {
+        "cardName": "Birthday Escape",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Draw a card. The Ring tempts you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "temptWithRing"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-ring-after-then",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Draw a card, then the Ring tempts you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "temptWithRing"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ring-tempts-another-player",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "The Ring tempts target player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "player-designation.ring.object"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-palace-sentinels-monarch",
+      "request": {
+        "cardName": "Palace Sentinels",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "When this creature enters, you become the monarch.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "becomeMonarch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-player-becomes-monarch",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Target player becomes the monarch.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "becomeMonarch"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-take-the-monarch",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You take the monarch.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-meditate-skip-next-turn",
+      "request": {
+        "cardName": "Meditate",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw four cards. You skip your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "kind": "skipTurnPart",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "part": "turn",
+                  "count": 1,
+                  "thisTurn": false
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fatigue-target-player-draw-step",
+      "request": {
+        "cardName": "Fatigue",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Target player skips their next draw step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "skipTurnPart"
+              },
+              {
+                "pointer": "/effects/0/part",
+                "equals": "drawStep"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent-skips-untap-step",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Each opponent skips their next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "skipTurnPart"
+              },
+              {
+                "pointer": "/effects/0/effects/0/part",
+                "equals": "untapStep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-two-turns",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You skip your next two turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/count",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-combat-phase-this-turn",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target player skips their next combat phase this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/part",
+                "equals": "combatPhase"
+              },
+              {
+                "pointer": "/effects/0/thisTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-skip-without-part",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "You skip your next.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "player-action.skip.part"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-static-skip-without-next",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Skip your draw step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-render-silent-object-related-player",
+      "request": {
+        "cardName": "Render Silent",
+        "typeLine": "Instant",
+        "manaCost": "{W}{U}{U}",
+        "oracleText": "Counter target spell. Its controller can't cast spells this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "restrictPlayerActions"
+              },
+              {
+                "pointer": "/effects/1/castSpells",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/activateAbilities",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-player-cant-cast",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target player can't cast spells this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "restrictPlayerActions"
+              },
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "chosenTarget",
+                  "id": "targetPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-turf-wound-play-lands",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target player can't play lands this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "player-action.prohibition.action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rainbow-efreet-source-phases-out",
+      "request": {
+        "cardName": "Rainbow Efreet",
+        "typeLine": "Creature — Efreet",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\n{U}{U}: This creature phases out. (While it's phased out, it's treated as though it doesn't exist. It phases in before you untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "phaseOutPermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-haystack-target-phases-out",
+      "request": {
+        "cardName": "Haystack",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{W}",
+        "oracleText": "{2}, {T}: Target creature you control phases out. (Treat it and anything attached to it as though they don't exist until your next turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "phaseOutPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-slip-out-the-back-anaphor",
+      "request": {
+        "cardName": "Slip Out the Back",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Put a +1/+1 counter on target creature. It phases out. (Treat it and anything attached to it as though they don't exist until its controller's next turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "phaseOutPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-phase-agreement",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature phase out.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "object-rule.agreement"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ophidian-assigns-no-combat-damage",
+      "request": {
+        "cardName": "Ophidian",
+        "typeLine": "Creature — Snake",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature attacks and isn't blocked, you may draw a card. If you do, this creature assigns no combat damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-assigns-no-combat-damage",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature assigns no combat damage this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "assignsNoCombatDamage"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/0/object/id",
+                "equals": "targetPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-no-combat-damage-without-duration",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Target creature assigns no combat damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "duration.indefinite",
+            "expectedContains": "duration for the combat-damage rule"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stand-together-gapped-counters",
+      "request": {
+        "cardName": "Stand Together",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Put two +1/+1 counters on target creature and two +1/+1 counters on another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/1/kind",
+                "equals": "chooseTargets"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "putCounters"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-in-garruks-wake-gapped-collections",
+      "request": {
+        "cardName": "In Garruk's Wake",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}{B}{B}",
+        "oracleText": "Destroy all creatures you don't control and all planeswalkers you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-incremental-growth-ordinal-target",
+      "request": {
+        "cardName": "Incremental Growth",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature, two +1/+1 counters on another target creature, and three +1/+1 counters on a third target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "three"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-arc-trail-gapped-subject-clause",
+      "request": {
+        "cardName": "Arc Trail",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Arc Trail deals 2 damage to any target and 1 damage to any other target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "1"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-juniper-order-ranger-bound-then-source",
+      "request": {
+        "cardName": "Juniper Order Ranger",
+        "typeLine": "Creature — Human Knight Ranger",
+        "manaCost": "{3}{G}{W}",
+        "oracleText": "Whenever another creature you control enters, put a +1/+1 counter on that creature and a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-gapped-damage-to-another-target-creature",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Clause Verb Witness deals 3 damage to target creature and 2 damage to another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-different-lemmas-stay-a-sequence",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Destroy all artifacts and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-damage-to-you-has-no-distinct-target",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Clause Verb Witness deals 2 damage to any target and 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-elven-rite-divided-counters",
+      "request": {
+        "cardName": "Elven Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Distribute two +1/+1 counters among one or two target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putDividedCounters"
+              },
+              {
+                "pointer": "/declaration/decisions/1/kind",
+                "equals": "divideQuantityAmongTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/1/minimumPerTarget",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-armament-corps-divided-counters-trigger",
+      "request": {
+        "cardName": "Armament Corps",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}{B}{G}",
+        "oracleText": "When this creature enters, distribute two +1/+1 counters among one or two target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-verdurous-gearhulk-any-number-of-targets",
+      "request": {
+        "cardName": "Verdurous Gearhulk",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Trample\nWhen this creature enters, distribute four +1/+1 counters among any number of target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-one-two-or-three-targets",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Distribute three -1/-1 counters among one, two, or three target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-more-targets-than-counters",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Distribute two +1/+1 counters among three target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.distribute-counters.target-slot"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-labyrinth-of-skophos-remove-from-combat",
+      "request": {
+        "cardName": "Labyrinth of Skophos",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{4}, {T}: Remove target attacking or blocking creature from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "removeFromCombat"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gustcloak-runner-untap-and-remove",
+      "request": {
+        "cardName": "Gustcloak Runner",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{W}",
+        "oracleText": "Whenever this creature becomes blocked, you may untap it and remove it from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-remove-all-attackers",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Remove all attacking creatures from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-remove-from-battlefield",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Remove target creature from the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

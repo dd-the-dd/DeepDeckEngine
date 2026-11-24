@@ -1,6 +1,78 @@
 use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
+/// One payment of a keyword cost parameter (`Keyword—COSTS`, CR 702.1)
+/// lowered to the keyword-cost schema the casting and activation runtime
+/// pays (`payMana`, `payLife`, and one chosen permanent or card by filter).
+/// A payment that schema cannot carry fails explicitly; it is never dropped.
+pub(in crate::oracle::canonical) fn lower_keyword_cost_payment(
+    cursor: &OracleTokenCursor<'_>,
+    cost: &LocalActivationCostNode,
+) -> MachineResult<Value> {
+    let single = |count: i64, exclude_source: bool| {
+        cursor.require(
+            count == 1 && !exclude_source,
+            "one chosen object per keyword payment (several or `another` have no keyword-cost runtime)",
+        )
+    };
+    Ok(match cost {
+        LocalActivationCostNode::PayMana(mana) => {
+            mana.fixed_runtime_mana_value()
+                .map_err(|error| cursor.fail(error.expected()))?;
+            lower_resource_mana_payment(mana)
+        }
+        LocalActivationCostNode::PayLife(life) => {
+            lower_resource_life_payment(life, ResourcePaymentPayer::ActivationController)
+        }
+        LocalActivationCostNode::SacrificeObject(sacrifice) => {
+            single(sacrifice.count, sacrifice.exclude_source)?;
+            json!({
+                "kind": "sacrificePermanent",
+                "where": lower_permanent_object_predicate(&sacrifice.object.predicate),
+            })
+        }
+        LocalActivationCostNode::DiscardCard(discard)
+            if discard.method == CollectionSelectionMethod::Choice =>
+        {
+            single(discard.count, false)?;
+            json!({
+                "kind": "discardCard",
+                "where": lower_card_object_predicate(&discard.filter),
+            })
+        }
+        LocalActivationCostNode::TapObjects(tap) => {
+            single(tap.tap.count, tap.tap.exclude_source)?;
+            json!({
+                "kind": "tap",
+                "where": lower_permanent_object_predicate(&tap.tap.object.predicate),
+            })
+        }
+        _ => {
+            return Err(cursor.fail(
+                "a keyword payment the runtime pays: mana, life, or one chosen permanent to sacrifice or tap or card to discard",
+            ));
+        }
+    })
+}
+
+/// A keyword cost parameter as one payment, or a `compositeCost` paid in
+/// printed order (CR 601.2h).
+pub(in crate::oracle::canonical) fn lower_keyword_cost_sequence(
+    cursor: &OracleTokenCursor<'_>,
+    costs: &ActivationCostSequenceNode,
+) -> MachineResult<Value> {
+    let mut lowered = costs
+        .costs
+        .iter()
+        .map(|cost| lower_keyword_cost_payment(cursor, cost))
+        .collect::<MachineResult<Vec<_>>>()?;
+    Ok(match lowered.len() {
+        0 => return Err(cursor.fail("a keyword cost with at least one payment")),
+        1 => lowered.remove(0),
+        _ => json!({ "kind": "compositeCost", "costs": lowered }),
+    })
+}
+
 /// Claims a line whose first token is a registered parameterized casting
 /// keyword. Splice additionally requires its `onto` relation, so an unrelated
 /// sentence that merely starts with the same word is never intercepted.
@@ -66,3 +138,7 @@ pub(in crate::oracle::canonical) fn parse_promoted_cost_keyword(
         ],
     ))
 }
+
+#[cfg(test)]
+#[path = "keyword_cost_tests.rs"]
+mod keyword_cost_tests;

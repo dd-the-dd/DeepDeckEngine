@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/opponent-graveyard-targets",
+  "cases": [
+    {
+      "id": "exact-disposal-mummy-target-card-from-an-opponents-graveyard",
+      "request": {
+        "cardName": "Disposal Mummy",
+        "typeLine": "Creature — Zombie Jackal",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, exile target card from an opponent's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/zone/kind",
+                "equals": "anyGraveyard"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/owner/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-two-targets-from-one-opponents-graveyard-to-their-hand",
+      "request": {
+        "cardName": "Shared Graveyard Return",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Return two target cards from an opponent's graveyard to their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/selectionConstraint/kind",
+                "equals": "sameZoneOwner"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/owner/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/to/player/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-an-opponents-hand-is-not-a-target-card-zone",
+      "request": {
+        "cardName": "Shared Graveyard Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile target card from an opponent's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-their-battlefield-is-not-an-owned-zone",
+      "request": {
+        "cardName": "Shared Graveyard Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Return target creature card from your graveyard to their battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-footbottom-feast-owner-orders-cards-put-on-top-of-their-library",
+      "request": {
+        "cardName": "Footbottom Feast",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOrder"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/order/kind",
+                "equals": "decisionOrder"
+              },
+              {
+                "pointer": "/effects/1/to/position",
+                "equals": "top"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

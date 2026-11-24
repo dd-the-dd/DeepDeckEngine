@@ -1,0 +1,831 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-bindings-batch4",
+  "cases": [
+    {
+      "id": "blightning-exact-player-or-planeswalker-controller",
+      "request": {
+        "cardName": "Blightning",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Blightning deals 3 damage to target player or planeswalker. That player or that planeswalker's controller discards two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetDamageable"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "rakdos-return-exact-opponent-or-planeswalker-controller",
+      "request": {
+        "cardName": "Rakdos's Return",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{B}{R}",
+        "oracleText": "Rakdos's Return deals X damage to target opponent or planeswalker. That player or that planeswalker's controller discards X cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "immersturm-skullcairn-exact-that-player-after-damage",
+      "request": {
+        "cardName": "Immersturm Skullcairn",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {B}.\n{1}{B}{R}{R}, {T}, Sacrifice this land: It deals 3 damage to target player. That player discards a card. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "sibling-target-opponent-that-player-discards",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 3 damage to target opponent. That player discards two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetOpponent"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-disjunctive-controller-mills",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 2 damage to target player or planeswalker. That player or that planeswalker's controller mills two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetDamageable"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-that-player-loses-life",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 1 damage to target player. That player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-that-player-alone-for-player-or-planeswalker",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 3 damage to target player or planeswalker. That player discards two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-after-any-target",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 3 damage to any target. That player discards two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-disjunction-names-the-wrong-permanent",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "This spell deals 3 damage to target player or planeswalker. That player or that creature's controller discards two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-player-controller-is-not-a-player-relation",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Target player mills two cards. That player's controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spined-tyrranax-exact-reflexive-body-owns-later-sentence",
+      "request": {
+        "cardName": "Spined Tyrranax",
+        "typeLine": "Creature — Dinosaur Beast",
+        "manaCost": "{4}{G}",
+        "oracleText": "At the beginning of combat on your turn, you may pay {2}{G}. When you do, put a +1/+1 counter on target creature. That creature gains trample until end of turn. (It can deal excess combat damage to the player or planeswalker it's attacking.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalPayCostPerformEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "createReflexiveTrigger"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/keyword",
+                "equals": "trample"
+              },
+              {
+                "pointer": "/effects/0/effects/0/ability/effects/1/object/id",
+                "equals": "targetPermanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "imoen-exact-reflexive-target-read-by-next-sentence",
+      "request": {
+        "cardName": "Imoen, Wily Trickster",
+        "typeLine": "Legendary Creature — Human Rogue Wizard",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Imoen, Wily Trickster can't be blocked.\nWhenever Imoen deals combat damage to a player, you may exile an instant or sorcery card from your graveyard. When you do, tap target creature an opponent controls. That creature doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-reflexive-pronoun-continuation",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of combat on your turn, you may pay {1}. When you do, tap target creature an opponent controls. It doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-if-you-do-sentence-stays-its-own-scope",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "You may pay {2}. If you do, put a +1/+1 counter on target creature. That creature gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "coiling-oracle-exact-revealed-land-enters",
+      "request": {
+        "cardName": "Coiling Oracle",
+        "typeLine": "Creature — Snake Elf Druid",
+        "manaCost": "{G}{U}",
+        "oracleText": "When this creature enters, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put that card into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/then/0",
+                "equals": {
+                  "bind": "movedOntoBattlefield",
+                  "cards": {
+                    "binding": "topCards",
+                    "kind": "boundObjects"
+                  },
+                  "kind": "moveCards",
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": false
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "skyward-eye-prophets-exact",
+      "request": {
+        "cardName": "Skyward Eye Prophets",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{G}{W}{U}",
+        "oracleText": "Vigilance\n{T}: Reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put it into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "call-of-the-wild-exact",
+      "request": {
+        "cardName": "Call of the Wild",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "{2}{G}{G}: Reveal the top card of your library. If it's a creature card, put it onto the battlefield. Otherwise, put it into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-looked-at-land-may-enter-tapped",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Look at the top card of your library. If it's a land card, you may put it onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-revealed-until-card-still-unproved",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Reveal cards from the top of your library until you reveal a land card. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.battlefield-entry"
+          }
+        ]
+      }
+    },
+    {
+      "id": "narcolepsy-exact-attached-guard",
+      "request": {
+        "cardName": "Narcolepsy",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant creature\nAt the beginning of each upkeep, if enchanted creature is untapped, tap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "domestication-exact-attached-possessive-guard",
+      "request": {
+        "cardName": "Domestication",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "Enchant creature\nYou control enchanted creature.\nAt the beginning of your end step, if enchanted creature's power is 4 or greater, sacrifice this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "near-miss-enchanted-on-a-non-aura-face",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each upkeep, if enchanted creature is untapped, tap it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "reference.attached-object.role"
+          }
+        ]
+      }
+    },
+    {
+      "id": "defy-death-exact-moved-permanent-is-the-antecedent",
+      "request": {
+        "cardName": "Defy Death",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Return target creature card from your graveyard to the battlefield. If it's an Angel, put two +1/+1 counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-put-onto-battlefield-then-pronoun-condition",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put target creature card from your graveyard onto the battlefield. If it's a Zombie, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "oblivions-hunger-exact-draw-keeps-target",
+      "request": {
+        "cardName": "Oblivion's Hunger",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target creature you control gains indestructible until end of turn. Draw a card if that creature has a +1/+1 counter on it. (Damage and effects that say \"destroy\" don't destroy the creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-draw-between-target-and-nominal",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Put a +1/+1 counter on target creature. Draw a card. That creature gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-possessive-without-object-antecedent",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. Its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.object-relation.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "reinforcements-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Reinforcements",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Put up to three target creature cards from your graveyard on top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOrder"
+              },
+              {
+                "pointer": "/effects/1/order",
+                "equals": {
+                  "decisionId": "remainderOrder",
+                  "kind": "decisionOrder"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "footbottom-feast-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Footbottom Feast",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "gravepurge-exact-owner-orders-own-cards",
+      "request": {
+        "cardName": "Gravepurge",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}",
+        "oracleText": "Put any number of target creature cards from your graveyard on top of your library.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sawtooth-loon-exact-hand-cards-to-library-bottom",
+      "request": {
+        "cardName": "Sawtooth Loon",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flying\nWhen this creature enters, return a white or blue creature you control to its owner's hand.\nWhen this creature enters, draw two cards, then put two cards from your hand on the bottom of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "near-miss-cards-of-another-owner-need-a-written-order",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Put up to two target creature cards from a single graveyard on top of their owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings",
+            "messageContains": "explicit ordering policy"
+          }
+        ]
+      }
+    },
+    {
+      "id": "contaminated-ground-exact-attached-event-subject-controller",
+      "request": {
+        "cardName": "Contaminated Ground",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Enchant land\nEnchanted land is a Swamp.\nWhenever enchanted land becomes tapped, its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "ragged-veins-exact-attached-dealt-damage-controller",
+      "request": {
+        "cardName": "Ragged Veins",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Flash\nEnchant creature\nWhenever enchanted creature is dealt damage, its controller loses that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "corrupted-roots-exact-attached-tapped-controller",
+      "request": {
+        "cardName": "Corrupted Roots",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{B}",
+        "oracleText": "Enchant Forest or Plains\nWhenever enchanted land becomes tapped, its controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "visions-of-brutality-exact-attached-damage-dealer-controller",
+      "request": {
+        "cardName": "Visions of Brutality",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{B}",
+        "oracleText": "Devoid (This card has no color.)\nEnchant creature\nEnchanted creature can't block.\nWhenever enchanted creature deals damage, its controller loses that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4
+      }
+    },
+    {
+      "id": "sibling-equipped-tapped-nominal-controller-gains-life",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever equipped creature becomes tapped, that creature's controller gains 1 life.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-aura-attached-nominal-is-not-proven",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature becomes tapped, that creature's controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "deathknell-pronoun-source-through-environment",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}",
+        "oracleText": "{2}: This creature gets +1/+1 until end of turn. Sacrifice it at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    }
+  ]
+}

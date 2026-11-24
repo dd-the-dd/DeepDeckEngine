@@ -111,9 +111,8 @@ fn referenced_controller_passes_the_existing_typed_body_without_rereading_or_los
         effect_index: 0,
         slot_index: 0,
     };
-    let tokens = recognize_oracle_entities(
-        "Its controller creates three 3/3 green Ape creature tokens with flying.",
-    );
+    let tokens =
+        recognize_oracle_entities("Its controller creates three 3/3 green Ape creature tokens.");
     let mut cursor = OracleTokenCursor::new("test.token.snapshot-body", &tokens);
     let TokenCreationAttempt::Recognized(LocalEffectNode::CreateTokens(node)) =
         try_recognize_token_creation_action(&mut cursor, Some(binding))
@@ -132,9 +131,19 @@ fn referenced_controller_passes_the_existing_typed_body_without_rereading_or_los
             .collect::<Vec<_>>(),
         ["Ape"]
     );
-    assert_eq!(
-        cursor.peek(),
-        Some("with"),
-        "the old specialized parent owns its modifier continuation"
+    assert_eq!(cursor.peek(), Some("."));
+    // A modifier the historical node cannot carry keeps the referenced
+    // player in the shared written description.
+    let tokens = recognize_oracle_entities(
+        "Its controller creates three 3/3 green Ape creature tokens with flying.",
     );
+    let mut cursor = OracleTokenCursor::new("test.token.snapshot-modifiers", &tokens);
+    let TokenCreationAttempt::Recognized(LocalEffectNode::CreateExplicitTokens(node)) =
+        try_recognize_token_creation_action(&mut cursor, Some(binding))
+    else {
+        panic!("a referenced controller's token with abilities is a written description")
+    };
+    assert_eq!(node.player, LocalPlayerReference::ControllerOf(binding));
+    assert_eq!(node.body.keywords, [GrantedKeyword::Flying]);
+    assert_eq!(cursor.peek(), Some("."));
 }

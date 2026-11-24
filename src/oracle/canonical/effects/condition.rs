@@ -268,6 +268,8 @@ fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
         ConditionNumber::Integer(value) => Ok(integer(*value)),
         ConditionNumber::Expression(expression) => lower_numeric_expression(expression)
             .ok_or("a numeric expression without a target binding"),
+        // Bound by the program lowering to the action before the condition.
+        ConditionNumber::ActionResultObjects(reference) => lower_action_result_objects(reference),
         ConditionNumber::Player(measure) => Ok(lower_player_measure(measure, player)),
         ConditionNumber::ControllerMeasure(measure) => {
             Ok(lower_player_measure(measure, controller()))
@@ -362,8 +364,24 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
             );
         }
     }
+    compare(
+        operator,
+        lower_event_history_count(pattern, node.scope, node.aggregate),
+        integer(node.threshold),
+    )
+}
+
+/// The engine's generic event count (`countEventsThisTurn` /
+/// `countEventsPreviousTurn`) of one history pattern. A comparison atom and
+/// a counted numeric expression (`for each spell you've cast this turn`)
+/// share it.
+pub(in crate::oracle::canonical) fn lower_event_history_count(
+    pattern: &EventHistoryPattern,
+    scope: HistoryScope,
+    aggregate: HistoryAggregate,
+) -> Value {
     let mut count = json!({
-        "kind": match node.scope {
+        "kind": match scope {
             HistoryScope::ThisTurn => "countEventsThisTurn",
             HistoryScope::LastTurn => "countEventsPreviousTurn",
         },
@@ -404,7 +422,7 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
             | HistoryEvent::CardsPutIntoGraveyard => lower_card_object_predicate(predicate),
             _ => lower_permanent_object_predicate(predicate),
         });
-    match node.scope {
+    match scope {
         HistoryScope::ThisTurn => count["where"] = filter.unwrap_or(Value::Null),
         HistoryScope::LastTurn => {
             if let Some(filter) = filter {
@@ -434,14 +452,13 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
         HistoryMeasure::Amount => count["measure"] = json!("amount"),
         HistoryMeasure::Cards => count["measure"] = json!("cards"),
     }
-    if node.scope == HistoryScope::LastTurn || node.aggregate == HistoryAggregate::GreatestPerPlayer
-    {
-        count["aggregate"] = json!(match node.aggregate {
+    if scope == HistoryScope::LastTurn || aggregate == HistoryAggregate::GreatestPerPlayer {
+        count["aggregate"] = json!(match aggregate {
             HistoryAggregate::Total => "total",
             HistoryAggregate::GreatestPerPlayer => "greatestPerPlayer",
         });
     }
-    compare(operator, count, integer(node.threshold))
+    count
 }
 
 /// An object condition. Without program bindings, the only object is the

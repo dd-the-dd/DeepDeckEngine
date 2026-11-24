@@ -247,3 +247,61 @@ fn a_player_chosen_at_random_is_that_player_of_the_next_instruction() {
             .any(|event| event.kind == "playersRandomlySelected")
     );
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_modal_activated_ability_declares_its_mode_and_resolves_only_that_mode() {
+    // CR 602.2b, 700.2a: the modes of an activated ability are chosen as it
+    // is put on the stack, with its other declarations; only the chosen
+    // mode's instructions are performed.
+    let rule = parsed_rule(
+        "Generalized Field Kit",
+        "Artifact",
+        "{1}, {T}: Choose one \u{2014}\n\u{2022} You gain 3 life.\n\u{2022} Each opponent loses 2 life.",
+    );
+    assert_eq!(rule["kind"], "activatedAbility");
+    assert_eq!(rule["declaration"]["decisions"][0]["kind"], "chooseModes");
+    let mut engine = engine_with_tribes();
+    engine.state.players[0]
+        .battlefield
+        .push(permanent("field-kit", "Artifact", "player-0"));
+    let declarations = engine
+        .declarations_for_activated_rule(&rule, "player-0", "field-kit")
+        .expect("the modal activation has legal declarations");
+    let offered = declarations
+        .iter()
+        .map(|declaration| declaration.decisions["chosenModes"].clone())
+        .collect::<Vec<_>>();
+    assert!(offered.contains(&json!(["mode1"])), "{offered:?}");
+    assert!(offered.contains(&json!(["mode2"])), "{offered:?}");
+    assert!(
+        offered
+            .iter()
+            .all(|modes| modes.as_array().is_some_and(|modes| modes.len() == 1)),
+        "{offered:?}"
+    );
+
+    let stack_object = StackObject {
+        id: "stack:field-kit".to_string(),
+        controller: "player-0".to_string(),
+        card: permanent("field-kit", "Artifact", "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("activatedAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    let mut decisions = BTreeMap::from([("chosenModes".to_string(), json!(["mode2"]))]);
+    engine
+        .execute_effects(
+            &rule["effects"],
+            &stack_object,
+            &mut BTreeMap::new(),
+            &mut decisions,
+            &mut ChooseOption("unused"),
+        )
+        .expect("the chosen mode resolves");
+    assert_eq!(engine.state.players[1].life, 18);
+    assert_eq!(engine.state.players[0].life, 20);
+}

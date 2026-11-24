@@ -202,10 +202,7 @@ impl GameEngine {
         );
         let attacking = effect["attacking"].as_bool().unwrap_or(false);
         let tapped = effect["tapped"].as_bool().unwrap_or(false);
-        let mut flags = BTreeMap::new();
-        if attacking {
-            flags.insert("attacking".to_string(), true);
-        }
+        let flags = BTreeMap::new();
         let token_power = token.get("power").and_then(|power| {
             self.runtime_numeric_expression(power, stack_object, bindings, decisions)
         });
@@ -276,9 +273,30 @@ impl GameEngine {
                         .is_some_and(|id| id.starts_with(&token_prefix))
             })
             .count();
+        // CR 111.3, 303.4f: an Aura token created attached to an object
+        // enters attached to it; without a legal object it is not created.
+        let attach_host = match effect.get("attachTo") {
+            None => None,
+            Some(object) => {
+                let host = self.token_copy_source_id(object, stack_object, bindings, decisions)?;
+                match host.filter(|host| {
+                    self.permanent_position(host)
+                        .is_some_and(|(player_index, card_index)| {
+                            self.aura_could_enchant(
+                                &created.definition,
+                                &self.state.players[player_index].battlefield[card_index],
+                            )
+                        })
+                }) {
+                    Some(host) => Some(host),
+                    None => return Ok(Vec::new()),
+                }
+            }
+        };
         let mut prepared = Vec::new();
         for _ in 0..quantity {
             let mut created = created.clone();
+            created.attached_to = attach_host.clone();
             let instance_id = format!("{token_prefix}{next_token_index}");
             next_token_index += 1;
             created.instance_id = instance_id.clone();
@@ -307,24 +325,8 @@ impl GameEngine {
         let created_tokens = self.install_prepared_battlefield_entries(prepared);
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
-            if attacking
-                && let Some(attacker_id) = decisions
-                    .get("triggeringPermanentId")
-                    .and_then(Value::as_str)
-                    .or(Some(stack_object.card.instance_id.as_str()))
-                && let Some(assignment) = self
-                    .state
-                    .combat
-                    .attackers
-                    .iter()
-                    .find(|assignment| assignment.attacker_id == attacker_id)
-                    .cloned()
-            {
-                self.state.combat.attackers.push(DeclaredAttacker {
-                    attacker_id: instance_id.clone(),
-                    defender: assignment.defender,
-                    defending_player_id: assignment.defending_player_id,
-                });
+            if attacking {
+                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
             }
             if effect["sacrificeAtNextEndStep"].as_bool().unwrap_or(false) {
                 self.state.rule_modifiers.push(json!({
@@ -622,6 +624,7 @@ impl GameEngine {
             provider,
         )?;
         let tapped = effect["tapped"].as_bool().unwrap_or(false);
+        let attacking = effect["attacking"].as_bool().unwrap_or(false);
         let mut created_ids = Vec::new();
         let mut prepared = Vec::new();
         for copy_index in 0..quantity {
@@ -686,6 +689,9 @@ impl GameEngine {
         let created_tokens = self.install_prepared_battlefield_entries(prepared);
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
+            if attacking {
+                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
+            }
             for (flag, kind) in [
                 ("sacrificeAtNextEndStep", "sacrificeAtEndStep"),
                 ("exileAtNextEndStep", "exileAtEndStep"),
@@ -704,6 +710,7 @@ impl GameEngine {
                 Some(instance_id.clone()),
                 json!({
                     "copyOf": copied_id,
+                    "attacking": attacking,
                     "tapped": tapped,
                     "typeLine": created.definition.type_line,
                 }),
@@ -713,6 +720,132 @@ impl GameEngine {
             self.publish_prepared_enter_battlefield_triggers(&created);
         }
         Ok(created_ids)
+    }
+
+    /// CR 704.5y, 303.7a: when a permanent has more than one Role attached
+    /// to it controlled by the same player, each of them except the one with
+    /// the latest timestamp is put into its owner's graveyard. A Role enters
+    /// attached (CR 111.3) and a controller's permanents are kept in entry
+    /// order, so the latest one of a controller is the last attached.
+    pub(super) fn put_superseded_roles_into_graveyard(&mut self) -> Result<(), EngineError> {
+        let mut latest = BTreeMap::<(String, String), String>::new();
+        let mut superseded = Vec::new();
+        for permanent in self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+        {
+            let Some(host) = permanent.attached_to.as_ref() else {
+                continue;
+            };
+            if !type_line_contains(&permanent.definition.type_line, "Role") {
+                continue;
+            }
+            if let Some(previous) = latest.insert(
+                (permanent.controller.clone(), host.clone()),
+                permanent.instance_id.clone(),
+            ) {
+                superseded.push(previous);
+            }
+        }
+        for instance_id in superseded {
+            self.move_permanent_to_graveyard(&instance_id, "roleUniqueness")?;
+        }
+        Ok(())
+    }
+
+    /// CR 508.4: a token put onto the battlefield attacking was never
+    /// declared as an attacker; its controller chooses the player,
+    /// planeswalker or battle it attacks among those the active player could
+    /// attack. Outside the combat steps, or under the control of a player
+    /// other than the active player, it enters but is not attacking
+    /// (CR 506.3, 508.4a).
+    fn put_token_onto_battlefield_attacking<P: DecisionProvider>(
+        &mut self,
+        token_id: &str,
+        stack_object: &StackObject,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        let Some((player_index, card_index)) = self.permanent_position(token_id) else {
+            return Ok(());
+        };
+        let controller = self.state.players[player_index].battlefield[card_index]
+            .controller
+            .clone();
+        let active_player_id = self.state.players[self.state.active_player].id.clone();
+        let in_combat = matches!(
+            self.state.step,
+            GameStep::DeclareAttackers | GameStep::DeclareBlockers | GameStep::CombatDamage
+        );
+        if !in_combat || controller != active_player_id {
+            return Ok(());
+        }
+        let mut defenders = self
+            .state
+            .players
+            .iter()
+            .map(|player| TargetRef::Player {
+                player_id: player.id.clone(),
+            })
+            .chain(self.state.players.iter().flat_map(|player| {
+                player
+                    .battlefield
+                    .iter()
+                    .map(|permanent| TargetRef::Permanent {
+                        instance_id: permanent.instance_id.clone(),
+                    })
+            }))
+            .filter_map(|defender| {
+                self.attack_defending_player_id(&active_player_id, &defender)
+                    .map(|defending_player_id| (defender, defending_player_id))
+            })
+            .collect::<Vec<_>>();
+        let label = |defender: &TargetRef| match defender {
+            TargetRef::Player { player_id } => player_id.clone(),
+            TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                instance_id.clone()
+            }
+            TargetRef::StackObject { stack_id } => stack_id.clone(),
+        };
+        let (defender, defending_player_id) = match defenders.len() {
+            0 => return Ok(()),
+            1 => defenders.remove(0),
+            _ => {
+                let options = defenders
+                    .iter()
+                    .map(|(defender, _)| label(defender))
+                    .collect();
+                let selected = self.choose_resolution_option(
+                    stack_object,
+                    provider,
+                    &controller,
+                    options,
+                    "Choose the player, planeswalker or battle the token is attacking.",
+                )?;
+                let index = selected
+                    .and_then(|selected| {
+                        defenders
+                            .iter()
+                            .position(|(defender, _)| label(defender) == selected)
+                    })
+                    .ok_or_else(|| {
+                        EngineError::new("an attacking token needs a chosen defender")
+                    })?;
+                defenders.remove(index)
+            }
+        };
+        if let Some((player_index, card_index)) = self.permanent_position(token_id) {
+            self.state.players[player_index].battlefield[card_index]
+                .flags
+                .insert("attacking".to_string(), true);
+        }
+        self.state.combat.attackers.push(DeclaredAttacker {
+            attacker_id: token_id.to_string(),
+            defender,
+            defending_player_id,
+        });
+        Ok(())
     }
 
     #[cfg(test)]

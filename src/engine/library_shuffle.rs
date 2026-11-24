@@ -54,3 +54,23 @@ fn shuffle_values_excluding_by<T, R, F>(
 ))]
 #[path = "library_shuffle_tests.rs"]
 mod tests;
+
+impl super::GameEngine {
+    /// The players whose libraries hold at least one of `cards`, in seat
+    /// order, each once: the libraries a `shuffle X into a library`
+    /// instruction shuffles after the move (CR 701.24b). A card no longer in
+    /// a library (replaced elsewhere, CR 614.6) names no library.
+    pub(super) fn libraries_holding(&self, cards: &[String]) -> Vec<String> {
+        self.state
+            .players
+            .iter()
+            .filter(|player| {
+                player
+                    .library
+                    .iter()
+                    .any(|card| cards.iter().any(|id| *id == card.instance_id))
+            })
+            .map(|player| player.id.clone())
+            .collect()
+    }
+}

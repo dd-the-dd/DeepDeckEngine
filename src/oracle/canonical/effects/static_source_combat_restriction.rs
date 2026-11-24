@@ -158,8 +158,9 @@ fn lower_combat_object_selector(
             | ObjectControllerScope::OpponentOfAbilityController => {
                 json!({ "kind":"opponentsOf", "player":controller() })
             }
-            // A static ability has no triggering event.
-            ObjectControllerScope::EventPlayer => {
+            // A static ability has no triggering event and declares no
+            // player target.
+            ObjectControllerScope::EventPlayer | ObjectControllerScope::Player(_) => {
                 return Err(cursor.fail("a static controller scope without an event player"));
             }
         };

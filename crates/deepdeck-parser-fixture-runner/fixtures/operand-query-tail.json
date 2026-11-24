@@ -1,0 +1,520 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/operand-query-tail",
+  "cases": [
+    {
+      "id": "exact-tempest-caller-declared-possessor-collection",
+      "request": {
+        "cardName": "Tempest Caller",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "When this creature enters, tap all creatures target opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "tapPermanent" },
+              { "pointer": "/effects/0/permanent/kind", "equals": "eachPermanent" },
+              { "pointer": "/effects/0/permanent/player/kind", "equals": "chosenTarget" },
+              { "pointer": "/effects/0/permanent/player/id", "equals": "possessorTargetPlayer" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-primeval-light-declared-possessor-declaration",
+      "request": {
+        "cardName": "Primeval Light",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Destroy all enchantments target player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/id", "equals": "possessorTargetPlayer" },
+              { "pointer": "/declaration/decisions/0/kind", "equals": "chooseTargets" },
+              { "pointer": "/declaration/decisions/0/candidates/kind", "equals": "players" },
+              { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/0/permanent/where/value", "equals": "Enchantment" },
+              { "pointer": "/effects/0/permanent/player/id", "equals": "possessorTargetPlayer" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-theft-of-dreams-declared-possessor-count",
+      "request": {
+        "cardName": "Theft of Dreams",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw a card for each tapped creature target opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/id", "equals": "possessorTargetPlayer" },
+              { "pointer": "/declaration/decisions/0/candidates/where/kind", "equals": "isOpponentOf" },
+              { "pointer": "/effects/0/kind", "equals": "drawCards" },
+              { "pointer": "/effects/0/count/kind", "equals": "countPermanents" },
+              { "pointer": "/effects/0/count/player/id", "equals": "possessorTargetPlayer" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-seismic-wave-declared-possessor-after-declared-target",
+      "request": {
+        "cardName": "Seismic Wave",
+        "typeLine": "Instant",
+        "manaCost": "{2}{R}",
+        "oracleText": "Seismic Wave deals 2 damage to any target and 1 damage to each nonartifact creature target opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/1/id", "equals": "possessorTargetPlayer" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-declared-possessor-with-postnominal-source-exclusion",
+      "request": {
+        "cardName": "Synthetic Tidal Warden",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "{4}: Tap all creatures target player controls other than this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "tapPermanent" },
+              { "pointer": "/effects/0/permanent/player/id", "equals": "possessorTargetPlayer" },
+              { "pointer": "/effects/0/permanent/excludeSource", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ember-fist-zubera-departure-count",
+      "request": {
+        "cardName": "Ember-Fist Zubera",
+        "typeLine": "Creature — Zubera Spirit",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature dies, it deals damage to any target equal to the number of Zubera that died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "dealDamage" },
+              { "pointer": "/effects/0/amount/kind", "equals": "countEventsThisTurn" },
+              { "pointer": "/effects/0/amount/event", "equals": "permanentDied" },
+              { "pointer": "/effects/0/amount/where/value", "equals": "Zubera" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fresh-meat-owner-graveyard-departures",
+      "request": {
+        "cardName": "Fresh Meat",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Create a 3/3 green Beast creature token for each creature put into your graveyard from the battlefield this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "createTokens" },
+              { "pointer": "/effects/0/quantity/kind", "equals": "countEventsThisTurn" },
+              { "pointer": "/effects/0/quantity/event", "equals": "permanentDied" },
+              { "pointer": "/effects/0/quantity/relation", "equals": "owner" },
+              { "pointer": "/effects/0/quantity/where/value", "equals": "Creature" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-caller-of-the-claw-nontoken-departures",
+      "request": {
+        "cardName": "Caller of the Claw",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}{G}",
+        "oracleText": "Flash\nWhen this creature enters, create a 2/2 green Bear creature token for each nontoken creature put into your graveyard from the battlefield this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/quantity/kind", "equals": "countEventsThisTurn" },
+              { "pointer": "/effects/0/quantity/where/kind", "equals": "and" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-died-under-your-control-departures",
+      "request": {
+        "cardName": "Synthetic Grave Accountant",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "You gain 2 life for each creature that died under your control this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "gainLife" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-demonic-taskmaster-postnominal-source-exclusion",
+      "request": {
+        "cardName": "Demonic Taskmaster",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nAt the beginning of your upkeep, sacrifice a creature other than this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "sacrificePermanents" },
+              { "pointer": "/effects/0/excludeSource", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-destroy-collection-postnominal-source-exclusion",
+      "request": {
+        "cardName": "Synthetic Last Survivor",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{4}{B}",
+        "oracleText": "When this creature enters, destroy all creatures other than this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/0/permanent/excludeSource", "equals": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kindred-judgment-copular-chosen-type",
+      "request": {
+        "cardName": "Kindred Judgment",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{W}{W}",
+        "oracleText": "Choose a creature type. Destroy all creatures that aren't of the chosen type.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/1/kind", "equals": "destroyPermanent" },
+              { "pointer": "/effects/1/permanent/where/operands/1/kind", "equals": "not" },
+              { "pointer": "/effects/1/permanent/where/operands/1/operand/kind", "equals": "chosenCreatureType" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-copular-negated-subtype-collection",
+      "request": {
+        "cardName": "Synthetic Dragon Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Destroy all creatures that aren't Dragons.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/permanent/where/operands/1/kind", "equals": "not" },
+              { "pointer": "/effects/0/permanent/where/operands/1/operand/value", "equals": "Dragon" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unread-relative-clause-fails-in-the-operand",
+      "request": {
+        "cardName": "Synthetic Kinship Tide",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Tap all creatures that share a creature type with this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.unsupported"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-two-controller-possessors",
+      "request": {
+        "cardName": "Synthetic Double Claim",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy all creatures you control target opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.controller-qualifier.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-coordinated-branch-keeps-its-own-controller",
+      "request": {
+        "cardName": "Synthetic Split Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy all artifacts you control and creatures target opponent controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departures-under-a-present-relation",
+      "request": {
+        "cardName": "Synthetic Grave Census",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card for each creature you control that died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.departure-history.present-relation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departures-in-a-present-object-consumer",
+      "request": {
+        "cardName": "Synthetic Grave Sweep",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy all creatures that died this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.departure-history.consumer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-declared-possessor-outside-an-effect-program",
+      "request": {
+        "cardName": "Synthetic Static Claim",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Creatures target opponent controls get -1/-1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

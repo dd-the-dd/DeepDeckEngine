@@ -144,21 +144,26 @@ fn recognize_source_trigger_event_attempt(
         return SourceTriggerEnvelopeAttempt::Unpromoted(failure);
     }
     let mut alternative = None;
+    let (other, other_word) = match event {
+        SourceTriggerEventKind::Entered => (SourceTriggerEventKind::Died, "dies"),
+        _ => (SourceTriggerEventKind::Entered, "enters"),
+    };
+    // Only the other battlefield transition of the source forms this union;
+    // an `or` before another verb or subject belongs to the shared event
+    // clause (a source verb union or an occurrence union), never to this
+    // envelope.
     if event != SourceTriggerEventKind::Tapped
         && cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(other_word))
     {
-        // Only the proved battlefield transitions form a union; any other
-        // second verb stays an explicit failure at this state.
         cursor.enter("trigger.source-program.event-union");
         if let Err(failure) = cursor.consume("or") {
             return SourceTriggerEnvelopeAttempt::Unpromoted(failure);
         }
-        let (other, other_word) = match event {
-            SourceTriggerEventKind::Entered => (SourceTriggerEventKind::Died, "dies"),
-            _ => (SourceTriggerEventKind::Entered, "enters"),
-        };
         if let Err(failure) = cursor.consume_type("eventWord").and_then(|token| {
             cursor.require(
                 token.raw.eq_ignore_ascii_case(other_word),

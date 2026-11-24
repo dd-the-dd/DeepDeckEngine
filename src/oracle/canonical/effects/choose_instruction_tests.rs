@@ -157,7 +157,8 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "Draw a card for each permanent you control of that type.",
             "binding.chosen-creature-type.source",
         ),
-        // Only a battlefield count is an executable reader of the choice.
+        // A battlefield count or a one-shot battlefield action reads the
+        // choice; a lasting effect's collection is not an executable reader.
         (
             "Choose a creature type. Creatures you control of the chosen type get +1/+0 until end of turn.",
             "binding.chosen-creature-type.consumer",
@@ -186,9 +187,19 @@ fn unsupported_choices_and_unproved_bindings_fail_at_their_own_state() {
             "Creatures of the chosen color get +1/+1 until end of turn.",
             "binding.chosen-color.source",
         ),
+        // A chosen card name that nothing reads is refused, not a no-op.
         (
             "Choose a card name. Target opponent reveals their hand.",
-            "choose.domain.card-name",
+            "binding.chosen-card-name.consumer",
+        ),
+        (
+            "Choose a nonartifact, nonland card name. Draw a card.",
+            "binding.chosen-card-name.consumer",
+        ),
+        // A qualified name choice is not widened to every card name.
+        (
+            "Choose a card name that hasn't been chosen. Draw a card.",
+            "choose.domain.card-name.boundary",
         ),
         // A qualified player population is not widened to every opponent.
         (

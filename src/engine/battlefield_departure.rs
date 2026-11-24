@@ -509,8 +509,11 @@ impl GameEngine {
                     json!({ "reason": reason }),
                 );
                 if movement.destination == "graveyard" {
+                    // The token status is recorded too: a token ceases to
+                    // exist after it dies (CR 111.7), so a later count of
+                    // `nontoken creatures that died` reads it from the record.
                     self.record_event("permanentDied", Some(source.controller.clone()), Some(instance_id.clone()),
-                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "owner": source.owner.clone() }));
+                        json!({ "reason": reason, "typeLine": source.definition.type_line.clone(), "wasCreature": was_creature, "wasToken": source.definition.is_token, "owner": source.owner.clone() }));
                 }
             }
             DepartureEvent::Exile => {

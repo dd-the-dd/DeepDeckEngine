@@ -43,6 +43,182 @@ pub(in crate::oracle::canonical) fn action_result_binding(effect_index: usize) -
     format!("actionResult:{effect_index}")
 }
 
+/// The pending count of the objects the action before a condition affected
+/// (`a land card was milled this way`), rewritten by
+/// `bind_action_result_objects` where the program lowers that condition.
+pub(in crate::oracle::canonical) const ACTION_RESULT_OBJECTS: &str = "pendingActionResultObjects";
+
+/// The pending count of a restated `OBJECTS VERBed this way`. A restated
+/// noun is re-read on the bound objects only when the verb's action keeps
+/// card characteristics; otherwise only the generic noun is accepted.
+pub(in crate::oracle::canonical) fn lower_action_result_objects(
+    reference: &ActionResultReferenceNode,
+) -> Result<Value, &'static str> {
+    let generic = matches!(
+        reference.predicate,
+        ObjectPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Permanent)
+    );
+    let filter = if generic {
+        Value::Null
+    } else if reference.verb.preserves_card_characteristics()
+        && reference.predicate.is_in_domain(ObjectKind::Card)
+    {
+        lower_card_object_predicate(&reference.predicate)
+    } else {
+        return Err("a restated noun the producing action guarantees or keeps readable");
+    };
+    Ok(json!({
+        "kind": ACTION_RESULT_OBJECTS,
+        "verb": reference.verb.ir_name(),
+        "where": filter,
+    }))
+}
+
+/// The objects one producing runtime action affected, as a stable object
+/// expression: its existing `bind`, the already stable card set a reveal
+/// names (`revealCards` of bound, chosen or targeted cards), or a `bind`
+/// installed now under the compiler-assigned identifier of `effect_index`.
+/// A reveal of a set that is re-evaluated later (the library's top cards)
+/// has no stable result and is refused.
+pub(in crate::oracle::canonical) fn action_result_objects(
+    producer: &mut Value,
+    effect_index: usize,
+) -> Result<Value, &'static str> {
+    if let Some(existing) = producer.get("bind").and_then(Value::as_str) {
+        return Ok(json!({ "kind": "boundObjects", "binding": existing }));
+    }
+    if producer["kind"].as_str() == Some("revealCards") {
+        return matches!(
+            producer["cards"]["kind"].as_str(),
+            Some("boundObjects" | "decisionResult" | "chosenTargets")
+        )
+        .then(|| producer["cards"].clone())
+        .ok_or("a revealed card set the program bound or chose");
+    }
+    let binding = action_result_binding(effect_index);
+    producer["bind"] = json!(binding);
+    Ok(json!({ "kind": "boundObjects", "binding": binding }))
+}
+
+/// Replaces every `boundObjects` reference to `binding` under `value`.
+pub(in crate::oracle::canonical) fn rewrite_bound_objects(
+    value: &mut Value,
+    binding: &str,
+    replacement: &Value,
+) {
+    match value {
+        Value::Object(map)
+            if map.get("kind").and_then(Value::as_str) == Some("boundObjects")
+                && map.get("binding").and_then(Value::as_str) == Some(binding) =>
+        {
+            *value = replacement.clone();
+        }
+        Value::Object(map) => map
+            .values_mut()
+            .for_each(|child| rewrite_bound_objects(child, binding, replacement)),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|child| rewrite_bound_objects(child, binding, replacement)),
+        _ => {}
+    }
+}
+
+/// Binds every pending `OBJECTS VERBed this way` count under `value` to the
+/// action immediately before action `reader` (CR 608.2c): its lowering must
+/// contain exactly one top-level runtime action of the restated verb, whose
+/// `bind` records the affected objects (an existing binding is reused).
+/// Anything else is an explicit failure, never a count of zero.
+pub(in crate::oracle::canonical) fn bind_action_result_objects(
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+    reader: usize,
+    value: &mut Value,
+) -> Result<(), &'static str> {
+    bind_pending_action_result_objects(action_starts, effects, Some(reader), value)
+}
+
+/// Binds every pending `the number of OBJECTS VERBed this way` that records
+/// its own reader action (a count inside an action's arguments). Each
+/// top-level action is rebound on a copy, so the producer it binds (always
+/// an earlier action) is updated in place.
+pub(in crate::oracle::canonical) fn install_action_result_object_counts(
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+) -> Result<(), &'static str> {
+    for position in 0..effects.len() {
+        let mut effect = effects[position].clone();
+        bind_pending_action_result_objects(action_starts, effects, None, &mut effect)?;
+        effects[position] = effect;
+    }
+    Ok(())
+}
+
+fn bind_pending_action_result_objects(
+    action_starts: &[(usize, usize)],
+    effects: &mut [Value],
+    reader: Option<usize>,
+    value: &mut Value,
+) -> Result<(), &'static str> {
+    match value {
+        Value::Object(map)
+            if map.get("kind").and_then(Value::as_str) == Some(ACTION_RESULT_OBJECTS) =>
+        {
+            let verb = map
+                .get("verb")
+                .and_then(Value::as_str)
+                .and_then(ActionResultVerb::from_ir_name)
+                .ok_or("a known restated verb")?;
+            let reader = map
+                .get("reader")
+                .and_then(Value::as_u64)
+                .and_then(|reader| usize::try_from(reader).ok())
+                .or(reader)
+                .ok_or("the action that reads the restated objects")?;
+            // The nearest earlier action whose lowering runs the verb.
+            let producer = (0..reader).rev().find_map(|index| {
+                let (from, _) = *action_starts.get(index)?;
+                // The last lowered action ends with the program lowered so far.
+                let to = action_starts
+                    .get(index + 1)
+                    .map_or(effects.len(), |(to, _)| *to);
+                let producers = (from..to)
+                    .filter(|position| {
+                        effects[*position]["kind"]
+                            .as_str()
+                            .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
+                    })
+                    .collect::<Vec<_>>();
+                (!producers.is_empty()).then_some((index, producers))
+            });
+            let (previous, producers) =
+                producer.ok_or("an earlier action of this program that the phrase restates")?;
+            let [position] = producers.as_slice() else {
+                return Err(
+                    "one preceding top-level runtime action recording the restated objects",
+                );
+            };
+            let bound = action_result_objects(&mut effects[*position], previous)?;
+            let filter = map.get("where").cloned().unwrap_or(Value::Null);
+            *value = json!({
+                "kind": "countObjects",
+                "objects": if filter.is_null() {
+                    bound
+                } else {
+                    json!({ "kind": "filterObjects", "objects": bound, "where": filter })
+                },
+            });
+            Ok(())
+        }
+        Value::Object(map) => map.values_mut().try_for_each(|child| {
+            bind_pending_action_result_objects(action_starts, effects, reader, child)
+        }),
+        Value::Array(items) => items.iter_mut().try_for_each(|child| {
+            bind_pending_action_result_objects(action_starts, effects, reader, child)
+        }),
+        _ => Ok(()),
+    }
+}
+
 /// Lowers expressions that do not require a target-property binding. The
 /// caller retains ownership of binding-aware forms such as `PowerOf`.
 pub(in crate::oracle::canonical) fn lower_numeric_expression(
@@ -97,8 +273,15 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
                         "where": predicate,
                     }));
                 }
-                // `you don't control`, `that player controls`: no engine
-                // aggregate counts for that player relation yet.
+                // `target opponent controls`, `its controller controls`:
+                // the permanents of that one player.
+                Some(ObjectControllerScope::Player(player)) => json!({
+                    "kind": "countPermanents",
+                    "where": predicate,
+                    "player": lower_related_player(player),
+                }),
+                // `you don't control`: no engine aggregate counts for that
+                // player relation yet.
                 Some(_) => return None,
             }
         }
@@ -202,6 +385,16 @@ fn lower_numeric_expression_in_context(
         // Resolved and bound by the program lowering (see
         // `install_action_result_quantities`); left unresolved it is no
         // runtime expression and is refused.
+        // `the number of cards revealed this way`: bound by the program
+        // lowering to the nearest earlier action of the restated verb.
+        NumericExpression::ActionResultQuantity {
+            reader_effect,
+            quantity: ActionResultQuantity::Objects(reference),
+        } => {
+            let mut pending = lower_action_result_objects(reference).ok()?;
+            pending["reader"] = json!(reader_effect);
+            Some(pending)
+        }
         NumericExpression::ActionResultQuantity {
             reader_effect,
             quantity,
@@ -215,8 +408,16 @@ fn lower_numeric_expression_in_context(
             "player": controller(),
             "color": canonical_color_name(*color),
         })),
+        NumericExpression::EventHistoryCount(node) => Some(lower_event_history_count(
+            &node.pattern,
+            node.scope,
+            node.aggregate,
+        )),
         NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisCombat) => {
             Some(json!({ "kind": "countOpponentsAttackedThisCombat", "player": controller() }))
+        }
+        NumericExpression::OpponentCount(OpponentFact::Any) => {
+            Some(json!({ "kind": "countOpponents", "player": controller() }))
         }
         NumericExpression::CountDistinctCardTypes { zone, predicate } => {
             let mut count = json!({
@@ -278,11 +479,20 @@ fn lower_numeric_expression_in_context(
         }
         NumericExpression::PlayerFact {
             player: LocalPlayerReference::Controller,
+            fact: PlayerNumericFact::Counters(counter),
+        } => Some(json!({
+            "kind": "countPlayerCounters",
+            "player": controller(),
+            "counter": counter.as_str(),
+        })),
+        NumericExpression::PlayerFact {
+            player: LocalPlayerReference::Controller,
             fact,
         } => Some(json!({
             "kind": match fact {
                 PlayerNumericFact::LifeGainedThisTurn => "lifeGainedThisTurn",
                 PlayerNumericFact::LifeTotal => "lifeTotal",
+                PlayerNumericFact::Counters(_) => unreachable!("lowered above"),
             },
             "player": controller(),
         })),
@@ -306,6 +516,21 @@ fn lower_numeric_expression_in_context(
         NumericExpression::GreatestPropertyAmong {
             property,
             predicate,
+            aggregate: PropertyAggregate::Sum,
+        } => match property {
+            // The engine sums the current power of the controller's
+            // permanents; no other property has a sum aggregate yet.
+            SelectorNumericProperty::Power => Some(json!({
+                "kind": "sumPowers",
+                "player": controller(),
+                "where": lower_permanent_object_predicate(predicate),
+            })),
+            SelectorNumericProperty::Toughness | SelectorNumericProperty::ManaValue => None,
+        },
+        NumericExpression::GreatestPropertyAmong {
+            property,
+            predicate,
+            aggregate: PropertyAggregate::Greatest,
         } => Some(json!({
             "kind": match property {
                 SelectorNumericProperty::Power => "greatestPower",

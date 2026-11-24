@@ -13,7 +13,16 @@
 //!           | ("didn't" | "did" "not") Past
 //! Player   := "you" | "an" "opponent" | "a" "player"
 //! Targeted := Player | ("a" | "an") PermanentQuery
+//!
+//! Departure := ["that" | "which"] "died" ["under" Possessor "control"] "this" "turn"
+//!            | [("that" | "which") ("was" | "were")] "put" "into" Graveyard
+//!              "from" "the" "battlefield" "this" "turn"
+//! Possessor := "your" | "an" "opponent's"
+//! Graveyard := Possessor "graveyard" | "a" "graveyard" | "graveyards"
 //! ```
+//!
+//! A status clause coordinates its statuses with one connector: `or` is a
+//! union, `and` an intersection (`that are tapped and attacking`).
 //!
 //! A past-tense clause names a this-turn fact of the object (CR 608.2c
 //! history); the engine reads it from its object history. Other relatives
@@ -21,8 +30,8 @@
 //! claimed here and keep their explicit failure.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    DamagedPlayer, ObjectControllerScope, ObjectPredicate, ObjectQueryContext, ObjectRelation,
-    ObjectStatus, TargetedObjects, TargetedPermanents,
+    DamagedPlayer, DepartureHistory, DeparturePlayer, ObjectControllerScope, ObjectPredicate,
+    ObjectQueryContext, ObjectRelation, ObjectStatus, TargetedObjects, TargetedPermanents,
 };
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
@@ -218,7 +227,10 @@ fn recognize_targets_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult
                 "a targeted permanent of the shared battlefield query",
             )?;
             cursor.require(
-                !matches!(query.controller, Some(ObjectControllerScope::EventPlayer)),
+                !matches!(
+                    query.controller,
+                    Some(ObjectControllerScope::EventPlayer | ObjectControllerScope::Player(_))
+                ),
                 "a targeted permanent's controller relative to the ability controller",
             )?;
             cursor.require(
@@ -294,25 +306,39 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
             negated = !negated;
         }
         let mut members = Vec::new();
+        // One connector coordinates the statuses: `tapped or attacking` is a
+        // union, `tapped and attacking` an intersection. A mixed list has no
+        // proved precedence and is refused.
+        let mut connector: Option<&'static str> = None;
         loop {
             let raw = cursor.peek().unwrap_or_default().to_ascii_lowercase();
             let status = cursor
                 .require_value(super::lookup_status_predicate(&raw), "a registered status")?;
             cursor.consume(&raw)?;
             members.push(status);
-            let more = word_at(cursor, 0, "or")
+            let next = ["or", "and"]
+                .into_iter()
+                .find(|candidate| word_at(cursor, 0, candidate));
+            let more = next.is_some()
                 && cursor
                     .peek_ahead(1)
-                    .is_some_and(|raw| super::lookup_status_predicate(&raw).is_some());
+                    .is_some_and(|raw| super::lookup_status_predicate(raw).is_some());
             if !more {
                 break;
             }
-            cursor.consume("or")?;
+            let next = next.expect("checked status connector");
+            cursor.enter("selector.relative-clause.status.connector");
+            cursor.require(
+                connector.is_none_or(|previous| previous == next),
+                "one connector coordinating the statuses of a relative clause",
+            )?;
+            connector = Some(next);
+            cursor.consume(next)?;
         }
-        let predicate = if members.len() == 1 {
-            members.remove(0)
-        } else {
-            ObjectPredicate::Union(members)
+        let predicate = match (members.len(), connector) {
+            (1, _) => members.remove(0),
+            (_, Some("and")) => ObjectPredicate::Intersection(members),
+            _ => ObjectPredicate::Union(members),
         };
         return Ok(if negated {
             ObjectPredicate::Not(Box::new(predicate))
@@ -405,4 +431,144 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
         _ if all_negated => ObjectPredicate::Intersection(members),
         _ => ObjectPredicate::Union(members),
     })
+}
+
+/// One departure-history clause at the cursor: its token width, the offset
+/// of its verb (`died` / `put`) and the history it states. A pure lookahead
+/// over the complete clause, so a partial shape is never claimed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct DepartureClause {
+    pub width: usize,
+    pub verb_offset: usize,
+    pub history: DepartureHistory,
+}
+
+/// `your` / `an opponent's`: a possessive player relative to the ability
+/// controller, with its width.
+fn possessive_player_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(DeparturePlayer, usize)> {
+    if word_at(cursor, offset, "your") {
+        Some((DeparturePlayer::AbilityController, 1))
+    } else if word_at(cursor, offset, "an")
+        && (word_at(cursor, offset + 1, "opponent's")
+            || word_at(cursor, offset + 1, "opponent\u{2019}s"))
+    {
+        Some((DeparturePlayer::OpponentOfAbilityController, 2))
+    } else {
+        None
+    }
+}
+
+/// The graveyard a departed object was put into: its owner relative to the
+/// ability controller (CR 404.2: a card goes to its owner's graveyard), or
+/// `None` for any graveyard, with the phrase width.
+fn graveyard_holder_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(Option<DeparturePlayer>, usize)> {
+    if word_at(cursor, offset, "graveyards") {
+        return Some((None, 1));
+    }
+    if word_at(cursor, offset, "a") && word_at(cursor, offset + 1, "graveyard") {
+        return Some((None, 2));
+    }
+    let (player, width) = possessive_player_at(cursor, offset)?;
+    word_at(cursor, offset + width, "graveyard").then_some((Some(player), width + 1))
+}
+
+/// `that died [under PLAYER's control] this turn` and `[that was|were] put
+/// into GRAVEYARD from the battlefield this turn` (CR 700.4: to die is to be
+/// put into a graveyard from the battlefield). The objects are departures of
+/// this turn; the query reports them as its own source set.
+pub(in crate::oracle::canonical) fn departure_clause_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<DepartureClause> {
+    let relative = word_at(cursor, 0, "that") || word_at(cursor, 0, "which");
+    let mut at = usize::from(relative);
+    if word_at(cursor, at, "died") {
+        // A bare `died` after a noun is a finite verb of the parent clause.
+        if !relative {
+            return None;
+        }
+        let verb_offset = at;
+        at += 1;
+        let mut controller = None;
+        if word_at(cursor, at, "under") {
+            let (player, width) = possessive_player_at(cursor, at + 1)?;
+            if !word_at(cursor, at + 1 + width, "control") {
+                return None;
+            }
+            controller = Some(player);
+            at += 2 + width;
+        }
+        if !(word_at(cursor, at, "this") && word_at(cursor, at + 1, "turn")) {
+            return None;
+        }
+        return Some(DepartureClause {
+            width: at + 2,
+            verb_offset,
+            history: DepartureHistory {
+                controller,
+                graveyard_owner: None,
+            },
+        });
+    }
+    if relative {
+        if !(word_at(cursor, at, "was") || word_at(cursor, at, "were")) {
+            return None;
+        }
+        at += 1;
+    }
+    if !(word_at(cursor, at, "put") && word_at(cursor, at + 1, "into")) {
+        return None;
+    }
+    let verb_offset = at;
+    at += 2;
+    let (graveyard_owner, width) = graveyard_holder_at(cursor, at)?;
+    at += width;
+    let from_battlefield = ["from", "the", "battlefield", "this", "turn"]
+        .iter()
+        .enumerate()
+        .all(|(index, expected)| word_at(cursor, at + index, expected));
+    from_battlefield.then_some(DepartureClause {
+        width: at + 5,
+        verb_offset,
+        history: DepartureHistory {
+            controller: None,
+            graveyard_owner,
+        },
+    })
+}
+
+/// A finite verb form that can only open a relative clause after a relative
+/// pronoun (`that has`, `that died`, `which share`). Lexical only. The
+/// modal `would` is left out: `damage that would be dealt` belongs to the
+/// replacement frames that own it.
+fn finite_relative_verb(raw: &str) -> bool {
+    const VERBS: &[&str] = &[
+        "is", "are", "was", "were", "isn't", "aren't", "wasn't", "weren't", "has", "have", "had",
+        "hasn't", "haven't", "hadn't", "does", "did", "doesn't", "don't", "didn't", "can", "can't",
+        "could", "couldn't", "shares", "share", "dies", "targets", "entered", "attacked",
+        "blocked", "dealt", "died",
+    ];
+    let lower = raw.to_ascii_lowercase().replace('\u{2019}', "'");
+    VERBS.contains(&lower.as_str())
+}
+
+/// The transactional end of a complete object operand. A relative pronoun
+/// followed by a finite verb right after the operand can only qualify that
+/// operand; when the shared query did not read it, the operand fails here
+/// with the relative-clause diagnostic instead of handing the clause to the
+/// parent's connector reader as if the operand had ended (AGENTS: a partial
+/// read is not a commit).
+pub(in crate::oracle::canonical) fn refuse_unread_relative_tail(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<()> {
+    if !is_relative_pronoun(cursor) || !cursor.peek_ahead(1).is_some_and(finite_relative_verb) {
+        return Ok(());
+    }
+    cursor.enter("selector.relative-clause.unsupported");
+    Err(cursor.fail("a relative clause the shared object query reads"))
 }

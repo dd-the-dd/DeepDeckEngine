@@ -394,12 +394,54 @@
       }
     },
     {
-      "id": "unsupported-named-modifier",
+      "id": "sibling-named-modifier",
       "request": {
         "cardName": "Token Grammar Probe",
         "typeLine": "Sorcery",
         "manaCost": "{R}",
         "oracleText": "Create a 1/1 red Elemental creature token named Ember.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/token/name",
+                "equals": "Ember"
+              },
+              {
+                "pointer": "/effects/0/token/subtypes",
+                "equals": [
+                  "Elemental"
+                ]
+              },
+              {
+                "pointer": "/effects/0/token/colors",
+                "equals": [
+                  "Red"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unsupported-named-modifier-without-a-name",
+      "request": {
+        "cardName": "Token Grammar Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Create a 1/1 red Elemental creature token named the chosen name.",
         "layout": "normal",
         "faces": []
       },
@@ -417,7 +459,9 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "token.creation.given-name",
+            "found": "the"
           }
         ]
       }

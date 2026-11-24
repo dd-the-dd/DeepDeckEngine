@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "total-power-condition-met",
+  "seed": 15,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "sumPowers",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "where": {
+              "kind": "cardTypeContains",
+              "value": "Creature"
+            }
+          },
+          "right": {
+            "kind": "integer",
+            "value": 5
+          }
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "total-power-condition-met",
+            "name": "Formidable Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          }
+        ],
+        "library": [],
+        "battlefield": [
+          {
+            "id": "bear-0",
+            "name": "Bear 0",
+            "typeLine": "Creature - Bear",
+            "power": "3",
+            "toughness": "2"
+          },
+          {
+            "id": "bear-1",
+            "name": "Bear 1",
+            "typeLine": "Creature - Bear",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "total-power-condition-met"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 22
+    }
+  ]
+}

@@ -145,7 +145,12 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
         )?;
         // The cardinality `N` / `up to N` is the shared numeric atom read by
         // the target-list child; its bound only selects the reference arity.
-        let plural = slot.cardinality.maximum > 1;
+        // A typed count (`X target`, `any number of target`) is plural and
+        // replaces the literal envelope below.
+        let plural = slot
+            .count
+            .as_ref()
+            .map_or(slot.cardinality.maximum > 1, TargetCount::is_plural);
         let (base, mut candidates) = lower_target_slot_candidates(slot)
             .ok_or_else(|| cursor.fail("a supported permanent target candidate query"))?;
         if slot_index == 0 && exclude_first_source {
@@ -161,12 +166,20 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
             .count();
         let id = super::effect_sequence::target_id_for_ordinal(base, ordinal, total);
         used_base_ids.push(base);
-        decisions.push(target_decision(
+        let mut decision = target_decision(
             &id,
             candidates,
             i64::from(slot.cardinality.minimum),
             i64::from(slot.cardinality.maximum),
-        ));
+        );
+        if let Some(count) = &slot.count {
+            cursor.enter("lower.permanent-subject.target-count");
+            cursor.require(
+                apply_target_count_to_decision(&mut decision, count).is_some(),
+                "a declared target count the target decision can bound",
+            )?;
+        }
+        decisions.push(decision);
         if plural {
             // A target collection has no singular anaphor binding (the
             // parser never names a plural slot with `it` / `that creature`);

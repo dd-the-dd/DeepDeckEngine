@@ -293,10 +293,6 @@ fn playable_card_compilation_preserves_transform_face_locality() {
 }
 
 /// Feature: Both Room doors remain executable when Scryfall supplies separate face documents.
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Defiled Crypt // Cadaver Lab; see docs/coverage-targets.md"
-)]
 #[test]
 fn playable_card_compilation_preserves_both_room_doors() {
     let compilation = compile_playable_card(PlayableCardInput {
@@ -458,17 +454,18 @@ fn playable_card_compilation_keeps_canonical_rules_from_partial_talon_parse() {
 
     assert_eq!(compilation.parser_status, "unsupported");
     assert_eq!(compilation.engine_status, "incomplete");
-    assert_eq!(compilation.canonical_ability_count, 2);
-    assert_eq!(compilation.unsupported_ability_count, 2);
-    assert_eq!(compilation.card.rules.len(), 2);
+    // The enters trigger now phases its target out (CR 702.26b); only the
+    // `{4}` put-from-hand activation remains unsupported.
+    assert_eq!(compilation.canonical_ability_count, 3);
+    assert_eq!(compilation.unsupported_ability_count, 1);
+    assert_eq!(compilation.card.rules.len(), 3);
+    assert_eq!(compilation.card.rules[0]["kind"], "triggeredAbility");
     assert!(
-        compilation
-            .card
-            .rules
+        compilation.card.rules[1..]
             .iter()
             .all(|rule| rule["kind"] == "manaAbility")
     );
-    assert_eq!(compilation.card.rules[1]["costs"][0]["manaCost"], "{1}");
+    assert_eq!(compilation.card.rules[2]["costs"][0]["manaCost"], "{1}");
 }
 
 #[test]

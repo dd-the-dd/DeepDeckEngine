@@ -43,13 +43,32 @@
               },
               "effects": [
                 {
-                  "exceptPlayer": {
-                    "kind": "controllerOf",
-                    "object": {
-                      "kind": "self"
+                  "cards": {
+                    "kind": "cardsInZone",
+                    "zone": {
+                      "kind": "graveyard",
+                      "players": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
                     }
                   },
-                  "kind": "exileAllGraveyards"
+                  "kind": "moveCards",
+                  "to": {
+                    "faceDown": false,
+                    "kind": "exile",
+                    "player": {
+                      "kind": "ownerOf",
+                      "object": {
+                        "kind": "candidate"
+                      }
+                    }
+                  }
                 }
               ],
               "kind": "activatedAbility",
@@ -79,7 +98,7 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "legacy",
+            "recognizer": "native",
             "abilityType": "spellAbility",
             "rule": {
               "effects": [
@@ -138,61 +157,14 @@
         ]
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "allowDiagnostics": true,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "legacy",
-            "abilityType": "spellAbility",
-            "rule": {
-              "effects": [
-                {
-                  "count": {
-                    "kind": "add",
-                    "left": {
-                      "kind": "countCards",
-                      "where": null,
-                      "zone": {
-                        "kind": "hand",
-                        "player": {
-                          "kind": "controllerOf",
-                          "object": {
-                            "kind": "self"
-                          }
-                        }
-                      }
-                    },
-                    "right": {
-                      "kind": "integer",
-                      "value": 1
-                    }
-                  },
-                  "kind": "drawCards",
-                  "player": {
-                    "kind": "controllerOf",
-                    "object": {
-                      "kind": "self"
-                    }
-                  }
-                },
-                {
-                  "kind": "grantNoMaximumHandSize",
-                  "player": {
-                    "kind": "controllerOf",
-                    "object": {
-                      "kind": "self"
-                    }
-                  }
-                }
-              ],
-              "kind": "spellAbility",
-              "source": {
-                "kind": "self"
-              }
-            }
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "You"
           }
         ]
       }
@@ -215,7 +187,7 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "legacy",
+            "recognizer": "native",
             "abilityType": "spellAbility",
             "rule": {
               "effects": [
@@ -269,16 +241,14 @@
           {
             "index": 1,
             "status": "canonical",
-            "recognizer": "legacy",
+            "recognizer": "native",
             "abilityType": "spellAbility",
             "rule": {
               "effects": [
                 {
                   "count": {
-                    "kind": "powerOf",
-                    "object": {
-                      "kind": "self"
-                    }
+                    "decisionId": "sacrificedPermanentPower",
+                    "kind": "decisionResult"
                   },
                   "kind": "drawCards",
                   "player": {
@@ -316,7 +286,7 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "legacy",
+            "recognizer": "native",
             "abilityType": "spellAbility",
             "rule": {
               "effects": [

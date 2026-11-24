@@ -7,8 +7,10 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
     let mana = match effect {
         AddManaEffectNode::Qualified { production, policy } => {
             let mut lowered = lower_add_mana_effect(production);
+            // CR 106.6: a permitted use (`only to cast`) or a barred one
+            // (`can't be spent to cast`) over the same spell predicate.
             let mut restriction = json!({
-                "kind":"castSpell",
+                "kind": if policy.prohibited { "castSpellProhibited" } else { "castSpell" },
                 "where":lower_spell_object_predicate(&policy.spells).unwrap_or(Value::Null),
             });
             if policy.spell_cant_be_countered {
@@ -66,7 +68,9 @@ pub(in crate::oracle::canonical) fn lower_add_mana_effect(effect: &AddManaEffect
                 unreachable!("the land-color-domain automaton currently requires an opponent")
             }
             ManaChoiceDomain::LandColorsControlledBy(
-                ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer,
+                ObjectControllerScope::NotAbilityController
+                | ObjectControllerScope::EventPlayer
+                | ObjectControllerScope::Player(_),
             ) => {
                 unreachable!(
                     "the land-color-domain automaton does not accept a negative controller scope"

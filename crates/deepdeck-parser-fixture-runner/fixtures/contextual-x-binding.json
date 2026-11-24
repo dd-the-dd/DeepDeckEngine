@@ -103,15 +103,38 @@
         ]
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 2,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
+            "status": "canonical",
             "recognizer": "native",
-            "abilityType": "spellAbility"
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/zone/kind",
+                "equals": "anyGraveyard"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/owner/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/0/to/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
           },
           {
             "index": 1,
@@ -132,18 +155,6 @@
                 "equals": "compare"
               }
             ]
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "automaton": "contextual-effect-program",
-            "state": "card-target.source-owner",
-            "expectedContains": "a",
-            "found": "an",
-            "expected": "an explicit source zone owner, a single zone, or graveyards",
-            "tokenIndex": 7
           }
         ]
       }

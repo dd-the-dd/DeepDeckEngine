@@ -145,6 +145,7 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
             entry_state,
             origin,
             union_kind,
+            during_combat,
         } => {
             cursor.require(
                 !subjects.alternatives.is_empty(),
@@ -164,6 +165,11 @@ pub(in crate::oracle::canonical) fn lower_generic_trigger_event(
                         && transition == PermanentTransitionKind::Entered
                     {
                         lowered["fromZone"] = json!(origin.zone);
+                    }
+                    // CR 506.1: the zone-change record is read in the step it
+                    // happened in.
+                    if *during_combat {
+                        lowered["duringCombat"] = json!(true);
                     }
                     events.push(lowered);
                 }
@@ -456,6 +462,12 @@ fn lower_source_event_union(
                 SourceEventVerb::BecameUntapped => {
                     json!({"kind": "permanentUntapped", "object": object})
                 }
+                // CR 701.37b, 702.112b: the action that gives the designation.
+                SourceEventVerb::BecameDesignated(designation) => json!({
+                    "kind": "designationGained",
+                    "object": object,
+                    "designation": designation.flag(),
+                }),
                 // Read only with its counterpart, as an event pattern.
                 SourceEventVerb::Exploited => {
                     return Err(cursor.fail("`exploits` with the exploited object"));
@@ -516,7 +528,13 @@ fn reject_object_event_modifiers(
             "an engine event matcher for `alone` on this object event",
         ));
     }
-    match event.modifiers.first_modifier_name() {
+    // The zone-change patterns of an entry or a death read the step the
+    // record happened in (`during combat`).
+    let mut modifiers = event.modifiers;
+    if matches!(event.verb, ObjectEventVerb::Enter | ObjectEventVerb::Die) {
+        modifiers.during_combat = false;
+    }
+    match modifiers.first_modifier_name() {
         Some(name) => Err(engine_gap(
             cursor,
             &format!("an engine event matcher for {name} on this object event"),
@@ -547,8 +565,40 @@ fn lower_source_event_patterns(
             "an engine event matcher for `and isn't blocked` after an event other than one attack",
         ));
     }
+    let during_combat = event.modifiers.contains(&SourceEventModifier::DuringCombat);
     let mut events = Vec::new();
     for verb in &event.verbs {
+        // CR 506.1: the source's entry or death in a combat step, read by
+        // the zone-change record of that step.
+        if during_combat {
+            let other_modifier = event.modifiers.iter().any(|modifier| {
+                !matches!(
+                    modifier,
+                    SourceEventModifier::DuringCombat | SourceEventModifier::EnteredFrom(_)
+                )
+            });
+            let kind = match verb {
+                SourceEventVerb::Entered if !other_modifier => "enterBattlefield",
+                SourceEventVerb::Died if !other_modifier => "permanentDied",
+                _ => {
+                    return Err(engine_gap(
+                        cursor,
+                        "an engine event matcher for `during combat` on an event other than the source's entry or death",
+                    ));
+                }
+            };
+            let mut lowered = json!({"kind": kind, "object": self_ref(), "duringCombat": true});
+            if *verb == SourceEventVerb::Entered
+                && let Some(origin) = event.modifiers.iter().find_map(|modifier| match modifier {
+                    SourceEventModifier::EnteredFrom(origin) => Some(origin),
+                    _ => None,
+                })
+            {
+                lowered["fromZone"] = json!(origin.zone);
+            }
+            events.push(lowered);
+            continue;
+        }
         // The source entering from a written zone: the entry matcher reads
         // the origin the engine recorded on the entering object.
         if *verb == SourceEventVerb::Entered
@@ -600,6 +650,21 @@ fn lower_source_event_patterns(
             && event
                 .modifiers
                 .contains(&SourceEventModifier::AttackingAlone);
+        // The attacked object is an attribute of the attack record only.
+        let attacked = event.modifiers.iter().find_map(|modifier| match modifier {
+            SourceEventModifier::AttackedRecipients(recipients)
+                if *verb == SourceEventVerb::Attacked =>
+            {
+                Some(recipients.as_slice())
+            }
+            _ => None,
+        });
+        if attacked.is_some() && not_blocked {
+            return Err(engine_gap(
+                cursor,
+                "an engine event matcher for an attacked recipient of an unblocked attacker",
+            ));
+        }
         let counterpart = event.modifiers.iter().find_map(|modifier| match modifier {
             SourceEventModifier::Counterpart(node) if node.verb == *verb => Some(node),
             _ => None,
@@ -663,7 +728,13 @@ fn lower_source_event_patterns(
                 continue;
             }
         };
-        if !alone && counterpart.is_none() && !first_time && !not_blocked && turn_owner.is_none() {
+        if !alone
+            && counterpart.is_none()
+            && attacked.is_none()
+            && !first_time
+            && !not_blocked
+            && turn_owner.is_none()
+        {
             events.push(lower_source_event_union(
                 cursor,
                 &SourceEventUnionNode {
@@ -699,6 +770,9 @@ fn lower_source_event_patterns(
             pattern["turnOrdinal"] = json!(1);
         }
         apply_turn_owner(&mut pattern, turn_owner);
+        if let Some(recipients) = attacked {
+            pattern["attacked"] = lower_attacked_recipients(cursor, recipients)?;
+        }
         if let Some(counterpart) = counterpart {
             if counterpart.query.controller.is_some()
                 || counterpart.query.predicate.contains_numeric_comparison()
@@ -884,6 +958,9 @@ fn lower_object_event(
         if per_event {
             lowered["aggregation"] = json!("oneOrMore");
         }
+        if event.modifiers.during_combat {
+            lowered["duringCombat"] = json!(true);
+        }
         return Ok(lowered);
     }
     if let ObjectEventVerb::LeaveBattlefield | ObjectEventVerb::PutIntoGraveyardFromBattlefield =
@@ -922,6 +999,7 @@ fn lower_object_event(
         let established = DamageDealtComplement {
             kind: DamageKind::Combat,
             recipient: Some(DamageRecipient::Player(EventActorScope::AnyPlayer)),
+            alternatives: Vec::new(),
         };
         let complement = event.damage.as_ref().unwrap_or(&established);
         // `one or more SOURCES deal combat damage to you`: the received-combat
@@ -1002,7 +1080,8 @@ fn lower_object_event(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     return Err(cursor.fail("a positive controller relation for an attacker"));
                 }
@@ -1016,6 +1095,12 @@ fn lower_object_event(
                 object["excludeSource"] = json!(true);
             }
             let modifiers = event.modifiers;
+            if modifiers.during_combat {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `during combat` on an attack",
+                ));
+            }
             // The unblocked record carries no per-turn ordinal.
             if modifiers.not_blocked && modifiers.first_time_each_turn {
                 return Err(engine_gap(
@@ -1137,7 +1222,8 @@ fn lower_object_event(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     return Err(cursor.fail("a positive controller relation for a combatant"));
                 }
@@ -1258,7 +1344,11 @@ fn lower_damage_permanent_query(
         Some(ObjectControllerScope::OpponentOfAbilityController) => {
             target["controller"] = json!({"kind": "opponentsOf", "player": controller()});
         }
-        Some(ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer) => {
+        Some(
+            ObjectControllerScope::NotAbilityController
+            | ObjectControllerScope::EventPlayer
+            | ObjectControllerScope::Player(_),
+        ) => {
             return Err(cursor.fail("a positive controller relation for a damage event object"));
         }
     }
@@ -1593,7 +1683,8 @@ fn lower_transition_branch(
                 }
                 Some(
                     ObjectControllerScope::NotAbilityController
-                    | ObjectControllerScope::EventPlayer,
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_),
                 ) => {
                     cursor.enter("trigger.program.event-controller-support");
                     return Err(
@@ -1747,12 +1838,48 @@ fn lower_local_event(
             apply_damage_event_kind(cursor, &mut lowered, *damage)?;
             Ok(lowered)
         }
-        LocalTriggerEventNode::AttachedObjectEvent { role: _, action } => {
+        LocalTriggerEventNode::AttachedObjectBlock {
+            role: _,
+            verb,
+            counterpart,
+        } => lower_attached_block_event(cursor, *verb, counterpart.as_ref()),
+        // CR 603.10a: the attachment looks back at the departed object it was
+        // attached to; the generic move pattern reads the destination.
+        LocalTriggerEventNode::AttachedObjectDeparture {
+            role: _,
+            destination,
+        } => {
+            let mut lowered = json!({
+                "kind": "eventPattern",
+                "lemma": "move",
+                "subject": {"object": {"kind": "attachedPermanent", "attachment": self_ref()}},
+                "from": "battlefield",
+            });
+            if let Some(destination) = destination {
+                lowered["to"] = json!(destination);
+            }
+            Ok(lowered)
+        }
+        LocalTriggerEventNode::AttachedObjectEvent {
+            role: _,
+            action,
+            alone,
+        } => {
+            if *alone && *action != AttachedObjectEventAction::Attack {
+                return Err(engine_gap(
+                    cursor,
+                    "an engine event matcher for `alone` on an attached event other than an attack",
+                ));
+            }
             // The runtime resolves the subject from the source's attachment;
             // Aura and Equipment attachments share the same matcher.
             Ok(match action {
                 AttachedObjectEventAction::DealCombatDamageToPlayer => {
                     json!({"kind": "attachedPermanentCombatDamageToPlayer"})
+                }
+                // CR 506.5: the attack-declaration record carries `alone`.
+                AttachedObjectEventAction::Attack if *alone => {
+                    json!({"kind": "attachedPermanentDeclaredAttacker", "attackingAlone": true})
                 }
                 AttachedObjectEventAction::Attack => {
                     json!({"kind": "attachedPermanentDeclaredAttacker"})
@@ -1798,6 +1925,44 @@ fn lower_local_event(
             ))
         }
     }
+}
+
+/// The block of the attached object (CR 509.1a, 509.1h): once per combat
+/// without a counterpart, once per block pair with one, the other combatant
+/// read on its printed definition by the established attachment matchers.
+fn lower_attached_block_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    verb: AttachedBlockVerb,
+    counterpart: Option<&ObjectQueryNode>,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.attached-block.counterpart-support");
+    let Some(counterpart) = counterpart else {
+        return match verb {
+            AttachedBlockVerb::Blocks => Ok(json!({"kind": "attachedPermanentDeclaredBlocker"})),
+            AttachedBlockVerb::BecomesBlocked => {
+                Err(cursor.fail("`becomes blocked by` with the blocking creature"))
+            }
+        };
+    };
+    if counterpart.controller.is_some()
+        || counterpart.exclude_source
+        || counterpart.predicate.contains_numeric_comparison()
+        || !domain_filter_is_representable(&counterpart.predicate)
+    {
+        return Err(engine_gap(
+            cursor,
+            "an engine event matcher for an attached block counterpart without controller or numeric characteristics",
+        ));
+    }
+    let filter = lower_permanent_object_predicate(&counterpart.predicate);
+    if filter.is_null() {
+        return Err(engine_gap(cursor, "a lowered block counterpart predicate"));
+    }
+    let kind = match verb {
+        AttachedBlockVerb::Blocks => "attachedCreatureBlocks",
+        AttachedBlockVerb::BecomesBlocked => "attachedCreatureBecameBlocked",
+    };
+    Ok(json!({"kind": kind, "attachment": self_ref(), "where": filter}))
 }
 
 /// Keyword actions whose canonical producer emits the completed named-action
@@ -2037,7 +2202,30 @@ fn lower_fixed_player_event(
         (PlayerEventAction::FaceDilemma, EventActorScope::Controller) => {
             Ok(json!({"kind": "dilemmaFaced", "player": player}))
         }
-        (PlayerEventAction::Attack | PlayerEventAction::FaceDilemma, _) => Err(cursor.fail(
+        // CR 305.1: the land-play special action of the related player; the
+        // runtime records the playing player as the triggering player.
+        (PlayerEventAction::PlayLand, _) => Ok(json!({"kind": "landPlayed", "player": player})),
+        // CR 709.5: the Room face's own door; the pipeline places the rule
+        // on its door (`roomDoorIndex`).
+        (PlayerEventAction::UnlockSourceDoor, EventActorScope::Controller) => {
+            Ok(json!({"kind": "doorUnlocked", "object": self_ref()}))
+        }
+        (PlayerEventAction::FullyUnlockRoom, _) => {
+            Ok(json!({"kind": "roomFullyUnlocked", "player": player}))
+        }
+        // CR 701.58: the caster's total mana spent on spells this turn
+        // reaches the threshold.
+        (PlayerEventAction::Expend(threshold), _) => Ok(json!({
+            "kind": "manaExpended",
+            "player": player,
+            "threshold": threshold,
+        })),
+        (
+            PlayerEventAction::Attack
+            | PlayerEventAction::FaceDilemma
+            | PlayerEventAction::UnlockSourceDoor,
+            _,
+        ) => Err(cursor.fail(
             "a controller actor for this player event (the runtime matches only the source controller)",
         )),
         (

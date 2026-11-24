@@ -37,7 +37,9 @@ pub(in crate::oracle::canonical) fn ordinary_keyword_subject(
 
 /// True when the operand denotes several permanents: a collection, several
 /// target slots, or a slot whose maximum exceeds one.
-fn permanent_operand_is_plural(operand: &PermanentOperandNode) -> bool {
+pub(in crate::oracle::canonical) fn permanent_operand_is_plural(
+    operand: &PermanentOperandNode,
+) -> bool {
     match operand {
         PermanentOperandNode::Targets(targets) => {
             targets.slots.len() > 1

@@ -40,10 +40,12 @@ fn unclaimed_abilities_are_owned_by_their_structural_frame() {
             "ability-frame.conditional.body",
             "it",
         ),
+        // (Security Rhox's alternative cost now reads through the shared
+        // alternative-cost sentence; a ward-cost replacement does not.)
         (
-            "Security Rhox",
-            "Creature — Rhino Warrior",
-            "You may pay {R}{G} rather than pay this spell's mana cost.",
+            "Gavi, Nest Warden",
+            "Legendary Creature — Human Shaman",
+            "You may pay {0} rather than pay the ward cost for the first spell or ability you cast each turn that targets a creature you control.",
             "ability-frame.permission.action",
             "pay",
         ),

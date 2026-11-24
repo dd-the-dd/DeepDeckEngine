@@ -1,0 +1,371 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/program-reminder-owners",
+  "cases": [
+    {
+      "id": "exact-fleshformer-generic-keyword-holder",
+      "request": {
+        "cardName": "Fleshformer",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{B}",
+        "oracleText": "{W}{U}{B}{R}{G}: This creature gets +2/+2 and gains fear until end of turn. Target creature gets -2/-2 until end of turn. Activate only during your turn. (A creature with fear can't be blocked except by artifact creatures and/or black creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-undercity-necrolisk-singular-pronoun",
+      "request": {
+        "cardName": "Undercity Necrolisk",
+        "typeLine": "Creature — Zombie Lizard",
+        "manaCost": "{3}{B}",
+        "oracleText": "{1}, Sacrifice another creature: Put a +1/+1 counter on this creature. It gains menace until end of turn. Activate only as a sorcery. (It can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-steadfast-unicorn-plural-object-slot",
+      "request": {
+        "cardName": "Steadfast Unicorn",
+        "typeLine": "Creature — Unicorn",
+        "manaCost": "{W}",
+        "oracleText": "{3}{W}: Creatures you control get +1/+1 and gain vigilance until end of turn. Activate only during your turn. (Attacking doesn't cause them to tap.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-burdened-stoneback-indestructible-pronoun",
+      "request": {
+        "cardName": "Burdened Stoneback",
+        "typeLine": "Creature — Giant Warrior",
+        "manaCost": "{1}{W}",
+        "oracleText": "This creature enters with two -1/-1 counters on it.\n{1}{W}, Remove a counter from this creature: Target creature gains indestructible until end of turn. Activate only as a sorcery. (Damage and effects that say \"destroy\" don't destroy it. If its toughness is 0 or less, it still dies.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-arnim-zola-created-token-keyword",
+      "request": {
+        "cardName": "Arnim Zola, Bio-Fanatic",
+        "typeLine": "Legendary Artifact Creature — Scientist Villain",
+        "manaCost": "{2}{B}",
+        "oracleText": "{3}, {T}: Create a tapped 2/1 black Villain creature token with menace. Activate only if there are two or more creature cards in your graveyard. (It can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mardu-monument-holder-after-bound-tokens",
+      "request": {
+        "cardName": "Mardu Monument",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "When this artifact enters, search your library for a basic Mountain, Plains, or Swamp card, reveal it, put it into your hand, then shuffle.\n{2}{R}{W}{B}, {T}, Sacrifice this artifact: Create three 1/1 red Warrior creature tokens. They gain menace and haste until end of turn. Activate only as a sorcery. (A creature with menace can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-hidden-volcano-discover-quantity",
+      "request": {
+        "cardName": "Hidden Volcano",
+        "typeLine": "Land — Cave",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {R}.\n{4}{R}, {T}, Sacrifice this land: Discover 4. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 4 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-seeker-of-sunlight-explore-source",
+      "request": {
+        "cardName": "Seeker of Sunlight",
+        "typeLine": "Creature — Merfolk Scout",
+        "manaCost": "{G}",
+        "oracleText": "{2}{G}: This creature explores. Activate only as a sorcery. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on this creature, then put the card back or put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-valentina-connive-target",
+      "request": {
+        "cardName": "Valentina Allegra de Fontaine",
+        "typeLine": "Legendary Creature — Human Spy Villain",
+        "manaCost": "{2}{B}",
+        "oracleText": "Other Villains you control are Heroes in addition to their other types.\n{T}: Target Hero you control connives. Activate only as a sorcery. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-joo-dee-earlier-surveil-owns-reminder",
+      "request": {
+        "cardName": "Joo Dee, One of Many",
+        "typeLine": "Creature — Human Advisor",
+        "manaCost": "{1}{B}",
+        "oracleText": "{B}, {T}: Surveil 1. Create a token that's a copy of this creature, then sacrifice an artifact or creature. Activate only as a sorcery. (To surveil 1, look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-goro-goro-modified-glossary",
+      "request": {
+        "cardName": "Goro-Goro, Disciple of Ryusei",
+        "typeLine": "Legendary Creature — Goblin Samurai",
+        "manaCost": "{1}{R}",
+        "oracleText": "{R}: Creatures you control gain haste until end of turn.\n{3}{R}{R}: Create a 5/5 red Dragon Spirit creature token with flying. Activate only if you control an attacking modified creature. (Equipment, Auras you control, and counters are modifications.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-homicide-investigator-trigger-limit-investigate",
+      "request": {
+        "cardName": "Homicide Investigator",
+        "typeLine": "Creature — Human Detective",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever one or more nontoken creatures you control die, investigate. This ability triggers only once each turn. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mach-1-trigger-limit-surveil",
+      "request": {
+        "cardName": "MACH-1, Swooping Scoundrel",
+        "typeLine": "Legendary Artifact Creature — Human Villain",
+        "manaCost": "{1}{B}",
+        "oracleText": "Flying\nWhen MACH-1 enters and whenever you gain life, surveil 1. This ability triggers only once each turn. (To surveil 1, look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-discover-two-after-sorcery-restriction",
+      "request": {
+        "cardName": "Generic Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}, Sacrifice this artifact: Discover 2. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 2 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-two-granted-keywords-singular-pronoun-trigger-limit",
+      "request": {
+        "cardName": "Generic Sentry",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you gain life, target creature gains shroud and menace until end of turn. This ability triggers only once each turn. (It can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-discover-reminder-with-another-quantity",
+      "request": {
+        "cardName": "Generic Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}, Sacrifice this artifact: Discover 2. Activate only as a sorcery. (Exile cards from the top of your library until you exile a nonland card with mana value 3 or less. Cast it without paying its mana cost or put it into your hand. Put the rest on the bottom in a random order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "reminder.discover.quantity-match"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-singular-pronoun-for-a-collection",
+      "request": {
+        "cardName": "Generic Banner",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}: Creatures you control gain menace until end of turn. Activate only as a sorcery. (It can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "keyword.reminder.subject.pronoun"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-holder-of-a-keyword-not-granted",
+      "request": {
+        "cardName": "Generic Banner",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}: Target creature gains menace until end of turn. Activate only as a sorcery. (A creature with fear can't be blocked except by artifact creatures and/or black creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "keyword.reminder.subject.holder-keyword"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-defined-term-glossary-without-the-term",
+      "request": {
+        "cardName": "Generic Banner",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}: Target creature gets +1/+0 until end of turn. Activate only as a sorcery. (Equipment, Auras you control, and counters are modifications.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.reminder.mechanic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-trigger-limit-reminder-of-another-action",
+      "request": {
+        "cardName": "Generic Sleuth",
+        "typeLine": "Creature — Human Detective",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you gain life, investigate. This ability triggers only once each turn. (Look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "reminder.investigate.create"
+          }
+        ]
+      }
+    }
+  ]
+}

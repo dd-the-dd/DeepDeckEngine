@@ -1683,12 +1683,40 @@
       }
     },
     {
-      "id": "near-miss-keyword-action-without-typed-reminder-grammar",
+      "id": "near-miss-explore-reminder-restating-another-rule",
       "request": {
         "cardName": "Generic Scout",
         "typeLine": "Creature — Human Scout",
         "manaCost": "{2}",
         "oracleText": "{1}, {T}: Target creature you control explores. Activate only as a sorcery. (It deals 2 damage to each opponent.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "reminder.explore.reveal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-keyword-action-without-typed-reminder-grammar",
+      "request": {
+        "cardName": "Generic Scout",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{2}",
+        "oracleText": "{1}, {T}: Goad target creature. Activate only as a sorcery. (It deals 2 damage to each opponent.)",
         "layout": "normal",
         "faces": []
       },

@@ -1,0 +1,339 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/graveyard-populations",
+  "cases": [
+    {
+      "id": "exact-rest-in-peace-exiles-every-graveyard",
+      "request": {
+        "cardName": "Rest in Peace",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "When this enchantment enters, exile all graveyards.\nIf a card or token would be put into a graveyard from anywhere, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/0/to/player/object/kind",
+                "equals": "candidate"
+              },
+              {
+                "pointer": "/effects/0/to/faceDown",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sentinel-totem-activated-zone-batch",
+      "request": {
+        "cardName": "Sentinel Totem",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "When this artifact enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}, Exile this artifact: Exile all graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-all-opponents-graveyards",
+      "request": {
+        "cardName": "Shared Graveyard Sweep",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all opponents' graveyards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponents-graveyard",
+      "request": {
+        "cardName": "Shared Graveyard Sweep",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile each opponent's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lantern-of-the-lost-cards-from-all-graveyards",
+      "request": {
+        "cardName": "Lantern of the Lost",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "When this artifact enters, exile target card from a graveyard.\n{1}, {T}, Exile this artifact: Exile all cards from all graveyards, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-chosen-card-from-a-graveyard-reads-every-graveyard",
+      "request": {
+        "cardName": "Shared Graveyard Pick",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Put a creature card from a graveyard onto the battlefield under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/from/zone/players/kind",
+                "equals": "eachPlayer"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-population-of-hands-is-hidden",
+      "request": {
+        "cardName": "Shared Graveyard Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all cards from all hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dread-tiller-card-from-hand-or-graveyard",
+      "request": {
+        "cardName": "Dread Tiller",
+        "typeLine": "Artifact Creature — Scarecrow",
+        "manaCost": "{1}{B}{G}",
+        "oracleText": "When this creature enters, put a -1/-1 counter on target creature.\nWhenever a creature with a -1/-1 counter on it dies, you may put a land card from your hand or graveyard onto the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-coordinated-owned-zones-are-one-union",
+      "request": {
+        "cardName": "Shared Zone Union",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Put a creature card from your hand or graveyard onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/from/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/effects/0/from/sets/1/zone/kind",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-connector-before-another-action-is-not-a-zone",
+      "request": {
+        "cardName": "Shared Zone Union",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all cards from your graveyard and draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

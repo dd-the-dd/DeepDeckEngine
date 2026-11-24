@@ -121,6 +121,7 @@ mod hand_disruption;
 mod investigate;
 mod keyword;
 mod keyword_action;
+mod keyword_action_reminder;
 mod keyword_grant;
 mod keyword_template;
 mod labeled_activated_effect_sequence;
@@ -148,6 +149,7 @@ mod numeric;
 mod numeric_object_property;
 mod object_argument;
 mod object_predicate;
+mod object_rule_clause;
 mod object_set;
 mod opening_hand_battlefield;
 mod opponent_library_search;
@@ -174,6 +176,7 @@ mod phyrexian_mana;
 mod player_action;
 mod player_condition;
 mod player_counter_sweep;
+mod player_designation;
 mod player_event;
 mod player_numeric_fact;
 mod player_permission;
@@ -229,6 +232,7 @@ mod static_collection_keyword;
 mod static_condition;
 mod static_granted_activation;
 mod static_keyword_grant;
+mod static_player_predicate;
 mod static_spell_reduction;
 mod surveil;
 mod suspend;
@@ -380,6 +384,7 @@ pub(super) use hand_disruption::*;
 pub(super) use investigate::*;
 pub(super) use keyword::*;
 pub(super) use keyword_action::*;
+pub(super) use keyword_action_reminder::*;
 pub(super) use keyword_grant::*;
 pub(super) use keyword_template::*;
 pub(super) use labeled_activated_effect_sequence::*;
@@ -407,6 +412,7 @@ pub(super) use numeric::*;
 pub(super) use numeric_object_property::*;
 pub(super) use object_argument::*;
 pub(super) use object_predicate::*;
+pub(super) use object_rule_clause::*;
 pub(super) use object_set::*;
 pub(super) use opening_hand_battlefield::*;
 pub(super) use opponent_library_search::*;
@@ -432,6 +438,7 @@ pub(super) use phase_trigger_sequence::*;
 pub(super) use phyrexian_mana::*;
 pub(super) use player_action::*;
 pub(super) use player_counter_sweep::*;
+pub(super) use player_designation::*;
 pub(super) use player_event::*;
 pub(super) use player_numeric_fact::*;
 pub(super) use player_permission::*;
@@ -488,6 +495,7 @@ pub(super) use stack_copy::*;
 pub(super) use static_collection_keyword::*;
 pub(super) use static_granted_activation::*;
 pub(super) use static_keyword_grant::*;
+pub(super) use static_player_predicate::*;
 pub(super) use static_spell_reduction::*;
 pub(super) use surveil::*;
 pub(super) use suspend::*;
@@ -898,6 +906,11 @@ pub(super) enum NumericExpression {
     /// The number of the ability controller's opponents with one fact
     /// (`for each opponent you attacked with a creature this combat`).
     OpponentCount(OpponentFact),
+    /// The number (or total amount) of recorded game events matching one
+    /// history pattern (`spells you've cast this turn`, `creatures that died
+    /// this turn`): the same pattern the condition language's EventHistory
+    /// atom compares.
+    EventHistoryCount(Box<EventHistoryCountNode>),
     Add {
         left: Box<NumericExpression>,
         right: Box<NumericExpression>,
@@ -932,9 +945,13 @@ pub(super) enum NumericExpression {
     /// permanents matching the predicate (zero when there are none).
     /// `the greatest|highest PROPERTY among COLLECTION`: a maximum over the
     /// counted battlefield collection (power, toughness or mana value).
+    ///
+    /// With `aggregate: Sum` it is the total of that property instead (`creatures
+    /// you control have total power 8 or greater`), zero when there are none.
     GreatestPropertyAmong {
         property: SelectorNumericProperty,
         predicate: ObjectPredicate,
+        aggregate: PropertyAggregate,
     },
     /// The number of objects an earlier action of the same program affected
     /// (`for each creature destroyed this way`, CR 608.2c). Only the program
@@ -954,6 +971,15 @@ pub(super) enum NumericExpression {
     },
 }
 
+/// How a numeric property is aggregated over a collection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum PropertyAggregate {
+    /// The greatest value (`the greatest power among`).
+    Greatest,
+    /// The sum of the values (`total power`).
+    Sum,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct PermanentCountNode {
     pub predicate: ObjectPredicate,
@@ -962,10 +988,13 @@ pub(super) struct PermanentCountNode {
     pub measure: PermanentCountMeasure,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum PlayerNumericFact {
     LifeGainedThisTurn,
     LifeTotal,
+    /// The counters of one kind the player has (CR 122.1: experience,
+    /// poison, energy).
+    Counters(crate::oracle::counter_name::CounterName),
 }
 
 /// A fact about one opponent of the ability controller that a count reads.
@@ -975,6 +1004,9 @@ pub(super) enum OpponentFact {
     /// combat (CR 506.2, 702.121a); attacking its planeswalkers or battles
     /// is not attacking the player.
     AttackedByControllerThisCombat,
+    /// Every opponent of the controller still in the game (`the number of
+    /// opponents you have`, CR 102.3).
+    Any,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1114,6 +1146,7 @@ impl NumericExpression {
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
             | Self::OpponentCount(_)
+            | Self::EventHistoryCount(_)
             | Self::Devotion(_)
             | Self::ActionResultQuantity { .. }
             | Self::PlayerFact { .. }
@@ -1202,6 +1235,9 @@ pub(super) enum ObjectControllerScope {
     /// `that player` after an event naming one), resolved by the C2
     /// binding environment.
     EventPlayer,
+    /// One other player the query names (`target opponent controls`, `its
+    /// controller controls`); lowered by `effects::lower_related_player`.
+    Player(RelatedPlayer),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1256,6 +1292,9 @@ pub(super) enum GrantedKeyword {
     BlockEachCombatIfAble,
     MaxOneBlocker,
     MustBeBlockedIfAble,
+    /// `assigns no combat damage` (CR 510.1): the object assigns no combat
+    /// damage while the marker lasts.
+    AssignsNoCombatDamage,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1318,6 +1357,7 @@ impl GrantedKeyword {
             Self::BlockEachCombatIfAble => "blockEachCombatIfAble",
             Self::MaxOneBlocker => "maxOneBlocker",
             Self::MustBeBlockedIfAble => "mustBeBlockedIfAble",
+            Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -1598,6 +1638,9 @@ pub(in crate::oracle::canonical) enum CounterChangeDirection {
     #[default]
     Put,
     Remove,
+    /// `distribute N counters among TARGETS` (CR 601.2d): `count` is divided
+    /// among the declared targets, at least one each.
+    Divided,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1646,6 +1689,8 @@ pub(in crate::oracle::canonical) enum SourceZone {
     Exile,
     Graveyard,
     Hand,
+    /// Its owner's library, shuffled after the move (CR 701.24b).
+    Library,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1669,6 +1714,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     pub controller: SourceMoveController,
     /// `to the battlefield tapped` (CR 110.5): the source enters tapped.
     pub tapped: bool,
+    /// `to the battlefield attached to OBJECT` (CR 303.4f, 301.5c): the
+    /// permanent the entering Aura or Equipment becomes attached to.
+    pub attached_to: Option<PermanentOperandNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1928,6 +1976,14 @@ pub(super) struct LibrarySearchEffectNode {
     pub slots: Vec<ObjectPredicate>,
     pub minimum: u32,
     pub maximum: u32,
+    /// The shared typed count (`up to X`, `X`, `that many`) when the count
+    /// is not two positive literals; `minimum`/`maximum` are then only the
+    /// expressed envelope, and the lowering reads this count instead.
+    pub count: Option<TargetCount>,
+    /// `up to X basic land cards, where X is EXPR, put them ...`: the
+    /// postposed definition read right after the counted phrase it defines
+    /// (CR 107.3). The sentence parent takes it and owns its scope.
+    pub where_x: Option<NumericExpression>,
     pub destination: SearchDestination,
     pub reveal: bool,
     pub shuffle_order: SearchShuffleOrder,
@@ -2136,6 +2192,10 @@ pub(super) enum PermanentKeywordAction {
     /// `OBJECT becomes DESIGNATION` (CR 701.37b, 702.112b): the designating
     /// half of monstrosity and renown, read from the shared registry.
     BecomeDesignated(PermanentDesignation),
+    /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
+    PhaseOut,
+    /// `remove OBJECT from combat` (CR 506.4).
+    RemoveFromCombat,
 }
 
 impl PermanentKeywordAction {
@@ -2176,7 +2236,9 @@ impl PermanentKeywordAction {
             | Self::Suspect
             | Self::Detain
             | Self::Explore
-            | Self::BecomeDesignated(_) => KeywordQuantityPolicy::None,
+            | Self::BecomeDesignated(_)
+            | Self::PhaseOut
+            | Self::RemoveFromCombat => KeywordQuantityPolicy::None,
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2203,6 +2265,8 @@ impl PermanentKeywordAction {
             Self::Adapt => "adapt",
             Self::Monstrosity => "monstrosity",
             Self::BecomeDesignated(designation) => designation.flag(),
+            Self::PhaseOut => "phase out",
+            Self::RemoveFromCombat => "remove from combat",
         }
     }
 }
@@ -2435,7 +2499,8 @@ mod permanent_subject;
 mod token_window;
 mod unsupported_word;
 pub(in crate::oracle::canonical) use permanent_action::{
-    PermanentActionAttempt, ordinary_keyword_subject, try_recognize_permanent_action,
+    PermanentActionAttempt, ordinary_keyword_subject, permanent_operand_is_plural,
+    try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
     ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,

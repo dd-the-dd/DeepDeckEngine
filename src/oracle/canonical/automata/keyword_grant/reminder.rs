@@ -21,6 +21,15 @@ pub(super) enum KeywordReminderNode {
 enum KeywordReminderSubjectContext<'a> {
     SelfObject,
     BoundCollection(&'a ObjectPredicate),
+    /// The objects an effect grants the keyword to (or the tokens it
+    /// creates with it), named by the pronoun that agrees with the effect's
+    /// operand (`It can't be blocked ...`, `Attacking doesn't cause them to
+    /// tap.`) or by the keyword's generic holder (`A creature with fear
+    /// can't be blocked ...`).
+    GrantedObjects {
+        plural: bool,
+        keyword: GrantedKeyword,
+    },
 }
 
 #[derive(Clone, Copy)]
@@ -30,6 +39,12 @@ enum ParameterlessReminderSchema {
         predicate: &'static [&'static str],
     },
     Exact(&'static [&'static str]),
+    /// An exact sentence with one object slot: `this creature` for the
+    /// keyword's own holder, the agreeing pronoun for granted objects.
+    ObjectSlot {
+        prefix: &'static [&'static str],
+        suffix: &'static [&'static str],
+    },
     ExaltedModifier {
         prefix: &'static [&'static str],
         suffix: &'static [&'static str],
@@ -511,16 +526,10 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
             "Aura",
             ".",
         ]),
-        GrantedKeyword::Vigilance => ParameterlessReminderSchema::Exact(&[
-            "Attacking",
-            "doesn't",
-            "cause",
-            "this",
-            "creature",
-            "to",
-            "tap",
-            ".",
-        ]),
+        GrantedKeyword::Vigilance => ParameterlessReminderSchema::ObjectSlot {
+            prefix: &["Attacking", "doesn't", "cause"],
+            suffix: &["to", "tap", "."],
+        },
         _ => return None,
     })
 }
@@ -610,7 +619,12 @@ fn consume_fixed_counter_value(
     Ok(())
 }
 
-fn recognize_indestructible_reminder(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+/// `granted_pronoun` names granted objects (`it` / `them`, by plurality)
+/// instead of the keyword's own holder (`this PERMANENT`).
+fn recognize_indestructible_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    granted_pronoun: Option<bool>,
+) -> MachineResult<()> {
     cursor.enter("keyword.indestructible.reminder.damage-or-effects");
     if cursor
         .peek()
@@ -622,23 +636,29 @@ fn recognize_indestructible_reminder(cursor: &mut OracleTokenCursor<'_>) -> Mach
     consume_exact_tokens(
         cursor,
         &[
-            "Effects", "that", "say", "\"", "destroy", "\"", "don't", "destroy", "this",
+            "Effects", "that", "say", "\"", "destroy", "\"", "don't", "destroy",
         ],
     )?;
     cursor.enter("keyword.indestructible.reminder.subject");
-    let subject = cursor
-        .peek()
-        .ok_or_else(|| cursor.fail("a singular permanent type in the Indestructible reminder"))?;
-    cursor.require(
-        lookup_permanent_card_type(subject, AcceptedForms::SingularOnly).is_some(),
-        "a singular permanent type in the Indestructible reminder",
-    )?;
-    cursor.advance_to(cursor.position() + 1)?;
+    if let Some(plural) = granted_pronoun {
+        cursor.consume(if plural { "them" } else { "it" })?;
+    } else {
+        cursor.consume("this")?;
+        let subject = cursor.peek().ok_or_else(|| {
+            cursor.fail("a singular permanent type in the Indestructible reminder")
+        })?;
+        cursor.require(
+            lookup_permanent_card_type(subject, AcceptedForms::SingularOnly).is_some(),
+            "a singular permanent type in the Indestructible reminder",
+        )?;
+        cursor.advance_to(cursor.position() + 1)?;
+    }
     cursor.enter("keyword.indestructible.reminder.terminator");
     cursor.consume(".")?;
     // Printed second sentence about zero toughness; both observed wordings
     // are registered and anything else fails at the closing parenthesis.
-    if cursor.peek() == Some("If") {
+    // Its singular pronouns describe one object.
+    if cursor.peek() == Some("If") && granted_pronoun != Some(true) {
         cursor.enter("keyword.indestructible.reminder.zero-toughness");
         consume_exact_tokens(
             cursor,
@@ -675,7 +695,8 @@ fn recognize_landwalk_reminder(
 ) -> MachineResult<()> {
     cursor.enter("keyword.landwalk.reminder.subject");
     match context {
-        KeywordReminderSubjectContext::SelfObject => {
+        KeywordReminderSubjectContext::SelfObject
+        | KeywordReminderSubjectContext::GrantedObjects { .. } => {
             recognize_reminder_subject(cursor, ObjectCardType::Creature, context)?;
         }
         KeywordReminderSubjectContext::BoundCollection(predicate) => {
@@ -877,9 +898,64 @@ fn recognize_reminder_subject(
                 "a reminder subject implied by every object in the bound collection",
             )?;
         }
+        KeywordReminderSubjectContext::GrantedObjects { plural, keyword } => {
+            if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("a"))
+            {
+                return recognize_generic_keyword_holder(cursor, subject_type, keyword);
+            }
+            cursor.enter("keyword.reminder.subject.pronoun");
+            return cursor.consume(if plural { "They" } else { "It" });
+        }
     }
     cursor.advance_to(cursor.position() + 1)?;
     Ok(())
+}
+
+/// `A creature with KEYWORD`: the generic holder of the keyword the
+/// reminder explains (CR 702), whatever object the effect grants it to.
+fn recognize_generic_keyword_holder(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject_type: ObjectCardType,
+    keyword: GrantedKeyword,
+) -> MachineResult<()> {
+    cursor.enter("keyword.reminder.subject.holder");
+    cursor.consume("A")?;
+    let noun = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("a singular reminder subject"))?;
+    cursor.require(
+        lookup_permanent_card_type(noun, AcceptedForms::SingularOnly) == Some(subject_type),
+        "the registered singular keyword reminder subject",
+    )?;
+    cursor.advance_to(cursor.position() + 1)?;
+    cursor.consume("with")?;
+    cursor.enter("keyword.reminder.subject.holder-keyword");
+    let canonical_id = keyword_registry_id(keyword)
+        .ok_or_else(|| cursor.fail("a registered reminder grammar for this keyword"))?;
+    for word in canonical_id.split('-') {
+        cursor.consume(word)?;
+    }
+    Ok(())
+}
+
+/// The object slot of a reminder sentence: the keyword's own holder
+/// (`this creature`) or the pronoun agreeing with the granted objects.
+fn recognize_reminder_object_slot(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: KeywordReminderSubjectContext<'_>,
+) -> MachineResult<()> {
+    cursor.enter("keyword.reminder.object");
+    match context {
+        KeywordReminderSubjectContext::SelfObject => cursor.consume_phrase(&["this", "creature"]),
+        KeywordReminderSubjectContext::GrantedObjects { plural, .. } => {
+            cursor.consume(if plural { "them" } else { "it" })
+        }
+        KeywordReminderSubjectContext::BoundCollection(_) => {
+            Err(cursor.fail("a registered reminder predicate with a bound collection subject"))
+        }
+    }
 }
 
 fn recognize_parameterless_reminder(
@@ -942,6 +1018,12 @@ fn recognize_reminder_schema(
             )?;
             consume_exact_tokens(cursor, expected)?;
         }
+        ParameterlessReminderSchema::ObjectSlot { prefix, suffix } => {
+            consume_exact_tokens(cursor, prefix)?;
+            recognize_reminder_object_slot(cursor, context)?;
+            cursor.enter("keyword.reminder.body");
+            consume_exact_tokens(cursor, suffix)?;
+        }
         ParameterlessReminderSchema::ExaltedModifier { prefix, suffix } => {
             cursor.require(
                 matches!(context, KeywordReminderSubjectContext::SelfObject),
@@ -961,11 +1043,15 @@ fn recognize_reminder_schema(
             consume_exact_tokens(cursor, suffix)?;
         }
         ParameterlessReminderSchema::Indestructible => {
-            cursor.require(
-                matches!(context, KeywordReminderSubjectContext::SelfObject),
-                "a registered reminder predicate with a bound collection subject",
-            )?;
-            recognize_indestructible_reminder(cursor)?;
+            let granted_pronoun = match context {
+                KeywordReminderSubjectContext::SelfObject => None,
+                KeywordReminderSubjectContext::GrantedObjects { plural, .. } => Some(plural),
+                KeywordReminderSubjectContext::BoundCollection(_) => {
+                    return Err(cursor
+                        .fail("a registered reminder predicate with a bound collection subject"));
+                }
+            };
+            recognize_indestructible_reminder(cursor, granted_pronoun)?;
         }
         ParameterlessReminderSchema::Landwalk(word) => {
             recognize_landwalk_reminder(cursor, word, context)?;
@@ -1133,6 +1219,47 @@ fn recognize_optional_keyword_reminder_in_context(
     cursor.enter("keyword.reminder.close");
     cursor.consume(")")?;
     Ok(Some(reminder))
+}
+
+/// A reminder after an effect that grants KEYWORDS (or creates tokens with
+/// them) explains one of those keywords about the granted objects. Every
+/// candidate reads the same tokens; the parenthetical is never skipped.
+pub(super) fn recognize_granted_keyword_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    keywords: &[GrantedKeyword],
+    plural: bool,
+) -> MachineResult<()> {
+    cursor.enter("keyword.reminder.granted");
+    if cursor.peek() != Some("(") || keywords.is_empty() {
+        return Err(cursor.fail("a reminder of a keyword this effect grants"));
+    }
+    let checkpoint = cursor.checkpoint();
+    let mut best_failure: Option<MachineFailure> = None;
+    for (index, keyword) in keywords.iter().enumerate() {
+        if index > 0 {
+            cursor.rollback(checkpoint);
+        }
+        match recognize_optional_keyword_reminder_in_context(
+            cursor,
+            &KeywordAtomNode::Parameterless(*keyword),
+            KeywordReminderSubjectContext::GrantedObjects {
+                plural,
+                keyword: *keyword,
+            },
+        ) {
+            Ok(Some(_)) => return Ok(()),
+            Ok(None) => unreachable!("annotation opener was checked"),
+            Err(failure) => {
+                if best_failure
+                    .as_ref()
+                    .is_none_or(|best| failure.token_index > best.token_index)
+                {
+                    best_failure = Some(failure);
+                }
+            }
+        }
+    }
+    Err(best_failure.expect("at least one granted keyword was tried"))
 }
 
 /// A trailing annotation must describe one keyword granted by this parent.

@@ -39,6 +39,8 @@ pub(in crate::oracle::canonical) enum GenericTriggerEventNode {
         /// `enters or dies`: the other transition of the same subjects, an
         /// alternative event (one occurrence each, never both at once).
         union_kind: Option<PermanentTransitionKind>,
+        /// `during combat` (CR 506.1): the transition happens in a combat step.
+        during_combat: bool,
     },
     Local(LocalTriggerEventNode),
     /// Shared quantified subject + event verb (`one or more cards leave …`).
@@ -189,9 +191,21 @@ impl GenericTriggerEventNode {
         }
     }
 
+    /// `When you cast this spell` (CR 601.2i): the ability functions while
+    /// its object is a spell on the stack (CR 113.6), whatever the card's
+    /// types; the cast spell is still the ability's source.
+    pub(in crate::oracle::canonical) fn functions_on_the_stack(&self) -> bool {
+        match self {
+            Self::SpellCast(event) => event.source_spell,
+            Self::Conditioned { event, .. } => event.functions_on_the_stack(),
+            _ => false,
+        }
+    }
+
     /// A cycling trigger functions while its card is cycled from the hand
     /// (CR 702.29), so any card type may own it. Every other event here is
-    /// observed by a permanent on the battlefield.
+    /// observed by a permanent on the battlefield (`functions_on_the_stack`
+    /// names the spell's own cast).
     pub(in crate::oracle::canonical) fn requires_permanent_face(&self) -> bool {
         match self {
             Self::Compound(members) => members.iter().any(Self::requires_permanent_face),

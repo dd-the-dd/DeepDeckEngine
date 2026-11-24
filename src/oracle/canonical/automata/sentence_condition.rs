@@ -340,6 +340,11 @@ fn read_condition_atom(
     {
         return super::recognize_controller_history_atom(cursor);
     }
+    // Compare: the objects an earlier action affected (`a land card was
+    // milled this way`).
+    if super::action_result_condition_starts(cursor) {
+        return super::recognize_action_result_condition_atom(cursor);
+    }
     // EventHistory with an object quantity: `a creature died this turn`, `no
     // spells were cast last turn`.
     if super::object_event_history_starts(cursor) {
@@ -349,6 +354,14 @@ fn read_condition_atom(
     if existential_counter_follows(cursor) {
         return recognize_existential_counter_atom(cursor, context)
             .map(ConditionAtom::ObjectSatisfies);
+    }
+    // Compare: `creatures you control have total power N or greater` (sum).
+    if super::collection_total_atom_starts(cursor) {
+        return super::recognize_collection_total_atom(cursor);
+    }
+    // Compare: `there are N or more MEASURE among COLLECTION` (distinct values).
+    if super::distinct_measure_atom_starts(cursor) {
+        return super::recognize_distinct_measure_atom(cursor);
     }
     // Compare: `there are N or more CARDS in your graveyard`.
     if word_is(cursor, 0, "there") || contraction_is(cursor, 0, "there", "s") {
@@ -1168,13 +1181,34 @@ fn recognize_referenced_object_atom(
             context.program,
             "a nominal anaphor of an effect program's proven antecedent",
         )?;
-        ConditionObjectReference::Permanent(recognize_nominal_object_read(
-            cursor,
-            &BindingEnvironment::for_permanent_context(program.effects),
-        )?)
+        let environment = condition_binding_environment(cursor, program.effects);
+        ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
     };
     let predicate = recognize_object_state_predicate(cursor, false)?;
     finish_referenced_object(cursor, context, object, predicate)
+}
+
+/// The environment a condition's nominal anaphor reads: the condition
+/// position's proven antecedent (its scope may be the one after the gated
+/// action of a postposed condition), with the declared selector the
+/// enclosing program published for that same antecedent when the condition
+/// context does not carry it (`Target creature you control gains
+/// indestructible until end of turn. Draw a card if that creature has a
+/// +1/+1 counter on it.`). The selector belongs to the one declaration both
+/// name; a different antecedent is never borrowed.
+fn condition_binding_environment(
+    cursor: &OracleTokenCursor<'_>,
+    effects: &EffectRecognitionContext,
+) -> BindingEnvironment {
+    let mut environment = BindingEnvironment::for_permanent_context(effects);
+    let installed = installed_binding_environment(cursor);
+    if let (Some(object), Some(published)) = (environment.object.as_mut(), installed.object)
+        && object.selector.is_none()
+        && object.reference == published.reference
+    {
+        object.selector = published.selector;
+    }
+    environment
 }
 
 /// The verb phrase after a referenced object: a copula with a registered
@@ -1422,6 +1456,18 @@ fn resolve_object_anaphor(
     }
     if program.card_focus {
         candidates.push(ConditionObjectReference::CardFocus);
+    }
+    // Precedence typed by noun kind (CR 400.7): the card the latest card
+    // action put onto the battlefield became the permanent that action
+    // moved, so the singular card result and that permanent are one
+    // antecedent, read as the permanent (`Return target creature card from
+    // your graveyard to the battlefield. If it's an Angel, ...`). The scope
+    // is the moved permanent only right after the move, whose card action is
+    // then the latest one the card focus reads.
+    if candidates.contains(&ConditionObjectReference::Permanent(
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
+    )) {
+        candidates.retain(|candidate| *candidate != ConditionObjectReference::CardFocus);
     }
     match candidates.as_slice() {
         [reference] => Ok(*reference),

@@ -69,6 +69,10 @@ impl ConditionScope {
     /// source permanent keeps (the mana spent to cast it, CR 601.2h), which
     /// a continuously evaluated or `unless` condition can still read.
     pub(in crate::oracle::canonical) fn allows_atom(self, atom: &ConditionAtom) -> bool {
+        // The objects an earlier action affected exist only in a program.
+        if atom.reads_action_result() {
+            return self == Self::Program;
+        }
         self.allows(atom.family())
             || (matches!(self, Self::Static | Self::Unless) && atom.is_source_cast_record())
     }
@@ -180,6 +184,18 @@ impl ConditionAtom {
             Self::ActionOutcome(ActionOutcomeNode::PreviousActionImpossible)
         )
     }
+
+    /// Whether the atom counts the objects an earlier action affected
+    /// (`a land card was milled this way`), which only the program lowering
+    /// binds.
+    pub(in crate::oracle::canonical) fn reads_action_result(&self) -> bool {
+        matches!(
+            self,
+            Self::Compare(ConditionComparison { left, right, .. })
+                if matches!(left, ConditionNumber::ActionResultObjects(_))
+                    || matches!(right, ConditionNumber::ActionResultObjects(_))
+        )
+    }
 }
 
 /// Whether any atom of the program satisfies `test`.
@@ -252,6 +268,10 @@ pub(in crate::oracle::canonical) enum ConditionNumber {
     /// A measure of the ability's controller whatever the comparison's
     /// subject (`that player controls more lands than you`).
     ControllerMeasure(PlayerStateMeasure),
+    /// The objects the action before the condition affected, restated by
+    /// verb and noun (`a land card was milled this way`, CR 608.2c). Only a
+    /// program position binds it; elsewhere it is an explicit failure.
+    ActionResultObjects(super::ActionResultReferenceNode),
 }
 
 /// The object an object condition tests, with its predicate.
@@ -394,6 +414,15 @@ pub(in crate::oracle::canonical) struct EventHistoryNode {
     pub threshold: i64,
 }
 
+/// `EventHistory(Pattern, scope)` counted instead of compared: a numeric
+/// expression (`for each spell you've cast this turn`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct EventHistoryCountNode {
+    pub pattern: EventHistoryPattern,
+    pub scope: HistoryScope,
+    pub aggregate: HistoryAggregate,
+}
+
 /// The zone a spell was cast from (CR 601.2a).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum SourceCastZone {
@@ -507,6 +536,209 @@ impl ControlledPermanentCountConditionNode {
             right: ConditionNumber::Integer(self.threshold),
         })
     }
+}
+
+/// Width of the existential introducer `there is|are` / `there's`.
+fn existential_introducer_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let contracted = cursor
+        .peek()
+        .is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case("there's"));
+    if contracted {
+        Some(1)
+    } else if word(0, "there") && (word(1, "is") || word(1, "are")) {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Lexical lookahead for `there are THRESHOLD MEASURE among COLLECTION`: the
+/// threshold is at most four words (`at least four`, `four or more`) and is
+/// followed by a distinct-value measure. A plain object count keeps its own
+/// existential reader.
+pub(in crate::oracle::canonical) fn distinct_measure_atom_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let Some(width) = existential_introducer_width(cursor) else {
+        return false;
+    };
+    (width + 1..width + 5).any(|offset| {
+        let mut trial = cursor.clone();
+        trial.advance_to(trial.position() + offset).is_ok()
+            && super::distinct_measure_among_starts(&trial)
+    })
+}
+
+/// `there are N or more card types among cards in your graveyard` (CR
+/// 205.2a, Delirium), `there are five colors among permanents you control`:
+/// `Compare(CountDistinct(measure, collection), op, N)` over the shared
+/// counting child, read by every condition parent through the one atom
+/// reader. The collection names its own player relations.
+pub(in crate::oracle::canonical) fn recognize_distinct_measure_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.distinct-measure.existential");
+    let width = existential_introducer_width(cursor)
+        .ok_or_else(|| cursor.fail("`there is`, `there are` or `there's`"))?;
+    for _ in 0..width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    cursor.enter("condition.distinct-measure.threshold");
+    let threshold = super::recognize_count_threshold(cursor, false)?;
+    cursor.enter("condition.distinct-measure.measure");
+    let measure = super::recognize_distinct_measure_among(cursor)?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(measure),
+        operator,
+        right: ConditionNumber::Integer(value),
+    }))
+}
+
+/// Offset of `have total` after a collection subject, before the clause ends.
+fn collection_total_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (1..10)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("have"))
+                && cursor
+                    .peek_ahead(offset + 1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("total"))
+        })
+}
+
+/// Lexical lookahead for `COLLECTION have total PROPERTY THRESHOLD`.
+pub(in crate::oracle::canonical) fn collection_total_atom_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    collection_total_offset(cursor).is_some()
+}
+
+/// `creatures you control have total power 8 or greater` (Formidable):
+/// `Compare(Sum(property, COLLECTION), op, N)`. The collection is the shared
+/// battlefield collection bounded before `have`; the aggregate is the same
+/// typed property aggregate `the greatest power among` reads, so the lowering
+/// decides which (property, relation) pairs the engine can sum.
+pub(in crate::oracle::canonical) fn recognize_collection_total_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.collection-total.collection");
+    let offset = collection_total_offset(cursor)
+        .ok_or_else(|| cursor.fail("a collection followed by `have total`"))?;
+    let end = cursor.position() + offset;
+    let query = cursor.bounded(end, super::recognize_object_collection)?;
+    cursor.require(
+        !query.exclude_source && query.denotes_battlefield_permanents(),
+        "a summed collection of battlefield permanents without a source exclusion",
+    )?;
+    cursor.require(
+        query.controller == Some(super::ObjectControllerScope::AbilityController),
+        "a summed collection controlled by you",
+    )?;
+    cursor.enter("condition.collection-total.property");
+    cursor.consume_phrase(&["have", "total"])?;
+    let property = super::recognize_selector_numeric_property(cursor)?;
+    cursor.enter("condition.collection-total.threshold");
+    let threshold = super::recognize_count_threshold(cursor, false)?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(NumericExpression::GreatestPropertyAmong {
+            property,
+            predicate: query.predicate,
+            aggregate: super::PropertyAggregate::Sum,
+        }),
+        operator,
+        right: ConditionNumber::Integer(value),
+    }))
+}
+
+/// Offset of the passive `is|are|was|were VERBed this way` after a counted
+/// noun phrase, before the clause ends.
+fn action_result_copula_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (1..10)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            let word = |at: usize, expected: &str| {
+                cursor
+                    .peek_ahead(at)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+            };
+            ["is", "are", "was", "were"]
+                .iter()
+                .any(|copula| word(*offset, copula))
+                && cursor
+                    .peek_ahead(offset + 1)
+                    .and_then(super::ActionResultVerb::from_word)
+                    .is_some()
+                && word(offset + 2, "this")
+                && word(offset + 3, "way")
+        })
+}
+
+/// Lexical lookahead for `QUANTITY NOUN is|was VERBed this way`.
+pub(in crate::oracle::canonical) fn action_result_condition_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    action_result_copula_offset(cursor).is_some()
+}
+
+/// `if a land card was milled this way`, `if no cards were discarded this
+/// way`, `if at least one Zombie card is milled this way` (CR 608.2c):
+/// `Compare(count(OBJECTS affected by the preceding action), op, N)`. The
+/// atom names only the restated verb and noun; the program lowering binds
+/// the preceding action of that verb, or fails when it is not one.
+pub(in crate::oracle::canonical) fn recognize_action_result_condition_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.action-result.quantity");
+    let offset = action_result_copula_offset(cursor)
+        .ok_or_else(|| cursor.fail("an object phrase followed by `is|was VERBed this way`"))?;
+    let copula = cursor.position() + offset;
+    let threshold = super::recognize_count_threshold(cursor, true)?;
+    cursor.enter("condition.action-result.objects");
+    let query = cursor.bounded(copula, super::recognize_object_collection)?;
+    cursor.require(
+        !query.exclude_source && query.controller.is_none() && query.predicate.has_nominal_head(),
+        "a nominal object phrase without a controller relation",
+    )?;
+    cursor.enter("condition.action-result.verb");
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    let verb = cursor
+        .peek()
+        .and_then(super::ActionResultVerb::from_word)
+        .ok_or_else(|| cursor.fail("`destroyed`, `milled` or `discarded`"))?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    cursor.consume_phrase(&["this", "way"])?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::ActionResultObjects(super::ActionResultReferenceNode {
+            predicate: query.predicate,
+            verb,
+        }),
+        operator,
+        right: ConditionNumber::Integer(value),
+    }))
 }
 
 /// Reads `if ATOM,` for a family parent that composes exactly one family.

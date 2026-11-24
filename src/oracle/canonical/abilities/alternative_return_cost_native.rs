@@ -42,13 +42,11 @@ pub(in crate::oracle::canonical) fn parse_promoted_alternative_return_cost(
         json!({
             "kind": "keywordAbility",
             "source": self_ref(),
-            "ability": {
-                "kind": "alternativeCost",
-                "costs": [{
-                    "kind": "returnPermanentToOwnersHand",
-                    "where": lower_permanent_object_predicate(&envelope.cost.predicate),
-                }],
-            },
+            "ability": lower_alternative_cast_permission(
+                None,
+                vec![alternative_return_payment(&envelope.cost.predicate)],
+                None,
+            ),
         }),
         &[
             "Recognize an alternative-mana-cost permission from the shared token stream",

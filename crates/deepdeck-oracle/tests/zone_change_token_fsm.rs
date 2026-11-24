@@ -129,6 +129,37 @@ fn multiple_registered_subtypes_remain_separate_ir_values() {
     );
 }
 
+/// The shared written token description reads a description without a color
+/// word as colorless (CR 105.2c) and keyword abilities after `with`
+/// (CR 111.4), so these former near-misses are complete descriptions.
+#[test]
+fn colorless_and_keyword_descriptions_use_the_shared_token_description() {
+    let colorless = parse_instant(
+        "Example Transformation",
+        "{2}{G}",
+        "Destroy target permanent. Its controller creates a 3/3 Beast creature token.",
+    );
+    assert_eq!(colorless.status, "canonical");
+    let rule = colorless.abilities[0].rule.as_ref().unwrap();
+    assert_eq!(rule["effects"][2]["token"]["colors"], json!([]));
+    assert_eq!(rule["effects"][2]["token"]["subtypes"], json!(["Beast"]));
+
+    let trample = parse_instant(
+        "Example Transformation",
+        "{2}{G}",
+        "Destroy target permanent. Its controller creates a 3/3 green Beast creature token with trample.",
+    );
+    assert_eq!(trample.status, "canonical");
+    assert_eq!(
+        trample.abilities[0].rule.as_ref().unwrap()["effects"][2]["controller"]["kind"],
+        "boundValue"
+    );
+    assert_eq!(
+        trample.abilities[0].rule.as_ref().unwrap()["effects"][2]["token"]["abilities"],
+        json!([{ "kind": "trample" }])
+    );
+}
+
 #[test]
 fn claimed_near_misses_fail_at_the_responsible_local_state() {
     // An unknown player noun never enters the zone-change/token family; the
@@ -147,28 +178,16 @@ fn claimed_near_misses_fail_at_the_responsible_local_state() {
             "three-three",
         ),
         (
-            "Destroy target permanent. Its controller creates a 3/3 Beast creature token.",
-            "zone-change-create-token",
-            "token.descriptor.colors",
-            "Beast",
-        ),
-        (
             "Destroy target permanent. Its controller creates a 3/3 green Beast artifact token.",
             "zone-change-create-token",
-            "token.descriptor.permanent-type-domain",
+            "token.descriptor.types",
             "token",
         ),
         (
             "Destroy target permanent. Its controller creates a 3/3 green Imaginarytype creature token.",
             "zone-change-create-token",
-            "effect.create-token.subtype-list.item-or-creature",
+            "token.descriptor.subtypes",
             "Imaginarytype",
-        ),
-        (
-            "Destroy target permanent. Its controller creates a 3/3 green Beast creature token with trample.",
-            "zone-change-create-token",
-            "sequence.connector-or-end",
-            "with",
         ),
     ] {
         let parsed = parse_instant("Example Transformation", "{2}{G}", oracle_text);

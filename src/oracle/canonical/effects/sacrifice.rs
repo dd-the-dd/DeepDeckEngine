@@ -14,11 +14,15 @@ pub(in crate::oracle::canonical) fn lower_sacrifice_effect(
                 return Err(TargetlessLoweringError::UnsupportedCollectionPredicate);
             }
             validate_object_predicate_numeric_expressions(&object.predicate, declarations)?;
-            Ok(json!({
+            let mut sacrifice = json!({
                 "kind":"sacrificePermanents", "player":controller(),
                 "where":lower_permanent_object_predicate(&object.predicate),
                 "count":lower_targetless_numeric_expression(count, declarations)?,
-            }))
+            });
+            if object.exclude_source {
+                sacrifice["excludeSource"] = json!(true);
+            }
+            Ok(sacrifice)
         }
     }
 }

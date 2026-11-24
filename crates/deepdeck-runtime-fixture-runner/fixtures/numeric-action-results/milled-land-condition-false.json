@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "milled-land-condition-false",
+  "seed": 13,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "mill",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 2
+        },
+        "bind": "actionResult:0"
+      },
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countObjects",
+            "objects": {
+              "kind": "filterObjects",
+              "objects": {
+                "kind": "boundObjects",
+                "binding": "actionResult:0"
+              },
+              "where": {
+                "kind": "cardTypeContains",
+                "value": "Land"
+              }
+            }
+          },
+          "right": {
+            "kind": "integer",
+            "value": 1
+          }
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 3
+            }
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "milled-land-condition-false",
+            "name": "Excavation Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          }
+        ],
+        "library": [
+          {
+            "id": "third-land",
+            "name": "Third Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "second-instant",
+            "name": "Second Instant",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "top-sorcery",
+            "name": "Top Sorcery",
+            "typeLine": "Sorcery"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "milled-land-condition-false"
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 20
+    }
+  ]
+}

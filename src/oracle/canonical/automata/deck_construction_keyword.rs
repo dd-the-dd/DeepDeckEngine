@@ -6,6 +6,7 @@
 //! DeckKeyword := "partner" ["—" VARIANT]          CR 702.124h-i
 //!              | "choose" "a" "background"        CR 702.124k
 //!              | "doctor's" "companion"           CR 702.124m
+//!              | "spell" "commander"              the card can be a commander
 //!              [ "(" REMINDER ")" ]
 //! ```
 //!
@@ -25,6 +26,9 @@ pub(in crate::oracle::canonical) enum DeckConstructionKeyword {
     ChooseABackground,
     /// `Doctor's companion` (CR 702.124m).
     DoctorsCompanion,
+    /// `Spell commander`: this card can be your commander (CR 903.3), and
+    /// in Limited it can partner like a monocolored legend.
+    SpellCommander,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -66,6 +70,7 @@ pub(in crate::oracle::canonical) fn deck_construction_keyword_starts(
             && at_word(cursor, 1, "a")
             && at_word(cursor, 2, "background"))
         || (at_word(cursor, 0, "doctor's") && at_word(cursor, 1, "companion"))
+        || (at_word(cursor, 0, "spell") && at_word(cursor, 1, "commander"))
 }
 
 /// The reminder printed for each partner ability, word for word.
@@ -122,6 +127,26 @@ fn reminder_words(keyword: &DeckConstructionKeyword) -> &'static [&'static str] 
             "doctor",
             ".",
         ],
+        DeckConstructionKeyword::SpellCommander => &[
+            "this",
+            "card",
+            "can",
+            "be",
+            "your",
+            "commander",
+            ".",
+            "in",
+            "limited",
+            ",",
+            "it",
+            "can",
+            "partner",
+            "like",
+            "other",
+            "monocolored",
+            "legends",
+            ".",
+        ],
     }
 }
 
@@ -150,6 +175,10 @@ pub(in crate::oracle::canonical) fn recognize_deck_construction_keyword(
                         keyword = Some(DeckConstructionKeyword::Partner);
                         DeckKeywordState::ReminderOrComplete
                     }
+                } else if at_word(cursor, 0, "spell") {
+                    consume_words(cursor, &["spell", "commander"])?;
+                    keyword = Some(DeckConstructionKeyword::SpellCommander);
+                    DeckKeywordState::ReminderOrComplete
                 } else if at_word(cursor, 0, "choose") {
                     consume_words(cursor, &["choose", "a", "background"])?;
                     keyword = Some(DeckConstructionKeyword::ChooseABackground);

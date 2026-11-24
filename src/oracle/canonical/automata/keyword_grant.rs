@@ -165,7 +165,12 @@ fn recognize_ward_resource_cost(
             ),
             "a fixed life payment after the Ward separator",
         )?;
-        super::recognize_resource_payment(cursor)?
+        let cost = super::recognize_resource_payment(cursor)?;
+        // `Ward—[cost].` is a sentence: its period precedes the reminder.
+        if cursor.peek() == Some(".") && cursor.peek_ahead(1) == Some("(") {
+            cursor.consume(".")?;
+        }
+        cost
     } else {
         cursor.require(
             cursor
@@ -686,6 +691,18 @@ pub(in crate::oracle::canonical) fn recognize_keyword_reminder_annotation(
     objects: &super::ObjectPredicate,
 ) -> MachineResult<()> {
     reminder::recognize_collection_keyword_annotation(cursor, keywords, objects)
+}
+
+/// A reminder of one keyword an effect grants (or gives the tokens it
+/// creates), about the granted objects: `(It can't be blocked ...)`,
+/// `(Attacking doesn't cause them to tap.)`, `(A creature with fear ...)`.
+/// The reminder child owns both parentheses.
+pub(in crate::oracle::canonical) fn recognize_granted_keyword_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    keywords: &[GrantedKeyword],
+    plural: bool,
+) -> MachineResult<()> {
+    reminder::recognize_granted_keyword_reminder(cursor, keywords, plural)
 }
 
 /// Parameterized atoms retain their own cost and bound-annotation context.

@@ -1,0 +1,250 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/attach-on-entry",
+  "cases": [
+    {
+      "id": "exact-nomad-mythmaker-chosen-recipient",
+      "request": {
+        "cardName": "Nomad Mythmaker",
+        "typeLine": "Creature — Human Nomad Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "{W}, {T}: Put target Aura card from a graveyard onto the battlefield under your control attached to a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/2/attachment/binding",
+                "equals": "movedOntoBattlefield"
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "decisionResult"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-iridescent-drake-attached-to-the-source",
+      "request": {
+        "cardName": "Iridescent Drake",
+        "typeLine": "Creature — Drake",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhen this creature enters, put target Aura card from a graveyard onto the battlefield under your control attached to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-academy-researchers-optional-card-from-hand",
+      "request": {
+        "cardName": "Academy Researchers",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "When this creature enters, you may put an Aura card from your hand onto the battlefield attached to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-eagles-rescue-source-returns-attached-to-a-target",
+      "request": {
+        "cardName": "Eagle's Rescue",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{W/U}{W/U}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +2/+2 and has flying.\n{2}{W/U}{W/U}: Return this card from your graveyard to the battlefield attached to target creature you control with power 1 or less. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/from/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/1/attachment/kind",
+                "equals": "boundObjects"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-smoke-shroud-source-returns-attached-to-the-event-creature",
+      "request": {
+        "cardName": "Smoke Shroud",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has flying.\nWhen a Ninja you control enters, you may return this card from your graveyard to the battlefield attached to that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "sibling-target-card-attached-to-a-declared-target",
+      "request": {
+        "cardName": "Shared Attach",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Return target Equipment card from your graveyard to the battlefield attached to target creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attached-to-every-creature-is-not-one-recipient",
+      "request": {
+        "cardName": "Shared Attach",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Return target Aura card from your graveyard to the battlefield attached to each creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attached-entry-into-a-hand",
+      "request": {
+        "cardName": "Shared Attach",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Return target Aura card from your graveyard to your hand attached to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

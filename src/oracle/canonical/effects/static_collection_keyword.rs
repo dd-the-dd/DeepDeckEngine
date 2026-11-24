@@ -40,7 +40,9 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
             ObjectControllerScope::OpponentOfAbilityController => {
                 json!({ "kind": "opponentsOf", "player": controller() })
             }
-            ObjectControllerScope::NotAbilityController | ObjectControllerScope::EventPlayer => {
+            ObjectControllerScope::NotAbilityController
+            | ObjectControllerScope::EventPlayer
+            | ObjectControllerScope::Player(_) => {
                 return StaticCollectionKeywordParseAttempt::Failed(cursor.fail(
                     "a static controller scope representable without changing player relations",
                 ));

@@ -110,6 +110,90 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// program parent installs it from its earlier actions
     /// (`permanent_subject::prior_object_set`); it is never guessed.
     pub objects: Option<ObjectSetAntecedent>,
+    /// The latest singular target of the program whose selector admits a
+    /// player (`target player`, `target opponent`, `target player or
+    /// planeswalker`). The program parent publishes it from its earlier
+    /// actions (`publish_program_antecedents`); `that player` names it.
+    pub player_target: Option<PlayerTargetAntecedent>,
+}
+
+/// A singular declared target that may be a player (CR 115.1): `that
+/// player` names the player it is; when its selector also admits
+/// permanents, `that player or that NOUN's controller` names the player it
+/// is or the controller of the permanent it is (CR 109.4). Both are the one
+/// controller relation of the declared object, which the runtime reads as
+/// the player itself for a player target.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerTargetAntecedent {
+    pub binding: super::TargetBinding,
+    pub selector: TargetSelector,
+}
+
+/// The one producer contract of the program's lexical antecedents: the
+/// program parent builds the environment of the action it reads next and
+/// hands the actions read so far; this publishes every antecedent derived
+/// from them that the parent does not track itself. The parent owns the
+/// sentence boundaries; nothing here reads tokens.
+pub(in crate::oracle::canonical) fn publish_program_antecedents(
+    mut environment: BindingEnvironment,
+    effects: &[super::LocalEffectNode],
+) -> BindingEnvironment {
+    environment.player_target = program_player_target(effects);
+    environment
+}
+
+/// The same producer contract over the environment the program parent just
+/// installed on the cursor for the action it reads next.
+pub(in crate::oracle::canonical) fn publish_installed_program_antecedents(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &[super::LocalEffectNode],
+) {
+    let environment = publish_program_antecedents(installed_binding_environment(cursor), effects);
+    cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+}
+
+/// True when a target selector admits a player as one of its alternatives.
+fn selector_admits_player(selector: &TargetSelector) -> bool {
+    match selector {
+        TargetSelector::Player(_) => true,
+        TargetSelector::Union(branches) => branches.iter().any(selector_admits_player),
+        TargetSelector::Any
+        | TargetSelector::Object(_)
+        | TargetSelector::ControlledObject { .. }
+        | TargetSelector::StackItem(_) => false,
+    }
+}
+
+/// The latest exactly-one target slot of a damage recipient whose selector
+/// admits a player (`deals 3 damage to target player or planeswalker`).
+/// `any target` is not published: it may be a creature, so `that player`
+/// does not name it.
+fn program_player_target(effects: &[super::LocalEffectNode]) -> Option<PlayerTargetAntecedent> {
+    effects
+        .iter()
+        .enumerate()
+        .rev()
+        .find_map(|(effect_index, effect)| match effect {
+            super::LocalEffectNode::DealDamage(damage) => match &damage.recipient {
+                super::DamageRecipientNode::Targets(targets) => match targets.slots.as_slice() {
+                    [slot]
+                        if slot.cardinality == super::TargetCardinality::EXACTLY_ONE
+                            && selector_admits_player(&slot.selector) =>
+                    {
+                        Some(PlayerTargetAntecedent {
+                            binding: super::TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            },
+                            selector: slot.selector.clone(),
+                        })
+                    }
+                    _ => None,
+                },
+                _ => None,
+            },
+            _ => None,
+        })
 }
 
 /// An object set an earlier action of the same program declared or produced
@@ -202,6 +286,7 @@ impl BindingEnvironment {
             action_result: None,
             number: None,
             objects: None,
+            player_target: None,
         }
     }
 }
@@ -576,6 +661,21 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
     cursor.enter("player-subject.bound.reference");
     cursor.consume_phrase(&["that", "player"])?;
     cursor.enter("player-subject.bound.resolve");
+    // The latest lexical declaration wins (CR 608.2c): a target that admits
+    // a player, unless a player declared later is the program's antecedent.
+    if let Some(target) = environment.player_target.as_ref().filter(|target| {
+        environment
+            .player
+            .is_none_or(|player| target.binding.effect_index > player.0)
+    }) {
+        return recognize_player_target_reference(cursor, target);
+    }
+    if disjunctive_controller_follows(cursor) {
+        cursor.enter("player-subject.bound.disjunction");
+        return Err(cursor.fail(
+            "a declared target that may be a player or a permanent for `that player or that NOUN's controller`",
+        ));
+    }
     if let Some(binding) = environment.player {
         cursor.enter("player-subject.complete");
         return Ok(BoundPlayerReference::Bound(binding));
@@ -603,6 +703,75 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
         first.span_end,
         first.raw,
     ))
+}
+
+/// Lexical lookahead after `that player`: `or that NOUN's controller`.
+fn disjunctive_controller_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && cursor
+            .token_slice(cursor.position() + 2, cursor.position() + 3)
+            .first()
+            .is_some_and(|token| token.token_type == "possessiveTypeWord")
+        && cursor
+            .peek_ahead(3)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("controller"))
+}
+
+/// `that player` naming a declared target that admits a player, after
+/// `that player` was read. A player-only selector (`target player`,
+/// `target opponent`) is named by `that player` alone; a selector that also
+/// admits permanents (`target player or planeswalker`) is named only by the
+/// disjunction `that player or that NOUN's controller` whose nominal names
+/// every permanent branch (CR 109.4). Either is the controller relation of
+/// the declared object: the player itself, or the permanent's controller.
+fn recognize_player_target_reference(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &PlayerTargetAntecedent,
+) -> MachineResult<BoundPlayerReference> {
+    let reference = BoundPlayerReference::ObjectRelation {
+        relation: ObjectPlayerRelation::Controller,
+        object: PermanentEffectReference::Target(target.binding),
+    };
+    let branches = match &target.selector {
+        TargetSelector::Player(_) => {
+            cursor.enter("player-subject.bound.disjunction");
+            cursor.require(
+                !disjunctive_controller_follows(cursor),
+                "a declared target that may be a permanent for `that player or that NOUN's controller`",
+            )?;
+            cursor.enter("player-subject.complete");
+            return Ok(reference);
+        }
+        TargetSelector::Union(branches) => branches,
+        _ => {
+            return Err(cursor.fail("a declared target that may be a player for `that player`"));
+        }
+    };
+    cursor.enter("player-subject.bound.disjunction");
+    cursor.require(
+        disjunctive_controller_follows(cursor),
+        "`that player or that NOUN's controller` for a target that may be a player or a permanent",
+    )?;
+    cursor.consume_phrase(&["or", "that"])?;
+    let possessive = cursor.consume_type("possessiveTypeWord")?;
+    let nominal = possessive_nominal(&possessive.raw)
+        .ok_or_else(|| cursor.fail("a registered card type or object domain nominal"))?;
+    cursor.consume("controller")?;
+    cursor.enter("player-subject.bound.disjunction.branches");
+    cursor.require(
+        branches.iter().all(|branch| {
+            matches!(branch, TargetSelector::Player(_))
+                || selector_names_nominals(branch, &[nominal])
+        }),
+        "a nominal naming every permanent alternative of the declared target",
+    )?;
+    cursor.enter("player-subject.complete");
+    Ok(reference)
 }
 
 /// A controller relation that names a player other than the ability's

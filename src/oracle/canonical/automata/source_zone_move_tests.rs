@@ -23,6 +23,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             face_change: SourceFaceChange::Preserve,
             controller: SourceMoveController::Preserve,
             tapped: false,
+            attached_to: None,
         }
     );
 
@@ -40,6 +41,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             face_change: SourceFaceChange::Transform,
             controller: SourceMoveController::Owner,
             tapped: false,
+            attached_to: None,
         }
     );
 }
@@ -88,18 +90,41 @@ fn a_source_card_returns_from_its_graveyard_to_the_battlefield_optionally_tapped
                 face_change: SourceFaceChange::Preserve,
                 controller: SourceMoveController::Preserve,
                 tapped,
+                attached_to: None,
             },
             "{text}"
         );
         assert_eq!(cursor.position(), tokens.len(), "{text}");
     }
-    // Near miss: an attachment or entry counters are not consumed here; the
-    // enclosing sequence must reject the unread tail.
+    // Near miss: entry counters are not consumed here; the enclosing
+    // sequence must reject the unread tail.
     let tokens = recognize_entities(
-        "return this card from your graveyard to the battlefield attached to target creature",
+        "return this card from your graveyard to the battlefield with a +1/+1 counter on it",
     );
     let mut cursor = OracleTokenCursor::new("move-source-test", &tokens);
     recognize_source_zone_move_effect(&mut cursor, &[], None, &context)
         .expect("the move itself parses");
-    assert_eq!(cursor.peek(), Some("attached"));
+    assert_eq!(cursor.peek(), Some("with"));
+}
+
+/// `attached to OBJECT` is the shared permanent operand: a declared target
+/// here, a bound reference or the source in other abilities.
+#[test]
+fn a_graveyard_source_return_reads_the_permanent_it_enters_attached_to() {
+    let context = EffectRecognitionContext::for_source(LocalObjectReference::SourceSelf);
+    let tokens = recognize_entities(
+        "return this card from your graveyard to the battlefield attached to target creature you control",
+    );
+    let mut cursor = OracleTokenCursor::new("move-source-test", &tokens);
+    let returned = recognize_source_zone_move_effect(&mut cursor, &[], None, &context)
+        .expect("the attached return parses");
+    assert_eq!(
+        (returned.from, returned.to),
+        (SourceZone::Graveyard, SourceZone::Battlefield)
+    );
+    assert!(matches!(
+        returned.attached_to,
+        Some(super::super::PermanentOperandNode::Targets(_))
+    ));
+    assert_eq!(cursor.position(), tokens.len());
 }

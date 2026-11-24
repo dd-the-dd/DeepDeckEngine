@@ -28,6 +28,11 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
             SelectedPermanentAction::ReturnToOwnerHand => {
                 json!({"kind":"returnToOwnersHand", "object":objects})
             }
+            // The shared permanent exile writer evaluates the collection on
+            // resolution (CR 608.2c), like `destroy all`.
+            SelectedPermanentAction::Exile => {
+                json!({"kind":"exilePermanent", "permanent":objects})
+            }
         }]);
     };
     let minimum = lower_targetless_numeric_expression(
@@ -66,6 +71,15 @@ pub(in crate::oracle::canonical) fn lower_selected_permanents_effects(
             SelectedPermanentAction::ReturnToOwnerHand => {
                 json!({"kind":"returnToOwnersHand", "object":decision_result(&id)})
             }
+            // A chosen set is an object collection: the card mover exiles
+            // every chosen permanent, each in its owner's exile.
+            SelectedPermanentAction::Exile => json!({
+                "kind":"moveCards",
+                "cards":decision_result(&id),
+                "to":{"kind":"exile",
+                    "player":{"kind":"ownerOf","object":{"kind":"candidate"}},
+                    "faceDown":false},
+            }),
         },
     ])
 }

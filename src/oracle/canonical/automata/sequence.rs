@@ -16,7 +16,6 @@ use super::{
     recognize_effect_connector, recognize_empower_jace_effect, recognize_empower_jace_reminder,
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
-    recognize_named_token_creation_reminder,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
     recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
     recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
@@ -288,6 +287,12 @@ struct SequenceMemory {
     /// The last action read after a causative `have`. A verb coordinated with
     /// it (`have it get +2/+0 and gain haste`) keeps the bare agreement.
     causative_effect: Option<usize>,
+    /// The imperative lemma of the previous action of the sentence: a gapped
+    /// conjunct (`destroy A and all B`) is an argument frame of it.
+    elided_lemma: Option<VerbLemma>,
+    /// Where the connector after the previous action began; the gapped
+    /// conjunct writes the elided verb in the conjunction's slot.
+    connector_start: Option<super::super::machine::MachineCheckpoint>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -605,6 +610,9 @@ fn recognize_effect_sequence_attempt_internal(
     attempt_frame: &mut SequenceAttemptFrame,
 ) -> MachineResult<EffectSequenceNode> {
     let enclosing = cursor.replace_binding_environment(None);
+    // The source's name links, for children that name the source (`the
+    // number of verse counters on NAME`).
+    let enclosing_names = cursor.replace_source_names(Some(name_links.into()));
     let result = recognize_effect_sequence_attempt_scoped(
         cursor,
         name_links,
@@ -614,6 +622,7 @@ fn recognize_effect_sequence_attempt_internal(
         stop_before_activation_annotation,
         attempt_frame,
     );
+    cursor.replace_source_names(enclosing_names);
     cursor.replace_binding_environment(enclosing);
     result
 }
@@ -766,6 +775,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         ..super::BindingEnvironment::default()
                     },
                 )));
+                super::publish_installed_program_antecedents(cursor, &memory.effects);
                 let base_action_context = action_context;
                 let mut preposed_duration = memory.sentence_duration.clone();
                 let mut opened_preposed_duration = false;
@@ -779,6 +789,7 @@ fn recognize_effect_sequence_attempt_scoped(
                 // performs the rest of the clause after this declaration.
                 let mut declared_subject: Option<super::ObjectPlayerRelation> = None;
                 let mut causative: bool;
+                let mut from_ellipsis = false;
                 let mut effect = loop {
                     if let Some(pending) = memory.distributed.pop() {
                         // A distributed per-player action is already read.
@@ -881,6 +892,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         // an action head even when the lexical name resolver
                         // left its words unresolved; it is never a source name.
                         if super::venture_action_starts(attempt)
+                            || super::ring_temptation_starts(attempt)
+                            || super::player_designation_follows(attempt).is_some()
+                            || super::skip_turn_part_follows(attempt)
                             || super::defending_player_starts(attempt)
                             || !source_reference_starts_at(
                                 attempt.position(),
@@ -979,6 +993,19 @@ fn recognize_effect_sequence_attempt_scoped(
                                 distributed_rest = actions;
                                 return Ok(first);
                             }
+                            Ok(None) => {}
+                            Err(failure) => {
+                                attempt_frame.commit();
+                                return Err(failure);
+                            }
+                        }
+                        // `shuffle NAME|this OBJECT into its owner's library`.
+                        match super::try_recognize_shuffle_source_into_library(
+                            attempt,
+                            name_links,
+                            name_failure,
+                        ) {
+                            Ok(Some(movement)) => return Ok(LocalEffectNode::MoveSource(movement)),
                             Ok(None) => {}
                             Err(failure) => {
                                 attempt_frame.commit();
@@ -1330,6 +1357,60 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         parsed => parsed,
                     };
+                    // `destroy A and all B`, `put N counters on A and M
+                    // counters on B` (gapped coordination): when no reader
+                    // takes the conjunct, it is read as an argument frame of
+                    // the previous imperative lemma, whose verb is written
+                    // back in the conjunction's slot. The conjunct must be a
+                    // complete clause of that lemma; otherwise the ordinary
+                    // failure stands. A separate attempt frame keeps the
+                    // ordinary readers' commitment intact.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && !attempt_frame.is_committed()
+                                && memory.connectors.last() == Some(&EffectConnector::And)
+                                && memory.effects.len() > memory.sentence_start
+                                && cursor.position() > 0
+                                // The slot is the written conjunction (`and`
+                                // or a coordinating comma) the connector read.
+                                && cursor
+                                    .token_slice(cursor.position() - 1, cursor.position())
+                                    .first()
+                                    .is_some_and(|token| {
+                                        token.raw == "," || token.raw.eq_ignore_ascii_case("and")
+                                    }) =>
+                        {
+                            match (memory.elided_lemma, memory.connector_start) {
+                                (Some(lemma), Some(connector_start)) => {
+                                    let slot = cursor.position() - 1;
+                                    let mut at_slot = cursor.clone();
+                                    at_slot.rollback(connector_start);
+                                    if at_slot.position() > slot
+                                        || at_slot.advance_to(slot).is_err()
+                                    {
+                                        Err(failure)
+                                    } else {
+                                        let tokens =
+                                            super::elided_verb_tokens(&at_slot, slot, lemma);
+                                        let mut gapped = at_slot.with_tokens(&tokens);
+                                        gapped.enter("sequence.gapped-conjunct");
+                                        let mut gapped_frame = SequenceAttemptFrame::default();
+                                        match read_action(&mut gapped, None, &mut gapped_frame) {
+                                            Ok(effect) if gapped.position() > cursor.position() => {
+                                                let end = gapped.position();
+                                                from_ellipsis = true;
+                                                cursor.advance_to(end).map(|()| effect)
+                                            }
+                                            _ => Err(failure),
+                                        }
+                                    }
+                                }
+                                _ => Err(failure),
+                            }
+                        }
+                        parsed => parsed,
+                    };
                     match parsed {
                         Ok(effect) => break effect,
                         Err(failure) => {
@@ -1592,6 +1673,24 @@ fn recognize_effect_sequence_attempt_scoped(
                     | LocalEffectNode::OptionalLibrarySearch(search) => {
                         search.binding = CollectionBinding(memory.next_search_binding);
                         memory.next_search_binding += 1;
+                        // CR 107.3: a definition of X the search read after its
+                        // counted phrase binds X for this sentence's actions
+                        // through this search, like a postposed `where X`.
+                        if let Some(expression) = search.where_x.take() {
+                            cursor.enter("sequence.where-x.scope");
+                            cursor.require(
+                                !memory
+                                    .where_x
+                                    .iter()
+                                    .any(|binding| binding.first_effect == memory.sentence_start),
+                                "one definition of X for the actions of this sentence",
+                            )?;
+                            memory.where_x.push(super::WhereXBindingNode {
+                                first_effect: memory.sentence_start,
+                                end_effect: effect_index + 1,
+                                expression,
+                            });
+                        }
                         // A searched collection is a new object antecedent, but it is
                         // not a target slot. Until collection/object anaphora is
                         // modeled explicitly, never let `it` fall back to a target
@@ -1684,7 +1783,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         // A characteristic choice introduces no object or
                         // player antecedent; earlier antecedents remain.
-                        super::ChoiceDomainNode::CreatureType | super::ChoiceDomainNode::Color => {}
+                        super::ChoiceDomainNode::CreatureType
+                        | super::ChoiceDomainNode::Color
+                        | super::ChoiceDomainNode::CardName(_) => {}
                     }
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect
@@ -1796,6 +1897,11 @@ fn recognize_effect_sequence_attempt_scoped(
                     }
                 }
                 memory.causative_effect = causative.then_some(effect_index);
+                // A gapped conjunct keeps the lemma it elided for the next one
+                // (`A, B, and C`); any other action names its own.
+                if !from_ellipsis {
+                    memory.elided_lemma = super::imperative_lemma_at(cursor, effect_start);
+                }
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
                     memory.else_candidate = None;
@@ -1894,6 +2000,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             && cursor.peek_ahead(1).is_some_and(|raw| {
                                 raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")
                             }));
+                        memory.connector_start = Some(cursor.checkpoint());
                         let connector = match recognize_effect_connector(cursor) {
                             Ok(connector) => connector,
                             Err(failure) => {
@@ -2028,10 +2135,12 @@ fn recognize_effect_sequence_attempt_scoped(
                             return Ok(memory.into_sequence());
                         }
                         if cursor.peek().is_some_and(|raw| raw == "(")
-                            && let Some(LocalEffectNode::CreateNamedTokens(creation)) =
-                                memory.effects.last()
+                            && let Some(creation) = memory
+                                .effects
+                                .last()
+                                .and_then(super::reminded_token_creation)
                         {
-                            recognize_named_token_creation_reminder(cursor, &creation.creation)?;
+                            super::recognize_token_creation_reminder(cursor, &creation)?;
                             cursor.enter("sequence.named-token.complete");
                             cursor.finish()?;
                             return Ok(memory.into_sequence());
@@ -2636,6 +2745,14 @@ fn recognize_imperative_frame(
             super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::MoveCounters)
         }
+        VerbLemma::Distribute if super::claims_distribute_counters_effect(cursor) => {
+            super::recognize_distribute_counters_effect(cursor, context)
+                .map(LocalEffectNode::PutCounters)
+        }
+        VerbLemma::Remove if super::remove_from_combat_starts(cursor) => {
+            super::recognize_remove_from_combat(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PermanentKeywordAction)
+        }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
             super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::PutCounters)
@@ -2836,8 +2953,21 @@ fn recognize_exile_frame(
         TargetCardZoneChangeParseAttempt::NotClaimed
         | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
     }
+    // `exile all graveyards` names zones; `exile all QUERY` names permanents
+    // and stays with the shared object-to-zone operand below.
     if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal {
-        return recognize_exile_graveyard_collection_effect(cursor).map(LocalEffectNode::ZoneBatch);
+        // A player possessive after the quantifier names the owner of a zone
+        // (`each opponent's graveyard`, `all your opponents' graveyards`,
+        // CR 400.3); no permanent query starts there, so the zone batch owns
+        // the phrase and its failure.
+        if zone_owner_possessive_after_quantifier(cursor) {
+            attempt_frame.commit();
+            return recognize_exile_graveyard_collection_effect(cursor)
+                .map(LocalEffectNode::ZoneBatch);
+        }
+        if let Ok(batch) = cursor.attempt(recognize_exile_graveyard_collection_effect) {
+            return Ok(LocalEffectNode::ZoneBatch(batch));
+        }
     }
     if source_reference_starts_at(
         cursor.position() + 1,
@@ -2858,6 +2988,26 @@ fn recognize_exile_frame(
         ZoneChangeTargetSupport::TargetCollection,
         inputs.context.zone_change_domains,
     )
+}
+
+fn zone_owner_possessive_after_quantifier(cursor: &OracleTokenCursor<'_>) -> bool {
+    let opponent_possessive = |raw: &str| {
+        [
+            "opponent's",
+            "opponent\u{2019}s",
+            "opponents'",
+            "opponents\u{2019}",
+        ]
+        .iter()
+        .any(|form| raw.eq_ignore_ascii_case(form))
+    };
+    match cursor.peek_ahead(2) {
+        Some(raw) if opponent_possessive(raw) => true,
+        Some(raw) if raw.eq_ignore_ascii_case("your") => {
+            cursor.peek_ahead(3).is_some_and(opponent_possessive)
+        }
+        _ => false,
+    }
 }
 
 /// `return ...`: a declared card target (counted heads are claimed by the
@@ -2960,6 +3110,18 @@ fn recognize_subject_frame(
         }
     }
     match super::try_recognize_permanent_action(cursor, name_links, name_failure, context) {
+        super::PermanentActionAttempt::Parsed(node) => return Ok(node),
+        super::PermanentActionAttempt::FailedCommitted(failure) => {
+            attempt_frame.commit();
+            return Err(failure);
+        }
+        super::PermanentActionAttempt::NotClaimed
+        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+    }
+    // `SUBJECT phases out` / `SUBJECT assigns no combat damage this turn`:
+    // a rules-state predicate of any permanent subject the frames above
+    // did not take (S3: object subject x lemma).
+    match super::try_recognize_object_rule_clause(cursor, name_links, name_failure, context) {
         super::PermanentActionAttempt::Parsed(node) => return Ok(node),
         super::PermanentActionAttempt::FailedCommitted(failure) => {
             attempt_frame.commit();

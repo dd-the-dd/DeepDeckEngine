@@ -360,6 +360,12 @@ fn lower_local_effect_sequence_with_collections(
     let mut resolution_players = Vec::<String>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        declare_query_possessor_targets(
+            cursor,
+            &mut effects,
+            &mut decisions,
+            &mut declared_player_targets,
+        )?;
         apply_performer(
             cursor,
             &mut effects,
@@ -584,6 +590,21 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "grantExtraTurn", "player": lowered.player}));
                         continue;
                     }
+                    SingularPlayerAction::Designation(action) => {
+                        cursor.enter("lower.player-action.designation");
+                        effects.push(lower_player_designation_action(*action, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Skip(skip) => {
+                        cursor.enter("lower.player-action.skip");
+                        effects.push(lower_skip_turn_part(*skip, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Prohibition(prohibition) => {
+                        cursor.enter("lower.player-action.prohibition");
+                        effects.push(lower_player_prohibition(*prohibition, lowered.player));
+                        continue;
+                    }
                     SingularPlayerAction::Scry(count) => {
                         cursor.enter("lower.player-action.scry");
                         let amount = lower_sequence_bound_amount(
@@ -747,6 +768,80 @@ fn lower_local_effect_sequence_with_collections(
                         .lower_action(cursor, action, declarations, &mut decisions)
                         .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                 );
+            }
+            // `exile all graveyards`: the shared card mover over a zone query.
+            LocalEffectNode::ZoneBatch(batch) => {
+                cursor.enter("lower.zone-batch");
+                effects.push(lower_zone_batch_effect(batch));
+            }
+            // `exile this creature|Saga|NAME`: the source object moves to
+            // exile wherever it is (a permanent, or the resolving spell,
+            // CR 608.2n). A later card action reading `it` names the object
+            // it became in exile (CR 400.7), recorded only when read.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.from == SourceZone::Battlefield
+                    && movement.to == SourceZone::Exile
+                    && movement.face_change == SourceFaceChange::Preserve =>
+            {
+                cursor.enter("lower.move-source.exile");
+                let bind = reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                    .then(|| collections.observe_exiled_object());
+                effects.push(lower_source_move_effect(
+                    movement,
+                    self_ref(),
+                    bind.as_deref(),
+                ));
+            }
+            // `shuffle NAME into its owner's library` (CR 701.24b): the move
+            // into its owner's library, then the shuffle of the library that
+            // received it. A resolving spell's own move is recorded for its
+            // finishing step (CR 608.2n), which shuffles that library.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.to == SourceZone::Library =>
+            {
+                cursor.enter("lower.move-source.shuffle-into-library");
+                let id = collections.allocate_selection_id("shuffledSource");
+                effects.push(lower_source_move_effect(movement, self_ref(), Some(&id)));
+                effects.push(lower_shuffle_libraries_holding(json!({
+                    "kind": "boundObjects",
+                    "binding": id,
+                })));
+            }
+            // `return this card from your graveyard to the battlefield
+            // attached to OBJECT`: the entry, then the attachment of the
+            // object it became to the permanent the shared operand names
+            // (CR 303.4f, 301.5c); an illegal attachment leaves it unattached.
+            LocalEffectNode::MoveSource(movement)
+                if movement.source == LocalObjectReference::SourceSelf
+                    && movement.to == SourceZone::Battlefield
+                    && movement.attached_to.is_some() =>
+            {
+                cursor.enter("lower.move-source.attach-on-entry");
+                let recipient = movement
+                    .attached_to
+                    .as_ref()
+                    .expect("an attachment recipient checked by the guard");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    recipient,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let [recipient] = <[Value; 1]>::try_from(objects)
+                    .map_err(|_| cursor.fail("one permanent to attach the entering object to"))?;
+                let id = collections.allocate_selection_id("attachedEntrant");
+                effects.push(lower_source_move_effect(movement, self_ref(), Some(&id)));
+                effects.push(json!({
+                    "kind": "attachPermanent",
+                    "attachment": {"kind": "boundObjects", "binding": id},
+                    "to": recipient,
+                }));
             }
             LocalEffectNode::OptionalSequence(body) => {
                 let before = collections.clone();
@@ -934,6 +1029,36 @@ fn lower_local_effect_sequence_with_collections(
                     }],
                     "else": [],
                 }));
+            }
+            // CR 601.2d: the division is announced with the targets; each
+            // declared target then receives its own share.
+            LocalEffectNode::PutCounters(node)
+                if node.direction == CounterChangeDirection::Divided =>
+            {
+                cursor.enter("lower.distribute-counters");
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &node.count,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let (decision, effect) =
+                    lower_divided_counters(&objects, node.counter.as_str(), amount).ok_or_else(
+                        || cursor.fail("one declared target slot receiving the divided counters"),
+                    )?;
+                decisions.push(decision);
+                effects.push(effect);
             }
             LocalEffectNode::PutCounters(node) => {
                 // CR 701.10e: a doubled object's count is read from that same
@@ -1643,6 +1768,14 @@ fn lower_local_effect_sequence_with_collections(
                         color_chosen = true;
                         effects.push(super::resolution_choice::lower_color_choice());
                     }
+                    ChoiceDomainNode::CardName(domain) => {
+                        // CR 608.2d: a name chosen while the program
+                        // resolves; `with the chosen name` reads its id.
+                        cursor.enter("lower.choose.card-name");
+                        effects.push(super::chosen_card_name::lower_resolution_card_name_choice(
+                            domain,
+                        ));
+                    }
                     ChoiceDomainNode::Player(node) => {
                         // A player chosen on resolution, not a target (CR
                         // 115.1): a later `that player` reads its binding.
@@ -2160,11 +2293,12 @@ fn lower_local_effect_sequence_with_collections(
                 decisions.push(lowered.decision);
                 effects.extend(lowered.effects);
             }
-            LocalEffectNode::CreateExplicitTokens(node) if node.body.copy_of().is_some() => {
-                // `create a token that's a copy of OBJECT`: the copied object
-                // is an operand of the shared permanent-subject lowering, so
-                // a target is declared like any other action's target.
-                let copy = node.body.copy_of().expect("a copy specification");
+            LocalEffectNode::CreateExplicitTokens(node) if node.body.object_operand().is_some() => {
+                // `create a token that's a copy of OBJECT` / `create a Role
+                // token attached to OBJECT`: the object is an operand of the
+                // shared permanent-subject lowering, so a target is declared
+                // like any other action's target.
+                let operand = node.body.object_operand().expect("an object operand");
                 cursor.enter("lower.token-copy.player");
                 cursor.require(
                     node.player == LocalPlayerReference::Controller,
@@ -2189,7 +2323,7 @@ fn lower_local_effect_sequence_with_collections(
                 cursor.enter("lower.token-copy.object");
                 let objects = lower_ordinary_permanent_subject(
                     cursor,
-                    &copy.object,
+                    operand,
                     effect_index,
                     false,
                     &permanent_target_base_ids,
@@ -2199,9 +2333,13 @@ fn lower_local_effect_sequence_with_collections(
                 )?;
                 let [object] = <[Value; 1]>::try_from(objects)
                     .map_err(|_| cursor.fail("one copied object"))?;
-                let mut creation =
-                    lower_token_copy_creation(&node.body, copy, object, controller(), quantity)
-                        .map_err(|expected| cursor.fail(expected))?;
+                let mut creation = lower_token_creation_with_object(
+                    &node.body,
+                    Some(object),
+                    controller(),
+                    quantity,
+                )
+                .map_err(|expected| cursor.fail(expected))?;
                 if created_tokens_are_next_antecedent(sequence, effect_index) {
                     creation["bind"] = json!(CREATED_TOKENS_BINDING);
                 }
@@ -2254,6 +2392,12 @@ fn lower_local_effect_sequence_with_collections(
         }
     }
 
+    declare_query_possessor_targets(
+        cursor,
+        &mut effects,
+        &mut decisions,
+        &mut declared_player_targets,
+    )?;
     apply_performer(
         cursor,
         &mut effects,
@@ -2276,6 +2420,10 @@ fn lower_local_effect_sequence_with_collections(
     action_starts.push((effects.len(), decisions.len()));
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
+    install_action_result_object_counts(&action_starts, &mut effects).map_err(|expected| {
+        cursor.enter("lower.action-result.count");
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+    })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
     apply_delayed_frames(
         cursor,
@@ -2414,10 +2562,21 @@ impl ConditionalScopes {
                     card_focus: collections.singular_focus_object(),
                     previous_action_result,
                 };
-                self.conditions[index] = Some(
+                let mut condition =
                     lower_sentence_condition(cursor, &conditional.condition, &bindings)
-                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
-                );
+                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                // `if a land card was milled this way` reads the action before it.
+                bind_action_result_objects(
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    effect_index,
+                    &mut condition,
+                )
+                .map_err(|expected| {
+                    cursor.enter("lower.action-result.condition");
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                self.conditions[index] = Some(condition);
                 self.before[index] = Some(collections.clone());
             }
         }
@@ -2506,7 +2665,7 @@ fn install_action_result_bindings(
         .for_each(|effect| collect_action_result_references(effect, &mut referenced));
     for effect_index in referenced {
         cursor.enter("lower.action-result.binding");
-        let verb = [ActionResultVerb::Destroyed, ActionResultVerb::Milled]
+        let verb = ActionResultVerb::ALL
             .into_iter()
             .find(|verb| {
                 sequence
@@ -2531,11 +2690,16 @@ fn install_action_result_bindings(
                 cursor.fail("one top-level runtime action recording the restated objects"),
             ));
         };
-        cursor.require(
-            producer.get("bind").is_none(),
-            "a producing action without another result binding",
-        )?;
-        producer["bind"] = json!(action_result_binding(effect_index));
+        // The producer's stable object set: an existing binding, a revealed
+        // set the program already bound, or a binding installed now.
+        let objects = action_result_objects(producer, effect_index)
+            .map_err(|expected| cursor.fail(expected))?;
+        let binding = action_result_binding(effect_index);
+        if objects != json!({ "kind": "boundObjects", "binding": binding }) {
+            effects
+                .iter_mut()
+                .for_each(|effect| rewrite_bound_objects(effect, &binding, &objects));
+        }
     }
     Ok(())
 }
@@ -2617,30 +2781,31 @@ fn collect_action_result_quantities(value: &Value, found: &mut Vec<(usize, Strin
 }
 
 /// Rewrites the pending references of one reader into its bound value.
-fn bind_action_result_quantity(value: &mut Value, reader: usize, quantity: &str, binding: &str) {
+fn bind_action_result_quantity(value: &mut Value, reader: usize, quantity: &str, bound: &Value) {
     match value {
         Value::Object(map) => {
             if map.get("kind").and_then(Value::as_str) == Some(ACTION_RESULT_QUANTITY)
                 && map.get("reader").and_then(Value::as_u64) == Some(reader as u64)
                 && map.get("quantity").and_then(Value::as_str) == Some(quantity)
             {
-                *value = json!({ "kind": "boundValue", "id": binding });
+                *value = bound.clone();
                 return;
             }
             map.values_mut()
-                .for_each(|child| bind_action_result_quantity(child, reader, quantity, binding));
+                .for_each(|child| bind_action_result_quantity(child, reader, quantity, bound));
         }
         Value::Array(items) => items
             .iter_mut()
-            .for_each(|child| bind_action_result_quantity(child, reader, quantity, binding)),
+            .for_each(|child| bind_action_result_quantity(child, reader, quantity, bound)),
         _ => {}
     }
 }
 
-/// Binds each `the total life lost this way` (CR 608.2c, 702.101a) to the
-/// nearest earlier action of the program whose lowering is one top-level
-/// runtime action producing that quantity; its `bind` records the amount.
-/// A reader without such a producer fails explicitly.
+/// Binds each action-result quantity (`the total life lost this way`,
+/// `that many`, CR 608.2c, 702.101a) to the nearest earlier action of the
+/// program whose lowering records that quantity in one top-level runtime
+/// action. An existing binding of the same field is reused. A reader without
+/// a producer, or whose nearest producer records several candidates, fails.
 fn install_action_result_quantities(
     cursor: &mut OracleTokenCursor<'_>,
     action_starts: &[(usize, usize)],
@@ -2652,16 +2817,23 @@ fn install_action_result_quantities(
         .for_each(|effect| collect_action_result_quantities(effect, &mut pending));
     for (reader, quantity) in pending {
         cursor.enter("lower.action-result.quantity");
-        let runtime_kind = [ActionResultQuantity::LifeLost]
-            .into_iter()
-            .find(|candidate| candidate.ir_name() == quantity)
-            .map(ActionResultQuantity::runtime_kind)
+        let kind = ActionResultQuantity::from_ir_name(&quantity)
             .ok_or_else(|| cursor.fail("a known action-result quantity"))?;
-        let producer = (0..reader).rev().find_map(|index| {
+        // An anaphor (`that many`) names the immediately preceding action;
+        // it never skips that action in favour of an older producer.
+        let earliest = if kind.is_anaphor() {
+            reader.saturating_sub(1)
+        } else {
+            0
+        };
+        let producer = (earliest..reader).rev().find_map(|index| {
             let (from, _) = *action_starts.get(index)?;
             let (to, _) = *action_starts.get(index + 1)?;
             let producers = (from..to)
-                .filter(|position| effects[*position]["kind"].as_str() == Some(runtime_kind))
+                .filter_map(|position| {
+                    let field = kind.produced_by(effects[position]["kind"].as_str()?)?;
+                    Some((position, field))
+                })
                 .collect::<Vec<_>>();
             (!producers.is_empty()).then_some((index, producers))
         });
@@ -2670,22 +2842,26 @@ fn install_action_result_quantities(
                 .fail("an earlier action of this program that produces the restated quantity")
                 .into());
         };
-        let [position] = producers.as_slice() else {
+        let [(position, field)] = producers.as_slice() else {
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                 cursor.fail("one top-level runtime action recording the restated quantity"),
             ));
         };
-        let binding = action_result_binding(producer_index);
-        match effects[*position].get("bind").and_then(Value::as_str) {
-            None => effects[*position]["bind"] = json!(binding),
-            Some(existing) => cursor.require(
-                existing == binding,
-                "a producing action without another result binding",
-            )?,
-        }
+        let binding = match effects[*position]
+            .get(field.ir_field())
+            .and_then(Value::as_str)
+        {
+            Some(existing) => existing.to_owned(),
+            None => {
+                let binding = action_result_binding(producer_index);
+                effects[*position][field.ir_field()] = json!(binding);
+                binding
+            }
+        };
+        let bound = field.reader(&binding);
         effects
             .iter_mut()
-            .for_each(|effect| bind_action_result_quantity(effect, reader, &quantity, &binding));
+            .for_each(|effect| bind_action_result_quantity(effect, reader, &quantity, &bound));
     }
     Ok(())
 }
@@ -3423,6 +3599,25 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// The player targets that query possessors (`target opponent controls`)
+/// of the actions lowered so far declare, resolved by the shared pass.
+fn declare_query_possessor_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    match super::declare_embedded_player_targets(effects, decisions, declared_player_targets) {
+        Ok(()) => Ok(()),
+        Err(expected) => {
+            cursor.enter("lower.query-possessor.declared-player");
+            Err(EffectSequenceLoweringFailure::FailedSupport(
+                cursor.fail(expected),
+            ))
+        }
+    }
 }
 
 /// A declared performer (`target opponent VERBs`, CR 115.1, 601.2c) is one

@@ -100,6 +100,10 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
                     phrase.domain == Some(ObjectKind::Permanent),
                     "an explicitly battlefield-permanent collection, not players or cards",
                 )?;
+                // The operand ends transactionally: a relative clause the
+                // shared query did not read is this operand's failure, not
+                // the end of the operand.
+                super::refuse_unread_relative_tail(cursor)?;
                 PermanentOperandState::Complete
             }
             PermanentOperandState::Complete => {

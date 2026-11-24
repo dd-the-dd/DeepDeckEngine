@@ -13,7 +13,7 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
     let origin = match (effect.from, effect.to) {
         (SourceZone::Graveyard, _) => Some(json!({ "kind": "graveyard", "player": controller() })),
         (SourceZone::Hand, _) => Some(json!({ "kind": "hand", "player": controller() })),
-        (SourceZone::Battlefield | SourceZone::Exile, _) => None,
+        (SourceZone::Battlefield | SourceZone::Exile | SourceZone::Library, _) => None,
     };
     let mut primitive = match effect.to {
         // A permanent leaves the battlefield through the permanent-movement
@@ -31,6 +31,17 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
             "kind": "moveCards",
             "cards": cards,
             "to": { "kind": "graveyard", "player": { "kind": "ownerOf", "object": self_ref() } },
+        }),
+        // Its owner's library (CR 400.3); the caller composes the shuffle of
+        // that library (CR 701.24b), so the placement order is irrelevant.
+        SourceZone::Library => json!({
+            "kind": "moveCards",
+            "cards": cards,
+            "to": {
+                "kind": "library",
+                "player": { "kind": "ownerOf", "object": self_ref() },
+                "position": "bottom",
+            },
         }),
         SourceZone::Exile => json!({
             "kind": "moveCards",

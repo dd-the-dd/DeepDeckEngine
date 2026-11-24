@@ -216,7 +216,7 @@
       }
     },
     {
-      "id": "known-gap-major-teroh-exile-all-black-creatures",
+      "id": "exact-major-teroh-exile-all-black-creatures",
       "request": {
         "cardName": "Major Teroh",
         "typeLine": "Legendary Creature — Bird Soldier",
@@ -226,14 +226,48 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 2,
-        "diagnostics": [
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "effect.zone-batch.collection",
-            "found": "black"
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "sacrificePermanent",
+                  "permanent": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "exilePermanent",
+                  "permanent": {
+                    "kind": "eachPermanent",
+                    "where": {
+                      "kind": "and",
+                      "operands": [
+                        {
+                          "kind": "colorContains",
+                          "value": "Black"
+                        },
+                        {
+                          "kind": "cardTypeContains",
+                          "value": "Creature"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
           }
         ]
       }

@@ -144,6 +144,21 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
     let mut reduction = None;
     let (costs, effects, annotation) = match context {
         EffectProgramContext::Activated => {
+            match try_recognize_activated_modal_with_cost_context(
+                &mut cursor,
+                input.name_links,
+                input.name_resolution_failure,
+                &recognition_context,
+                |costs, base| activation_body_context(input.face_type_line, costs, base),
+            ) {
+                ActivatedModalParseAttempt::NotClaimed => {}
+                ActivatedModalParseAttempt::Parsed(node) => {
+                    return lower_activated_modal_program(&mut cursor, node);
+                }
+                ActivatedModalParseAttempt::FailedCommitted(failure) => {
+                    return EffectProgramParseAttempt::Failed(failure);
+                }
+            }
             match try_recognize_activated_effect_sequence_with_cost_context(
                 &mut cursor,
                 input.name_links,
@@ -186,6 +201,92 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
     let outcome = apply_activation_cost_reduction(&mut cursor, outcome, reduction);
     let outcome = refuse_indefinite_grant_to_the_spell(&mut cursor, context, outcome);
     apply_activation_restrictions(&mut cursor, outcome, restrictions)
+}
+
+/// A modal activated ability (CR 700.2, 602.2b): the shared activation-cost
+/// lowering, then the shared modal lowering whose `chooseModes` decision is
+/// declared with the ability's other choices as it is put on the stack.
+/// Every mode and the costs agree on one activation zone. A mode that adds
+/// mana is refused: whether such an ability is a mana ability (CR 605.1a)
+/// is not decided here.
+fn lower_activated_modal_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: ActivatedModalNode,
+) -> EffectProgramParseAttempt {
+    let ActivatedModalNode {
+        costs,
+        modal,
+        restrictions,
+    } = node;
+    let mut activation_zone = None;
+    for (index, step) in modal
+        .modes
+        .iter()
+        .flat_map(EffectProgramNode::steps)
+        .enumerate()
+    {
+        let zone = match activation_zone_from_costs(cursor, &costs, step.inner_sequence()) {
+            Ok(zone) => zone,
+            Err(failure) => return EffectProgramParseAttempt::FailedSupport(failure),
+        };
+        if index == 0 {
+            activation_zone = zone;
+        } else if zone != activation_zone {
+            cursor.enter("activation.modal.source-zone");
+            return EffectProgramParseAttempt::FailedSupport(
+                cursor.fail("one activation zone shared by every mode"),
+            );
+        }
+    }
+    let lowered = match lower_effect_sequence_modal(cursor, &modal) {
+        Ok(lowered) => lowered,
+        Err(failure) => return EffectProgramParseAttempt::Failed(failure),
+    };
+    fn adds_mana(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(adds_mana),
+            Value::Object(object) => {
+                object.get("kind").and_then(Value::as_str) == Some("addMana")
+                    || object.values().any(adds_mana)
+            }
+            _ => false,
+        }
+    }
+    if lowered.effects.iter().any(adds_mana) {
+        cursor.enter("activation.modal.mana-mode");
+        return EffectProgramParseAttempt::FailedSupport(
+            cursor.fail("modes without mana production (CR 605.1a is not decided for modes)"),
+        );
+    }
+    let mut decisions = lower_activation_cost_decisions(&costs);
+    decisions.extend(lowered.decisions);
+    let mut rule = json!({
+        "kind": "activatedAbility",
+        "source": self_ref(),
+        "costs": costs
+            .costs
+            .iter()
+            .flat_map(lower_local_activation_costs)
+            .collect::<Vec<_>>(),
+        "declaration": {
+            "kind": "castingDeclaration",
+            "decisions": decisions,
+        },
+        "effects": lowered.effects,
+    });
+    if let Some(zone) = activation_zone {
+        rule["activationZone"] = json!(zone);
+    }
+    let outcome = EffectProgramParseAttempt::Parsed(draft(
+        rule,
+        &[
+            "Consume the shared activation costs once",
+            "Read the modal header, its owned restriction sentence and bullet boundaries",
+            "Delegate every printed mode to the shared effect program",
+            "Declare the chosen modes with the ability's other choices (CR 602.2b)",
+        ],
+    ));
+    apply_activation_restrictions(cursor, outcome, restrictions)
 }
 
 /// A spell is not a battlefield permanent: an indefinite keyword grant to the

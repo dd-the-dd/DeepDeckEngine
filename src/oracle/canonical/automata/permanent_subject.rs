@@ -197,7 +197,9 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield),
         )),
         LocalEffectNode::Choose(node) => match &node.domain {
-            ChoiceDomainNode::CreatureType | ChoiceDomainNode::Color => previous,
+            ChoiceDomainNode::CreatureType
+            | ChoiceDomainNode::Color
+            | ChoiceDomainNode::CardName(_) => previous,
             ChoiceDomainNode::PermanentTargets(targets) => {
                 Local(singular_permanent_target(targets, effect_index))
             }
@@ -244,9 +246,11 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             | super::SingularPlayerAction::CreateTokens(_)
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
             // A hand action changes no permanent: the subject antecedent stays.
-            super::SingularPlayerAction::Hand(_) | super::SingularPlayerAction::ExtraTurn => {
-                previous
-            }
+            super::SingularPlayerAction::Hand(_)
+            | super::SingularPlayerAction::ExtraTurn
+            | super::SingularPlayerAction::Designation(_)
+            | super::SingularPlayerAction::Skip(_)
+            | super::SingularPlayerAction::Prohibition(_) => previous,
         },
         // A list that only changes life totals leaves the permanent subject
         // alone; any other action replaces the antecedent.
@@ -263,21 +267,32 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         | LocalEffectNode::LoseLife(_)
         | LocalEffectNode::AddMana(_)
         | LocalEffectNode::TemporaryPlayerPermission(_) => previous,
+        // The controller's draw, discard, mill, scry and surveil move cards
+        // between hidden or public card zones and introduce no permanent: a
+        // lexical permanent antecedent an earlier action of the program
+        // declared stays (`Put a +1/+1 counter on target creature. Draw a
+        // card. That creature gains trample`), as for the same actions of
+        // another player above. Their cards are a lexical result of their
+        // own (the card-action scope reads them), so the ability's default
+        // event or source subject is exhausted as before.
+        LocalEffectNode::DrawCards(_)
+        | LocalEffectNode::DiscardCards(_)
+        | LocalEffectNode::OptionalDrawCards(_)
+        | LocalEffectNode::MillCards(_)
+        | LocalEffectNode::Scry(_)
+        | LocalEffectNode::Surveil(_) => match previous {
+            Local(Some(reference)) => Local(Some(reference)),
+            _ => Local(None),
+        },
         LocalEffectNode::CardAction(_)
         | LocalEffectNode::OptionalSequence(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::CopyStackObject(_)
         | LocalEffectNode::Retarget(_)
-        | LocalEffectNode::DrawCards(_)
-        | LocalEffectNode::DiscardCards(_)
-        | LocalEffectNode::OptionalDrawCards(_)
-        | LocalEffectNode::MillCards(_)
         | LocalEffectNode::Amass(_)
         | LocalEffectNode::EmpowerJace(_)
         | LocalEffectNode::Investigate(_)
         | LocalEffectNode::ControllerKeywordAction(_)
-        | LocalEffectNode::Scry(_)
-        | LocalEffectNode::Surveil(_)
         | LocalEffectNode::Earthbend(_)
         | LocalEffectNode::MoveSource(_)
         | LocalEffectNode::MoveCards(_)
@@ -741,8 +756,12 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
     }) || cursor
         .peek_token()
         .is_some_and(|token| token.token_type == "quantity")
+        || super::expressed_target_count_starts(cursor)
     {
-        let targets = recognize_target_list(cursor)?;
+        // The shared lowering reads a slot's typed count (`X target`, `any
+        // number of target`); see `lower_ordinary_permanent_subject`.
+        let targets =
+            super::recognize_target_list_with_counts(cursor, super::TargetCountSupport::Expressed)?;
         cursor.require(
             targets
                 .slots

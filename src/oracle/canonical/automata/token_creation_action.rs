@@ -1,4 +1,5 @@
 use super::super::{MachineFailure, OracleTokenCursor};
+use super::counter_named_token::recognize_named_token_identity;
 use super::*;
 use crate::oracle::canonical::automata::VerbLemma;
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
@@ -7,14 +8,21 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 pub(in crate::oracle::canonical) struct ExplicitTokenCreationNode {
     pub player: LocalPlayerReference,
     pub body: TokenCreationBodyNode,
+    /// The further conjuncts of a coordinated description list (`a 1/1 ...
+    /// token, a 2/2 ... token, and a 3/3 ... token`): each conjunct is an
+    /// independent written description created by the same player.
+    pub additional: Vec<TokenCreationBodyNode>,
 }
 
-/// What a created token is: a written description (CR 111.4) or a copy of
-/// an object with copiable-value exceptions (CR 111.8, 707.9).
+/// What a created token is: a written description (CR 111.4), a copy of
+/// an object with copiable-value exceptions (CR 111.8, 707.9), or a
+/// predefined catalog identity (CR 111.10) whose quantity or attachment the
+/// catalog-only reader cannot carry.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum TokenSpecNode {
     Described(ExplicitTokenTemplateNode),
     CopyOf(TokenCopyNode),
+    Predefined(String),
 }
 
 /// `token(s) that's|that are a copy|copies of OBJECT[, except EXCEPTIONS]`.
@@ -45,10 +53,18 @@ pub(in crate::oracle::canonical) struct TokenCreationBodyNode {
     /// Complete quoted abilities of the created tokens (CR 113.1).
     pub abilities: Vec<QuotedAbilityNode>,
     pub tapped: bool,
-    /// The token's name when the effect gives one (CR 111.4): `NAME, a ...`.
+    /// The tokens enter attacking (CR 508.4): `tapped and attacking`,
+    /// `that's attacking`.
+    pub attacking: bool,
+    /// The token's name when the effect gives one (CR 111.4): `NAME, a ...`
+    /// or `... token named NAME`.
     pub name: Option<String>,
     /// The `legendary` supertype of the created token (CR 205.4d).
     pub legendary: bool,
+    /// `attached to OBJECT`: an Aura token enters attached to that object
+    /// (CR 111.3, 303.4f), read by the shared contextual permanent operand
+    /// grammar (a target, the source, a bound reference).
+    pub attached_to: Option<PermanentOperandNode>,
 }
 
 impl TokenCreationBodyNode {
@@ -56,7 +72,7 @@ impl TokenCreationBodyNode {
     pub(in crate::oracle::canonical) fn described(&self) -> Option<&ExplicitTokenTemplateNode> {
         match &self.spec {
             TokenSpecNode::Described(template) => Some(template),
-            TokenSpecNode::CopyOf(_) => None,
+            TokenSpecNode::CopyOf(_) | TokenSpecNode::Predefined(_) => None,
         }
     }
 
@@ -64,8 +80,24 @@ impl TokenCreationBodyNode {
     pub(in crate::oracle::canonical) fn copy_of(&self) -> Option<&TokenCopyNode> {
         match &self.spec {
             TokenSpecNode::CopyOf(copy) => Some(copy),
-            TokenSpecNode::Described(_) => None,
+            TokenSpecNode::Described(_) | TokenSpecNode::Predefined(_) => None,
         }
+    }
+
+    /// The catalog identity, when the tokens are predefined (CR 111.10).
+    pub(in crate::oracle::canonical) fn predefined(&self) -> Option<&str> {
+        match &self.spec {
+            TokenSpecNode::Predefined(name) => Some(name),
+            TokenSpecNode::Described(_) | TokenSpecNode::CopyOf(_) => None,
+        }
+    }
+
+    /// The object operand the creation reads: the copied object or the
+    /// object the tokens enter attached to. A program declares its target.
+    pub(in crate::oracle::canonical) fn object_operand(&self) -> Option<&PermanentOperandNode> {
+        self.copy_of()
+            .map(|copy| &copy.object)
+            .or(self.attached_to.as_ref())
     }
 }
 
@@ -171,7 +203,12 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action_in_conte
     if let Err(f) = trial.consume(verb) {
         return TokenCreationAttempt::FailedCommitted(f);
     }
-    let head = match recognize_token_body_head(&mut trial, antecedent, objects) {
+    let head = match recognize_token_body_head(
+        &mut trial,
+        antecedent,
+        objects,
+        CatalogReader::Available,
+    ) {
         Ok(Some(head)) => head,
         Ok(None) => {
             // Reuse the complete catalog reader and all of its existing
@@ -186,73 +223,180 @@ pub(in crate::oracle::canonical) fn try_recognize_token_creation_action_in_conte
         }
         Err(f) => return TokenCreationAttempt::FailedCommitted(f),
     };
+    let body = match recognize_token_body_tail(&mut trial, head, objects) {
+        Ok(body) => body,
+        Err(f) => return TokenCreationAttempt::FailedCommitted(f),
+    };
     if player != LocalPlayerReference::Controller {
         // This old typed body is the input of parents that capture the
         // referenced controller BEFORE destroying/countering the object.
         // Pass the parsed node and ending cursor, never recompute its player
         // through the ordinary controller-only lowerer after that departure.
+        // A description with modifiers the old node cannot carry keeps its
+        // referenced player in the shared explicit node instead.
+        if let Some(effect) = referenced_controller_creature_tokens(&body, &player) {
+            *cursor = trial;
+            return TokenCreationAttempt::Recognized(LocalEffectNode::CreateTokens(effect));
+        }
         trial.enter("token.creation.referenced-controller-body");
-        if head.tapped || head.legendary || head.name.is_some() {
+        if body.copy_of().is_some() {
             return TokenCreationAttempt::FailedCommitted(
-                trial.fail("an untapped token for the existing referenced-controller parent"),
+                trial.fail("a written description for the referenced controller's tokens"),
             );
         }
-        let Some(template) = head
-            .described()
-            .filter(|template| template.literal_statistics())
-        else {
-            return TokenCreationAttempt::FailedCommitted(trial.fail(
-                "a literal token description for the existing referenced-controller parent",
-            ));
-        };
-        let atom = match head.quantity {
-            NumericExpression::Atom(NumericAtom::Integer(n))
-                if n > 0 && i32::try_from(n).is_ok() => NumericAtom::Integer(n),
-            NumericExpression::Atom(NumericAtom::VariableX) => NumericAtom::VariableX,
-            _ => return TokenCreationAttempt::FailedCommitted(trial.fail(
-                "an existing referenced-controller token quantity: positive i32 literal or declared X")),
-        };
-        if template.types.as_slice() != [ObjectCardType::Creature] {
-            return TokenCreationAttempt::FailedCommitted(trial.fail(
-                "a Creature-only template representable by the existing controller-snapshot parent",
-            ));
-        }
-        let token = template.creature.clone();
         *cursor = trial;
-        return TokenCreationAttempt::Recognized(LocalEffectNode::CreateTokens(
-            CreateTokensEffectNode {
+        return TokenCreationAttempt::Recognized(LocalEffectNode::CreateExplicitTokens(
+            ExplicitTokenCreationNode {
                 player,
-                quantity: atom,
-                token,
+                body,
+                additional: Vec::new(),
             },
         ));
     }
-    match recognize_token_body_tail(&mut trial, head) {
-        Ok(body) => {
-            *cursor = trial;
-            TokenCreationAttempt::Recognized(LocalEffectNode::CreateExplicitTokens(
-                ExplicitTokenCreationNode { player, body },
-            ))
-        }
-        Err(f) => TokenCreationAttempt::FailedCommitted(f),
-    }
+    let additional = match recognize_token_conjuncts(&mut trial, &body, antecedent) {
+        Ok(additional) => additional,
+        Err(f) => return TokenCreationAttempt::FailedCommitted(f),
+    };
+    *cursor = trial;
+    TokenCreationAttempt::Recognized(LocalEffectNode::CreateExplicitTokens(
+        ExplicitTokenCreationNode {
+            player,
+            body,
+            additional,
+        },
+    ))
 }
 
-/// The written token description after a performer's `create(s)` verb
-/// (CR 111.1): quantity, characteristics and granted abilities. A catalog
-/// token (`a Treasure token`) is not an explicit description and is refused
-/// at the description state.
+/// The historical controller-snapshot node: an untapped, unnamed, literal
+/// Creature-only description without abilities and a positive literal or
+/// declared-X quantity. Any other description is not representable there.
+fn referenced_controller_creature_tokens(
+    body: &TokenCreationBodyNode,
+    player: &LocalPlayerReference,
+) -> Option<CreateTokensEffectNode> {
+    if body.tapped
+        || body.attacking
+        || body.legendary
+        || body.name.is_some()
+        || !body.keywords.is_empty()
+        || !body.abilities.is_empty()
+    {
+        return None;
+    }
+    let template = body
+        .described()
+        .filter(|template| template.literal_statistics())?;
+    if template.types.as_slice() != [ObjectCardType::Creature] {
+        return None;
+    }
+    let quantity = match body.quantity {
+        NumericExpression::Atom(NumericAtom::Integer(n)) if n > 0 && i32::try_from(n).is_ok() => {
+            NumericAtom::Integer(n)
+        }
+        NumericExpression::Atom(NumericAtom::VariableX) => NumericAtom::VariableX,
+        _ => return None,
+    };
+    Some(CreateTokensEffectNode {
+        player: *player,
+        quantity,
+        token: template.creature.clone(),
+    })
+}
+
+/// Whether another written description of a coordinated list starts here:
+/// an article or quantity followed by a description's introducer (stats,
+/// color, entry state or supertype). A following verb or catalog identity
+/// is not a description conjunct and stays with the enclosing sequence.
+fn token_conjunct_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let quantity = cursor.peek_token().is_some_and(|token| {
+        token.raw.eq_ignore_ascii_case("a")
+            || token.raw.eq_ignore_ascii_case("an")
+            || (token.token_type == "quantity" && !token.raw.eq_ignore_ascii_case("x"))
+    });
+    if !quantity {
+        return false;
+    }
+    let mut next = cursor.clone();
+    if next.advance_to(next.position() + 1).is_err() {
+        return false;
+    }
+    next.peek_token()
+        .is_some_and(|token| token.token_type == "counterValue")
+        || numeric_power_toughness_starts(&next)
+        || next.peek().is_some_and(|raw| {
+            ["tapped", "attacking", "legendary", "colorless"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+                || lookup_card_color_word(raw).is_some()
+        })
+}
+
+/// `, a 2/2 ... token, and a 3/3 ... token`: further written descriptions
+/// coordinated with the first one. Once a conjunct starts, it is committed:
+/// an unsupported conjunct fails the whole list instead of truncating it.
+fn recognize_token_conjuncts(
+    trial: &mut OracleTokenCursor<'_>,
+    first: &TokenCreationBodyNode,
+    antecedent: Option<TargetBinding>,
+) -> super::super::MachineResult<Vec<TokenCreationBodyNode>> {
+    let mut additional = Vec::new();
+    let mut closed = false;
+    if first.copy_of().is_some() {
+        return Ok(additional);
+    }
+    loop {
+        let mut next = trial.clone();
+        let comma = next.peek() == Some(",");
+        if comma {
+            next.consume(",")?;
+        }
+        let and = next
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"));
+        if and {
+            next.consume("and")?;
+        }
+        if !(comma || and) || !token_conjunct_starts(&next) {
+            break;
+        }
+        next.enter("token.coordination.description");
+        let head =
+            recognize_token_body_head(&mut next, antecedent, None, CatalogReader::Available)?
+                .ok_or_else(|| next.fail("a written token description in the coordinated list"))?;
+        next.require(
+            head.body.described().is_some(),
+            "a written description, not a copy or a catalog identity, in a token list",
+        )?;
+        let body = recognize_token_body_tail(&mut next, head, None)?;
+        additional.push(body);
+        *trial = next;
+        if and {
+            closed = true;
+            break;
+        }
+    }
+    if !additional.is_empty() {
+        trial.enter("token.coordination.closing-connector");
+        trial.require(closed, "an explicit closing `and` for this token list")?;
+    }
+    Ok(additional)
+}
+
+/// The token description after a performer's `create(s)` verb (CR 111.1):
+/// quantity, characteristics and granted abilities, or a catalog identity
+/// (`a Treasure token`, CR 111.10) read as the same shared body.
 pub(in crate::oracle::canonical) fn recognize_performed_token_creation_body(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
 ) -> super::super::MachineResult<TokenCreationBodyNode> {
-    let Some(head) = recognize_token_body_head(cursor, antecedent, None)? else {
+    let Some(head) = recognize_token_body_head(cursor, antecedent, None, CatalogReader::Absent)?
+    else {
         cursor.enter("token.creation.performed.description");
         return Err(cursor.fail(
-            "an explicit token description after a player subject's verb (a catalog token is not read for a player subject)",
+            "a written token description or a catalog identity after a player subject's verb",
         ));
     };
-    recognize_token_body_tail(cursor, head)
+    recognize_token_body_tail(cursor, head, None)
 }
 
 /// Whether the token noun that opens a copy specification starts here.
@@ -274,13 +418,31 @@ enum TokenQuantity {
     EqualToAfterNoun,
 }
 
+/// The description up to its noun, and whether its `a number of ... equal
+/// to EXPR` amount follows the modifiers (`... tokens with flying equal to
+/// EXPR`): the tail then reads it.
+struct TokenBodyHead {
+    body: TokenCreationBodyNode,
+    amount_after_modifiers: bool,
+}
+
+impl From<TokenCreationBodyNode> for TokenBodyHead {
+    fn from(body: TokenCreationBodyNode) -> Self {
+        Self {
+            body,
+            amount_after_modifiers: false,
+        }
+    }
+}
+
 /// The description up to its `token(s)` noun; `Ok(None)` when no explicit
 /// descriptor starts (the catalog reader's input).
 fn recognize_token_body_head(
     trial: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
     objects: Option<TokenObjectContext<'_>>,
-) -> super::super::MachineResult<Option<TokenCreationBodyNode>> {
+    catalog_reader: CatalogReader,
+) -> super::super::MachineResult<Option<TokenBodyHead>> {
     let name = recognize_token_proper_name(trial)?;
     trial.enter("token.creation.quantity");
     let quantity = if name.is_some() {
@@ -308,7 +470,7 @@ fn recognize_token_body_head(
     } else {
         TokenQuantity::Stated(recognize_numeric_expression(trial, antecedent)?)
     };
-    let tapped = recognize_token_entry_state(trial)?;
+    let entry = recognize_token_entry_prefix(trial)?;
     if token_copy_starts(trial) {
         let TokenQuantity::Stated(quantity) = quantity else {
             return Err(trial.fail("a stated quantity of token copies"));
@@ -317,24 +479,36 @@ fn recognize_token_body_head(
             return Err(trial.fail("a token copy without a given name"));
         }
         let copy = recognize_token_copy(trial, &quantity, objects)?;
-        return Ok(Some(TokenCreationBodyNode {
+        return Ok(Some(TokenBodyHead::from(TokenCreationBodyNode {
             quantity,
             spec: TokenSpecNode::CopyOf(copy),
             keywords: Vec::new(),
             abilities: Vec::new(),
-            tapped,
+            tapped: entry.tapped,
+            attacking: entry.attacking,
             name: None,
             legendary: false,
-        }));
+            attached_to: None,
+        })));
     }
     trial.enter("token.creation.supertype");
+    // `legendary` is the description's supertype only before its stats or
+    // color (CR 205.4d); a catalog identity is never read through it.
     let legendary = trial
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("legendary"))
-        && trial
-            .token_slice(trial.position() + 1, trial.position() + 2)
-            .first()
-            .is_some_and(|token| token.token_type == "counterValue");
+        && {
+            let mut next = trial.clone();
+            next.advance_to(next.position() + 1).is_ok()
+                && (next
+                    .peek_token()
+                    .is_some_and(|token| token.token_type == "counterValue")
+                    || numeric_power_toughness_starts(&next)
+                    || next.peek().is_some_and(|raw| {
+                        raw.eq_ignore_ascii_case("colorless")
+                            || lookup_card_color_word(raw).is_some()
+                    }))
+        };
     if legendary {
         trial
             .advance_to(trial.position() + 1)
@@ -344,13 +518,14 @@ fn recognize_token_body_head(
         TokenDescriptorAttempt::Recognized(node) => node,
         TokenDescriptorAttempt::FailedCommitted(f) => return Err(f),
         TokenDescriptorAttempt::NotClaimed => {
-            if matches!(quantity, TokenQuantity::EqualToAfterNoun) {
-                return Err(trial.fail("an explicit token description after `a number of`"));
+            if legendary || name.is_some() {
+                return Ok(None);
             }
-            return Ok(None);
+            return recognize_predefined_token_head(trial, quantity, entry, catalog_reader);
         }
     };
     trial.enter("token.creation.noun");
+    let mut amount_after_modifiers = false;
     let quantity = match quantity {
         TokenQuantity::Stated(quantity) => {
             let singular = matches!(quantity, NumericExpression::Atom(NumericAtom::Integer(1)));
@@ -359,19 +534,93 @@ fn recognize_token_body_head(
         }
         TokenQuantity::EqualToAfterNoun => {
             trial.consume("tokens")?;
-            trial.enter("token.creation.equal-to-quantity");
-            cursor_equal_to_quantity(trial)?
+            if word_at(trial, 0, "equal") {
+                trial.enter("token.creation.equal-to-quantity");
+                cursor_equal_to_quantity(trial)?
+            } else {
+                // Read by the tail after the modifiers; never lowered.
+                amount_after_modifiers = true;
+                NumericExpression::from(0)
+            }
         }
     };
-    Ok(Some(TokenCreationBodyNode {
+    let body = TokenCreationBodyNode {
         quantity,
         spec: TokenSpecNode::Described(template),
         keywords: Vec::new(),
         abilities: Vec::new(),
-        tapped,
+        tapped: entry.tapped,
+        attacking: entry.attacking,
         name,
         legendary,
+        attached_to: None,
+    };
+    Ok(Some(TokenBodyHead {
+        body,
+        amount_after_modifiers,
     }))
+}
+
+/// Whether the caller has the catalog-only creation reader as an
+/// alternative for a predefined identity with a positive literal quantity.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum CatalogReader {
+    Available,
+    Absent,
+}
+
+/// A predefined catalog identity (CR 111.10) read as the shared body when
+/// the catalog-only reader cannot carry it: a quantity that is not a positive
+/// literal (`X Treasure tokens`, `a number of Food tokens equal to EXPR`) or
+/// an Aura entering attached (`a Monster Role token attached to ...`). Any
+/// other catalog creation stays the catalog reader's input (`Ok(None)`).
+fn recognize_predefined_token_head(
+    trial: &mut OracleTokenCursor<'_>,
+    quantity: TokenQuantity,
+    entry: TokenEntryStateNode,
+    catalog_reader: CatalogReader,
+) -> super::super::MachineResult<Option<TokenBodyHead>> {
+    let mut next = trial.clone();
+    let Ok(name) = recognize_named_token_identity(&mut next) else {
+        if matches!(quantity, TokenQuantity::EqualToAfterNoun) {
+            return Err(trial.fail("an explicit token description after `a number of`"));
+        }
+        return Ok(None);
+    };
+    let literal = matches!(
+        &quantity,
+        TokenQuantity::Stated(NumericExpression::Atom(NumericAtom::Integer(n))) if *n > 0
+    );
+    let singular = matches!(
+        &quantity,
+        TokenQuantity::Stated(NumericExpression::Atom(NumericAtom::Integer(1)))
+    );
+    let noun = if singular { "token" } else { "tokens" };
+    let attached = word_at(&next, 1, "attached") && word_at(&next, 2, "to");
+    if (catalog_reader == CatalogReader::Available && literal && !attached) || entry.attacking {
+        return Ok(None);
+    }
+    next.enter("token.predefined.noun");
+    next.consume(noun)?;
+    let quantity = match quantity {
+        TokenQuantity::Stated(quantity) => quantity,
+        TokenQuantity::EqualToAfterNoun => {
+            next.enter("token.creation.equal-to-quantity");
+            cursor_equal_to_quantity(&mut next)?
+        }
+    };
+    *trial = next;
+    Ok(Some(TokenBodyHead::from(TokenCreationBodyNode {
+        quantity,
+        spec: TokenSpecNode::Predefined(name),
+        keywords: Vec::new(),
+        abilities: Vec::new(),
+        tapped: entry.tapped,
+        attacking: false,
+        name: None,
+        legendary: false,
+        attached_to: None,
+    })))
 }
 
 /// `equal to EXPR` after `a number of SPEC tokens`: the shared definition
@@ -600,32 +849,89 @@ impl<Subject> BecomeTypesNode<Subject> {
     }
 }
 
-/// The granted abilities after the noun: a `with` list and a following
-/// `It has|They have` characteristic sentence (CR 111.4).
+/// The modifiers written after the noun, in any order and each once
+/// (CR 111.4): a `with` list of granted abilities, a given `named NAME`, and
+/// an entry-state relative clause (`that's tapped and attacking`). A
+/// following `It has|They have` sentence states more of the same abilities.
 fn recognize_token_body_tail(
     trial: &mut OracleTokenCursor<'_>,
-    head: TokenCreationBodyNode,
+    head: TokenBodyHead,
+    objects: Option<TokenObjectContext<'_>>,
 ) -> super::super::MachineResult<TokenCreationBodyNode> {
-    if head.copy_of().is_some() {
+    let TokenBodyHead {
+        body: mut head,
+        amount_after_modifiers,
+    } = head;
+    if head.predefined().is_some() {
+        if word_at(trial, 0, "attached") && word_at(trial, 1, "to") {
+            head.attached_to = Some(recognize_token_attachment(trial, objects)?);
+        }
         trial.enter("token.creation.complete");
         return Ok(head);
     }
-    let singular = matches!(
-        head.quantity,
-        NumericExpression::Atom(NumericAtom::Integer(1))
-    );
-    let mut granted = if trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
-    {
-        trial.consume("with")?;
-        recognize_effect_owned_granted_ability_list(trial, GRANTED_OBJECT_TYPE_LINE)?
-    } else {
-        GrantedAbilityListNode {
-            keywords: Vec::new(),
-            abilities: Vec::new(),
-        }
+    let Some(mut template) = head.described().cloned() else {
+        trial.enter("token.creation.complete");
+        return Ok(head);
     };
+    let type_line = template.granted_type_line();
+    let singular = !amount_after_modifiers
+        && matches!(
+            head.quantity,
+            NumericExpression::Atom(NumericAtom::Integer(1))
+        );
+    let mut granted = GrantedAbilityListNode {
+        keywords: Vec::new(),
+        abilities: Vec::new(),
+    };
+    let mut with_read = false;
+    let mut entry_clause_read = false;
+    let mut color_clause_read = false;
+    let mut name = head.name.clone();
+    let mut tapped = head.tapped;
+    let mut attacking = head.attacking;
+    loop {
+        trial.enter("token.creation.modifier");
+        if !with_read && word_at(trial, 0, "with") {
+            trial.consume("with")?;
+            let list = recognize_effect_owned_granted_ability_list(trial, &type_line)?;
+            granted.keywords.extend(list.keywords);
+            granted.abilities.extend(list.abilities);
+            with_read = true;
+            continue;
+        }
+        if name.is_none() && word_at(trial, 0, "named") {
+            trial.enter("token.creation.given-name");
+            trial.consume("named")?;
+            name = Some(recognize_given_token_name(trial)?);
+            continue;
+        }
+        if !entry_clause_read && let Some(state) = recognize_token_entry_clause(trial, singular)? {
+            trial.enter("token.creation.entry-clause");
+            trial.require(
+                !(tapped || attacking),
+                "one entry state for the created tokens",
+            )?;
+            tapped = state.tapped;
+            attacking = state.attacking;
+            entry_clause_read = true;
+            continue;
+        }
+        if !color_clause_read && let Some(colors) = recognize_token_color_clause(trial, singular)? {
+            trial.enter("token.creation.color-clause");
+            trial.require(
+                template.creature.colors.is_empty(),
+                "one statement of the token's colors",
+            )?;
+            template.creature.colors = colors;
+            color_clause_read = true;
+            continue;
+        }
+        break;
+    }
+    if amount_after_modifiers {
+        trial.enter("token.creation.equal-to-quantity");
+        head.quantity = cursor_equal_to_quantity(trial)?;
+    }
     // `... tokens. They have ABILITIES` / `... token. It has ABILITIES`: the
     // next sentence states abilities the created tokens have, the same
     // characteristics as a `with` list (CR 111.4). A temporary `gain` grant
@@ -645,14 +951,109 @@ fn recognize_token_body_tail(
     {
         trial.enter("token.creation.characteristic-sentence");
         trial.consume_phrase(&[".", pronoun, verb])?;
-        let more = recognize_effect_owned_granted_ability_list(trial, GRANTED_OBJECT_TYPE_LINE)?;
+        let more = recognize_effect_owned_granted_ability_list(trial, &type_line)?;
         granted.keywords.extend(more.keywords);
         granted.abilities.extend(more.abilities);
     }
+    if template.statistics.is_none() && template.is_creature() {
+        // CR 604.3, 208.2: a creature token whose description states no
+        // power and toughness has them defined by its own ability.
+        trial.enter("token.creation.characteristic-defining-statistics");
+        trial.require(
+            granted
+                .abilities
+                .iter()
+                .any(|ability| defines_power_and_toughness(&ability.rule)),
+            "a characteristic-defining power and toughness ability for a creature token without stated power and toughness",
+        )?;
+    }
     trial.enter("token.creation.complete");
     Ok(TokenCreationBodyNode {
+        spec: TokenSpecNode::Described(template),
         keywords: granted.keywords,
         abilities: granted.abilities,
+        name,
+        tapped,
+        attacking,
         ..head
     })
+}
+
+/// `attached to OBJECT`: the object an Aura token enters attached to
+/// (CR 111.3, 303.4f), read by the shared contextual permanent operand
+/// grammar. One object; a collection is not one attachment.
+fn recognize_token_attachment(
+    trial: &mut OracleTokenCursor<'_>,
+    objects: Option<TokenObjectContext<'_>>,
+) -> super::super::MachineResult<PermanentOperandNode> {
+    trial.enter("token.attachment.object");
+    trial.consume_phrase(&["attached", "to"])?;
+    let objects = trial.require_value(
+        objects,
+        "the effect context of the object an Aura token enters attached to",
+    )?;
+    let object = recognize_contextual_permanent_operand(
+        trial,
+        objects.name_links,
+        objects.name_failure,
+        objects.context,
+    )?;
+    trial.require(
+        !matches!(object, PermanentOperandNode::Collection { .. }),
+        "one object for the Aura token to enter attached to",
+    )?;
+    Ok(object)
+}
+
+/// Whether a compiled quoted ability is a characteristic-defining ability
+/// setting both power and toughness of its own object (CR 604.3a).
+fn defines_power_and_toughness(rule: &serde_json::Value) -> bool {
+    if rule["characteristicDefining"].as_bool() != Some(true) {
+        return false;
+    }
+    let kinds = rule["modifiers"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|modifier| modifier["kind"].as_str())
+        .collect::<Vec<_>>();
+    kinds.contains(&"setBasePowerToughness")
+        || (kinds.contains(&"setPower") && kinds.contains(&"setToughness"))
+}
+
+/// The words of a given token name (CR 111.4, 201.2): capitalized words,
+/// joined by lowercase particles only between capitalized words (`Kobolds
+/// of Kher Keep`). It ends at punctuation or at the next lowercase word.
+fn recognize_given_token_name(
+    trial: &mut OracleTokenCursor<'_>,
+) -> super::super::MachineResult<String> {
+    let capitalized = |raw: &str| {
+        raw.chars().next().is_some_and(char::is_uppercase)
+            && raw.chars().any(char::is_alphabetic)
+            && raw
+                .chars()
+                .all(|character| character.is_alphanumeric() || "'\u{2019}-".contains(character))
+    };
+    let mut words = Vec::new();
+    loop {
+        match trial.peek() {
+            Some(raw) if capitalized(raw) => {
+                words.push(raw.to_string());
+                trial.advance_to(trial.position() + 1)?;
+            }
+            Some(raw)
+                if !words.is_empty()
+                    && ["of", "the"]
+                        .iter()
+                        .any(|particle| raw.eq_ignore_ascii_case(particle))
+                    && trial.peek_ahead(1).is_some_and(capitalized) =>
+            {
+                words.push(raw.to_string());
+                trial.advance_to(trial.position() + 1)?;
+            }
+            _ => break,
+        }
+    }
+    trial.require(!words.is_empty(), "a capitalized token name after `named`")?;
+    Ok(words.join(" "))
 }

@@ -72,12 +72,21 @@ fn one_native_ability_does_not_hide_an_unimplemented_keyword() {
             .all(|ability| ability.recognizer == RecognizerProvenance::Native)
     );
 
-    // Spectacle (CR 702.137) has no expansion yet and must stay visible.
-    let parsed = parse_oracle_card(request(
+    // Spectacle (CR 702.137) now lowers to a conditional alternative cost.
+    let spectacle = parse_oracle_card(request(
         "Mixed Proof",
         "Instant",
         "{R}",
         "Spectacle {R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
+    ));
+    assert_eq!(spectacle.status, "canonical");
+
+    // Madness (CR 702.35) has no expansion yet and must stay visible.
+    let parsed = parse_oracle_card(request(
+        "Mixed Proof",
+        "Instant",
+        "{R}",
+        "Madness {1}{R}\nMixed Proof deals 3 damage to any target and you gain 3 life.",
     ));
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 2);

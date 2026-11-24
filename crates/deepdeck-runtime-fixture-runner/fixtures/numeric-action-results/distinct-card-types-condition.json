@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "distinct-card-types-condition",
+  "seed": 14,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "conditional",
+        "condition": {
+          "kind": "compare",
+          "operator": ">=",
+          "left": {
+            "kind": "countDistinctCardTypes",
+            "zone": {
+              "kind": "graveyard",
+              "player": {
+                "kind": "controllerOf",
+                "object": {
+                  "kind": "self"
+                }
+              }
+            }
+          },
+          "right": {
+            "kind": "integer",
+            "value": 3
+          }
+        },
+        "then": [
+          {
+            "kind": "gainLife",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            },
+            "amount": {
+              "kind": "integer",
+              "value": 4
+            }
+          }
+        ],
+        "else": []
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [
+          {
+            "id": "distinct-card-types-condition",
+            "name": "Delirium Fixture",
+            "typeLine": "Sorcery",
+            "manaCost": "{1}{U}"
+          }
+        ],
+        "library": [],
+        "graveyard": [
+          {
+            "id": "gy-land",
+            "name": "Graveyard Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "gy-artifact-creature",
+            "name": "Graveyard Construct",
+            "typeLine": "Artifact Creature - Construct"
+          },
+          {
+            "id": "gy-second-land",
+            "name": "Second Graveyard Land",
+            "typeLine": "Land"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "distinct-card-types-condition"
+  },
+  "assertions": [
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 24
+    }
+  ]
+}

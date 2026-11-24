@@ -1,0 +1,1207 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "trigger-event-language",
+  "cases": [
+    {
+      "id": "exact-thrashing-frontliner-attacks-a-battle",
+      "request": {
+        "cardName": "Thrashing Frontliner",
+        "typeLine": "Creature — Phyrexian Lizard",
+        "manaCost": "{1}{R}",
+        "oracleText": "Trample\nWhenever this creature attacks a battle, it gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/event/subject/role",
+                "equals": "attacker"
+              },
+              {
+                "pointer": "/event/subject/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-source-attacks-one-of-your-opponents",
+      "request": {
+        "cardName": "Partitive Recipient Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks one of your opponents, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/lemma",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-attacks-a-planeswalker-or-blocks",
+      "request": {
+        "cardName": "Recipient Union Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks a planeswalker or blocks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/lemma",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/event/events/0/attacked/anyOf/0/kind",
+                "equals": "permanents"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "declaredBlocker"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-superlative-attacked-player-fails-at-its-predicate",
+      "request": {
+        "cardName": "Superlative Recipient Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks the player with the most life or tied for most life, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.attacked-recipient.player-predicate"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-attacks-one-of-your-opponents",
+      "request": {
+        "cardName": "Object Recipient Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature attacks one of your opponents, it gets +0/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "attack"
+              },
+              {
+                "pointer": "/event/attacked/anyOf/0/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pangosaur-any-player-plays-a-land",
+      "request": {
+        "cardName": "Pangosaur",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Whenever a player plays a land, return this creature to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "landPlayed"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-horn-of-greed-binds-the-playing-player",
+      "request": {
+        "cardName": "Horn of Greed",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Whenever a player plays a land, that player draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "landPlayed"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dirtcowl-wurm-opponent-plays-a-land",
+      "request": {
+        "cardName": "Dirtcowl Wurm",
+        "typeLine": "Creature — Wurm",
+        "manaCost": "{4}{G}",
+        "oracleText": "Whenever an opponent plays a land, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "landPlayed"
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-nonbasic-land-play-is-not-the-fixed-land-frame",
+      "request": {
+        "cardName": "Land Play Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever an opponent plays a nonbasic land, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-unlock-this-door-observes-its-own-door",
+      "request": {
+        "cardName": "Study Door // Quiet Archive",
+        "typeLine": "Enchantment — Room // Enchantment — Room",
+        "manaCost": "{1}{U} // {2}{U}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "study-door",
+            "name": "Study Door",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{1}{U}",
+            "oracleText": "When you unlock this door, draw a card."
+          },
+          {
+            "id": "quiet-archive",
+            "name": "Quiet Archive",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{2}{U}",
+            "oracleText": "You have no maximum hand size."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "doorUnlocked"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/roomDoorIndex",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponent-unlocking-this-door-has-no-actor",
+      "request": {
+        "cardName": "Study Door // Quiet Archive",
+        "typeLine": "Enchantment — Room // Enchantment — Room",
+        "manaCost": "{1}{U} // {2}{U}",
+        "oracleText": null,
+        "layout": "split",
+        "faces": [
+          {
+            "id": "study-door",
+            "name": "Study Door",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{1}{U}",
+            "oracleText": "When an opponent unlocks this door, draw a card."
+          },
+          {
+            "id": "quiet-archive",
+            "name": "Quiet Archive",
+            "typeLine": "Enchantment — Room",
+            "manaCost": "{2}{U}",
+            "oracleText": "You have no maximum hand size."
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-entity-tracker-fully-unlocks-a-room",
+      "request": {
+        "cardName": "Entity Tracker",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{2}{U}",
+        "oracleText": "Flash\nEerie — Whenever an enchantment you control enters and whenever you fully unlock a Room, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "roomFullyUnlocked"
+              },
+              {
+                "pointer": "/event/events/1/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wandertale-mentor-expend-4",
+      "request": {
+        "cardName": "Wandertale Mentor",
+        "typeLine": "Creature — Raccoon Bard",
+        "manaCost": "{R}{G}",
+        "oracleText": "Whenever you expend 4, put a +1/+1 counter on this creature. (You expend 4 as you spend your fourth total mana to cast spells during a turn.)\n{T}: Add {R} or {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "manaExpended"
+              },
+              {
+                "pointer": "/event/threshold",
+                "equals": 4
+              },
+              {
+                "pointer": "/event/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-expend-without-a-fixed-amount",
+      "request": {
+        "cardName": "Expend Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever you expend X, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.atom.complete",
+            "found": ",",
+            "expectedContains": "fixed amount of total mana spent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-becomes-monstrous-observes-the-designation",
+      "request": {
+        "cardName": "Monstrous Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature becomes monstrous, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "designationGained"
+              },
+              {
+                "pointer": "/event/designation",
+                "equals": "monstrous"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-enters-or-becomes-renowned",
+      "request": {
+        "cardName": "Renowned Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters or becomes renowned, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "enterBattlefield"
+              },
+              {
+                "pointer": "/event/events/1/designation",
+                "equals": "renowned"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-suspected-is-not-given-by-becomes",
+      "request": {
+        "cardName": "Suspected Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature becomes suspected, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-luminous-wake-attacks-or-blocks",
+      "request": {
+        "cardName": "Luminous Wake",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature attacks or blocks, you gain 4 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "attachedPermanentDeclaredAttacker"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "attachedPermanentDeclaredBlocker"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-favor-of-the-woods-blocks",
+      "request": {
+        "cardName": "Favor of the Woods",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "Enchant creature\nWhenever enchanted creature blocks, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentDeclaredBlocker"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-valor-of-the-worthy-attached-departure",
+      "request": {
+        "cardName": "Valor of the Worthy",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1.\nWhen enchanted creature leaves the battlefield, create a 1/1 white Spirit creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "eventPattern"
+              },
+              {
+                "pointer": "/event/lemma",
+                "equals": "move"
+              },
+              {
+                "pointer": "/event/subject/object/kind",
+                "equals": "attachedPermanent"
+              },
+              {
+                "pointer": "/event/from",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-equipped-creature-attacks-alone",
+      "request": {
+        "cardName": "Alone Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Whenever equipped creature attacks alone, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "attachedPermanentDeclaredAttacker"
+              },
+              {
+                "pointer": "/event/attackingAlone",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-blocks-or-becomes-blocked-shares-the-counterpart",
+      "request": {
+        "cardName": "Counterpart Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Whenever equipped creature blocks or becomes blocked by a creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "attachedCreatureBlocks"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "attachedCreatureBecameBlocked"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-controlled-attached-counterpart-is-an-engine-gap",
+      "request": {
+        "cardName": "Controlled Counterpart Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Whenever equipped creature blocks or becomes blocked by a creature an opponent controls, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-shared-object-subject-enters-or-attacks",
+      "request": {
+        "cardName": "Shared Subject Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature you control enters or attacks, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "permanentEntered"
+              },
+              {
+                "pointer": "/event/events/1/lemma",
+                "equals": "attack"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-occurrence-union-source-enters-or-another-dies",
+      "request": {
+        "cardName": "Occurrence Union Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature enters or another nontoken Human you control dies, you lose 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "enterBattlefield"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/events/1/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-subject-union-shares-a-departure-frame",
+      "request": {
+        "cardName": "Subject Union Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature or another nontoken creature you control leaves the battlefield, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "permanentLeftBattlefield"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "controlledPermanentLeftBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-union-binds-no-shared-it",
+      "request": {
+        "cardName": "Union Binding Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature enters or another creature you control dies, put a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-combat-damage-to-a-player-or-planeswalker",
+      "request": {
+        "cardName": "Recipient Alternatives Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature deals combat damage to a player or planeswalker, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "damageDealtBySource"
+              },
+              {
+                "pointer": "/event/events/0/recipient/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/event/events/1/recipient/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-combat-damage-to-a-player-or-battle",
+      "request": {
+        "cardName": "Object Recipient Alternatives Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a creature you control deals combat damage to a player or battle, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "damageDealtBySource"
+              },
+              {
+                "pointer": "/event/events/1/recipient/kind",
+                "equals": "permanent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-repeated-recipient-alternative",
+      "request": {
+        "cardName": "Repeated Recipient Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature deals combat damage to a player or a player, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "event.dealt-damage.recipient-union-distinct"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mongrel-pack-dies-during-combat",
+      "request": {
+        "cardName": "Mongrel Pack",
+        "typeLine": "Creature — Dog",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature dies during combat, create four 1/1 green Dog creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/event/duringCombat",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-enters-during-combat",
+      "request": {
+        "cardName": "Combat Entry Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a nontoken creature you control enters during combat, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentEntered"
+              },
+              {
+                "pointer": "/event/duringCombat",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attack-during-combat-has-no-matcher",
+      "request": {
+        "cardName": "Combat Attack Probe",
+        "typeLine": "Creature — Test",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever this creature attacks during combat, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-duras-sisters-plural-name-agreement",
+      "request": {
+        "cardName": "The Duras Sisters",
+        "typeLine": "Legendary Creature — Klingon Warrior",
+        "manaCost": "{B/R}{B/R}",
+        "oracleText": "When The Duras Sisters die, create a 2/1 red Klingon Warrior creature token with haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/object/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "generic-sorcery-cast-trigger-functions-on-the-stack",
+      "request": {
+        "cardName": "Stack Function Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "When you cast this spell, draw a card.\nYou gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/event/sourceIsSelf",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

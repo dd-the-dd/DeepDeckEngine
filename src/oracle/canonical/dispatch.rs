@@ -508,19 +508,6 @@ fn parse_existing_native_rule(
         CastQuotaProgramAttempt::NotClaimed => {}
     }
 
-    if ability_kind == "staticAbility" && claims_promoted_cast_prohibition_family(input) {
-        return match parse_promoted_cast_prohibition(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     if claims_promoted_saga_family(input) {
         return match parse_promoted_saga(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
@@ -1028,6 +1015,34 @@ fn parse_existing_native_rule(
         };
     }
 
+    // CR 702: keywords that state a rule about casting their own spell.
+    if claims_casting_keyword_family(input) {
+        return match parse_casting_keyword(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
+    // CR 702.11d: `hexproof from QUALITY`.
+    if claims_hexproof_from_family(input) {
+        return match parse_hexproof_from_line(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_parameterized_keyword_family(input) {
         return match parse_parameterized_keyword(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
@@ -1480,6 +1495,20 @@ fn parse_existing_native_rule(
 
     if claims_promoted_alternative_return_cost_family(input) {
         return match parse_promoted_alternative_return_cost(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
+    // CR 118.9: every other printed alternative-cast permission.
+    if claims_alternative_cast_sentence_family(input) {
+        return match parse_alternative_cast_sentence(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

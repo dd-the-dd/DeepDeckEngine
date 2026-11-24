@@ -495,10 +495,7 @@ pub(in crate::oracle::canonical) fn recognize_add_mana_effect(
     if trial.peek() == Some(".") {
         trial.consume(".")?;
     }
-    if !trial
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("spend"))
-    {
+    if !super::mana_spending_policy_starts(&trial) {
         return Ok(production);
     }
     let policy = super::recognize_mana_spending_policy(&mut trial)?;

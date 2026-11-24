@@ -150,18 +150,58 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "ability-frame.permission.action"
+            "state": "numeric.atom.complete",
+            "found": "this"
           }
         ]
       }
     },
     {
-      "id": "near-miss-shared-player",
+      "id": "sibling-each-player-on-each-of-their-turns",
       "request": {
         "cardName": "Shared Exploration",
         "typeLine": "Enchantment",
         "manaCost": "{2}{G}",
         "oracleText": "Each player may play an additional land on each of their turns.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  },
+                  "kind": "additionalLandPlay",
+                  "player": {
+                    "kind": "eachPlayer"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shared-player-foreign-possessive",
+      "request": {
+        "cardName": "Shared Exploration",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Each player may play an additional land on each of your turns.",
         "layout": "normal",
         "faces": []
       },
@@ -181,7 +221,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "selector.predicate.start"
+            "found": "your",
+            "expectedContains": "possessive agreeing with the player subject"
           }
         ]
       }

@@ -150,7 +150,7 @@
       }
     },
     {
-      "id": "known-gap-whiplash-trap-conditional-alternative-cost",
+      "id": "exact-whiplash-trap-conditional-alternative-cost",
       "request": {
         "cardName": "Whiplash Trap",
         "typeLine": "Instant — Trap",
@@ -160,13 +160,79 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "you"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "keywordAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              },
+              {
+                "pointer": "/ability/costs",
+                "equals": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{U}"
+                  }
+                ]
+              },
+              {
+                "pointer": "/ability/condition",
+                "equals": {
+                  "kind": "compare",
+                  "left": {
+                    "aggregate": "greatestPerPlayer",
+                    "event": "permanentEnteredBattlefield",
+                    "kind": "countEventsThisTurn",
+                    "player": {
+                      "kind": "opponentsOf",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "operator": ">=",
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "returnToOwnersHand"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 2
+              }
+            ]
           }
         ]
       }
@@ -706,7 +772,7 @@
       }
     },
     {
-      "id": "known-gap-heliod-conditional-type-removal",
+      "id": "exact-heliod-conditional-type-removal",
       "request": {
         "cardName": "Heliod, Sun-Crowned",
         "typeLine": "Legendary Enchantment Creature — God",
@@ -716,13 +782,68 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4,
+        "abilities": [
           {
-            "code": "oracle_machine_failure",
-            "state": "static.combat-restriction.prohibition",
-            "found": "isn't"
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "removeCardTypeWhile"
+              },
+              {
+                "pointer": "/modifiers/0/cardType",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/modifiers/0/object",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "compare",
+                  "left": {
+                    "color": "White",
+                    "kind": "devotion",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "operator": "<",
+                  "right": {
+                    "kind": "integer",
+                    "value": 5
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "index": 3,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/keyword",
+                "equals": "lifelink"
+              }
+            ]
           }
         ]
       }

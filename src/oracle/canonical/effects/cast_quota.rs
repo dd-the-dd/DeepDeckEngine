@@ -14,7 +14,7 @@ pub(in crate::oracle::canonical) enum CastQuotaProgramAttempt {
 /// every child, including under negation; an unsupported child must not become
 /// false and then accidentally true under NOT. Null is the universal filter;
 /// the shared spellCast-event matcher must support that same contract.
-fn quota_history_filter_supported(filter: &Value) -> bool {
+pub(in crate::oracle::canonical) fn quota_history_filter_supported(filter: &Value) -> bool {
     if filter.is_null() {
         return true;
     }

@@ -23,6 +23,12 @@ pub(crate) const RESOLUTION_CREATURE_TYPE_DECISION: &str = "resolutionCreatureTy
 /// engine reads it through the `chosenColor` object predicate.
 pub(crate) const RESOLUTION_COLOR_DECISION: &str = "resolutionColor";
 
+/// Decision id of a card name chosen while an effect program resolves (CR
+/// 608.2d). Only a `chooseCardName` step of the same rule produces it; the
+/// engine reads it through the `chosenCardName` object predicate. Distinct
+/// from a name stored on a permanent by an `As ... enters` choice.
+pub(crate) const RESOLUTION_CARD_NAME_DECISION: &str = "resolutionCardName";
+
 /// Stack values bound when a sacrifice cost is paid, keyed by the cost field
 /// that asks the engine to record them (CR 608.2h last known information).
 const SACRIFICED_COST_OBJECT_BINDINGS: [(&str, &str); 2] = [
@@ -111,6 +117,27 @@ pub(crate) fn validate_native_contextual_bindings(
                 span_end: Some(source_span_end),
                 expected: Some(expected.to_string()),
                 found: Some("a chosen color reference".to_string()),
+                trace: Vec::new(),
+                owner: None,
+            });
+            continue;
+        }
+        if let Some((state, expected)) = resolution_card_name_binding_failure(rule) {
+            let source_span_end = ability.source.text.len();
+            ability.status = "unsupported".to_string();
+            ability.rule = None;
+            ability.iterations.clear();
+            ability.diagnostics.push(ParserDiagnostic {
+                code: "oracle_context_binding_failure".to_string(),
+                message: "A card name chosen on resolution needs exactly one producing `choose a card name` step and a consumer of the same rule.".to_string(),
+                severity: "unsupported".to_string(),
+                automaton: Some("card-context-binding".to_string()),
+                state: Some(state.to_string()),
+                token_index: None,
+                span_start: Some(0),
+                span_end: Some(source_span_end),
+                expected: Some(expected.to_string()),
+                found: Some("a chosen card name reference".to_string()),
                 trace: Vec::new(),
                 owner: None,
             });
@@ -213,27 +240,38 @@ fn is_resolution_creature_type(value: &Value) -> bool {
 }
 
 /// Counts references to the resolution creature-type choice, and those read
-/// by a battlefield count (the engine consumer that reads resolution choices).
+/// by a battlefield query the engine evaluates against resolution choices: a
+/// permanent count, or the collection a one-shot battlefield action reads
+/// once as it resolves (`destroy all creatures that aren't of the chosen
+/// type`). The collection of an action with a duration is not such a reader.
 fn resolution_creature_type_references(value: &Value, inside_count: bool) -> (usize, usize) {
-    if is_resolution_creature_type(value) {
-        return (1, usize::from(inside_count));
-    }
-    let counted = value["kind"].as_str() == Some("countPermanents");
-    let children: Box<dyn Iterator<Item = (&String, &Value)>> = match value {
-        Value::Object(values) => Box::new(values.iter()),
-        Value::Array(values) => {
-            return values.iter().fold((0, 0), |(total, read), value| {
-                let (more, more_read) = resolution_creature_type_references(value, inside_count);
-                (total + more, read + more_read)
-            });
+    fn visit(value: &Value, inside_count: bool, durable: bool) -> (usize, usize) {
+        if is_resolution_creature_type(value) {
+            return (1, usize::from(inside_count));
         }
-        _ => return (0, 0),
-    };
-    children.fold((0, 0), |(total, read), (key, value)| {
-        let (more, more_read) =
-            resolution_creature_type_references(value, inside_count || (counted && key == "where"));
-        (total + more, read + more_read)
-    })
+        let durable = durable || value.get("duration").is_some();
+        let counted = match value["kind"].as_str() {
+            Some("countPermanents") => true,
+            Some("eachPermanent") => !durable,
+            _ => false,
+        };
+        let children: Box<dyn Iterator<Item = (&String, &Value)>> = match value {
+            Value::Object(values) => Box::new(values.iter()),
+            Value::Array(values) => {
+                return values.iter().fold((0, 0), |(total, read), value| {
+                    let (more, more_read) = visit(value, inside_count, durable);
+                    (total + more, read + more_read)
+                });
+            }
+            _ => return (0, 0),
+        };
+        children.fold((0, 0), |(total, read), (key, value)| {
+            let (more, more_read) =
+                visit(value, inside_count || (counted && key == "where"), durable);
+            (total + more, read + more_read)
+        })
+    }
+    visit(value, inside_count, false)
 }
 
 /// Whether a lowered value reads the color chosen on resolution.
@@ -280,6 +318,48 @@ fn produces_resolution_color(value: &Value) -> usize {
     }
 }
 
+/// Counts the `kind` values carrying `decision_id` under `field`.
+fn count_decision_kind(value: &Value, kind: &str, field: &str, decision_id: &str) -> usize {
+    let own = usize::from(
+        value["kind"].as_str() == Some(kind) && value[field].as_str() == Some(decision_id),
+    );
+    own + match value {
+        Value::Object(values) => values
+            .values()
+            .map(|value| count_decision_kind(value, kind, field, decision_id))
+            .sum(),
+        Value::Array(values) => values
+            .iter()
+            .map(|value| count_decision_kind(value, kind, field, decision_id))
+            .sum(),
+        _ => 0,
+    }
+}
+
+/// CR 608.2d: a card name chosen while the rule resolves is produced once
+/// and read by the same rule. A reference without its producer, or a choice
+/// no instruction reads, is refused rather than executed as a no-op.
+fn resolution_card_name_binding_failure(rule: &Value) -> Option<(&'static str, &'static str)> {
+    let produced = count_decision_kind(rule, "chooseCardName", "id", RESOLUTION_CARD_NAME_DECISION);
+    let read = count_decision_kind(
+        rule,
+        "chosenCardName",
+        "decisionId",
+        RESOLUTION_CARD_NAME_DECISION,
+    );
+    if read > 0 {
+        (produced != 1).then_some((
+            "binding.chosen-card-name.source",
+            "exactly one `choose a card name` action of the same rule",
+        ))
+    } else {
+        (produced > 0).then_some((
+            "binding.chosen-card-name.consumer",
+            "an executable binding consumer of the same rule that reads the chosen card name",
+        ))
+    }
+}
+
 pub(crate) fn references_resolution_creature_type(value: &Value) -> bool {
     resolution_creature_type_references(value, false).0 > 0
 }
@@ -312,7 +392,7 @@ fn resolution_creature_type_binding_failure(rule: &Value) -> Option<(&'static st
     }
     (counted != references).then_some((
         "binding.chosen-creature-type.consumer",
-        "a battlefield count reading the chosen creature type",
+        "a battlefield count or one-shot collection reading the chosen creature type",
     ))
 }
 

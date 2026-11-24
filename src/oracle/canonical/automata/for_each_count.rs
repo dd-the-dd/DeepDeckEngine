@@ -80,6 +80,52 @@ pub(in crate::oracle::canonical) fn recognize_number_of_count(
     recognize_counted_collection(cursor, "colors")
 }
 
+/// Lexical lookahead: `MEASURE among ...` where MEASURE is one of the
+/// distinct-value measures the counted-collection child reads (`card types`,
+/// `colors`, `basic land types`).
+pub(in crate::oracle::canonical) fn distinct_measure_among_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let types = |offset: usize| word(offset, "type") || word(offset, "types");
+    (word(0, "card") && types(1) && word(2, "among"))
+        || ((word(0, "colors") || word(0, "color")) && word(1, "among"))
+        || (word(0, "basic") && word(1, "land") && types(2) && word(3, "among"))
+}
+
+/// Reads `MEASURE among COLLECTION` as the distinct-value aggregate the
+/// shared counting child produces (`there are four or more card types among
+/// cards in your graveyard`). Only the distinct measures are accepted: a
+/// plain object count has its own existential grammar.
+pub(in crate::oracle::canonical) fn recognize_distinct_measure_among(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.distinct-measure.start");
+    cursor.require(
+        distinct_measure_among_starts(cursor),
+        "`card types`, `colors` or `basic land types` followed by `among`",
+    )?;
+    let noun = cursor.peek().unwrap_or_default().to_ascii_lowercase();
+    let color_noun = if noun == "color" { "color" } else { "colors" };
+    let count = recognize_counted_collection(cursor, color_noun)?;
+    cursor.enter("numeric.distinct-measure.kind");
+    cursor.require(
+        match &count {
+            NumericExpression::CountDistinctCardTypes { .. } => true,
+            NumericExpression::PermanentCount(node) => {
+                node.measure != PermanentCountMeasure::Objects
+            }
+            _ => false,
+        },
+        "a distinct-value measure among a collection",
+    )?;
+    Ok(count)
+}
+
 /// The countable operand shared by every counting introducer. `color_noun`
 /// is the introducer's grammatical number of the distinct-colors noun.
 fn recognize_counted_collection(
@@ -87,11 +133,18 @@ fn recognize_counted_collection(
     color_noun: &str,
 ) -> MachineResult<NumericExpression> {
     cursor.enter("numeric.for-each.countable");
+    // `cards revealed this way`: the objects an earlier action affected.
+    if !distinct_measure_among_starts(cursor) && action_result_reference_starts(cursor) {
+        return recognize_action_result_count(cursor);
+    }
     if counter_operand_starts(cursor) {
         return recognize_source_counter_operand(cursor);
     }
     if opponent_count_starts(cursor) {
         return recognize_opponent_count(cursor);
+    }
+    if history_count_collection_starts(cursor) {
+        return recognize_history_count_collection(cursor);
     }
     let colors = cursor
         .peek()
@@ -162,7 +215,19 @@ fn recognize_counted_collection(
         return Ok(NumericExpression::CountQuery(Box::new(query)));
     }
     cursor.enter("numeric.for-each.collection");
-    let query = recognize_object_collection(cursor)?;
+    let query = match recognize_counted_object_collection(cursor)? {
+        CountedObjectCollection::Present(query) => query,
+        // `for each creature that died this turn`: a count of the turn's
+        // departures through the shared scoped query (CR 700.4).
+        CountedObjectCollection::Departed(departed) => {
+            cursor.enter("numeric.for-each.departures");
+            cursor.require(
+                !colors && !distinct_names && !basic_land_types,
+                "an object count of the departures of this turn",
+            )?;
+            return Ok(NumericExpression::CountQuery(Box::new(departed)));
+        }
+    };
     let exclude_source = query.exclude_source;
     // CR 110.1: `on the battlefield` names every permanent there, whoever
     // controls it. The explicit zone anchors a nominal head such as `Elves`.
@@ -256,7 +321,134 @@ fn recognize_distinct_card_type_collection(
     })
 }
 
-/// `opponent(s) you attacked ...`: the counted players are opponents.
+/// The recorded event a counted history collection reads, from the verb of
+/// its relative clause: `spells you've cast`, `cards you've drawn|discarded|
+/// cycled`, `permanents you've sacrificed`, `creatures that died`.
+fn history_count_event(lemma: VerbLemma) -> Option<(HistoryEvent, ObjectKind)> {
+    Some(match lemma {
+        VerbLemma::Cast => (HistoryEvent::SpellCast, ObjectKind::Spell),
+        VerbLemma::Draw => (HistoryEvent::CardDrawn, ObjectKind::Card),
+        VerbLemma::Discard => (HistoryEvent::CardDiscarded, ObjectKind::Card),
+        VerbLemma::Cycle => (HistoryEvent::CardCycled, ObjectKind::Card),
+        VerbLemma::Sacrifice => (HistoryEvent::PermanentSacrificed, ObjectKind::Permanent),
+        _ => return None,
+    })
+}
+
+const HISTORY_COUNT_LEMMAS: &[VerbLemma] = &[
+    VerbLemma::Cast,
+    VerbLemma::Draw,
+    VerbLemma::Discard,
+    VerbLemma::Cycle,
+    VerbLemma::Sacrifice,
+];
+
+/// The relative clause of a counted history collection at `offset`: its
+/// width before the verb, the actor, and the verb's lemma.
+fn history_relative_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(usize, HistoryPlayer, VerbLemma)> {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(at)
+            .is_some_and(|raw| raw.replace('\u{2019}', "'").eq_ignore_ascii_case(expected))
+    };
+    let (width, player, form) = if word(offset, "you've") {
+        (1, HistoryPlayer::Controller, VerbForm::PastParticiple)
+    } else if word(offset, "you") && word(offset + 1, "have") {
+        (2, HistoryPlayer::Controller, VerbForm::PastParticiple)
+    } else {
+        return None;
+    };
+    let raw = cursor.peek_ahead(offset + width)?;
+    let (entry, forms) = lookup_verb(raw, HISTORY_COUNT_LEMMAS)?;
+    // `NOUN that died this turn` is a departure of the shared object query
+    // (`relative_clause.rs`), counted through the scoped query; this reader
+    // owns only the controller's own recorded actions.
+    forms
+        .contains(&form)
+        .then_some((width, player, entry.lemma))
+}
+
+/// Offset of the relative clause after the counted noun phrase.
+fn history_relative_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (1..7)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| history_relative_at(cursor, *offset).is_some())
+}
+
+/// Lexical lookahead for `NOUN you've VERBed this turn`.
+pub(in crate::oracle::canonical) fn history_count_collection_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    history_relative_offset(cursor).is_some()
+}
+
+/// `spells you've cast this turn`, `cards you've drawn this turn`: the number of recorded events of one
+/// history pattern (CR 601.2i, 121.1, 701.9, 700.4) — the same pattern the
+/// condition language's EventHistory atom compares, here counted. The noun is
+/// the shared object query; its domain must be the event's object domain.
+pub(in crate::oracle::canonical) fn recognize_history_count_collection(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("numeric.history-count.noun");
+    let offset = history_relative_offset(cursor)
+        .ok_or_else(|| cursor.fail("a counted noun followed by a history relative clause"))?;
+    let (width, player, lemma) =
+        history_relative_at(cursor, offset).expect("the relative clause was checked");
+    let (event, domain) = history_count_event(lemma).expect("a history count lemma");
+    let end = cursor.position() + offset;
+    let predicate = if domain == ObjectKind::Spell {
+        let query = cursor.bounded(end, |cursor| {
+            recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?
+                .into_spell_cast_query(cursor)
+        })?;
+        cursor.require(
+            query.caster.is_none(),
+            "one caster relation, supplied by the relative clause",
+        )?;
+        query.predicate
+    } else {
+        let query = cursor.bounded(end, recognize_object_query)?;
+        cursor.require(
+            query.controller.is_none(),
+            "one player relation, supplied by the relative clause",
+        )?;
+        query.predicate
+    };
+    cursor.require(
+        predicate.has_domain(domain) || predicate.supports_domain(domain),
+        "a counted noun in the recorded event's object domain",
+    )?;
+    cursor.enter("numeric.history-count.relative");
+    for _ in 0..=width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    cursor.enter("numeric.history-count.scope");
+    cursor.consume_phrase(&["this", "turn"])?;
+    Ok(NumericExpression::EventHistoryCount(Box::new(
+        EventHistoryCountNode {
+            pattern: EventHistoryPattern {
+                event,
+                player,
+                object: (predicate != ObjectPredicate::ObjectKind(domain)).then_some(predicate),
+                measure: HistoryMeasure::Occurrences,
+                qualifiers: HistoryQualifiers::default(),
+            },
+            scope: HistoryScope::ThisTurn,
+            aggregate: HistoryAggregate::Total,
+        },
+    )))
+}
+
+/// `opponent(s) you attacked ...` / `opponents you have`: the counted
+/// players are opponents.
 fn opponent_count_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek().is_some_and(|raw| {
         raw.eq_ignore_ascii_case("opponent") || raw.eq_ignore_ascii_case("opponents")
@@ -277,6 +469,14 @@ fn recognize_opponent_count(
         .to_string();
     cursor.consume(&noun)?;
     cursor.enter("numeric.for-each.opponent.relation");
+    // `opponents you have` (CR 102.3): every opponent of the controller.
+    if cursor
+        .peek_ahead(1)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("have"))
+    {
+        cursor.consume_phrase(&["you", "have"])?;
+        return Ok(NumericExpression::OpponentCount(OpponentFact::Any));
+    }
     cursor.consume_phrase(&["you", "attacked"])?;
     if cursor
         .peek()
@@ -337,6 +537,7 @@ pub(in crate::oracle::canonical) fn count_excludes_source(count: &NumericExpress
         | NumericExpression::EventValue(_)
         | NumericExpression::CountDistinctCardTypes { .. }
         | NumericExpression::OpponentCount(_)
+        | NumericExpression::EventHistoryCount(_)
         | NumericExpression::Devotion(_)
         | NumericExpression::ActionResultQuantity { .. }
         | NumericExpression::PlayerFact { .. }
@@ -419,6 +620,7 @@ pub(in crate::oracle::canonical) fn recognize_greatest_property_among(
     Ok(NumericExpression::GreatestPropertyAmong {
         property,
         predicate: query.predicate,
+        aggregate: PropertyAggregate::Greatest,
     })
 }
 
@@ -494,6 +696,9 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ExtraTurn
+            | SingularPlayerAction::Designation(_)
+            | SingularPlayerAction::Skip(_)
+            | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,

@@ -1,11 +1,31 @@
+//! Equip (CR 702.6a) and its restricted form (CR 702.6c):
+//!
+//! ```text
+//! Equip    := "equip" [Quality ["creature"]] Cost [Reminder]
+//! Cost     := MANA | "—" COSTS "."          (the shared cost sequence)
+//! Quality  := ObjectPredicateAtom+           (`Knight`, `legendary`)
+//! Reminder := "(" Cost ":" "attach" "to" "target" Object "you" "control" "."
+//!             "equip" "only" "as" "a" "sorcery" "." ")"
+//! Object   := "creature" | the printed Quality [ "creature" ]
+//! ```
+//!
+//! The quality restricts the target to a creature with that quality; it is
+//! read by the shared object-predicate atom reader, never matched as text.
+//! `Equip planeswalker` (CR 702.6e) is a different variant and fails.
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{ManaCostNode, ObjectPredicate, recognize_mana_cost, recognize_object_predicate_atom};
+use super::{
+    ActivationCostSequenceNode, LocalActivationCostNode, ManaCostNode, ObjectCardType,
+    ObjectPredicate, recognize_activation_cost_sequence, recognize_mana_cost,
+    recognize_object_predicate_atom,
+};
 use crate::oracle::characteristic_vocabulary::AcceptedForms;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct EquipKeywordNode {
-    pub cost: ManaCostNode,
-    /// CR 702.6c `Equip [quality] creature`: the legal-target restriction.
+    /// The printed activation cost: one mana cost, or the shared cost
+    /// sequence after an em dash (`Equip—Sacrifice a creature.`).
+    pub costs: ActivationCostSequenceNode,
+    /// CR 702.6c `Equip [quality]`: the legal-target restriction.
     pub quality: Option<ObjectPredicate>,
 }
 
@@ -39,11 +59,75 @@ enum EquipState {
 #[derive(Default)]
 struct EquipMemory {
     quality: Option<ObjectPredicate>,
-    printed_cost: Option<ManaCostNode>,
-    reminder_cost: Option<ManaCostNode>,
+    printed_cost: Option<ActivationCostSequenceNode>,
+    reminder_cost: Option<ActivationCostSequenceNode>,
 }
 
-/// Recognizes a mana-cost Equip keyword and structurally validates its optional
+fn mana_sequence(mana: ManaCostNode) -> ActivationCostSequenceNode {
+    ActivationCostSequenceNode {
+        costs: vec![LocalActivationCostNode::PayMana(mana)],
+        connectors: Vec::new(),
+    }
+}
+
+fn at_mana_symbol(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek_token()
+        .is_some_and(|token| token.token_type == "manaSymbol")
+}
+
+fn at_word(cursor: &OracleTokenCursor<'_>, word: &str) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+}
+
+/// Quality atoms up to `creature` or `stop`, then the optional `creature`.
+/// Only a creature can be equipped (CR 301.5): any other card type is a
+/// different Equip variant (CR 702.6e) or a contradiction.
+fn recognize_equip_quality(
+    cursor: &mut OracleTokenCursor<'_>,
+    stop: impl Fn(&OracleTokenCursor<'_>) -> bool,
+) -> MachineResult<Option<ObjectPredicate>> {
+    let mut atoms = Vec::new();
+    while !at_word(cursor, "creature") && !stop(cursor) {
+        atoms.push(recognize_object_predicate_atom(
+            cursor,
+            AcceptedForms::SingularOnly,
+        )?);
+    }
+    if at_word(cursor, "creature") {
+        cursor.consume("creature")?;
+    }
+    cursor.require(
+        atoms.iter().all(|atom| {
+            !matches!(atom, ObjectPredicate::CardType(card_type) if *card_type != ObjectCardType::Creature)
+        }),
+        "a creature quality (Equip [quality], CR 702.6c)",
+    )?;
+    Ok(match atoms.len() {
+        0 => None,
+        1 => Some(atoms.remove(0)),
+        _ => Some(ObjectPredicate::Intersection(atoms)),
+    })
+}
+
+/// `{cost}` or `—COSTS.` (the shared cost sequence and its terminator).
+fn recognize_equip_cost(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ActivationCostSequenceNode> {
+    if cursor.peek() == Some("\u{2014}") {
+        cursor.consume("\u{2014}")?;
+        let costs = recognize_activation_cost_sequence(cursor)?;
+        if cursor.peek() == Some(".") {
+            cursor.consume(".")?;
+        }
+        return Ok(costs);
+    }
+    recognize_mana_cost(cursor).map(mana_sequence)
+}
+
+/// Recognizes an Equip keyword and structurally validates its optional
 /// canonical attach-and-timing reminder without reparsing a text slice.
 pub(in crate::oracle::canonical) fn recognize_mana_equip(
     cursor: &mut OracleTokenCursor<'_>,
@@ -59,41 +143,22 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
             }
             EquipState::Quality => {
                 cursor.enter("keyword.equip.quality");
-                if !cursor
-                    .peek_token()
-                    .is_some_and(|token| token.token_type == "manaSymbol")
-                {
-                    let mut atoms = Vec::new();
-                    while !cursor
-                        .peek()
-                        .is_some_and(|raw| raw.eq_ignore_ascii_case("creature"))
-                    {
-                        atoms.push(recognize_object_predicate_atom(
-                            cursor,
-                            AcceptedForms::SingularOnly,
-                        )?);
-                    }
-                    cursor.require(!atoms.is_empty(), "a quality before `creature`")?;
-                    cursor.consume("creature")?;
-                    memory.quality = Some(if atoms.len() == 1 {
-                        atoms.remove(0)
-                    } else {
-                        ObjectPredicate::Intersection(atoms)
-                    });
+                if !at_mana_symbol(cursor) && cursor.peek() != Some("\u{2014}") {
+                    memory.quality = recognize_equip_quality(cursor, at_mana_symbol)?;
+                    cursor.require(memory.quality.is_some(), "a quality before the Equip cost")?;
                 }
                 EquipState::Cost
             }
             EquipState::Cost => {
                 cursor.enter("keyword.equip.cost");
-                memory.printed_cost = Some(recognize_mana_cost(cursor)?);
+                memory.printed_cost = Some(recognize_equip_cost(cursor)?);
                 EquipState::ReminderOrComplete
             }
             EquipState::ReminderOrComplete => {
                 cursor.enter("keyword.equip.reminder-or-complete");
                 match cursor.peek() {
                     None => EquipState::Complete,
-                    // The registered reminder names an unrestricted target.
-                    Some("(") if memory.quality.is_none() => EquipState::ReminderOpen,
+                    Some("(") => EquipState::ReminderOpen,
                     _ => return Err(cursor.fail("a canonical Equip reminder or end of input")),
                 }
             }
@@ -104,7 +169,11 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
             }
             EquipState::ReminderCost => {
                 cursor.enter("keyword.equip.reminder.cost");
-                memory.reminder_cost = Some(recognize_mana_cost(cursor)?);
+                memory.reminder_cost = Some(if at_mana_symbol(cursor) {
+                    mana_sequence(recognize_mana_cost(cursor)?)
+                } else {
+                    recognize_activation_cost_sequence(cursor)?
+                });
                 EquipState::ReminderCostMatch
             }
             EquipState::ReminderCostMatch => {
@@ -117,10 +186,14 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
                     .reminder_cost
                     .as_ref()
                     .ok_or_else(|| cursor.fail("the reminder Equip cost"))?;
-                cursor.require(
-                    printed.same_symbols(reminder),
-                    "a reminder cost equal to the printed Equip cost",
-                )?;
+                let same = match (printed.costs.as_slice(), reminder.costs.as_slice()) {
+                    (
+                        [LocalActivationCostNode::PayMana(printed)],
+                        [LocalActivationCostNode::PayMana(reminder)],
+                    ) => printed.same_symbols(reminder),
+                    _ => printed == reminder,
+                };
+                cursor.require(same, "a reminder cost equal to the printed Equip cost")?;
                 EquipState::ReminderSeparator
             }
             EquipState::ReminderSeparator => {
@@ -145,7 +218,13 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
             }
             EquipState::ReminderObject => {
                 cursor.enter("keyword.equip.reminder.object");
-                cursor.consume("creature")?;
+                // The reminder restates the printed quality (`target
+                // Halfling you control`) or names an unrestricted creature.
+                let restated = recognize_equip_quality(cursor, |cursor| at_word(cursor, "you"))?;
+                cursor.require(
+                    restated == memory.quality,
+                    "a reminder target equal to the printed Equip quality",
+                )?;
                 EquipState::ReminderPlayer
             }
             EquipState::ReminderPlayer => {
@@ -202,7 +281,7 @@ pub(in crate::oracle::canonical) fn recognize_mana_equip(
                 cursor.enter("keyword.equip.complete");
                 cursor.finish()?;
                 return Ok(EquipKeywordNode {
-                    cost: cursor.require_value(memory.printed_cost, "a populated Equip cost")?,
+                    costs: cursor.require_value(memory.printed_cost, "a populated Equip cost")?,
                     quality: memory.quality,
                 });
             }

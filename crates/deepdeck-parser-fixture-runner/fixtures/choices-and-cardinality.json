@@ -1,0 +1,847 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "choices-and-cardinality/modal-activations-upgrades-counts-names",
+  "cases": [
+    {
+      "id": "exact-cankerbloom-sacrifice-modes",
+      "request": {
+        "cardName": "Cankerbloom",
+        "typeLine": "Creature — Phyrexian Fungus",
+        "manaCost": "{1}{G}",
+        "oracleText": "{1}, Sacrifice this creature: Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "mode1",
+                  "mode2",
+                  "mode3"
+                ]
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-umezawas-jitte-counter-cost-modes",
+      "request": {
+        "cardName": "Umezawa's Jitte",
+        "typeLine": "Legendary Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Whenever equipped creature deals combat damage, put two charge counters on Umezawa's Jitte.\nRemove a charge counter from Umezawa's Jitte: Choose one —\n• Equipped creature gets +2/+2 until end of turn.\n• Target creature gets -1/-1 until end of turn.\n• You gain 2 life.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "mode1",
+                  "mode2",
+                  "mode3"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lost-jitte-counter-cost-modes",
+      "request": {
+        "cardName": "Lost Jitte",
+        "typeLine": "Legendary Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Whenever equipped creature deals combat damage, put a charge counter on Lost Jitte.\nRemove a charge counter from Lost Jitte: Choose one —\n• Untap target land.\n• Target creature can't block this turn.\n• Put a +1/+1 counter on equipped creature.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bow-of-nylea-tap-modes",
+      "request": {
+        "cardName": "Bow of Nylea",
+        "typeLine": "Legendary Enchantment Artifact",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Attacking creatures you control have deathtouch.\n{1}{G}, {T}: Choose one —\n• Put a +1/+1 counter on target creature.\n• Bow of Nylea deals 2 damage to target creature with flying.\n• You gain 3 life.\n• Put up to four target cards from your graveyard on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "mode1",
+                  "mode2",
+                  "mode3",
+                  "mode4"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skinshifter-header-restriction",
+      "request": {
+        "cardName": "Skinshifter",
+        "typeLine": "Creature — Human Shaman",
+        "manaCost": "{1}{G}",
+        "oracleText": "{G}: Choose one. Activate only once each turn.\n• Until end of turn, this creature becomes a Rhino with base power and toughness 4/4 and gains trample.\n• Until end of turn, this creature becomes a Bird with base power and toughness 2/2 and gains flying.\n• Until end of turn, this creature becomes a Plant with base power and toughness 0/8.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerTurn",
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sorcery-timing-header-restriction",
+      "request": {
+        "cardName": "Generic Field Kit",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}: Choose one. Activate only as a sorcery.\n• Draw a card.\n• Target creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-equipment-sacrifice-modes",
+      "request": {
+        "cardName": "Generic Reliquary Blade",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Sacrifice this Equipment: Choose one —\n• Equipped creature gains indestructible until end of turn.\n• You gain 2 life.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "mode1",
+                  "mode2"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-kargan-intimidator-mode-history",
+      "request": {
+        "cardName": "Kargan Intimidator",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{1}{R}",
+        "oracleText": "Cowards can't block Warriors.\n{1}: Choose one that hasn't been chosen this turn —\n• This creature gets +1/+1 until end of turn.\n• Target creature becomes a Coward until end of turn.\n• Target Warrior gains trample until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "state": "modal.header.qualifier"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spell-header-does-not-own-activation-restriction",
+      "request": {
+        "cardName": "Generic Misplaced Restriction",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Choose one. Activate only as a sorcery.\n• Draw a card.\n• You gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "modal.header.repeat-permission"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-akromas-will-commander-upgrade",
+      "request": {
+        "cardName": "Akroma's Will",
+        "typeLine": "Instant",
+        "manaCost": "{3}{W}",
+        "oracleText": "Choose one. If you control a commander as you cast this spell, you may choose both instead.\n• Creatures you control gain flying, vigilance, and double strike until end of turn.\n• Creatures you control gain lifelink, indestructible, and protection from each color until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseModes"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "conditionalValue"
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/ifTrue",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/ifFalse",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flame-of-anor-wizard-upgrade-to-two",
+      "request": {
+        "cardName": "Flame of Anor",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{R}",
+        "oracleText": "Choose one. If you control a Wizard as you cast this spell, you may choose two instead.\n• Target player draws two cards.\n• Destroy target artifact.\n• Flame of Anor deals 5 damage to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "conditionalValue"
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/ifTrue",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "mode1",
+                  "mode2",
+                  "mode3"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-untimed-upgrade-one-or-more",
+      "request": {
+        "cardName": "Generic Rising Chorus",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Choose one. If you control an enchantment, you may choose one or more instead.\n• Draw a card.\n• You gain 3 life.\n• Destroy target artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "conditionalValue"
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/ifTrue",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-inscription-of-ruin-mandatory-upgrade",
+      "request": {
+        "cardName": "Inscription of Ruin",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Kicker {2}{B}{B}\nChoose one. If this spell was kicked, choose any number instead.\n• Target opponent discards two cards.\n• Return target creature card with mana value 2 or less from your graveyard to the battlefield.\n• Destroy target creature with mana value 3 or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "state": "modal.header.upgrade.permission"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activation-x-target-lands",
+      "request": {
+        "cardName": "Generic Sluice Gate",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{X}, {T}: Tap X target lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/1/kind",
+                "equals": "chooseTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/1/maximum",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/minimum",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-of-x-target-creatures-counters",
+      "request": {
+        "cardName": "Generic Bloom Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}",
+        "oracleText": "Put a +1/+1 counter on each of X target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-any-number-of-target-creatures-goad",
+      "request": {
+        "cardName": "Generic Rabble Call",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Goad any number of target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum/kind",
+                "equals": "countPermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-target-count-without-producer",
+      "request": {
+        "cardName": "Generic Borrowed Count",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Tap X target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "binding.x-value.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-boundless-realms-where-x-search",
+      "request": {
+        "cardName": "Boundless Realms",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{G}",
+        "oracleText": "Search your library for up to X basic land cards, where X is the number of lands you control, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "whereX"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/minimum",
+                "equals": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-up-to-x-spell-search",
+      "request": {
+        "cardName": "Generic Gathering Call",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{G}",
+        "oracleText": "Search your library for up to X creature cards, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "xValue"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unbounded-search-count",
+      "request": {
+        "cardName": "Generic Endless Search",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Search your library for any number of basic land cards, put them onto the battlefield, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.library-search.expressed-count"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-phyrexian-revoker-stored-nonland-name",
+      "request": {
+        "cardName": "Phyrexian Revoker",
+        "typeLine": "Artifact Creature — Phyrexian Horror",
+        "manaCost": "{2}",
+        "oracleText": "As this creature enters, choose a nonland card name.\nActivated abilities of sources with the chosen name can't be activated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/decisions/0/where",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-pithing-needle-stored-unrestricted-name",
+      "request": {
+        "cardName": "Pithing Needle",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "As this artifact enters, choose a card name.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "replacementEffect",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCardName"
+              },
+              {
+                "pointer": "/decisions/0/where",
+                "equals": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-name-without-consumer",
+      "request": {
+        "cardName": "Generic Idle Naming",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Choose a nonland card name. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "binding.chosen-card-name.consumer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-history-qualified-card-name",
+      "request": {
+        "cardName": "Generic Repeated Naming",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Choose a card name that hasn't been chosen. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "choose.domain.card-name.boundary"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -88,6 +88,9 @@ fn lowered_attack_trigger_creates_tapped_attackers_and_cleans_up_only_its_bound_
     let rule = lowered_attack_token_rule(2);
     assert!(rule_is_executable(&rule));
     let (mut engine, attacker_id) = setup_attacker(rule);
+    // The attack trigger resolves in the declare attackers step; a token put
+    // onto the battlefield attacking joins combat only there (CR 508.4).
+    engine.state.step = GameStep::DeclareAttackers;
 
     let mut unrelated_warrior = test_instance(
         "unrelated-warrior",

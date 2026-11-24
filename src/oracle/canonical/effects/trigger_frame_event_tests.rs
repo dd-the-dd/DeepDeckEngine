@@ -789,10 +789,19 @@ fn a_transition_union_lowers_both_transitions_of_the_same_subjects() {
         "Enchantment",
     );
     assert_eq!(reversed["events"][0]["kind"], "permanentDied");
-    // Near miss: a third verb is not part of the transition union.
-    assert_eq!(
-        committed_state("Whenever a creature you control enters or attacks, draw a card."),
-        "trigger.envelope.separator"
+    // A third verb of the same subject is an occurrence union of the shared
+    // subject's frames (CR 603.2), not part of the transition union.
+    let occurrences = event(
+        "Whenever a creature you control enters or attacks, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(occurrences["kind"], "oneOf");
+    assert_eq!(occurrences["events"][0]["kind"], "permanentEntered");
+    assert_eq!(occurrences["events"][1]["lemma"], "attack");
+    // Near miss: a verb no subject frame reads stays an explicit failure.
+    assert!(
+        !committed_state("Whenever a creature you control enters or explores, draw a card.")
+            .is_empty()
     );
 }
 

@@ -426,6 +426,20 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
 ) -> MachineResult<Vec<RecognizedEntity>> {
     let mut cursor = cursor.clone();
     cursor.enter("clause.performer.verb");
+    // `PLAYER can't VERB ...` (CR 101.2): the prohibition is the
+    // performer's own; the modal keeps its place and takes the bare verb.
+    let prohibition = cursor
+        .peek()
+        .and_then(super::lookup_auxiliary)
+        .is_some_and(|(auxiliary, _)| auxiliary == super::Auxiliary::Cannot);
+    if prohibition {
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    let required = if prohibition {
+        super::VerbForm::Base
+    } else {
+        agreement.form()
+    };
     let raw = cursor
         .peek()
         .ok_or_else(|| cursor.fail("a verb after the performer"))?;
@@ -433,10 +447,10 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
         return Err(clause_verb_unsupported(&cursor, subject));
     };
     cursor.require(
-        forms.contains(&agreement.form()),
+        forms.contains(&required),
         &format!(
             "`{}`, the verb form its subject requires",
-            entry.surface(agreement.form())
+            entry.surface(required)
         ),
     )?;
     let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
