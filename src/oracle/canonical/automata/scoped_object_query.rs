@@ -138,6 +138,107 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
     }
 }
 
+/// The object domains a lowered candidate query can name: permanents,
+/// players, cards in a zone, spells. An unknown query names none.
+pub(in crate::oracle::canonical) fn lowered_candidate_domains(
+    candidates: &serde_json::Value,
+) -> Vec<&'static str> {
+    match candidates["kind"].as_str() {
+        Some("permanents") => vec!["permanent"],
+        Some("players") => vec!["player"],
+        Some("anyTarget") => vec!["permanent", "player"],
+        Some("cards") => vec!["card"],
+        Some("spells" | "stackObjects") => vec!["spell"],
+        Some("union") => candidates["sets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(lowered_candidate_domains)
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// The type heads a lowered candidate query names positively, read with
+/// the same hierarchy as `ObjectPredicate::positive_type_heads`: the
+/// `where` filter's card types and subtypes through `and`/`or` only (a
+/// negation names no head; a comparison operand, a counted collection or
+/// any other relation names another object's heads, not the candidate's),
+/// every set of a union, and the bare `permanent` noun for a permanent set
+/// whose filter names no type (`target permanent`, `any target`).
+pub(in crate::oracle::canonical) fn lowered_candidate_type_heads(
+    candidates: &serde_json::Value,
+) -> Vec<ObjectTypeHead> {
+    fn filter_heads(filter: &serde_json::Value, heads: &mut Vec<ObjectTypeHead>) {
+        match filter["kind"].as_str() {
+            Some("cardTypeContains") => heads.extend(
+                filter["value"]
+                    .as_str()
+                    .and_then(ObjectTypeHead::card_type_from_ir),
+            ),
+            Some("subtypeContains") => heads.extend(
+                filter["value"]
+                    .as_str()
+                    .map(|name| ObjectTypeHead::Subtype(name.to_string())),
+            ),
+            Some("and" | "or") => filter["operands"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .for_each(|operand| filter_heads(operand, heads)),
+            _ => {}
+        }
+    }
+    match candidates["kind"].as_str() {
+        Some("union") => candidates["sets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .flat_map(lowered_candidate_type_heads)
+            .collect(),
+        Some("permanents" | "anyTarget") => {
+            let mut heads = Vec::new();
+            filter_heads(&candidates["where"], &mut heads);
+            if heads.is_empty() {
+                // A permanent set without a type head is the bare
+                // `permanent` noun; `any target` includes every permanent.
+                heads.push(ObjectTypeHead::Permanent);
+            }
+            heads
+        }
+        _ => {
+            let mut heads = Vec::new();
+            filter_heads(&candidates["where"], &mut heads);
+            heads
+        }
+    }
+}
+
+/// The type heads of a printed type line (`Legendary Creature — Dinosaur`):
+/// its card types, its subtypes and, for a permanent card type, the
+/// `permanent` noun. Supertypes name no head.
+pub(in crate::oracle::canonical) fn type_line_type_heads(type_line: &str) -> Vec<ObjectTypeHead> {
+    let mut parts = type_line.splitn(2, '\u{2014}');
+    let types = parts.next().unwrap_or_default();
+    let subtypes = parts.next().unwrap_or_default();
+    let mut heads = types
+        .split(|character: char| !character.is_alphanumeric())
+        .filter_map(ObjectTypeHead::card_type_from_ir)
+        .collect::<Vec<_>>();
+    if heads.iter().any(
+        |head| matches!(head, ObjectTypeHead::CardType(card_type) if card_type.is_permanent_type()),
+    ) {
+        heads.push(ObjectTypeHead::Permanent);
+    }
+    heads.extend(
+        subtypes
+            .split_whitespace()
+            .filter(|word| !word.is_empty())
+            .map(|word| ObjectTypeHead::Subtype(word.to_string())),
+    );
+    heads
+}
+
 #[cfg(test)]
 #[path = "scoped_object_query_tests.rs"]
 mod tests;

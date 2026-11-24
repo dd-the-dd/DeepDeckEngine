@@ -33160,6 +33160,9 @@ mod intervening_if_condition_runtime;
 #[path = "tests/leveler_band_runtime.rs"]
 mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/object_query_runtime.rs"]
+mod object_query_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

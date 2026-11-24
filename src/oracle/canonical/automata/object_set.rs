@@ -314,6 +314,49 @@ pub(in crate::oracle::canonical) fn recognize_controlled_object_set(
     })
 }
 
+/// Lexical head of a bare subtype-headed collection subject (`Wizards you
+/// control get`, `Samurai creatures you control`, `other Goblins and Orcs
+/// you control`, `Goblin creatures get`): after an optional `other`, a
+/// subtype word that is not the card's own name, read by the shared
+/// collection as a plural collection of battlefield permanents (CR 109.2).
+/// Pure lookahead: the collection child still owns the phrase and its
+/// failures; a singular subtype (`Goblin Guide deals`) is never claimed.
+pub(in crate::oracle::canonical) fn subtype_collection_head_starts(
+    cursor: &OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+) -> bool {
+    let head_offset = usize::from(
+        cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("other")),
+    );
+    let head = cursor.position() + head_offset;
+    let subtype_head = cursor
+        .token_slice(head, head + 1)
+        .first()
+        .is_some_and(|token| token.token_type == "subtypeWord");
+    if !subtype_head
+        || name_links.iter().any(|link| {
+            (link.token_start..link.token_end.max(link.token_start + 1)).contains(&head)
+        })
+    {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    let start = trial.position();
+    let Ok(query) = recognize_object_collection(&mut trial) else {
+        return false;
+    };
+    let read = trial.token_slice(start, trial.position());
+    let plural = (0..read.len()).any(|index| {
+        super::atom_surface_number(
+            &read[index].raw,
+            read.get(index + 1).map(|token| token.raw.as_str()),
+        ) == Some(super::GrammaticalNumber::Plural)
+    });
+    plural && query.denotes_battlefield_permanents()
+}
+
 #[cfg(test)]
 #[path = "object_collection_domain_tests.rs"]
 mod domain_tests;

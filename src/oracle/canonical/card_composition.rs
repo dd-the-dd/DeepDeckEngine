@@ -1,6 +1,11 @@
 use serde_json::{Value, json};
 
-use crate::oracle::model::{ParsedOracleAbility, ParserDiagnostic};
+use crate::oracle::model::{OracleCardParseRequest, ParsedOracleAbility, ParserDiagnostic};
+
+use super::automata::{
+    ObjectTypeHead, lowered_candidate_domains, lowered_candidate_type_heads, type_heads_name,
+    type_heads_overlap, type_line_type_heads,
+};
 
 const OVERLOAD_MODE: &str = "overload";
 
@@ -152,51 +157,29 @@ fn link_exiles_to_linked_readers(abilities: &mut [ParsedOracleAbility]) {
     }
 }
 
-/// The object domains a target candidate query can name: permanents,
-/// players, cards in a zone, spells. An unknown query names none (it then
-/// relates to no earlier slot).
-fn candidate_domains(candidates: &Value) -> Vec<&'static str> {
-    match candidates["kind"].as_str() {
-        Some("permanents") => vec!["permanent"],
-        Some("players") => vec!["player"],
-        Some("anyTarget") => vec!["permanent", "player"],
-        Some("cards") => vec!["card"],
-        Some("spells" | "stackObjects") => vec!["spell"],
-        Some("union") => candidates["sets"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .flat_map(candidate_domains)
-            .collect(),
-        _ => Vec::new(),
-    }
+/// What `another` can contrast with besides earlier target slots: the
+/// source object, described by its type heads when its type line is known.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum OtherSource {
+    /// A spell (or another nonpermanent source): never a permanent target.
+    Spell,
+    /// A permanent whose printed type heads are known.
+    Permanent(Vec<ObjectTypeHead>),
+    /// A permanent source whose type line was not supplied: it may be
+    /// named by any permanent slot.
+    UnknownPermanent,
 }
 
-/// The card types and subtypes a candidate query names positively (outside
-/// any negation): the nominal heads `another target NOUN` is read against.
-fn candidate_type_heads(candidates: &Value) -> std::collections::BTreeSet<String> {
-    fn collect(value: &Value, heads: &mut std::collections::BTreeSet<String>) {
-        match value {
-            Value::Object(map) => {
-                if map.get("kind").and_then(Value::as_str) == Some("not") {
-                    return;
-                }
-                if matches!(
-                    map.get("kind").and_then(Value::as_str),
-                    Some("cardTypeContains" | "subtypeContains")
-                ) && let Some(head) = map.get("value").and_then(Value::as_str)
-                {
-                    heads.insert(head.to_ascii_lowercase());
-                }
-                map.values().for_each(|child| collect(child, heads));
-            }
-            Value::Array(items) => items.iter().for_each(|child| collect(child, heads)),
-            _ => {}
+impl OtherSource {
+    /// Whether a slot naming `heads` could name this source, so `another`
+    /// may contrast with it.
+    fn nameable_by(&self, heads: &[ObjectTypeHead]) -> bool {
+        match self {
+            Self::Spell => false,
+            Self::UnknownPermanent => true,
+            Self::Permanent(source) => type_heads_name(source, heads),
         }
     }
-    let mut heads = std::collections::BTreeSet::new();
-    collect(candidates, &mut heads);
-    heads
 }
 
 /// Resolves the target-list child's typed `otherThanEarlierTargets` relation
@@ -207,16 +190,23 @@ fn candidate_type_heads(candidates: &Value) -> std::collections::BTreeSet<String
 /// such slots the relation records `distinctFrom` (compared by owning slot
 /// in the engine, whatever the slot sizes) and `another` names them, not
 /// the source (Wayta: `Target creature you control fights another target
-/// creature` may name Wayta). When the source is a permanent that the later
-/// slot could name, an earlier slot also shares a type head with the later
-/// one (`target creature ... another target creature`): after `target
-/// artifact or enchantment`, `Equipment` or a bare `permanent`, `other
-/// target creatures` contrasts with the source (Rhino, Jaheira, Kinetic
-/// Ooze, Amy Rose). A spell is never a permanent target, so its `another`
-/// always contrasts with its earlier slots. Without such a slot the later one keeps its
-/// source exclusion (`another target creature you control`; Stiltzkin
-/// after a player slot; a mode-2 `another` when only mode 2 is chosen).
-fn resolve_other_target_relation(decisions: &mut [Value], permanent_source: bool) {
+/// creature` may name Wayta).
+///
+/// When the later slot could also name the source, `another` contrasts
+/// with an earlier slot only when their type heads overlap in the shared
+/// object-query hierarchy (`type_heads_overlap`): `target Dinosaur ...
+/// another target creature` (a Dinosaur is a creature head, Itzquinth),
+/// `target Aura ... another target enchantment`, `target Equipment ...
+/// another target artifact`, and a bare earlier `permanent`, which every
+/// permanent type is a kind of. After `target artifact or enchantment` or
+/// `Equipment`, `other target creatures` contrasts with the source (Rhino,
+/// Jaheira, Kinetic Ooze, Amy Rose). A source the later slot cannot name
+/// (a Saga for `another target creature`, The Curse of Fenric; a spell)
+/// leaves only the earlier slots to contrast with. Without such a slot the
+/// later one keeps its source exclusion (`another target creature you
+/// control`; Stiltzkin after a player slot; a mode-2 `another` when only
+/// mode 2 is chosen).
+fn resolve_other_target_relation(decisions: &mut [Value], source: &OtherSource) {
     for index in 0..decisions.len() {
         let later = &decisions[index];
         if later["kind"].as_str() != Some("chooseTargets")
@@ -224,20 +214,23 @@ fn resolve_other_target_relation(decisions: &mut [Value], permanent_source: bool
         {
             continue;
         }
-        let later_domains = candidate_domains(&later["candidates"]);
-        let later_heads = candidate_type_heads(&later["candidates"]);
+        let later_domains = lowered_candidate_domains(&later["candidates"]);
+        let later_heads = lowered_candidate_type_heads(&later["candidates"]);
+        let source_nameable = source.nameable_by(&later_heads);
         let condition = later.get("condition").cloned();
         let earlier = decisions[..index]
             .iter()
             .filter(|earlier| earlier["kind"].as_str() == Some("chooseTargets"))
             .filter(|earlier| earlier.get("condition").cloned() == condition)
             .filter(|earlier| {
-                candidate_domains(&earlier["candidates"])
+                lowered_candidate_domains(&earlier["candidates"])
                     .iter()
                     .any(|domain| later_domains.contains(domain))
-                    && (!permanent_source
-                        || later_heads.is_empty()
-                        || !later_heads.is_disjoint(&candidate_type_heads(&earlier["candidates"])))
+                    && (!source_nameable
+                        || type_heads_overlap(
+                            &later_heads,
+                            &lowered_candidate_type_heads(&earlier["candidates"]),
+                        ))
             })
             .filter_map(|earlier| earlier["id"].as_str().map(str::to_string))
             .collect::<Vec<_>>();
@@ -255,32 +248,55 @@ fn resolve_other_target_relation(decisions: &mut [Value], permanent_source: bool
 /// Resolves the relation in every declaration of the rule, nested ones
 /// (reflexive triggers, granted abilities) included, then consumes the
 /// marker. `get_mut`, not indexing: a rule without a declaration stays
-/// without one.
-fn mark_distinct_other_targets(rule: &mut Value) {
+/// without one. A spell ability's source is the spell; any other rule's
+/// source is the permanent described by `source_heads` when known.
+fn mark_distinct_other_targets(rule: &mut Value, source_heads: Option<&[ObjectTypeHead]>) {
     match rule {
         Value::Object(map) => {
-            let permanent_source = map.get("kind").and_then(Value::as_str) != Some("spellAbility");
+            let source = if map.get("kind").and_then(Value::as_str) == Some("spellAbility") {
+                OtherSource::Spell
+            } else {
+                match source_heads {
+                    Some(heads) if !heads.iter().any(|head| *head == ObjectTypeHead::Permanent) => {
+                        // An instant or sorcery face's non-spell rule (a
+                        // granted or reflexive ability) still has a spell
+                        // or card source, never a permanent target.
+                        OtherSource::Spell
+                    }
+                    Some(heads) => OtherSource::Permanent(heads.to_vec()),
+                    None => OtherSource::UnknownPermanent,
+                }
+            };
             if let Some(decisions) = map
                 .get_mut("declaration")
                 .and_then(|declaration| declaration.get_mut("decisions"))
                 .and_then(Value::as_array_mut)
             {
-                resolve_other_target_relation(decisions, permanent_source);
+                resolve_other_target_relation(decisions, &source);
             }
             for (key, child) in map.iter_mut() {
                 if key != "declaration" {
-                    mark_distinct_other_targets(child);
+                    mark_distinct_other_targets(child, source_heads);
                 }
             }
         }
-        Value::Array(items) => items.iter_mut().for_each(mark_distinct_other_targets),
+        Value::Array(items) => items
+            .iter_mut()
+            .for_each(|item| mark_distinct_other_targets(item, source_heads)),
         _ => {}
     }
 }
 
 /// Composition entry: resolve the relation everywhere, then consume it.
 fn compose_other_target_relation(rule: &mut Value) {
-    mark_distinct_other_targets(rule);
+    compose_other_target_relation_for_source(rule, None);
+}
+
+fn compose_other_target_relation_for_source(
+    rule: &mut Value,
+    source_heads: Option<&[ObjectTypeHead]>,
+) {
+    mark_distinct_other_targets(rule, source_heads);
     strip_other_target_relation(rule);
 }
 
@@ -297,10 +313,36 @@ fn strip_other_target_relation(value: &mut Value) {
     }
 }
 
+/// Composes the card's rules with each ability's source described by the
+/// type line of the face it is printed on.
+pub(crate) fn compose_card_rules_for_request(
+    request: &OracleCardParseRequest,
+    abilities: &mut [ParsedOracleAbility],
+) {
+    let face_type_line = |face_id: Option<&str>| match face_id {
+        Some(face_id) => request
+            .faces
+            .iter()
+            .find(|face| face.id == face_id)
+            .map(|face| face.type_line.clone()),
+        None => Some(request.type_line.clone()),
+    };
+    compose_card_rules_with_sources(abilities, &face_type_line);
+}
+
 pub(crate) fn compose_card_rules_native(abilities: &mut [ParsedOracleAbility]) {
+    compose_card_rules_with_sources(abilities, &|_| None);
+}
+
+fn compose_card_rules_with_sources(
+    abilities: &mut [ParsedOracleAbility],
+    face_type_line: &dyn Fn(Option<&str>) -> Option<String>,
+) {
     for ability in abilities.iter_mut() {
+        let source_heads = face_type_line(ability.source.face_id.as_deref())
+            .map(|type_line| type_line_type_heads(&type_line));
         if let Some(rule) = ability.rule.as_mut() {
-            compose_other_target_relation(rule);
+            compose_other_target_relation_for_source(rule, source_heads.as_deref());
         }
     }
     link_exiles_to_linked_readers(abilities);

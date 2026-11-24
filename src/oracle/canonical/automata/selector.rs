@@ -1763,6 +1763,14 @@ fn recognize_numeric_comparison_from(
                             player: super::LocalPlayerReference::Controller,
                             zone: super::LocalZone::Library,
                         } => true,
+                        // `the number of QUERY` over a zone-holder domain:
+                        // admitted when its typed count has a runtime amount.
+                        NumericExpression::CountQuery(query) => {
+                            crate::oracle::canonical::effects::lower_scoped_object_query_amount(
+                                query,
+                            )
+                            .is_some()
+                        }
                         NumericExpression::Add { left, right }
                         | NumericExpression::Subtract { left, right }
                         | NumericExpression::Multiply { left, right }

@@ -1,10 +1,26 @@
 use crate::oracle::syntax::recognize_entities;
 
 use super::super::{
-    LocalPlayerReference, LocalZone, NumericAtom, NumericExpression, NumericRounding,
-    recognize_numeric_expression, recognize_query_numeric_expression, with_prior_number,
+    CardZoneName, LocalPlayerReference, NumericAtom, NumericExpression, NumericRounding,
+    ObjectKind, ZoneHolderQueryNode, recognize_numeric_expression,
+    recognize_query_numeric_expression, with_prior_number,
 };
 use super::OracleTokenCursor;
+
+/// `the number of cards in ZONE` is the shared `the number of QUERY`
+/// aggregate over the zone-holder domain, not a fixed library phrase.
+fn counted_zone(expression: &NumericExpression) -> Option<(CardZoneName, ZoneHolderQueryNode)> {
+    let NumericExpression::Divide { left, .. } = expression else {
+        return None;
+    };
+    let NumericExpression::CountQuery(query) = left.as_ref() else {
+        return None;
+    };
+    if query.domain != ObjectKind::Card || query.zones.len() != 1 {
+        return None;
+    }
+    Some((query.zones[0], query.holders?))
+}
 
 #[test]
 fn half_controller_library_count_retains_zone_and_rounding() {
@@ -14,36 +30,40 @@ fn half_controller_library_count_retains_zone_and_rounding() {
         ));
         let mut cursor = OracleTokenCursor::new("library-count-test", &tokens);
 
-        // `half` is the shared arithmetic operator; the library count is one
-        // of its operands, not a dedicated recipe.
+        // `half` is the shared arithmetic operator; the library count is the
+        // shared aggregate over cards in the controller's library.
+        let read = recognize_query_numeric_expression(&mut cursor).expect("expression parses");
         assert_eq!(
-            recognize_query_numeric_expression(&mut cursor).expect("expression parses"),
-            NumericExpression::Divide {
-                left: Box::new(NumericExpression::CardsInZone {
-                    player: LocalPlayerReference::Controller,
-                    zone: LocalZone::Library,
-                }),
-                right: Box::new(NumericExpression::Atom(NumericAtom::Integer(2))),
-                rounding,
-            }
+            counted_zone(&read),
+            Some((
+                CardZoneName::Library,
+                ZoneHolderQueryNode::Player(LocalPlayerReference::Controller)
+            )),
+            "{read:?}"
         );
+        assert!(matches!(
+            read,
+            NumericExpression::Divide { ref right, rounding: actual, .. }
+                if **right == NumericExpression::Atom(NumericAtom::Integer(2))
+                    && actual == rounding
+        ));
     }
 }
 
 #[test]
 fn a_different_zone_is_not_read_as_the_library_count() {
+    // Near miss: the hand count is the same aggregate over another zone; it
+    // never silently becomes the library count.
     let tokens = recognize_entities("half the number of cards in your hand, rounded up");
     let mut cursor = OracleTokenCursor::new("library-count-test", &tokens);
     let read = recognize_query_numeric_expression(&mut cursor);
-    // Near miss: the hand count never silently becomes the library count.
-    assert!(!matches!(
-        read,
-        Ok(NumericExpression::Divide { ref left, .. })
-            if **left == NumericExpression::CardsInZone {
-                player: LocalPlayerReference::Controller,
-                zone: LocalZone::Library,
-            }
-    ));
+    assert!(
+        read.as_ref()
+            .ok()
+            .and_then(counted_zone)
+            .is_none_or(|(zone, _)| zone == CardZoneName::Hand),
+        "{read:?}"
+    );
 }
 
 #[test]

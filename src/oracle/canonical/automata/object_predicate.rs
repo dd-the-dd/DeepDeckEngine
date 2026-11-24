@@ -476,6 +476,142 @@ impl ObjectPredicate {
     }
 }
 
+/// One nominal type head an object query names positively: the `permanent`
+/// noun, a card type, or a subtype. Heads are ordered by the type hierarchy
+/// (CR 205.3d: a subtype corresponds to its card type; every permanent type
+/// is a kind of permanent, CR 110.4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectTypeHead {
+    Permanent,
+    CardType(ObjectCardType),
+    Subtype(String),
+}
+
+impl ObjectTypeHead {
+    /// A head from its IR spelling (`cardTypeContains` / `subtypeContains`
+    /// values). An unknown card type spelling names no head.
+    pub(in crate::oracle::canonical) fn card_type_from_ir(name: &str) -> Option<Self> {
+        crate::oracle::characteristic_vocabulary::ORACLE_CARD_TYPES
+            .iter()
+            .find(|card_type| card_type.ir_name().eq_ignore_ascii_case(name))
+            .map(|card_type| Self::CardType(*card_type))
+    }
+
+    /// The heads this head implies, itself included: a land, artifact,
+    /// enchantment, planeswalker or battle subtype implies its one card type
+    /// (CR 205.3d), a creature subtype names a creature head (CR 205.3m;
+    /// a Kindred permanent also carries it, CR 308.2, so it never proves the
+    /// creature type for a characteristic read), and a permanent card type
+    /// implies `permanent`.
+    fn lineage(&self) -> Vec<Self> {
+        let mut lineage = vec![self.clone()];
+        let card_type = match self {
+            Self::Permanent => None,
+            Self::CardType(card_type) => Some(*card_type),
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::noncreature_subtype_card_type(name)
+                    .or_else(|| {
+                        crate::oracle::characteristic_vocabulary::lookup_creature_subtype(
+                            name,
+                            crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+                        )
+                        .map(|_| ObjectCardType::Creature)
+                    })
+            }
+        };
+        if let Some(card_type) = card_type {
+            if !matches!(self, Self::CardType(_)) {
+                lineage.push(Self::CardType(card_type));
+            }
+            if card_type.is_permanent_type() {
+                lineage.push(Self::Permanent);
+            }
+        } else if let Self::Subtype(name) = self
+            && crate::oracle::characteristic_vocabulary::noncreature_subtype_implies_permanent(name)
+        {
+            lineage.push(Self::Permanent);
+        }
+        lineage
+    }
+
+    /// Whether one head is a kind of the other: `Dinosaur` and `creature`,
+    /// `Equipment` and `artifact`, `Aura` and `enchantment`, `permanent` and
+    /// any permanent type. Two unrelated types (`artifact`, `creature`) do
+    /// not overlap as heads even though one object can have both.
+    pub(in crate::oracle::canonical) fn overlaps(&self, other: &Self) -> bool {
+        self.is_kind_of(other) || other.is_kind_of(self)
+    }
+
+    /// Whether every object with this head has `other` too (`Saga` is a
+    /// kind of enchantment and of permanent, not of creature).
+    pub(in crate::oracle::canonical) fn is_kind_of(&self, other: &Self) -> bool {
+        self.lineage().contains(other)
+    }
+}
+
+/// Whether an object described by `object_heads` (its printed types and
+/// subtypes) is named by a slot whose heads are `slot_heads`: one of its
+/// heads is a kind of one of the slot's heads.
+pub(in crate::oracle::canonical) fn type_heads_name(
+    object_heads: &[ObjectTypeHead],
+    slot_heads: &[ObjectTypeHead],
+) -> bool {
+    slot_heads
+        .iter()
+        .any(|slot| object_heads.iter().any(|head| head.is_kind_of(slot)))
+}
+
+/// Whether two head sets name a common kind: some head of one is a kind of
+/// some head of the other. An empty set names no head and overlaps nothing.
+pub(in crate::oracle::canonical) fn type_heads_overlap(
+    left: &[ObjectTypeHead],
+    right: &[ObjectTypeHead],
+) -> bool {
+    left.iter()
+        .any(|head| right.iter().any(|other| head.overlaps(other)))
+}
+
+impl ObjectPredicate {
+    /// Whether every value this predicate accepts has a creature subtype
+    /// head (`Dinosaur`, `target Dinosaur you control`): such a permanent is
+    /// a creature or a Kindred permanent (CR 205.3m, 308.2), so its power
+    /// and toughness read the creature's value or the undefined value of a
+    /// noncreature permanent (CR 208.3), never another characteristic.
+    pub(in crate::oracle::canonical) fn has_creature_subtype_head(&self) -> bool {
+        match self {
+            Self::Subtype(name) => {
+                crate::oracle::characteristic_vocabulary::lookup_creature_subtype(
+                    name,
+                    crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+                )
+                .is_some()
+            }
+            Self::Intersection(operands) => operands.iter().any(Self::has_creature_subtype_head),
+            Self::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(Self::has_creature_subtype_head)
+            }
+            _ => false,
+        }
+    }
+
+    /// The type heads this predicate names positively: card types, subtypes
+    /// and the `permanent` noun read through Boolean composition, never
+    /// under a negation (`nonartifact` names no artifact head) and never
+    /// from a numeric comparison's operand.
+    pub(in crate::oracle::canonical) fn positive_type_heads(&self) -> Vec<ObjectTypeHead> {
+        match self {
+            Self::CardType(card_type) => vec![ObjectTypeHead::CardType(*card_type)],
+            Self::Subtype(name) => vec![ObjectTypeHead::Subtype(name.clone())],
+            Self::ObjectKind(ObjectKind::Permanent) => vec![ObjectTypeHead::Permanent],
+            Self::Intersection(operands) | Self::Union(operands) => operands
+                .iter()
+                .flat_map(Self::positive_type_heads)
+                .collect(),
+            _ => Vec::new(),
+        }
+    }
+}
+
 /// How the one domain walk reads nouns (CR 109.2a).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct DomainReading {

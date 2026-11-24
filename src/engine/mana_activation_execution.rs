@@ -166,7 +166,10 @@ impl GameEngine {
                         value_kind(modifier) == Some("additionalManaOnLandTap")
                             && modifier["expiresAfterTurn"].as_u64()
                                 == Some(u64::from(self.state.turn_number))
-                            && matches_card_filter(&source.definition, &modifier["where"])
+                            && matches_card_filter(
+                                object_predicate::DefinitionView::for_permanent(&source),
+                                &modifier["where"],
+                            )
                             && modifier["playerId"]
                                 .as_str()
                                 .is_none_or(|player_id| player_id == source.controller)

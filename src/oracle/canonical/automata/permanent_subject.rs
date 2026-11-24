@@ -529,6 +529,7 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
                     | "combatStateWord"
             )
         })
+        || super::subtype_collection_head_starts(cursor, name_links)
     {
         let query = recognize_object_collection(cursor)?;
         cursor.require(

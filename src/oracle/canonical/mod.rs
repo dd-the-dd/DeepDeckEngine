@@ -23,7 +23,7 @@ pub(crate) use abilities::keyword_template_expansion::{
 };
 use abilities::*;
 use automata::*;
-pub(crate) use card_composition::compose_card_rules_native;
+pub(crate) use card_composition::compose_card_rules_for_request;
 
 pub(crate) use context::CanonicalRuleDraft;
 

@@ -372,6 +372,29 @@ pub(in crate::oracle::canonical) enum TargetNumericLoweringError {
     UnsupportedExpression,
 }
 
+/// A target slot whose power and toughness are a creature's: the slot is
+/// guaranteed to be a creature, or every branch names a creature subtype
+/// head (`target Dinosaur you control`), whose permanent is a creature or a
+/// Kindred permanent without power (CR 208.3) — never another value.
+fn selector_reads_creature_power_toughness(selector: &TargetSelector) -> bool {
+    if selector_implies_nominal(
+        selector,
+        &ObjectPredicate::CardType(ObjectCardType::Creature),
+    ) {
+        return true;
+    }
+    match selector {
+        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
+            predicate.has_creature_subtype_head()
+                && predicate.supports_domain(ObjectKind::Permanent)
+        }
+        TargetSelector::Union(branches) => {
+            !branches.is_empty() && branches.iter().all(selector_reads_creature_power_toughness)
+        }
+        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
+    }
+}
+
 /// Preflight validates references without changing the arithmetic recursion.
 /// Post-zone reads are proved only for the original battlefield permanent
 /// incarnation. Stack/mixed/card domains remain capped; P/T additionally
@@ -395,10 +418,7 @@ fn validate_numeric_targets(
                 return Err(TargetNumericLoweringError::PostZoneChangeLki);
             }
             if matches!(expression, NumericExpression::PowerOf(_))
-                && !selector_implies_nominal(
-                    &target.selector,
-                    &ObjectPredicate::CardType(ObjectCardType::Creature),
-                )
+                && !selector_reads_creature_power_toughness(&target.selector)
             {
                 return Err(TargetNumericLoweringError::UnprovedCharacteristicDomain);
             }
@@ -427,10 +447,8 @@ fn validate_numeric_targets(
             if matches!(
                 property,
                 SelectorNumericProperty::Power | SelectorNumericProperty::Toughness
-            ) && !selector_implies_nominal(
-                &target.selector,
-                &ObjectPredicate::CardType(ObjectCardType::Creature),
-            ) {
+            ) && !selector_reads_creature_power_toughness(&target.selector)
+            {
                 return Err(TargetNumericLoweringError::UnprovedCharacteristicDomain);
             }
             Ok(())

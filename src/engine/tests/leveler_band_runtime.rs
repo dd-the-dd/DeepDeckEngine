@@ -121,3 +121,25 @@ fn a_leveler_off_the_battlefield_reads_its_bands_closed() {
     assert!(!has_keyword(&adept, "flying"));
     assert!(!matches_card_filter(&adept, &with_flying()));
 }
+
+#[test]
+fn a_level_band_power_toughness_box_is_a_layer_7b_base_under_counters() {
+    // CR 613.4b-c: the band's P/T box sets the base power and toughness
+    // (layer 7b); +1/+1 counters (layer 7c) then apply on top of it, at
+    // every reader. Level 3 sets 4/2, one +1/+1 counter makes it 5/3.
+    let mut engine = test_engine(2);
+    let mut adept = test_instance("adept", skywatcher_adept(), "player-0");
+    adept.counters.insert("level".to_string(), 3);
+    adept.counters.insert("+1/+1".to_string(), 1);
+    engine.state.players[0].battlefield.push(adept.clone());
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    assert_eq!(power_toughness(&engine), (5, 3));
+    let live = &engine.state.players[0].battlefield[0];
+    assert_eq!(
+        (engine.current_power(live), engine.current_toughness(live)),
+        (5, 3),
+        "the stack-resolution reader agrees with the layer view"
+    );
+}

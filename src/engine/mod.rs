@@ -191,6 +191,7 @@ mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
 mod permanent_subject;
+mod phase_ordinal;
 mod player_action_events;
 mod player_damage_batch;
 mod player_damage_observation;
@@ -2049,17 +2050,7 @@ fn count_rule_kind(value: &Value, expected: &str) -> usize {
         }
 }
 
-/// The ordinal in its turn of the main phase a main step begins (CR 505.1a).
-/// The turn loop runs one precombat main phase, every combat phase, then one
-/// postcombat main phase: an additional combat (`addCombatPhase`) adds no main
-/// phase, and no effect adds one, so the postcombat main phase is the second.
-fn main_phase_ordinal_of_step(step: &str) -> Option<u64> {
-    match step {
-        "precombatMain" => Some(1),
-        "postcombatMain" => Some(2),
-        _ => None,
-    }
-}
+use phase_ordinal::main_phase_ordinal_of_step;
 
 /// Printed keyword count of an object off the battlefield (a spell).
 fn keyword_count(card: &CardDefinition, keyword: &str) -> usize {
@@ -22307,7 +22298,10 @@ impl GameEngine {
                                 .iter()
                                 .any(|event| {
                                     value_kind(event) == Some("sagaFinalChapterAbilityResolved")
-                                        && matches_card_filter(&saga.definition, &event["where"])
+                                        && matches_card_filter(
+                                            object_predicate::DefinitionView::for_permanent(saga),
+                                            &event["where"],
+                                        )
                                 })
                     })
                     .cloned()
@@ -30295,7 +30289,7 @@ impl GameEngine {
                 }
                 permanent.definition.power = Some("0".to_string());
                 permanent.definition.toughness = Some("0".to_string());
-                if !has_keyword(&permanent.definition, "haste") {
+                if !permanent_printed_has_keyword(permanent, "haste") {
                     permanent.definition.printed_rules_mut().push(json!({
                         "kind": "keywordAbility",
                         "source": { "kind": "self" },
