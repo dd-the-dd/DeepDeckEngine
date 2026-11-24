@@ -7,8 +7,8 @@
 //! that player's.
 use super::super::{MachineResult, OracleTokenCursor};
 use super::source_sacrifice::atomic_action::player_subject::{
-    recognize_defending_player_subject, recognize_object_related_player_subject,
-    recognize_player_effect_subject,
+    PlayerAnaphor, player_anaphor_at, recognize_defending_player_subject,
+    recognize_object_related_player_subject, recognize_player_effect_subject,
 };
 use super::{
     ObjectPlayerRelation, ObjectSubjectAntecedent, PlayerBinding, PlayerEffectSubject,
@@ -251,7 +251,7 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             }));
         }
     }
-    if is(0, "that") && is(1, "player") {
+    if let Some(anaphor) = player_anaphor_at(cursor) {
         // Without a player binding, `that player` is the player the previous
         // action named through its object; it is resolved from that object
         // when the action resolves (last known information, CR 608.2h).
@@ -260,7 +260,12 @@ pub(in crate::oracle::canonical) fn recognize_declaring_performer(
             && let Some((relation, object)) = context.object_player_antecedent
         {
             cursor.enter("clause.performer.object-player-anaphor");
-            return Some(cursor.consume_phrase(&["that", "player"]).map(|()| {
+            let written = match anaphor {
+                PlayerAnaphor::ThatPlayer => ["that", "player"],
+                PlayerAnaphor::ThePlayer => ["the", "player"],
+                PlayerAnaphor::ThatOpponent => ["that", "opponent"],
+            };
+            return Some(cursor.consume_phrase(&written).map(|()| {
                 (
                     PerformerNode::Player(PlayerEffectSubject::ObjectRelation { relation, object }),
                     VerbAgreement::ThirdPersonSingular,

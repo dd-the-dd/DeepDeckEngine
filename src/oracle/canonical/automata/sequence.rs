@@ -1819,6 +1819,14 @@ fn recognize_effect_sequence_attempt_scoped(
                         | super::ChoiceDomainNode::CardName(_) => {}
                     }
                 }
+                // `look at target player's hand`, `reveal the top card of
+                // target opponent's library`: the declared zone owner is the
+                // player a later `that player` names (CR 115.1, 608.2c).
+                if let LocalEffectNode::CardAction(action) = &effect
+                    && card_action_declares_zone_owner(action)
+                {
+                    memory.last_player_target = Some(PlayerTargetBinding { effect_index });
+                }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect
                     && life.declares_target
                 {
@@ -3373,6 +3381,26 @@ fn object_player_mention(
     }
     super::other_player_controlled_antecedent(antecedent)
         .map(|object| (super::ObjectPlayerRelation::Controller, object))
+}
+
+/// True when a card action declares the one player whose hand or library it
+/// reads (`target player's hand`, `target opponent's library`).
+fn card_action_declares_zone_owner(action: &super::CardActionNode) -> bool {
+    let operand = match action {
+        super::CardActionNode::LookAt(operand)
+        | super::CardActionNode::Reveal(operand)
+        | super::CardActionNode::Move { cards: operand, .. } => operand,
+        _ => return false,
+    };
+    match operand {
+        super::CardOperandNode::ZoneCollection(zone) => {
+            matches!(zone.owner, super::CardZoneOwnerNode::TargetPlayer(_))
+        }
+        super::CardOperandNode::LibraryTop(top) => {
+            matches!(top.owner, super::CardLibraryOwnerNode::TargetPlayer(_))
+        }
+        _ => false,
+    }
 }
 
 /// The agreement of a performer's continued verb: plural after `they`, else

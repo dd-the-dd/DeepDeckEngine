@@ -782,11 +782,29 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
+                let first_decision = decisions.len();
                 effects.extend(
                     collections
                         .lower_action(cursor, action, declarations, &mut decisions)
                         .map_err(EffectSequenceLoweringFailure::FailedSupport)?,
                 );
+                // `look at target player's hand`: the declared zone owner is
+                // the player a later `that player` names (CR 115.1, 608.2c).
+                if let [id] = decisions[first_decision..]
+                    .iter()
+                    .filter_map(|decision| decision["id"].as_str())
+                    .filter(|id| id.starts_with("targetZonePlayer"))
+                    .collect::<Vec<_>>()
+                    .as_slice()
+                {
+                    let key = PlayerTargetBinding { effect_index };
+                    if !declared_player_targets
+                        .iter()
+                        .any(|(declared, _)| *declared == key)
+                    {
+                        declared_player_targets.push((key, (*id).to_string()));
+                    }
+                }
             }
             // `exile all graveyards`: the shared card mover over a zone query.
             LocalEffectNode::ZoneBatch(batch) => {
