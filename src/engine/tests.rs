@@ -57,6 +57,10 @@ mod effect_subject_runtime;
 mod player_slot_performer_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/library_search_bound_runtime.rs"]
+mod library_search_bound_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_lki_runtime.rs"]
 mod source_lki_runtime;
 

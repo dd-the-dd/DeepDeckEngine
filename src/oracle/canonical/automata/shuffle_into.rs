@@ -85,6 +85,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
                 transformed: false,
                 shuffle: false,
                 attached_to: None,
+                origin_library: false,
             },
         })
         .collect::<Vec<_>>();
@@ -130,6 +131,7 @@ pub(in crate::oracle::canonical) fn recognize_shuffle_library_destination(
         transformed: false,
         shuffle: true,
         attached_to: None,
+        origin_library: false,
     })
 }
 

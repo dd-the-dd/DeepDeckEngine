@@ -253,6 +253,22 @@ impl CardCollectionMemory {
         id
     }
 
+    /// The cards a library search found (`library_search_move.rs`): its
+    /// choice result, fixed when chosen (CR 608.2c), is the observed
+    /// collection the search's later ordinary actions read.
+    pub(in crate::oracle::canonical) fn observe_searched_cards(
+        &mut self,
+        found: Value,
+        maximum: Option<i64>,
+    ) {
+        self.clear_antecedent();
+        self.view = Some(found.clone());
+        self.view_maximum = maximum;
+        self.complement_basis = Some((found.clone(), maximum));
+        self.mention((found.clone(), maximum));
+        self.plural_focus = Some((found, maximum));
+    }
+
     /// The permanent a scalar exile instruction just moved is the observed
     /// collection of its program: a later `that card` or `it` reads the
     /// object it became in exile (CR 400.7, 610.3). Returns the binding the
@@ -1642,6 +1658,20 @@ impl CardCollectionMemory {
                     &mut effects,
                     target_decisions,
                 )?;
+                if destination.origin_library {
+                    // `put them back`, `on the bottom of that library`: the
+                    // cards this program observed in a library return to it
+                    // (CR 400.3: their owner's library).
+                    cursor.enter("lower.card-action.move.origin-library");
+                    cursor.require(
+                        self.view_from_library_top
+                            && matches!(
+                                operand,
+                                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                            ),
+                        "cards this program observed in a library, moved back to that library",
+                    )?;
+                }
                 let player = match &destination.owner {
                     CardMoveOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
                     // Exile in each owner's exile zone, or the battlefield
@@ -1728,6 +1758,9 @@ impl CardCollectionMemory {
                         {
                             true
                         }
+                        // The cards a resolution choice chose (a search's
+                        // found cards): identities fixed by the choice.
+                        CardOperandNode::Reference(_) if is_choice_result(&cards) => true,
                         CardOperandNode::Reference(_) => {
                             (self.view_verb == Some(CardCollectionVerb::Exiled)
                                 && self.view_zone == Some(CardZoneName::Exile))
@@ -1858,6 +1891,18 @@ impl CardCollectionMemory {
             }
         }
         Ok(effects)
+    }
+}
+
+/// A decision result, or a union of decision results: cards a resolution
+/// choice fixed (CR 608.2c).
+fn is_choice_result(cards: &Value) -> bool {
+    match value_kind_name(cards) {
+        Some("decisionResult") => true,
+        Some("union") => cards["sets"]
+            .as_array()
+            .is_some_and(|sets| !sets.is_empty() && sets.iter().all(is_choice_result)),
+        _ => false,
     }
 }
 

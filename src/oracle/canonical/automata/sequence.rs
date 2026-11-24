@@ -10,9 +10,8 @@ use super::{
     TemporaryCombatRestrictionParseAttempt, TemporaryPlayerPermissionParseAttempt,
     ZoneChangeTargetSupport, apply_for_each_multiplier, claims_put_counters_effect,
     for_each_count_starts, library_look_reminder_starts_at, recognize_add_mana_effect,
-    recognize_amass_effect, recognize_conditional_damage_replacement,
-    recognize_controller_library_search, recognize_counter_effect, recognize_damage_effect,
-    recognize_destroy_referenced_set_effect, recognize_earthbend_action,
+    recognize_amass_effect, recognize_conditional_damage_replacement, recognize_counter_effect,
+    recognize_damage_effect, recognize_destroy_referenced_set_effect, recognize_earthbend_action,
     recognize_effect_connector, recognize_empower_jace_effect, recognize_empower_jace_reminder,
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
@@ -373,6 +372,12 @@ impl SequenceMemory {
         for effect in self.effects.iter().rev() {
             match effect {
                 LocalEffectNode::CardAction(_) => return true,
+                // A search ending at its selection binds its found cards.
+                LocalEffectNode::ControllerLibrarySearch(search)
+                    if super::search_binds_found_cards(search) =>
+                {
+                    return true;
+                }
                 LocalEffectNode::ControllerLibrarySearch(_)
                 | LocalEffectNode::OptionalLibrarySearch(_)
                 | LocalEffectNode::DrawCards(_)
@@ -2753,7 +2758,7 @@ fn recognize_imperative_frame(
             recognize_surveil_effect(cursor, antecedent).map(LocalEffectNode::Surveil)
         }
         VerbLemma::Earthbend => recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend),
-        VerbLemma::Search => recognize_controller_library_search(cursor)
+        VerbLemma::Search => super::recognize_library_search_action(cursor)
             .map(LocalEffectNode::ControllerLibrarySearch),
         VerbLemma::Transform => recognize_transform_source_effect(cursor, name_links, name_failure)
             .map(LocalEffectNode::TransformPermanent),
@@ -3237,8 +3242,13 @@ fn recognize_subject_frame(
             if lemma == VerbLemma::Search =>
         {
             attempt_frame.commit();
-            recognize_optional_library_search(cursor, antecedent)
-                .map(LocalEffectNode::OptionalLibrarySearch)
+            super::recognize_optional_library_search_program(
+                cursor,
+                antecedent,
+                name_links,
+                name_failure,
+                context,
+            )
         }
         // A possessed player's permission is read by the optional search
         // reader, which owns its explicit failure for other verbs.

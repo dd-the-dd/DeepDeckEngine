@@ -1968,9 +1968,14 @@ pub(super) struct CreateTokensEffectNode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SearchDestination {
-    Battlefield { tapped: bool },
+    Battlefield {
+        tapped: bool,
+    },
     Zone(CardZoneName),
     LibraryTop,
+    /// The search ends at its selection: the found cards are bound for the
+    /// ordinary actions that follow it (`library_search.rs`).
+    Bound,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

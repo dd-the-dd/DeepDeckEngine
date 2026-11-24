@@ -461,8 +461,9 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
     let mut after_coordinator = false;
     for token in tokens.iter_mut().skip(verb + 1) {
         // A verb coordinated with the performer's verb (`searches ..., then
-        // shuffles and puts ...`) has the same subject and agreement; it is
-        // read in the base form like the head verb.
+        // shuffles and puts ...`, `searches ..., puts it ...`) has the same
+        // subject and agreement; it is read in the base form like the head
+        // verb. Only a verb form of that agreement is rewritten.
         let coordinated = std::mem::take(&mut after_coordinator);
         match token.raw.as_str() {
             "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
@@ -473,7 +474,9 @@ pub(in crate::oracle::canonical) fn person_shifted_tokens(
             raw if depth == 0 && raw.eq_ignore_ascii_case("they") => replace_word(token, "you"),
             raw if depth == 0 && raw.eq_ignore_ascii_case("their") => replace_word(token, "your"),
             raw if depth == 0
-                && (raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")) =>
+                && (raw.eq_ignore_ascii_case("and")
+                    || raw.eq_ignore_ascii_case("then")
+                    || raw == ",") =>
             {
                 after_coordinator = true;
             }

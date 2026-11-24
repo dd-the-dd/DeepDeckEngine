@@ -52,6 +52,12 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         {
             Some(Some(TargetSelector::Object(targets.predicate.clone())))
         }
+        // `put it|that card onto the battlefield`: the one bound card a
+        // choice fixed (a search's found card), with no restated predicate.
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::Reference(CardCollectionReferenceNode::Selected),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield => Some(None),
         LocalEffectNode::OptionalSequence(body) => body
             .effects
             .last()

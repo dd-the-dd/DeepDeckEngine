@@ -1134,6 +1134,8 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
                 // `Search target player's library ...`: the holder is one
                 // declared player target of this action (CR 115.1).
@@ -1154,24 +1156,27 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
-                if let Err(failure) = cursor.require(
-                    search.player == LocalPlayerReference::Controller,
-                    "a controller-owned optional search; referenced controllers need an explicit snapshot",
-                ) {
-                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure));
-                }
-                let lowered = lower_controller_library_search_effects(cursor, search)?;
+                let Some(player) =
+                    optional_search_player(search, &target_bindings, &declared_player_targets)
+                else {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                        "a searching player this program binds: the controller, a declared target's controller, or a bound player",
+                    )));
+                };
+                let lowered = lower_library_search_effects(cursor, search, player.clone())?;
                 collections.register_collection_binding_ids(
                     &lowered,
                     &lower_collection_binding(search.binding),
                 );
                 effects.push(json!({
                     "kind": "optionalEffects",
-                    "player": controller(),
+                    "player": player,
                     "effects": lowered,
                 }));
             }

@@ -3,7 +3,7 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::{
     CardZoneName, ObjectKind, ObjectPredicate, SearchDestination, SearchShuffleOrder,
-    recognize_controller_library_search,
+    recognize_controller_library_search, recognize_library_search_action,
 };
 
 fn parse(raw: &str) -> (super::LibrarySearchEffectNode, String) {
@@ -143,12 +143,15 @@ fn a_variable_search_count_is_the_shared_typed_count() {
         );
         assert_eq!(trailing, ".");
     }
-    // `any number of` has no search maximum and stays an explicit failure.
-    let tokens = recognize_entities(
+    // `any number of` (CR 701.23a): the shared unbounded count; the
+    // lowering bounds the choice by the matching cards of the searched zones.
+    let (search, trailing) = parse(
         "Search your library for any number of basic land cards, put them onto the battlefield, then shuffle.",
     );
-    let mut cursor = OracleTokenCursor::new("search-count-unbounded", &tokens);
-    assert!(recognize_controller_library_search(&mut cursor).is_err());
+    let count = search.count.expect("an unbounded typed count");
+    assert!(count.is_unbounded());
+    assert!(search.maximum > 1, "the literal envelope stays plural");
+    assert_eq!(trailing, ".");
 }
 
 #[test]
@@ -298,4 +301,103 @@ fn found_cards_can_be_exiled_and_a_declared_holder_shuffles_later() {
     let mut cursor = OracleTokenCursor::new("search-exile-near-miss", &tokens);
     let failure = recognize_controller_library_search(&mut cursor).expect_err("own library");
     assert_eq!(failure.state, "effect.library-search.exile-completion");
+}
+
+fn parse_action(raw: &str) -> (super::LibrarySearchEffectNode, String) {
+    let tokens = recognize_entities(raw);
+    let mut cursor = OracleTokenCursor::new("library-search-action-test", &tokens);
+    let node = recognize_library_search_action(&mut cursor).expect("search action parses");
+    (node, cursor.peek().unwrap_or_default().to_string())
+}
+
+/// The ordinary search action keeps the written tail when it completes (the
+/// historical IR), and otherwise ends at its selection with the found cards
+/// bound: nothing after the selection is consumed by the search.
+#[test]
+fn a_search_action_ends_at_its_selection_when_its_tail_is_not_its_own() {
+    let (complete, trailing) =
+        parse_action("Search your library for a card, put that card into your hand, then shuffle.");
+    assert_eq!(
+        complete.destination,
+        SearchDestination::Zone(CardZoneName::Hand)
+    );
+    assert_eq!(trailing, ".");
+
+    for (text, rest) in [
+        // Bribery: the move names its controller; the holder shuffles later.
+        (
+            "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
+            "and",
+        ),
+        // Jaheira's Respite: the sentence's `where X` follows the selection.
+        (
+            "Search your library for up to X basic land cards, where X is the number of creatures attacking you, put those cards onto the battlefield tapped, then shuffle.",
+            ",",
+        ),
+        // Stonehewer Giant: an action the tail does not own follows the move.
+        (
+            "Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+            ",",
+        ),
+        // Final Parting: the next sentence partitions the found cards.
+        (
+            "Search your library for two cards. Put one into your hand and the other into your graveyard. Then shuffle.",
+            ".",
+        ),
+    ] {
+        let (search, trailing) = parse_action(text);
+        assert_eq!(search.destination, SearchDestination::Bound, "{text}");
+        assert_eq!(
+            search.shuffle_order,
+            SearchShuffleOrder::ByHolderInstruction,
+            "{text}: the search never shuffles by itself"
+        );
+        assert!(!search.reveal, "{text}");
+        assert_eq!(trailing, rest, "{text}");
+    }
+
+    // The historical child keeps its complete-tail contract.
+    let tokens = recognize_entities(
+        "Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+    );
+    let mut cursor = OracleTokenCursor::new("search-complete-tail", &tokens);
+    assert!(recognize_controller_library_search(&mut cursor).is_err());
+}
+
+/// Near-misses: a malformed selection is still the search's own failure; the
+/// bound reading never hides a zone or count the search does not represent.
+#[test]
+fn a_search_action_keeps_selection_failures_explicit() {
+    for (text, state) in [
+        (
+            "Search your graveyard for a card, put it into your hand, then shuffle.",
+            "effect.library-search.origin-library",
+        ),
+        (
+            "Search your library and exile for a card, put it into your hand, then shuffle.",
+            "effect.library-search.origin-library",
+        ),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("search-action-near-miss", &tokens);
+        let failure = recognize_library_search_action(&mut cursor).expect_err(text);
+        assert_eq!(failure.state, state, "{text}: {failure:?}");
+    }
+}
+
+/// `in any order` after a library-top placement orders several cards only.
+#[test]
+fn a_library_top_order_needs_several_found_cards() {
+    let (search, trailing) = parse(
+        "Search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+    );
+    assert_eq!(search.destination, SearchDestination::LibraryTop);
+    assert_eq!(trailing, ".");
+
+    let tokens = recognize_entities(
+        "Search your library for a card, then shuffle and put that card on top in any order.",
+    );
+    let mut cursor = OracleTokenCursor::new("search-top-order-near-miss", &tokens);
+    let failure = recognize_controller_library_search(&mut cursor).expect_err("one card");
+    assert_eq!(failure.state, "effect.library-search.top-order");
 }
