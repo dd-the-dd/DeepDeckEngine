@@ -2653,6 +2653,10 @@ pub(in crate::oracle::canonical) fn recognize_object_type_union_list(
 mod qualifiers;
 
 #[cfg(test)]
+#[path = "selector_qualifier_atom_tests.rs"]
+mod qualifier_atom_tests;
+
+#[cfg(test)]
 #[path = "selector_union_tests.rs"]
 mod union_tests;
 
