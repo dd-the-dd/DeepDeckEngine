@@ -243,9 +243,9 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "mandatory-additional-sacrifice",
-            "state": "additional-cost.mandatory-sacrifice.object-query",
-            "expectedContains": "permanent object predicate"
+            "automaton": "additional-cost",
+            "state": "cost.payment.sacrifice.permanent-domain",
+            "expectedContains": "battlefield-permanent predicate"
           }
         ]
       }
@@ -429,9 +429,9 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "mandatory-additional-sacrifice",
-            "state": "additional-cost.mandatory-sacrifice.numeric-context",
-            "expectedContains": "contextual numeric producer support"
+            "automaton": "additional-cost",
+            "state": "additional-cost.action.numeric-context",
+            "expectedContains": "no X in the chosen-permanent predicate"
           }
         ]
       }
@@ -454,8 +454,8 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "mandatory-additional-sacrifice",
-            "state": "additional-cost.mandatory-sacrifice.terminator",
+            "automaton": "additional-cost",
+            "state": "additional-cost.terminator",
             "expected": "."
           }
         ],

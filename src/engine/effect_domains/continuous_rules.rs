@@ -45,6 +45,11 @@ fn supports_known_effect(effect: &Value) -> bool {
             target_reference_supported(&effect["object"])
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
         }
+        // CR 614.1a: `If it would leave the battlefield, exile it instead of
+        // putting it anywhere else`, over one bound or declared permanent.
+        Some("installLeaveBattlefieldExileReplacement") => {
+            target_reference_supported(&effect["object"])
+        }
         Some("installRuleModifier") => {
             (value_kind(&effect["modifier"]) == Some("damageCantBePrevented")
                 || (value_kind(&effect["modifier"]) == Some("reduceCastingCost")
@@ -247,6 +252,20 @@ impl GameEngine {
                     if attempted.insert(instance_id.clone()) {
                         self.install_regeneration_shield(&instance_id);
                     }
+                }
+            }
+            Some("installLeaveBattlefieldExileReplacement") => {
+                if let Some(TargetRef::Permanent { instance_id }) =
+                    self.resolve_target(&effect["object"], stack_object, bindings)
+                    && self.permanent_position(&instance_id).is_some()
+                {
+                    // The departure pipeline replaces any destination of
+                    // this object with exile; the modifier leaves with it
+                    // (CR 400.7: a new object is not followed).
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "exileIfLeavesBattlefield",
+                        "cardInstanceId": instance_id,
+                    }));
                 }
             }
             Some("installDeathExileReplacement") => {

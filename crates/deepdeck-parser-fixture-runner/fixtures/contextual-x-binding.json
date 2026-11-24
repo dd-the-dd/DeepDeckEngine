@@ -34,10 +34,10 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "contextual-effect-program",
-            "state": "effect.start",
-            "expectedContains": "a supported effect subject",
-            "found": "As"
+            "automaton": "additional-cost",
+            "state": "cost.pay-life.amount-supported",
+            "expectedContains": "a fixed integer life payment",
+            "found": "X"
           },
           {
             "abilityIndex": 1,

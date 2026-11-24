@@ -1355,67 +1355,10 @@ fn parse_existing_native_rule(
         };
     }
 
-    if ability_kind == "spellAbility" && claims_promoted_alternative_additional_cost_family(input) {
-        return match parse_promoted_alternative_additional_cost(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     // The complete casting-cost envelope establishes its own semantic kind,
     // including on permanent spells. Classification is only a dispatch hint.
-    match try_parse_promoted_mandatory_additional_sacrifice(input) {
-        MandatoryAdditionalSacrificeParseAttempt::Parsed(draft) => {
-            return CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::Unpromoted(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::Failed(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::NotClaimed => {}
-    }
-
-    match try_parse_promoted_mandatory_additional_discard(input) {
-        MandatoryAdditionalDiscardParseAttempt::Parsed(draft) => {
-            return CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::Unpromoted(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::Failed(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::NotClaimed => {}
-    }
-
-    if ability_kind == "spellAbility" && claims_promoted_optional_blight_cost_family(input) {
-        return match parse_promoted_optional_blight_cost(input) {
+    if claims_additional_cost_frame(input) {
+        return match parse_additional_cost_frame(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

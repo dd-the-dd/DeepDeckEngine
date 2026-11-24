@@ -1,20 +1,6 @@
 use super::super::*;
 use crate::oracle::syntax::AbilityInput;
 
-pub(in crate::oracle::canonical) fn claims_promoted_optional_blight_cost_family(
-    input: &AbilityInput<'_>,
-) -> bool {
-    let tokens = input.tokens;
-    tokens.get(0..4).is_some_and(|head| {
-        head[0].raw.eq_ignore_ascii_case("as")
-            && head[1].raw.eq_ignore_ascii_case("an")
-            && head[2].raw.eq_ignore_ascii_case("additional")
-            && head[3].raw.eq_ignore_ascii_case("cost")
-    }) && tokens
-        .iter()
-        .any(|token| token.raw.eq_ignore_ascii_case("blight"))
-}
-
 pub(in crate::oracle::canonical) fn claims_promoted_additional_cost_paid_followup_family(
     input: &AbilityInput<'_>,
 ) -> bool {
@@ -28,66 +14,6 @@ pub(in crate::oracle::canonical) fn claims_promoted_additional_cost_paid_followu
                 && window[2].raw.eq_ignore_ascii_case("spell's")
                 && window[3].raw.eq_ignore_ascii_case("additional")
         })
-}
-
-pub(in crate::oracle::canonical) fn parse_promoted_optional_blight_cost(
-    input: &AbilityInput<'_>,
-) -> MachineResult<CanonicalRuleDraft> {
-    let mut cursor = OracleTokenCursor::new("optional-blight-additional-cost", input.tokens);
-    let optional = recognize_optional_blight_additional_cost(&mut cursor)?;
-    let amount = optional.cost.amount;
-    let paid = selection("additionalCostMode", "pay");
-    let mut blight_target = target_decision(
-        "blightCost1",
-        json!({
-            "kind": "permanents",
-            "controller": controller(),
-            "where": card_type("Creature"),
-            "ignoreTargetingRestrictions": true,
-        }),
-        1,
-        1,
-    );
-    blight_target["condition"] = paid.clone();
-    let trace = transition_trace(&cursor);
-    Ok(draft(
-        json!({
-            "kind": "spellAbility",
-            "source": self_ref(),
-            "declaration": {
-                "kind": "castingDeclaration",
-                "decisions": [
-                    {
-                        "id": "additionalCostMode",
-                        "kind": "chooseModes",
-                        "minimum": 1,
-                        "maximum": 1,
-                        "options": ["decline", "pay"],
-                    },
-                    blight_target,
-                ],
-                "additionalCosts": [{
-                    "kind": "conditional",
-                    "condition": paid,
-                    "then": [{
-                        "kind": "putCounters",
-                        "permanent": chosen_target("blightCost1"),
-                        "controller": controller(),
-                        "counter": "-1/-1",
-                        "count": integer(amount),
-                    }],
-                    "else": [],
-                }],
-            },
-            "effects": [],
-        }),
-        &[
-            "Recognize the optional additional-cost envelope from one token stream",
-            "Lower Blight to a conditional primitive putCounters payment",
-            "Validate reminder quantity and controlled-creature domain",
-            &trace,
-        ],
-    ))
 }
 
 pub(in crate::oracle::canonical) fn parse_promoted_additional_cost_paid_followup(

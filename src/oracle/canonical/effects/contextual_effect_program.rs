@@ -639,6 +639,7 @@ fn activation_body_context(
                 | LocalActivationCostNode::SacrificeObject(_)
                 | LocalActivationCostNode::ExileCards(_)
                 | LocalActivationCostNode::DiscardCard(_)
+                | LocalActivationCostNode::ChosenX(_)
                 | LocalActivationCostNode::RemoveControlledCounters(_)
         )
     });

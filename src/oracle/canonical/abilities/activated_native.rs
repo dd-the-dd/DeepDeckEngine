@@ -53,6 +53,50 @@ fn activation_cost_counter_holder_id(cost: &ChosenCounterPlacementCostNode) -> S
     format!("activationCostCounterHolder{}", cost.cost_index)
 }
 
+fn activation_cost_reveal_id(cost: &ChosenRevealCostNode) -> String {
+    format!("activationCostReveal{}", cost.cost_index)
+}
+
+/// The declared choice of X objects of a chosen-X cost.
+fn activation_cost_chosen_x_id(cost: &ChosenXCostNode) -> String {
+    format!("activationCostChoiceX{}", cost.cost_index)
+}
+
+/// The candidates of a chosen-X cost: permanents the payer controls (only
+/// untapped ones for a tap cost, CR 701.26a) or cards in one of its zones.
+fn chosen_x_candidates(cost: &ChosenXCostNode, taps_source: bool) -> Value {
+    let candidates = match &cost.filter {
+        PaymentObjectFilter::Permanents(object) => {
+            let filter = lower_permanent_object_predicate(&object.predicate);
+            json!({
+                "kind": "permanents",
+                "controller": controller(),
+                "where": if cost.action == ChosenXAction::Tap {
+                    json!({ "kind": "and", "operands": [filter, { "kind": "not", "operand": { "kind": "isTapped" } }] })
+                } else {
+                    filter
+                },
+            })
+        }
+        PaymentObjectFilter::Cards(filter) => json!({
+            "kind": "cards",
+            "zone": payment_zone(cost.zone.unwrap_or(PaymentOriginZone::Hand)),
+            "where": lower_card_object_predicate(filter),
+        }),
+    };
+    // A `{T}` cost of the same activation already taps the source: it
+    // cannot also be one of the X permanents tapped (CR 118.3).
+    with_source_exclusion(
+        candidates,
+        cost.exclude_source || (cost.action == ChosenXAction::Tap && taps_source),
+    )
+}
+
+/// The declared choice of a Blight cost: the creature receiving its counters.
+fn activation_cost_blight_id(cost: &BlightActivationCostNode) -> String {
+    format!("activationCostBlight{}", cost.cost_index)
+}
+
 /// The engine keys a multi-object choice as `id:index`.
 fn chosen_object_ids(id: &str, count: i64) -> Vec<String> {
     (0..count)
@@ -85,6 +129,10 @@ fn payment_zone(zone: PaymentOriginZone) -> Value {
 }
 
 fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) -> Vec<Value> {
+    let taps_source = costs
+        .costs
+        .iter()
+        .any(|cost| matches!(cost, LocalActivationCostNode::TapSelf(_)));
     costs
         .costs
         .iter()
@@ -143,6 +191,30 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                     "kind": "permanents",
                     "controller": controller(),
                     "where": lower_permanent_object_predicate(&cost.object.predicate),
+                }),
+                json!({ "kind": "exactly", "value": integer(1) }),
+            )),
+            LocalActivationCostNode::RevealCards(cost) => Some(object_choice(
+                &activation_cost_reveal_id(cost),
+                json!({
+                    "kind": "cards",
+                    "zone": hand(controller()),
+                    "where": lower_card_object_predicate(&cost.filter),
+                }),
+                json!({ "kind": "exactly", "value": integer(cost.count) }),
+            )),
+            // Exactly the announced X objects (CR 107.3a).
+            LocalActivationCostNode::ChosenX(cost) => Some(object_choice(
+                &activation_cost_chosen_x_id(cost),
+                chosen_x_candidates(cost, taps_source),
+                json!({ "kind": "exactly", "value": { "kind": "decisionResult", "decisionId": "xValue" } }),
+            )),
+            LocalActivationCostNode::Blight(cost) => Some(object_choice(
+                &activation_cost_blight_id(cost),
+                json!({
+                    "kind": "permanents",
+                    "controller": controller(),
+                    "where": card_type("Creature"),
                 }),
                 json!({ "kind": "exactly", "value": integer(1) }),
             )),
@@ -278,6 +350,18 @@ pub(in crate::oracle::canonical) fn lower_local_activation_costs(
                 "selection": { "kind": "random" },
             })],
         },
+        // One reveal per chosen card, each naming its own choice.
+        LocalActivationCostNode::RevealCards(cost) => {
+            chosen_object_ids(&activation_cost_reveal_id(cost), cost.count)
+                .into_iter()
+                .map(|id| {
+                    json!({
+                        "kind": "revealCard",
+                        "card": { "kind": "chosenObject", "id": id },
+                    })
+                })
+                .collect()
+        }
         // One return per chosen permanent, each naming its own choice.
         LocalActivationCostNode::ReturnObjects(cost) => {
             chosen_object_ids(&activation_cost_return_id(cost), cost.count)
@@ -331,9 +415,41 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
         LocalActivationCostNode::TapObjects(_)
         | LocalActivationCostNode::ReturnObjects(_)
         | LocalActivationCostNode::SacrificeObject(_)
-        | LocalActivationCostNode::DiscardCard(_) => {
+        | LocalActivationCostNode::DiscardCard(_)
+        | LocalActivationCostNode::RevealCards(_) => {
             unreachable!("a chosen multi-object cost lowers through lower_local_activation_costs")
         }
+        LocalActivationCostNode::RevealSelf => json!({
+            "kind": "revealCard",
+            "card": self_ref(),
+        }),
+        // One cost over the whole chosen-X declaration.
+        LocalActivationCostNode::ChosenX(cost) => {
+            let mut value = json!({
+                "kind": "chosenObjectsCost",
+                "action": cost.action.as_str(),
+                "choice": activation_cost_chosen_x_id(cost),
+            });
+            if let Some(zone) = cost.zone {
+                value["from"] = payment_zone(zone);
+            }
+            value
+        }
+        LocalActivationCostNode::ExertSelf => json!({
+            "kind": "exert",
+            "object": self_ref(),
+        }),
+        LocalActivationCostNode::Mill { count } => json!({
+            "kind": "millCards",
+            "count": integer(*count),
+        }),
+        LocalActivationCostNode::Blight(cost) => json!({
+            "kind": "putCounters",
+            "permanent": { "kind": "chosenObject", "id": activation_cost_blight_id(cost) },
+            "controller": controller(),
+            "counter": "-1/-1",
+            "count": integer(cost.amount),
+        }),
         LocalActivationCostNode::ReturnSelf => json!({
             "kind": "returnPermanentToOwnersHand",
             "permanent": self_ref(),

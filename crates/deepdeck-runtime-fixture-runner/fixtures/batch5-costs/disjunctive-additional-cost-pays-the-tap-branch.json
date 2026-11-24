@@ -1,0 +1,222 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "disjunctive-additional-cost-pays-the-tap-branch",
+  "seed": 1,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Protocol pilot",
+        "manaPool": [
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "protocol-spell",
+            "name": "Protocol Spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": [
+                    {
+                      "id": "additionalCostMode",
+                      "kind": "chooseModes",
+                      "minimum": 1,
+                      "maximum": 1,
+                      "options": [
+                        "tap",
+                        "payMana"
+                      ]
+                    },
+                    {
+                      "id": "additionalCostTap",
+                      "kind": "chooseObjects",
+                      "quantity": {
+                        "kind": "exactly",
+                        "value": {
+                          "kind": "integer",
+                          "value": 1
+                        }
+                      },
+                      "candidates": {
+                        "kind": "permanents",
+                        "controller": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "where": {
+                          "kind": "and",
+                          "operands": [
+                            {
+                              "kind": "cardTypeContains",
+                              "value": "Artifact"
+                            },
+                            {
+                              "kind": "not",
+                              "operand": {
+                                "kind": "isTapped"
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "tap"
+                      }
+                    }
+                  ],
+                  "additionalCosts": [
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "tap"
+                      },
+                      "then": [
+                        {
+                          "kind": "tap",
+                          "object": {
+                            "kind": "chosenObject",
+                            "id": "additionalCostTap"
+                          }
+                        }
+                      ],
+                      "else": []
+                    },
+                    {
+                      "kind": "conditional",
+                      "condition": {
+                        "kind": "selectionContains",
+                        "selection": {
+                          "kind": "decisionResult",
+                          "decisionId": "additionalCostMode"
+                        },
+                        "value": "payMana"
+                      },
+                      "then": [
+                        {
+                          "kind": "payMana",
+                          "manaCost": "{1}"
+                        }
+                      ],
+                      "else": []
+                    }
+                  ]
+                },
+                "effects": []
+              },
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "spare-artifact",
+            "name": "Spare Artifact",
+            "typeLine": "Artifact",
+            "manaCost": "{1}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "castSpell",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "protocol-spell"
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-0",
+      "definitionId": "spare-artifact",
+      "equals": true
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "protocol-spell",
+      "equals": true
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

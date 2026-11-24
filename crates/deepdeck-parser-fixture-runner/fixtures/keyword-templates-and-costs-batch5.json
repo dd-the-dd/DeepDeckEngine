@@ -1,0 +1,1036 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch5/keyword-templates-and-costs",
+  "cases": [
+    {
+      "id": "exact-hellspark-elemental-unearth",
+      "request": {
+        "cardName": "Hellspark Elemental",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}{R}",
+        "oracleText": "Trample, haste\nAt the beginning of the end step, sacrifice this creature.\nUnearth {1}{R} ({1}{R}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "unearth"
+              },
+              {
+                "pointer": "/rules/0/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/rules/0/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/bind",
+                "equals": "movedOntoBattlefield"
+              },
+              {
+                "pointer": "/rules/0/effects/1",
+                "equals": {
+                  "kind": "grantKeyword",
+                  "keyword": "haste",
+                  "object": {
+                    "kind": "singleBoundObject",
+                    "binding": "movedOntoBattlefield"
+                  },
+                  "duration": {
+                    "kind": "permanent"
+                  }
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/2/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/rules/0/effects/3",
+                "equals": {
+                  "kind": "installLeaveBattlefieldExileReplacement",
+                  "object": {
+                    "kind": "singleBoundObject",
+                    "binding": "movedOntoBattlefield"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-shambling-remains-unearth-other-cost",
+      "request": {
+        "cardName": "Shambling Remains",
+        "typeLine": "Creature — Zombie Horror",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "This creature can't block.\nUnearth {B}{R} ({B}{R}: Return this card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step or if it would leave the battlefield. Unearth only as a sorcery.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/rules/0/costs/0",
+                "equals": {
+                  "kind": "payMana",
+                  "manaCost": "{B}{R}"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/3/kind",
+                "equals": "installLeaveBattlefieldExileReplacement"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-whip-of-erebos-target-card-leave-replacement",
+      "request": {
+        "cardName": "Whip of Erebos",
+        "typeLine": "Legendary Enchantment Artifact",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Creatures you control have lifelink.\n{2}{B}{B}, {T}: Return target creature card from your graveyard to the battlefield. It gains haste. Exile it at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere else. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/3",
+                "equals": {
+                  "kind": "installLeaveBattlefieldExileReplacement",
+                  "object": {
+                    "kind": "singleBoundObject",
+                    "binding": "movedOntoBattlefield"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-source-return-leave-replacement-without-haste",
+      "request": {
+        "cardName": "Generic Returning Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{4}: Return this card from your graveyard to the battlefield tapped. If it would leave the battlefield, exile it instead of putting it anywhere else.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "movedOntoBattlefield"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "kind": "installLeaveBattlefieldExileReplacement",
+                  "object": {
+                    "kind": "singleBoundObject",
+                    "binding": "movedOntoBattlefield"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-leave-replacement-bounded-to-this-turn",
+      "request": {
+        "cardName": "Generic Returning Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{4}: Return this card from your graveyard to the battlefield. If it would leave the battlefield this turn, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.created-replacement.event"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-source-return-without-reader-keeps-unbound-move",
+      "request": {
+        "cardName": "Generic Returning Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{4}: Return this card from your graveyard to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "moveCards",
+                  "cards": {
+                    "kind": "self"
+                  },
+                  "from": {
+                    "kind": "graveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "to": {
+                    "kind": "battlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "tapped": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bone-shards-sacrifice-or-discard",
+      "request": {
+        "cardName": "Bone Shards",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature or discard a card.\nDestroy target creature or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "sacrifice",
+                  "discard"
+                ]
+              },
+              {
+                "pointer": "/declaration/decisions/1/condition",
+                "equals": {
+                  "kind": "selectionContains",
+                  "selection": {
+                    "kind": "decisionResult",
+                    "decisionId": "additionalCostMode"
+                  },
+                  "value": "sacrifice"
+                }
+              },
+              {
+                "pointer": "/declaration/additionalCosts/1/then/0",
+                "equals": {
+                  "kind": "discardCard",
+                  "card": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostCard"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lightning-axe-discard-or-mana",
+      "request": {
+        "cardName": "Lightning Axe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, discard a card or pay {5}.\nLightning Axe deals 5 damage to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "discard",
+                  "payMana"
+                ]
+              },
+              {
+                "pointer": "/declaration/additionalCosts/1/then",
+                "equals": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{5}"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-disruption-protocol-tap-or-mana",
+      "request": {
+        "cardName": "Disruption Protocol",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "As an additional cost to cast this spell, tap an untapped artifact you control or pay {1}.\nCounter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "tap",
+                  "payMana"
+                ]
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/then/0",
+                "equals": {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostTap"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stitched-drake-graveyard-exile",
+      "request": {
+        "cardName": "Stitched Drake",
+        "typeLine": "Creature — Zombie Drake",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "As an additional cost to cast this spell, exile a creature card from your graveyard.\nFlying",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0",
+                "equals": {
+                  "kind": "exileObject",
+                  "object": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostExile"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wrens-run-vanquisher-reveal-or-mana",
+      "request": {
+        "cardName": "Wren's Run Vanquisher",
+        "typeLine": "Creature — Elf Warrior",
+        "manaCost": "{1}{G}",
+        "oracleText": "As an additional cost to cast this spell, reveal an Elf card from your hand or pay {3}.\nDeathtouch (Any amount of damage this deals to a creature is enough to destroy it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "reveal",
+                  "payMana"
+                ]
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/then/0",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostReveal"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dusk-mangler-three-alternatives",
+      "request": {
+        "cardName": "Dusk Mangler",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{5}{B}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature, discard a card, or pay 4 life.\nWhen this creature enters, each opponent sacrifices a creature of their choice, discards a card, and loses 4 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "sacrifice",
+                  "discard",
+                  "payLife"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deprive-return-land",
+      "request": {
+        "cardName": "Deprive",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "As an additional cost to cast this spell, return a land you control to its owner's hand.\nCounter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/additionalCosts/0",
+                "equals": {
+                  "kind": "returnPermanentToOwnersHand",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostReturn"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lethal-sting-counter-on-chosen-creature",
+      "request": {
+        "cardName": "Lethal Sting",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "As an additional cost to cast this spell, put a -1/-1 counter on a creature you control.\nDestroy target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/additionalCosts/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/declaration/additionalCosts/0/counter",
+                "equals": "-1/-1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bogslithers-embrace-blight-or-mana-with-reminder",
+      "request": {
+        "cardName": "Bogslither's Embrace",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, blight 1 or pay {3}. (To blight 1, put a -1/-1 counter on a creature you control.)\nExile target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "blight",
+                  "payMana"
+                ]
+              },
+              {
+                "pointer": "/declaration/decisions/1/id",
+                "equals": "blightCost1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gaze-of-justice-tap-three",
+      "request": {
+        "cardName": "Gaze of Justice",
+        "typeLine": "Sorcery",
+        "manaCost": "{W}",
+        "oracleText": "As an additional cost to cast this spell, tap three untapped white creatures you control.\nExile target creature.\nFlashback {5}{W} (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/quantity/value/value",
+                "equals": 3
+              },
+              {
+                "pointer": "/declaration/additionalCosts/2",
+                "equals": {
+                  "kind": "tap",
+                  "object": {
+                    "kind": "chosenObject",
+                    "id": "additionalCostTap:2"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-graveyard-exile-or-life",
+      "request": {
+        "cardName": "Generic Grave Toll",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, exile a creature card from your graveyard or pay 3 life.\nDraw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/options",
+                "equals": [
+                  "exile",
+                  "payLife"
+                ]
+              },
+              {
+                "pointer": "/declaration/additionalCosts/1/then/0/kind",
+                "equals": "payLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unsupported-alternative-never-degrades",
+      "request": {
+        "cardName": "Generic Grave Toll",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, sacrifice a creature or lose 2 life.\nDraw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "automaton": "additional-cost"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-chosen-objects-is-an-engine-gap",
+      "request": {
+        "cardName": "Generic Grave Toll",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "As an additional cost to cast this spell, exile X cards from your graveyard.\nDraw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "engine.gap.additional-cost-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-millikin-mill-cost",
+      "request": {
+        "cardName": "Millikin",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{2}",
+        "oracleText": "{T}, Mill a card: Add {C}. (Activate only as an instant. To mill a card, put the top card of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "millCards",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pride-sovereign-exert-cost",
+      "request": {
+        "cardName": "Pride Sovereign",
+        "typeLine": "Creature — Cat",
+        "manaCost": "{2}{G}",
+        "oracleText": "This creature gets +1/+1 for each other Cat you control.\n{W}, {T}, Exert this creature: Create two 1/1 white Cat creature tokens with lifelink. (An exerted creature won't untap during your next untap step.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2",
+                "equals": {
+                  "kind": "exert",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sting-slinger-blight-cost",
+      "request": {
+        "cardName": "Sting-Slinger",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{2}{R}",
+        "oracleText": "{1}{R}, {T}, Blight 1: This creature deals 2 damage to each opponent. (To blight 1, put a -1/-1 counter on a creature you control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2",
+                "equals": {
+                  "kind": "putCounters",
+                  "permanent": {
+                    "kind": "chosenObject",
+                    "id": "activationCostBlight2"
+                  },
+                  "controller": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "counter": "-1/-1",
+                  "count": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-reveal-chosen-card-and-mill",
+      "request": {
+        "cardName": "Generic Scrying Idol",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Reveal a blue card from your hand, Mill two cards: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "revealCard",
+                  "card": {
+                    "kind": "chosenObject",
+                    "id": "activationCostReveal1"
+                  }
+                }
+              },
+              {
+                "pointer": "/costs/2",
+                "equals": {
+                  "kind": "millCards",
+                  "count": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-martyr-of-sands-reveal-x-cards",
+      "request": {
+        "cardName": "Martyr of Sands",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{W}",
+        "oracleText": "{1}, Reveal X white cards from your hand, Sacrifice this creature: You gain three times X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "reveal",
+                  "choice": "activationCostChoiceX1",
+                  "from": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/zone/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-reveal-source-permanent-rejected",
+      "request": {
+        "cardName": "Generic Scrying Idol",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}, Reveal this artifact: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-grim-hireling-sacrifice-x-treasures",
+      "request": {
+        "cardName": "Grim Hireling",
+        "typeLine": "Creature — Tiefling Rogue",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever one or more creatures you control deal combat damage to a player, create two Treasure tokens.\n{B}, Sacrifice X Treasures: Target creature gets -X/-X until end of turn. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "sacrifice",
+                  "choice": "activationCostChoiceX1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-tap-x-untapped-artifacts-excludes-tapped-source",
+      "request": {
+        "cardName": "Generic Relay Engine",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}, Tap X untapped artifacts you control: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "tap",
+                  "choice": "activationCostChoiceX2"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-random-x-discard-remains-engine-gap",
+      "request": {
+        "cardName": "Generic Relay Engine",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, Discard X cards at random: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "engine.gap.activation-cost-action"
+          }
+        ]
+      }
+    }
+  ]
+}

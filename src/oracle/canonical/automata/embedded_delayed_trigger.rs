@@ -5,6 +5,8 @@
 //! CreatedRule := DelayedStepTiming                       -- `delayed_step_timing.rs`
 //!              | [PreposedLifetime ","] ("when" | "whenever") DelayedEvent [Lifetime] ","
 //!              | "if" BoundObject "would die" Lifetime "," -- replacement (614.1a)
+//!              | "if" BoundObject "would leave the battlefield" ","
+//!                                         -- replacement over the object (614.1a)
 //!              | "the next time" ChosenSourceDamage Lifetime "," -- shield (615.7)
 //! DelayedEvent := BoundObject ("dies" | "leaves the battlefield")
 //!               | "you" "next" "cast" SpellQuery
@@ -96,6 +98,8 @@ impl EffectCreatedRuleNode {
 
     /// Reads the `instead` that closes a replacement's action
     /// (`exile it instead`, CR 614.1a). Any other created rule rejects it.
+    /// A leave-the-battlefield replacement may restate that it replaces
+    /// every destination (`instead of putting it anywhere else`).
     pub(in crate::oracle::canonical) fn read_instead(
         &mut self,
         cursor: &mut OracleTokenCursor<'_>,
@@ -104,6 +108,12 @@ impl EffectCreatedRuleNode {
         match self {
             Self::Replacement(replacement) if !replacement.instead => {
                 cursor.consume("instead")?;
+                if replacement.event == ObjectDeparture::LeavesBattlefield
+                    && word_at(cursor, 0, "of")
+                {
+                    cursor.enter("created-rule.replacement.instead.any-destination");
+                    cursor.consume_phrase(&["of", "putting", "it", "anywhere", "else"])?;
+                }
                 replacement.instead = true;
                 Ok(())
             }
@@ -173,12 +183,18 @@ pub(in crate::oracle::canonical) struct NextDamageRuleNode {
     pub lifetime: CreatedRuleLifetime,
 }
 
-/// `If OBJECT would die this turn, ACTION instead.` The action is the
-/// governed range; lowering proves it is the replacing action.
+/// `If OBJECT would die this turn, ACTION instead.` / `If OBJECT would leave
+/// the battlefield, ACTION instead.` The action is the governed range;
+/// lowering proves it is the replacing action.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CreatedReplacementNode {
     pub object: PermanentEffectReference,
-    pub lifetime: CreatedRuleLifetime,
+    /// The replaced event: the object dying, or leaving the battlefield for
+    /// any zone.
+    pub event: ObjectDeparture,
+    /// `this turn`; a leave-the-battlefield replacement written without one
+    /// applies to the object as long as it is that object (CR 400.7).
+    pub lifetime: Option<CreatedRuleLifetime>,
     /// Set once the sequence read the closing `instead`.
     pub instead: bool,
 }
@@ -272,7 +288,13 @@ pub(in crate::oracle::canonical) fn effect_created_rule_starts(
                 .peek_ahead(*offset)
                 .is_some_and(|raw| raw != "," && raw != ".")
         })
-        .any(|offset| word_at(cursor, offset, "would") && word_at(cursor, offset + 1, "die"))
+        .any(|offset| {
+            word_at(cursor, offset, "would")
+                && (word_at(cursor, offset + 1, "die")
+                    || (word_at(cursor, offset + 1, "leave")
+                        && word_at(cursor, offset + 2, "the")
+                        && word_at(cursor, offset + 3, "battlefield")))
+        })
 }
 
 /// Reads one created rule's introducer, event and lifetime, up to (not
@@ -505,16 +527,28 @@ fn recognize_next_spell_cast(
     })
 }
 
-/// `OBJECT would die this turn` after `if`.
+/// `OBJECT would die this turn` / `OBJECT would leave the battlefield
+/// [this turn]` after `if`.
 fn recognize_created_replacement(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<CreatedReplacementNode> {
     let object = recognize_bound_object(cursor, "created-replacement.object")?;
     cursor.enter("created-replacement.event");
-    cursor.consume_phrase(&["would", "die"])?;
-    let lifetime = recognize_lifetime(cursor, "created-replacement.lifetime")?;
+    let event = if word_at(cursor, 1, "leave") {
+        cursor.consume_phrase(&["would", "leave", "the", "battlefield"])?;
+        ObjectDeparture::LeavesBattlefield
+    } else {
+        cursor.consume_phrase(&["would", "die"])?;
+        ObjectDeparture::Dies
+    };
+    let lifetime = if event == ObjectDeparture::Dies || word_at(cursor, 0, "this") {
+        Some(recognize_lifetime(cursor, "created-replacement.lifetime")?)
+    } else {
+        None
+    };
     Ok(CreatedReplacementNode {
         object,
+        event,
         lifetime,
         instead: false,
     })
@@ -542,9 +576,15 @@ fn recognize_bound_object(
     cursor.require(
         matches!(
             object,
-            PermanentEffectReference::Target(_) | PermanentEffectReference::Source(_)
+            PermanentEffectReference::Target(_)
+                | PermanentEffectReference::Source(_)
+                // The permanent a move of the program put onto the
+                // battlefield (CR 400.7), bound by that move.
+                | PermanentEffectReference::Observed(
+                    super::TypedObservedEventObject::MovedOntoBattlefield
+                )
         ),
-        "a declared target or the source as the followed object",
+        "a declared target, the source or the permanent the program put onto the battlefield as the followed object",
     )?;
     Ok(object)
 }

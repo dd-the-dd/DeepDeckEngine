@@ -2471,6 +2471,7 @@ fn lower_local_effect_sequence_with_collections(
         EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
+    bind_returned_source_when_read(cursor, &mut effects, collections)?;
     apply_delayed_frames(
         cursor,
         &sequence.delayed,
@@ -3848,6 +3849,61 @@ fn declare_player_targets(
     }
     decisions.push(decision);
     declared_player_targets.push((key, target_id));
+    Ok(())
+}
+
+/// `return this card from your graveyard to the battlefield`, then an action
+/// reading the permanent it became (`It gains haste`, CR 400.7): the source's
+/// move binds the moved-onto-battlefield result only when a later primitive
+/// reads it, through the program's single allocation of that binding.
+fn bind_returned_source_when_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    collections: &mut CardCollectionMemory,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn reads(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(reads),
+            Value::Object(object) => {
+                object.get("binding").and_then(Value::as_str)
+                    == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(reads)
+            }
+            _ => false,
+        }
+    }
+    fn is_source_return(effect: &Value) -> bool {
+        effect.get("kind").and_then(Value::as_str) == Some("moveCards")
+            && effect["cards"] == self_ref()
+            && effect["from"]["kind"].as_str() == Some("graveyard")
+            && effect["to"]["kind"].as_str() == Some("battlefield")
+    }
+    if !effects.iter().any(reads)
+        || effects.iter().any(|effect| {
+            effect.get("bind").and_then(Value::as_str) == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+        })
+    {
+        return Ok(());
+    }
+    let returns = effects
+        .iter()
+        .filter(|effect| is_source_return(effect) && effect.get("bind").is_none())
+        .count();
+    if returns == 0 {
+        return Ok(());
+    }
+    cursor.enter("lower.move-source.battlefield-entry.binding");
+    if returns != 1 || !collections.allocate_moved_onto_battlefield() {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    }
+    if let Some(effect) = effects
+        .iter_mut()
+        .find(|effect| is_source_return(effect) && effect.get("bind").is_none())
+    {
+        effect["bind"] = json!(MOVED_ONTO_BATTLEFIELD_BINDING);
+    }
     Ok(())
 }
 

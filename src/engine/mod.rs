@@ -105,6 +105,7 @@ mod cast_events;
 mod casting_cost;
 mod casting_permission_modes;
 mod characteristic_observation;
+mod chosen_object_costs;
 mod copy_program;
 mod cost_payment;
 mod cost_query;
@@ -4455,7 +4456,7 @@ fn cost_supported(cost: &Value) -> bool {
                     Some("hand" | "battlefield" | "graveyard")
                 )
         }
-        _ => false,
+        _ => chosen_object_costs::chosen_object_cost_supported(cost) == Some(true),
     }
 }
 
@@ -4657,7 +4658,7 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             }
             Some("chooseObjects") => {
                 decision["id"].is_string()
-                    && exact_quantity_value(&decision["quantity"]).is_some()
+                    && chosen_object_costs::chosen_quantity_supported(&decision["quantity"])
                     && target_candidates_supported(&decision["candidates"])
                     && decision.get("condition").is_none_or(condition_supported)
             }
@@ -13585,19 +13586,7 @@ impl GameEngine {
                 }
                 Some(TargetRef::Card { instance_id }) => {
                     let instance_id = instance_id.clone();
-                    let player_index = self.player_index(&action.player_id)?;
-                    let card_index = self.state.players[player_index]
-                        .hand
-                        .iter()
-                        .position(|candidate| candidate.instance_id == instance_id)
-                        .ok_or_else(|| {
-                            EngineError::new("exile cost card is no longer in the caster's hand")
-                        })?;
-                    let mut exiled =
-                        self.take_zone_card_for_movement(player_index, "hand", card_index)?;
-                    let owner_index = self.player_index(&exiled.owner)?;
-                    exiled.controller = exiled.owner.clone();
-                    self.put_owned_card_into_exile(owner_index, exiled)?;
+                    self.exile_chosen_card_as_cost(&action.player_id, &instance_id)?;
                 }
                 _ => return Err(EngineError::new("exile cost target is missing")),
             }
@@ -14330,7 +14319,10 @@ impl GameEngine {
                     .as_str()
                     .map(ToOwned::to_owned)
                     .or_else(|| cost["object"]["id"].as_str().map(ToOwned::to_owned)),
-                Some("discardCard") => cost["card"]["id"].as_str().map(ToOwned::to_owned),
+                Some("discardCard" | "revealCard") => {
+                    cost["card"]["id"].as_str().map(ToOwned::to_owned)
+                }
+                Some("chosenObjectsCost") => cost["choice"].as_str().map(ToOwned::to_owned),
                 Some("tap") if value_kind(&cost["object"]) == Some("chosenTarget") => {
                     cost["object"]["id"].as_str().map(ToOwned::to_owned)
                 }
@@ -16506,8 +16498,11 @@ impl GameEngine {
                                     .ok_or(Failure::GrammarRejected)?,
                                 )
                             } else {
-                                let quantity = exact_quantity_value(&decision["quantity"])
-                                    .ok_or(Failure::GrammarRejected)?;
+                                let quantity = chosen_object_costs::declared_chosen_quantity(
+                                    &decision["quantity"],
+                                    &assignment.decisions,
+                                )
+                                .ok_or(Failure::GrammarRejected)?;
                                 (quantity, quantity)
                             };
                             let minimum = usize::try_from(minimum_value)
@@ -25830,6 +25825,11 @@ impl GameEngine {
                     &action.player_id,
                     &action.decisions,
                 ));
+                cost_target_ids.extend(self.casting_chosen_object_cost_target_ids(
+                    &spell_definition,
+                    &action.player_id,
+                    &action.decisions,
+                ));
                 cost_target_ids.extend(
                     self.casting_put_counter_costs(
                         &spell_definition,
@@ -25964,6 +25964,7 @@ impl GameEngine {
                 self.apply_casting_sacrifice_costs(action, &spell_definition)?;
                 self.apply_casting_discard_costs(action, &spell_definition)?;
                 self.apply_casting_exile_costs(action, &spell_definition)?;
+                self.apply_casting_chosen_object_costs(action, &spell_definition)?;
                 self.apply_casting_put_counter_costs(action, &spell_definition, provider)?;
                 self.apply_escalate_costs_with_provider(action, &spell_definition, provider)?;
                 self.apply_kicker_keyword_cost(action, &spell_definition, provider)?;
@@ -26635,6 +26636,7 @@ impl GameEngine {
                         if mana_rule_supported(&rule) {
                             engine.apply_activated_discard_costs(action, &rule)?;
                             engine.apply_activated_exile_source_costs(action, &rule)?;
+                            engine.apply_activated_chosen_object_costs(action, &rule)?;
                             let tapped_sources = engine.apply_payment(player_index, action)?;
                             engine.pay_activated_counter_costs(action, &rule, provider)?;
                             let pending_cost_triggers =
@@ -26692,6 +26694,7 @@ impl GameEngine {
                         engine.apply_activated_exile_source_costs(action, &rule)?;
                         engine.apply_activated_return_costs(action, &rule)?;
                         engine.apply_activated_move_costs(action, &rule)?;
+                        engine.apply_activated_chosen_object_costs(action, &rule)?;
                         let tapped_sources = engine.apply_payment(player_index, action)?;
                         engine.pay_activated_counter_costs(action, &rule, provider)?;
                         let pending_cost_triggers = engine.state.stack.split_off(cost_stack_start);
@@ -27587,6 +27590,7 @@ impl GameEngine {
                 self.apply_activated_exile_object_costs(action, &rule)?;
                 self.apply_activated_discard_costs(action, &rule)?;
                 self.apply_activated_return_costs(action, &rule)?;
+                self.apply_activated_chosen_object_costs(action, &rule)?;
                 self.state.stack.extend(pending_counter_cost_triggers);
                 self.publish_activated_cost_payment(committed_cost_payment);
                 for source in tapped_sources {
