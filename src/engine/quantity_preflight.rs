@@ -121,6 +121,8 @@ fn payload_risk(value: &Value, source: Option<&CardDefinition>, depth: usize) ->
             | "installDelayedSpellCastTrigger"
             | "installDelayedStepTrigger"
             | "installDelayedZoneChangeTrigger"
+            | "installCreatedTrigger"
+            | "effectCreatedTrigger"
             | "replaceEventQuantity"
             | "multiplyTriggeredAbility"
             | "multiplyUnownedControlledTriggeredAbility"

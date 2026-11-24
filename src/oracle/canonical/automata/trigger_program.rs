@@ -512,7 +512,9 @@ fn event_names_combat_counterpart(event: &GenericTriggerEventNode) -> bool {
 
 /// The references the triggering event binds (`that player`, `defending
 /// player`, the other combatant, the event object, its card, its spell).
-fn event_frame(event: &GenericTriggerEventNode) -> super::FrameBindings {
+pub(in crate::oracle::canonical) fn event_frame(
+    event: &GenericTriggerEventNode,
+) -> super::FrameBindings {
     super::FrameBindings {
         event_player: event_names_player(event),
         defending_player: event_names_defending_player(event),

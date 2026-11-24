@@ -11,6 +11,9 @@ pub(in crate::oracle::canonical) enum DelayedStepTurnNode {
     /// `the next turn's STEP`: that step of the turn after this one, never a
     /// later step of the current turn.
     NextTurn,
+    /// `this turn's next STEP`: that step of the current turn only; the
+    /// trigger ends with the turn when no such step comes (CR 603.7a).
+    ThisTurn,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,7 +55,27 @@ pub(in crate::oracle::canonical) fn delayed_step_timing_starts(
                 .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
         })
     };
-    phrase(&["at", "the", "beginning", "of"]) || phrase(&["at", "end", "of", "combat"])
+    phrase(&["at", "the", "beginning", "of"])
+        || phrase(&["at", "end", "of", "combat"])
+        || (phrase(&["at", "this"]) && this_turns_next_end_of_combat(cursor, 1))
+}
+
+/// `this turn's next end of combat` at `offset` (CR 511.2): the end of
+/// combat step of this turn's next combat phase.
+fn this_turns_next_end_of_combat(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + at)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "this")
+        && cursor
+            .peek_ahead(offset + 1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("turn's") || raw == "turn\u{2019}s")
+        && word(2, "next")
+        && word(3, "end")
+        && word(4, "of")
+        && word(5, "combat")
 }
 
 /// Reads `at the beginning of {the|your} next [turn's] {end step|upkeep}`.
@@ -60,6 +83,18 @@ pub(in crate::oracle::canonical) fn recognize_delayed_step_timing(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DelayedStepTimingNode> {
     cursor.enter("delayed-step.timing.introducer");
+    // `at this turn's next end of combat`: the next end of combat step of
+    // this turn; it never waits for another turn (CR 511.2, 603.7a).
+    if this_turns_next_end_of_combat(cursor, 1) {
+        cursor.consume_phrase(&["at", "this"])?;
+        let possessive = cursor.peek().expect("checked possessive turn").to_string();
+        cursor.consume(&possessive)?;
+        cursor.consume_phrase(&["next", "end", "of", "combat"])?;
+        return Ok(DelayedStepTimingNode {
+            step: DelayedTurnStep::EndOfCombat,
+            turn: DelayedStepTurnNode::ThisTurn,
+        });
+    }
     // `at end of combat`: the next end of combat step, this combat's when
     // one is in progress (CR 511.2, 603.7a).
     if cursor

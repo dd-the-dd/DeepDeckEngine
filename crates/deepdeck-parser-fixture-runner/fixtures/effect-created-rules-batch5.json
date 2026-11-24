@@ -1,0 +1,730 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/effect-created-rules-batch5",
+  "cases": [
+    {
+      "id": "exact-death-frenzy",
+      "request": {
+        "cardName": "Death Frenzy",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{G}",
+        "oracleText": "All creatures get -2/-2 until end of turn. Whenever a creature dies this turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installCreatedTrigger"
+              },
+              {
+                "pointer": "/effects/1/oneShot",
+                "equals": false
+              },
+              {
+                "pointer": "/effects/1/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glimpse-of-nature",
+      "request": {
+        "cardName": "Glimpse of Nature",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Whenever you cast a creature spell this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "spellAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installCreatedTrigger"
+              },
+              {
+                "pointer": "/effects/0/event/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/effects/0/oneShot",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-silence",
+      "request": {
+        "cardName": "Silence",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Your opponents can't cast spells this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "prohibitCast"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/players/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/effects/0/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skullcrack",
+      "request": {
+        "cardName": "Skullcrack",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Players can't gain life this turn. Damage can't be prevented this turn. Skullcrack deals 3 damage to target player or planeswalker.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "prohibitPlayerAction"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/action",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/1/modifiers/0/ability",
+                "equals": "damageCannotBePrevented"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-praetors-counsel",
+      "request": {
+        "cardName": "Praetor's Counsel",
+        "typeLine": "Sorcery",
+        "manaCost": "{5}{G}{G}{G}",
+        "oracleText": "Return all cards from your graveyard to your hand. Exile Praetor's Counsel. You have no maximum hand size for the rest of the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-wisdom-of-ages",
+      "request": {
+        "cardName": "Wisdom of Ages",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}{U}",
+        "oracleText": "Return all instant and sorcery cards from your graveyard to your hand. You have no maximum hand size for the rest of the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-maze-of-ith",
+      "request": {
+        "cardName": "Maze of Ith",
+        "typeLine": "Land",
+        "oracleText": "{T}: Untap target attacking creature. Prevent all combat damage that would be dealt to and dealt by that creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/1/recipientAlsoSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/combatOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-overmaster",
+      "request": {
+        "cardName": "Overmaster",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "The next instant or sorcery spell you cast this turn can't be countered.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installOneShotModifier"
+              },
+              {
+                "pointer": "/effects/0/match/kind",
+                "equals": "spellCast"
+              },
+              {
+                "pointer": "/effects/0/apply/modifier/kind",
+                "equals": "cantBeCountered"
+              },
+              {
+                "pointer": "/effects/0/consume/kind",
+                "equals": "firstMatchingEvent"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pay-no-heed",
+      "request": {
+        "cardName": "Pay No Heed",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all damage a source of your choice would deal this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/sourceChoice/where",
+                "equals": null
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-colored-chosen-source-to-you",
+      "request": {
+        "cardName": "Test Ward Charm",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all damage that would be dealt to you this turn by a red source of your choice.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-created-trigger-over-an-event-union",
+      "request": {
+        "cardName": "Test Created Union",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Draw a card. When a creature or planeswalker you control dies this turn, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installCreatedTrigger"
+              },
+              {
+                "pointer": "/effects/1/oneShot",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/event/kind",
+                "equals": "oneOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-created-trigger-until-your-next-turn",
+      "request": {
+        "cardName": "Test Vigil",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Draw a card. Until your next turn, whenever a creature dies, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installCreatedTrigger"
+              },
+              {
+                "pointer": "/effects/1/duration/kind",
+                "equals": "untilNextTurn"
+              },
+              {
+                "pointer": "/effects/1/oneShot",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-temporary-player-rule-qualified-spells",
+      "request": {
+        "cardName": "Test Hush",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Each opponent can't cast instant or sorcery spells this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installTemporaryStaticModifiers"
+              },
+              {
+                "pointer": "/effects/0/modifiers/0/kind",
+                "equals": "prohibitCast"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-next-creature-spell-flash",
+      "request": {
+        "cardName": "Test Ambush",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "The next creature spell you cast this turn can be cast as though it had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "installOneShotModifier"
+              },
+              {
+                "pointer": "/effects/0/apply/kind",
+                "equals": "castAsThoughItHadFlash"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-dealt-to-and-dealt-by-target",
+      "request": {
+        "cardName": "Test Fog Shield",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Prevent all damage that would be dealt to and dealt by target creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/recipientAlsoSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/combatOnly",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-this-turns-next-end-of-combat",
+      "request": {
+        "cardName": "Test Reprisal",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Draw a card. At this turn's next end of combat, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/step",
+                "equals": "endOfCombat"
+              },
+              {
+                "pointer": "/effects/1/thisTurnOnly",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-static-cast-prohibition-is-no-temporary-rule",
+      "request": {
+        "cardName": "Test Static Hush",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Draw a card. Your opponents can't cast spells during your turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-next-spell-keyword-grant-unsupported",
+      "request": {
+        "cardName": "Test Convoke Wand",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "The next spell you cast this turn has convoke.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "temporary-rule.next-spell.rule"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-x-cannot-be-zero-stays-unsupported",
+      "request": {
+        "cardName": "Test Zero Draw",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}",
+        "oracleText": "Draw X cards. X can't be 0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-two-lifetimes",
+      "request": {
+        "cardName": "Test Double Vigil",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Draw a card. Until end of turn, whenever a creature dies this turn, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "delayed-trigger.lifetime"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-printed-trigger-stays-with-the-trigger-frame",
+      "request": {
+        "cardName": "Test Mourner",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}{B}",
+        "oracleText": "Whenever a creature dies, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
