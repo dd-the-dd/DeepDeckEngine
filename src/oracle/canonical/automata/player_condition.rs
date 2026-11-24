@@ -91,6 +91,10 @@ pub(in crate::oracle::canonical) enum ConditionPlayerSubject {
     /// `that player`: the one player the binding environment names (the
     /// player the triggering event records, CR 603.2), never guessed.
     EventPlayer,
+    /// `defending player` in a static combat restriction: the defending
+    /// player of the combat the restriction is checked for (CR 506.2,
+    /// 508.1c, 509.1b), bound by the runtime at each check.
+    DefendingPlayer,
 }
 
 impl ConditionPlayerSubject {

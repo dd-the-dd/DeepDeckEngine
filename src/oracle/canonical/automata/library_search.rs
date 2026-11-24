@@ -1,9 +1,10 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    CardZoneName, CollectionBinding, LibrarySearchEffectNode, LocalPlayerReference, ObjectKind,
-    ObjectPredicate, SearchDestination, SearchShuffleOrder, TargetBinding, TargetCardinality,
-    TargetListNode, expressed_target_count_starts, recognize_card_zone_atom,
-    recognize_card_zone_list, recognize_player_reference, recognize_possessive_target_player,
+    CardZoneName, CollectionBinding, EffectRecognitionContext, LibrarySearchEffectNode,
+    LocalEffectNode, LocalPlayerReference, ObjectKind, ObjectPredicate, SearchDestination,
+    SearchShuffleOrder, TargetBinding, TargetCardinality, TargetListNode,
+    expressed_target_count_starts, recognize_card_zone_atom, recognize_card_zone_list,
+    recognize_optional_sequence, recognize_player_reference, recognize_possessive_target_player,
     recognize_search_card_alternatives, recognize_target_cardinality, recognize_target_count,
 };
 
@@ -53,6 +54,9 @@ enum LibrarySearchState {
     OriginZones,
     FilterArticle,
     Filter,
+    /// The selection is read: the written tail of this frame, or the end of
+    /// the action when later ordinary actions read the bound result.
+    SelectionComplete,
     EffectSeparator,
     PostFilterAction,
     ExileReference,
@@ -71,7 +75,7 @@ enum LibrarySearchState {
     Complete,
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 struct LibrarySearchMemory {
     player: Option<LocalPlayerReference>,
     holder: Option<SearchedPlayer>,
@@ -88,6 +92,18 @@ struct LibrarySearchMemory {
     shuffle_order: Option<SearchShuffleOrder>,
 }
 
+/// How a search frame may end after its selection.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SearchTailPolicy {
+    /// The frame reads its own written move and shuffle (historical
+    /// contract of reminder and activated parents).
+    Complete,
+    /// The frame reads its written tail when one completes; otherwise the
+    /// action ends after its selection and binds the found cards for the
+    /// ordinary actions that follow (CR 701.23a, 608.2c).
+    CompleteOrBound,
+}
+
 /// Recognizes an optional search of the referenced player's own library,
 /// followed by moving the selected result and shuffling that same library.
 /// The result pronoun is resolved locally; lowering assigns the decision id.
@@ -95,7 +111,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_library_search(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
 ) -> MachineResult<LibrarySearchEffectNode> {
-    recognize_library_search(cursor, antecedent, false)
+    recognize_library_search(cursor, antecedent, false, SearchTailPolicy::Complete)
 }
 
 /// Recognizes a mandatory search of the controller's library. The search
@@ -104,16 +120,105 @@ pub(in crate::oracle::canonical) fn recognize_optional_library_search(
 pub(in crate::oracle::canonical) fn recognize_controller_library_search(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<LibrarySearchEffectNode> {
-    recognize_library_search(cursor, None, true)
+    recognize_library_search(cursor, None, true, SearchTailPolicy::Complete)
+}
+
+/// `search ZONES for SELECTION` as one ordinary action of an effect
+/// sequence: the written move/shuffle tail when it completes, otherwise a
+/// selection whose found cards are bound ([`SearchDestination::Bound`]).
+/// The actions after it (`reveal it`, `put it onto the battlefield under
+/// your control`, `exile them`, `then shuffle`, `Then that player
+/// shuffles.`) are the sequence's own actions over that binding.
+pub(in crate::oracle::canonical) fn recognize_library_search_action(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LibrarySearchEffectNode> {
+    recognize_library_search(cursor, None, true, SearchTailPolicy::CompleteOrBound)
+}
+
+/// `you may search ...` read by the clause layer: the historical optional
+/// search with its written tail, or, when that tail does not complete, the
+/// permission over its whole sentence (CR 608.2d): the search binding its
+/// found cards, then the sentence's ordinary actions over them, all inside
+/// the one optional block. A possessed player's permission (`its controller
+/// may search`) keeps the written-tail contract only.
+pub(in crate::oracle::canonical) fn recognize_optional_library_search_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    antecedent: Option<TargetBinding>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<LocalEffectNode> {
+    let mut strict = cursor.clone();
+    let strict_failure = match recognize_optional_library_search(&mut strict, antecedent) {
+        Ok(search) => {
+            *cursor = strict;
+            return Ok(LocalEffectNode::OptionalLibrarySearch(search));
+        }
+        Err(failure) => failure,
+    };
+    let controller_permission = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("may"));
+    if !controller_permission {
+        return Err(strict_failure);
+    }
+    // CR 118.12: an `unless` payment inside a permission body has no
+    // represented order; the body keeps refusing it (as every `you may`
+    // sentence does).
+    let mut permission_context = context.clone();
+    permission_context.unless_frames = super::UnlessFrameSupport::Unsupported;
+    let mut body = cursor.clone();
+    let sequence =
+        recognize_optional_sequence(&mut body, name_links, name_failure, &permission_context)?;
+    body.enter("effect.library-search.optional-program");
+    body.require(
+        matches!(
+            sequence.effects.first(),
+            Some(LocalEffectNode::ControllerLibrarySearch(_))
+        ),
+        "the permitted search as the first action of its sentence",
+    )?;
+    *cursor = body;
+    Ok(LocalEffectNode::OptionalSequence(sequence))
+}
+
+/// Whether a search node ends at its selection, its found cards bound for
+/// the ordinary actions that follow it.
+pub(in crate::oracle::canonical) fn search_binds_found_cards(
+    search: &LibrarySearchEffectNode,
+) -> bool {
+    search.destination == SearchDestination::Bound
 }
 
 fn recognize_library_search(
     cursor: &mut OracleTokenCursor<'_>,
     antecedent: Option<TargetBinding>,
     controller_owned: bool,
+    policy: SearchTailPolicy,
 ) -> MachineResult<LibrarySearchEffectNode> {
-    let mut state = LibrarySearchState::Player;
-    let mut memory = LibrarySearchMemory::default();
+    run_library_search(
+        cursor,
+        LibrarySearchState::Player,
+        LibrarySearchMemory::default(),
+        antecedent,
+        controller_owned,
+        policy,
+    )
+}
+
+fn run_library_search(
+    cursor: &mut OracleTokenCursor<'_>,
+    start: LibrarySearchState,
+    memory: LibrarySearchMemory,
+    antecedent: Option<TargetBinding>,
+    controller_owned: bool,
+    policy: SearchTailPolicy,
+) -> MachineResult<LibrarySearchEffectNode> {
+    let mut memory = memory;
+    let mut state = start;
     loop {
         state = match state {
             LibrarySearchState::Player => {
@@ -187,12 +292,10 @@ fn recognize_library_search(
                 // `up to X`, `X`, `that many`: the shared typed count; the
                 // literal envelope keeps every literal reader plural.
                 if expressed_target_count_starts(cursor) {
+                    // `any number of` (CR 701.23a): no maximum below the
+                    // searched zones' matching cards; the lowering counts them.
                     let count = recognize_target_count(cursor)?;
                     cursor.enter("effect.library-search.expressed-count");
-                    cursor.require(
-                        !count.is_unbounded(),
-                        "a bounded search count; `any number of` has no search maximum",
-                    )?;
                     if let Some(literal) = count.literal() {
                         memory.cardinality = Some(literal);
                     } else {
@@ -243,11 +346,45 @@ fn recognize_library_search(
                 // `up to X basic land cards, where X is EXPR, put them ...`:
                 // the postposed definition of the count's X directly after
                 // the counted phrase, read by the shared definition child.
+                // The definition is a transactional child: one the shared
+                // child cannot read stays for the sequence, which owns the
+                // postposed `where X` of its actions and its diagnostic.
                 if memory.count.is_some() && super::where_x_definition_starts(cursor) {
-                    cursor.enter("effect.library-search.where-x");
-                    memory.where_x = Some(super::recognize_where_x_definition(cursor)?);
+                    let mut definition = cursor.clone();
+                    definition.enter("effect.library-search.where-x");
+                    if let Ok(expression) = super::recognize_where_x_definition(&mut definition) {
+                        *cursor = definition;
+                        memory.where_x = Some(expression);
+                    }
                 }
-                LibrarySearchState::EffectSeparator
+                LibrarySearchState::SelectionComplete
+            }
+            LibrarySearchState::SelectionComplete => {
+                cursor.enter("effect.library-search.selection-complete");
+                match policy {
+                    SearchTailPolicy::Complete => LibrarySearchState::EffectSeparator,
+                    SearchTailPolicy::CompleteOrBound => {
+                        // The written tail is a transactional child: when it
+                        // completes it is this frame's; otherwise the action
+                        // ends here and nothing after the selection is read.
+                        let mut trial = cursor.clone();
+                        if let Ok(node) = run_library_search(
+                            &mut trial,
+                            LibrarySearchState::EffectSeparator,
+                            memory.clone(),
+                            antecedent,
+                            controller_owned,
+                            SearchTailPolicy::Complete,
+                        ) {
+                            *cursor = trial;
+                            return Ok(node);
+                        }
+                        cursor.enter("effect.library-search.bound-result");
+                        memory.destination = Some(SearchDestination::Bound);
+                        memory.shuffle_order = Some(SearchShuffleOrder::ByHolderInstruction);
+                        LibrarySearchState::Complete
+                    }
+                }
             }
             LibrarySearchState::EffectSeparator => {
                 cursor.enter("effect.library-search.effect-separator");
@@ -444,6 +581,24 @@ fn recognize_library_search(
                         memory.shuffle_order == Some(SearchShuffleOrder::ShuffleThenMove),
                         "a library-top move after shuffling the searched library",
                     )?;
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
+                    {
+                        // `put those cards on top in any order`: the searcher
+                        // orders the cards put on its own library (CR 401.4);
+                        // the lowering orders every plural placement.
+                        cursor.enter("effect.library-search.top-order");
+                        cursor.require(
+                            memory
+                                .cardinality
+                                .expect("recognized search cardinality")
+                                .maximum
+                                != 1,
+                            "an order only for several cards put on top",
+                        )?;
+                        cursor.consume_phrase(&["in", "any", "order"])?;
+                    }
                     memory.destination = Some(SearchDestination::LibraryTop);
                     LibrarySearchState::Complete
                 }

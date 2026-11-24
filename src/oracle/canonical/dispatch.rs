@@ -243,6 +243,25 @@ fn parse_ability_body(
     } else {
         existing
     };
+    // CR 614.1a, 614.1c-e, 614.12: the shared entry and replaced-event frames
+    // read what no historical family completed. A family's own failure keeps
+    // priority unless a frame completes the ability.
+    let existing = match existing {
+        parsed @ CanonicalParseOutcome::Parsed { .. } => parsed,
+        existing => match (existing, try_parse_replacement_frame(input)) {
+            (_, ReplacementFrameAttempt::Parsed(draft)) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            (CanonicalParseOutcome::Unsupported, ReplacementFrameAttempt::Committed(failure)) => {
+                CanonicalParseOutcome::Failed {
+                    failure,
+                    recognizer: RecognizerProvenance::Native,
+                }
+            }
+            (existing, _) => existing,
+        },
+    };
     match preserve_committed_generic_failure(existing, committed_generic_failure) {
         // CR 113.3: every ability belongs to a structural frame. When no
         // reader owned it, that frame owns it and reports where it stopped.
@@ -1355,67 +1374,10 @@ fn parse_existing_native_rule(
         };
     }
 
-    if ability_kind == "spellAbility" && claims_promoted_alternative_additional_cost_family(input) {
-        return match parse_promoted_alternative_additional_cost(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     // The complete casting-cost envelope establishes its own semantic kind,
     // including on permanent spells. Classification is only a dispatch hint.
-    match try_parse_promoted_mandatory_additional_sacrifice(input) {
-        MandatoryAdditionalSacrificeParseAttempt::Parsed(draft) => {
-            return CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::Unpromoted(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::Failed(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalSacrificeParseAttempt::NotClaimed => {}
-    }
-
-    match try_parse_promoted_mandatory_additional_discard(input) {
-        MandatoryAdditionalDiscardParseAttempt::Parsed(draft) => {
-            return CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::Unpromoted(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::Failed(failure) => {
-            return CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            };
-        }
-        MandatoryAdditionalDiscardParseAttempt::NotClaimed => {}
-    }
-
-    if ability_kind == "spellAbility" && claims_promoted_optional_blight_cost_family(input) {
-        return match parse_promoted_optional_blight_cost(input) {
+    if claims_additional_cost_frame(input) {
+        return match parse_additional_cost_frame(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
                 draft,
                 recognizer: RecognizerProvenance::Native,

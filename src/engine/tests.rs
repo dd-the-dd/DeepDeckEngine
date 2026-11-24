@@ -57,6 +57,10 @@ mod effect_subject_runtime;
 mod player_slot_performer_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/library_search_bound_runtime.rs"]
+mod library_search_bound_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_lki_runtime.rs"]
 mod source_lki_runtime;
 
@@ -98,6 +102,9 @@ mod kicked_damage_runtime;
 #[path = "tests/sentence_condition_runtime.rs"]
 mod sentence_condition_runtime;
 
+#[path = "tests/program_control_outcomes_runtime.rs"]
+mod program_control_outcomes_runtime;
+
 #[path = "tests/local_damage_life_fsm_runtime.rs"]
 mod local_damage_life_fsm_runtime;
 
@@ -129,6 +136,10 @@ mod counter_protection_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/riot_runtime.rs"]
 mod riot_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/entry_frame_runtime.rs"]
+mod entry_frame_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/conditional_static_runtime.rs"]
@@ -33169,6 +33180,9 @@ mod player_designations_runtime;
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/clause_subject_cells_runtime.rs"]
+mod clause_subject_cells_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/combat_restriction_family_runtime.rs"]
 mod combat_restriction_family_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]
@@ -33187,6 +33201,9 @@ mod leveler_band_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/object_query_runtime.rs"]
 mod object_query_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/object_relation_runtime.rs"]
+mod object_relation_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_quantified_condition_runtime.rs"]
 mod player_quantified_condition_runtime;

@@ -131,8 +131,9 @@ fn promoted_fetch_land_near_misses_fail_at_the_responsible_state() {
             "selector.search-card.card-noun",
             "and",
         ),
+        // A comma or `then` joins the shuffle; juxtaposition does not.
         (
-            "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Forest card, put it onto the battlefield, shuffle.",
+            "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Forest card, put it onto the battlefield shuffle.",
             "effect.library-search.post-move-shuffle-separator",
             "shuffle",
         ),

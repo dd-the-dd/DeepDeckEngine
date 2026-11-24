@@ -102,9 +102,9 @@ enum Domain {
 fn domain(effect: &Value) -> Option<Domain> {
     match value_kind(effect) {
         Some(
-            "forEachObject" | "chooseOneEffect" | "optionalEffects" | "optionalAction"
-            | "performAction" | "bind" | "conditional" | "conditionalEffect" | "ifTargetWasChosen"
-            | "chooseUnusedMode",
+            "forEachObject" | "repeatEffects" | "chooseOneEffect" | "optionalEffects"
+            | "optionalAction" | "performAction" | "bind" | "conditional" | "conditionalEffect"
+            | "ifTargetWasChosen" | "chooseUnusedMode",
         ) => Some(Domain::Control),
         Some("optionalPayLife") => Some(Domain::Payments),
 
@@ -278,6 +278,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "installRegenerationShield"
             | "installRegenerationShields"
             | "installDeathExileReplacement"
+            | "installLeaveBattlefieldExileReplacement"
             | "installRuleModifier"
             | "installCreatureDeathLifeGainUntilEndOfTurn"
             | "installDamageMultiplier"

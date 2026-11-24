@@ -430,3 +430,282 @@ fn the_next_time_shield_prevents_one_chosen_source_once() {
         "the shield applied once"
     );
 }
+
+/// The canonical rule of a one-ability card parsed from its real Oracle
+/// text, proved executable before it runs.
+fn parsed_rule(name: &str, type_line: &str, text: &str) -> Value {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: name.to_string(),
+        type_line: type_line.to_string(),
+        mana_cost: Some("{2}".to_string()),
+        oracle_text: Some(text.to_string()),
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    });
+    assert_eq!(
+        parsed.status, "canonical",
+        "{name}: {:#?}",
+        parsed.abilities
+    );
+    let rule = parsed.abilities[0].rule.clone().expect("a canonical rule");
+    assert!(rule_is_executable(&rule), "{name}: {rule:#}");
+    rule
+}
+
+/// The installing action of a parsed rule, run alone by its controller.
+fn install_created(engine: &mut GameEngine, rule: &Value, index: usize, source: &str) {
+    let effects = json!([rule["effects"][index].clone()]);
+    let stack = StackObject {
+        id: format!("stack:{source}"),
+        controller: "player-0".to_string(),
+        card: test_instance(source, test_definition(source, "Sorcery"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: BTreeMap::new(),
+    };
+    resolve(engine, &effects, &stack);
+}
+
+/// Death Frenzy's created `whenever` trigger triggers for each death this
+/// turn and ends with the turn (CR 603.7b, 611.2a).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_created_whenever_trigger_repeats_this_turn_and_expires() {
+    let rule = parsed_rule(
+        "Death Frenzy",
+        "Sorcery",
+        "All creatures get -2/-2 until end of turn. Whenever a creature dies this turn, you gain 1 life.",
+    );
+    assert_eq!(
+        rule["effects"][1]["kind"], "installCreatedTrigger",
+        "{rule:#}"
+    );
+    assert_eq!(rule["effects"][1]["oneShot"], false);
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        creature("first-victim", "player-1"),
+        creature("second-victim", "player-1"),
+        creature("next-turn-victim", "player-1"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    install_created(&mut engine, &rule, 1, "death-frenzy");
+    for victim in ["first-victim", "second-victim"] {
+        let life = life_of(&engine, "player-0");
+        engine
+            .move_permanent_to_graveyard(victim, "destroyed")
+            .expect("the creature dies");
+        assert_eq!(engine.state.stack.len(), 1, "{victim} triggers");
+        engine
+            .resolve_top_stack(&mut RandomAi::seeded(7))
+            .expect("the created trigger resolves");
+        assert_eq!(life_of(&engine, "player-0"), life + 1, "{victim}");
+    }
+    engine.state.turn_number += 1;
+    engine
+        .move_permanent_to_graveyard("next-turn-victim", "destroyed")
+        .expect("the creature dies next turn");
+    assert!(
+        engine.state.stack.is_empty(),
+        "the trigger ended with its turn"
+    );
+}
+
+/// A created `when` trigger over the shared event triggers once (CR 603.7c).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_created_when_trigger_over_an_event_union_is_consumed_once() {
+    // Unseen combination: a created trigger whose event is a subject union.
+    let rule = parsed_rule(
+        "Test Created Union",
+        "Instant",
+        "Draw a card. When a creature or planeswalker you control dies this turn, you gain 2 life.",
+    );
+    assert_eq!(
+        rule["effects"][1]["kind"], "installCreatedTrigger",
+        "{rule:#}"
+    );
+    assert_eq!(rule["effects"][1]["oneShot"], true);
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        creature("mine-first", "player-0"),
+        creature("mine-second", "player-0"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    install_created(&mut engine, &rule, 1, "created-union");
+    engine
+        .move_permanent_to_graveyard("mine-first", "destroyed")
+        .expect("the creature dies");
+    assert_eq!(engine.state.stack.len(), 1);
+    engine.state.stack.clear();
+    engine
+        .move_permanent_to_graveyard("mine-second", "destroyed")
+        .expect("the creature dies");
+    assert!(
+        engine.state.stack.is_empty(),
+        "the created trigger was consumed"
+    );
+}
+
+/// Skullcrack: `Players can't gain life this turn.` blocks a gain this turn
+/// only (CR 611.2a, 119.8).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_temporary_gain_life_prohibition_lasts_this_turn() {
+    let rule = parsed_rule(
+        "Skullcrack",
+        "Instant",
+        "Players can't gain life this turn. Damage can't be prevented this turn. Skullcrack deals 3 damage to target player or planeswalker.",
+    );
+    assert_eq!(
+        rule["effects"][0]["kind"], "installTemporaryStaticModifiers",
+        "{rule:#}"
+    );
+    let mut engine = test_engine(2);
+    install_created(&mut engine, &rule, 0, "skullcrack");
+    let life = life_of(&engine, "player-1");
+    engine
+        .gain_life("player-1", 3)
+        .expect("the gain is attempted");
+    assert_eq!(life_of(&engine, "player-1"), life, "no player gains life");
+    engine.state.turn_number += 1;
+    engine.gain_life("player-1", 3).expect("the gain applies");
+    assert_eq!(life_of(&engine, "player-1"), life + 3, "the rule ended");
+}
+
+/// A `next N damage` shield keeps what is left across damage events
+/// (CR 615.7).
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn an_amount_shield_decrements_across_two_damage_events() {
+    let rule = parsed_rule(
+        "Test Amount Shield",
+        "Instant",
+        "Prevent the next 3 damage that would be dealt to you this turn.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![colored_creature("striker", "{R}")];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    install_created(&mut engine, &rule, 0, "amount-shield");
+    let start = life_of(&engine, "player-0");
+    damage_player(&mut engine, "player-0", "striker");
+    assert_eq!(life_of(&engine, "player-0"), start, "2 of 3 prevented");
+    damage_player(&mut engine, "player-0", "striker");
+    assert_eq!(life_of(&engine, "player-0"), start - 1, "1 left, 1 dealt");
+}
+
+/// `The next sorcery spell you cast this turn can be cast as though it had
+/// flash.`: only the next matching spell, consumed by its cast.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_next_spell_permission_is_consumed_by_the_first_matching_spell() {
+    let rule = parsed_rule(
+        "Test Quicken",
+        "Instant",
+        "The next sorcery spell you cast this turn can be cast as though it had flash.\nDraw a card at the beginning of the next turn's upkeep.",
+    );
+    assert_eq!(
+        rule["effects"][0]["kind"], "installOneShotModifier",
+        "{rule:#}"
+    );
+    let mut engine = test_engine(2);
+    install_created(&mut engine, &rule, 0, "quicken");
+    let sorcery = test_definition("next-sorcery", "Sorcery");
+    let creature_spell = test_definition("next-creature", "Creature");
+    assert!(engine.one_shot_flash_permission("player-0", &sorcery));
+    assert!(!engine.one_shot_flash_permission("player-0", &creature_spell));
+    assert!(!engine.one_shot_flash_permission("player-1", &sorcery));
+    assert!(
+        engine
+            .consume_one_shot_spell_cast_modifier("player-0", &creature_spell)
+            .is_empty(),
+        "another spell does not consume it"
+    );
+    assert!(
+        !engine
+            .consume_one_shot_spell_cast_modifier("player-0", &sorcery)
+            .is_empty()
+    );
+    assert!(!engine.one_shot_flash_permission("player-0", &sorcery));
+}
+
+/// `Prevent all damage that would be dealt to and dealt by target
+/// creature this turn.`: two filters over one declared creature.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_dealt_to_and_dealt_by_shield_prevents_both_roles() {
+    let rule = parsed_rule(
+        "Test Fog Shield",
+        "Instant",
+        "Prevent all damage that would be dealt to and dealt by target creature this turn.",
+    );
+    assert_eq!(rule["effects"][0]["recipientAlsoSource"], true, "{rule:#}");
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        colored_creature("shielded", "{G}"),
+        colored_creature("other", "{R}"),
+    ];
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let stack = StackObject {
+        id: "stack:fog-shield".to_string(),
+        controller: "player-0".to_string(),
+        card: test_instance("fog", test_definition("fog", "Instant"), "player-0"),
+        cant_be_countered: false,
+        exile_on_leave_stack: false,
+        ability_kind: Some("spellAbility".to_string()),
+        ability_rule: Some(rule.clone()),
+        decisions: BTreeMap::new(),
+        targets: rule["effects"][0]["recipient"]["id"]
+            .as_str()
+            .map(|target_id| {
+                BTreeMap::from([(
+                    target_id.to_string(),
+                    TargetRef::Permanent {
+                        instance_id: "shielded".to_string(),
+                    },
+                )])
+            })
+            .expect("a declared recipient"),
+    };
+    resolve(&mut engine, &rule["effects"], &stack);
+    let shields = engine
+        .state
+        .rule_modifiers
+        .iter()
+        .filter(|modifier| value_kind(modifier) == Some("damagePreventionShield"))
+        .collect::<Vec<_>>();
+    assert_eq!(shields.len(), 2, "one shield per role");
+    assert!(
+        shields
+            .iter()
+            .any(|shield| shield["recipient"]["permanentId"] == "shielded")
+    );
+    assert!(
+        shields
+            .iter()
+            .any(|shield| shield["sourcePermanentId"] == "shielded")
+    );
+    let start = life_of(&engine, "player-0");
+    damage_player(&mut engine, "player-0", "shielded");
+    assert_eq!(
+        life_of(&engine, "player-0"),
+        start,
+        "its damage is prevented"
+    );
+    damage_player(&mut engine, "player-0", "other");
+    assert_eq!(
+        life_of(&engine, "player-0"),
+        start - 2,
+        "another source is not"
+    );
+}

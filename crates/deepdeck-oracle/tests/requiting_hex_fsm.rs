@@ -129,9 +129,9 @@ fn promoted_families_surface_precise_near_miss_states_without_fallback() {
     for (oracle_text, automaton, state, found) in [
         (
             "As an additional cost to cast this spell, you may blight 2. (You may put one -1/-1 counter on a creature you control.)",
-            "optional-blight-additional-cost",
-            "additional-cost.blight.reminder-validation",
-            None,
+            "additional-cost",
+            "additional-cost.reminder",
+            Some("("),
         ),
         (
             "Destroy target creature with mana value 2 or lower. If this spell's additional cost was paid, you gain 2 life.",

@@ -188,6 +188,7 @@ fn object_noun(predicate: &SelectorPredicate, noun: &str) -> bool {
         | SelectorPredicate::ChosenCreatureType
         | SelectorPredicate::ChosenColor
         | SelectorPredicate::Relation(_)
+        | SelectorPredicate::Qualifier(_)
         | SelectorPredicate::NumericComparison { .. } => false,
         SelectorPredicate::Intersection(operands) | SelectorPredicate::Union(operands) => {
             operands.iter().any(|operand| object_noun(operand, noun))

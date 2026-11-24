@@ -885,7 +885,7 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "found": "it"
+            "state": "lower.card-action.bindings"
           }
         ]
       }
@@ -907,7 +907,8 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "found": "and"
+            "state": "effect.start",
+            "found": "your"
           }
         ]
       }

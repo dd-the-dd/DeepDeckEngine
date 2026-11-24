@@ -14,6 +14,7 @@ fn investigate_is_an_independent_controller_effect() {
         effect,
         InvestigateEffectNode {
             player: LocalPlayerReference::Controller,
+            times: super::super::NumericExpression::from(1_i64),
         }
     );
     assert_eq!(cursor.position(), tokens.len());

@@ -156,17 +156,19 @@ impl ResolutionDomain {
 /// `of the chosen color` / `of that color`: the postnominal qualifier that
 /// reads the color an earlier `choose a color` of the same effect program
 /// bound. Lexical lookahead only; the program lowering proves the producer.
-/// Outside an effect program (a stored `As ... enters` choice) it is not
-/// claimed, so that reference keeps failing at its own reader.
+/// Outside an effect program only `of the chosen color` is claimed: its
+/// producer is the `As ... enters` choice the card-level binding proves
+/// (`entry_choice_binding.rs`); the anaphoric `of that color` is not.
 pub(in crate::oracle::canonical) fn chosen_color_qualifier_length(
     cursor: &OracleTokenCursor<'_>,
 ) -> Option<usize> {
-    if !word_at(cursor, 0, "of") || !super::resolution_choice_in_scope(cursor) {
+    if !word_at(cursor, 0, "of") {
         return None;
     }
+    let in_program = super::resolution_choice_in_scope(cursor);
     let determiner = if word_at(cursor, 1, "the") && word_at(cursor, 2, "chosen") {
         3
-    } else if word_at(cursor, 1, "that") {
+    } else if in_program && word_at(cursor, 1, "that") {
         2
     } else {
         return None;

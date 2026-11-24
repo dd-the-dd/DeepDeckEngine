@@ -386,7 +386,7 @@
         "cardName": "Synthetic Kinship Tide",
         "typeLine": "Sorcery",
         "manaCost": "{2}{U}",
-        "oracleText": "Tap all creatures that share a creature type with this creature.",
+        "oracleText": "Tap all creatures that had flying.",
         "layout": "normal",
         "faces": []
       },

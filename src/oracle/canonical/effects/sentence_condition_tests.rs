@@ -248,17 +248,34 @@ fn unsupported_or_unproven_conditions_fail_explicitly() {
     // No antecedent for `it`.
     let (state, _) = failure("Instant", "If it's a creature, draw a card.");
     assert_eq!(state, "condition.sentence.object.antecedent");
-    // `instead` replaces an earlier instruction: out of this frame.
+    // A replacing `instead` sentence is read with the sentence it replaces;
+    // branches declaring different targets have no one cast-time choice.
     let (state, _) = failure(
         "Instant",
         "Kicker {2}\nDestroy target creature with mana value 2 or less. If this spell was kicked, instead destroy target creature.",
     );
-    assert_eq!(state, "condition.sentence.instead");
-    let (state, _) = failure(
+    assert_eq!(state, "lower.sentence-conditional.cast-choice-targets");
+    // A postposed `instead` replaces the previous sentence: the replaced
+    // action is the else branch and both branches read the one target.
+    let replaced = effects(
         "Instant",
+        "{G}",
         "Put a +1/+1 counter on target creature. If you control a Human, put two +1/+1 counters on it instead.",
     );
-    assert_eq!(state, "sequence.conditional.instead");
+    assert_eq!(replaced.as_array().map(Vec::len), Some(1));
+    assert_eq!(replaced[0]["kind"], "conditional");
+    assert_eq!(
+        replaced[0]["then"][0]["count"],
+        json!({ "kind": "integer", "value": 2 })
+    );
+    assert_eq!(
+        replaced[0]["else"][0]["count"],
+        json!({ "kind": "integer", "value": 1 })
+    );
+    assert_eq!(
+        replaced[0]["then"][0]["permanent"],
+        replaced[0]["else"][0]["permanent"]
+    );
     // A player comparison is not a supported atom of the shared count.
     failure(
         "Sorcery",

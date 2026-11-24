@@ -168,7 +168,7 @@ fn unmeasured_or_compound_instructions_fail_explicitly() {
 }
 
 #[test]
-fn colliding_declarations_and_second_outcomes_fail_explicitly() {
+fn colliding_declarations_and_repeated_outcomes_fail_explicitly() {
     let failure = parse(
         "When this creature enters, you may exile target creature. If you do, destroy \
          target artifact.",
@@ -177,11 +177,22 @@ fn colliding_declarations_and_second_outcomes_fail_explicitly() {
     )
     .unwrap_err();
     assert_eq!(failure.state, "lower.program.optional-action.declarations");
-    // An outcome governs its own sentence only; a second outcome is not a step.
+    // The complementary outcome (`If you don't`) of the same optional
+    // producer is its declined branch, read with the first outcome.
+    let rule = trigger(
+        "When this creature enters, you may draw a card. If you do, discard a card. \
+         If you don't, you lose 2 life.",
+    );
+    assert_eq!(rule["effects"].as_array().map(Vec::len), Some(1), "{rule}");
+    assert!(
+        rule["effects"][0].to_string().contains("loseLife"),
+        "{rule}"
+    );
+    // A repeated outcome of the same polarity is not a step or a branch.
     assert!(
         parse(
             "When this creature enters, you may draw a card. If you do, discard a card. \
-             If you don't, you lose 2 life.",
+             If you do, you lose 2 life.",
             "Creature — Wall",
             "triggeredAbility",
         )

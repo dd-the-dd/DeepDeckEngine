@@ -17,7 +17,6 @@ mod activation_restriction;
 mod activation_timing_annotation;
 mod actor_object_event;
 mod additional_cost;
-mod alternative_additional_cost;
 mod alternative_cost;
 mod alternative_return_cost;
 mod amass;
@@ -103,6 +102,7 @@ mod emblem;
 mod empower_jace;
 mod enchant;
 mod entry_counters;
+mod entry_frame;
 mod entry_or_repeat_trigger;
 pub(in crate::oracle::canonical) mod entry_replacement;
 mod equip;
@@ -138,8 +138,6 @@ mod mana_cost_keyword;
 mod mana_spend_constraint;
 mod mana_spending_policy;
 mod mandatory_additional_cost_header;
-mod mandatory_additional_discard;
-mod mandatory_additional_sacrifice;
 mod mill;
 mod mobilize;
 mod modal_color_guard;
@@ -196,6 +194,9 @@ mod rebound;
 mod reference;
 mod regenerate;
 mod relative_clause;
+mod repetition;
+mod replacement_event;
+mod replacing_conditional;
 mod replicate;
 mod resolution_cost;
 mod resource_payment;
@@ -279,7 +280,6 @@ pub(super) use activation_restriction::*;
 pub(super) use activation_timing_annotation::*;
 pub(super) use actor_object_event::*;
 pub(super) use additional_cost::*;
-pub(super) use alternative_additional_cost::*;
 pub(super) use alternative_cost::*;
 pub(super) use alternative_return_cost::*;
 pub(super) use amass::*;
@@ -367,6 +367,7 @@ pub(super) use emblem::*;
 pub(super) use empower_jace::*;
 pub(super) use enchant::*;
 pub(super) use entry_counters::*;
+pub(super) use entry_frame::*;
 pub(super) use entry_or_repeat_trigger::*;
 pub(super) use equip::*;
 pub(super) use event_actor::*;
@@ -401,8 +402,6 @@ pub(super) use mana_cost_keyword::*;
 pub(super) use mana_spend_constraint::*;
 pub(super) use mana_spending_policy::*;
 pub(super) use mandatory_additional_cost_header::*;
-pub(super) use mandatory_additional_discard::*;
-pub(super) use mandatory_additional_sacrifice::*;
 pub(super) use mill::*;
 pub(super) use mobilize::*;
 pub(super) use modal_color_guard::*;
@@ -458,6 +457,9 @@ pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
 pub(super) use relative_clause::*;
+pub(super) use repetition::*;
+pub(super) use replacement_event::*;
+pub(super) use replacing_conditional::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
 pub(super) use resource_payment::*;
@@ -640,6 +642,11 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// lowerer, which owns sentence-conditional ranges. Family parents that
     /// destructure actions directly never receive a conditional sentence.
     pub sentence_conditionals: bool,
+    /// Set only by the program parent that reads a replacing sentence
+    /// (`If COND, instead BODY.`, `replacing_conditional.rs`) and gives its
+    /// conditional the replacement form; every other parent keeps `instead`
+    /// after a condition an explicit failure.
+    pub replacing_conditionals: bool,
     /// Whether the parent lowers `unless` frames through the shared sequence
     /// lowering. Any other parent rejects `unless` at the sentence boundary.
     pub unless_frames: UnlessFrameSupport,
@@ -1035,6 +1042,10 @@ pub(super) enum EventNumericBinding {
     /// The counters one counter-placement event put (CR 122.6):
     /// `counterCount`.
     CountersPut,
+    /// The objects one `one or more` batch event matched (`Whenever one or
+    /// more Dragons you control attack, draw that many cards`, CR 603.2c):
+    /// `eventObjectCount`.
+    EventObjectCount,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1295,6 +1306,12 @@ pub(super) enum GrantedKeyword {
     /// `assigns no combat damage` (CR 510.1): the object assigns no combat
     /// damage while the marker lasts.
     AssignsNoCombatDamage,
+    /// `can attack as though it didn't have defender` (CR 702.3b): defender
+    /// does not prevent the object from attacking while the marker lasts.
+    AttackAsThoughNoDefender,
+    /// `can't be regenerated` (CR 701.15): no regeneration shield replaces
+    /// the object's destruction while the marker lasts.
+    CantBeRegenerated,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1358,6 +1375,8 @@ impl GrantedKeyword {
             Self::MaxOneBlocker => "maxOneBlocker",
             Self::MustBeBlockedIfAble => "mustBeBlockedIfAble",
             Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
+            Self::AttackAsThoughNoDefender => "canAttackAsThoughNoDefender",
+            Self::CantBeRegenerated => "cantBeRegenerated",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -1670,6 +1689,9 @@ pub(in crate::oracle::canonical) struct AmassEffectNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct InvestigateEffectNode {
     pub player: LocalPlayerReference,
+    /// `investigate twice` / `investigate X times`: the number of separate
+    /// investigations, 1 for the bare action.
+    pub times: NumericExpression,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1717,6 +1739,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     /// `to the battlefield attached to OBJECT` (CR 303.4f, 301.5c): the
     /// permanent the entering Aura or Equipment becomes attached to.
     pub attached_to: Option<PermanentOperandNode>,
+    /// `to the battlefield with N COUNTER counters on it` (CR 122.6): the
+    /// source enters with these counters.
+    pub entering_counters: Option<EnteringCountersNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1862,6 +1887,14 @@ pub(super) struct AddManaChoiceEffectNode {
     pub options: Vec<ManaCostNode>,
 }
 
+/// `[FIXED or] N mana of the chosen color`: the color the source stored as
+/// it entered (CR 614.12), optionally after fixed alternatives.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddStoredColorManaEffectNode {
+    pub amount: i64,
+    pub alternatives: Vec<ManaCostNode>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum AddManaEffectNode {
     Qualified {
@@ -1878,6 +1911,7 @@ pub(super) enum AddManaEffectNode {
     AnyColorAmount(AddAnyColorAmountManaEffectNode),
     ScopedColor(AddScopedManaEffectNode),
     EachColor(AddEachColorManaNode),
+    StoredColor(AddStoredColorManaEffectNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1944,9 +1978,14 @@ pub(super) struct CreateTokensEffectNode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SearchDestination {
-    Battlefield { tapped: bool },
+    Battlefield {
+        tapped: bool,
+    },
     Zone(CardZoneName),
     LibraryTop,
+    /// The search ends at its selection: the found cards are bound for the
+    /// ordinary actions that follow it (`library_search.rs`).
+    Bound,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -19,7 +19,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "expectedContains": "random casting-time payment"
+            "expectedContains": "random casting payment"
           }
         ]
       }
@@ -41,7 +41,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "expectedContains": "literal discard-card quantity"
+            "expectedContains": "literal number of objects chosen while casting"
           }
         ]
       }
@@ -87,7 +87,7 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "expectedContains": "bounded scalar cost adapter"
+            "expectedContains": "bounded casting declaration"
           }
         ]
       }

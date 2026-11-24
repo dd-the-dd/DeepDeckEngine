@@ -414,12 +414,48 @@
       }
     },
     {
-      "id": "other-owner-not-guessed",
+      "id": "bare-possessive-names-the-found-card-owner",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
         "manaCost": "{B}",
         "oracleText": "Search your library for a card, put that card into their graveyard, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/to",
+                "equals": {
+                  "kind": "graveyard",
+                  "player": {
+                    "kind": "ownerOf",
+                    "object": {
+                      "kind": "candidate"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "other-player-possessive-not-guessed",
+      "request": {
+        "cardName": "Search Zone Proof",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card, put that card into an opponent's graveyard, then shuffle.",
         "layout": "normal",
         "faces": []
       },
@@ -456,7 +492,7 @@
       }
     },
     {
-      "id": "exile-destination-held",
+      "id": "exile-destination-is-the-shared-card-destination",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -466,18 +502,25 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "exile"
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "unordered-library-destination-held",
+      "id": "library-destination-without-position-is-refused",
       "request": {
         "cardName": "Search Zone Proof",
         "typeLine": "Instant",
@@ -492,7 +535,8 @@
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "messageContains": "a library placement on the top or bottom"
           }
         ]
       }

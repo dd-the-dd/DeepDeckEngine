@@ -26,6 +26,9 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     /// The cards a resolution-time cast of this scope cast (`that weren't
     /// cast`), bound by the cast primitive.
     last_cast: Option<Value>,
+    /// The card copies the latest copy action created (CR 707.12), until
+    /// the cast frame that follows it consumes them.
+    last_copies: Option<(Value, Option<i64>)>,
     selected: Vec<Value>,
     complement_basis: Option<(Value, Option<i64>)>,
     complement_exclusions: Vec<Value>,
@@ -42,6 +45,7 @@ pub(in crate::oracle::canonical) struct CardCollectionMemory {
     next_card_target: usize,
     next_cast: usize,
     next_permission: usize,
+    next_copy: usize,
 }
 
 /// The card collection this program put onto the battlefield; `it` after
@@ -57,6 +61,9 @@ fn fresh(base: &str, next: &mut usize) -> String {
         format!("{base}{next}")
     }
 }
+
+/// The largest literal number of card copies one copy action creates.
+const MAXIMUM_CARD_COPIES: i64 = 10;
 
 fn value_kind_name(value: &Value) -> Option<&str> {
     value.get("kind").and_then(Value::as_str)
@@ -146,6 +153,7 @@ impl CardCollectionMemory {
         self.last_revealed = snapshot.last_revealed.clone();
         self.last_exiled = snapshot.last_exiled.clone();
         self.last_cast = snapshot.last_cast.clone();
+        self.last_copies = snapshot.last_copies.clone();
         self.selected = snapshot.selected.clone();
         self.complement_basis = snapshot.complement_basis.clone();
         self.complement_exclusions = snapshot.complement_exclusions.clone();
@@ -165,6 +173,7 @@ impl CardCollectionMemory {
             && self.last_revealed == other.last_revealed
             && self.last_exiled == other.last_exiled
             && self.last_cast == other.last_cast
+            && self.last_copies == other.last_copies
             && self.selected == other.selected
             && self.complement_basis == other.complement_basis
             && self.complement_exclusions == other.complement_exclusions
@@ -242,6 +251,23 @@ impl CardCollectionMemory {
         self.observe(&id, maximum);
         self.view_zone = Some(CardZoneName::Hand);
         id
+    }
+
+    /// The cards a library search found (`library_search_move.rs`): its
+    /// choice result, fixed when chosen (CR 608.2c), is the observed
+    /// collection the search's later ordinary actions read.
+    pub(in crate::oracle::canonical) fn observe_searched_cards(
+        &mut self,
+        found: Value,
+        maximum: Option<i64>,
+    ) {
+        self.clear_antecedent();
+        self.view = Some(found.clone());
+        self.view_maximum = maximum;
+        self.complement_basis = Some((found.clone(), maximum));
+        // The grammatical number of the selection decides whether `it` or
+        // `them` names the found cards: one found card is never `them`.
+        self.mention((found, maximum));
     }
 
     /// The permanent a scalar exile instruction just moved is the observed
@@ -506,6 +532,19 @@ impl CardCollectionMemory {
         Ok(initialize)
     }
 
+    /// A collection a choice produced (`a card at random from your hand`, a
+    /// card chosen from outside the game) is the sole antecedent scope of a
+    /// later `it` / `them`, like an observation (CR 608.2c).
+    fn observe_value(&mut self, value: Value, maximum: Option<i64>, zone: Option<CardZoneName>) {
+        self.clear_antecedent();
+        self.view = Some(value.clone());
+        self.view_maximum = maximum;
+        self.view_zone = zone;
+        self.complement_basis = Some((value.clone(), maximum));
+        self.mention((value.clone(), maximum));
+        self.plural_focus = Some((value, maximum));
+    }
+
     /// A freshly produced collection becomes the sole antecedent scope: its
     /// remainder, singular and plural references all read this one binding.
     fn observe(&mut self, id: &str, maximum: Option<i64>) {
@@ -526,6 +565,16 @@ impl CardCollectionMemory {
         effects: &mut Vec<Value>,
         target_decisions: &mut Vec<Value>,
     ) -> MachineResult<(Value, Option<i64>)> {
+        if let CardOperandNode::CardCopies { .. } = operand {
+            // Card copies exist only to be cast (CR 707.10a, 707.12); the
+            // cast frame reads them directly, every other verb refuses them.
+            return Err(
+                cursor.fail("card copies only as the object of the cast that follows the copy")
+            );
+        }
+        if let CardOperandNode::HiddenChoice(choice) = operand {
+            return self.hidden_choice(cursor, choice, declarations, effects, target_decisions);
+        }
         if let CardOperandNode::Targets(target) = operand {
             validate_object_predicate_numeric_expressions(&target.predicate, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
@@ -846,6 +895,121 @@ impl CardCollectionMemory {
         Ok(objects)
     }
 
+    /// A choice among cards of a hidden source: the shared card-selection
+    /// primitive over a zone or the controller's cards outside the game
+    /// (CR 400.11a), by the controller or at random with the engine's
+    /// replayable random source. The chosen cards become the observed
+    /// collection a later `it` names.
+    fn hidden_choice(
+        &mut self,
+        cursor: &OracleTokenCursor<'_>,
+        choice: &HiddenCardChoiceNode,
+        declarations: TargetlessDeclarationSupport,
+        effects: &mut Vec<Value>,
+        target_decisions: &mut Vec<Value>,
+    ) -> MachineResult<(Value, Option<i64>)> {
+        let mut cursor = cursor.clone();
+        cursor.enter("lower.card-action.hidden-choice");
+        validate_object_predicate_numeric_expressions(&choice.predicate, declarations)
+            .map_err(|error| cursor.fail(error.expectation()))?;
+        let (zone, view_zone) = match &choice.source {
+            HiddenCardSourceNode::OutsideGame => {
+                (json!({"kind":"outsideGame", "player":controller()}), None)
+            }
+            HiddenCardSourceNode::Zone { zone, owner } => {
+                cursor.require(
+                    !matches!(owner, CardZoneOwnerNode::Players(_)),
+                    "one player's zone to choose from",
+                )?;
+                let player = self.zone_owner_player(&cursor, owner, target_decisions)?;
+                (json!({"kind":zone.ir_name(), "player":player}), Some(*zone))
+            }
+        };
+        let literal = |amount: &NumericExpression| match amount {
+            NumericExpression::Atom(NumericAtom::Integer(value)) => Some(*value),
+            _ => None,
+        };
+        let (minimum, maximum, fixed) = match &choice.quantity {
+            CardSelectionQuantityNode::Exactly(amount) => {
+                let value = lower_targetless_numeric_expression(amount, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                (value.clone(), value, literal(amount))
+            }
+            CardSelectionQuantityNode::UpTo(amount) => {
+                let value = lower_targetless_numeric_expression(amount, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                (integer(0), value, literal(amount))
+            }
+            CardSelectionQuantityNode::AnyNumber | CardSelectionQuantityNode::All { .. } => {
+                return Err(cursor.fail("a bounded number of cards chosen from a hidden source"));
+            }
+        };
+        if let Some(fixed) = fixed {
+            cursor.require(fixed > 0, "a positive number of chosen cards")?;
+        }
+        let id = fresh("chosenHiddenCards", &mut self.next_selection);
+        self.allocated_ids.insert(id.clone());
+        let mut choose = json!({"kind":"chooseCards", "id":id, "player":controller(),
+            "candidates":{"kind":"cards", "zone":zone,
+                "where":lower_card_object_predicate(&choice.predicate)},
+            "minimum":minimum, "maximum":maximum});
+        if choice.random {
+            choose["selection"] = json!({"kind":"random"});
+        }
+        effects.push(choose);
+        let result = decision_result(&id);
+        self.observe_value(result.clone(), fixed, view_zone);
+        Ok((result, fixed))
+    }
+
+    /// `copy CARD [N times]` (CR 707.12): each copy is created in exile, the
+    /// zone the copied card is in, and bound for the cast frame that must
+    /// follow. The copied card is one card this program exiled.
+    fn lower_card_copy(
+        &mut self,
+        cursor: &mut OracleTokenCursor<'_>,
+        cards: &CardOperandNode,
+        count: &NumericExpression,
+        effects: &mut Vec<Value>,
+    ) -> MachineResult<()> {
+        cursor.enter("lower.card-action.copy");
+        let CardOperandNode::Reference(reference) = cards else {
+            return Err(cursor.fail("a bound card to copy"));
+        };
+        let (copied, maximum) = self.reference(cursor, *reference)?;
+        cursor.require(
+            maximum == Some(1) && self.view_zone == Some(CardZoneName::Exile),
+            "one card this program exiled as the copied card",
+        )?;
+        cursor.require(
+            value_kind_name(&copied) == Some("boundObjects"),
+            "an exiled card bound by its exile action",
+        )?;
+        let copied = json!({"kind":"boundObject", "binding":copied["binding"]});
+        let NumericExpression::Atom(NumericAtom::Integer(count)) = count else {
+            return Err(cursor.fail("a literal number of card copies"));
+        };
+        cursor.require(
+            (1..=MAXIMUM_CARD_COPIES).contains(count),
+            "a positive literal number of card copies within the copy bound",
+        )?;
+        let mut copies = Vec::new();
+        for _ in 0..*count {
+            let id = fresh("cardCopy", &mut self.next_copy);
+            self.allocated_ids.insert(id.clone());
+            effects.push(json!({"kind":"createCardCopy", "card":copied.clone(),
+                "fromZone":"exile", "player":controller(), "to":"exile", "bind":id}));
+            copies.push(bound(&id));
+        }
+        let copies = if copies.len() == 1 {
+            copies.remove(0)
+        } else {
+            json!({"kind":"union", "sets":copies})
+        };
+        self.last_copies = Some((copies, Some(*count)));
+        Ok(())
+    }
+
     /// The player a zone owner names: the controller, or a declared player
     /// target this scope adds as a decision.
     fn zone_owner_player(
@@ -856,6 +1020,14 @@ impl CardCollectionMemory {
     ) -> MachineResult<Value> {
         match owner {
             CardZoneOwnerNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
+            // The player the triggering event records (`that player's hand`
+            // after `deals combat damage to a player`, `defending player's`).
+            CardZoneOwnerNode::Player(LocalPlayerReference::Bound(
+                BoundPlayerReference::EventPlayer,
+            )) => Ok(json!({"kind":"triggeringPlayer"})),
+            CardZoneOwnerNode::Player(LocalPlayerReference::Bound(
+                BoundPlayerReference::EventSpellController,
+            )) => Ok(json!({"kind":"controllerOf", "object":{"kind":"triggeringStackObject"}})),
             CardZoneOwnerNode::Player(_) => {
                 Err(cursor.fail("a resolved collection owner reference"))
             }
@@ -903,9 +1075,42 @@ impl CardCollectionMemory {
         Ok(zone)
     }
 
-    /// CR 608.2g: `you may cast N of them|SPELLS from ORIGIN without paying`
-    /// casts during this resolution, from the zone the cards are proved to
-    /// be in. The cast cards are bound for a later `that weren't cast`.
+    /// Whether a cast frame casts while the effect resolves (CR 608.2g): a
+    /// frame without a window does, except the optional printed-cost cast of
+    /// cards this program exiled, which keeps the earlier permission
+    /// contract (CR 611.2a, 400.7: while they remain exiled).
+    fn casts_during_resolution(
+        &self,
+        cursor: &OracleTokenCursor<'_>,
+        permit: &CardPermissionNode,
+    ) -> bool {
+        if permit.duration.is_some() || permit.window.is_some() {
+            return false;
+        }
+        if !permit.optional
+            || permit.cost != CardCastCostNode::Printed
+            || permit.graveyard_exile.is_some()
+        {
+            return true;
+        }
+        match &permit.cards {
+            CardOperandNode::Reference(reference) => {
+                !self.reference(cursor, *reference).is_ok_and(|(cards, _)| {
+                    (self.view_verb == Some(CardCollectionVerb::Exiled)
+                        && Some(&cards) == self.view.as_ref())
+                        || value_kind_name(&cards) == Some("cardsExiledWithSource")
+                })
+            }
+            _ => true,
+        }
+    }
+
+    /// CR 608.2g: the cards are cast while this effect resolves, from the
+    /// zone they are proved to be in, at their printed cost or without their
+    /// mana cost, optionally (`you may cast`) or if able (an imperative
+    /// `cast`). The cast cards are bound for a later `that weren't cast`;
+    /// the spells carry the stated graveyard exile replacement (CR 614.1a).
+    /// Card copies that are not cast cease to exist (CR 707.10a).
     fn lower_resolution_cast(
         &mut self,
         cursor: &mut OracleTokenCursor<'_>,
@@ -917,12 +1122,22 @@ impl CardCollectionMemory {
         cursor.enter("lower.card-action.resolution-cast");
         cursor.require(
             permit.verb == CardPermissionVerb::Cast,
-            "`cast`: playing a land is not a resolution-time free cast",
+            "`cast`: playing a card while an effect resolves has no land-play writer",
         )?;
         cursor.require(
             !permit.mana_of_any_type,
             "a spending policy only on a later casting permission",
         )?;
+        let without_paying = match &permit.cost {
+            CardCastCostNode::WithoutManaCost => true,
+            CardCastCostNode::Printed => false,
+            CardCastCostNode::Alternative(_) => {
+                return Err(cursor.engine_gap(
+                    crate::oracle::canonical::engine_gap::EngineGap::ResolutionCostAction,
+                    "a resolution-time cast paying a substituted mana cost",
+                ));
+            }
+        };
         fn cast_maximum(
             cursor: &OracleTokenCursor<'_>,
             quantity: &CardSelectionQuantityNode,
@@ -943,7 +1158,25 @@ impl CardCollectionMemory {
                     .fail("a positive literal, `any number` or every one of the cards to cast")),
             }
         }
+        // An imperative cast of a stated number of cards is performed if
+        // able; `any number`, `up to N` and `up to N` declared targets keep
+        // their own zero lower bound.
+        let mut mandatory = !permit.optional;
+        let mut uncast_copies = None;
         let (cards, maximum, zone) = match &permit.cards {
+            CardOperandNode::CardCopies { plural } => {
+                cursor.enter("lower.card-action.resolution-cast.copies");
+                let (copies, count) = self
+                    .last_copies
+                    .take()
+                    .ok_or_else(|| cursor.fail("a preceding copy action of this program"))?;
+                cursor.require(
+                    *plural || count == Some(1),
+                    "`the copy` for one copy, `the copies` for several",
+                )?;
+                uncast_copies = Some(copies.clone());
+                (copies, count, CardZoneName::Exile)
+            }
             CardOperandNode::Reference(reference) => {
                 let (cards, maximum) = self.reference(cursor, *reference)?;
                 (cards, maximum, self.observed_cast_zone(cursor, *reference)?)
@@ -951,6 +1184,7 @@ impl CardCollectionMemory {
             CardOperandNode::Selection(selection) => {
                 let (from, _) = self.reference(cursor, selection.from)?;
                 let maximum = cast_maximum(cursor, &selection.quantity)?;
+                mandatory &= matches!(selection.quantity, CardSelectionQuantityNode::Exactly(_));
                 let cards = match &selection.predicate {
                     Some(predicate) => {
                         validate_object_predicate_numeric_expressions(predicate, declarations)
@@ -970,7 +1204,10 @@ impl CardCollectionMemory {
                 let cards =
                     self.zone_collection_objects(cursor, query, declarations, target_decisions)?;
                 let maximum = match &query.quantity {
-                    Some(quantity) => cast_maximum(cursor, quantity)?,
+                    Some(quantity) => {
+                        mandatory &= matches!(quantity, CardSelectionQuantityNode::Exactly(_));
+                        cast_maximum(cursor, quantity)?
+                    }
                     None => None,
                 };
                 cursor.require(
@@ -982,6 +1219,8 @@ impl CardCollectionMemory {
             // `you may cast target instant card from your graveyard without
             // paying`: the declared cards, cast from their declared zone.
             CardOperandNode::Targets(target) => {
+                mandatory &=
+                    target.cardinality.minimum == target.cardinality.maximum && !target.unbounded;
                 let (cards, maximum) = self.operand(
                     cursor,
                     &permit.cards,
@@ -1008,8 +1247,8 @@ impl CardCollectionMemory {
             "cards": cards,
             "where": {"kind": "canBeCastAsSpell"},
             "timing": {"kind": "duringResolution"},
-            "withoutPayingManaCost": true,
-            "alternativeCostsAllowed": false,
+            "withoutPayingManaCost": without_paying,
+            "alternativeCostsAllowed": !without_paying,
             "additionalCostsApply": true,
             "variableManaValue": integer(0),
             "sourceZone": zone.ir_name(),
@@ -1018,7 +1257,33 @@ impl CardCollectionMemory {
         if let Some(maximum) = maximum {
             cast["maximum"] = integer(maximum);
         }
+        if mandatory {
+            cast["mandatory"] = json!(true);
+        }
+        if let Some(replacement) = &permit.graveyard_exile {
+            cursor.enter("lower.card-action.resolution-cast.graveyard-exile");
+            let mut lowered = json!({"graveyard": match replacement.graveyard {
+                CastGraveyardOwnerNode::Controller => "controller",
+                CastGraveyardOwnerNode::Any => "any",
+            }});
+            if let Some(predicate) = &replacement.predicate {
+                validate_object_predicate_numeric_expressions(predicate, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+                lowered["where"] = lower_card_object_predicate(predicate);
+            }
+            cast["exileInsteadOfGraveyard"] = lowered;
+        }
         effects.push(cast);
+        if matches!(permit.cards, CardOperandNode::Selection(_)) {
+            // `Then put the rest ...`: the observed cards this cast did not
+            // cast (CR 608.2c), like the remainder of any other selection.
+            self.complement_exclusions.push(bound(&id));
+        }
+        if let Some(copies) = uncast_copies {
+            // CR 707.10a: a copy of a card outside the stack and the
+            // battlefield ceases to exist.
+            effects.push(json!({"kind":"ceaseToExist", "objects":copies, "fromZone":"exile"}));
+        }
         self.last_cast = Some(bound(&id));
         Ok(std::mem::take(effects))
     }
@@ -1229,11 +1494,10 @@ impl CardCollectionMemory {
                 effects.push(json!({"kind":"shuffleZone",
                     "zone":{"kind":"library", "player":controller()}}));
             }
-            CardActionNode::Permit(permit)
-                if permit.without_paying_mana_cost
-                    && permit.duration.is_none()
-                    && permit.window.is_none() =>
-            {
+            CardActionNode::Copy { cards, count } => {
+                self.lower_card_copy(cursor, cards, count, &mut effects)?;
+            }
+            CardActionNode::Permit(permit) if self.casts_during_resolution(cursor, permit) => {
                 return self.lower_resolution_cast(
                     cursor,
                     permit,
@@ -1243,6 +1507,27 @@ impl CardCollectionMemory {
                 );
             }
             CardActionNode::Permit(permit) => {
+                cursor.enter("lower.card-action.permit.window");
+                // A window permission is a player's later choice to cast;
+                // the frame's other slots have no runtime on it yet.
+                if permit.graveyard_exile.is_some()
+                    || matches!(permit.cost, CardCastCostNode::Alternative(_))
+                {
+                    return Err(cursor.engine_gap(
+                        crate::oracle::canonical::engine_gap::EngineGap::PermissionWindow,
+                        "a later casting permission carrying a graveyard exile replacement or a substituted mana cost",
+                    ));
+                }
+                cursor.require(
+                    matches!(
+                        permit.cards,
+                        CardOperandNode::Reference(_)
+                            | CardOperandNode::Selection(_)
+                            | CardOperandNode::ZoneCollection(_)
+                            | CardOperandNode::Targets(_)
+                    ),
+                    "a bound card collection, declared card targets or a card query as the permitted cards",
+                )?;
                 // `you may cast creature spells from your graveyard this turn`:
                 // a permission over a zone's matching cards, current and
                 // future, not over cards fixed when the effect resolved.
@@ -1257,7 +1542,7 @@ impl CardCollectionMemory {
                             && query.additional_zones.is_empty()
                             && permit.duration == Some(EffectDurationNode::UntilEndOfCurrentTurn)
                             && permit.window.is_none()
-                            && !permit.without_paying_mana_cost
+                            && !permit.without_paying_mana_cost()
                             && !permit.mana_of_any_type,
                         "every matching spell of your graveyard or exile, cast this turn at its usual cost",
                     )?;
@@ -1346,7 +1631,7 @@ impl CardCollectionMemory {
                 };
                 // `without paying its mana cost` (CR 118.9): the permitted
                 // cast has no mana cost to pay.
-                let normal_costs_apply = !permit.without_paying_mana_cost;
+                let normal_costs_apply = !permit.without_paying_mana_cost();
                 let mut action = json!({"kind":match permit.verb {
                         CardPermissionVerb::Play => "play",
                         CardPermissionVerb::Cast => "cast",
@@ -1374,6 +1659,20 @@ impl CardCollectionMemory {
                     &mut effects,
                     target_decisions,
                 )?;
+                if destination.origin_library {
+                    // `put them back`, `on the bottom of that library`: the
+                    // cards this program observed in a library return to it
+                    // (CR 400.3: their owner's library).
+                    cursor.enter("lower.card-action.move.origin-library");
+                    cursor.require(
+                        self.view_from_library_top
+                            && matches!(
+                                operand,
+                                CardOperandNode::Reference(_) | CardOperandNode::Selection(_)
+                            ),
+                        "cards this program observed in a library, moved back to that library",
+                    )?;
+                }
                 let player = match &destination.owner {
                     CardMoveOwnerNode::Player(LocalPlayerReference::Controller) => controller(),
                     // Exile in each owner's exile zone, or the battlefield
@@ -1396,6 +1695,15 @@ impl CardCollectionMemory {
                         LibraryPosition::Bottom => "bottom",
                     });
                 }
+                // The card-movement runtime places a card into a library only
+                // at a stated position (CR 401.4); `into your library` with no
+                // position fails here instead of emitting a refused move.
+                cursor.require(
+                    destination.zone != CardZoneName::Library
+                        || destination.position.is_some()
+                        || destination.shuffle,
+                    "a library placement on the top or bottom (no runtime places a card at an unstated library position)",
+                )?;
                 if matches!(operand, CardOperandNode::Targets(_))
                     && destination.zone == CardZoneName::Library
                     && destination.position == Some(LibraryPosition::Top)
@@ -1460,6 +1768,9 @@ impl CardCollectionMemory {
                         {
                             true
                         }
+                        // The cards a resolution choice chose (a search's
+                        // found cards): identities fixed by the choice.
+                        CardOperandNode::Reference(_) if is_choice_result(&cards) => true,
                         CardOperandNode::Reference(_) => {
                             (self.view_verb == Some(CardCollectionVerb::Exiled)
                                 && self.view_zone == Some(CardZoneName::Exile))
@@ -1472,7 +1783,15 @@ impl CardCollectionMemory {
                                 || (self.view_from_library_top
                                     && self.view.as_ref() == Some(&cards))
                         }
-                        CardOperandNode::LibraryTop(_) => false,
+                        // A card chosen (or chosen at random) from a hidden
+                        // zone or from outside the game: the choice fixed
+                        // its identity (CR 400.11, 608.2c).
+                        CardOperandNode::HiddenChoice(_) => is_choice_result(&cards),
+                        // Card copies are refused by `operand` before this
+                        // point; they exist only to be cast (CR 707.12).
+                        CardOperandNode::LibraryTop(_) | CardOperandNode::CardCopies { .. } => {
+                            false
+                        }
                     };
                     cursor.require(
                         proved_operand
@@ -1556,6 +1875,17 @@ impl CardCollectionMemory {
                     self.last_exiled = Some((cards.clone(), maximum));
                 }
                 let mut movement = json!({"kind":"moveCards", "cards":cards, "to":to});
+                if matches!(operand, CardOperandNode::Targets(_))
+                    && destination.zone == CardZoneName::Exile
+                {
+                    // `exile target card ... Copy it.`: the exiled targets
+                    // are the observed collection a later `it` / `that card`
+                    // names, bound to the objects they became (CR 400.7).
+                    movement["bind"] = json!(match maximum {
+                        Some(1) => self.observe_exiled_object(),
+                        maximum => self.observe_exiled_objects(maximum),
+                    });
+                }
                 if let Some(order) = order {
                     movement["order"] = order;
                 }
@@ -1582,6 +1912,18 @@ impl CardCollectionMemory {
     }
 }
 
+/// A decision result, or a union of decision results: cards a resolution
+/// choice fixed (CR 608.2c).
+fn is_choice_result(cards: &Value) -> bool {
+    match value_kind_name(cards) {
+        Some("decisionResult") => true,
+        Some("union") => cards["sets"]
+            .as_array()
+            .is_some_and(|sets| !sets.is_empty() && sets.iter().all(is_choice_result)),
+        _ => false,
+    }
+}
+
 /// True when every card an operand names is owned by the ability's
 /// controller: declared targets or a chosen collection in the controller's
 /// own zone (CR 400.3: a card is only ever in its owner's hand, library or
@@ -1604,7 +1946,9 @@ fn moved_cards_owned_by_controller(operand: &CardOperandNode) -> bool {
         }
         CardOperandNode::Reference(_)
         | CardOperandNode::Selection(_)
-        | CardOperandNode::LibraryTop(_) => false,
+        | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::CardCopies { .. }
+        | CardOperandNode::HiddenChoice(_) => false,
     }
 }
 

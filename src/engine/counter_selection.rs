@@ -18,7 +18,13 @@ fn player_scope_supported(player: &Value) -> bool {
 
 pub(super) fn counter_collection_selector_supported(selector: &Value) -> bool {
     value_kind(selector) == Some("eachPermanent")
-        && selector.get("where").is_none_or(permanent_filter_supported)
+        && selector.get("where").is_none_or(|filter| {
+            // The collection prepares a relation's anchor before matching.
+            super::object_relation_eval::filter_supported_with_relations(
+                filter,
+                permanent_filter_supported,
+            )
+        })
         && selector.get("player").is_none_or(player_scope_supported)
         && ["excludeSource", "excludeSourceController"]
             .iter()
@@ -80,6 +86,10 @@ impl GameEngine {
             .get("player")
             .map(|scope| self.counter_collection_players(scope, stack, bindings))
             .transpose()?;
+        let predicate = selector
+            .get("where")
+            .map(|filter| self.prepare_relation_leaves(filter, stack, bindings))
+            .transpose()?;
         Ok(self
             .state
             .players
@@ -94,7 +104,7 @@ impl GameEngine {
                     && controllers
                         .as_ref()
                         .is_none_or(|players| players.contains(&permanent.controller))
-                    && selector.get("where").is_none_or(|predicate| {
+                    && predicate.as_ref().is_none_or(|predicate| {
                         self.permanent_matches_effective_filter(permanent, predicate)
                     })
             })

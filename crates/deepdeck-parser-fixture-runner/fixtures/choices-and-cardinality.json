@@ -691,7 +691,7 @@
       }
     },
     {
-      "id": "near-miss-unbounded-search-count",
+      "id": "sibling-unbounded-search-count-counts-matching-cards",
       "request": {
         "cardName": "Generic Endless Search",
         "typeLine": "Sorcery",
@@ -701,18 +701,36 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "state": "effect.library-search.expressed-count"
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/0/maximum/kind",
+                "equals": "countObjects"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              }
+            ]
           }
         ]
       }

@@ -693,7 +693,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Proliferate(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::ExtraTurn
             | SingularPlayerAction::Designation(_)

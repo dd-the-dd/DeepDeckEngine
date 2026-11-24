@@ -10,11 +10,13 @@
 //! definition) refuses these atoms in its validator rather than reading
 //! them as false.
 
+use std::collections::BTreeSet;
+
 use serde_json::Value;
 
 use super::{
-    CardInstance, GameEngine, StackObject, TargetRef, matches_stack_filter,
-    permanent_filter_supported, stack_filter_supported, value_kind,
+    CardInstance, GameEngine, StackObject, TargetRef, integer_value, mana_value,
+    matches_stack_filter, permanent_filter_supported, stack_filter_supported, value_kind,
 };
 
 /// Whether `kind` is a combat block-status atom this module evaluates.
@@ -79,7 +81,172 @@ pub(super) fn spell_candidate_filter_supported(filter: &Value) -> bool {
     }
 }
 
+/// One set constraint (`distinctValues` of names, powers or mana values;
+/// `totalAtMost` of one numeric property with a literal bound).
+pub(super) fn set_constraint_supported(constraint: &Value) -> bool {
+    match value_kind(constraint) {
+        Some("distinctValues") => matches!(
+            constraint["property"].as_str(),
+            Some("name" | "power" | "manaValue")
+        ),
+        Some("totalAtMost") => {
+            SetProperty::from_ir(constraint["property"].as_str()).is_some()
+                && integer_value(&constraint["value"]).is_some()
+        }
+        _ => false,
+    }
+}
+
+/// `{ kind: allOf, constraints: [...] }`: every listed constraint, each
+/// admitted by the consumer's own validator.
+pub(super) fn all_of_supported(constraint: &Value, supported: fn(&Value) -> bool) -> bool {
+    constraint["constraints"]
+        .as_array()
+        .is_some_and(|all| !all.is_empty() && all.iter().all(supported))
+}
+
+/// One numeric property of a selected object for a set constraint.
+#[derive(Clone, Copy)]
+enum SetProperty {
+    Power,
+    Toughness,
+    ManaValue,
+}
+
+impl SetProperty {
+    fn from_ir(raw: Option<&str>) -> Option<Self> {
+        match raw? {
+            "power" => Some(Self::Power),
+            "toughness" => Some(Self::Toughness),
+            "manaValue" => Some(Self::ManaValue),
+            _ => None,
+        }
+    }
+}
+
 impl GameEngine {
+    /// The object a selection names: a permanent, or a card in another
+    /// zone, with whether it is on the battlefield.
+    fn selected_object(&self, instance_id: &str) -> Option<(&CardInstance, bool)> {
+        match self.permanent_position(instance_id) {
+            Some((player, index)) => Some((&self.state.players[player].battlefield[index], true)),
+            None => self
+                .card_outside_battlefield(instance_id)
+                .map(|card| (card, false)),
+        }
+    }
+
+    /// A selected object's numeric property: the current value of a
+    /// permanent, the printed value of a card elsewhere (CR 208.1, 202.3:
+    /// `X` is zero off the stack). A power or toughness with no printed
+    /// number (`*`) has no value here (`None`), never zero.
+    fn selected_numeric_property(&self, instance_id: &str, property: SetProperty) -> Option<i32> {
+        let (card, on_battlefield) = self.selected_object(instance_id)?;
+        match property {
+            SetProperty::ManaValue => Some(mana_value(&card.definition)),
+            SetProperty::Power if on_battlefield => Some(self.current_power(card)),
+            SetProperty::Toughness if on_battlefield => Some(self.current_toughness(card)),
+            SetProperty::Power => card.definition.power.as_deref()?.parse().ok(),
+            SetProperty::Toughness => card.definition.toughness.as_deref()?.parse().ok(),
+        }
+    }
+
+    /// Whether a complete selection satisfies every set constraint of a
+    /// choice (`setConstraints`): no two members share a name, power or mana
+    /// value (`distinctValues`, CR 201.2 for names), and the members' total
+    /// of one property is at most the bound (`totalAtMost`). The validator
+    /// admits only these shapes; anything unreadable fails the selection.
+    pub(super) fn selection_satisfies(&self, selection: &[String], constraints: &Value) -> bool {
+        let Some(constraints) = constraints.as_array() else {
+            return false;
+        };
+        constraints
+            .iter()
+            .all(|constraint| match value_kind(constraint) {
+                Some("distinctValues") => match constraint["property"].as_str() {
+                    Some("name") => {
+                        let names = selection
+                            .iter()
+                            .map(|id| {
+                                self.selected_object(id)
+                                    .map(|(card, _)| card.definition.name.to_ascii_lowercase())
+                            })
+                            .collect::<Option<Vec<_>>>();
+                        names.is_some_and(|names| {
+                            names.iter().collect::<BTreeSet<_>>().len() == names.len()
+                        })
+                    }
+                    property => SetProperty::from_ir(property).is_some_and(|property| {
+                        selection
+                            .iter()
+                            .map(|id| self.selected_numeric_property(id, property))
+                            .collect::<Option<Vec<_>>>()
+                            .is_some_and(|values| {
+                                values.iter().collect::<BTreeSet<_>>().len() == values.len()
+                            })
+                    }),
+                },
+                Some("totalAtMost") => {
+                    let (Some(property), Some(maximum)) = (
+                        SetProperty::from_ir(constraint["property"].as_str()),
+                        integer_value(&constraint["value"]),
+                    ) else {
+                        return false;
+                    };
+                    selection
+                        .iter()
+                        .map(|id| self.selected_numeric_property(id, property))
+                        .try_fold(0_i64, |total, value| {
+                            value.map(|value| total.saturating_add(i64::from(value)))
+                        })
+                        .is_some_and(|total| total <= i64::from(maximum))
+                }
+                _ => false,
+            })
+    }
+
+    /// A declared target set against one set constraint (CR 601.2c): every
+    /// target is an object (a player has no name or mana value), checked
+    /// with the same reader as a resolution choice.
+    pub(super) fn target_selection_satisfies_set_constraint(
+        &self,
+        selection: &[TargetRef],
+        constraint: &Value,
+    ) -> bool {
+        let ids = selection
+            .iter()
+            .map(|target| match target {
+                TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                    Some(instance_id.clone())
+                }
+                TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
+            })
+            .collect::<Option<Vec<_>>>();
+        ids.is_some_and(|ids| {
+            self.selection_satisfies(&ids, &Value::Array(vec![constraint.clone()]))
+        })
+    }
+
+    /// `countDistinctPowers` read outside a resolving stack object (an
+    /// intervening `if`, a static or activation condition: `you control
+    /// three or more creatures with different powers`): the number of
+    /// distinct current powers among the player's permanents matching the
+    /// filter, read with the same matcher as the resolving count. A source
+    /// exclusion needs the source and is not evaluated here (`None`).
+    pub(super) fn distinct_power_count(&self, expression: &Value, player_id: &str) -> Option<i32> {
+        if expression["excludeSource"].as_bool() == Some(true) {
+            return None;
+        }
+        let player_index = self.player_index(player_id).ok()?;
+        let powers = self.state.players[player_index]
+            .battlefield
+            .iter()
+            .filter(|permanent| self.permanent_state_matches(permanent, &expression["where"]))
+            .map(|permanent| self.current_power(permanent))
+            .collect::<BTreeSet<_>>();
+        i32::try_from(powers.len()).ok()
+    }
+
     /// A stack object as a declared target candidate: its characteristics
     /// through the shared stack filter, and the `targets` relation through
     /// its chosen targets, read relative to `controller_id`.

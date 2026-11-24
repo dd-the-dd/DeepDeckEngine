@@ -205,10 +205,10 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
             "static.combat-restriction.complete",
         ),
         (
-            // A defending player is no subject of the static condition
-            // language: it exists only during one combat (CR 506.2).
-            "This creature can't attack unless defending player controls an Island.",
-            "condition.static.atom-kind",
+            // A defending player exists only during one combat (CR 506.2):
+            // only a clause checked per attack or block can read it.
+            "This creature can't block unless defending player controls an Island.",
+            "static.combat-restriction.complete",
         ),
         (
             "This creature can't attack or block alone.",
@@ -222,12 +222,28 @@ fn near_misses_fail_explicitly_or_stay_with_other_parents() {
             "This creature can't be blocked except by three or more creatures.",
             "selector.predicate.start",
         ),
-        (
-            "This creature can't be blocked as long as defending player controls an Island.",
-            "condition.static.atom-kind",
-        ),
     ] {
         assert_eq!(rejected_at(text), state, "{text}");
+    }
+    // The per-combat clauses read the defending player of each check.
+    for (text, restriction) in [
+        (
+            "This creature can't attack unless defending player controls an Island.",
+            "cantAttack",
+        ),
+        (
+            "This creature can't be blocked as long as defending player controls an Island.",
+            "cantBeBlocked",
+        ),
+    ] {
+        let rule = parsed(text);
+        let modifier = &rule["modifiers"][0];
+        assert_eq!(
+            modifier["kind"], "defendingPlayerCombatRestriction",
+            "{text}"
+        );
+        assert_eq!(modifier["restriction"], restriction, "{text}");
+        assert!(rule.get("condition").is_none(), "{text}");
     }
     assert!(matches!(
         parse("This spell can't block.", "Instant"),

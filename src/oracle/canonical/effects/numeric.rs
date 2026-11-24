@@ -376,6 +376,9 @@ fn lower_numeric_expression_in_context(
         NumericExpression::EventValue(EventNumericBinding::CountersPut) => {
             Some(decision_result("counterCount"))
         }
+        NumericExpression::EventValue(EventNumericBinding::EventObjectCount) => {
+            Some(decision_result("eventObjectCount"))
+        }
         NumericExpression::EventValue(EventNumericBinding::CastSpellManaValue) => {
             Some(json!({ "kind": "triggeringSpellManaValue" }))
         }

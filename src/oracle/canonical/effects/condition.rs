@@ -170,6 +170,9 @@ fn lower_cast_fact(node: &CastFactNode) -> Lowered {
     Ok(match node.fact {
         CastFact::ManaSpent { .. } => unreachable!("the mana spent was lowered above"),
         CastFact::Kicked => json!({ "kind": "wasKicked", "spell": self_ref() }),
+        CastFact::CastDuringMainPhase => {
+            json!({ "kind": "wasCastDuringMainPhase", "object": self_ref() })
+        }
         CastFact::Cast { zone, negated } => {
             let fact = match zone {
                 None => json!({ "kind": "wasCast", "object": self_ref() }),
@@ -202,6 +205,16 @@ fn lower_comparison(comparison: &ConditionComparison) -> Lowered {
         // `that player ...`: the player the triggering event records.
         ConditionPlayerSubject::EventPlayer => {
             let player = || json!({ "kind": "triggeringPlayer" });
+            Ok(compare(
+                operator,
+                lower_condition_number(&comparison.left, player())?,
+                lower_condition_number(&comparison.right, player())?,
+            ))
+        }
+        // `defending player ...` in a static combat restriction: the
+        // defending player the runtime binds for each combat check.
+        ConditionPlayerSubject::DefendingPlayer => {
+            let player = || json!({ "kind": "defendingPlayer" });
             Ok(compare(
                 operator,
                 lower_condition_number(&comparison.left, player())?,

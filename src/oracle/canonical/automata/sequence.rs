@@ -10,9 +10,8 @@ use super::{
     TemporaryCombatRestrictionParseAttempt, TemporaryPlayerPermissionParseAttempt,
     ZoneChangeTargetSupport, apply_for_each_multiplier, claims_put_counters_effect,
     for_each_count_starts, library_look_reminder_starts_at, recognize_add_mana_effect,
-    recognize_amass_effect, recognize_conditional_damage_replacement,
-    recognize_controller_library_search, recognize_counter_effect, recognize_damage_effect,
-    recognize_destroy_referenced_set_effect, recognize_earthbend_action,
+    recognize_amass_effect, recognize_conditional_damage_replacement, recognize_counter_effect,
+    recognize_damage_effect, recognize_destroy_referenced_set_effect, recognize_earthbend_action,
     recognize_effect_connector, recognize_empower_jace_effect, recognize_empower_jace_reminder,
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
     recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
@@ -331,15 +330,30 @@ impl SequenceMemory {
 
     /// Closes the conditional sentence being read at the current action count.
     fn close_conditional_branch(&mut self) {
-        match self.open_branch.take() {
+        let index = match self.open_branch.take() {
             Some(ConditionalBranch::Then(index)) => {
                 self.conditionals[index].then_end = self.effects.len();
                 self.else_candidate = Some(index);
+                index
             }
             Some(ConditionalBranch::Else(index)) => {
                 self.conditionals[index].else_end = Some(self.effects.len());
+                index
             }
-            None => {}
+            None => return,
+        };
+        // A permanent a branch put onto the battlefield exists after the
+        // conditional sentence only if that branch was taken: it is no
+        // antecedent of a later sentence (`If it's a Bison card, you may put
+        // it onto the battlefield. If it's a creature card, ...` still names
+        // the looked-at card).
+        if self.permanent_subject_scope
+            == super::PermanentSubjectScope::Local(Some(super::PermanentEffectReference::Observed(
+                super::TypedObservedEventObject::MovedOntoBattlefield,
+            )))
+            && let Some(snapshot) = self.branch_snapshots.get(index)
+        {
+            self.permanent_subject_scope = snapshot.permanent_subject_scope;
         }
     }
 
@@ -373,6 +387,12 @@ impl SequenceMemory {
         for effect in self.effects.iter().rev() {
             match effect {
                 LocalEffectNode::CardAction(_) => return true,
+                // A search ending at its selection binds its found cards.
+                LocalEffectNode::ControllerLibrarySearch(search)
+                    if super::search_binds_found_cards(search) =>
+                {
+                    return true;
+                }
                 LocalEffectNode::ControllerLibrarySearch(_)
                 | LocalEffectNode::OptionalLibrarySearch(_)
                 | LocalEffectNode::DrawCards(_)
@@ -1662,6 +1682,17 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.sentence_duration = Some(duration.clone());
                     }
                 }
+                // `X becomes TYPES and gets +N/+N until end of turn`: one
+                // trailing duration scopes the whole verb chain (CR 611.2a).
+                // The type change before it stated none and waited for it.
+                if base_action_context.verb_chain_subject.is_some()
+                    && let LocalEffectNode::ModifyStats(stats) = &effect
+                    && stats.duration != super::EffectDurationNode::Indefinite
+                    && let Some(LocalEffectNode::BecomeTypes(change)) = memory.effects.last_mut()
+                    && change.duration.is_none()
+                {
+                    change.duration = Some(stats.duration.clone());
+                }
                 if matches!(
                     &effect,
                     LocalEffectNode::CardAction(_) | LocalEffectNode::OptionalSequence(_)
@@ -2371,6 +2402,39 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                         SequenceState::ConnectorOrEnd
                     }
+                    // The same adjunct after an exile of every permanent a
+                    // query matches (`exile all artifacts your opponents
+                    // control until this enchantment leaves the battlefield`).
+                    Some("until")
+                        if super::zone_change_until_starts(cursor)
+                            && matches!(
+                                memory.effects.last(),
+                                Some(LocalEffectNode::SelectedPermanents(selected))
+                                    if selected.action == super::SelectedPermanentAction::Exile
+                                        && selected.until.is_none()
+                            ) =>
+                    {
+                        attempt_frame.commit();
+                        let until =
+                            super::recognize_zone_change_until(cursor, name_links, name_failure)?;
+                        if let Some(LocalEffectNode::SelectedPermanents(selected)) =
+                            memory.effects.last_mut()
+                        {
+                            selected.until = Some(until);
+                        }
+                        SequenceState::ConnectorOrEnd
+                    }
+                    // `ACTION twice` / `ACTION N times`: the repetition is
+                    // read by an action whose node repeats as a whole
+                    // (`investigate twice`). After any other action it is no
+                    // multiplied quantity (`draw a card twice` is not `draw
+                    // two cards` for triggers counting draws): explicit.
+                    _ if super::repetition_adjunct_starts(cursor) => {
+                        cursor.enter("sequence.repetition.action");
+                        return Err(cursor.fail(
+                            "an action that owns its repetition (`investigate twice`); this action is not repeated as a whole",
+                        ));
+                    }
                     _ => return Err(cursor.fail("`and`, `then`, or sentence terminator")),
                 }
             }
@@ -2728,7 +2792,7 @@ fn recognize_imperative_frame(
             recognize_surveil_effect(cursor, antecedent).map(LocalEffectNode::Surveil)
         }
         VerbLemma::Earthbend => recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend),
-        VerbLemma::Search => recognize_controller_library_search(cursor)
+        VerbLemma::Search => super::recognize_library_search_action(cursor)
             .map(LocalEffectNode::ControllerLibrarySearch),
         VerbLemma::Transform => recognize_transform_source_effect(cursor, name_links, name_failure)
             .map(LocalEffectNode::TransformPermanent),
@@ -3212,8 +3276,13 @@ fn recognize_subject_frame(
             if lemma == VerbLemma::Search =>
         {
             attempt_frame.commit();
-            recognize_optional_library_search(cursor, antecedent)
-                .map(LocalEffectNode::OptionalLibrarySearch)
+            super::recognize_optional_library_search_program(
+                cursor,
+                antecedent,
+                name_links,
+                name_failure,
+                context,
+            )
         }
         // A possessed player's permission is read by the optional search
         // reader, which owns its explicit failure for other verbs.

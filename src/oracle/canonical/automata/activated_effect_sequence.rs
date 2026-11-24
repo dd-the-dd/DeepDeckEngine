@@ -79,7 +79,19 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::RemoveControlledCounters(_)
                 | Cost::ExileCards(_)
                 | Cost::PutSourceCounters(_)
-                | Cost::PutChosenCounters(_) => {}
+                | Cost::PutChosenCounters(_)
+                | Cost::RevealCards(_)
+                | Cost::Mill { .. }
+                | Cost::ExertSelf
+                | Cost::Blight(_) => {}
+                // `Sacrifice X ...` without `another` may choose the source.
+                Cost::ChosenX(chosen) => {
+                    possibly_departed |= !chosen.exclude_source
+                        && matches!(
+                            chosen.action,
+                            super::ChosenXAction::Sacrifice | super::ChosenXAction::Return
+                        )
+                }
                 // `Sacrifice another ...` cannot move the source (CR 109.1);
                 // without `another` the payer may choose the source itself.
                 Cost::SacrificeObject(selected) => possibly_departed |= !selected.exclude_source,
@@ -89,6 +101,7 @@ impl ExplicitActivationSourceAvailability {
                 Cost::ReturnSelf
                 | Cost::SacrificeSelf(_)
                 | Cost::DiscardSelf(_)
+                | Cost::RevealSelf
                 | Cost::ExileSelf(_) => return Self::Unproved,
             }
         }
@@ -248,15 +261,41 @@ fn try_recognize_activation_program(
             return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
         }
     };
+    let trailer = match recognize_activation_trailer(cursor, keyword, allow_annotation, &effects) {
+        Ok(trailer) => trailer,
+        Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
+    };
+    ActivatedEffectSequenceParseAttempt::Parsed(ActivatedEffectSequenceNode {
+        costs,
+        effects,
+        timing_annotation: trailer.timing_annotation,
+        restrictions: trailer.restrictions,
+        reduction: trailer.reduction,
+    })
+}
+
+/// What an activation envelope reads after its body: the ability's
+/// restrictions (CR 602.5), its trailing parentheticals and a cost
+/// reduction (CR 601.2f via 602.2b). Never an effect.
+pub(in crate::oracle::canonical) struct ActivationTrailerNode {
+    pub timing_annotation: Option<ActivationTimingAnnotation>,
+    pub restrictions: super::ActivationRestrictionsNode,
+    pub reduction: Option<super::ActivationCostReductionNode>,
+}
+
+/// Reads the trailer after a complete body, through the end of the ability.
+/// `effects` is the body's last written sentence group, whose symbols and
+/// mechanics own their reminders.
+fn recognize_activation_trailer(
+    cursor: &mut OracleTokenCursor<'_>,
+    keyword: Option<super::ActivationKeyword>,
+    allow_annotation: bool,
+    effects: &EffectSequenceNode,
+) -> MachineResult<ActivationTrailerNode> {
     let mut restrictions = keyword_restrictions(keyword);
     if super::activation_restriction_starts(cursor) {
-        let printed = match super::recognize_activation_restrictions(cursor) {
-            Ok(printed) => printed,
-            Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
-        };
-        if let Err(failure) = restrictions.merge(cursor, printed) {
-            return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
-        }
+        let printed = super::recognize_activation_restrictions(cursor)?;
+        restrictions.merge(cursor, printed)?;
     }
     // Trailing parentheticals: the instant-timing annotation, the reminder of
     // the labeling keyword, then reminders owned by a symbol or mechanic the
@@ -264,29 +303,23 @@ fn try_recognize_activation_program(
     let mut timing_annotation = None;
     let mut keyword_reminder_read = false;
     while allow_annotation && cursor.peek() == Some("(") {
-        let parsed = if timing_annotation.is_none()
-            && super::instant_timing_annotation_starts(cursor)
-        {
-            recognize_activation_timing_annotation(cursor)
-                .map(|annotation| timing_annotation = Some(annotation))
+        if timing_annotation.is_none() && super::instant_timing_annotation_starts(cursor) {
+            timing_annotation = Some(recognize_activation_timing_annotation(cursor)?);
         } else if super::parenthesized_restriction_starts(cursor) {
             match keyword {
                 Some(keyword) if !keyword_reminder_read => {
                     keyword_reminder_read = true;
-                    super::recognize_activation_keyword_reminder(cursor, keyword)
+                    super::recognize_activation_keyword_reminder(cursor, keyword)?;
                 }
                 _ => {
                     cursor.enter("activation.keyword-reminder.owner");
-                    Err(cursor.fail(
+                    return Err(cursor.fail(
                         "a parenthesized restriction only as the reminder of the ability's labeling keyword",
-                    ))
+                    ));
                 }
             }
         } else {
-            super::recognize_owned_ability_reminder(cursor, &effects).map(|_| ())
-        };
-        if let Err(failure) = parsed {
-            return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
+            super::recognize_owned_ability_reminder(cursor, effects)?;
         }
     }
     let reduction = if allow_annotation
@@ -300,24 +333,50 @@ fn try_recognize_activation_program(
             .peek_ahead(2)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("costs"))
     {
-        match super::recognize_activation_cost_reduction(cursor) {
-            Ok(reduction) => Some(reduction),
-            Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
-        }
+        Some(super::recognize_activation_cost_reduction(cursor)?)
     } else {
         None
     };
     cursor.enter("activation.effect-sequence.complete");
-    if let Err(failure) = cursor.finish() {
-        return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
-    }
-    ActivatedEffectSequenceParseAttempt::Parsed(ActivatedEffectSequenceNode {
-        costs,
-        effects,
+    cursor.finish()?;
+    Ok(ActivationTrailerNode {
         timing_annotation,
         restrictions,
         reduction,
     })
+}
+
+/// The activation envelope over the shared effect program (CR 608.2c,
+/// 603.12): a body with a permission, an outcome block, a reflexive ability
+/// or a replacing `instead` sentence. A caller reads it only after the one
+/// shared sequence declined the body, which keeps its exact historical IR.
+pub(in crate::oracle::canonical) fn recognize_activated_effect_program_with_cost_context(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    derive_context: impl FnOnce(
+        &ActivationCostSequenceNode,
+        &EffectRecognitionContext,
+    ) -> EffectRecognitionContext,
+) -> MachineResult<(
+    ActivationCostSequenceNode,
+    super::EffectProgramNode,
+    ActivationTrailerNode,
+)> {
+    let (costs, keyword) = recognize_activation_prefix(cursor, name_links)?;
+    let mut context = derive_context(&costs, context);
+    context.ability_restriction_owner = super::AbilityRestrictionOwner::Activated;
+    cursor.enter("activation.effect-program.operator");
+    cursor.require(
+        super::effect_program_operator_follows(cursor),
+        "an activation body that needs the program reader",
+    )?;
+    cursor.enter("activation.effect-program.effects");
+    let program =
+        super::recognize_effect_program_with_context(cursor, name_links, name_failure, &context)?;
+    let trailer = recognize_activation_trailer(cursor, keyword, true, program.inner_sequence())?;
+    Ok((costs, program, trailer))
 }
 
 /// A modal activated ability (CR 700.2): the shared activation costs, then

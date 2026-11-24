@@ -121,9 +121,9 @@ fn typed_activation_rolls_back_unsupported_costs_and_independent_suffixes() {
         }
     );
     cursor.finish().unwrap();
-    // A counted discard is now a typed cost slot; a reveal cost still has no
-    // activation schema, so the whole activation rolls back.
-    for text in ["{R}, Reveal a card from your hand: Target creature can't block this turn."] {
+    // Counted discard and reveal costs are typed cost slots; a forage cost
+    // still has no activation schema, so the whole activation rolls back.
+    for text in ["{R}, Forage: Target creature can't block this turn."] {
         let tokens = recognize_entities(text);
         let mut cursor = OracleTokenCursor::new("activation-rollback", &tokens);
         let initial_state = cursor.fail("checkpoint observation").state;

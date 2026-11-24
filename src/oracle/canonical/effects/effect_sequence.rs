@@ -167,6 +167,7 @@ fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
         LocalEffectNode::CardAction(
             CardActionNode::Move { cards, .. }
             | CardActionNode::Reveal(cards)
+            | CardActionNode::Copy { cards, .. }
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
         ) => Some(matches!(cards, CardOperandNode::Reference(_))),
         LocalEffectNode::CardAction(_) => Some(false),
@@ -580,8 +581,26 @@ fn lower_local_effect_sequence_with_collections(
                         );
                         continue;
                     }
-                    SingularPlayerAction::Proliferate => {
-                        effects.push(json!({"kind": "proliferate", "player": lowered.player}));
+                    SingularPlayerAction::Proliferate(times) => {
+                        let proliferation =
+                            json!({"kind": "proliferate", "player": lowered.player});
+                        if *times == NumericExpression::from(1_i64) {
+                            effects.push(proliferation);
+                        } else {
+                            // `proliferate twice|X times`: separate actions.
+                            cursor.enter("lower.player-action.proliferate.repetition");
+                            let count = lower_sequence_bound_amount(
+                                cursor,
+                                times,
+                                sequence,
+                                &target_bindings,
+                                context,
+                            )?;
+                            effects.push(json!({
+                                "kind": "repeatEffects", "count": count,
+                                "effects": [proliferation],
+                            }));
+                        }
                         continue;
                     }
                     // CR 500.7: the acting player takes the next turn.
@@ -1115,6 +1134,8 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
                 // `Search target player's library ...`: the holder is one
                 // declared player target of this action (CR 115.1).
@@ -1135,24 +1156,27 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
-                if let Err(failure) = cursor.require(
-                    search.player == LocalPlayerReference::Controller,
-                    "a controller-owned optional search; referenced controllers need an explicit snapshot",
-                ) {
-                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure));
-                }
-                let lowered = lower_controller_library_search_effects(cursor, search)?;
+                let Some(player) =
+                    optional_search_player(search, &target_bindings, &declared_player_targets)
+                else {
+                    return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                        "a searching player this program binds: the controller, a declared target's controller, or a bound player",
+                    )));
+                };
+                let lowered = lower_library_search_effects(cursor, search, player.clone())?;
                 collections.register_collection_binding_ids(
                     &lowered,
                     &lower_collection_binding(search.binding),
                 );
                 effects.push(json!({
                     "kind": "optionalEffects",
-                    "player": controller(),
+                    "player": player,
                     "effects": lowered,
                 }));
             }
@@ -1261,11 +1285,15 @@ fn lower_local_effect_sequence_with_collections(
                 };
                 for object in objects {
                     effects.extend(
-                        lower_become_types_to_object(
+                        lower_become_types_to_object_in_scope(
                             change,
                             &object,
                             copy.as_ref(),
                             &format!("characteristicObjects{effect_index}"),
+                            Some(TargetBinding {
+                                effect_index,
+                                slot_index: 0,
+                            }),
                         )
                         .map_err(|expected| cursor.fail(expected))?,
                     );
@@ -1460,13 +1488,16 @@ fn lower_local_effect_sequence_with_collections(
                 }
             }
             LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
-                // The spell the triggering cast record binds (CR 707.10).
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": {"kind": "triggeringStackObject"},
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                // The spell the triggering cast record binds (CR 707.10);
+                // `twice` is two ordinary copies of it.
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": {"kind": "triggeringStackObject"},
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -1492,12 +1523,14 @@ fn lower_local_effect_sequence_with_collections(
                     i64::from(slot.cardinality.minimum),
                     i64::from(slot.cardinality.maximum),
                 ));
-                effects.push(json!({
-                    "kind": "copyStackItem",
-                    "object": chosen_target(target_id),
-                    "controller": controller(),
-                    "mayChooseNewTargets": copy.may_choose_new_targets,
-                }));
+                for _ in 0..copy.count {
+                    effects.push(json!({
+                        "kind": "copyStackItem",
+                        "object": chosen_target(target_id),
+                        "controller": controller(),
+                        "mayChooseNewTargets": copy.may_choose_new_targets,
+                    }));
+                }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
                 let quantity = match &keyword_action.quantity {
@@ -1862,9 +1895,14 @@ fn lower_local_effect_sequence_with_collections(
                         cursor.fail("exactly one object dealing the damage"),
                     ));
                 };
+                // The permanent the source is attached to (`enchanted creature
+                // deals 1 damage to its owner`) is a live object reference
+                // the runtime resolves; an unattached source deals no damage.
                 cursor.require(
-                    source["kind"].as_str() == Some("chosenTarget"),
-                    "a damage source declared as a target or bound to a declared target",
+                    source["kind"].as_str() == Some("chosenTarget")
+                        || (source["kind"].as_str() == Some("attachedPermanent")
+                            && source["attachment"]["kind"].as_str() == Some("self")),
+                    "a damage source declared as a target, bound to a declared target, or attached to the source",
                 )?;
                 let amount = lower_sequence_bound_amount(
                     cursor,
@@ -2149,10 +2187,22 @@ fn lower_local_effect_sequence_with_collections(
                     });
                 }
                 decisions.push(decision);
-                effects.push(
-                    lower_target_card_move_effect(zone_change, &target_id)
-                        .ok_or_else(|| cursor.fail("a supported targeted card move"))?,
-                );
+                let mut operation = lower_target_card_move_effect(zone_change, &target_id)
+                    .ok_or_else(|| cursor.fail("a supported targeted card move"))?;
+                // A later card action reading `it`/`that card` names the card
+                // this exile produced (CR 400.7); bound only when read.
+                if zone_change.action == CardZoneChangeAction::Exile
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                {
+                    operation["bind"] = json!(match zone_change.cardinality.maximum {
+                        NumericAtom::Integer(1) => collections.observe_exiled_object(),
+                        NumericAtom::Integer(maximum) => {
+                            collections.observe_exiled_objects(Some(maximum))
+                        }
+                        NumericAtom::VariableX => collections.observe_exiled_objects(None),
+                    });
+                }
+                effects.push(operation);
                 if zone_change.cardinality == ExpressedTargetCardinality::EXACTLY_ONE {
                     card_target_bindings.push((
                         TargetBinding {
@@ -2354,6 +2404,7 @@ fn lower_local_effect_sequence_with_collections(
                         TargetlessDeclarationSupport::XValue
                     }
                 };
+                cursor.enter("lower.targetless-effect");
                 let mut lowered = lower_targetless_local_effects(
                     effect,
                     declarations,
@@ -2425,6 +2476,7 @@ fn lower_local_effect_sequence_with_collections(
         EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
     })?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
+    bind_returned_source_when_read(cursor, &mut effects, collections)?;
     apply_delayed_frames(
         cursor,
         &sequence.delayed,
@@ -2442,7 +2494,7 @@ fn lower_local_effect_sequence_with_collections(
         &declared_player_targets,
         &mut effects,
     )?;
-    conditional_scopes.wrap(cursor, sequence, &action_starts, &mut effects)?;
+    conditional_scopes.wrap(cursor, sequence, &action_starts, &decisions, &mut effects)?;
     apply_where_x_bindings(
         cursor,
         &sequence.where_x,
@@ -2466,18 +2518,35 @@ fn lower_local_effect_sequence_with_collections(
             cursor.fail("a layer-6 timestamp order between losing all abilities and a later grant"),
         ));
     }
+    super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
+        .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
 
     Ok(LoweredEffectSequence { decisions, effects })
 }
 
 /// Per-sentence state of the conditional instructions of one sequence
-/// (CR 608.2c). Each condition is lowered where its sentence begins, with the
-/// bindings visible there; each branch starts from the same card-collection
-/// scope, and a scope that differs after the instruction does not escape it.
+/// (CR 608.2c). Each condition is lowered where its `If` sentence begins, with
+/// the bindings visible there; each branch starts from the same
+/// card-collection scope, and a scope that differs after the instruction does
+/// not escape it. A replacing (`instead`) conditional opens its scope where
+/// the replaced sentence begins: its `If` branch starts from the scope before
+/// the replaced actions, which it replaces.
 struct ConditionalScopes {
     conditions: Vec<Option<Value>>,
+    /// A condition that reads a target its own branch declares (`destroy
+    /// target creature if it's tapped`): targets are declared at casting
+    /// (CR 601.2c), before any condition is checked, so the condition is
+    /// lowered once its branch's targets are known, with the position-bound
+    /// inputs read where its `If` sentence begins.
+    deferred: Vec<Option<DeferredCondition>>,
     before: Vec<Option<CardCollectionMemory>>,
     after_then: Vec<Option<CardCollectionMemory>>,
+}
+
+/// The inputs of a deferred condition read where its branch begins.
+struct DeferredCondition {
+    card_focus: Option<Value>,
+    previous_action_result: Option<String>,
 }
 
 impl ConditionalScopes {
@@ -2489,11 +2558,11 @@ impl ConditionalScopes {
         let mut previous_end = 0;
         for conditional in &sequence.conditionals {
             cursor.require(
-                previous_end <= conditional.then_first
+                previous_end <= conditional.start()
                     && conditional.then_first < conditional.then_end
-                    && conditional
-                        .else_end
-                        .is_none_or(|end| conditional.then_end < end)
+                    && conditional.else_end.is_none_or(|end| {
+                        conditional.then_end < end || end < conditional.then_first
+                    })
                     && conditional.end() <= sequence.effects.len(),
                 "ordered, nonempty and disjoint conditional sentence ranges",
             )?;
@@ -2505,9 +2574,13 @@ impl ConditionalScopes {
                 "a sequence without both a sentence conditional and a postposed definition of X",
             )));
         }
+        // Later lowering failures belong to the action being lowered, not
+        // to the conditional ranges checked here.
+        cursor.enter("lower.effect-sequence.actions");
         let count = sequence.conditionals.len();
         Ok(Self {
             conditions: vec![None; count],
+            deferred: (0..count).map(|_| None).collect(),
             before: vec![None; count],
             after_then: vec![None; count],
         })
@@ -2523,6 +2596,32 @@ impl ConditionalScopes {
         card_targets: &[(TargetBinding, String)],
         mut previous: PreviousActionResult<'_>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
+        for (index, conditional) in sequence.conditionals.iter().enumerate() {
+            if conditional.then_end == effect_index
+                && let Some(deferred) = self.deferred[index].take()
+            {
+                let bindings = ConditionObjectBindings {
+                    permanent_targets,
+                    card_targets,
+                    card_focus: deferred.card_focus,
+                    previous_action_result: deferred.previous_action_result,
+                };
+                let mut condition =
+                    lower_sentence_condition(cursor, &conditional.condition, &bindings)
+                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                bind_action_result_objects(
+                    previous.action_starts,
+                    previous.effects.as_mut_slice(),
+                    conditional.then_first,
+                    &mut condition,
+                )
+                .map_err(|expected| {
+                    cursor.enter("lower.action-result.condition");
+                    EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+                })?;
+                self.conditions[index] = Some(condition);
+            }
+        }
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
             if conditional.end() == effect_index {
                 let reference = self.after_then[index]
@@ -2540,11 +2639,25 @@ impl ConditionalScopes {
             }
         }
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
-            if conditional.else_end.is_some() && conditional.then_end == effect_index {
+            if conditional.otherwise_end().is_some() && conditional.then_end == effect_index {
                 self.after_then[index] = Some(collections.clone());
                 let before = self.before[index]
                     .as_ref()
                     .expect("a conditional scope opens before its other branch");
+                collections.restore_scope(before);
+            }
+        }
+        for (index, conditional) in sequence.conditionals.iter().enumerate() {
+            // The replaced sentence is the branch written first; the
+            // replacing branch starts from the scope before it.
+            if conditional.replaced_first() == Some(effect_index) {
+                self.before[index] = Some(collections.clone());
+            }
+            if conditional.replaced_first().is_some() && conditional.then_first == effect_index {
+                self.after_then[index] = Some(collections.clone());
+                let before = self.before[index]
+                    .as_ref()
+                    .expect("a replaced sentence opens its conditional scope");
                 collections.restore_scope(before);
             }
         }
@@ -2556,15 +2669,31 @@ impl ConditionalScopes {
                     } else {
                         None
                     };
+                let card_focus = collections.singular_focus_object();
                 let bindings = ConditionObjectBindings {
                     permanent_targets,
                     card_targets,
-                    card_focus: collections.singular_focus_object(),
-                    previous_action_result,
+                    card_focus: card_focus.clone(),
+                    previous_action_result: previous_action_result.clone(),
                 };
                 let mut condition =
-                    lower_sentence_condition(cursor, &conditional.condition, &bindings)
-                        .map_err(EffectSequenceLoweringFailure::FailedSupport)?;
+                    match lower_sentence_condition(cursor, &conditional.condition, &bindings) {
+                        Ok(condition) => condition,
+                        // The condition may read a target its own branch
+                        // declares; it is lowered again once that branch's
+                        // targets are bound, and fails there if still unbound.
+                        Err(_) if conditional.replaced_first().is_none() => {
+                            self.deferred[index] = Some(DeferredCondition {
+                                card_focus,
+                                previous_action_result,
+                            });
+                            self.before[index] = Some(collections.clone());
+                            continue;
+                        }
+                        Err(failure) => {
+                            return Err(EffectSequenceLoweringFailure::FailedSupport(failure));
+                        }
+                    };
                 // `if a land card was milled this way` reads the action before it.
                 bind_action_result_objects(
                     previous.action_starts,
@@ -2577,7 +2706,9 @@ impl ConditionalScopes {
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
                 self.conditions[index] = Some(condition);
-                self.before[index] = Some(collections.clone());
+                if conditional.replaced_first().is_none() {
+                    self.before[index] = Some(collections.clone());
+                }
             }
         }
         Ok(())
@@ -2585,21 +2716,44 @@ impl ConditionalScopes {
 
     /// Replaces each conditional's action range by one `conditional` node.
     /// Target declarations stay ability-wide (CR 601.2c); a branch governed
-    /// by a cast choice such as kicker cannot own a required target.
+    /// by a cast choice such as kicker cannot own a required target. A
+    /// target both branches act on is required whichever branch is taken
+    /// (`Target creature gets -2/-2 ... If this spell was kicked, that
+    /// creature gets -6/-6 ... instead.`).
     fn wrap(
         &mut self,
         cursor: &mut OracleTokenCursor<'_>,
         sequence: &EffectSequenceNode,
         action_starts: &[(usize, usize)],
+        decisions: &[Value],
         effects: &mut Vec<Value>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
         for (index, conditional) in sequence.conditionals.iter().enumerate().rev() {
-            let (then_from, decisions_from) = action_starts[conditional.then_first];
+            let (start_from, decisions_from) = action_starts[conditional.start()];
+            let (then_from, _) = action_starts[conditional.then_first];
             let (then_to, _) = action_starts[conditional.then_end];
             let (else_to, decisions_to) = action_starts[conditional.end()];
+            let condition = self.conditions[index]
+                .take()
+                .expect("every conditional is lowered at its first action");
+            let (then, otherwise) = if conditional.replaced_first().is_some() {
+                // `instead`: the replaced sentence is the other branch.
+                let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
+                let otherwise = effects.drain(start_from..then_from).collect::<Vec<_>>();
+                (then, otherwise)
+            } else {
+                let otherwise = effects.drain(then_to..else_to).collect::<Vec<_>>();
+                let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
+                (then, otherwise)
+            };
             cursor.enter("lower.sentence-conditional.cast-choice-targets");
+            let governed = decisions.get(decisions_from..decisions_to).unwrap_or(&[]);
             if sentence_condition_depends_on_cast_choice(&conditional.condition)
-                && decisions_from != decisions_to
+                && !governed.iter().all(|decision| {
+                    decision["id"].as_str().is_some_and(|id| {
+                        mentions_identifier(&then, id) && mentions_identifier(&otherwise, id)
+                    })
+                })
             {
                 return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                     cursor.fail(
@@ -2607,13 +2761,8 @@ impl ConditionalScopes {
                     ),
                 ));
             }
-            let condition = self.conditions[index]
-                .take()
-                .expect("every conditional is lowered at its first action");
-            let otherwise = effects.drain(then_to..else_to).collect::<Vec<_>>();
-            let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
             effects.insert(
-                then_from,
+                start_from,
                 json!({
                     "kind": "conditional",
                     "condition": condition,
@@ -2624,6 +2773,19 @@ impl ConditionalScopes {
         }
         Ok(())
     }
+}
+
+/// Whether a lowered program names the declaration `id` anywhere.
+fn mentions_identifier(effects: &[Value], id: &str) -> bool {
+    fn walk(value: &Value, id: &str) -> bool {
+        match value {
+            Value::String(text) => text == id,
+            Value::Array(items) => items.iter().any(|item| walk(item, id)),
+            Value::Object(map) => map.values().any(|child| walk(child, id)),
+            _ => false,
+        }
+    }
+    effects.iter().any(|effect| walk(effect, id))
 }
 
 fn collect_action_result_references(value: &Value, found: &mut Vec<usize>) {
@@ -2714,7 +2876,20 @@ struct PreviousActionResult<'a> {
 impl PreviousActionResult<'_> {
     /// Runtime actions whose `bind` records whether they were performed: the
     /// object they acted on, or nothing when they could not act.
-    const RECORDING_KINDS: [&'static str; 1] = ["removeCounters"];
+    const RECORDING_KINDS: [&'static str; 2] = ["removeCounters", "sacrificePermanent"];
+
+    /// Whether `effect` records whether it was performed in its `bind`: a
+    /// recording kind, or the sacrifice of exactly one chosen permanent
+    /// (`sacrifice a creature. If you can't, ...`, CR 701.21a), whose bound
+    /// set is empty exactly when the player had nothing to sacrifice.
+    fn records_performance(effect: &Value) -> bool {
+        effect["kind"]
+            .as_str()
+            .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
+            || (effect["kind"].as_str() == Some("sacrificePermanents")
+                && (effect["count"].as_i64() == Some(1)
+                    || effect["count"] == json!({ "kind": "integer", "value": 1 })))
+    }
 
     /// Binds the result of the instruction before `reader`, which must be
     /// exactly one top-level recording action. `None` without an earlier
@@ -2732,11 +2907,7 @@ impl PreviousActionResult<'_> {
             return Ok(None);
         };
         let producers = (from..self.effects.len())
-            .filter(|position| {
-                self.effects[*position]["kind"]
-                    .as_str()
-                    .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
-            })
+            .filter(|position| Self::records_performance(&self.effects[*position]))
             .collect::<Vec<_>>();
         let [position] = producers.as_slice() else {
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
@@ -3739,6 +3910,61 @@ fn declare_player_targets(
     }
     decisions.push(decision);
     declared_player_targets.push((key, target_id));
+    Ok(())
+}
+
+/// `return this card from your graveyard to the battlefield`, then an action
+/// reading the permanent it became (`It gains haste`, CR 400.7): the source's
+/// move binds the moved-onto-battlefield result only when a later primitive
+/// reads it, through the program's single allocation of that binding.
+fn bind_returned_source_when_read(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    collections: &mut CardCollectionMemory,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    fn reads(value: &Value) -> bool {
+        match value {
+            Value::Array(values) => values.iter().any(reads),
+            Value::Object(object) => {
+                object.get("binding").and_then(Value::as_str)
+                    == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+                    || object.values().any(reads)
+            }
+            _ => false,
+        }
+    }
+    fn is_source_return(effect: &Value) -> bool {
+        effect.get("kind").and_then(Value::as_str) == Some("moveCards")
+            && effect["cards"] == self_ref()
+            && effect["from"]["kind"].as_str() == Some("graveyard")
+            && effect["to"]["kind"].as_str() == Some("battlefield")
+    }
+    if !effects.iter().any(reads)
+        || effects.iter().any(|effect| {
+            effect.get("bind").and_then(Value::as_str) == Some(MOVED_ONTO_BATTLEFIELD_BINDING)
+        })
+    {
+        return Ok(());
+    }
+    let returns = effects
+        .iter()
+        .filter(|effect| is_source_return(effect) && effect.get("bind").is_none())
+        .count();
+    if returns == 0 {
+        return Ok(());
+    }
+    cursor.enter("lower.move-source.battlefield-entry.binding");
+    if returns != 1 || !collections.allocate_moved_onto_battlefield() {
+        return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("one battlefield entry whose permanent a later action reads"),
+        ));
+    }
+    if let Some(effect) = effects
+        .iter_mut()
+        .find(|effect| is_source_return(effect) && effect.get("bind").is_none())
+    {
+        effect["bind"] = json!(MOVED_ONTO_BATTLEFIELD_BINDING);
+    }
     Ok(())
 }
 

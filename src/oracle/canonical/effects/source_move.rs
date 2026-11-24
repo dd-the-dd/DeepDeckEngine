@@ -66,6 +66,15 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
             if effect.face_change == SourceFaceChange::Transform {
                 destination["faceChange"] = json!({ "kind": "transformFace" });
             }
+            // CR 122.6: the counters are placed as the source enters. An
+            // amount the shared numeric lowering cannot represent stays an
+            // explicit unsupported operand (`null`), never zero.
+            if let Some(counters) = &effect.entering_counters {
+                destination["enterWithCounters"] = json!([{
+                    "counter": counters.counter.as_str(),
+                    "count": lower_numeric_expression(&counters.count).unwrap_or(Value::Null),
+                }]);
+            }
             json!({
                 "kind": "moveCards",
                 "cards": cards,

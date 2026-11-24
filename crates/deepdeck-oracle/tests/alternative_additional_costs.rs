@@ -145,7 +145,7 @@ fn claimed_malformed_members_fail_at_the_responsible_cost_state() {
         ),
         (
             "As an additional cost to cast this spell, discard a card or pay 3 life immediately.\nDestroy target creature.",
-            "additional-cost.alternative.connector-or-terminator",
+            "additional-cost.terminator",
             "immediately",
         ),
     ] {
@@ -158,10 +158,7 @@ fn claimed_malformed_members_fail_at_the_responsible_cost_state() {
         );
         assert_eq!(ability.status, "unsupported", "{oracle_text}");
         let diagnostic = ability.diagnostics.first().unwrap();
-        assert_eq!(
-            diagnostic.automaton.as_deref(),
-            Some("alternative-additional-cost")
-        );
+        assert_eq!(diagnostic.automaton.as_deref(), Some("additional-cost"));
         assert_eq!(diagnostic.state.as_deref(), Some(state));
         assert_eq!(diagnostic.found.as_deref(), Some(found));
     }

@@ -293,8 +293,6 @@ fn unsupported_type_change_shapes_fail_explicitly() {
         "Until end of turn, target land becomes a 3/3 Elemental.",
         // Additive colors have no color-set primitive here (CR 105.3).
         "Target creature becomes a black Demon in addition to its other colors and types.",
-        // A characteristic-defined power/toughness is not a literal base P/T.
-        "Until end of turn, target artifact becomes an artifact creature with power and toughness each equal to its mana value.",
         // The retained type must be a prior type, not a new one.
         "Until end of turn, target land becomes a 3/3 creature. It's still a creature.",
         // Two base power/toughness values for one effect.

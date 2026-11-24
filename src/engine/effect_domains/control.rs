@@ -10,6 +10,7 @@ pub(super) fn movement_is_owned_by_child_frames(effect: &Value) -> bool {
         value_kind(effect),
         Some(
             "forEachObject"
+                | "repeatEffects"
                 | "chooseOneEffect"
                 | "optionalEffects"
                 | "optionalAction"
@@ -93,6 +94,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
         }
+        // `ACTION twice` / `ACTION N times`: the same instructions performed
+        // that many times in a row, the count read once before the first.
+        Some("repeatEffects") => {
+            numeric_expression_supported(&effect["count"])
+                && effect["effects"].as_array().is_some_and(|effects| {
+                    !effects.is_empty() && effects.iter().all(effect_supported)
+                })
+        }
         Some("conditional" | "conditionalEffect") => {
             condition_supported(&effect["condition"])
                 && ["then", "else"]
@@ -151,6 +160,17 @@ impl GameEngine {
         provider: &mut P,
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
+            Some("repeatEffects") => {
+                let count = self
+                    .runtime_numeric_expression(&effect["count"], stack_object, bindings, decisions)
+                    .unwrap_or(0)
+                    .max(0);
+                let nested =
+                    Value::Array(effect["effects"].as_array().cloned().unwrap_or_default());
+                for _ in 0..count {
+                    self.execute_effects(&nested, stack_object, bindings, decisions, provider)?;
+                }
+            }
             Some("forEachObject") => {
                 let objects = self
                     .resolve_runtime_object_ids(

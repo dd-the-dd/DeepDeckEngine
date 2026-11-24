@@ -53,22 +53,50 @@ fn optional_scope_is_its_own_sentence_and_later_sentences_are_independent_steps(
 }
 
 #[test]
-fn optional_scope_rejects_an_inner_conditional_or_second_permission() {
-    for text in [
-        "you may destroy target artifact and you may draw a card.",
-        "you may destroy target artifact if you control a creature. Draw a card.",
-    ] {
-        let tokens = recognize_entities(text);
-        let mut cursor = OracleTokenCursor::new("optional-scope-cap", &tokens);
-        let failure = recognize_effect_program_with_context(
-            &mut cursor,
-            &[],
-            None,
-            &EffectRecognitionContext::default(),
-        )
-        .unwrap_err();
-        assert_eq!(failure.state, "program.optional.scope", "{text}");
-    }
+fn optional_scope_rejects_a_second_permission() {
+    let text = "you may destroy target artifact and you may draw a card.";
+    let tokens = recognize_entities(text);
+    let mut cursor = OracleTokenCursor::new("optional-scope-cap", &tokens);
+    let failure = recognize_effect_program_with_context(
+        &mut cursor,
+        &[],
+        None,
+        &EffectRecognitionContext::default(),
+    )
+    .unwrap_err();
+    assert_eq!(failure.state, "program.optional.scope", "{text}");
+}
+
+#[test]
+fn a_postposed_condition_in_a_permission_is_read_by_the_shared_sequence() {
+    let text = "you may destroy target artifact if you control a creature. Draw a card.";
+    let tokens = recognize_entities(text);
+    // A parent that lowers no sentence conditional still refuses it, in the
+    // sequence that reads the condition rather than in the permission scope.
+    let mut cursor = OracleTokenCursor::new("optional-scope-condition", &tokens);
+    let failure = recognize_effect_program_with_context(
+        &mut cursor,
+        &[],
+        None,
+        &EffectRecognitionContext::default(),
+    )
+    .unwrap_err();
+    assert_ne!(failure.state, "program.optional.scope", "{text}");
+    let mut cursor = OracleTokenCursor::new("optional-scope-condition", &tokens);
+    let program = recognize_effect_program_with_context(
+        &mut cursor,
+        &[],
+        None,
+        &EffectRecognitionContext::default().with_sentence_conditionals(),
+    )
+    .expect("the permission body reads its postposed condition");
+    let EffectProgramNode::Steps(steps) = program else {
+        panic!("the permission and the next sentence are independent steps")
+    };
+    let EffectProgramNode::Optional { body, .. } = &steps[0] else {
+        panic!("the permission comes first")
+    };
+    assert_eq!(body.inner_sequence().conditionals.len(), 1);
 }
 
 #[test]

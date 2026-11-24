@@ -164,6 +164,11 @@ fn lower_adapt_program(object: Value, quantity: Value) -> Vec<Value> {
 
 /// The permanent gets the designation (kept until it leaves, CR 701.37b).
 fn set_designation(object: Value, designation: PermanentDesignation) -> Value {
+    // Prepare: the engine's `setPrepared` installs the permission to cast a
+    // copy of the prepare spell with the flag; a bare flag would not.
+    if designation == PermanentDesignation::Prepared {
+        return json!({ "kind": "setPrepared", "object": object, "value": true });
+    }
     json!({
         "kind": "setPermanentFlag",
         "object": object,
@@ -480,12 +485,23 @@ pub(in crate::oracle::canonical) fn lower_controller_keyword_action(
 pub(in crate::oracle::canonical) fn lower_investigate(
     effect: &InvestigateEffectNode,
 ) -> Option<Value> {
-    (effect.player == LocalPlayerReference::Controller).then(|| {
-        json!({
-            "kind": "createTokens", "controller": controller(), "quantity": integer(1),
-            "token": { "kind": "namedToken", "name": "Clue" },
-        })
-    })
+    if effect.player != LocalPlayerReference::Controller {
+        return None;
+    }
+    let investigation = json!({
+        "kind": "createTokens", "controller": controller(), "quantity": integer(1),
+        "token": { "kind": "namedToken", "name": "Clue" },
+    });
+    if effect.times == NumericExpression::from(1_i64) {
+        return Some(investigation);
+    }
+    // `investigate twice|N times`: N separate investigations, each its own
+    // token creation event, the count read once before the first.
+    Some(json!({
+        "kind": "repeatEffects",
+        "count": lower_numeric_expression(&effect.times)?,
+        "effects": [investigation],
+    }))
 }
 
 #[cfg(test)]

@@ -411,8 +411,23 @@ fn recognize_target_slot(
             }
             TargetSlotState::TargetHead => {
                 cursor.enter("target-list.slot.target-head");
-                cursor.consume("target")?;
-                TargetSlotState::Selector
+                // `two targets`, `up to three other targets`, `X targets`:
+                // the plural of `any target` (CR 115.4) after a count of
+                // more than one. The head is the whole selector.
+                let plural_count = count.is_some()
+                    || cardinality.is_some_and(|cardinality| cardinality.maximum > 1);
+                if plural_count
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("targets"))
+                {
+                    cursor.consume("targets")?;
+                    selector = Some(TargetSelector::Any);
+                    TargetSlotState::Complete
+                } else {
+                    cursor.consume("target")?;
+                    TargetSlotState::Selector
+                }
             }
             TargetSlotState::DeterminedHead => {
                 cursor.enter("target-list.slot.determined-head");

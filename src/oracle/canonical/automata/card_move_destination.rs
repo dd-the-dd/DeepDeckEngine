@@ -35,6 +35,11 @@ pub(in crate::oracle::canonical) struct CardMoveDestinationNode {
     /// Fortification becomes attached to (CR 303.4f, 301.5c). Battlefield
     /// only.
     pub attached_to: Option<EntryAttachmentNode>,
+    /// `put them back [in any order]`, `on the bottom of that library`: the
+    /// library is the one the moved cards were observed in. The consuming
+    /// lowerer proves the cards are such an observation; the cards' owner's
+    /// library is that library (CR 400.3).
+    pub origin_library: bool,
 }
 
 /// The one permanent `attached to` names, read by the shared readers: the
@@ -55,7 +60,7 @@ pub(in crate::oracle::canonical) struct EnteringCountersNode {
 }
 
 /// `with N COUNTER counter(s) on it|them` after a battlefield destination.
-fn recognize_entering_counters(
+pub(in crate::oracle::canonical) fn recognize_entering_counters(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<EnteringCountersNode> {
     cursor.enter("collection.destination.entering-counters");
@@ -311,11 +316,84 @@ fn recognize_entry_attachment(
 pub(in crate::oracle::canonical) type CardMoveDestinationAttempt =
     CollectionOperandAttempt<CardMoveDestinationNode>;
 
+/// `back [on top of LIBRARY] [in any order|in a random order]`: the moved
+/// cards return to the top of the library they were observed in (`look at
+/// the top five cards of your library, then put them back in any order`).
+fn recognize_back_destination(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardMoveDestinationNode> {
+    cursor.enter("collection.destination.back");
+    cursor.consume("back")?;
+    let mut destination = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("on"))
+    {
+        // `back on top of your library`: the restated library destination.
+        cursor.enter("collection.destination.back.restated");
+        match try_recognize_card_move_destination(cursor) {
+            CollectionOperandAttempt::Recognized(fragment) => fragment.node,
+            CollectionOperandAttempt::NotClaimed => {
+                return Err(cursor.fail("`on top of` the library the cards came from"));
+            }
+            CollectionOperandAttempt::RejectedCandidate(failure)
+            | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+        }
+    } else {
+        let order = if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
+        {
+            cursor.enter("collection.destination.order");
+            Some(recognize_collection_order(cursor)?)
+        } else {
+            None
+        };
+        CardMoveDestinationNode {
+            zone: CardZoneName::Library,
+            owner: CardMoveOwnerNode::EachCardOwner,
+            position: Some(LibraryPosition::Top),
+            order,
+            tapped: false,
+            entering_counters: None,
+            face_down: false,
+            transformed: false,
+            shuffle: false,
+            attached_to: None,
+            origin_library: false,
+        }
+    };
+    cursor.enter("collection.destination.back.library-top");
+    cursor.require(
+        destination.zone == CardZoneName::Library
+            && destination.position == Some(LibraryPosition::Top),
+        "the top of the library the cards were put back on",
+    )?;
+    destination.origin_library = true;
+    Ok(destination)
+}
+
 /// Reads a destination phrase, never the move action or its object binding.
 pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> CardMoveDestinationAttempt {
     let mut trial = cursor.clone();
+    if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("back"))
+    {
+        return match recognize_back_destination(&mut trial) {
+            Ok(node) => {
+                trial.enter("collection.destination.complete");
+                let end_position = trial.position();
+                *cursor = trial;
+                CollectionOperandAttempt::Recognized(RecognizedEffectFragment {
+                    node,
+                    end_position,
+                })
+            }
+            Err(failure) => CollectionOperandAttempt::FailedCommitted(failure),
+        };
+    }
     let relation = match trial.peek().map(str::to_ascii_lowercase).as_deref() {
         Some("into") => "into",
         Some("to") => "to",
@@ -350,8 +428,25 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("battlefield"));
         let mut owned_zone_only = false;
+        let mut origin_library = false;
+        // The grammatical number of the possessor: `your graveyard`, `its
+        // owner's hand` name one zone; `their owners' hands` several. A bare
+        // `their` agrees with either.
+        let mut plural_possessor = Some(false);
         let owner = if !battlefield {
             if trial
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+                && trial
+                    .peek_ahead(1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("library"))
+            {
+                // `on the bottom of that library`: the library the moved
+                // cards were observed in, which is their owner's (CR 400.3).
+                trial.consume("that")?;
+                origin_library = true;
+                CardMoveOwnerNode::EachCardOwner
+            } else if trial
                 .peek()
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
             {
@@ -381,6 +476,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                             .any(|form| raw.eq_ignore_ascii_case(form))
                     })
                     .map(str::to_owned);
+                plural_possessor = match owner.as_deref() {
+                    Some(form) => Some(form.to_ascii_lowercase().starts_with("owners")),
+                    None => None,
+                };
                 match owner {
                     Some(owner) => trial.consume(&owner)?,
                     // `to their hand`, `on top of their library`: a player's
@@ -398,7 +497,16 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
         };
         trial.enter("collection.destination.zone");
+        let plural_zone = trial.peek().is_some_and(|raw| {
+            ["graveyards", "libraries", "hands"]
+                .iter()
+                .any(|noun| raw.eq_ignore_ascii_case(noun))
+        });
         let zone = recognize_card_zone_atom(&mut trial)?;
+        trial.require(
+            battlefield || plural_possessor.is_none_or(|plural| plural == plural_zone),
+            "a zone noun agreeing in number with its possessor",
+        )?;
         // `return ... to the battlefield` names the same battlefield entry as
         // `put ... onto the battlefield`; `into the battlefield` is not Oracle.
         trial.require(if surface { zone == CardZoneName::Battlefield || (zone == CardZoneName::Library && position.is_some()) } else { (zone != CardZoneName::Battlefield || relation == "to") && position.is_none() }, "on/onto/to the battlefield or a positioned library; into/to an explicitly owned card zone")?;
@@ -413,6 +521,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                     CardZoneName::Hand | CardZoneName::Library | CardZoneName::Graveyard
                 ),
             "a hand, library or graveyard after a bare player possessive",
+        )?;
+        trial.require(
+            !origin_library || zone == CardZoneName::Library,
+            "`that` naming a library",
         )?;
         let mut modifiers = EntryModifiers::new(owner);
         if matches!(zone, CardZoneName::Battlefield | CardZoneName::Exile) {
@@ -451,6 +563,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             transformed,
             shuffle: false,
             attached_to,
+            origin_library,
         })
     })();
     match result {

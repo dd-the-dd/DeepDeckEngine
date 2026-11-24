@@ -111,11 +111,12 @@ impl GameEngine {
                         TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
                     });
                 // A declared object source that became illegal deals no damage
-                // (CR 608.2b); only the ability's own source keeps its LKI.
+                // (CR 608.2b), nor does an attached object that is no longer
+                // attached; only the ability's own source keeps its LKI.
                 if resolved_source.is_none()
                     && matches!(
                         value_kind(&effect["source"]),
-                        Some("chosenTarget" | "chosenTargets")
+                        Some("chosenTarget" | "chosenTargets" | "attachedPermanent")
                     )
                 {
                     return Ok(());

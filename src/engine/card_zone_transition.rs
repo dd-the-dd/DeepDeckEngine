@@ -566,6 +566,8 @@ impl GameEngine {
     ) -> PreparedGraveyardDestination {
         use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacementOrder};
         use super::*;
+        // The finality counter is one of the proposed graveyard-destination
+        // replacements (replacement_pipeline.rs).
         let graveyard_owner_id = self.state.players[player_index].id.clone();
         // Every proposal sends the card to exile; they differ only in
         // attribution, so the first proposal in precedence order applies.

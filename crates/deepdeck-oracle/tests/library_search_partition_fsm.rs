@@ -156,8 +156,9 @@ fn claimed_near_misses_fail_in_the_responsible_local_state() {
             "effect.collection-partition.remainder-reference",
             Some("the"),
         ),
+        // A comma or `then` joins the shuffle; juxtaposition does not.
         (
-            "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, shuffle.",
+            "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand shuffle.",
             "sequence.library-search-partition.shuffle-connector",
             Some("shuffle"),
         ),

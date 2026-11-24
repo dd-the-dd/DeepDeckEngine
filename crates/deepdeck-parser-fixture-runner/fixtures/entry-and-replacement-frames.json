@@ -1,0 +1,893 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "entry-and-replacement-frames",
+  "cases": [
+    {
+      "id": "exact-vivid-creek-tapped-with-counters",
+      "request": {
+        "cardName": "Vivid Creek",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped with two charge counters on it.\n{T}: Add {U}.\n{T}, Remove a charge counter from this land: Add one mana of any color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "replacementEffect"
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/1/kind",
+                "equals": "putEnteringCounters"
+              },
+              {
+                "pointer": "/replacement/1/counter",
+                "equals": "charge"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-slumbering-waterways-older-battlefield-wording",
+      "request": {
+        "cardName": "Slumbering Waterways",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "Slumbering Waterways enters the battlefield tapped.\n{T}: Add {G} or {U}.\nFlying, vigilance, trample",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/0/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thriving-heath-choice-after-entering-state",
+      "request": {
+        "cardName": "Thriving Heath",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped. As it enters, choose a color other than white.\n{T}: Add {W} or one mana of the chosen color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseColor"
+              },
+              {
+                "pointer": "/decisions/0/options",
+                "equals": [
+                  "U",
+                  "B",
+                  "R",
+                  "G"
+                ]
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/1/kind",
+                "equals": "storeDecision"
+              },
+              {
+                "pointer": "/replacement/1/decisionId",
+                "equals": "chosenColor"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "chooseOne"
+              },
+              {
+                "pointer": "/effects/0/mana/options/0",
+                "equals": "{W}"
+              },
+              {
+                "pointer": "/effects/0/mana/options/1/kind",
+                "equals": "storedColor"
+              },
+              {
+                "pointer": "/effects/0/mana/options/1/decisionId",
+                "equals": "chosenColor"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-uncharted-haven-mana-of-the-chosen-color",
+      "request": {
+        "cardName": "Uncharted Haven",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped. As it enters, choose a color.\n{T}: Add one mana of the chosen color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/options",
+                "equals": [
+                  "W",
+                  "U",
+                  "B",
+                  "R",
+                  "G"
+                ]
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "storedColor"
+              },
+              {
+                "pointer": "/effects/0/mana/decisionId",
+                "equals": "chosenColor"
+              },
+              {
+                "pointer": "/effects/0/mana/amount",
+                "equals": 1
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-rally-the-ranks-static-reads-the-entry-creature-type",
+      "request": {
+        "cardName": "Rally the Ranks",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "As this enchantment enters, choose a creature type.\nCreatures you control of the chosen type get +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCreatureType"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-three-tree-city-named-source-entry-choice",
+      "request": {
+        "cardName": "Three Tree City",
+        "typeLine": "Legendary Land",
+        "manaCost": "",
+        "oracleText": "As Three Tree City enters, choose a creature type.\n{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "effect.add-any-color-mana.mana-noun",
+            "found": "amount"
+          }
+        ],
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCreatureType"
+              },
+              {
+                "pointer": "/replacement/0/decisionId",
+                "equals": "chosenCreatureType"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-clone-optional-copy",
+      "request": {
+        "cardName": "Clone",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{3}{U}",
+        "oracleText": "You may have this creature enter as a copy of any creature on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseBattlefieldPermanent"
+              },
+              {
+                "pointer": "/decisions/0/optional",
+                "equals": true
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "copyEnteringPermanent"
+              },
+              {
+                "pointer": "/replacement/0/tapped",
+                "equals": false
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-vesuva-tapped-copy",
+      "request": {
+        "cardName": "Vesuva",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "You may have this land enter tapped as a copy of any land on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "copyEnteringPermanent"
+              },
+              {
+                "pointer": "/replacement/0/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-mirror-image-copy-of-a-controlled-creature",
+      "request": {
+        "cardName": "Mirror Image",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may have this creature enter as a copy of a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/controlledByEnteringController",
+                "equals": true
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-port-town-reveal-or-tapped",
+      "request": {
+        "cardName": "Port Town",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "As this land enters, you may reveal a Plains or Island card from your hand. If you don't, this land enters tapped.\n{T}: Add {W} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseRevealCard"
+              },
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/replacement/0/then/0/kind",
+                "equals": "setEnteringState"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-optional-reveal-fallback-with-counter-no-new-code",
+      "request": {
+        "cardName": "Probe Drake",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}",
+        "oracleText": "As this creature enters, you may reveal a Dragon card from your hand. If you don't, this creature enters tapped with a -1/-1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseRevealCard"
+              },
+              {
+                "pointer": "/replacement/0/condition/operator",
+                "equals": "=="
+              },
+              {
+                "pointer": "/replacement/0/then/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/0/then/1/kind",
+                "equals": "putEnteringCounters"
+              },
+              {
+                "pointer": "/replacement/0/then/1/counter",
+                "equals": "-1/-1"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-optional-entry-discard-has-no-entry-runtime",
+      "request": {
+        "cardName": "Probe Discard Drake",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}",
+        "oracleText": "As this creature enters, you may discard a Dragon card. If you don't, this creature enters tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "revealing one chosen card from your hand"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mondrak-passive-token-doubling",
+      "request": {
+        "cardName": "Mondrak, Glory Dominus",
+        "typeLine": "Legendary Creature — Phyrexian Horror",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "If one or more tokens would be created under your control, twice that many of those tokens are created instead.\n{1}{W/P}{W/P}, Sacrifice two other artifacts and/or creatures: Put an indestructible counter on Mondrak. ({W/P} can be paid with either {W} or 2 life.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "replaceEventQuantity"
+              },
+              {
+                "pointer": "/modifiers/0/event/kind",
+                "equals": "tokenCreation"
+              },
+              {
+                "pointer": "/modifiers/0/event/origin",
+                "equals": "any"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-thought-reflection-draw-replacement",
+      "request": {
+        "cardName": "Thought Reflection",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{U}{U}{U}",
+        "oracleText": "If you would draw a card, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "increaseEachDrawCount"
+              },
+              {
+                "pointer": "/modifiers/0/amount",
+                "equals": 1
+              },
+              {
+                "pointer": "/modifiers/0/exceptFirstInDrawStep",
+                "equals": false
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-eldrazi-temple-spending-union",
+      "request": {
+        "cardName": "Eldrazi Temple",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{T}: Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-power-depot-spending-union",
+      "request": {
+        "cardName": "Power Depot",
+        "typeLine": "Artifact Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast artifact spells or activate abilities of artifacts.\nModular 1",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "allowDiagnostics": true,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-basic-land-type-choice-read-by-a-hexproof-grant",
+      "request": {
+        "cardName": "Probe Warded Lands",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{G}",
+        "oracleText": "As this enters, choose a basic land type.\nLands you control of the chosen type have hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseBasicLandType"
+              },
+              {
+                "pointer": "/replacement/0/decisionId",
+                "equals": "chosenBasicLandType"
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ],
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-card-type-choice-with-named-source",
+      "request": {
+        "cardName": "Probe Typekeeper",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "As Probe Typekeeper enters, choose a card type.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/decisions/0/kind",
+                "equals": "chooseCardType"
+              },
+              {
+                "pointer": "/replacement/0/decisionId",
+                "equals": "chosenCardType"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-tapped-copy-with-haste-and-counters-of-shared-children",
+      "request": {
+        "cardName": "Probe Shifter",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{3}{U}",
+        "oracleText": "This creature enters tapped with a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/replacement/0/kind",
+                "equals": "setEnteringState"
+              },
+              {
+                "pointer": "/replacement/1/counter",
+                "equals": "+1/+1"
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-draw-replacement-except-first-in-draw-step",
+      "request": {
+        "cardName": "Probe Archive",
+        "typeLine": "Artifact",
+        "manaCost": "{5}",
+        "oracleText": "If you would draw a card except the first one you draw in each of your draw steps, draw three cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/amount",
+                "equals": 2
+              },
+              {
+                "pointer": "/modifiers/0/exceptFirstInDrawStep",
+                "equals": true
+              }
+            ]
+          }
+        ],
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-entry-choice-needs-a-permanent-face",
+      "request": {
+        "cardName": "Probe Chromatic Rally",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "As this enters, choose a color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "As"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-laboratory-maniac-unsupported-draw-condition",
+      "request": {
+        "cardName": "Laboratory Maniac",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "If you would draw a card while your library has no cards in it, you win the game instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "replacement.event.separator"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-draw-replacement-with-an-unsupported-program",
+      "request": {
+        "cardName": "Probe Study",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{U}",
+        "oracleText": "If you would draw a card, you may put a study counter on this enchantment instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "replacement.program.draw"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-entry-choice-of-an-opponent-has-no-stored-domain",
+      "request": {
+        "cardName": "Probe Grudge",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{B}",
+        "oracleText": "As this creature enters, choose an opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "replacement.entry-choice.domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-exception-without-runtime-primitive",
+      "request": {
+        "cardName": "Probe Mimic",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{3}{U}",
+        "oracleText": "You may have this creature enter as a copy of any creature on the battlefield, except it's an artifact in addition to its other types.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "replacement.entry-frame.copy-exception.runtime"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-mana-of-the-chosen-color-without-an-entry-choice",
+      "request": {
+        "cardName": "Probe Prism",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add one mana of the chosen color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "binding.chosen-color.entry-source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-spending-on-any-ability-has-no-runtime-restriction",
+      "request": {
+        "cardName": "Probe Battery",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Add {C}{C}. Spend this mana only to cast an artifact spell or activate an ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "mana.policy.runtime-union"
+          }
+        ]
+      }
+    }
+  ]
+}

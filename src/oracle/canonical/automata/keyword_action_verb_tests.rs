@@ -124,6 +124,8 @@ fn proliferate_is_an_imperative_player_action() {
 
 #[test]
 fn proliferate_near_miss_fails_explicitly() {
-    let result = parse("Near Miss", "Sorcery", "Proliferate twice.");
+    // `Proliferate twice.` is now the shared repetition adjunct; an
+    // unbounded repetition has no amount the adjunct can read.
+    let result = parse("Near Miss", "Sorcery", "Proliferate any number of times.");
     assert!(result.abilities[0].rule.is_none());
 }

@@ -1,0 +1,1104 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card-actions/card-action-frame",
+  "cases": [
+    {
+      "id": "exact-efreet-flamepainter",
+      "request": {
+        "cardName": "Efreet Flamepainter",
+        "typeLine": "Creature — Efreet Shaman",
+        "manaCost": "{3}{R}",
+        "oracleText": "Double strike\nWhenever this creature deals combat damage to a player, you may cast target instant or sorcery card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-torrential-gearhulk",
+      "request": {
+        "cardName": "Torrential Gearhulk",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Flash\nWhen this creature enters, you may cast target instant card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-goblin-dark-dwellers",
+      "request": {
+        "cardName": "Goblin Dark-Dwellers",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhen this creature enters, you may cast target instant or sorcery card with mana value 3 or less from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-daring-waverider",
+      "request": {
+        "cardName": "Daring Waverider",
+        "typeLine": "Creature — Otter Wizard",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "When this creature enters, you may cast target instant or sorcery card with mana value 4 or less from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-seifer-almasy",
+      "request": {
+        "cardName": "Seifer Almasy",
+        "typeLine": "Legendary Creature — Human Knight",
+        "manaCost": "{3}{R}",
+        "oracleText": "Whenever a creature you control attacks alone, it gains double strike until end of turn.\nFire Cross — Whenever Seifer Almasy deals combat damage to a player, you may cast target instant or sorcery card with mana value 3 or less from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-victor-timely-wily-tycoon",
+      "request": {
+        "cardName": "Victor Timely, Wily Tycoon",
+        "typeLine": "Legendary Creature — Human Artificer Villain",
+        "manaCost": "{4}{U}",
+        "oracleText": "When Victor Timely enters, you may cast target artifact, instant, or sorcery card with mana value 4 or less from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-the-dawning-archaic",
+      "request": {
+        "cardName": "The Dawning Archaic",
+        "typeLine": "Legendary Creature — Avatar",
+        "manaCost": "{10}",
+        "oracleText": "This spell costs {1} less to cast for each instant and sorcery card in your graveyard.\nReach\nWhenever The Dawning Archaic attacks, you may cast target instant or sorcery card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-toshiro-umezawa",
+      "request": {
+        "cardName": "Toshiro Umezawa",
+        "typeLine": "Legendary Creature — Human Samurai",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Bushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)\nWhenever a creature an opponent controls dies, you may cast target instant card from your graveyard. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-scholar-of-the-lost-trove",
+      "request": {
+        "cardName": "Scholar of the Lost Trove",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{5}{U}{U}",
+        "oracleText": "Flying\nWhen this creature enters, you may cast target instant, sorcery, or artifact card from your graveyard without paying its mana cost. If an instant or sorcery spell cast this way would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-spectral-arcanist",
+      "request": {
+        "cardName": "Spectral Arcanist",
+        "typeLine": "Creature — Spirit Wizard",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhen this creature enters, you may cast an instant or sorcery spell with mana value less than or equal to the number of Spirits you control from a graveyard without paying its mana cost. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "cast"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-diviner-of-mist",
+      "request": {
+        "cardName": "Diviner of Mist",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{4}{U}",
+        "oracleText": "Flying\nWhenever this creature attacks, mill four cards. You may cast an instant or sorcery spell from your graveyard with mana value 4 or less without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sword-of-once-and-future",
+      "request": {
+        "cardName": "Sword of Once and Future",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Equipped creature gets +2/+2 and has protection from blue and from black.\nWhenever equipped creature deals combat damage to a player, surveil 2. Then you may cast an instant or sorcery spell with mana value 2 or less from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-mnemonic-deluge",
+      "request": {
+        "cardName": "Mnemonic Deluge",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{U}{U}{U}",
+        "oracleText": "Exile target instant or sorcery card from a graveyard. Copy that card three times. You may cast the copies without paying their mana costs. Exile Mnemonic Deluge.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-burning-wish",
+      "request": {
+        "cardName": "Burning Wish",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "You may reveal a sorcery card you own from outside the game and put it into your hand. Exile Burning Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-cunning-wish",
+      "request": {
+        "cardName": "Cunning Wish",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may reveal an instant card you own from outside the game and put it into your hand. Exile Cunning Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-living-wish",
+      "request": {
+        "cardName": "Living Wish",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You may reveal a creature or land card you own from outside the game and put it into your hand. Exile Living Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-golden-wish",
+      "request": {
+        "cardName": "Golden Wish",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "You may reveal an artifact or enchantment card you own from outside the game and put it into your hand. Exile Golden Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-glittering-wish",
+      "request": {
+        "cardName": "Glittering Wish",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}{W}",
+        "oracleText": "You may reveal a multicolored card you own from outside the game and put it into your hand. Exile Glittering Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-vivien-arkbow-ranger",
+      "request": {
+        "cardName": "Vivien, Arkbow Ranger",
+        "typeLine": "Legendary Planeswalker — Vivien",
+        "manaCost": "{1}{G}{G}{G}",
+        "oracleText": "+1: Distribute two +1/+1 counters among up to two target creatures. They gain trample until end of turn.\n−3: Target creature you control deals damage equal to its power to target creature or planeswalker.\n−5: You may reveal a creature card you own from outside the game and put it into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-renegade-bull",
+      "request": {
+        "cardName": "Renegade Bull",
+        "typeLine": "Creature — Ox",
+        "manaCost": "{4}{R}",
+        "oracleText": "Trample\nWhenever you cast an instant or sorcery spell, this creature gets +X/+0 until end of turn, where X is that spell's mana value.\nWhenever this creature attacks, exile up to one target instant or sorcery card from your graveyard and copy it. You may cast the copy without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-roving-actuator",
+      "request": {
+        "cardName": "Roving Actuator",
+        "typeLine": "Artifact Creature — Robot",
+        "manaCost": "{3}{R}",
+        "oracleText": "Void — When this creature enters, if a nonland permanent left the battlefield this turn or a spell was warped this turn, exile up to one target instant or sorcery card with mana value 2 or less from your graveyard. Copy it. You may cast the copy without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-shiko-paragon-of-the-way",
+      "request": {
+        "cardName": "Shiko, Paragon of the Way",
+        "typeLine": "Legendary Creature — Spirit Dragon",
+        "manaCost": "{2}{U}{R}{W}",
+        "oracleText": "Flying, vigilance\nWhen Shiko enters, exile target nonland card with mana value 3 or less from your graveyard. Copy it, then you may cast the copy without paying its mana cost. (A copy of a permanent spell becomes a token.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-practiced-scrollsmith",
+      "request": {
+        "cardName": "Practiced Scrollsmith",
+        "typeLine": "Creature — Dwarf Cleric",
+        "manaCost": "{R}{R/W}{W}",
+        "oracleText": "First strike\nWhen this creature enters, exile target noncreature, nonland card from your graveyard. Until the end of your next turn, you may cast that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-scholar-of-combustion",
+      "request": {
+        "cardName": "Scholar of Combustion",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{R}",
+        "oracleText": "When this creature enters, exile up to one target instant or sorcery card from your graveyard. You may cast that card until the end of your next turn. (You still pay its costs. Timing rules still apply.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-herald-of-amity",
+      "request": {
+        "cardName": "Herald of Amity",
+        "typeLine": "Creature — Griffin",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\nWhen this creature enters, exile the top eight cards of your library. You may cast an Aura spell from among them without paying its mana cost. Then put the rest on the bottom of your library in a random order.\nWhenever this creature attacks, it gets +X/+X until end of turn, where X is the number of Auras you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-printed-cost-target-cast-any-graveyard-exile",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast target instant card from your graveyard. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/withoutPayingManaCost",
+                "equals": false
+              },
+              {
+                "pointer": "/effects/0/alternativeCostsAllowed",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/0/exileInsteadOfGraveyard/graveyard",
+                "equals": "any"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-free-target-cast-your-graveyard-exile",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast target instant or sorcery card from your graveyard without paying its mana cost. If that spell would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/exileInsteadOfGraveyard/graveyard",
+                "equals": "controller"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-filtered-graveyard-exile-spells-cast-this-way",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast target instant, sorcery, or artifact card from your graveyard without paying its mana cost. If an instant or sorcery spell cast this way would be put into your graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/exileInsteadOfGraveyard/graveyard",
+                "equals": "controller"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-spell-query-from-a-graveyard",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast an instant or sorcery spell from a graveyard without paying its mana cost. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/0/cards/zone/players/kind",
+                "equals": "eachPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-imperative-cast-after-exile-until",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, exile cards from the top of your library until you exile a nonland card. Cast it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-copy-exiled-target-then-cast",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile target instant or sorcery card from your graveyard. Copy it. You may cast the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exileTargetCards"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createCardCopy"
+              },
+              {
+                "pointer": "/effects/1/card/kind",
+                "equals": "boundObject"
+              },
+              {
+                "pointer": "/effects/1/card/binding",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/fromZone",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/cards/binding",
+                "equals": "cardCopy"
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/maximum/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/2/withoutPayingManaCost",
+                "equals": false
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "ceaseToExist"
+              },
+              {
+                "pointer": "/effects/3/objects/binding",
+                "equals": "cardCopy"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-copy-twice-cast-copies-free",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile target instant or sorcery card from a graveyard. Copy that card twice. You may cast the copies without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "createCardCopy"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "createCardCopy"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "union"
+              },
+              {
+                "pointer": "/effects/3/maximum/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/3/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/4/kind",
+                "equals": "ceaseToExist"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reveal-card-you-own-from-outside-the-game",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may reveal a creature card you own from outside the game and put it into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-put-card-from-outside-the-game",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Put a card you own from outside the game into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/candidates/zone/kind",
+                "equals": "outsideGame"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-reveal-card-at-random-from-hand",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Reveal a card at random from your hand. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/selection/kind",
+                "equals": "random"
+              },
+              {
+                "pointer": "/effects/0/candidates/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "revealCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-look-at-event-players-hand",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Creature — Human Ninja",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature deals combat damage to a player, look at that player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unseen-imperative-target-cast-with-postposed-condition",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Cast target instant card from your graveyard without paying its mana cost if you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unseen-imperative-cast-if-able-with-graveyard-exile",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, exile target sorcery card from a graveyard. Cast it if able. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unseen-imperative-bound-card-by-paying-cost-with-condition",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, exile cards from the top of your library until you exile a nonland card. Cast it by paying {2} rather than paying its mana cost if you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.resolution-cost-action",
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-copy-target-spell-twice",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell twice. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/mayChooseNewTargets",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/1/object/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copies-noun-disagrees-with-one-copy",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-variable-copy-count",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target instant or sorcery spell X times.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-fork-color-exception-has-no-copy-modification",
+      "request": {
+        "cardName": "Fork",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except that the copy is red. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-flash-player-rule-is-not-a-cast",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Cast spells this turn as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-static-self-cast-permission",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast this card from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "ability-frame.permission.action",
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-target-ability-is-a-stack-copy",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Copy target activated or triggered ability you control. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "sequence.connector-or-end",
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-card-copy-without-cast",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile target instant or sorcery card from your graveyard. Copy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-window-permission-with-graveyard-exile",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile target instant or sorcery card from a graveyard. You may cast it this turn. If that spell would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "engine.gap.permission-window",
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-outside-game-without-owner",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Put a sorcery card from outside the game into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-play-during-resolution",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top card of your library. You may play it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -654,6 +654,19 @@ impl GameEngine {
         visited_sources: &BTreeSet<String>,
         source: Option<&CardInstance>,
     ) -> Vec<Vec<String>> {
+        if let Some(options) = stored_choice_binding::stored_color_mana_options(value, source) {
+            return options;
+        }
+        if value_kind(value) == Some("chooseOne") {
+            return value["options"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .flat_map(|option| {
+                    self.mana_options_for_value(option, controller_id, visited_sources, source)
+                })
+                .collect();
+        }
         if value_kind(value) == Some("fixedMana") {
             let Some(symbol) = value["symbol"].as_str() else {
                 return Vec::new();

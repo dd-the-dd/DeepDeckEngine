@@ -310,21 +310,25 @@ fn a_random_player_choice_recombines_with_a_count_of_absent_counters() {
 }
 
 #[test]
-fn a_stored_entry_choice_is_not_borrowed_by_the_resolution_reference() {
+fn a_stored_entry_choice_binds_the_static_reference_instead_of_a_resolution_one() {
     // The `As ... enters` replacement stores its own decision; a static
-    // ability reading `of the chosen type` has no resolution producer.
+    // ability reading `of the chosen type` has no resolution producer, so the
+    // card-level pass binds it to the stored entry decision (CR 614.12),
+    // never to the resolution-time choice id.
     let parsed = parse(
         "Generalized Lord",
         "Creature — Elf",
         "As this creature enters, choose a creature type.\nOther creatures you control of the chosen type get +1/+1.",
     );
     assert_eq!(parsed.abilities[0].status, "canonical");
+    let entry = parsed.abilities[0].rule.as_ref().expect("entry rule");
+    let stored = entry["decisions"][0]["id"]
+        .as_str()
+        .expect("stored entry decision")
+        .to_string();
     let lord = &parsed.abilities[1];
-    assert_ne!(lord.status, "canonical");
-    assert_eq!(
-        lord.diagnostics
-            .iter()
-            .find_map(|diagnostic| diagnostic.state.as_deref()),
-        Some("binding.chosen-creature-type.source")
-    );
+    assert_eq!(lord.status, "canonical", "{parsed:#?}");
+    let text = lord.rule.as_ref().expect("lord rule").to_string();
+    assert!(text.contains(&format!("\"{stored}\"")), "{text}");
+    assert!(!text.contains("resolutionCreatureType"), "{text}");
 }

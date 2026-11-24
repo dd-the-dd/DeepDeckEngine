@@ -73,10 +73,18 @@ fn outcome_governs_only_its_own_sentence_and_reminder() {
 }
 
 #[test]
-fn a_second_outcome_sentence_is_not_an_ordinary_step() {
+fn a_repeated_outcome_sentence_is_not_an_ordinary_step() {
+    // `If you don't` after `If you do` is the declined branch of the same
+    // optional cost, read with the first outcome.
+    assert_eq!(
+        effect_kinds(
+            "You gain 2 life. You may discard a card. If you do, draw a card. If you don't, you lose 2 life."
+        ),
+        ["gainLife", "optionalPayCostPerformEffects"]
+    );
     for text in [
-        "You may discard a card. If you do, draw a card. If you don't, you lose 2 life.",
-        "You gain 2 life. You may discard a card. If you do, draw a card. If you don't, you lose 2 life.",
+        "You may discard a card. If you do, draw a card. If you do, you lose 2 life.",
+        "You gain 2 life. You may discard a card. If you do, draw a card. If you do, you lose 2 life.",
     ] {
         assert!(
             !matches!(parse_spell(text), EffectProgramParseAttempt::Parsed(_)),

@@ -1,0 +1,516 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-qualifier-atoms/set-constraints-superlatives-history-keyword-abilities",
+  "cases": [
+    {
+      "id": "exact-sengir-vampire-source-damage-history",
+      "request": {
+        "cardName": "Sengir Vampire",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying\nWhenever a creature dealt damage by this creature this turn dies, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "permanentDied"
+              },
+              {
+                "pointer": "/event/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              {
+                "pointer": "/event/damagedBySourceThisTurn",
+                "equals": true
+              }
+            ],
+            "abilityType": "triggeredAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-trophy-hunter-keyword-and-damage-history",
+      "request": {
+        "cardName": "Trophy Hunter",
+        "typeLine": "Creature — Human Archer",
+        "manaCost": "{2}{G}",
+        "oracleText": "{1}{G}: This creature deals 1 damage to target creature with flying.\nWhenever a creature with flying dealt damage by this creature this turn dies, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "hasKeyword",
+                      "value": "flying"
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/event/damagedBySourceThisTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-damage-history-of-another-object",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a creature dealt damage by target creature this turn dies, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dawnhart-wardens-coven-distinct-powers",
+      "request": {
+        "cardName": "Dawnhart Wardens",
+        "typeLine": "Creature — Human Peasant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Coven — At the beginning of combat on your turn, if you control three or more creatures with different powers, creatures you control get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countDistinctPowers",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-lands-with-different-names-count",
+      "request": {
+        "cardName": "Name Census",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your upkeep, if you control seven or more lands with different names, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countDistinctPermanentNames",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 7
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-different-names-on-one-target",
+      "request": {
+        "cardName": "Singular Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy target creature with different names.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.set-constraint.distinct.head"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-march-from-the-tomb-total-mana-value-targets",
+      "request": {
+        "cardName": "March from the Tomb",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{B}",
+        "oracleText": "Return any number of target Ally creature cards with total mana value 8 or less from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/selectionConstraint",
+                "equals": {
+                  "kind": "totalAtMost",
+                  "property": "manaValue",
+                  "value": {
+                    "kind": "integer",
+                    "value": 8
+                  }
+                }
+              }
+            ],
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-distinct-and-total-target-cards",
+      "request": {
+        "cardName": "Selective Recall",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Return up to three target creature cards with different mana values and total mana value 6 or less from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/selectionConstraint",
+                "equals": {
+                  "kind": "allOf",
+                  "constraints": [
+                    {
+                      "kind": "distinctValues",
+                      "property": "manaValue"
+                    },
+                    {
+                      "kind": "totalAtMost",
+                      "property": "manaValue",
+                      "value": {
+                        "kind": "integer",
+                        "value": 6
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-consumed-by-greed-sibling-greatest-power-sacrifice",
+      "request": {
+        "cardName": "Greedy Probe",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Target opponent sacrifices a creature with the greatest power among creatures they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/from/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              {
+                "pointer": "/effects/0/extremum",
+                "equals": {
+                  "property": "power",
+                  "direction": "greatest"
+                }
+              }
+            ],
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponent-greatest-mana-value-creature-or-planeswalker",
+      "request": {
+        "cardName": "Shatter Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Each opponent sacrifices a creature or planeswalker with the greatest mana value among creatures and planeswalkers they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-favor-of-the-mighty-superlative-without-domain",
+      "request": {
+        "cardName": "Favor of the Mighty",
+        "typeLine": "Kindred Enchantment — Giant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Each creature with the greatest mana value has protection from each color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.superlative.domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-matterbending-mage-variable-mana-symbol",
+      "request": {
+        "cardName": "Matterbending Mage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}{U}",
+        "oracleText": "When this creature enters, return up to one other target creature to its owner's hand.\nWhenever you cast a spell with {X} in its mana cost, this creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/where",
+                "equals": {
+                  "kind": "manaCostContainsX"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sacred-excavation-cycling-cards",
+      "request": {
+        "cardName": "Sacred Excavation",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Return up to two target cards with cycling from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "or",
+                  "operands": [
+                    {
+                      "kind": "hasKeyword",
+                      "value": "cycling"
+                    },
+                    {
+                      "kind": "hasKeyword",
+                      "value": "typecycling"
+                    },
+                    {
+                      "kind": "hasKeyword",
+                      "value": "basicLandcycling"
+                    }
+                  ]
+                }
+              }
+            ],
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-kicker-ability-card-target",
+      "request": {
+        "cardName": "Kicker Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Return target card with a kicker ability from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/candidates/where",
+                "equals": {
+                  "kind": "hasKeyword",
+                  "value": "kicker"
+                }
+              }
+            ],
+            "abilityType": "spellAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unregistered-keyword-ability-qualifier",
+      "request": {
+        "cardName": "Madness Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Return target card with madness from your graveyard to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "selector.keyword-qualifier.keyword"
+          }
+        ]
+      }
+    }
+  ]
+}

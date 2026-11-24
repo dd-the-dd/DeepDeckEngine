@@ -71,15 +71,14 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         VerbAgreement::ThirdPersonSingular
     };
     if let Some(reference) = context.verb_chain_subject
-        && (cursor
-            .peek()
-            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Gain, chain_agreement.form()))
-            || super::become_types::characteristic_change_verb_starts(
-                cursor,
-                chain_agreement,
-                super::TypeChangeNumber::Singular,
-            )
-            || super::become_types::possessed_base_power_toughness_starts(cursor)
+        && (cursor.peek().is_some_and(|raw| {
+            is_verb_form(raw, VerbLemma::Gain, chain_agreement.form())
+                || is_verb_form(raw, VerbLemma::Get, chain_agreement.form())
+        }) || super::become_types::characteristic_change_verb_starts(
+            cursor,
+            chain_agreement,
+            super::TypeChangeNumber::Singular,
+        ) || super::become_types::possessed_base_power_toughness_starts(cursor)
             || (!bare && super::combat_clause_starts(cursor)))
     {
         return recognize_verb_chain_action(cursor, reference, context);
@@ -116,7 +115,8 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
     };
     // A floating `each` after a plural subject distributes the action over
-    // its members (`Up to two target creatures each get +2/+2`). Each
+    // its members (`Up to two target creatures each get +2/+2`, `Up to two
+    // target Swamps each become 3/5 Treefolk Warrior creatures`). Each
     // member already receives its own modification, so the quantifier adds
     // no operation; a singular subject keeps rejecting it.
     if subject_end
@@ -126,6 +126,7 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
         && subject_end.peek_ahead(1).is_some_and(|raw| {
             is_verb_form(raw, VerbLemma::Get, VerbForm::Base)
                 || is_verb_form(raw, VerbLemma::Gain, VerbForm::Base)
+                || is_verb_form(raw, VerbLemma::Become, VerbForm::Base)
         })
     {
         subject_end.enter("permanent-action.distributive-each");
@@ -297,25 +298,28 @@ pub(in crate::oracle::canonical) fn try_recognize_permanent_action(
             // must not commit this parent.
             let (agreement, number) =
                 characteristic_subject_agreement(&subject, distributive_subject, bare);
-            let mut trial = cursor.clone();
-            let fragment = match super::become_types::recognize_become_types_subject(
-                &mut trial,
-                |cursor| {
-                    *cursor = subject_end.clone();
-                    Ok(subject.clone())
-                },
-                |cursor| {
-                    recognize_contextual_permanent_operand(
-                        cursor,
-                        name_links,
-                        name_failure,
-                        context,
-                    )
-                },
-                context.preposed_duration.as_ref(),
-                agreement,
-                number,
-            ) {
+            // The subject is the clause subject a possessive `its` names in
+            // a stated amount (`with power and toughness each equal to its
+            // mana value`), never an earlier antecedent.
+            let mut trial = subject_end.clone();
+            let clause_subject = super::damage_source_subject(&subject_end, &subject);
+            let fragment = match super::with_clause_subject(&mut trial, clause_subject, |trial| {
+                super::become_types::recognize_become_types_subject(
+                    trial,
+                    |_| Ok(subject.clone()),
+                    |cursor| {
+                        recognize_contextual_permanent_operand(
+                            cursor,
+                            name_links,
+                            name_failure,
+                            context,
+                        )
+                    },
+                    context.preposed_duration.as_ref(),
+                    agreement,
+                    number,
+                )
+            }) {
                 Ok(fragment) => fragment,
                 Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
             };
@@ -566,7 +570,20 @@ fn recognize_verb_chain_action(
         VerbAgreement::ThirdPersonSingular
     };
     let mut trial = cursor.clone();
-    let node = if super::combat_clause_starts(cursor) {
+    let get_starts = cursor
+        .peek()
+        .is_some_and(|raw| is_verb_form(raw, VerbLemma::Get, agreement.form()));
+    let node = if get_starts {
+        // `X becomes TYPES and gets +N/+N until end of turn`: the shared
+        // power/toughness modification of the same subject; the sequence
+        // scopes the chain with its one trailing duration.
+        super::temporary_power_toughness::recognize_temporary_power_toughness_subject(
+            &mut trial,
+            |_| Ok(subject.clone()),
+            context.preposed_duration.as_ref(),
+        )
+        .map(|fragment| LocalEffectNode::ModifyStats(fragment.node))
+    } else if super::combat_clause_starts(cursor) {
         super::recognize_temporary_combat_clause(&mut trial, context.preposed_duration.as_ref())
             .map(|(keywords, duration)| {
                 LocalEffectNode::TemporaryKeywordGrant(TemporaryKeywordGrantNode {

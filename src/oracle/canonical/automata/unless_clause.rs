@@ -173,6 +173,16 @@ pub(in crate::oracle::canonical) fn recognize_unless_clause(
             recognize_performed_payer(cursor, target, player)?,
             ActingSubject::THIRD_SINGULAR,
         )
+    } else if word(cursor, 0, "they") && !quantified_subject && player.is_some() {
+        // `Target player discards two cards unless they discard an artifact
+        // card`: `they` names the one player the guarded actions declared.
+        cursor.enter("sequence.unless.payer.declared-player");
+        cursor.consume("they")?;
+        let player = cursor.require_value(player, "the declared player `they` names")?;
+        (
+            UnlessPayerNode::BoundPlayer(player),
+            ActingSubject::THIRD_PLURAL,
+        )
     } else if word(cursor, 0, "they") {
         cursor.enter("sequence.unless.payer.quantified-player");
         cursor.require(

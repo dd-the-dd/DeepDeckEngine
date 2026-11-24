@@ -22,13 +22,35 @@ pub(in crate::oracle::canonical) fn try_parse_static_source_combat_restriction(
     }
     let mut cursor = OracleTokenCursor::new("static-source-combat-restriction", input.tokens);
     let mut committed = false;
-    let parsed = recognize_source_combat_restriction(
-        &mut cursor,
-        input.name_links,
-        input.name_resolution_failure,
-        &mut committed,
-    )
+    // A condition of the restriction may name the defending player of the
+    // combat it is checked for (`can't attack unless defending player
+    // controls an Island`, CR 508.1c, 509.1b).
+    let parsed = with_combat_defending_player(&mut cursor, |cursor| {
+        recognize_source_combat_restriction(
+            cursor,
+            input.name_links,
+            input.name_resolution_failure,
+            &mut committed,
+        )
+    })
     .and_then(|node| {
+        // A condition about the defending player is checked per combat by
+        // the restriction itself, never as a standing gate of the ability.
+        if let Some(condition) = node
+            .condition
+            .as_ref()
+            .filter(|condition| condition_reads_defending_player(condition))
+        {
+            let condition = lower_condition(condition);
+            let modifiers = node
+                .clauses
+                .iter()
+                .map(|clause| {
+                    lower_defending_player_combat_clause(&cursor, &self_ref(), clause, &condition)
+                })
+                .collect::<MachineResult<Vec<_>>>()?;
+            return Ok((modifiers, None));
+        }
         let modifiers = node
             .clauses
             .iter()
@@ -87,6 +109,11 @@ pub(in crate::oracle::canonical) fn lower_static_combat_clause(
         CombatClause::AttacksEachCombat => marker(GrantedKeyword::AttackEachCombatIfAble),
         CombatClause::BlocksEachCombat => marker(GrantedKeyword::BlockEachCombatIfAble),
         CombatClause::MustBeBlocked => marker(GrantedKeyword::MustBeBlockedIfAble),
+        // CR 702.3b: the standing exception is the engine's static
+        // defender modifier, the same one the continuous frame lowers.
+        CombatClause::AttackAsThoughNoDefender => json!({
+            "kind":"allowAttackWithDefender", "objects":objects.clone(),
+        }),
         CombatClause::CantBeBlockedBy(query) => json!({
             "kind":"blockRestriction", "attackers":objects.clone(),
             "blockers":lower_combat_object_selector(cursor, query, None)?,
@@ -118,6 +145,37 @@ pub(in crate::oracle::canonical) fn lower_static_combat_clause(
             "defenders": if *planeswalkers { "playerAndPlaneswalkers" } else { "player" },
         }),
     })
+}
+
+/// One combat clause whose application depends on the defending player of
+/// the combat (CR 506.2): `can't attack` toward a defending player that
+/// satisfies `condition` (CR 508.1c), `can't be blocked [by QUERY]` in a
+/// combat whose defending player satisfies it (CR 509.1b). The runtime binds
+/// the defending player at each check; any other clause is refused.
+fn lower_defending_player_combat_clause(
+    cursor: &OracleTokenCursor<'_>,
+    objects: &Value,
+    clause: &CombatClause,
+    condition: &Value,
+) -> MachineResult<Value> {
+    let restriction = |restriction: &str| {
+        json!({
+            "kind":"defendingPlayerCombatRestriction", "objects":objects.clone(),
+            "restriction":restriction, "condition":condition.clone(),
+        })
+    };
+    match clause {
+        CombatClause::Prohibit(GrantedKeyword::CantAttack) => Ok(restriction("cantAttack")),
+        CombatClause::Prohibit(GrantedKeyword::CantBeBlocked) => Ok(restriction("cantBeBlocked")),
+        CombatClause::CantBeBlockedBy(query) => {
+            let mut lowered = restriction("cantBeBlockedBy");
+            lowered["blockers"] = lower_combat_object_selector(cursor, query, None)?;
+            Ok(lowered)
+        }
+        _ => Err(cursor.fail(
+            "`can't attack`, `can't be blocked` or `can't be blocked by QUERY` for a condition about the defending player",
+        )),
+    }
 }
 
 #[derive(Clone, Copy)]

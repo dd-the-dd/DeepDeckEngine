@@ -202,6 +202,23 @@ impl GameEngine {
         static_modifiers: &[(CardInstance, Value)],
     ) -> Vec<ReplacementProposal<GraveyardReplacement>> {
         let mut proposals = Vec::new();
+        // The finality counter (CR 122.1i): a permanent with one on it that
+        // would be put into a graveyard from the battlefield is exiled
+        // instead. The counter is read while the permanent is still there,
+        // by every departure path (single moves and destruction batches).
+        if card.counters.get("finality").copied().unwrap_or(0) > 0
+            && self.permanent_position(&card.instance_id).is_some()
+        {
+            proposals.push(ReplacementProposal {
+                id: format!("{}:graveyardFinalityCounter", card.instance_id),
+                source_id: card.instance_id.clone(),
+                source_name: card.definition.name.clone(),
+                program: GraveyardReplacement {
+                    origin: GraveyardReplacementOrigin::Static,
+                    controller: Some(card.controller.clone()),
+                },
+            });
+        }
         for (ordinal, modifier) in self.state.rule_modifiers.iter().enumerate() {
             if value_kind(modifier) == Some("exileSpecificCardInsteadOfGraveyard")
                 && modifier["cardInstanceId"].as_str() == Some(card.instance_id.as_str())

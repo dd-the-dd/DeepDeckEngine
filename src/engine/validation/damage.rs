@@ -24,7 +24,10 @@ pub(in super::super) fn damage_effect_supported(effect: &Value) -> Option<bool> 
                     )
                     || player_reference_supported(&effect["recipient"])
                     || (value_kind(&effect["recipient"]) == Some("eachPermanent")
-                        && object_expression_supported(&effect["recipient"])))
+                        && (object_expression_supported(&effect["recipient"])
+                            || super::super::object_relation_eval::related_collection_supported(
+                                &effect["recipient"],
+                            ))))
                 && effect.get("source").is_none_or(|source| {
                     matches!(value_kind(source), Some("self" | "abilitySource"))
                         || target_reference_supported(source)

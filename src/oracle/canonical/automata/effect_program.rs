@@ -23,11 +23,25 @@ pub(in crate::oracle::canonical) enum EffectProgramNode {
         producer: OutcomeProducer,
         outcome: PerformanceOutcome,
         body: Box<EffectProgramNode>,
+        /// `If you do, A. If you don't, B.`: the complementary outcome's own
+        /// sentence, which resolves exactly when `body` does not (CR 608.2c).
+        /// Only an optional producer has one; a reflexive outcome never does.
+        otherwise: Option<Box<EffectProgramNode>>,
     },
     /// Independent sentence groups in written order. An outcome continuation
     /// conditions its own sentence only (CR 608.2c); later sentences are
     /// ordinary instructions. Steps are flat: no step is itself `Steps`.
     Steps(Vec<EffectProgramNode>),
+    /// `PLAYER may VERB or VERB OBJECT` (`You may tap or untap target
+    /// creature.`): the performer chooses one of the coordinated actions
+    /// over the same written object, or neither. Each option is the shared
+    /// sequence of its own verb over the same tokens, so the object is one
+    /// declaration whichever action is chosen (CR 601.2c, 608.2c).
+    Alternatives {
+        player: LocalPlayerReference,
+        /// The base verb of each option and its sequence, in written order.
+        options: Vec<(&'static str, EffectSequenceNode)>,
+    },
 }
 
 /// What an outcome block's connector observes.
@@ -52,6 +66,13 @@ impl EffectProgramNode {
                 .last()
                 .expect("a program has at least one step")
                 .inner_sequence(),
+            // Every option reads the same written sentence.
+            Self::Alternatives { options, .. } => {
+                &options
+                    .first()
+                    .expect("alternatives have at least two options")
+                    .1
+            }
         }
     }
     /// Program steps in written order; a single program is its own one step.
@@ -64,18 +85,29 @@ impl EffectProgramNode {
     pub(in crate::oracle::canonical) fn action_count(&self) -> usize {
         match self {
             Self::Sequence(sequence) => sequence.effects.len(),
-            Self::Optional { body, .. }
-            | Self::Outcome {
+            Self::Optional { body, .. } => body.action_count(),
+            Self::Outcome {
                 producer: OutcomeProducer::Cost(_),
                 body,
+                otherwise,
                 ..
-            } => body.action_count(),
+            } => body.action_count() + otherwise.as_ref().map_or(0, |other| other.action_count()),
             Self::Outcome {
                 producer: OutcomeProducer::Action(action),
                 body,
+                otherwise,
                 ..
-            } => action.action_count() + body.action_count(),
+            } => {
+                action.action_count()
+                    + body.action_count()
+                    + otherwise.as_ref().map_or(0, |other| other.action_count())
+            }
             Self::Steps(steps) => steps.iter().map(Self::action_count).sum(),
+            Self::Alternatives { options, .. } => options
+                .iter()
+                .map(|(_, sequence)| sequence.effects.len())
+                .max()
+                .unwrap_or(0),
         }
     }
 }
@@ -90,6 +122,28 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
+    // A program-initial `Then` restates that this sentence follows the
+    // previous one (CR 608.2c): the program's step order already says so.
+    // `Then you may ...` keeps its own permission reader.
+    if sentence_then_width(cursor) == 1
+        && !optional_program_starts(cursor)
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw != "." && raw != ",")
+    {
+        cursor.enter("program.steps.leading-then");
+        cursor.consume("then")?;
+    }
+    // `Unless PLAYER pays COST, PROGRAM.` (CR 118.12): the preposed form of
+    // the `unless` frame, guarding its own sentence.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("unless"))
+        && context.unless_frames == UnlessFrameSupport::SharedLowering
+    {
+        let block = recognize_preposed_unless(cursor, name_links, name_failure, context)?;
+        return complete_outcome_block(cursor, block, name_links, name_failure, context);
+    }
     if !optional_program_starts(cursor) {
         let sequence = cursor.attempt(|attempt| {
             recognize_effect_sequence_with_context(attempt, name_links, name_failure, context)
@@ -97,6 +151,43 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         let failure = match sequence {
             Ok(sequence) => return Ok(EffectProgramNode::Sequence(sequence)),
             Err(failure) => failure,
+        };
+        // `If COND, BODY instead.` replaces the sentence before it (CR
+        // 608.2c). It is read here when it ends before any outcome block;
+        // an outcome body it amends is read by `recognize_outcome_body`.
+        let outcome_start = if mandatory_outcome_follows_first_sentence(cursor) {
+            Some(cursor.position())
+        } else {
+            match (
+                later_optional_outcome_block(cursor),
+                later_mandatory_outcome_block(cursor),
+            ) {
+                (Some(optional), Some(mandatory)) => Some(optional.min(mandatory)),
+                (optional, mandatory) => optional.or(mandatory),
+            }
+        };
+        let failure = match replacing_sentence(cursor)
+            .filter(|sentence| outcome_start.is_none_or(|start| sentence.end <= start))
+        {
+            Some(sentence) => match cursor.attempt(|attempt| {
+                recognize_replacing_sequence(attempt, sentence, name_links, name_failure, context)
+            }) {
+                Ok(sequence) => {
+                    return complete_outcome_block(
+                        cursor,
+                        EffectProgramNode::Sequence(sequence),
+                        name_links,
+                        name_failure,
+                        context,
+                    );
+                }
+                // Report the reading that progressed furthest.
+                Err(replacing_failure) if replacing_failure.token_index > failure.token_index => {
+                    replacing_failure
+                }
+                Err(_) => failure,
+            },
+            None => failure,
         };
         // A mandatory first sentence may be the producer of an `If you do,`
         // or reflexive `When you do,` outcome (CR 608.2c, 603.12).
@@ -149,10 +240,13 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             return Err(failure);
         };
         cursor.enter("program.steps.leading");
+        // The leading sentences are a program of their own: a replacing
+        // sentence among them is read with the sentence it replaces.
         let leading = cursor.bounded(block_start, |cursor| {
-            recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+            recognize_effect_program_with_context(cursor, name_links, name_failure, context)
         })?;
-        let mut steps = vec![EffectProgramNode::Sequence(leading)];
+        let mut steps = Vec::new();
+        push_program_steps(&mut steps, leading);
         push_program_steps(
             &mut steps,
             recognize_effect_program_with_context(cursor, name_links, name_failure, context)?,
@@ -168,6 +262,38 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         return Ok(EffectProgramNode::Sequence(sequence));
     }
     recognize_permission_program(cursor, name_links, name_failure, context)
+}
+
+/// `Unless PLAYER pays COST, ACTIONS.`: the shared `unless` clause child
+/// reads the payer and the cost (no action precedes it, so no guarded
+/// declaration binds the payer); the guarded sentence is the shared
+/// sequence, and the frame guards every action of that sentence.
+fn recognize_preposed_unless(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.preposed-unless.clause");
+    let clause = recognize_unless_clause(cursor, None, None, false)?;
+    cursor.enter("program.preposed-unless.separator");
+    cursor.consume(",")?;
+    cursor.enter("program.preposed-unless.guarded");
+    let end = top_level_sentence_end(cursor)
+        .ok_or_else(|| cursor.fail("one guarded sentence after the `unless` clause"))?;
+    let mut sequence = cursor.bounded(end, |cursor| {
+        recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+    })?;
+    cursor.require(
+        !sequence.effects.is_empty() && sequence.unless.is_empty(),
+        "one guarded sentence without another `unless` frame",
+    )?;
+    sequence.unless.push(UnlessFrameNode {
+        first_effect: 0,
+        end_effect: sequence.effects.len(),
+        clause,
+    });
+    Ok(EffectProgramNode::Sequence(sequence))
 }
 
 /// `PLAYER may ...`: an optional program whose actor is the controller or a
@@ -195,6 +321,20 @@ fn recognize_permission_program(
     let player = player?;
     cursor.enter("program.optional.permission");
     cursor.consume("may")?;
+    if let Some(lemmas) = coordinated_alternative_verbs(cursor) {
+        let program = recognize_alternative_actions(
+            cursor,
+            player,
+            lemmas,
+            name_links,
+            name_failure,
+            context,
+        )?;
+        if cursor.peek().is_none() {
+            return Ok(program);
+        }
+        return complete_outcome_block(cursor, program, name_links, name_failure, context);
+    }
     if outcome_connector_follows_first_sentence(cursor) {
         // A payment head is first read as a resolution cost. Only when that
         // typed cost child rejects the sentence (for example a target or an
@@ -237,11 +377,13 @@ fn recognize_permission_program(
     // The permission owns its own sentence (and directly following reminders)
     // only. Without an outcome connector, a later sentence is an independent
     // program step that runs whether or not the permission was used (CR
-    // 608.2c). A conditional or another permission inside the same sentence
-    // has no enclosing frame here and stays unsupported. Reminder text and
-    // quoted abilities are nested scopes (CR 207.2a, 113.1): their own `if`
-    // or `may` is not a second frame of this sentence. The body reader still
-    // reads and validates every reminder it owns.
+    // 608.2c). Another permission inside the same sentence has no enclosing
+    // frame here and stays unsupported. A postposed `if CONDITION` gating the
+    // sentence's one action is read by the shared sequence; the lowering puts
+    // the permission inside that condition. Reminder text and quoted
+    // abilities are nested scopes (CR 207.2a, 113.1): their own `may` is not
+    // a second frame of this sentence. The body reader still reads and
+    // validates every reminder it owns.
     cursor.enter("program.optional.scope");
     let body_end = sentence_end_with_reminders(cursor);
     let mut offset = 0;
@@ -257,13 +399,9 @@ fn recognize_permission_program(
             ")" if !quoted => depth = depth.saturating_sub(1),
             _ => {}
         }
-        if depth == 0
-            && !quoted
-            && (raw.eq_ignore_ascii_case("if") || raw.eq_ignore_ascii_case("may"))
-        {
+        if depth == 0 && !quoted && raw.eq_ignore_ascii_case("may") {
             cursor.advance_to(cursor.position() + offset)?;
-            return Err(cursor
-                .fail("one optional sentence without an inner conditional or second permission"));
+            return Err(cursor.fail("one optional sentence without a second permission"));
         }
         offset += 1;
     }
@@ -289,6 +427,62 @@ fn recognize_permission_program(
         return Ok(optional);
     }
     complete_outcome_block(cursor, optional, name_links, name_failure, context)
+}
+
+/// `VERB or VERB` at the cursor: two different effect verbs in their base
+/// form coordinated by `or`, whose shared object follows the second one.
+fn coordinated_alternative_verbs(cursor: &OracleTokenCursor<'_>) -> Option<(VerbLemma, VerbLemma)> {
+    let base = |offset: usize| {
+        cursor
+            .peek_ahead(offset)
+            .and_then(lookup_effect_verb)
+            .filter(|(_, forms)| forms.contains(&VerbForm::Base))
+            .map(|(entry, _)| entry.lemma)
+    };
+    let first = base(0)?;
+    cursor
+        .peek_ahead(1)
+        .filter(|raw| raw.eq_ignore_ascii_case("or"))?;
+    let second = base(2)?;
+    (first != second).then_some((first, second))
+}
+
+/// `PLAYER may V1 or V2 OBJECT.`: each verb reads the shared object from the
+/// second verb's slot (the first one through a view writing its own surface
+/// in that slot, every token keeping its index and span). The permission
+/// owns its sentence and directly following reminders only.
+fn recognize_alternative_actions(
+    cursor: &mut OracleTokenCursor<'_>,
+    player: LocalPlayerReference,
+    (first, second): (VerbLemma, VerbLemma),
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.optional.alternatives");
+    let slot = cursor.position() + 2;
+    let end = sentence_end_with_reminders(cursor);
+    // CR 118.12: no `unless` payer is ordered with this choice.
+    let mut permission_context = context.clone();
+    permission_context.unless_frames = UnlessFrameSupport::Unsupported;
+    let mut options = Vec::new();
+    for lemma in [first, second] {
+        let tokens = elided_verb_tokens(cursor, slot, lemma);
+        let mut view = cursor.with_tokens(&tokens);
+        view.advance_to(slot)?;
+        let sequence = view.bounded(end, |view| {
+            recognize_effect_sequence_with_context(
+                view,
+                name_links,
+                name_failure,
+                &permission_context,
+            )
+        })?;
+        options.push((verb_entry(lemma).surface(VerbForm::Base), sequence));
+    }
+    cursor.advance_to(end)?;
+    cursor.enter("program.optional.alternatives.complete");
+    Ok(EffectProgramNode::Alternatives { player, options })
 }
 
 /// The ActionResult antecedent a permission's actor opens: `you may` is
@@ -325,12 +519,54 @@ fn recognize_optional_cost_block(
         name_failure,
         context,
     )?;
+    let otherwise = recognize_complementary_outcome(
+        cursor,
+        permission_performer(player),
+        outcome,
+        name_links,
+        name_failure,
+        context,
+    )?;
     Ok(EffectProgramNode::Outcome {
         permission: Some(player),
         producer: OutcomeProducer::Cost(cost),
         outcome,
         body: Box::new(body),
+        otherwise,
     })
+}
+
+/// `If you don't, BODY.` directly after `If you do, BODY.` (or the reverse)
+/// of the same optional producer: the other branch of one outcome, read with
+/// the same ActionResult antecedent. A reflexive outcome has no complement.
+fn recognize_complementary_outcome(
+    cursor: &mut OracleTokenCursor<'_>,
+    slot: ActionResultSlot,
+    outcome: PerformanceOutcome,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<Box<EffectProgramNode>>> {
+    let complement = match outcome {
+        PerformanceOutcome::Performed => PerformanceOutcome::Declined,
+        PerformanceOutcome::Declined => PerformanceOutcome::Performed,
+        PerformanceOutcome::Reflexive => return Ok(None),
+    };
+    if !outcome_connector_at(cursor, 0).is_some_and(|(next, _)| next == complement) {
+        return Ok(None);
+    }
+    cursor.enter("program.outcome.complement");
+    let read = recognize_outcome_connector_after(cursor, slot)?;
+    cursor.require(read == complement, "the complementary outcome connector")?;
+    let body = recognize_outcome_body(
+        cursor,
+        "program.outcome.complement.body",
+        complement,
+        name_links,
+        name_failure,
+        context,
+    )?;
+    Ok(Some(Box::new(body)))
 }
 
 /// `ACTION. OUTCOME, BODY.` after `PLAYER may`. The action is the shared
@@ -358,11 +594,20 @@ fn recognize_optional_action_block(
         name_failure,
         context,
     )?;
+    let otherwise = recognize_complementary_outcome(
+        cursor,
+        permission_performer(player),
+        outcome,
+        name_links,
+        name_failure,
+        context,
+    )?;
     Ok(EffectProgramNode::Outcome {
         permission: Some(player),
         producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
+        otherwise,
     })
 }
 
@@ -480,6 +725,7 @@ fn recognize_mandatory_outcome_block(
         producer: OutcomeProducer::Action(Box::new(EffectProgramNode::Sequence(action))),
         outcome,
         body: Box::new(body),
+        otherwise: None,
     })
 }
 
@@ -501,6 +747,15 @@ fn recognize_outcome_body(
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
     cursor.enter(state);
+    // `If you do, put a +1/+1 counter on it. If it's a Unicorn, put two
+    // +1/+1 counters on it instead.`: the replacing sentence amends the
+    // outcome's own sentence and belongs to the same outcome body.
+    if let Some(sentence) =
+        replacing_sentence(cursor).filter(|sentence| sentence.replaced_start == cursor.position())
+    {
+        return recognize_replacing_sequence(cursor, sentence, name_links, name_failure, context)
+            .map(EffectProgramNode::Sequence);
+    }
     let body_end = sentence_end_with_reminders(cursor);
     if outcome == PerformanceOutcome::Reflexive {
         let ability_end = reflexive_ability_end(cursor, context);
@@ -569,6 +824,8 @@ fn complete_outcome_block(
     if cursor.peek().is_none()
         || (context.ability_restriction_owner == AbilityRestrictionOwner::Triggered
             && trigger_limit_starts(cursor))
+        || (context.ability_restriction_owner == AbilityRestrictionOwner::Activated
+            && activation_restriction_starts(cursor))
     {
         cursor.enter("program.optional-outcome.complete");
         return Ok(block);
@@ -649,6 +906,26 @@ fn recognize_other_player_permission(
         Err(failure) if failure.token_index > sequence_failure.token_index => Err(failure),
         Err(_) => Err(sequence_failure),
     }
+}
+
+/// True when the body at the cursor needs the program reader rather than
+/// one shared sequence: a permission, an outcome connector, a reflexive
+/// ability, a replacing `instead` sentence, a preposed `Unless` or a
+/// program-initial `Then` (lexical lookahead only; the program's children
+/// prove it).
+pub(in crate::oracle::canonical) fn effect_program_operator_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    optional_program_starts(cursor)
+        || sentence_then_width(cursor) == 1
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("unless"))
+        || mandatory_outcome_follows_first_sentence(cursor)
+        || later_optional_outcome_block(cursor).is_some()
+        || later_mandatory_outcome_block(cursor).is_some()
+        || reflexive_action_block_follows(cursor)
+        || replacing_sentence(cursor).is_some()
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {

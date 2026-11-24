@@ -133,6 +133,39 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object(
     copy: Option<&Value>,
     binding_id: &str,
 ) -> Result<Vec<Value>, &'static str> {
+    lower_become_types_to_object_in_scope(node, object, copy, binding_id, None)
+}
+
+/// The same lowering when the change's own declared subject is the target
+/// slot `subject_binding` of the program: a possessive `its` in a stated
+/// amount (`with power and toughness each equal to its mana value`) reads
+/// that object, determined once as the effect begins (CR 608.2h).
+pub(in crate::oracle::canonical) fn lower_become_types_to_object_in_scope(
+    node: &BecomeTypesNode<PermanentOperandNode>,
+    object: &Value,
+    copy: Option<&Value>,
+    binding_id: &str,
+    subject_binding: Option<TargetBinding>,
+) -> Result<Vec<Value>, &'static str> {
+    let subject_slot = match (&node.objects, subject_binding, object["id"].as_str()) {
+        (PermanentOperandNode::Targets(targets), Some(binding), Some(id))
+            if object["kind"] == "chosenTarget" && targets.slots.len() == 1 =>
+        {
+            Some(NumericTargetSlot {
+                binding,
+                target_id: id.to_string(),
+                selector: targets.slots[0].selector.clone(),
+                requires_post_zone_change_lki: false,
+            })
+        }
+        _ => None,
+    };
+    let stat_component = |expression: &NumericExpression| match &subject_slot {
+        // The shared target lowering also refuses a literal beyond i32.
+        Some(slot) => lower_numeric_expression_for_targets(expression, std::slice::from_ref(slot))
+            .map_err(|_| "a base power/toughness amount that reads the changed object"),
+        None => lower_stat_component(expression),
+    };
     let mut effects = Vec::new();
     let locked_set;
     let object = if matches!(
@@ -331,8 +364,8 @@ pub(in crate::oracle::canonical) fn lower_become_types_to_object(
         effects.push(json!({
             "kind": "setBasePowerToughness",
             "object": object,
-            "power": lower_stat_component(&statistics.power)?,
-            "toughness": lower_stat_component(&statistics.toughness)?,
+            "power": stat_component(&statistics.power)?,
+            "toughness": stat_component(&statistics.toughness)?,
             "duration": duration,
         }));
     }

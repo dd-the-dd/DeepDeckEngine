@@ -149,7 +149,9 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::Supertype(_)
         | ObjectPredicate::Relation(ObjectRelation::Named(_) | ObjectRelation::ChosenName) => true,
         ObjectPredicate::Relation(
-            ObjectRelation::DealtDamageToPlayerThisTurn { .. } | ObjectRelation::Targets(_),
+            ObjectRelation::DealtDamageToPlayerThisTurn { .. }
+            | ObjectRelation::Targets(_)
+            | ObjectRelation::Related(_),
         ) => false,
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken
@@ -163,6 +165,7 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         | ObjectPredicate::HasCounter(_)
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ChosenColor
+        | ObjectPredicate::Qualifier(_)
         | ObjectPredicate::ObjectKind(ObjectKind::Permanent | ObjectKind::Spell)
         | ObjectPredicate::NumericComparison { .. } => false,
     }

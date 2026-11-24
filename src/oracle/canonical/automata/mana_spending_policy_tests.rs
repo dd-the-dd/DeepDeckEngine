@@ -88,3 +88,44 @@ fn boolean_domain_identity_uses_shared_lowering_capability() {
         ))
     );
 }
+
+#[test]
+fn a_union_of_cast_and_activation_uses_of_the_same_objects_is_one_restriction() {
+    for text in [
+        "Add {C}{C}. Spend this mana only to cast colorless Eldrazi spells or activate abilities of colorless Eldrazi.",
+        "Add one mana of any color. Spend this mana only to cast artifact spells or activate abilities of artifacts.",
+        "Add {R}. Spend this mana only to cast a Dragon spell or to activate an ability of a Dragon.",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("qualified-production-union", &tokens);
+        let node = recognize_add_mana_effect(&mut cursor).unwrap_or_else(|failure| {
+            panic!("{text}: {failure}");
+        });
+        cursor.consume(".").unwrap();
+        cursor.finish().unwrap();
+        let AddManaEffectNode::Qualified { policy, .. } = &node else {
+            panic!("missing typed qualifier: {text}")
+        };
+        assert_eq!(policy.uses.len(), 2, "{text}");
+        assert!(policy.also_activates_abilities(), "{text}");
+        let ir = crate::oracle::canonical::lower_add_mana_effect(&node);
+        assert_eq!(
+            ir["spendRestriction"]["kind"], "castSpellOrActivateAbility",
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn a_union_the_runtime_cannot_restrict_fails_at_its_own_state() {
+    for text in [
+        "Add {C}. Spend this mana only to cast an artifact spell or activate an ability.",
+        "Add {C}. Spend this mana only to activate abilities.",
+        "Add {C}. Spend this mana only to cast artifact spells or activate abilities of creatures.",
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("qualified-production-union-negative", &tokens);
+        let failure = recognize_add_mana_effect(&mut cursor).expect_err(text);
+        assert_eq!(failure.state, "mana.policy.runtime-union", "{text}");
+    }
+}

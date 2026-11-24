@@ -17,6 +17,8 @@ mod characteristic_vocabulary;
 mod contextual_binding;
 #[path = "../../../src/oracle/counter_name.rs"]
 mod counter_name;
+#[path = "../../../src/oracle/entry_choice_binding.rs"]
+mod entry_choice_binding;
 #[path = "../../../src/oracle/model.rs"]
 mod model;
 #[path = "../../../src/oracle/pipeline.rs"]

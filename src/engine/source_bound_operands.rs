@@ -105,6 +105,8 @@ impl GameEngine {
     ) -> Option<()> {
         bind_candidates(candidates, &mut |expression| {
             self.source_operand_value(expression, source)
-        })
+        })?;
+        // A relation anchored on the source (`target creature blocking it`).
+        self.bind_source_relations(candidates, source)
     }
 }

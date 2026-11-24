@@ -16,6 +16,24 @@ impl GameEngine {
         }
     }
 
+    /// CR 701.15: a shield of the permanent can replace its destruction,
+    /// unless an effect says it can't be regenerated (`cantBeRegenerated`).
+    pub(super) fn regeneration_shield_available(&self, instance_id: &str) -> bool {
+        let regenerable =
+            self.permanent_position(instance_id)
+                .is_none_or(|(player_index, card_index)| {
+                    !self.permanent_has_keyword(
+                        &self.state.players[player_index].battlefield[card_index],
+                        "cantBeRegenerated",
+                    )
+                });
+        regenerable
+            && self.state.rule_modifiers.iter().any(|modifier| {
+                value_kind(modifier) == Some("regenerationShield")
+                    && modifier["cardInstanceId"].as_str() == Some(instance_id)
+            })
+    }
+
     /// CR 701.15b: consuming a shield replaces the destruction: the permanent
     /// is tapped, all damage is removed from it, and it is removed from combat.
     pub(super) fn consume_regeneration_shield(&mut self, instance_id: &str, reason: &str) {

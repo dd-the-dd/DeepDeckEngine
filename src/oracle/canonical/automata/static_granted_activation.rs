@@ -102,6 +102,7 @@ pub(in crate::oracle::canonical) fn try_recognize_static_collection_activated_gr
                     .all(|mana| !mana.contains_variable_x()),
                 AddManaEffectNode::AnyColor(_) => true,
                 AddManaEffectNode::EachColor(_)
+                | AddManaEffectNode::StoredColor(_)
                 | AddManaEffectNode::AnyColorAmount(_)
                 | AddManaEffectNode::Counted(_)
                 | AddManaEffectNode::ScopedColor(_)

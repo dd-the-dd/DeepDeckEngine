@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "mill-and-exert-activation-costs",
+  "seed": 1,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "millCards",
+        "count": {
+          "kind": "integer",
+          "value": 2
+        }
+      },
+      {
+        "kind": "exert",
+        "object": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Mill pilot",
+        "library": [
+          {
+            "id": "library-a",
+            "name": "Library A",
+            "typeLine": "Land",
+            "manaCost": ""
+          },
+          {
+            "id": "library-b",
+            "name": "Library B",
+            "typeLine": "Land",
+            "manaCost": ""
+          },
+          {
+            "id": "library-c",
+            "name": "Library C",
+            "typeLine": "Land",
+            "manaCost": ""
+          }
+        ],
+        "battlefield": [
+          {
+            "id": "exert-mill-creature",
+            "name": "Exert Mill Creature",
+            "typeLine": "Creature — Cat",
+            "manaCost": "{2}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "millCards",
+                    "count": {
+                      "kind": "integer",
+                      "value": 2
+                    }
+                  },
+                  {
+                    "kind": "exert",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "exert-mill-creature",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "library",
+      "equals": 1
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "equals": 2
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "skipNextUntap"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    }
+  ]
+}

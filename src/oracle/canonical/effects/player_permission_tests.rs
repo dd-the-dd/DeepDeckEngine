@@ -5,11 +5,11 @@ fn permission(
     duration: EffectDurationNode,
 ) -> TemporaryPlayerPermissionNode {
     TemporaryPlayerPermissionNode {
-        modifier: PlayerModifierNode::AdditionalLandPlay {
+        rule: TemporaryRuleNode::Allowance(PlayerModifierNode::AdditionalLandPlay {
             player: LocalPlayerReference::Controller,
             count,
-        },
-        duration,
+        }),
+        duration: TemporaryRuleDuration::Effect(duration),
     }
 }
 
@@ -63,13 +63,13 @@ fn unsupported_amount_lifetime_and_actor_never_emit_default_values() {
         NumericExpression::Atom(NumericAtom::Integer(1)),
         EffectDurationNode::UntilEndOfCurrentTurn,
     );
-    node.modifier = PlayerModifierNode::AdditionalLandPlay {
+    node.rule = TemporaryRuleNode::Allowance(PlayerModifierNode::AdditionalLandPlay {
         player: LocalPlayerReference::ControllerOf(TargetBinding {
             effect_index: 0,
             slot_index: 0,
         }),
         count: NumericExpression::Atom(NumericAtom::Integer(1)),
-    };
+    });
     assert_eq!(
         lower_temporary_player_permission(&node),
         Err(TargetlessLoweringError::RequiresTarget)

@@ -30,6 +30,9 @@ pub(in crate::oracle::canonical) enum SelectedPermanentAction {
 pub(in crate::oracle::canonical) struct SelectedPermanentsEffectNode {
     pub action: SelectedPermanentAction,
     pub operand: PermanentSelectionOperandNode,
+    /// `exile all QUERY until SOURCE leaves the battlefield` (CR 610.3): the
+    /// sentence parent's adjunct of an exile; `None` for a lasting move.
+    pub until: Option<super::ZoneChangeUntilNode>,
 }
 
 #[derive(Clone, Copy)]
@@ -118,6 +121,7 @@ pub(in crate::oracle::canonical) fn recognize_untap_permanents_effect(
         node: SelectedPermanentsEffectNode {
             action: SelectedPermanentAction::Untap,
             operand,
+            until: None,
         },
         end_position: cursor.position(),
     })
@@ -158,6 +162,7 @@ pub(in crate::oracle::canonical) fn recognize_return_selected_permanents_effect(
         node: SelectedPermanentsEffectNode {
             action: SelectedPermanentAction::ReturnToOwnerHand,
             operand,
+            until: None,
         },
         end_position: cursor.position(),
     })

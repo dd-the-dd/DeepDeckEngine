@@ -21,6 +21,7 @@ fn return_selected(
     LocalEffectNode::SelectedPermanents(SelectedPermanentsEffectNode {
         action: SelectedPermanentAction::ReturnToOwnerHand,
         operand: PermanentSelectionOperandNode { bounds, query },
+        until: None,
     })
 }
 

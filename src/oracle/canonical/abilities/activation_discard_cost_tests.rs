@@ -150,7 +150,10 @@ fn unsupported_discard_shapes_fail_explicitly_at_their_own_state() {
         ),
         // The activation announces X, but X declared cards have no
         // declaration schema: a typed engine gap, never a guessed count.
-        ("{1}, Discard X cards", "engine.gap.activation-cost-action"),
+        (
+            "{1}, Discard X cards at random",
+            "engine.gap.activation-cost-action",
+        ),
         (
             "Discard a card with the same name as a permanent",
             "selector.search-card.basic-land-type",

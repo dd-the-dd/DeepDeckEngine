@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch5/integration-fixes",
+  "cases": [
+    {
+      "id": "exact-bison-whistle-branch-local-entered-permanent",
+      "request": {
+        "cardName": "Bison Whistle",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{G}",
+        "oracleText": "{1}, {T}: Look at the top card of your library. If it's a Bison card, you may put it onto the battlefield. If it's a creature card, you may reveal it and put it into your hand. Otherwise, you may put it into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-enchanted-land-is-not-that-creature",
+      "request": {
+        "cardName": "Synthetic Land Venom",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant land\nWhenever enchanted land becomes tapped, that creature's controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-enchanted-land-names-that-land",
+      "request": {
+        "cardName": "Synthetic Land Venom",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant land\nWhenever enchanted land becomes tapped, that land's controller loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-plural-zone-for-a-singular-possessor",
+      "request": {
+        "cardName": "Synthetic Search",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Search your library for a card, put that card into your graveyards, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-eldrazi-monument-shape-sacrifice-count-record",
+      "request": {
+        "cardName": "Synthetic Monument",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, sacrifice a creature. If you can't, sacrifice this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "new-combination-postposed-condition-reads-its-own-target",
+      "request": {
+        "cardName": "Synthetic Tapped Bolt",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "Tap target creature you don't control if it's untapped. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-mnemonic-deluge-copy-count",
+      "request": {
+        "cardName": "Mnemonic Deluge",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{U}{U}{U}",
+        "oracleText": "Exile target instant or sorcery card from a graveyard. Copy that card three times. You may cast the copies without paying their mana costs. Exile Mnemonic Deluge.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    }
+  ]
+}

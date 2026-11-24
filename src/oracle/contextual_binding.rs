@@ -40,6 +40,7 @@ pub(crate) fn validate_native_contextual_bindings(
     request: &OracleCardParseRequest,
     abilities: &mut [ParsedOracleAbility],
 ) {
+    crate::oracle::entry_choice_binding::bind_entry_choices(abilities);
     bind_sacrificed_cost_objects(abilities);
     for ability in abilities {
         if ability.status != "canonical" || ability.recognizer != RecognizerProvenance::Native {

@@ -550,7 +550,7 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "state": "condition.history.scope"
+            "state": "condition.allow-list"
           }
         ]
       }

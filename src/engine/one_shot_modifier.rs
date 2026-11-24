@@ -18,10 +18,17 @@ fn stack_object_modifier_supported(modifier: &Value) -> bool {
 }
 
 fn apply_operation_supported(operation: &Value) -> bool {
-    value_kind(operation) == Some("modifyStackObject")
+    (value_kind(operation) == Some("modifyStackObject")
         && value_kind(&operation["object"]) == Some("eventSpell")
-        && stack_object_modifier_supported(&operation["modifier"])
+        && stack_object_modifier_supported(&operation["modifier"]))
+        // CR 601.3e: the matched spell may be cast as though it had flash;
+        // the permission is read before the cast that consumes it.
+        || value_kind(operation) == Some(CAST_AS_THOUGH_FLASH)
 }
+
+/// The pending operation that lets the matched spell be cast at instant
+/// speed (CR 702.8a).
+const CAST_AS_THOUGH_FLASH: &str = "castAsThoughItHadFlash";
 
 fn match_player_supported(reference: &Value, captures: &serde_json::Map<String, Value>) -> bool {
     match value_kind(reference) {
@@ -130,6 +137,32 @@ impl GameEngine {
         };
         let modifier = self.state.rule_modifiers.remove(index);
         modifier["apply"].as_array().cloned().unwrap_or_default()
+    }
+}
+
+impl GameEngine {
+    /// CR 601.3e: a pending one-shot modifier of `player_id` whose spell
+    /// matches `spell` lets it be cast as though it had flash.
+    pub(super) fn one_shot_flash_permission(
+        &self,
+        player_id: &str,
+        spell: &CardDefinition,
+    ) -> bool {
+        let turn = u64::from(self.state.turn_number);
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some(PENDING_KIND)
+                && modifier["event"].as_str() == Some("spellCast")
+                && modifier["playerId"].as_str() == Some(player_id)
+                && modifier["expiresAfterTurn"]
+                    .as_u64()
+                    .is_none_or(|expires| expires >= turn)
+                && (modifier["where"].is_null() || matches_card_filter(spell, &modifier["where"]))
+                && modifier["apply"].as_array().is_some_and(|operations| {
+                    operations
+                        .iter()
+                        .any(|operation| value_kind(operation) == Some(CAST_AS_THOUGH_FLASH))
+                })
+        })
     }
 }
 

@@ -9,19 +9,30 @@ pub(in crate::oracle::canonical) fn lower_player_sacrifice_choice(
     decision: &str,
     declarations: TargetlessDeclarationSupport,
 ) -> Result<Value, TargetlessLoweringError> {
-    if !domain_filter_is_representable(&action.object.predicate) {
+    // `a creature with the greatest power among creatures they control`:
+    // the ranking of the chooser's own candidates (shared superlative).
+    let (predicate, extremum) = match split_candidate_extremum(&action.object.predicate) {
+        None => (action.object.predicate.clone(), None),
+        Some(Some((candidates, extremum))) => (candidates, Some(extremum)),
+        Some(None) => return Err(TargetlessLoweringError::UnsupportedCollectionPredicate),
+    };
+    if !domain_filter_is_representable(&predicate) {
         return Err(TargetlessLoweringError::UnsupportedCollectionPredicate);
     }
-    validate_object_predicate_numeric_expressions(&action.object.predicate, declarations)?;
+    validate_object_predicate_numeric_expressions(&predicate, declarations)?;
     let count = lower_targetless_numeric_expression(&action.count, declarations)?;
-    Ok(json!({
+    let mut choice = json!({
         "kind":"chooseCards", "id":decision, "player":player.clone(),
         "from":{
             "kind":"eachPermanent", "player":player,
-            "where":lower_permanent_object_predicate(&action.object.predicate),
+            "where":lower_permanent_object_predicate(&predicate),
         },
         "count":count,
-    }))
+    });
+    if let Some(extremum) = extremum {
+        choice["extremum"] = extremum;
+    }
+    Ok(choice)
 }
 
 /// One resolved player chooses, then the chosen permanents are sacrificed as

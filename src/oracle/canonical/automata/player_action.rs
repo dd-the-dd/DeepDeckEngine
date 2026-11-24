@@ -51,8 +51,9 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     Sacrifice(PlayerSacrificeActionNode),
     /// `proliferate` (CR 701.34a): the acting player chooses any number of
     /// permanents and/or players that have a counter, then gives each one
-    /// additional counter of each kind already there.
-    Proliferate,
+    /// additional counter of each kind already there. The expression is the
+    /// number of separate proliferations (`proliferate twice`), 1 when bare.
+    Proliferate(NumericExpression),
     /// `reveals|discards their hand`: the shared whole-hand verb child.
     Hand(PlayerHandVerb),
     /// `discards|exiles that card|it|them`: the player acts on cards an
@@ -586,7 +587,13 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             VerbAgreement::Base => "proliferate",
             VerbAgreement::ThirdPersonSingular => "proliferates",
         })?;
-        SingularPlayerAction::Proliferate
+        // `proliferate twice` / `proliferate X times`: the shared repetition
+        // adjunct; each proliferation is its own keyword action.
+        SingularPlayerAction::Proliferate(if super::repetition_adjunct_starts(cursor) {
+            super::recognize_repetition_adjunct(cursor)?
+        } else {
+            NumericExpression::from(1_i64)
+        })
     } else if is_venture {
         SingularPlayerAction::Venture(recognize_venture_action_fragment(cursor, form)?)
     } else if is_counters {

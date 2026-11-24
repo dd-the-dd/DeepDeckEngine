@@ -690,7 +690,8 @@ fn exception_item_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool 
 /// `, except it's 1/1 and it's a Nightmare in addition to its other types`,
 /// `, except it has haste`, `, except they aren't legendary`. Each item is
 /// one copiable-value exception (CR 707.9b); items are coordinated by `and`.
-fn recognize_copy_exceptions(
+/// Shared with the entry-copy replacement frame (`entry_frame.rs`).
+pub(in crate::oracle::canonical) fn recognize_copy_exceptions(
     cursor: &mut OracleTokenCursor<'_>,
     plural: bool,
 ) -> super::super::MachineResult<TokenCopyExceptionsNode> {

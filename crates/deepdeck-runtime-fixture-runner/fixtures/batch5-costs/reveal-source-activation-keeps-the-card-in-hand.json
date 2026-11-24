@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "reveal-source-activation-keeps-the-card-in-hand",
+  "seed": 1,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "activationZone": "hand",
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{U}"
+      },
+      {
+        "kind": "revealCard",
+        "card": {
+          "kind": "self"
+        }
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Forecast pilot",
+        "manaPool": [
+          "U"
+        ],
+        "hand": [
+          {
+            "id": "forecast-card",
+            "name": "Forecast Card",
+            "typeLine": "Sorcery",
+            "manaCost": "{2}{U}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "activationZone": "hand",
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{U}"
+                  },
+                  {
+                    "kind": "revealCard",
+                    "card": {
+                      "kind": "self"
+                    }
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "forecast-card",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "hand",
+      "definitionId": "forecast-card",
+      "equals": true
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardRevealed",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "player-0",
+      "equals": 21
+    }
+  ]
+}

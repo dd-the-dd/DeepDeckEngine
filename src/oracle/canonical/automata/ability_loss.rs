@@ -38,6 +38,7 @@ pub(in crate::oracle::canonical) fn object_predicate_uses_x(predicate: &ObjectPr
     match predicate {
         ObjectPredicate::NumericComparison { right, .. } => right.uses_x(),
         ObjectPredicate::Not(operand) => object_predicate_uses_x(operand),
+        ObjectPredicate::Qualifier(qualifier) => qualifier.uses_x(),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
             operands.iter().any(object_predicate_uses_x)
         }

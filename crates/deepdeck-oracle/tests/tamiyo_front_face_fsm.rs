@@ -86,7 +86,9 @@ fn source_anaphor_and_arbitrary_ordinal_reuse_the_same_children() {
 fn malformed_effect_and_counted_noun_are_committed_failures() {
     let investigate = parse(
         "Curious Scout",
-        "Whenever this creature attacks, investigate twice.",
+        // `investigate twice` is the shared repetition adjunct; an
+        // unbounded repetition has no amount it can read.
+        "Whenever this creature attacks, investigate any number of times.",
     );
     assert_eq!(investigate.status, "unsupported");
     assert_eq!(

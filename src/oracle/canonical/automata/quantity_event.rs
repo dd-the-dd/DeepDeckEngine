@@ -101,6 +101,63 @@ fn recognize_counter_recipient(
     Ok(query.predicate)
 }
 
+/// The offset of the `tokens` noun closing `[OBJECT] tokens would be created`
+/// (CR 111.1, 614.1a): the passive token-creation event. The words before it
+/// are the shared object predicate of the created tokens.
+fn passive_token_creation_noun(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        if raw.eq_ignore_ascii_case("would") || matches!(raw, "," | ".") {
+            return None;
+        }
+        if raw.eq_ignore_ascii_case("tokens")
+            && cursor
+                .peek_ahead(offset + 1)
+                .is_some_and(|next| next.eq_ignore_ascii_case("would"))
+            && cursor
+                .peek_ahead(offset + 2)
+                .is_some_and(|next| next.eq_ignore_ascii_case("be"))
+            && cursor
+                .peek_ahead(offset + 3)
+                .is_some_and(|next| next.eq_ignore_ascii_case("created"))
+        {
+            return Some(offset);
+        }
+        offset += 1;
+    }
+    None
+}
+
+/// `[OBJECT] tokens would be created under your control`: the object
+/// predicate, when stated, is read by the shared object query.
+fn recognize_passive_token_creation(
+    cursor: &mut OracleTokenCursor<'_>,
+    noun: usize,
+    domain_committed: &mut bool,
+) -> MachineResult<Option<ObjectPredicate>> {
+    cursor.enter("quantity-event.passive-tokens.object");
+    let object = if noun > 0 {
+        let end = cursor.position() + noun;
+        let query = cursor.bounded(end, recognize_object_query)?;
+        cursor.require(
+            query.controller.is_none() && !query.exclude_source,
+            "a created-token predicate without a controller relation",
+        )?;
+        cursor.require(
+            !object_predicate_uses_x(&query.predicate),
+            "a created-token predicate without an undeclared X producer",
+        )?;
+        Some(query.predicate)
+    } else {
+        None
+    };
+    cursor.enter("quantity-event.passive-tokens.event");
+    cursor.consume_phrase(&["tokens", "would", "be", "created"])?;
+    *domain_committed = true;
+    cursor.consume_phrase(&["under", "your", "control"])?;
+    Ok(object)
+}
+
 /// Recognizes the event clause only. The parent owns `if`, comma, replacement
 /// body and full consumption; this child exports typed object/quantity bindings.
 pub(in crate::oracle::canonical) enum QuantityEventRecognition {
@@ -161,6 +218,21 @@ fn recognize_quantity_event_inner(
         QuantityEventOrigin::Any
     };
     let minimum = recognize_positive_event_quantity(cursor)?;
+    if !active && let Some(noun) = passive_token_creation_noun(cursor) {
+        let object = recognize_passive_token_creation(cursor, noun, domain_committed)?;
+        cursor.enter("quantity-event.complete");
+        return Ok(QuantityEventNode {
+            domain: QuantityEventDomain::TokenCreation,
+            origin,
+            voice: QuantityEventVoice::Passive,
+            minimum,
+            affected_controller: ObjectControllerScope::AbilityController,
+            object,
+            counter: None,
+            object_binding: ReplacementObjectBinding::EventObject,
+            quantity_binding: EventNumericBinding::ReplacementQuantity,
+        });
+    }
     let (counter, object) = match domain {
         QuantityEventDomain::TokenCreation => {
             cursor.enter("quantity-event.tokens");

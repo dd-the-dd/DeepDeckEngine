@@ -150,23 +150,24 @@ fn activation_costs_wire_engine_schemas_or_fail_explicitly() {
             "Creature — Moonfolk",
             "{4}, Return two lands you control to their owner's hand: Draw a card.",
         ),
-    ] {
-        assert_eq!(status(name, type_line, text).0, "canonical", "{text}");
-    }
-    for (type_line, text) in [
+        // Mill N and exerting the source have activation cost schemas.
         (
+            "Millikin Probe",
             "Artifact Creature — Construct",
             "{T}, Mill a card: Add {C}.",
         ),
         (
+            "Pride Sovereign Probe",
             "Creature — Cat",
             "{W}, {T}, Exert this creature: Create a 1/1 white Cat creature token with lifelink.",
         ),
-        (
-            "Creature — Merfolk",
-            "{T}, Untap a tapped land you control: Draw a card.",
-        ),
     ] {
+        assert_eq!(status(name, type_line, text).0, "canonical", "{text}");
+    }
+    for (type_line, text) in [(
+        "Creature — Merfolk",
+        "{T}, Untap a tapped land you control: Draw a card.",
+    )] {
         assert_eq!(
             status("Unsupported Cost Probe", type_line, text),
             (

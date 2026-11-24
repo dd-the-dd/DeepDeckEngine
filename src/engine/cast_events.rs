@@ -9,6 +9,38 @@
 //! zone, turn relations, stored-choice relations). One matcher evaluates it.
 use super::*;
 
+/// The flag a cast spell keeps when it was cast during its caster's own main
+/// phase (the Addendum timing, `If you cast this spell during your main
+/// phase`).
+pub(super) const CAST_DURING_MAIN_PHASE_FLAG: &str = "wasCastDuringMainPhase";
+
+/// Every flag a spell records only because it was cast. A copy of a spell
+/// copies the original's copiable values and choices (CR 707.10) but is not
+/// cast, so none of these cast-history facts carry over to it.
+pub(super) const CAST_HISTORY_FLAGS: [&str; 3] =
+    ["wasCast", "wasCastFromHand", CAST_DURING_MAIN_PHASE_FLAG];
+
+/// Marks `flags` as those of a spell copy: the copy marker is set and every
+/// cast-history flag inherited from the original is removed (CR 707.10).
+pub(super) fn mark_spell_copy(flags: &mut BTreeMap<String, bool>) {
+    flags.insert("isSpellCopy".to_string(), true);
+    for flag in CAST_HISTORY_FLAGS {
+        flags.remove(flag);
+    }
+}
+
+impl GameEngine {
+    /// True while `player_id` is the active player in a main phase: a spell
+    /// that player casts now is cast during their main phase.
+    pub(super) fn casting_during_own_main_phase(&self, player_id: &str) -> bool {
+        self.state.players[self.state.active_player].id == player_id
+            && matches!(
+                self.state.step,
+                GameStep::PrecombatMain | GameStep::PostcombatMain
+            )
+    }
+}
+
 /// One spell cast.
 pub(super) struct CastEventRecord<'a> {
     pub caster: &'a str,

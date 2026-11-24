@@ -42,7 +42,20 @@ enum EventScope {
     Departure,
     /// A cast record binds its spell and caster.
     SpellCast,
+    /// An occurrence of the shared event clause binds every event reference
+    /// a printed trigger of that event binds (CR 603.7d-e); the source of
+    /// the created trigger is the source of the ability that created it.
+    Occurrence,
 }
+
+/// The amounts the runtime records with a triggering occurrence, read by a
+/// created trigger as its own event's quantity (`that much`).
+const OCCURRENCE_DECISIONS: &[&str] = &[
+    "damageAmount",
+    "lifeGainedAmount",
+    "lifeLostAmount",
+    "counterCount",
+];
 
 impl EventScope {
     fn own_event_reference(self, kind: &str) -> bool {
@@ -50,7 +63,24 @@ impl EventScope {
             Self::Step => false,
             Self::Departure => kind == "triggeringPermanent",
             Self::SpellCast => matches!(kind, "triggeringStackObject" | "triggeringPlayer"),
+            Self::Occurrence => {
+                kind.starts_with("triggering")
+                    || matches!(
+                        kind,
+                        "eventObject" | "eventQuantity" | "observedEventObject"
+                    )
+            }
         }
+    }
+
+    /// The source of a created occurrence trigger is the creating ability's
+    /// source (CR 603.7d): `self` is read live, never captured.
+    fn captures_self(self) -> bool {
+        self != Self::Occurrence
+    }
+
+    fn own_event_decision(self, decision: &str) -> bool {
+        self == Self::Occurrence && OCCURRENCE_DECISIONS.contains(&decision)
     }
 }
 
@@ -124,7 +154,7 @@ fn capture_references(
     {
         let captured = CAPTURED_OBJECT_REFERENCES.contains(&kind)
             || CAPTURED_PLAYER_REFERENCES.contains(&kind)
-            || (kind == "self" && !source_position(key, parent));
+            || (kind == "self" && scope.captures_self() && !source_position(key, parent));
         if captured {
             let binding = captures.binding_for(value.clone());
             *value = json!({"kind": "boundValue", "id": binding});
@@ -175,6 +205,29 @@ fn operates_on_event_object(value: &Value, parent: Option<&str>) -> bool {
                 .any(|child| operates_on_event_object(child, kind))
         }
         _ => false,
+    }
+}
+
+/// True when every declared target a value reads was declared by an action
+/// before the created rule.
+fn targets_declared_before(value: &Value, declared: &BTreeSet<&str>) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .all(|item| targets_declared_before(item, declared)),
+        Value::Object(object) => {
+            let kind = object.get("kind").and_then(Value::as_str);
+            if matches!(kind, Some("chosenTarget" | "chosenTargets")) {
+                return object
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| declared.contains(id));
+            }
+            object
+                .values()
+                .all(|child| targets_declared_before(child, declared))
+        }
+        _ => true,
     }
 }
 
@@ -263,8 +316,10 @@ fn followed_object(
     }
 }
 
-/// `If OBJECT would die this turn, exile it instead.` (CR 614.1a): the range
-/// is exactly the replacing exile of the followed object.
+/// `If OBJECT would die this turn, exile it instead.` / `If OBJECT would
+/// leave the battlefield, exile it instead [of putting it anywhere else].`
+/// (CR 614.1a): the range is exactly the replacing exile of the followed
+/// object.
 fn lower_created_replacement(
     cursor: &mut OracleTokenCursor<'_>,
     replacement: &CreatedReplacementNode,
@@ -276,19 +331,40 @@ fn lower_created_replacement(
         replacement.instead,
         "a replacement action closed by `instead`",
     )?;
-    let object = followed_object(cursor, replacement.object, target_bindings)?;
+    let object = match replacement.object {
+        // The permanent a move of the same program put onto the battlefield
+        // (CR 400.7): the move binds it before the replacement is created.
+        PermanentEffectReference::Observed(TypedObservedEventObject::MovedOntoBattlefield)
+            if replacement.event == ObjectDeparture::LeavesBattlefield =>
+        {
+            lower_bound_permanent_reference(cursor, replacement.object, target_bindings)
+                .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?
+        }
+        _ => followed_object(cursor, replacement.object, target_bindings)?,
+    };
     cursor.enter("lower.created-replacement.action");
     let exile = json!({"kind": "exilePermanent", "permanent": object.clone()});
     cursor.require(
         governed.len() == 1 && governed[0] == exile,
-        "exactly one exile of the object that would die as the replacing action",
+        "exactly one exile of the object that would die or leave as the replacing action",
     )?;
-    let CreatedRuleLifetime::ThisTurn = replacement.lifetime;
-    Ok(json!({
-        "kind": "installDeathExileReplacement",
-        "object": object,
-        "duration": {"kind": "untilEndOfCurrentTurn"},
-    }))
+    cursor.enter("lower.created-replacement.event");
+    match (replacement.event, replacement.lifetime) {
+        (ObjectDeparture::Dies, Some(CreatedRuleLifetime::ThisTurn)) => Ok(json!({
+            "kind": "installDeathExileReplacement",
+            "object": object,
+            "duration": {"kind": "untilEndOfCurrentTurn"},
+        })),
+        // It applies to that object for as long as it is that object; a
+        // new object after a zone change is not followed (CR 400.7).
+        (ObjectDeparture::LeavesBattlefield, None) => Ok(json!({
+            "kind": "installLeaveBattlefieldExileReplacement",
+            "object": object,
+        })),
+        _ => Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+            "a death replacement lasting this turn or an unbounded leave-the-battlefield replacement",
+        ))),
+    }
 }
 
 /// Moves each governed range into the rule its frame creates. Ranges run
@@ -363,7 +439,7 @@ fn lower_next_damage_shield(
     shield: &NextDamageRuleNode,
     governed: &[Value],
 ) -> Result<Value, EffectSequenceLoweringFailure> {
-    let CreatedRuleLifetime::ThisTurn = shield.lifetime;
+    require_this_turn(cursor, shield.lifetime)?;
     let event = &shield.event;
     cursor.enter("lower.next-damage.recipient");
     cursor.require(
@@ -425,6 +501,7 @@ fn lower_delayed_trigger(
         EffectCreatedRuleNode::Trigger(trigger) => match &trigger.event {
             DelayedTriggerEventNode::BoundObjectDeparture { .. } => EventScope::Departure,
             DelayedTriggerEventNode::NextSpellCast { .. } => EventScope::SpellCast,
+            DelayedTriggerEventNode::Event { .. } => EventScope::Occurrence,
         },
         EffectCreatedRuleNode::Step(_)
         | EffectCreatedRuleNode::Replacement(_)
@@ -456,6 +533,23 @@ fn lower_delayed_trigger(
         }
         _ => None,
     };
+    // A target an action of the created trigger declares is chosen when that
+    // trigger is put on the stack (CR 603.3d), not by the ability that
+    // created it; the shared declaration has no such moment yet.
+    if scope == EventScope::Occurrence {
+        cursor.enter("lower.created-trigger.own-targets");
+        let declared_before = target_bindings
+            .iter()
+            .filter(|(binding, _)| binding.effect_index < frame.first_effect)
+            .map(|(_, id)| id.as_str())
+            .collect::<BTreeSet<_>>();
+        cursor.require(
+            delayed
+                .iter()
+                .all(|effect| targets_declared_before(effect, &declared_before)),
+            "created trigger actions reading only targets the creating ability declared",
+        )?;
+    }
     cursor.enter("lower.delayed.object-references");
     let mut captures = Captures::new(frame.first_effect);
     delayed
@@ -479,10 +573,9 @@ fn lower_delayed_trigger(
         captured
             .iter()
             .all(|binding| earlier.produced.contains(binding))
-            && inside
-                .decisions_read
-                .iter()
-                .all(|decision| inside.produced.contains(decision)),
+            && inside.decisions_read.iter().all(|decision| {
+                inside.produced.contains(decision) || scope.own_event_decision(decision)
+            }),
         "delayed actions whose bound operands are produced earlier in the same program",
     )?;
     cursor.enter("lower.delayed.result-scope");
@@ -510,6 +603,8 @@ fn lower_delayed_trigger(
                 DelayedStepTurnNode::AnyTurn => {}
                 DelayedStepTurnNode::ControllerTurn => install["turnOf"] = controller(),
                 DelayedStepTurnNode::NextTurn => install["nextTurn"] = json!(true),
+                // Expires with this turn when no such step comes.
+                DelayedStepTurnNode::ThisTurn => install["thisTurnOnly"] = json!(true),
             }
             install
         }
@@ -519,7 +614,17 @@ fn lower_delayed_trigger(
                 captured.is_empty(),
                 "delayed trigger actions reading no result an earlier action bound",
             )?;
-            let CreatedRuleLifetime::ThisTurn = trigger.lifetime;
+            if let DelayedTriggerEventNode::Event { event, condition } = &trigger.event {
+                return lower_created_event_trigger(
+                    cursor,
+                    trigger,
+                    event,
+                    condition.as_ref(),
+                    delayed,
+                    &captures,
+                );
+            }
+            require_this_turn(cursor, trigger.lifetime)?;
             match &trigger.event {
                 DelayedTriggerEventNode::BoundObjectDeparture { departure, .. } => {
                     let mut install = json!({
@@ -553,12 +658,65 @@ fn lower_delayed_trigger(
                         "effects": delayed.clone(),
                     })
                 }
+                DelayedTriggerEventNode::Event { .. } => {
+                    unreachable!("an occurrence trigger is lowered by its own function")
+                }
             }
         }
         EffectCreatedRuleNode::Replacement(_) | EffectCreatedRuleNode::NextDamage(_) => {
             unreachable!("a created replacement is lowered without a delayed trigger")
         }
     };
+    if !captures.references.is_empty() {
+        install["captureReferences"] = captures.lowered();
+    }
+    Ok(install)
+}
+
+/// The lifetime of every created rule other than an occurrence trigger.
+fn require_this_turn(
+    cursor: &mut OracleTokenCursor<'_>,
+    lifetime: CreatedRuleLifetime,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    cursor.enter("lower.created-rule.lifetime");
+    cursor.require(
+        lifetime == CreatedRuleLifetime::ThisTurn,
+        "a created rule that lasts this turn",
+    )?;
+    Ok(())
+}
+
+/// `When|Whenever EVENT this turn, ACTIONS.` (CR 603.7): a created triggered
+/// ability whose event is the shared event pattern of a printed trigger,
+/// lowered by the same event lowering. `when` is consumed by its first
+/// occurrence (CR 603.7c); `whenever` lasts for its lifetime.
+fn lower_created_event_trigger(
+    cursor: &mut OracleTokenCursor<'_>,
+    trigger: &EmbeddedDelayedTriggerNode,
+    event: &GenericTriggerEventNode,
+    condition: Option<&EventTimeConditionNode>,
+    delayed: &[Value],
+    captures: &Captures,
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    cursor.enter("lower.created-trigger.event");
+    let lowered_event = lower_generic_trigger_event(cursor, event)?;
+    let duration = match trigger.lifetime {
+        CreatedRuleLifetime::ThisTurn => json!({"kind": "untilEndOfCurrentTurn"}),
+        CreatedRuleLifetime::UntilYourNextTurn => {
+            json!({"kind": "untilNextTurn", "player": controller()})
+        }
+    };
+    let mut install = json!({
+        "kind": "installCreatedTrigger",
+        "controller": controller(),
+        "event": lowered_event,
+        "oneShot": !trigger.repeats,
+        "duration": duration,
+        "effects": delayed,
+    });
+    if let Some(condition) = condition {
+        install["eventCondition"] = lower_event_time_condition(cursor, condition)?;
+    }
     if !captures.references.is_empty() {
         install["captureReferences"] = captures.lowered();
     }

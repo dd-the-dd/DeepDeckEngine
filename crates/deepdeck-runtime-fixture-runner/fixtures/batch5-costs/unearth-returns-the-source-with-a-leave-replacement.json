@@ -1,0 +1,256 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "unearth-returns-the-source-with-a-leave-replacement",
+  "seed": 1,
+  "rule": {
+    "kind": "activatedAbility",
+    "source": {
+      "kind": "self"
+    },
+    "costs": [
+      {
+        "kind": "payMana",
+        "manaCost": "{1}{R}"
+      }
+    ],
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": []
+    },
+    "activationZone": "graveyard",
+    "activationCondition": {
+      "kind": "sorceryTiming"
+    },
+    "effects": [
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "self"
+        },
+        "from": {
+          "kind": "graveyard",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        },
+        "to": {
+          "kind": "battlefield",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          },
+          "tapped": false
+        },
+        "bind": "movedOntoBattlefield"
+      },
+      {
+        "kind": "grantKeyword",
+        "keyword": "haste",
+        "object": {
+          "kind": "singleBoundObject",
+          "binding": "movedOntoBattlefield"
+        },
+        "duration": {
+          "kind": "permanent"
+        }
+      },
+      {
+        "kind": "installDelayedStepTrigger",
+        "step": "endStep",
+        "controller": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "captureBindings": [
+          "movedOntoBattlefield"
+        ],
+        "effects": [
+          {
+            "kind": "exilePermanent",
+            "permanent": {
+              "kind": "singleBoundObject",
+              "binding": "movedOntoBattlefield"
+            }
+          }
+        ]
+      },
+      {
+        "kind": "installLeaveBattlefieldExileReplacement",
+        "object": {
+          "kind": "singleBoundObject",
+          "binding": "movedOntoBattlefield"
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Unearth pilot",
+        "manaPool": [
+          "R",
+          "R"
+        ],
+        "graveyard": [
+          {
+            "id": "unearth-elemental",
+            "name": "Unearth Elemental",
+            "typeLine": "Creature — Elemental",
+            "manaCost": "{1}{R}",
+            "rules": [
+              {
+                "kind": "activatedAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "costs": [
+                  {
+                    "kind": "payMana",
+                    "manaCost": "{1}{R}"
+                  }
+                ],
+                "declaration": {
+                  "kind": "castingDeclaration",
+                  "decisions": []
+                },
+                "activationZone": "graveyard",
+                "activationCondition": {
+                  "kind": "sorceryTiming"
+                },
+                "effects": [
+                  {
+                    "kind": "moveCards",
+                    "cards": {
+                      "kind": "self"
+                    },
+                    "from": {
+                      "kind": "graveyard",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "to": {
+                      "kind": "battlefield",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      },
+                      "tapped": false
+                    },
+                    "bind": "movedOntoBattlefield"
+                  },
+                  {
+                    "kind": "grantKeyword",
+                    "keyword": "haste",
+                    "object": {
+                      "kind": "singleBoundObject",
+                      "binding": "movedOntoBattlefield"
+                    },
+                    "duration": {
+                      "kind": "permanent"
+                    }
+                  },
+                  {
+                    "kind": "installDelayedStepTrigger",
+                    "step": "endStep",
+                    "controller": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "captureBindings": [
+                      "movedOntoBattlefield"
+                    ],
+                    "effects": [
+                      {
+                        "kind": "exilePermanent",
+                        "permanent": {
+                          "kind": "singleBoundObject",
+                          "binding": "movedOntoBattlefield"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "installLeaveBattlefieldExileReplacement",
+                    "object": {
+                      "kind": "singleBoundObject",
+                      "binding": "movedOntoBattlefield"
+                    }
+                  }
+                ]
+              }
+            ],
+            "power": "3",
+            "toughness": "1"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "activateAbility",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "unearth-elemental",
+      "abilityRuleIndex": 0
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "battlefield",
+      "definitionId": "unearth-elemental",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "player-0",
+      "zone": "graveyard",
+      "definitionId": "unearth-elemental",
+      "equals": false
+    },
+    {
+      "kind": "permanentHasKeyword",
+      "playerId": "player-0",
+      "definitionId": "unearth-elemental",
+      "keyword": "haste",
+      "equals": true
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "exileIfLeavesBattlefield"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

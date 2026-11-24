@@ -7,6 +7,8 @@ pub(super) fn ordinary_bound_selection(effect: &Value) -> bool {
         && !effect["sameLandType"].as_bool().unwrap_or(false)
         && !effect["onePerControlledColor"].as_bool().unwrap_or(false)
         && value_kind(&effect["selection"]) != Some("random")
+        && effect.get("extremum").is_none()
+        && effect.get("setConstraints").is_none()
 }
 
 impl GameEngine {

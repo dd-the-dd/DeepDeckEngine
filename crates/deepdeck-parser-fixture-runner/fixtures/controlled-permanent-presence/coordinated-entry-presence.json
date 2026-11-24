@@ -547,7 +547,7 @@
       }
     },
     {
-      "id": "reject-unfiltered-domain-last",
+      "id": "shared-condition-unfiltered-domain-last",
       "request": {
         "cardName": "Presence Near Miss",
         "typeLine": "Land",
@@ -557,25 +557,33 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/condition/operand/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/operand/left/where",
+                "equals": null
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "reject-unfiltered-domain-first",
+      "id": "shared-condition-unfiltered-domain-first",
       "request": {
         "cardName": "Presence Near Miss",
         "typeLine": "Land",
@@ -585,25 +593,33 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/condition/operand/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/operand/left/where",
+                "equals": null
+              }
+            ]
           }
         ]
       }
     },
     {
-      "id": "reject-unfiltered-domain-legacy-shape",
+      "id": "shared-condition-unfiltered-domain-legacy-shape",
       "request": {
         "cardName": "Presence Near Miss",
         "typeLine": "Land",
@@ -613,19 +629,27 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/condition/operand/left/kind",
+                "equals": "countPermanents"
+              },
+              {
+                "pointer": "/condition/operand/left/where",
+                "equals": null
+              }
+            ]
           }
         ]
       }

@@ -55,6 +55,18 @@ fn engine_with_spell(life: i32, include_discard_card: bool) -> GameEngine {
     engine
 }
 
+/// The discard branch chooses the card to discard as an object choice of the
+/// shared additional-cost frame (`additionalCostCard`, CR 601.2b), declared
+/// with the casting announcement like any chosen object.
+fn chooses_discard_payment(action: &LegalAction) -> bool {
+    action.decisions.get("additionalCostCard")
+        == Some(&json!([{ "card": { "instanceId": "discard-payment" } }]))
+        && action.targets.get("additionalCostCard")
+            == Some(&TargetRef::Card {
+                instance_id: "discard-payment".to_string(),
+            })
+}
+
 fn casting_actions(engine: &GameEngine) -> Vec<LegalAction> {
     engine
         .legal_priority_actions(0)
@@ -70,16 +82,23 @@ fn casting_actions(engine: &GameEngine) -> Vec<LegalAction> {
 #[test]
 fn casting_can_pay_exactly_the_discard_branch() {
     let mut engine = engine_with_spell(20, true);
-    let action = casting_actions(&engine)
-        .into_iter()
+    let actions = casting_actions(&engine);
+    let action = actions
+        .iter()
         .find(|action| {
             action.decisions["additionalCostMode"] == json!(["discard"])
-                && action.targets.get("discardCost1")
-                    == Some(&TargetRef::Card {
-                        instance_id: "discard-payment".to_string(),
-                    })
+                && chooses_discard_payment(action)
         })
-        .expect("the discard branch should be payable");
+        .cloned()
+        .unwrap_or_else(|| {
+            panic!(
+                "the discard branch should be payable: {:?}",
+                actions
+                    .iter()
+                    .map(|action| (&action.decisions, &action.targets))
+                    .collect::<Vec<_>>()
+            )
+        });
 
     engine
         .apply_priority_action(&action, &mut EmeritusDecisionProvider)
@@ -116,7 +135,7 @@ fn casting_can_pay_exactly_the_life_branch() {
         .into_iter()
         .find(|action| {
             action.decisions["additionalCostMode"] == json!(["payLife"])
-                && !action.targets.contains_key("discardCost1")
+                && !action.decisions.contains_key("additionalCostCard")
         })
         .expect("the life branch should be payable");
 

@@ -109,6 +109,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect.get("turnOf").is_none_or(player_reference_supported)
                 // `the next turn's STEP` (CR 500.1).
                 && effect.get("nextTurn").is_none_or(Value::is_boolean)
+                // `this turn's next STEP`: the step of the current turn only.
+                && effect.get("thisTurnOnly").is_none_or(Value::is_boolean)
                 && (effect.get("nextTurn").is_none() || effect.get("turnOf").is_none())
                 // References captured when the trigger is created (CR 603.7c).
                 && effect.get("captureReferences").is_none_or(
@@ -613,6 +615,10 @@ impl GameEngine {
                     "trackedObjectId": tracked_object_id,
                     "capturedBindings": captured_bindings,
                 });
+                let mut modifier = modifier;
+                if effect["thisTurnOnly"].as_bool() == Some(true) {
+                    modifier["expiresAfterTurn"] = json!(self.state.turn_number);
+                }
                 self.state.rule_modifiers.push(modifier.clone());
                 self.record_event(
                     "delayedTriggerInstalled",

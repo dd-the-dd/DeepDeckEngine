@@ -345,6 +345,7 @@ fn compose_card_rules_with_sources(
             .map(|type_line| type_line_type_heads(&type_line));
         if let Some(rule) = ability.rule.as_mut() {
             compose_other_target_relation_for_source(rule, source_heads.as_deref());
+            super::effects::lift_target_set_constraints(rule);
         }
     }
     link_exiles_to_linked_readers(abilities);

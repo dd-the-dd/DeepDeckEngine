@@ -86,7 +86,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Discard(_)
             | SingularPlayerAction::Sacrifice(_)
             | SingularPlayerAction::Venture(_)
-            | SingularPlayerAction::Proliferate
+            | SingularPlayerAction::Proliferate(_)
             | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::CreateTokens(_)
@@ -105,6 +105,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
+            | CardActionNode::Copy { .. }
             | CardActionNode::Permit(_) => false,
             CardActionNode::Shuffle { .. } => true,
             CardActionNode::Move { destination, .. } => destination.zone != CardZoneName::Library,
@@ -127,6 +128,9 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             // This node selects from and returns to the same player's
             // library; ordering within a zone does not cross its boundary.
             SearchDestination::LibraryTop => false,
+            // The selection only binds the found cards; the action that
+            // later moves them is classified on its own.
+            SearchDestination::Bound => false,
         },
         LocalEffectNode::MoveCards(movement) => {
             fn is_library(zone: LocalZone) -> bool {
@@ -246,7 +250,14 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::ReturnSelf
         | LocalActivationCostNode::ReturnObjects(_)
         | LocalActivationCostNode::PutSourceCounters(_)
-        | LocalActivationCostNode::PutChosenCounters(_) => false,
+        | LocalActivationCostNode::PutChosenCounters(_)
+        | LocalActivationCostNode::RevealSelf
+        | LocalActivationCostNode::RevealCards(_)
+        | LocalActivationCostNode::ExertSelf
+        | LocalActivationCostNode::ChosenX(_)
+        | LocalActivationCostNode::Blight(_) => false,
+        // A mill cost moves the payer's top library cards (CR 701.13a).
+        LocalActivationCostNode::Mill { .. } => true,
     })
 }
 

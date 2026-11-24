@@ -2,8 +2,8 @@ use crate::oracle::syntax::recognize_entities;
 
 use super::super::{EffectSequenceNode, recognize_effect_sequence};
 use super::{
-    CreatedRuleLifetime, DelayedTriggerEventNode, EffectCreatedRuleNode, ObjectDeparture,
-    OracleTokenCursor, effect_created_rule_starts,
+    CreatedRuleLifetime, DelayedTriggerEventNode, EffectCreatedRuleNode, GenericTriggerEventNode,
+    ObjectDeparture, OracleTokenCursor, effect_created_rule_starts,
 };
 
 fn parse(text: &str) -> Result<EffectSequenceNode, String> {
@@ -93,10 +93,15 @@ fn unbound_unscoped_or_repeating_rules_fail_explicitly() {
             "Target creature gets +1/+1 until end of turn. When that creature dies, you gain 3 life.",
             "delayed-trigger.lifetime",
         ),
-        // A created delayed trigger triggers once (CR 603.7c).
+        // The next spell is consumed by its cast: no repeating form.
         (
-            "Target creature gets +1/+1 until end of turn. Whenever that creature dies this turn, you gain 3 life.",
-            "created-rule.introducer",
+            "Whenever you next cast an instant spell this turn, draw a card.",
+            "created-rule.repeating-next-spell",
+        ),
+        // A created trigger over the shared event needs a lifetime.
+        (
+            "Draw a card. Until end of turn, whenever a creature dies this turn, you gain 1 life.",
+            "delayed-trigger.lifetime",
         ),
     ] {
         assert_eq!(parse(text).err().as_deref(), Some(state), "{text}");
@@ -138,4 +143,85 @@ fn a_next_damage_shield_reads_the_shared_damage_event() {
         .as_deref(),
         Some("replacement.damage-source.choice")
     );
+}
+
+#[test]
+fn a_created_trigger_reads_its_event_with_the_shared_event_clause() {
+    for (text, first, end, lifetime, repeats) in [
+        (
+            "Whenever a creature dies this turn, you gain 1 life.",
+            0,
+            1,
+            CreatedRuleLifetime::ThisTurn,
+            true,
+        ),
+        (
+            "Draw a card. Until end of turn, whenever a creature an opponent controls attacks, draw a card.",
+            1,
+            2,
+            CreatedRuleLifetime::ThisTurn,
+            true,
+        ),
+        (
+            "Draw a card. Until your next turn, whenever a creature dies, you gain 1 life.",
+            1,
+            2,
+            CreatedRuleLifetime::UntilYourNextTurn,
+            true,
+        ),
+        // Unseen combination: a one-shot trigger over a subject union.
+        (
+            "Draw a card. When a creature or planeswalker you control dies this turn, you gain 2 life.",
+            1,
+            2,
+            CreatedRuleLifetime::ThisTurn,
+            false,
+        ),
+    ] {
+        let (read_first, read_end, rule) = only_rule(text);
+        assert_eq!((read_first, read_end), (first, end), "{text}");
+        let EffectCreatedRuleNode::Trigger(trigger) = rule else {
+            panic!("{text}: a created trigger");
+        };
+        assert_eq!(trigger.lifetime, lifetime, "{text}");
+        assert_eq!(trigger.repeats, repeats, "{text}");
+        assert!(
+            matches!(trigger.event, DelayedTriggerEventNode::Event { .. }),
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn the_created_trigger_event_is_the_printed_trigger_event() {
+    // The same occurrence with and without its lifetime reads one event.
+    let (_, _, rule) = only_rule("Whenever a creature you control attacks this turn, draw a card.");
+    let EffectCreatedRuleNode::Trigger(trigger) = rule else {
+        panic!("a created trigger");
+    };
+    let DelayedTriggerEventNode::Event { event, condition } = trigger.event else {
+        panic!("an occurrence");
+    };
+    assert!(condition.is_none());
+    let tokens = recognize_entities("Whenever a creature you control attacks, draw a card.");
+    let mut cursor = OracleTokenCursor::new("test.printed-event", &tokens);
+    let super::EventClauseAttempt::Recognized(printed) =
+        super::super::read_event_clause(&mut cursor, &[], None, ",")
+    else {
+        panic!("the printed event reads");
+    };
+    assert_eq!(event, printed);
+    assert!(!matches!(event, GenericTriggerEventNode::Compound(_)));
+}
+
+#[test]
+fn a_printed_trigger_without_a_lifetime_is_not_a_created_rule() {
+    for text in [
+        "Whenever a creature dies, draw a card.",
+        "Whenever you cast a creature spell, draw a card.",
+    ] {
+        let tokens = recognize_entities(text);
+        let cursor = OracleTokenCursor::new("test.created-rule", &tokens);
+        assert!(!effect_created_rule_starts(&cursor), "{text}");
+    }
 }

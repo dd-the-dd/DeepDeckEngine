@@ -884,12 +884,34 @@ fn a_spell_that_has_a_keyword_adds_the_keyword_predicate() {
         "Creature",
     );
     assert_eq!(flying["where"]["kind"], "and");
-    // Near miss: `of the chosen color` has no chosen-color producer.
-    assert!(!matches!(
-        program(
-            "Whenever you cast a spell of the chosen color, draw a card.",
-            "Creature"
+    // Near miss: `of the chosen color` reads a symbolic choice the ability
+    // does not produce; with no `As ... enters, choose a color` on the face,
+    // the card-level binding rejects it instead of borrowing a value.
+    let request = crate::oracle::OracleCardParseRequest {
+        card_name: "Chosen Color Probe".to_string(),
+        type_line: "Creature".to_string(),
+        mana_cost: Some("{2}{U}".to_string()),
+        oracle_text: Some(
+            "Whenever you cast a spell of the chosen color, draw a card.".to_string(),
         ),
-        GenericTriggerProgramAttempt::Parsed(_)
-    ));
+        layout: Some("normal".to_string()),
+        faces: Vec::new(),
+    };
+    let parsed = std::thread::Builder::new()
+        .stack_size(64 * 1024 * 1024)
+        .spawn(move || crate::oracle::parse_oracle_card(request))
+        .expect("parser thread starts")
+        .join()
+        .expect("parser thread completes");
+    assert_ne!(parsed.abilities[0].status, "canonical", "{parsed:#?}");
+    assert!(
+        parsed.abilities[0]
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic
+                .state
+                .as_deref()
+                .is_some_and(|state| state.starts_with("binding.chosen-color"))),
+        "{parsed:#?}"
+    );
 }

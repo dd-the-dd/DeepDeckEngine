@@ -52,6 +52,12 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         {
             Some(Some(TargetSelector::Object(targets.predicate.clone())))
         }
+        // `put it|that card onto the battlefield`: the one bound card a
+        // choice fixed (a search's found card), with no restated predicate.
+        LocalEffectNode::CardAction(CardActionNode::Move {
+            cards: CardOperandNode::Reference(CardCollectionReferenceNode::Selected),
+            destination,
+        }) if destination.zone == CardZoneName::Battlefield => Some(None),
         LocalEffectNode::OptionalSequence(body) => body
             .effects
             .last()
@@ -60,6 +66,17 @@ pub(in crate::oracle::canonical) fn moved_onto_battlefield_selector(
         // the one card chosen, if any (an empty choice binds nothing).
         LocalEffectNode::OptionalCardDeployment(deployment) => {
             Some(Some(TargetSelector::Object(deployment.filter.clone())))
+        }
+        // `return this card from your graveyard to the battlefield`: the
+        // permanent the source card became (CR 400.7), named without a
+        // declared predicate (`It gains haste`).
+        LocalEffectNode::MoveSource(movement)
+            if movement.source == LocalObjectReference::SourceSelf
+                && movement.from == SourceZone::Graveyard
+                && movement.to == SourceZone::Battlefield
+                && movement.attached_to.is_none() =>
+        {
+            Some(None)
         }
         _ => None,
     }
@@ -242,7 +259,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             }
             super::SingularPlayerAction::Sacrifice(_)
             | super::SingularPlayerAction::Venture(_)
-            | super::SingularPlayerAction::Proliferate
+            | super::SingularPlayerAction::Proliferate(_)
             | super::SingularPlayerAction::CreateTokens(_)
             | super::SingularPlayerAction::ReferencedCards { .. } => Local(None),
             // A hand action changes no permanent: the subject antecedent stays.
@@ -522,7 +539,9 @@ fn collection_survives(effect: &LocalEffectNode, predicate: &ObjectPredicate) ->
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => operands
             .iter()
             .all(|operand| collection_survives(effect, operand)),
-        ObjectPredicate::Designation(_) | ObjectPredicate::Relation(_) => false,
+        ObjectPredicate::Designation(_)
+        | ObjectPredicate::Relation(_)
+        | ObjectPredicate::Qualifier(_) => false,
     }
 }
 

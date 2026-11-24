@@ -119,10 +119,12 @@ fn claimed_near_misses_fail_at_the_binding_or_modality_state() {
             "reference.collection.bound",
             "it",
         ),
+        // `You shuffle.` is now the ordinary mandatory shuffle action; an
+        // unrepresented modality still fails in the permission slot.
         (
-            "Look at the top three cards of your library, then put them back in any order. You shuffle.",
+            "Look at the top three cards of your library, then put them back in any order. You can shuffle.",
             "effect.optional-shuffle.modality",
-            "shuffle",
+            "can",
         ),
     ] {
         let parsed = parse_spell(oracle_text);

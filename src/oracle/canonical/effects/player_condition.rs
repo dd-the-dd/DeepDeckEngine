@@ -15,12 +15,7 @@ pub(in crate::oracle::canonical) fn lower_player_measure(
         PlayerStateMeasure::ControlledPermanents {
             predicate,
             exclude_source,
-        } => json!({
-            "kind": "countPermanents",
-            "player": player,
-            "where": lower_permanent_object_predicate(predicate),
-            "excludeSource": exclude_source,
-        }),
+        } => lower_controlled_permanent_count(predicate, player, *exclude_source),
         PlayerStateMeasure::Life => json!({ "kind": "lifeTotal", "player": player }),
         PlayerStateMeasure::PlayerCounters(counter) => json!({
             "kind": "countPlayerCounters",

@@ -87,6 +87,13 @@ pub(super) struct DamageEventPattern<'a> {
     pub group: DamageGroup,
 }
 
+impl DamageEventPattern<'_> {
+    /// One trigger per source and simultaneous event (`one or more`).
+    pub(super) fn aggregated(&self) -> bool {
+        self.aggregated
+    }
+}
+
 fn damage_kind_flags(event: &Value) -> Option<Option<bool>> {
     let combat_only = match event.get("combatOnly") {
         None => false,

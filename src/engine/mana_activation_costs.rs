@@ -91,6 +91,7 @@ impl GameEngine {
             // `{T}, Pay {E}: Add ...`: energy leaves the activating player.
             self.pay_activated_player_counter_costs(&action.player_id, rule)?;
             self.apply_activated_sacrifice_costs(action, rule)?;
+            self.apply_activated_chosen_object_costs(action, rule)?;
             if let Some(limit) = rule.get("activationLimit")
                 && let Some(flag) = granted_mana_program::mana_activation_limit_flag(
                     limit,

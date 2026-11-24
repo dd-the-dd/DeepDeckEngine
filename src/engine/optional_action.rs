@@ -18,6 +18,8 @@
 //!   more cards than their library holds (CR 701.17b).
 //! - `exileCards` (from a graveyard): the full count was exiled (CR 701.13a).
 //! - `sacrificePermanents`: the player sacrificed the full count (CR 701.21a).
+//! - `removeCounters`: at least the stated number of counters (one at
+//!   least) left the one named object (CR 122.8).
 //! - `gainLife`: the player gained at least the stated amount; prevented gain
 //!   is not gained (CR 119.10, 615).
 //! - `createTokens`: at least the stated quantity of tokens was created
@@ -53,6 +55,7 @@ pub(super) fn optional_action_witness_supported(action: &Value) -> bool {
             single_player(&action["player"]) && action.get("objects").is_none()
         }
         Some("exileCards") => single_player(&action["from"]["player"]),
+        Some("removeCounters") => super::quantity_cost_payers::counter_removal_supported(action),
         Some("createTokens") => true,
         Some("putCounters") => matches!(
             value_kind(&action["permanent"]),
@@ -188,6 +191,24 @@ impl GameEngine {
                 let required = amount("count") * objects.len() as i64;
                 PerformanceWitness::Events {
                     kinds: &["countersPlaced"],
+                    player: None,
+                    objects: Some(objects),
+                    measure: EventMeasure::Sum("count"),
+                    required,
+                }
+            }
+            // CR 122.8: the stated number of counters left the one object.
+            Some("removeCounters") => {
+                let objects = self
+                    .counter_removal_instance(action, stack_object, bindings)
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                let required = i64::from(
+                    self.counter_removal_count(action, stack_object, bindings, decisions)
+                        .max(1),
+                );
+                PerformanceWitness::Events {
+                    kinds: &["counterRemoved"],
                     player: None,
                     objects: Some(objects),
                     measure: EventMeasure::Sum("count"),

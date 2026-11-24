@@ -176,6 +176,24 @@ pub(in crate::oracle::canonical) fn try_recognize_card_selection_operand(
             }
         };
         trial.enter("collection.selection.predicate-or-source");
+        // `put one into your hand and the other into your graveyard`: a bare
+        // count before the destination names that many members of the
+        // observed collection (the elided `of them`).
+        if matches!(
+            quantity,
+            CardSelectionQuantityNode::Exactly(_) | CardSelectionQuantityNode::UpTo(_)
+        ) && trial.peek().is_some_and(|raw| {
+            ["into", "onto", "on"]
+                .iter()
+                .any(|relation| raw.eq_ignore_ascii_case(relation))
+        }) {
+            trial.enter("collection.selection.elided-collection");
+            return Ok(CardSelectionOperandNode {
+                quantity,
+                predicate: None,
+                from: CardCollectionReferenceNode::Antecedent,
+            });
+        }
         let mut quantity = quantity;
         let mut this_way_source = false;
         let mut zone_source = false;
