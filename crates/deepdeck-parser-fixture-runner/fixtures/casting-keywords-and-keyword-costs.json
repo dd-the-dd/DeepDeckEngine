@@ -3,6 +3,270 @@
   "id": "keyword/casting-keywords-and-keyword-costs",
   "cases": [
     {
+      "id": "exact-flare-of-denial",
+      "request": {
+        "cardName": "Flare of Denial",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "You may sacrifice a nontoken blue creature rather than pay this spell's mana cost.\nCounter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dark-triumph",
+      "request": {
+        "cardName": "Dark Triumph",
+        "typeLine": "Instant",
+        "manaCost": "{4}{B}",
+        "oracleText": "If you control a Swamp, you may sacrifice a creature rather than pay this spell's mana cost.\nCreatures you control get +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-snuff-out",
+      "request": {
+        "cardName": "Snuff Out",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fieldmist-borderpost",
+      "request": {
+        "cardName": "Fieldmist Borderpost",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{W}{U}",
+        "oracleText": "You may pay {1} and return a basic land you control to its owner's hand rather than pay this spell's mana cost.\nThis artifact enters tapped.\n{T}: Add {W} or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cho-arrim-legate",
+      "request": {
+        "cardName": "Cho-Arrim Legate",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "If an opponent controls a Swamp and you control a Plains, you may cast this spell without paying its mana cost.\nProtection from black",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-archive-trap",
+      "request": {
+        "cardName": "Archive Trap",
+        "typeLine": "Instant — Trap",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "If an opponent searched their library this turn, you may pay {0} rather than pay this spell's mana cost.\nTarget opponent mills thirteen cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fireblast",
+      "request": {
+        "cardName": "Fireblast",
+        "typeLine": "Instant",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "You may sacrifice two Mountains rather than pay this spell's mana cost.\nFireblast deals 4 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-abolish",
+      "request": {
+        "cardName": "Abolish",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "You may discard a Plains card rather than pay this spell's mana cost.\nDestroy target artifact or enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordAbility"
+              },
+              {
+                "pointer": "/ability/kind",
+                "equals": "alternativeCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-workshop-warchief",
       "request": {
         "cardName": "Workshop Warchief",
@@ -980,6 +1244,50 @@
         "diagnostics": [
           {
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-alternative-cast-extra-sentence",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Creature — Rhino",
+        "manaCost": "{2}",
+        "oracleText": "You may pay {R}{G} rather than pay this spell's mana cost. Spend only mana produced by Treasures to cast it this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "alternative-cast.complete"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-alternative-cast-variable-mana",
+      "request": {
+        "cardName": "Generic Casting Keyword Source",
+        "typeLine": "Instant",
+        "manaCost": "{2}",
+        "oracleText": "You may pay {X} rather than pay this spell's mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "alternative-cast.lowering"
           }
         ]
       }
