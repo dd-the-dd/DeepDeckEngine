@@ -377,11 +377,13 @@ fn recognize_permission_program(
     // The permission owns its own sentence (and directly following reminders)
     // only. Without an outcome connector, a later sentence is an independent
     // program step that runs whether or not the permission was used (CR
-    // 608.2c). A conditional or another permission inside the same sentence
-    // has no enclosing frame here and stays unsupported. Reminder text and
-    // quoted abilities are nested scopes (CR 207.2a, 113.1): their own `if`
-    // or `may` is not a second frame of this sentence. The body reader still
-    // reads and validates every reminder it owns.
+    // 608.2c). Another permission inside the same sentence has no enclosing
+    // frame here and stays unsupported. A postposed `if CONDITION` gating the
+    // sentence's one action is read by the shared sequence; the lowering puts
+    // the permission inside that condition. Reminder text and quoted
+    // abilities are nested scopes (CR 207.2a, 113.1): their own `may` is not
+    // a second frame of this sentence. The body reader still reads and
+    // validates every reminder it owns.
     cursor.enter("program.optional.scope");
     let body_end = sentence_end_with_reminders(cursor);
     let mut offset = 0;
@@ -397,13 +399,9 @@ fn recognize_permission_program(
             ")" if !quoted => depth = depth.saturating_sub(1),
             _ => {}
         }
-        if depth == 0
-            && !quoted
-            && (raw.eq_ignore_ascii_case("if") || raw.eq_ignore_ascii_case("may"))
-        {
+        if depth == 0 && !quoted && raw.eq_ignore_ascii_case("may") {
             cursor.advance_to(cursor.position() + offset)?;
-            return Err(cursor
-                .fail("one optional sentence without an inner conditional or second permission"));
+            return Err(cursor.fail("one optional sentence without a second permission"));
         }
         offset += 1;
     }

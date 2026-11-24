@@ -522,6 +522,26 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
                 !lowered.effects.is_empty(),
                 "a nonempty optional effect program",
             )?;
+            // `you may ACTION if CONDITION`: the condition gates the
+            // permission itself, so the performer is asked only when it holds.
+            if let [conditional] = lowered.effects.as_slice()
+                && conditional["kind"] == "conditional"
+                && conditional["else"].as_array().is_some_and(Vec::is_empty)
+                && conditional["then"]
+                    .as_array()
+                    .is_some_and(|then| !then.is_empty())
+            {
+                let mut conditional = conditional.clone();
+                let then = conditional["then"].take();
+                conditional["then"] = json!([{
+                    "kind": "optionalEffects", "player": player,
+                    "effects": then,
+                }]);
+                return Ok(LoweredEffectSequence {
+                    decisions: lowered.decisions,
+                    effects: vec![conditional],
+                });
+            }
             // Targets are mandatory declarations even when the action will
             // later be declined. Only execution is wrapped by permission.
             Ok(LoweredEffectSequence {

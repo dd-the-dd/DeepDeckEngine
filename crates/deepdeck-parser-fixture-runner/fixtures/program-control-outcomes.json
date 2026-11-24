@@ -511,6 +511,54 @@
       }
     },
     {
+      "id": "exact-deathbringer-liege-permission-postposed-if",
+      "request": {
+        "cardName": "Deathbringer Liege",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{2}{W/B}{W/B}{W/B}",
+        "oracleText": "Other white creatures you control get +1/+1.\nOther black creatures you control get +1/+1.\nWhenever you cast a white spell, you may tap target creature.\nWhenever you cast a black spell, you may destroy target creature if it's tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4
+      }
+    },
+    {
+      "id": "sibling-permission-postposed-if-lifts-the-permission",
+      "request": {
+        "cardName": "Synthetic Warden",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever this creature attacks, you may tap target creature if you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/kind",
+                "equals": "optionalEffects"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-instead-without-replaced-sentence",
       "request": {
         "cardName": "Synthetic Lone Instead",
