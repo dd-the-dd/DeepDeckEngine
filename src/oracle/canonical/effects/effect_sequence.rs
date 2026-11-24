@@ -1322,6 +1322,15 @@ fn lower_local_effect_sequence_with_collections(
                     }
                 }
             }
+            LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
+                // The spell the triggering cast record binds (CR 707.10).
+                effects.push(json!({
+                    "kind": "copyStackItem",
+                    "object": {"kind": "triggeringStackObject"},
+                    "controller": controller(),
+                    "mayChooseNewTargets": copy.may_choose_new_targets,
+                }));
+            }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
                 let [slot] = copy.target.slots.as_slice() else {
@@ -2256,7 +2265,13 @@ fn lower_local_effect_sequence_with_collections(
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
-    apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
+    apply_delayed_frames(
+        cursor,
+        &sequence.delayed,
+        &target_bindings,
+        &mut action_starts,
+        &mut effects,
+    )?;
     apply_unless_frames(
         cursor,
         sequence,

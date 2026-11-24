@@ -281,9 +281,10 @@ struct SequenceMemory {
     subject_continuation: bool,
     /// Delayed action ranges (CR 603.7a) closed so far.
     delayed: Vec<super::DelayedFrameNode>,
-    /// A preposed `At the beginning of ... ,` timing scoping the sentence
+    /// A preposed created rule (`At the beginning of ... ,`, `When EVENT
+    /// this turn,`, `If OBJECT would die this turn,`) scoping the sentence
     /// being read, with the index of its first action.
-    sentence_delay: Option<(usize, super::DelayedStepTimingNode)>,
+    sentence_delay: Option<(usize, super::EffectCreatedRuleNode)>,
     /// The last action read after a causative `have`. A verb coordinated with
     /// it (`have it get +2/+0 and gain haste`) keeps the bare agreement.
     causative_effect: Option<usize>,
@@ -339,11 +340,11 @@ impl SequenceMemory {
 
     /// Closes a preposed delayed timing at the end of its sentence.
     fn close_sentence_delay(&mut self) {
-        if let Some((first_effect, timing)) = self.sentence_delay.take() {
+        if let Some((first_effect, rule)) = self.sentence_delay.take() {
             self.delayed.push(super::DelayedFrameNode {
                 first_effect,
                 end_effect: self.effects.len(),
-                timing,
+                rule,
             });
         }
     }
@@ -646,6 +647,10 @@ fn recognize_effect_sequence_attempt_scoped(
                     ))
                 );
                 let mut action_context = context.clone();
+                super::scope_created_rule_body(
+                    memory.sentence_delay.as_ref().map(|(_, rule)| rule),
+                    &mut action_context,
+                );
                 action_context.permanent_subject_scope = memory.permanent_subject_scope;
                 action_context.current_effect_index = Some(effect_index);
                 action_context.verb_chain_subject = match (
@@ -1328,6 +1333,33 @@ fn recognize_effect_sequence_attempt_scoped(
                     match parsed {
                         Ok(effect) => break effect,
                         Err(failure) => {
+                            // `When EVENT this turn, EFFECTS.` / `If OBJECT
+                            // would die this turn, ACTION instead.`: a rule the
+                            // resolving effect creates over the actions of its
+                            // sentence (CR 603.7, 614.1a), read only after the
+                            // ordinary readers decline at its first action.
+                            if !attempt_frame.is_committed()
+                                && preposed_duration.is_none()
+                                && memory.sentence_delay.is_none()
+                                && memory.open_branch.is_none()
+                                && memory.effects.len() == memory.sentence_start
+                                && super::effect_created_rule_starts(cursor)
+                            {
+                                let mut trial = cursor.clone();
+                                let rule = super::recognize_effect_created_rule(
+                                    &mut trial,
+                                    name_links,
+                                    name_failure,
+                                )?;
+                                trial.enter("sequence.created-rule.separator");
+                                trial.consume(",")?;
+                                *cursor = trial;
+                                super::enter_created_rule_body(cursor, &rule);
+                                memory.sentence_delay = Some((memory.effects.len(), rule));
+                                attempt_frame.clear();
+                                effect_start = cursor.position();
+                                continue;
+                            }
                             // `If CONDITION, EFFECTS.` / `Otherwise, EFFECTS.`:
                             // structural introducers of a whole sentence, read
                             // only after the ordinary readers decline at its
@@ -1419,7 +1451,7 @@ fn recognize_effect_sequence_attempt_scoped(
                                 trial.enter("sequence.delayed.preposed-separator");
                                 trial.consume(",")?;
                                 *cursor = trial;
-                                memory.sentence_delay = Some((memory.effects.len(), timing));
+                                memory.sentence_delay = Some((memory.effects.len(), timing.into()));
                                 attempt_frame.clear();
                                 effect_start = cursor.position();
                                 continue;
@@ -1937,6 +1969,20 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.else_candidate = None;
                         SequenceState::ConnectorOrEnd
                     }
+                    // `ACTION instead.` closes a created replacement's
+                    // action (CR 614.1a).
+                    Some("instead")
+                        if memory
+                            .sentence_delay
+                            .as_ref()
+                            .is_some_and(|(_, rule)| rule.awaits_instead()) =>
+                    {
+                        attempt_frame.commit();
+                        if let Some((_, rule)) = memory.sentence_delay.as_mut() {
+                            rule.read_instead(cursor)?;
+                        }
+                        SequenceState::ConnectorOrEnd
+                    }
                     Some("instead") if memory.open_branch.is_some() => {
                         cursor.enter("sequence.conditional.instead");
                         return Err(cursor.fail(
@@ -2191,7 +2237,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         memory.delayed.push(super::DelayedFrameNode {
                             first_effect: end_effect - 1,
                             end_effect,
-                            timing,
+                            rule: timing.into(),
                         });
                         SequenceState::ConnectorOrEnd
                     }

@@ -114,6 +114,10 @@ mod counter_spell_fsm_runtime;
 #[path = "tests/arcane_denial_runtime.rs"]
 mod arcane_denial_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/effect_created_rules_runtime.rs"]
+mod effect_created_rules_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/counter_protection_runtime.rs"]
 mod counter_protection_runtime;

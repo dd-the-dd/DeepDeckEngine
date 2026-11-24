@@ -181,12 +181,25 @@ fn preposed_controller_upkeep_and_unbound_sweep_reuse_the_same_frame() {
 
 #[test]
 fn delayed_targets_and_unscoped_trailing_timing_fail_explicitly() {
+    // A single declared target is captured with its identity (CR 603.7c);
+    // a plural declaration has no capture and stays refused.
     let target = parse(
         "Test Late Removal",
         "Sorcery",
         "Draw a card. Destroy target creature at the beginning of the next end step.",
     );
-    assert!(failure_state(&target).contains(&"lower.delayed.object-references".to_string()));
+    let rule = only_rule(&target);
+    assert_eq!(rule["effects"][1]["kind"], "installDelayedStepTrigger");
+    assert_eq!(
+        rule["effects"][1]["captureReferences"][0]["reference"]["kind"],
+        "chosenTarget"
+    );
+    let plural = parse(
+        "Test Late Purge",
+        "Sorcery",
+        "Draw a card. Destroy two target creatures at the beginning of the next end step.",
+    );
+    assert!(failure_state(&plural).contains(&"lower.delayed.object-references".to_string()));
     let continued = parse(
         "Test Late Removal",
         "Sorcery",

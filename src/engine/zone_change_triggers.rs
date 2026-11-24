@@ -16,20 +16,32 @@ pub(super) fn zone_change_effect_supported(effect: &Value) -> Option<bool> {
         Some("installDelayedZoneChangeTrigger") => Some(
             target_reference_supported(&effect["trackedObject"])
                 && player_reference_supported(&effect["controller"])
-                && effect["destinations"]
-                    .as_array()
-                    .is_some_and(|destinations| {
-                        !destinations.is_empty()
-                            && destinations.iter().all(|destination| {
-                                matches!(destination.as_str(), Some("graveyard" | "exile"))
-                            })
-                            && destinations
-                                .iter()
-                                .filter_map(Value::as_str)
-                                .collect::<BTreeSet<_>>()
-                                .len()
-                                == destinations.len()
-                    })
+                // `leaves the battlefield` (CR 603.6c): any destination; else
+                // the listed public destinations (`dies`: the graveyard).
+                && (effect["anyDestination"].as_bool() == Some(true)
+                    && effect.get("destinations").is_none()
+                    || effect.get("anyDestination").is_none()
+                        && effect["destinations"]
+                            .as_array()
+                            .is_some_and(|destinations| {
+                                !destinations.is_empty()
+                                    && destinations.iter().all(|destination| {
+                                        matches!(destination.as_str(), Some("graveyard" | "exile"))
+                                    })
+                                    && destinations
+                                        .iter()
+                                        .filter_map(Value::as_str)
+                                        .collect::<BTreeSet<_>>()
+                                        .len()
+                                        == destinations.len()
+                            }))
+                // A trigger created `this turn` expires with the turn.
+                && effect
+                    .get("duration")
+                    .is_none_or(|duration| value_kind(duration) == Some("untilEndOfCurrentTurn"))
+                && effect
+                    .get("captureReferences")
+                    .is_none_or(super::captured_binding::captured_references_supported)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 }),
@@ -74,7 +86,7 @@ impl GameEngine {
                 else {
                     return Ok(true);
                 };
-                let modifier = json!({
+                let mut modifier = json!({
                     "kind": "delayedZoneChangeTrigger",
                     "trackedObjectId": object_id,
                     "controllerId": controller_id,
@@ -82,6 +94,18 @@ impl GameEngine {
                     "effects": effect["effects"],
                     "sourceCard": stack_object.card,
                 });
+                if effect["anyDestination"].as_bool() == Some(true) {
+                    modifier["anyDestination"] = Value::Bool(true);
+                }
+                if effect.get("duration").is_some() {
+                    modifier["expiresAfterTurn"] = json!(self.state.turn_number);
+                }
+                // What the trigger's actions read from the creating ability
+                // (CR 603.7c).
+                if let Some(captures) = effect.get("captureReferences") {
+                    modifier["capturedReferences"] =
+                        self.capture_delayed_references(captures, stack_object, bindings);
+                }
                 self.state.rule_modifiers.push(modifier.clone());
                 self.record_event(
                     "delayedZoneChangeTriggerInstalled",
@@ -200,6 +224,7 @@ impl GameEngine {
         destination: &str,
         base_decisions: &BTreeMap<String, Value>,
     ) -> Result<(), EngineError> {
+        let turn_number = u64::from(self.state.turn_number);
         let matching = self
             .state
             .rule_modifiers
@@ -207,32 +232,46 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("delayedZoneChangeTrigger")
                     && modifier["trackedObjectId"].as_str() == Some(left.instance_id.as_str())
-                    && modifier["destinations"]
-                        .as_array()
-                        .is_some_and(|destinations| {
-                            destinations
-                                .iter()
-                                .any(|candidate| candidate.as_str() == Some(destination))
-                        })
+                    && modifier["expiresAfterTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| turn == turn_number)
+                    && (modifier["anyDestination"].as_bool() == Some(true)
+                        || modifier["destinations"]
+                            .as_array()
+                            .is_some_and(|destinations| {
+                                destinations
+                                    .iter()
+                                    .any(|candidate| candidate.as_str() == Some(destination))
+                            }))
             })
             .cloned()
             .collect::<Vec<_>>();
         if matching.is_empty() {
             return Ok(());
         }
-        let source = self
-            .prepare_card_movement_source(&left.instance_id, None)?
-            .ok_or_else(|| {
-                EngineError::new(
+        // A trigger that follows the object into a listed public zone finds
+        // the card it became there; a `leaves the battlefield` trigger may
+        // see it cease to exist (a token) or enter a hidden zone.
+        let any_destination_only = matching
+            .iter()
+            .all(|modifier| modifier["anyDestination"].as_bool() == Some(true));
+        let source = self.prepare_card_movement_source(&left.instance_id, None)?;
+        let identity = match source {
+            Some(source) if source.zone.name() == destination => {
+                Some(source.identity.zone_identity)
+            }
+            _ if any_destination_only => None,
+            None => {
+                return Err(EngineError::new(
                     "delayed zone observation requires the committed destination object",
-                )
-            })?;
-        if source.zone.name() != destination {
-            return Err(EngineError::new(
-                "delayed zone observation has an incorrect destination",
-            ));
-        }
-        let identity = source.identity.zone_identity;
+                ));
+            }
+            Some(_) => {
+                return Err(EngineError::new(
+                    "delayed zone observation has an incorrect destination",
+                ));
+            }
+        };
 
         self.state
             .rule_modifiers
@@ -247,10 +286,18 @@ impl GameEngine {
                 source.controller = controller_id.to_string();
             }
             let mut decisions = base_decisions.clone();
-            decisions.insert(
-                "triggeringZoneIdentity".to_string(),
-                Value::String(identity.clone()),
-            );
+            if let Some(identity) = &identity {
+                decisions.insert(
+                    "triggeringZoneIdentity".to_string(),
+                    Value::String(identity.clone()),
+                );
+            }
+            if let Some(captured) = modifier.get("capturedReferences") {
+                decisions.insert(
+                    super::captured_binding::CAPTURED_REFERENCES_KEY.to_string(),
+                    captured.clone(),
+                );
+            }
             self.put_triggered_ability_on_stack_with_origin(
                 &source,
                 json!({

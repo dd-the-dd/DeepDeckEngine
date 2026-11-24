@@ -25240,6 +25240,9 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("delayedStepTrigger")
                     && modifier["step"].as_str() == Some(step)
+                    && modifier["notBeforeTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| u64::from(self.state.turn_number) >= turn)
                     && modifier["turnPlayerId"].as_str().is_none_or(|player_id| {
                         self.state
                             .players
@@ -29964,7 +29967,7 @@ impl GameEngine {
             let resolved_final_saga_chapter = stack_object.ability_kind.as_deref()
                 == Some("triggeredAbility")
                 && saga_chapter_rule_is_final(&stack_object.card.definition, &rule);
-            let mut bindings = BTreeMap::new();
+            let mut bindings = self.captured_reference_bindings(&stack_object);
             let mut decisions = stack_object.decisions.clone();
             // CR 603.4: the intervening `if` is rechecked on resolution by
             // the same stack-context evaluator as on publication.
