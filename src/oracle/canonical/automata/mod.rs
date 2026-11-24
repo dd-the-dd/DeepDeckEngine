@@ -603,6 +603,22 @@ pub(in crate::oracle::canonical) enum PermanentEffectReference {
     /// `enchanted creature` / `equipped creature`: the permanent the ability
     /// source is attached to (CR 301.5a, 303.4a), resolved at execution.
     Attached(AttachedObjectRole),
+    /// The one object an earlier action of the same program selected or
+    /// moved on resolution (`sacrifices a creature of their choice ... that
+    /// creature's toughness`, `reveal the top card ... its mana value`,
+    /// CR 608.2c). The program lowering binds that action's result; a
+    /// result that is no longer a battlefield permanent answers only reads
+    /// of its last known information (CR 400.7, 608.2h).
+    ActionResult(ActionResultReference),
+}
+
+/// The producing action of an action-result object and whether the object
+/// is still a battlefield permanent after it (a sacrificed creature, a
+/// discarded or revealed card is not).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ActionResultReference {
+    pub effect_index: usize,
+    pub permanent: bool,
 }
 
 /// The parent that owns ability-restriction sentences (`Activate only ...`,
@@ -2542,6 +2558,6 @@ pub(in crate::oracle::canonical) use permanent_action::{
     try_recognize_permanent_action,
 };
 pub(in crate::oracle::canonical) use permanent_subject::{
-    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding,
+    ObservedSourceRelationship, PermanentSubjectScope, SourceAnaphorBinding, action_result_object,
     recognize_contextual_permanent_operand, selector_guarantees_permanent,
 };

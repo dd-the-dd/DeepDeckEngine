@@ -141,19 +141,33 @@ pub(in crate::oracle::canonical) fn recognize_source_reference_with_antecedent(
     // to the source (`This creature gets +1/+1 until end of turn. Sacrifice
     // it at the beginning of the next end step.`). Any other antecedent is
     // not this reader's object and stays a committed diagnostic below.
-    let environment_source = cursor
+    let environment_antecedent = cursor
         .binding_environment()
-        .and_then(|environment| super::resolve_pronoun_antecedent(environment).ok())
-        .and_then(|reference| match reference {
-            super::PermanentEffectReference::Source(source) => Some(source),
-            _ => None,
-        });
+        .and_then(|environment| super::resolve_pronoun_antecedent(environment).ok());
+    let environment_source = environment_antecedent.and_then(|reference| match reference {
+        super::PermanentEffectReference::Source(source) => Some(source),
+        _ => None,
+    });
     let antecedent = antecedent.or(environment_source.as_ref());
     if cursor.peek().is_some_and(is_source_anaphor) {
         let token = cursor
             .peek_token()
             .ok_or_else(|| cursor.fail("a source anaphor"))?
             .clone();
+        // The program's antecedent is another object (a created token, a
+        // declared target, an action result): this reader denotes only the
+        // ability's source, so the pronoun's consumer needs a typed object
+        // operand instead. A distinct state names that missing contract.
+        if antecedent.is_none() && environment_antecedent.is_some() {
+            cursor.enter("reference.source-or-anaphor.object-antecedent");
+            return Err(cursor.fail_with_span(
+                "a source antecedent; the pronoun names another object this consumer cannot denote",
+                cursor.position(),
+                token.span_start,
+                token.span_end,
+                token.raw.clone(),
+            ));
+        }
         let reference = antecedent.cloned().ok_or_else(|| {
             cursor.fail_with_span(
                 "a source binding for the anaphor",
