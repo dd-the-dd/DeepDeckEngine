@@ -584,6 +584,21 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "grantExtraTurn", "player": lowered.player}));
                         continue;
                     }
+                    SingularPlayerAction::Designation(action) => {
+                        cursor.enter("lower.player-action.designation");
+                        effects.push(lower_player_designation_action(*action, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Skip(skip) => {
+                        cursor.enter("lower.player-action.skip");
+                        effects.push(lower_skip_turn_part(*skip, lowered.player));
+                        continue;
+                    }
+                    SingularPlayerAction::Prohibition(prohibition) => {
+                        cursor.enter("lower.player-action.prohibition");
+                        effects.push(lower_player_prohibition(*prohibition, lowered.player));
+                        continue;
+                    }
                     SingularPlayerAction::Scry(count) => {
                         cursor.enter("lower.player-action.scry");
                         let amount = lower_sequence_bound_amount(
@@ -934,6 +949,36 @@ fn lower_local_effect_sequence_with_collections(
                     }],
                     "else": [],
                 }));
+            }
+            // CR 601.2d: the division is announced with the targets; each
+            // declared target then receives its own share.
+            LocalEffectNode::PutCounters(node)
+                if node.direction == CounterChangeDirection::Divided =>
+            {
+                cursor.enter("lower.distribute-counters");
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &node.count,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let (decision, effect) =
+                    lower_divided_counters(&objects, node.counter.as_str(), amount).ok_or_else(
+                        || cursor.fail("one declared target slot receiving the divided counters"),
+                    )?;
+                decisions.push(decision);
+                effects.push(effect);
             }
             LocalEffectNode::PutCounters(node) => {
                 // CR 701.10e: a doubled object's count is read from that same

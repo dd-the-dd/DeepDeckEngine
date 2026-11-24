@@ -91,6 +91,9 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::CreateTokens(_)
             | SingularPlayerAction::ExtraTurn
+            | SingularPlayerAction::Designation(_)
+            | SingularPlayerAction::Skip(_)
+            | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {

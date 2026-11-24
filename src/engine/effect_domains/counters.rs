@@ -27,6 +27,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .is_none_or(singular_player_reference_supported)
                 && effect.get("bind").is_none_or(Value::is_string)
         }
+        // CR 601.2d: the division announced with the targets.
+        Some("putDividedCounters") => {
+            effect["targetsDecisionId"].is_string()
+                && effect["divisionDecisionId"].is_string()
+                && effect["counter"].is_string()
+        }
         Some("putCountersOnCreaturesOfTargetPlayer") => {
             target_reference_supported(&effect["player"])
                 && effect["counter"].is_string()
@@ -221,6 +227,9 @@ impl GameEngine {
                         RuntimeBinding::Objects(changed_instance_ids),
                     );
                 }
+            }
+            Some("putDividedCounters") => {
+                self.put_divided_counters(effect, stack_object, decisions, provider)?;
             }
             Some("putCountersOnCreaturesOfTargetPlayer") => {
                 let target_player = self
@@ -948,6 +957,65 @@ impl GameEngine {
             Some(stack_object.card.instance_id.clone()),
             json!({}),
         );
+        Ok(())
+    }
+}
+
+impl GameEngine {
+    /// `distribute N counters among TARGETS` (CR 601.2d): each declared
+    /// target receives the share announced for it with the targets. A target
+    /// no longer on the battlefield receives nothing (CR 608.2b); the shares
+    /// of the others are unchanged.
+    fn put_divided_counters<P: DecisionProvider>(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        decisions: &BTreeMap<String, Value>,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        let targets = effect["targetsDecisionId"]
+            .as_str()
+            .and_then(|decision_id| decisions.get(decision_id))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(|target| serde_json::from_value::<TargetRef>(target.clone()).ok())
+            .collect::<Vec<_>>();
+        let division = effect["divisionDecisionId"]
+            .as_str()
+            .and_then(|decision_id| decisions.get(decision_id))
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_i64)
+            .filter_map(|amount| i32::try_from(amount).ok())
+            .collect::<Vec<_>>();
+        if targets.len() != division.len() || division.iter().any(|amount| *amount <= 0) {
+            return Err(EngineError::new(
+                "divided counters need one positive share per declared target",
+            ));
+        }
+        let counter = effect["counter"]
+            .as_str()
+            .ok_or_else(|| EngineError::new("divided counters have no counter name"))?
+            .to_string();
+        let placed_by = stack_object.controller.clone();
+        for (target, amount) in targets.into_iter().zip(division) {
+            let TargetRef::Permanent { instance_id } = target else {
+                continue;
+            };
+            if self.permanent_position(&instance_id).is_none() {
+                continue;
+            }
+            self.place_counters_batch(
+                vec![instance_id],
+                &counter,
+                amount,
+                QuantityOrigin::Effect,
+                Some(placed_by.as_str()),
+                provider,
+            )?;
+        }
         Ok(())
     }
 }

@@ -288,6 +288,12 @@ struct SequenceMemory {
     /// The last action read after a causative `have`. A verb coordinated with
     /// it (`have it get +2/+0 and gain haste`) keeps the bare agreement.
     causative_effect: Option<usize>,
+    /// The imperative lemma of the previous action of the sentence: a gapped
+    /// conjunct (`destroy A and all B`) is an argument frame of it.
+    elided_lemma: Option<VerbLemma>,
+    /// Where the connector after the previous action began; the gapped
+    /// conjunct writes the elided verb in the conjunction's slot.
+    connector_start: Option<super::super::machine::MachineCheckpoint>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -780,6 +786,7 @@ fn recognize_effect_sequence_attempt_scoped(
                 // performs the rest of the clause after this declaration.
                 let mut declared_subject: Option<super::ObjectPlayerRelation> = None;
                 let mut causative: bool;
+                let mut from_ellipsis = false;
                 let mut effect = loop {
                     if let Some(pending) = memory.distributed.pop() {
                         // A distributed per-player action is already read.
@@ -882,6 +889,8 @@ fn recognize_effect_sequence_attempt_scoped(
                         // an action head even when the lexical name resolver
                         // left its words unresolved; it is never a source name.
                         if super::venture_action_starts(attempt)
+                            || super::ring_temptation_starts(attempt)
+                            || super::skip_turn_part_follows(attempt)
                             || super::defending_player_starts(attempt)
                             || !source_reference_starts_at(
                                 attempt.position(),
@@ -1327,6 +1336,60 @@ fn recognize_effect_sequence_attempt_scoped(
                                         }
                                     }
                                 }
+                            }
+                        }
+                        parsed => parsed,
+                    };
+                    // `destroy A and all B`, `put N counters on A and M
+                    // counters on B` (gapped coordination): when no reader
+                    // takes the conjunct, it is read as an argument frame of
+                    // the previous imperative lemma, whose verb is written
+                    // back in the conjunction's slot. The conjunct must be a
+                    // complete clause of that lemma; otherwise the ordinary
+                    // failure stands. A separate attempt frame keeps the
+                    // ordinary readers' commitment intact.
+                    let parsed = match parsed {
+                        Err(failure)
+                            if !causative
+                                && !attempt_frame.is_committed()
+                                && memory.connectors.last() == Some(&EffectConnector::And)
+                                && memory.effects.len() > memory.sentence_start
+                                && cursor.position() > 0
+                                // The slot is the written conjunction (`and`
+                                // or a coordinating comma) the connector read.
+                                && cursor
+                                    .token_slice(cursor.position() - 1, cursor.position())
+                                    .first()
+                                    .is_some_and(|token| {
+                                        token.raw == "," || token.raw.eq_ignore_ascii_case("and")
+                                    }) =>
+                        {
+                            match (memory.elided_lemma, memory.connector_start) {
+                                (Some(lemma), Some(connector_start)) => {
+                                    let slot = cursor.position() - 1;
+                                    let mut at_slot = cursor.clone();
+                                    at_slot.rollback(connector_start);
+                                    if at_slot.position() > slot
+                                        || at_slot.advance_to(slot).is_err()
+                                    {
+                                        Err(failure)
+                                    } else {
+                                        let tokens =
+                                            super::elided_verb_tokens(&at_slot, slot, lemma);
+                                        let mut gapped = at_slot.with_tokens(&tokens);
+                                        gapped.enter("sequence.gapped-conjunct");
+                                        let mut gapped_frame = SequenceAttemptFrame::default();
+                                        match read_action(&mut gapped, None, &mut gapped_frame) {
+                                            Ok(effect) if gapped.position() > cursor.position() => {
+                                                let end = gapped.position();
+                                                from_ellipsis = true;
+                                                cursor.advance_to(end).map(|()| effect)
+                                            }
+                                            _ => Err(failure),
+                                        }
+                                    }
+                                }
+                                _ => Err(failure),
                             }
                         }
                         parsed => parsed,
@@ -1797,6 +1860,11 @@ fn recognize_effect_sequence_attempt_scoped(
                     }
                 }
                 memory.causative_effect = causative.then_some(effect_index);
+                // A gapped conjunct keeps the lemma it elided for the next one
+                // (`A, B, and C`); any other action names its own.
+                if !from_ellipsis {
+                    memory.elided_lemma = super::imperative_lemma_at(cursor, effect_start);
+                }
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
                     memory.else_candidate = None;
@@ -1895,6 +1963,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             && cursor.peek_ahead(1).is_some_and(|raw| {
                                 raw.eq_ignore_ascii_case("and") || raw.eq_ignore_ascii_case("then")
                             }));
+                        memory.connector_start = Some(cursor.checkpoint());
                         let connector = match recognize_effect_connector(cursor) {
                             Ok(connector) => connector,
                             Err(failure) => {
@@ -2637,6 +2706,14 @@ fn recognize_imperative_frame(
             super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::MoveCounters)
         }
+        VerbLemma::Distribute if super::claims_distribute_counters_effect(cursor) => {
+            super::recognize_distribute_counters_effect(cursor, context)
+                .map(LocalEffectNode::PutCounters)
+        }
+        VerbLemma::Remove if super::remove_from_combat_starts(cursor) => {
+            super::recognize_remove_from_combat(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PermanentKeywordAction)
+        }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
             super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::PutCounters)
@@ -2961,6 +3038,18 @@ fn recognize_subject_frame(
         }
     }
     match super::try_recognize_permanent_action(cursor, name_links, name_failure, context) {
+        super::PermanentActionAttempt::Parsed(node) => return Ok(node),
+        super::PermanentActionAttempt::FailedCommitted(failure) => {
+            attempt_frame.commit();
+            return Err(failure);
+        }
+        super::PermanentActionAttempt::NotClaimed
+        | super::PermanentActionAttempt::RejectedCandidate(_) => {}
+    }
+    // `SUBJECT phases out` / `SUBJECT assigns no combat damage this turn`:
+    // a rules-state predicate of any permanent subject the frames above
+    // did not take (S3: object subject x lemma).
+    match super::try_recognize_object_rule_clause(cursor, name_links, name_failure, context) {
         super::PermanentActionAttempt::Parsed(node) => return Ok(node),
         super::PermanentActionAttempt::FailedCommitted(failure) => {
             attempt_frame.commit();

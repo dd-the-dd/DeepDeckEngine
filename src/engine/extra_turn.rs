@@ -19,8 +19,35 @@ impl GameEngine {
     /// ended: the player of the most recent extra turn created for the turn
     /// just completed, else the player whose normal turn was interrupted by a
     /// chain of extra turns, else the next live player in turn order. The
-    /// caller still advances the turn number.
+    /// caller still advances the turn number. A player who must skip their
+    /// next turn (CR 500.11) does not take it: the turn after it is chosen the
+    /// same way, from that player, and what was pending after the skipped turn
+    /// (older extra turns of the chain, the resume marker) is pending now.
     pub(super) fn advance_to_next_turn_player(&mut self) {
+        loop {
+            self.select_next_turn_player();
+            let player_id = self.state.players[self.state.active_player].id.clone();
+            if !self.consume_skipped_turn_part(&player_id, "turn") {
+                return;
+            }
+            self.rekey_turn_succession_after_skipped_turn();
+        }
+    }
+
+    /// The skipped turn never happens, so the extra turns and the resume
+    /// marker keyed after it are due after the turn that just ended.
+    fn rekey_turn_succession_after_skipped_turn(&mut self) {
+        let turn_number = u64::from(self.state.turn_number);
+        for modifier in &mut self.state.rule_modifiers {
+            if matches!(value_kind(modifier), Some(EXTRA_TURN | TURN_ORDER_RESUME))
+                && modifier["afterTurn"].as_u64() == Some(turn_number + 1)
+            {
+                modifier["afterTurn"] = json!(turn_number);
+            }
+        }
+    }
+
+    fn select_next_turn_player(&mut self) {
         let turn_number = u64::from(self.state.turn_number);
         // Removed first: the extra-turn search below keeps modifier indices.
         let resume = self.take_turn_order_resume(turn_number);

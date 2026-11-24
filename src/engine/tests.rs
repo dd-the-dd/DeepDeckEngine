@@ -33161,6 +33161,10 @@ mod performer_subjects_runtime;
 #[path = "tests/extra_turn_runtime.rs"]
 mod extra_turn_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/player_designations_runtime.rs"]
+mod player_designations_runtime;
+
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

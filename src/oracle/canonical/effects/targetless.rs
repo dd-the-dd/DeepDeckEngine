@@ -389,6 +389,11 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
         LocalEffectNode::PutCounters(effect)
+            if effect.direction == CounterChangeDirection::Divided =>
+        {
+            Err(TargetlessLoweringError::UnsupportedEffect)
+        }
+        LocalEffectNode::PutCounters(effect)
             if effect.direction == CounterChangeDirection::Remove =>
         {
             lower_counter_removal(
