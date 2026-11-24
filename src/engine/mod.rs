@@ -190,6 +190,7 @@ mod object_identity_initialization;
 mod object_identity_test_setup;
 mod object_predicate;
 mod object_predicate_eval;
+mod object_relation_eval;
 mod object_snapshot;
 mod one_shot_modifier;
 mod opponent_extremum;
@@ -2613,6 +2614,9 @@ fn matches_stack_item_filter(object: &StackObject, filter: &Value) -> bool {
 fn numeric_expression_supported(expression: &Value) -> bool {
     if integer_value(expression).is_some() {
         return true;
+    }
+    if let Some(supported) = object_relation_eval::related_count_supported(expression) {
+        return supported;
     }
     match value_kind(expression) {
         Some("cardsDiscardedThisTurn") => true,
@@ -9767,6 +9771,11 @@ impl GameEngine {
         controller_id: &str,
         source: Option<&CardInstance>,
     ) -> Option<i32> {
+        if let Some(count) =
+            self.related_permanent_count_with_source(expression, controller_id, source)
+        {
+            return count;
+        }
         if matches!(
             value_kind(expression),
             Some("countEvents" | "countEventsThisTurn" | "countEventsPreviousTurn")
@@ -30952,6 +30961,11 @@ impl GameEngine {
     ) -> Option<i32> {
         if let Some(value) = integer_value(expression) {
             return Some(value);
+        }
+        if let Some(count) =
+            self.runtime_related_permanent_count(expression, stack_object, bindings, decisions)
+        {
+            return count;
         }
         // An event object: live while it is the same incarnation, else its
         // last known characteristics (CR 400.7, 608.2h).

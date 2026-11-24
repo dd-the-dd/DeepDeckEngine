@@ -130,6 +130,9 @@ fn lower_object_predicate(
             "recipient": recipient.ir_name(),
             "combatOnly": combat_only,
         })),
+        ObjectPredicate::Relation(ObjectRelation::Related(related)) => {
+            Some(lower_related_object(related))
+        }
         // CR 115.1: a stack object one of whose targets is a listed player
         // or a permanent of the listed query. Players and controllers are
         // roles relative to the ability controller choosing the candidates.

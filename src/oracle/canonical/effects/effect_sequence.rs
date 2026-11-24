@@ -2466,6 +2466,8 @@ fn lower_local_effect_sequence_with_collections(
             cursor.fail("a layer-6 timestamp order between losing all abilities and a later grant"),
         ));
     }
+    super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
+        .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
 
     Ok(LoweredEffectSequence { decisions, effects })
 }

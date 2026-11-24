@@ -37,6 +37,10 @@ pub(in crate::oracle::canonical) fn recognize_object_predicate_atom(
                     !bare_attachment_reference(cursor),
                     "a qualifier, not the attached-object reference `equipped|enchanted NOUN` (CR 301.5c, 303.4e)",
                 )?;
+                cursor.require(
+                    !super::participial_relation_starts(cursor),
+                    "a characteristic, not the participle of a relation (`blocking it`, `blocked by`)",
+                )?;
                 let (recognized, width) =
                     recognize_positive_atom(surface, cursor.peek_ahead(1), forms).ok_or_else(
                         || cursor.fail("a registered card type, subtype, color, or supertype"),
@@ -67,6 +71,10 @@ pub(super) fn object_predicate_atom_starts(
     let (_, surface) = split_negated_surface(first);
     !surface.is_empty()
         && !bare_attachment_reference(cursor)
+        // `creature blocking it`, `creatures blocked by a Wall`: the status
+        // word opens a relation of the noun before it, read by the
+        // relative slot, not a characteristic of the noun.
+        && !super::participial_relation_starts(cursor)
         && recognize_positive_atom(surface, cursor.peek_ahead(1), forms).is_some()
 }
 

@@ -24,7 +24,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                 || (value_kind(&effect["permanent"]) == Some("chosenTargets")
                     && effect["permanent"]["id"].is_string())
                 || (value_kind(&effect["permanent"]) == Some("eachPermanent")
-                    && card_filter_supported(&effect["permanent"]["where"])
+                    // The resolution prepares this filter: a relation may
+                    // read its anchor (`Equipment attached to that creature`).
+                    && object_relation_eval::filter_supported_with_relations(
+                        &effect["permanent"]["where"],
+                        card_filter_supported,
+                    )
                     && effect["permanent"]
                         .get("player")
                         .is_none_or(player_reference_supported)

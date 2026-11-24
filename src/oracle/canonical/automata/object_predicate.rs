@@ -157,6 +157,10 @@ pub(in crate::oracle::canonical) enum ObjectRelation {
     /// same effect program recorded. Symbolic; the rule validator proves
     /// the producer.
     ChosenName,
+    /// A relation to another object (`attached to that creature`,
+    /// `blocking it`, `that shares a creature type with it`), read by the
+    /// relative slot (`relative_clause.rs`).
+    Related(super::RelatedObject),
 }
 
 impl ObjectRelation {
@@ -168,6 +172,7 @@ impl ObjectRelation {
             Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
             // The targets of an object on the stack (CR 115.1).
             Self::Targets(_) => domain == ObjectKind::Spell,
+            Self::Related(related) => related.supports_domain(domain),
         }
     }
 
@@ -176,7 +181,7 @@ impl ObjectRelation {
     pub(in crate::oracle::canonical) fn reads_object_state(&self) -> bool {
         matches!(
             self,
-            Self::DealtDamageToPlayerThisTurn { .. } | Self::Targets(_)
+            Self::DealtDamageToPlayerThisTurn { .. } | Self::Targets(_) | Self::Related(_)
         )
     }
 }
