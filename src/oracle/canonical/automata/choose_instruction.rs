@@ -1,23 +1,41 @@
 //! The `choose DOMAIN` instruction frame. One frame reads every `choose`
 //! instruction of an effect program: a chooser, a typed choice domain and the
 //! symbolic binding that later references (`it`, `that creature`, `that
-//! player`) resolve to through the enclosing sequence's anaphor memory.
+//! player`, `those creatures`, `that many`) resolve to through the enclosing
+//! sequence's anaphor memory.
 //!
 //! Two decision moments exist and stay distinct:
 //! * `choose target ...` declares targets (CR 115.1, 601.2c / 603.3d): the
 //!   instruction is the target declaration itself and adds no resolution step;
 //! * every other domain is a decision made while the effect resolves
 //!   (CR 608.2d): a color, a creature type, a card type, a card name, a
-//!   number, a player, an object, or `land or nonland`.
+//!   number, a player, permanents, or `land or nonland`.
+//!
+//! The chooser is the clause's performer: an imperative `choose` is the
+//! ability controller's, and `each player chooses` / `target opponent
+//! chooses` is read by the shared performer cell in the performer's person
+//! (`they control` is the chooser's `you control`), which puts the performer
+//! on every primitive of the instruction.
 //!
 //! The domain child is classified before any resolution domain is accepted, so
 //! an unsupported domain fails at its own automaton state instead of being
 //! approximated. Mode choices (`choose one —`) belong to the modal parent.
-use super::super::{MachineResult, OracleTokenCursor};
+//!
+//! ```text
+//! OBJECTS   := COUNT QUERY [REMAINDER]          (battlefield permanents)
+//! COUNT     := "a" | "an" | N | "up" "to" N
+//! REMAINDER := [","] ("then" | "and") VERB "the" "rest"
+//!            | "." VERB "the" "rest"             (VERB: sacrifice | destroy)
+//! NUMBER    := "a" "number" ("between" N "and" M | "from" N "to" M)
+//! ```
+use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
 use super::{
-    CardSupertype, ObjectCardType, ObjectPredicate, PlayerPredicate, TargetCountSupport,
-    TargetListNode, TargetSelector, recognize_object_predicate_atom,
-    recognize_target_list_with_counts, selector_guarantees_permanent,
+    CardSupertype, ExpressedTargetCardinality, GrammaticalNumber, LocalEffectNode, NumericAtom,
+    ObjectCardType, ObjectPredicate, ObjectQueryNode, ObjectSetAntecedent, ObjectSetDenotation,
+    PerformerNode, PermanentEffectReference, PlayerPredicate, TargetBinding, TargetCountSupport,
+    TargetListNode, TargetSelector, VerbForm, VerbLemma, lookup_verb,
+    recognize_expressed_target_cardinality, recognize_object_predicate_atom,
+    recognize_object_query, recognize_target_list_with_counts, selector_guarantees_permanent,
 };
 use crate::oracle::characteristic_vocabulary::AcceptedForms;
 
@@ -49,6 +67,58 @@ pub(in crate::oracle::canonical) enum ChoiceDomainNode {
     /// resolves (CR 608.2d, 201.3), read later as `with the chosen name` /
     /// `with that name`.
     CardName(CardNameDomainNode),
+    /// `choose a creature you control`, `chooses up to two creatures they
+    /// control`: permanents chosen while the effect resolves (CR 608.2d),
+    /// not targets (CR 115.1). The chosen objects are the antecedent of a
+    /// later `it` / `that creature` (one chooser, one object) or `those
+    /// creatures` (several objects or several choosers).
+    Objects(ObjectChoiceNode),
+    /// `choose a number between 0 and 10`: an integer chosen while the
+    /// effect resolves (CR 608.2d, 107.1), read later as `that many` /
+    /// `that much` through the shared action-result quantity.
+    Number(NumberChoiceNode),
+}
+
+/// What happens to the permanents that were not chosen (`then sacrifices
+/// the rest`, `Destroy the rest.`, `Destroy all other permanents.`). `the
+/// rest` is the complement of the chosen objects within each chooser's own
+/// domain; `all other QUERY` is the complement within a stated query.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ChoiceRemainderAction {
+    /// CR 701.21a: each unchosen permanent is sacrificed by its controller.
+    Sacrifice,
+    /// CR 701.8a: each unchosen permanent is destroyed.
+    Destroy,
+    /// `destroy all other QUERY`: every permanent of QUERY that no chooser
+    /// chose is destroyed (CR 701.8a).
+    DestroyOthers(ObjectQueryNode),
+}
+
+/// A resolution-time choice of battlefield permanents: how many, among
+/// which permanents (the shared object query, read in the chooser's
+/// person), and the action applied to the unchosen ones, if any.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectChoiceNode {
+    pub quantity: ExpressedTargetCardinality,
+    pub query: ObjectQueryNode,
+    /// The selector a nominal anaphor of the chosen object (`that
+    /// creature`) must follow from, built from the same query.
+    pub selector: TargetSelector,
+    pub remainder: Option<ChoiceRemainderAction>,
+}
+
+impl ObjectChoiceNode {
+    /// At most one object: a singular antecedent.
+    pub(in crate::oracle::canonical) fn singular(&self) -> bool {
+        self.quantity.maximum == NumericAtom::Integer(1)
+    }
+}
+
+/// `a number between MINIMUM and MAXIMUM` (inclusive bounds, CR 107.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct NumberChoiceNode {
+    pub minimum: i64,
+    pub maximum: i64,
 }
 
 /// The names a card-name choice admits: the names of cards satisfying the
@@ -91,7 +161,9 @@ impl ChooseInstructionNode {
             ChoiceDomainNode::CreatureType
             | ChoiceDomainNode::Color
             | ChoiceDomainNode::Player(_)
-            | ChoiceDomainNode::CardName(_) => None,
+            | ChoiceDomainNode::CardName(_)
+            | ChoiceDomainNode::Objects(_)
+            | ChoiceDomainNode::Number(_) => None,
         }
     }
 
@@ -102,9 +174,94 @@ impl ChooseInstructionNode {
             | ChoiceDomainNode::CreatureType
             | ChoiceDomainNode::Color
             | ChoiceDomainNode::Player(_)
-            | ChoiceDomainNode::CardName(_) => None,
+            | ChoiceDomainNode::CardName(_)
+            | ChoiceDomainNode::Objects(_)
+            | ChoiceDomainNode::Number(_) => None,
         }
     }
+}
+
+/// The chosen-object binding of a program action is published under the
+/// same symbolic key a declared slot of that action would use: the action's
+/// index and slot zero. Its value is no declared target: the program
+/// lowering binds it to the resolution result
+/// (`effects::resolution_object_choice`), never to a target designation.
+pub(in crate::oracle::canonical) fn resolution_choice_binding(
+    effect_index: usize,
+) -> TargetBinding {
+    TargetBinding {
+        effect_index,
+        slot_index: 0,
+    }
+}
+
+/// The resolution-time permanent choice an action makes, looking through a
+/// performer (`each player chooses ...`), and whether one player chooses.
+pub(in crate::oracle::canonical) fn resolution_object_choice(
+    effect: &LocalEffectNode,
+) -> Option<(&ObjectChoiceNode, bool)> {
+    match effect {
+        LocalEffectNode::Choose(ChooseInstructionNode {
+            domain: ChoiceDomainNode::Objects(choice),
+            ..
+        }) => Some((choice, true)),
+        LocalEffectNode::Performed(node) => match node.effect.as_ref() {
+            LocalEffectNode::Choose(ChooseInstructionNode {
+                domain: ChoiceDomainNode::Objects(choice),
+                ..
+            }) => Some((
+                choice,
+                matches!(
+                    node.performer,
+                    PerformerNode::Player(_) | PerformerNode::Chosen { .. }
+                ),
+            )),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// The singular permanent antecedent an object choice leaves for a later
+/// `it` / `that creature`: one chooser choosing at most one object, whose
+/// chosen object stays bound (no `the rest` action consumes the choice).
+pub(in crate::oracle::canonical) fn resolution_choice_subject(
+    effect: &LocalEffectNode,
+    effect_index: usize,
+) -> Option<PermanentEffectReference> {
+    let (choice, one_chooser) = resolution_object_choice(effect)?;
+    (one_chooser && choice.singular() && choice.remainder.is_none())
+        .then(|| PermanentEffectReference::Target(resolution_choice_binding(effect_index)))
+}
+
+/// The selector of the chosen object at `slot_index`, for a nominal
+/// anaphor (`that creature`) of the choice.
+pub(in crate::oracle::canonical) fn resolution_choice_selector(
+    effect: &LocalEffectNode,
+    slot_index: usize,
+) -> Option<&TargetSelector> {
+    let (choice, _) = resolution_object_choice(effect)?;
+    (slot_index == 0).then_some(&choice.selector)
+}
+
+/// The plural set a choice of several objects (or by several choosers)
+/// leaves for `those creatures` / `them`: every object chosen.
+pub(in crate::oracle::canonical) fn resolution_choice_object_set(
+    effect: &LocalEffectNode,
+    effect_index: usize,
+) -> Option<ObjectSetAntecedent> {
+    let (choice, one_chooser) = resolution_object_choice(effect)?;
+    if choice.remainder.is_some() || (one_chooser && choice.singular()) {
+        return None;
+    }
+    Some(ObjectSetAntecedent {
+        denotes: ObjectSetDenotation::Bound(PermanentEffectReference::TargetSet(
+            resolution_choice_binding(effect_index),
+        )),
+        selector: Some(choice.selector.clone()),
+        number: GrammaticalNumber::Plural,
+        tokens: false,
+    })
 }
 
 /// Resolution domains recognized by their head words. Each is a CR 608.2d
@@ -145,10 +302,12 @@ impl ResolutionDomain {
             Self::CardType => "an executable binding consumer for a chosen card type",
             Self::CardName => "`a [CHARACTERISTICS] card name [other than a basic land card name]`",
             Self::LandType => "an executable binding consumer for a chosen land type",
-            Self::Number => "an executable binding consumer for a chosen number",
+            Self::Number => "`a number between N and M` or `a number from N to M`",
             Self::Player => "`an opponent` or `a player`, optionally `at random`",
             Self::LandOrNonland => "an executable binding consumer for a chosen land/nonland kind",
-            Self::Object => "an executable binding consumer for objects chosen on resolution",
+            Self::Object => {
+                "a counted permanent query (`a creature you control`, `up to two lands they control`)"
+            }
         }
     }
 }
@@ -280,6 +439,220 @@ fn recognize_player_choice(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<
     Ok(PlayerChoiceNode { population, random })
 }
 
+/// `COUNT QUERY`: a resolution choice of battlefield permanents (CR
+/// 608.2d). The count is `a`/`an`, a literal or `up to N`; the query is the
+/// shared object query, already read in the chooser's person by a performer
+/// clause. A coordinated list of articled heads (`an artifact, a creature,
+/// and a land`) is one choice per head, not one choice among their union,
+/// and fails at its own state; so do cards in another zone, a random
+/// selection and a qualifier this frame does not read.
+fn recognize_object_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectChoiceNode> {
+    cursor.enter(ResolutionDomain::Object.state());
+    let quantity = if word_at(cursor, 0, "a") || word_at(cursor, 0, "an") {
+        let article = cursor.peek().unwrap_or("a").to_string();
+        cursor.consume(&article)?;
+        ExpressedTargetCardinality::EXACTLY_ONE
+    } else {
+        cursor.enter("choose.domain.object.count");
+        recognize_expressed_target_cardinality(cursor)?
+    };
+    cursor.enter("choose.domain.object.query");
+    let query_start = cursor.position();
+    let query = recognize_object_query(cursor)?;
+    cursor.enter("choose.domain.object.each-head");
+    // An article inside the query heads another object noun; an article of a
+    // player phrase (`a creature an opponent controls`) does not.
+    let query_tokens = cursor.token_slice(query_start, cursor.position());
+    let repeated_head = query_tokens.iter().enumerate().any(|(index, token)| {
+        (token.raw.eq_ignore_ascii_case("a") || token.raw.eq_ignore_ascii_case("an"))
+            && !query_tokens.get(index + 1).is_some_and(|next| {
+                ["opponent", "player", "single"]
+                    .iter()
+                    .any(|word| next.raw.eq_ignore_ascii_case(word))
+            })
+    });
+    cursor.require(
+        !repeated_head,
+        "one counted query; one object of each coordinated head is a choice per head",
+    )?;
+    cursor.enter("choose.domain.object.zone");
+    cursor.require(
+        query.denotes_battlefield_permanents(),
+        "permanents on the battlefield; a choice among cards in another zone has no chosen-card binding",
+    )?;
+    cursor.enter("choose.domain.object.selection");
+    cursor.require(
+        !(word_at(cursor, 0, "at") && word_at(cursor, 1, "random")),
+        "a choice made by the chooser; a random selection of permanents is not read",
+    )?;
+    let selector = match query.controller {
+        Some(controller) => TargetSelector::ControlledObject {
+            predicate: query.predicate.clone(),
+            controller,
+        },
+        None => TargetSelector::Object(query.predicate.clone()),
+    };
+    let remainder = recognize_choice_remainder(cursor)?;
+    cursor.enter("choose.domain.object.boundary");
+    // A comma closes the choice only before a coordinated instruction
+    // (`, then ...`); a comma before another noun continues a list of heads.
+    let view: &OracleTokenCursor<'_> = cursor;
+    let connector_at =
+        |offset: usize| word_at(view, offset, "and") || word_at(view, offset, "then");
+    view.require(
+        view.peek().is_none_or(|raw| {
+            matches!(raw, "." | ";")
+                || (remainder.is_none() && ((raw == "," && connector_at(1)) || connector_at(0)))
+        }),
+        "the end of the permanent choice; a further qualifier of the chosen permanents is not read",
+    )?;
+    Ok(ObjectChoiceNode {
+        quantity,
+        query,
+        selector,
+        remainder,
+    })
+}
+
+/// `[,] then|and VERB the rest` in the same clause, or `. Destroy the
+/// rest.` as the next sentence, or `destroy all other QUERY` in either
+/// position: the action applied to the permanents that were not chosen (CR
+/// 608.2c). Right after a choice, `other` names the unchosen objects, not
+/// objects other than the ability's source: any other clause opening with
+/// `other` fails here instead of being read with a source exclusion. Nothing
+/// is consumed unless the whole remainder clause is read.
+fn recognize_choice_remainder(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ChoiceRemainderAction>> {
+    let mut probe = cursor.clone();
+    let next_sentence = probe.peek() == Some(".");
+    if next_sentence {
+        probe.consume(".")?;
+    } else {
+        if probe.peek() == Some(",") {
+            probe.consume(",")?;
+        }
+        if word_at(&probe, 0, "then") || word_at(&probe, 0, "and") {
+            let connector = probe.peek().unwrap_or("then").to_string();
+            probe.consume(&connector)?;
+        } else {
+            return Ok(None);
+        }
+    }
+    // `other` in the opening words of the following clause (`Other
+    // creatures they control can't block`, `each other creature you
+    // control becomes ...`, `destroy all other permanents`).
+    let names_other = (0..3).any(|offset| {
+        word_at(&probe, offset, "other")
+            && !["player", "players", "opponent", "opponents"]
+                .iter()
+                .any(|player| word_at(&probe, offset + 1, player))
+    });
+    let lemmas = if next_sentence {
+        // The next sentence is the controller's own instruction: only a
+        // destruction is independent of who controls the unchosen permanents.
+        &[VerbLemma::Destroy][..]
+    } else {
+        &[VerbLemma::Sacrifice, VerbLemma::Destroy][..]
+    };
+    let verb = probe
+        .peek()
+        .and_then(|raw| lookup_verb(raw, lemmas))
+        .filter(|(_, forms)| forms.contains(&VerbForm::Base))
+        .map(|(entry, _)| entry.lemma);
+    let action = match verb {
+        Some(lemma) if word_at(&probe, 1, "the") && word_at(&probe, 2, "rest") => {
+            probe.advance_to(probe.position() + 3)?;
+            cursor.enter("choose.domain.object.remainder");
+            if lemma == VerbLemma::Sacrifice {
+                ChoiceRemainderAction::Sacrifice
+            } else {
+                ChoiceRemainderAction::Destroy
+            }
+        }
+        Some(VerbLemma::Destroy) if word_at(&probe, 1, "all") && word_at(&probe, 2, "other") => {
+            probe.advance_to(probe.position() + 3)?;
+            cursor.enter("choose.domain.object.remainder.others");
+            let query = recognize_object_query(&mut probe)?;
+            probe.require(
+                query.controller.is_none() && !query.exclude_source,
+                "an unrestricted query of the permanents no chooser chose",
+            )?;
+            ChoiceRemainderAction::DestroyOthers(query)
+        }
+        _ if names_other => {
+            *cursor = probe;
+            cursor.enter("choose.domain.object.other");
+            return Err(cursor.fail(
+                "`the rest` or `destroy all other QUERY`; after a choice, `other` names the unchosen permanents",
+            ));
+        }
+        _ => return Ok(None),
+    };
+    *cursor = probe;
+    cursor.require(
+        cursor.peek().is_none_or(|raw| matches!(raw, "." | ";")),
+        "the end of the sentence after the unchosen permanents",
+    )?;
+    Ok(Some(action))
+}
+
+/// `a number between N and M` / `a number from N to M` (CR 107.1, inclusive
+/// bounds). `a number of OBJECTS` is a counted object choice, and an
+/// unbounded or random number has no decision protocol here: each fails at
+/// its own state.
+fn recognize_number_domain(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumberChoiceNode> {
+    cursor.enter(ResolutionDomain::Number.state());
+    let article = cursor.peek().unwrap_or("a").to_string();
+    cursor.consume(&article)?;
+    cursor.consume("number")?;
+    cursor.enter("choose.domain.number.range");
+    let (open, close) = if word_at(cursor, 0, "between") {
+        ("between", "and")
+    } else if word_at(cursor, 0, "from") {
+        ("from", "to")
+    } else if word_at(cursor, 0, "of") {
+        cursor.enter("choose.domain.number.objects");
+        return Err(cursor
+            .fail("a bounded number; `a number of OBJECTS` counted by an expression is not read"));
+    } else {
+        return Err(cursor.fail(ResolutionDomain::Number.expectation()));
+    };
+    cursor.consume(open)?;
+    let minimum = recognize_number_bound(cursor)?;
+    cursor.consume(close)?;
+    let maximum = recognize_number_bound(cursor)?;
+    cursor.require(
+        maximum >= minimum,
+        "an upper bound not below the lower bound",
+    )?;
+    cursor.enter("choose.domain.number.boundary");
+    cursor.require(
+        !(word_at(cursor, 0, "at") && word_at(cursor, 1, "random")),
+        "a number chosen by the chooser; a random number is not read",
+    )?;
+    cursor.require(
+        cursor
+            .peek()
+            .is_none_or(|raw| matches!(raw, "." | "," | ";")),
+        "the end of the number choice",
+    )?;
+    Ok(NumberChoiceNode { minimum, maximum })
+}
+
+/// One literal bound of a number choice; an article is not a bound.
+fn recognize_number_bound(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<i64> {
+    cursor.enter("choose.domain.number.bound");
+    let value = cursor
+        .peek()
+        .filter(|raw| !raw.eq_ignore_ascii_case("a") && !raw.eq_ignore_ascii_case("an"))
+        .and_then(parse_number_word)
+        .filter(|value| *value >= 0);
+    let value = cursor.require_value(value, "a nonnegative literal number")?;
+    cursor.advance_to(cursor.position() + 1)?;
+    Ok(value)
+}
+
 /// `a [CHARACTERISTIC[,] ...] card name [other than a basic land card name]`
 /// (CR 201.3): the admitted names are those of cards with the shared card
 /// characteristics. Each characteristic is the shared predicate atom; the
@@ -374,6 +747,35 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
             cursor.enter("choose.domain.target.cardinality");
             return Err(cursor.fail("a `target` head after the declared target count"));
         }
+        // A count followed by a noun counts permanents (`chooses six lands
+        // they control`); a count closing the clause (`choose one —`, `choose
+        // two.`, `choose one or both`, `choose one of ...`) counts modes or
+        // members of another collection.
+        let count_width = if quantity_head {
+            Some(1)
+        } else if word_at(&trial, 0, "up") && word_at(&trial, 1, "to") {
+            Some(3)
+        } else {
+            None
+        };
+        let counts_objects = count_width.is_some_and(|width| {
+            trial.peek_ahead(width).is_some_and(|raw| {
+                raw.chars().all(char::is_alphabetic)
+                    && !["or", "of", "at", "more", "and", "that", "each"]
+                        .iter()
+                        .any(|word| raw.eq_ignore_ascii_case(word))
+            })
+        });
+        if counts_objects {
+            let bound = recognize_object_domain(&mut trial);
+            *cursor = trial;
+            let choice = bound?;
+            cursor.enter("choose.complete");
+            return Ok(ChooseInstructionNode {
+                chooser: ChooserNode::Controller,
+                domain: ChoiceDomainNode::Objects(choice),
+            });
+        }
         if quantity_head
             || (word_at(&trial, 0, "any") && word_at(&trial, 1, "number"))
             || word_at(&trial, 0, "up")
@@ -398,7 +800,15 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
                 ResolutionDomain::CardName => {
                     recognize_card_name_domain(&mut trial).map(ChoiceDomainNode::CardName)
                 }
-                _ => {
+                ResolutionDomain::Object => {
+                    recognize_object_domain(&mut trial).map(ChoiceDomainNode::Objects)
+                }
+                ResolutionDomain::Number => {
+                    recognize_number_domain(&mut trial).map(ChoiceDomainNode::Number)
+                }
+                ResolutionDomain::CardType
+                | ResolutionDomain::LandType
+                | ResolutionDomain::LandOrNonland => {
                     *cursor = trial;
                     cursor.enter(domain.state());
                     return Err(cursor.fail(domain.expectation()));
@@ -453,3 +863,7 @@ pub(in crate::oracle::canonical) fn recognize_choose_instruction(
 #[cfg(test)]
 #[path = "choose_card_name_tests.rs"]
 mod card_name_tests;
+
+#[cfg(test)]
+#[path = "choose_object_domain_tests.rs"]
+mod object_domain_tests;

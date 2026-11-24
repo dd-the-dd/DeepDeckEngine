@@ -58,6 +58,7 @@ mod player_condition;
 mod program_resolution;
 mod rebound;
 mod resolution_choice;
+mod resolution_object_choice;
 mod sacrifice;
 mod sentence_condition;
 mod trigger_event;
@@ -314,6 +315,9 @@ mod activated_combat_restriction_tests;
 #[cfg(test)]
 #[path = "choose_instruction_tests.rs"]
 mod choose_instruction_tests;
+#[cfg(test)]
+#[path = "choose_object_choice_tests.rs"]
+mod choose_object_choice_tests;
 #[cfg(test)]
 #[path = "destroy_regeneration_tests.rs"]
 mod destroy_regeneration_tests;

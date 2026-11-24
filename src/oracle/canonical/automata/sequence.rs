@@ -1816,7 +1816,11 @@ fn recognize_effect_sequence_attempt_scoped(
                         // player antecedent; earlier antecedents remain.
                         super::ChoiceDomainNode::CreatureType
                         | super::ChoiceDomainNode::Color
-                        | super::ChoiceDomainNode::CardName(_) => {}
+                        | super::ChoiceDomainNode::CardName(_)
+                        | super::ChoiceDomainNode::Number(_) => {}
+                        // Permanents chosen on resolution are no declared
+                        // target: the permanent subject scope names them.
+                        super::ChoiceDomainNode::Objects(_) => memory.last_target = None,
                     }
                 }
                 if let LocalEffectNode::TargetPlayerLife(life) = &effect

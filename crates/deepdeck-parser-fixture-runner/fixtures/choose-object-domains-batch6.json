@@ -1,0 +1,478 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "choose-object-domains-batch6",
+  "cases": [
+    {
+      "id": "imperial-edict-exact-declared-chooser-binds-that-creature",
+      "request": {
+        "cardName": "Imperial Edict",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target opponent chooses a creature they control. Destroy that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/id",
+                "equals": "effect0:chosenObjects"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/2/permanent",
+                "equals": {
+                  "kind": "singleBoundObject",
+                  "binding": "effect0:chosenObjects"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "razias-purification-exact-each-player-sacrifices-the-rest",
+      "request": {
+        "cardName": "Razia's Purification",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{R}{W}",
+        "oracleText": "Each player chooses three permanents they control, then sacrifices the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/0/effects/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              },
+              {
+                "pointer": "/effects/0/collect/bind",
+                "equals": "effect0:unchosenObjects"
+              },
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "kind": "sacrificePermanents",
+                  "player": {
+                    "kind": "eachPlayer"
+                  },
+                  "objects": {
+                    "kind": "boundObjects",
+                    "binding": "effect0:unchosenObjects"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "divine-reckoning-exact-destroy-the-rest-of-every-choice",
+      "request": {
+        "cardName": "Divine Reckoning",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Each player chooses a creature they control. Destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/collect/bind",
+                "equals": "effect0:unchosenObjects"
+              },
+              {
+                "pointer": "/effects/1",
+                "equals": {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "boundObjects",
+                    "binding": "effect0:unchosenObjects"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "duneblast-sibling-up-to-one-unrestricted-then-destroy-the-rest",
+      "request": {
+        "cardName": "Duneblast",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{B}{G}",
+        "oracleText": "Choose up to one creature. Destroy the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 0
+                }
+              },
+              {
+                "pointer": "/effects/1/value/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/2",
+                "equals": {
+                  "kind": "destroyPermanent",
+                  "permanent": {
+                    "kind": "boundObjects",
+                    "binding": "effect0:unchosenObjects"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "archfiend-sibling-event-player-chooses-up-to-two-then-sacrifices-the-rest",
+      "request": {
+        "cardName": "Rest Probe",
+        "typeLine": "Creature — Demon",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "At the beginning of each opponent's end step, that player chooses up to two creatures they control, then sacrifices the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "sacrificePermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "own-choice-sibling-it-gains-a-keyword",
+      "request": {
+        "cardName": "Choice Probe",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Choose a creature you control. It gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/1/id",
+                "equals": "effect0:chosenObjects"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "chosen-number-sibling-read-by-that-much",
+      "request": {
+        "cardName": "Number Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Choose a number between 6 and 8. Number Probe deals that much damage to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseNumber"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 6
+                }
+              },
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 8
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "fall-of-the-first-civilization-sibling-destroy-all-other-query",
+      "request": {
+        "cardName": "Others Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Each player chooses three nonland permanents they control. Destroy all other nonland permanents.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/collect/bind",
+                "equals": "effect0:chosenObjects"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "destroyPermanent"
+              },
+              {
+                "pointer": "/effects/1/permanent/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/1/permanent/right",
+                "equals": {
+                  "kind": "boundObjects",
+                  "binding": "effect0:chosenObjects"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "goblin-war-cry-near-miss-other-after-a-choice-is-not-a-source-exclusion",
+      "request": {
+        "cardName": "Goblin War Cry",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Target opponent chooses a creature they control. Other creatures they control can't block this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "choose.domain.object.other"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-chosen-permanent-nothing-reads",
+      "request": {
+        "cardName": "Unread Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Choose a permanent you control. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.choose.objects.consumer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-chosen-number-nothing-reads",
+      "request": {
+        "cardName": "Unread Number",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Choose a number between 0 and 13. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.choose.number.consumer"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-players-choice-is-no-singular-it",
+      "request": {
+        "cardName": "Plural Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Each player chooses a creature they control. Destroy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-alchemy-perpetual-chosen-card-stays-unsupported",
+      "request": {
+        "cardName": "Leonin Sanctifier",
+        "typeLine": "Creature — Cat Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "When Leonin Sanctifier enters the battlefield, choose a creature card in your hand. It perpetually gains lifelink.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-one-of-each-coordinated-head-is-not-one-choice",
+      "request": {
+        "cardName": "Gearhulk Probe",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "When this creature enters, each player chooses an artifact, a creature, an enchantment, and a planeswalker from among the nonland permanents they control, then sacrifices the rest.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -192,8 +192,12 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::UntapRestriction(node) => {
             Local(subject_after_operand(&node.objects, effect_index))
         }
-        // Another player's action ends the local permanent subject.
-        LocalEffectNode::Performed(_) => Local(None),
+        // Another player's action ends the local permanent subject, except
+        // the one permanent that player chose on resolution (`target opponent
+        // chooses a creature they control. Destroy that creature.`).
+        LocalEffectNode::Performed(_) => {
+            Local(super::resolution_choice_subject(effect, effect_index))
+        }
         LocalEffectNode::PermanentKeywordAction(node) => {
             Local(subject_after_operand(&node.targets, effect_index))
         }
@@ -221,6 +225,10 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
                 Local(singular_permanent_target(targets, effect_index))
             }
             ChoiceDomainNode::PlayerTarget(_) | ChoiceDomainNode::Player(_) => Local(None),
+            ChoiceDomainNode::Number(_) => previous,
+            ChoiceDomainNode::Objects(_) => {
+                Local(super::resolution_choice_subject(effect, effect_index))
+            }
         },
         // A targeted source occupies the action's first slots; the recipient
         // is then no longer the action's sole singular referent.
@@ -433,6 +441,10 @@ pub(in crate::oracle::canonical) fn prior_object_set(
 ) -> Option<ObjectSetAntecedent> {
     let effect_index = effects.len().checked_sub(1)?;
     let effect = &effects[effect_index];
+    // Several permanents chosen on resolution (CR 608.2d).
+    if let Some(set) = super::resolution_choice_object_set(effect, effect_index) {
+        return Some(set);
+    }
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
         return Some(ObjectSetAntecedent {
             denotes: ObjectSetDenotation::Bound(PermanentEffectReference::Observed(
@@ -630,7 +642,12 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
             return node
                 .permanent_targets()
                 .and_then(|targets| targets.slots.get(slot_index))
-                .map(|slot| &slot.selector);
+                .map(|slot| &slot.selector)
+                .or_else(|| super::resolution_choice_selector(effect, slot_index));
+        }
+        // A permanent another player chose on resolution.
+        LocalEffectNode::Performed(_) => {
+            return super::resolution_choice_selector(effect, slot_index);
         }
         // Actions that declare their targets outside a permanent operand
         // expose the same declared selector for nominal anaphora.

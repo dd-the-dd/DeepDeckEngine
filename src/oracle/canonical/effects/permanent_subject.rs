@@ -53,7 +53,7 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
 /// The key a plural slot's binding is recorded under. Plural slots live in a
 /// key space disjoint from singular slot keys, so a singular reference
 /// (`it`, `its power`) never resolves to a set of targets.
-fn target_set_binding_key(slot: TargetBinding) -> TargetBinding {
+pub(super) fn target_set_binding_key(slot: TargetBinding) -> TargetBinding {
     const TARGET_SET_SLOT_OFFSET: usize = 1 << 16;
     TargetBinding {
         effect_index: slot.effect_index,
