@@ -446,6 +446,8 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         // primitive here; the other source moves need a caller-owned binding.
         LocalEffectNode::MoveSource(movement)
             if movement.source == LocalObjectReference::SourceSelf
+                // An attachment needs the sequence's operand lowering.
+                && movement.attached_to.is_none()
                 && (movement.from == SourceZone::Graveyard
                     // `return SOURCE to its owner's hand` (CR 108.3).
                     || (movement.from == SourceZone::Battlefield

@@ -995,6 +995,19 @@ fn recognize_effect_sequence_attempt_scoped(
                                 return Err(failure);
                             }
                         }
+                        // `shuffle NAME|this OBJECT into its owner's library`.
+                        match super::try_recognize_shuffle_source_into_library(
+                            attempt,
+                            name_links,
+                            name_failure,
+                        ) {
+                            Ok(Some(movement)) => return Ok(LocalEffectNode::MoveSource(movement)),
+                            Ok(None) => {}
+                            Err(failure) => {
+                                attempt_frame.commit();
+                                return Err(failure);
+                            }
+                        }
                         match super::try_recognize_target_card_action(attempt) {
                             super::CollectionOperandAttempt::Recognized(fragment) => {
                                 return Ok(
@@ -2914,8 +2927,12 @@ fn recognize_exile_frame(
         TargetCardZoneChangeParseAttempt::NotClaimed
         | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
     }
-    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal {
-        return recognize_exile_graveyard_collection_effect(cursor).map(LocalEffectNode::ZoneBatch);
+    // `exile all graveyards` names zones; `exile all QUERY` names permanents
+    // and stays with the shared object-to-zone operand below.
+    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal
+        && let Ok(batch) = cursor.attempt(recognize_exile_graveyard_collection_effect)
+    {
+        return Ok(LocalEffectNode::ZoneBatch(batch));
     }
     if source_reference_starts_at(
         cursor.position() + 1,

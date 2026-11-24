@@ -144,7 +144,8 @@ fn domain(effect: &Value) -> Option<Domain> {
             "moveTriggeringCardFromGraveyard"
             | "moveAbilitySourceToHand"
             | "returnLinkedExiledCardToHand"
-            | "returnAbilitySourceFromGraveyard",
+            | "returnAbilitySourceFromGraveyard"
+            | "shuffleLibrariesHolding",
         ) => Some(Domain::Movement),
         Some("returnCardsFromGraveyard") => Some(Domain::GraveyardReanimation),
         Some("moveCards" | "moveCard" | "move" | "moveTargetCard") => Some(Domain::CardMovement),

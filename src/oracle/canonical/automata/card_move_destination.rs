@@ -22,6 +22,30 @@ pub(in crate::oracle::canonical) struct CardMoveDestinationNode {
     /// `with N COUNTER counters on it|them`: the cards enter the battlefield
     /// with these counters (CR 122.6), not receive them afterwards.
     pub entering_counters: Option<EnteringCountersNode>,
+    /// `face down`: the cards are exiled face down (CR 406.3) or enter the
+    /// battlefield face down (CR 708.2). Never together with `transformed`.
+    pub face_down: bool,
+    /// `transformed`: the cards enter the battlefield with their back face
+    /// up (CR 712.14a). Battlefield only.
+    pub transformed: bool,
+    /// `shuffle X into a library`: each library that received a card is
+    /// shuffled after the move (CR 701.24b). Library only.
+    pub shuffle: bool,
+    /// `attached to OBJECT`: the permanent an entering Aura, Equipment or
+    /// Fortification becomes attached to (CR 303.4f, 301.5c). Battlefield
+    /// only.
+    pub attached_to: Option<EntryAttachmentNode>,
+}
+
+/// The one permanent `attached to` names, read by the shared readers: the
+/// ability's source (`this creature`), a bound reference (`it`, `that
+/// creature`), one declared target, or one permanent chosen on resolution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum EntryAttachmentNode {
+    Source,
+    Reference(super::PermanentEffectReference),
+    Target(super::TargetListNode),
+    Chosen(super::PermanentSelectionOperandNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -42,6 +66,15 @@ fn recognize_entering_counters(
     {
         let article = cursor.peek().unwrap_or("a").to_owned();
         cursor.consume(&article)?;
+        // `with an additional COUNTER counter on it`: the same placement as
+        // the object enters (CR 122.6); it has no counters it would
+        // otherwise enter with from this move.
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("additional"))
+        {
+            cursor.consume("additional")?;
+        }
         super::NumericExpression::from(1)
     } else {
         super::recognize_numeric_expression(cursor, None)?
@@ -62,6 +95,217 @@ fn recognize_entering_counters(
         cursor.consume("it")?;
     }
     Ok(EnteringCountersNode { counter, count })
+}
+
+/// The entry modifiers one destination admits, read in any written order
+/// (`tapped and transformed under your control with a +1/+1 counter on
+/// it`). Each modifier is read once; a repeated or inapplicable one fails.
+pub(in crate::oracle::canonical) struct EntryModifiers {
+    pub tapped: bool,
+    pub face_down: bool,
+    pub transformed: bool,
+    /// The controller of the entering permanents; the destination owner
+    /// until an explicit `under X's control` replaces it (CR 110.2a).
+    pub controller: CardMoveOwnerNode,
+    pub entering_counters: Option<EnteringCountersNode>,
+    pub attached_to: Option<EntryAttachmentNode>,
+    explicit_controller: bool,
+}
+
+impl EntryModifiers {
+    pub(in crate::oracle::canonical) fn new(controller: CardMoveOwnerNode) -> Self {
+        Self {
+            tapped: false,
+            face_down: false,
+            transformed: false,
+            controller,
+            entering_counters: None,
+            attached_to: None,
+            explicit_controller: false,
+        }
+    }
+}
+
+/// A modifier word that may follow `and` inside the modifier list. Any other
+/// `and` belongs to the parent's connector (`tapped and attacking` is not an
+/// entry modifier this reader owns).
+fn entry_modifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize, battlefield: bool) -> bool {
+    match cursor
+        .peek_ahead(offset)
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("tapped" | "transformed") => battlefield,
+        Some("face") => cursor
+            .peek_ahead(offset + 1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("down") || raw.eq_ignore_ascii_case("up")),
+        _ => false,
+    }
+}
+
+/// `[tapped] [transformed] [face down|face up] [under X's control] [with N
+/// KIND counters on it|them]` after a battlefield destination, and `[face
+/// down]` after exile. The list is a child of the destination for any moved
+/// operand; the consuming lowerer proves each modifier for its object.
+pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
+    cursor: &mut OracleTokenCursor<'_>,
+    zone: CardZoneName,
+    modifiers: &mut EntryModifiers,
+) -> MachineResult<()> {
+    let battlefield = zone == CardZoneName::Battlefield;
+    loop {
+        // `tapped and transformed`: the conjunction joins two modifiers.
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+            && entry_modifier_starts(cursor, 1, battlefield)
+        {
+            cursor.consume("and")?;
+        }
+        match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+            Some("tapped") if battlefield => {
+                cursor.enter("collection.destination.entry.tapped");
+                cursor.require(!modifiers.tapped, "one `tapped` entry modifier")?;
+                cursor.consume("tapped")?;
+                modifiers.tapped = true;
+            }
+            Some("transformed") if battlefield => {
+                cursor.enter("collection.destination.entry.transformed");
+                cursor.require(
+                    !modifiers.transformed && !modifiers.face_down,
+                    "one `transformed` entry modifier, never with a face-down entry",
+                )?;
+                cursor.consume("transformed")?;
+                modifiers.transformed = true;
+            }
+            Some("face")
+                if cursor
+                    .peek_ahead(1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("down")) =>
+            {
+                cursor.enter("collection.destination.entry.face-down");
+                cursor.require(
+                    !modifiers.face_down && !modifiers.transformed,
+                    "one `face down` entry modifier, never with a transformed entry",
+                )?;
+                cursor.consume_phrase(&["face", "down"])?;
+                modifiers.face_down = true;
+            }
+            // A card is put onto the battlefield face up unless an
+            // instruction says otherwise (CR 708.1): `face up` restates it.
+            Some("face")
+                if battlefield
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("up")) =>
+            {
+                cursor.enter("collection.destination.entry.face-up");
+                cursor.require(!modifiers.face_down, "one face orientation")?;
+                cursor.consume_phrase(&["face", "up"])?;
+            }
+            Some("under") if battlefield => {
+                cursor.enter("collection.destination.controller");
+                cursor.require(
+                    !modifiers.explicit_controller,
+                    "one controller of the entering permanents",
+                )?;
+                cursor.consume("under")?;
+                modifiers.controller = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+                    Some("your") => {
+                        cursor.consume("your")?;
+                        CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
+                    }
+                    Some(pronoun @ ("its" | "their")) => {
+                        let pronoun = pronoun.to_owned();
+                        cursor.consume(&pronoun)?;
+                        let possessive = cursor
+                            .peek()
+                            .filter(|raw| {
+                                ["owner's", "owner\u{2019}s", "owners'", "owners\u{2019}"]
+                                    .iter()
+                                    .any(|form| raw.eq_ignore_ascii_case(form))
+                            })
+                            .map(str::to_owned)
+                            .ok_or_else(|| cursor.fail("owner's or owners'"))?;
+                        cursor.consume(&possessive)?;
+                        CardMoveOwnerNode::EachCardOwner
+                    }
+                    _ => {
+                        return Err(cursor.fail("`your`, `its owner's` or `their owners'` control"));
+                    }
+                };
+                cursor.consume("control")?;
+                modifiers.explicit_controller = true;
+            }
+            Some("with") if battlefield => {
+                cursor.require(
+                    modifiers.entering_counters.is_none(),
+                    "one entering-counter placement",
+                )?;
+                modifiers.entering_counters = Some(recognize_entering_counters(cursor)?);
+            }
+            Some("attached")
+                if battlefield
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("to")) =>
+            {
+                cursor.require(modifiers.attached_to.is_none(), "one attachment")?;
+                modifiers.attached_to = Some(recognize_entry_attachment(cursor)?);
+            }
+            _ => return Ok(()),
+        }
+    }
+}
+
+/// `attached to this NOUN|it|that NOUN|target NOUN|a NOUN you control`.
+fn recognize_entry_attachment(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EntryAttachmentNode> {
+    cursor.enter("collection.destination.entry.attached-to");
+    cursor.consume_phrase(&["attached", "to"])?;
+    // `this creature`, `this Equipment`: the ability's own object.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        && cursor.peek_ahead(1).is_some_and(|noun| {
+            crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(noun).is_some()
+                || crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(noun)
+                    .is_some()
+        })
+    {
+        let noun = cursor.peek_ahead(1).unwrap_or("permanent").to_owned();
+        cursor.consume("this")?;
+        cursor.consume(&noun)?;
+        return Ok(EntryAttachmentNode::Source);
+    }
+    let operand = super::recognize_verb_object_operand(
+        cursor,
+        super::VerbObjectOperandExpectation {
+            counts: super::TargetCountSupport::Expressed,
+            card_zones: false,
+        },
+    )?;
+    cursor.enter("collection.destination.entry.attached-to.operand");
+    match operand {
+        super::VerbObjectOperandNode::Reference(reference) => {
+            Ok(EntryAttachmentNode::Reference(reference))
+        }
+        super::VerbObjectOperandNode::Targets(targets)
+            if targets.slots.len() == 1
+                && targets.slots[0].cardinality.maximum == 1
+                && targets.slots[0].count.is_none()
+                && targets.slots[0].selector.is_permanent_target() =>
+        {
+            Ok(EntryAttachmentNode::Target(targets))
+        }
+        super::VerbObjectOperandNode::Selection(selection)
+            if selection.bounds == Some(super::ExpressedTargetCardinality::EXACTLY_ONE) =>
+        {
+            Ok(EntryAttachmentNode::Chosen(selection))
+        }
+        _ => Err(cursor.fail("one permanent the entering object is attached to")),
+    }
 }
 
 pub(in crate::oracle::canonical) type CardMoveDestinationAttempt =
@@ -105,6 +349,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
         let battlefield = trial
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("battlefield"));
+        let mut owned_zone_only = false;
         let owner = if !battlefield {
             if trial
                 .peek()
@@ -135,9 +380,15 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
                             .iter()
                             .any(|form| raw.eq_ignore_ascii_case(form))
                     })
-                    .map(str::to_owned)
-                    .ok_or_else(|| trial.fail("owner's or owners'"))?;
-                trial.consume(&owner)?;
+                    .map(str::to_owned);
+                match owner {
+                    Some(owner) => trial.consume(&owner)?,
+                    // `to their hand`, `on top of their library`: a player's
+                    // possessive naming the cards' owner. A hand, library or
+                    // graveyard is always its owner's (CR 400.3), checked
+                    // with the zone below.
+                    None => owned_zone_only = true,
+                }
                 CardMoveOwnerNode::EachCardOwner
             } else {
                 trial.consume("your")?;
@@ -155,64 +406,27 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             position.is_none() || zone == CardZoneName::Library,
             "a top/bottom position only for a library",
         )?;
-        let tapped = if zone == CardZoneName::Battlefield
-            && trial
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"))
-        {
-            trial.consume("tapped")?;
-            true
-        } else {
-            false
-        };
-        // `under its owner's control` / `under their owners' control` / `under
-        // your control`: the controller of the entering permanents (CR
-        // 110.2a). Without it, the instruction's actor controls them.
-        let owner = if zone == CardZoneName::Battlefield
-            && trial
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("under"))
-        {
-            trial.enter("collection.destination.controller");
-            trial.consume("under")?;
-            let owner = match trial.peek().map(str::to_ascii_lowercase).as_deref() {
-                Some("your") => {
-                    trial.consume("your")?;
-                    CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
-                }
-                Some(pronoun @ ("its" | "their")) => {
-                    let pronoun = pronoun.to_owned();
-                    trial.consume(&pronoun)?;
-                    let possessive = trial
-                        .peek()
-                        .filter(|raw| {
-                            ["owner's", "owner\u{2019}s", "owners'", "owners\u{2019}"]
-                                .iter()
-                                .any(|form| raw.eq_ignore_ascii_case(form))
-                        })
-                        .map(str::to_owned)
-                        .ok_or_else(|| trial.fail("owner's or owners'"))?;
-                    trial.consume(&possessive)?;
-                    CardMoveOwnerNode::EachCardOwner
-                }
-                _ => {
-                    return Err(trial.fail("`your`, `its owner's` or `their owners'` control"));
-                }
-            };
-            trial.consume("control")?;
-            owner
-        } else {
-            owner
-        };
-        let entering_counters = if zone == CardZoneName::Battlefield
-            && trial
-                .peek()
-                .is_some_and(|raw| raw.eq_ignore_ascii_case("with"))
-        {
-            Some(recognize_entering_counters(&mut trial)?)
-        } else {
-            None
-        };
+        trial.require(
+            !owned_zone_only
+                || matches!(
+                    zone,
+                    CardZoneName::Hand | CardZoneName::Library | CardZoneName::Graveyard
+                ),
+            "a hand, library or graveyard after a bare player possessive",
+        )?;
+        let mut modifiers = EntryModifiers::new(owner);
+        if matches!(zone, CardZoneName::Battlefield | CardZoneName::Exile) {
+            recognize_entry_modifiers(&mut trial, zone, &mut modifiers)?;
+        }
+        let EntryModifiers {
+            tapped,
+            face_down,
+            transformed,
+            controller: owner,
+            entering_counters,
+            attached_to,
+            ..
+        } = modifiers;
         let order = if trial
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("in"))
@@ -233,6 +447,10 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             order,
             tapped,
             entering_counters,
+            face_down,
+            transformed,
+            shuffle: false,
+            attached_to,
         })
     })();
     match result {

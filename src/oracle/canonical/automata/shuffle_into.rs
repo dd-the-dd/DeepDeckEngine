@@ -70,6 +70,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
                 owner: CardZoneOwnerNode::Player(LocalPlayerReference::Controller),
                 predicate: None,
                 quantity: None,
+                additional_zones: Vec::new(),
             }),
             // The library is shuffled next: the placement order is not
             // observable, and each card goes to its owner's library.
@@ -80,6 +81,10 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
                 order: Some(CollectionOrder::Random),
                 tapped: false,
                 entering_counters: None,
+                face_down: false,
+                transformed: false,
+                shuffle: false,
+                attached_to: None,
             },
         })
         .collect::<Vec<_>>();
@@ -88,6 +93,108 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
     });
     cursor.enter("effect.shuffle-into.complete");
     Ok(Some(actions))
+}
+
+/// `into its owner's library`, `into their owners' libraries`, `into your
+/// library`, `into their library`: the library a shuffled object goes to.
+/// Every card goes to its owner's library (CR 400.3) whatever possessive is
+/// written, so the destination is always each moved card's owner's library,
+/// placed in a random order and then shuffled (CR 701.24b).
+pub(in crate::oracle::canonical) fn recognize_shuffle_library_destination(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardMoveDestinationNode> {
+    cursor.enter("effect.shuffle-into.destination");
+    let destination = match try_recognize_card_move_destination(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => fragment.node,
+        CollectionOperandAttempt::NotClaimed => {
+            return Err(cursor.fail("`into` a library after the shuffled object"));
+        }
+        CollectionOperandAttempt::RejectedCandidate(failure)
+        | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+    };
+    cursor.enter("effect.shuffle-into.library");
+    cursor.require(
+        destination.zone == CardZoneName::Library
+            && destination.position.is_none()
+            && destination.order.is_none(),
+        "an unpositioned library: a shuffle leaves no position or order",
+    )?;
+    Ok(CardMoveDestinationNode {
+        zone: CardZoneName::Library,
+        owner: CardMoveOwnerNode::EachCardOwner,
+        position: Some(LibraryPosition::Bottom),
+        order: Some(CollectionOrder::Random),
+        tapped: false,
+        entering_counters: None,
+        face_down: false,
+        transformed: false,
+        shuffle: true,
+        attached_to: None,
+    })
+}
+
+/// True when `shuffle` is followed by an object rather than ending its
+/// instruction (`Then shuffle.`, `shuffle, then ...`, `shuffle your library`).
+pub(in crate::oracle::canonical) fn shuffle_object_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
+        None | Some("." | "," | ";" | ")" | "and" | "then") => false,
+        Some("your") => !cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("library")),
+        Some(_) => true,
+    }
+}
+
+/// `shuffle SOURCE into its owner's library`: the source object (a name
+/// linked to the current card or face, or `this OBJECT`) moves to its
+/// owner's library, which is then shuffled (CR 701.24b). `Ok(None)` when no
+/// source reference follows the verb (the card-action reader owns `it`,
+/// targets and collections); once the source is read, any other
+/// destination fails here.
+pub(in crate::oracle::canonical) fn try_recognize_shuffle_source_into_library(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[crate::oracle::syntax::ResolvedNameLink],
+    name_failure: Option<&crate::oracle::syntax::NameResolutionFailure>,
+) -> MachineResult<Option<MoveSourceEffectNode>> {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| is_verb_form(raw, VerbLemma::Shuffle, VerbForm::Base))
+    {
+        return Ok(None);
+    }
+    let mut trial = cursor.clone();
+    trial.enter("effect.shuffle-source.verb");
+    trial.consume(verb_entry(VerbLemma::Shuffle).surface(VerbForm::Base))?;
+    let starts_source = trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        || name_links.iter().any(|link| {
+            link.token_start == trial.position()
+                && matches!(
+                    link.kind,
+                    crate::oracle::syntax::NameLinkKind::CurrentCard
+                        | crate::oracle::syntax::NameLinkKind::CurrentFace
+                )
+        });
+    if !starts_source {
+        return Ok(None);
+    }
+    trial.enter("effect.shuffle-source.source");
+    let source = recognize_source_reference(&mut trial, name_links, name_failure)?;
+    recognize_shuffle_library_destination(&mut trial)?;
+    trial.enter("effect.shuffle-source.complete");
+    *cursor = trial;
+    // The source moves from wherever it is (a permanent, a card in a
+    // graveyard, or the resolving spell); no origin is written.
+    Ok(Some(MoveSourceEffectNode {
+        source,
+        from: SourceZone::Battlefield,
+        to: SourceZone::Library,
+        face_change: SourceFaceChange::Preserve,
+        controller: SourceMoveController::Owner,
+        tapped: false,
+        attached_to: None,
+    }))
 }
 
 #[cfg(test)]

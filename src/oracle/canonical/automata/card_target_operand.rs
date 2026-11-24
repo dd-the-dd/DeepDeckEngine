@@ -7,6 +7,9 @@ pub(in crate::oracle::canonical) enum CardTargetZoneOwner {
     Player(LocalPlayerReference),
     AnyPlayer,
     OnePlayer,
+    /// `from an opponent's graveyard`: one opponent's zone (CR 109.5); every
+    /// declared card shares that owner.
+    Opponent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -159,6 +162,17 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
                     CardTargetZoneOwner::Player(LocalPlayerReference::Controller),
                     false,
                 )
+            }
+            Some("an")
+                if trial.peek_ahead(1).is_some_and(|raw| {
+                    raw.eq_ignore_ascii_case("opponent's")
+                        || raw.eq_ignore_ascii_case("opponent\u{2019}s")
+                }) =>
+            {
+                trial.consume("an")?;
+                let possessive = trial.peek().unwrap_or("opponent's").to_owned();
+                trial.consume(&possessive)?;
+                (CardTargetZoneOwner::Opponent, false)
             }
             Some("a") => {
                 trial.consume("a")?;

@@ -1660,6 +1660,8 @@ pub(in crate::oracle::canonical) enum SourceZone {
     Exile,
     Graveyard,
     Hand,
+    /// Its owner's library, shuffled after the move (CR 701.24b).
+    Library,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1683,6 +1685,9 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     pub controller: SourceMoveController,
     /// `to the battlefield tapped` (CR 110.5): the source enters tapped.
     pub tapped: bool,
+    /// `to the battlefield attached to OBJECT` (CR 303.4f, 301.5c): the
+    /// permanent the entering Aura or Equipment becomes attached to.
+    pub attached_to: Option<PermanentOperandNode>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -6,6 +6,10 @@ use super::*;
 pub(in crate::oracle::canonical) enum CardZoneOwnerNode {
     Player(LocalPlayerReference),
     TargetPlayer(TargetListNode),
+    /// The same zone of every player of a population, read on resolution:
+    /// `all graveyards`, `a graveyard` (any one of them), `each opponent's
+    /// graveyard`, `an opponent's graveyard`. Public zones only.
+    Players(PlayerSetReferenceNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -17,6 +21,9 @@ pub(in crate::oracle::canonical) struct CardZoneCollectionNode {
     /// player chooses this many matching cards on resolution (the shared
     /// selection quantity); `None` names every matching card.
     pub quantity: Option<CardSelectionQuantityNode>,
+    /// `from your hand or graveyard`, `from your graveyard and/or library`:
+    /// the other zones of the same owner, read as one union with `zone`.
+    pub additional_zones: Vec<CardZoneName>,
 }
 
 /// `a|an|N|up to N|any number of ... card(s) from|in your|target player's
@@ -39,18 +46,87 @@ fn chosen_zone_cards_start(cursor: &OracleTokenCursor<'_>) -> bool {
     if !quantified {
         return false;
     }
+    // The card noun, then `from|in OWNER` before the sentence ends. A
+    // comma of a coordinated type list (`an artifact, creature, or land
+    // card`) and a postposed qualifier (`with mana value 3 or less`) stay
+    // inside the noun phrase; the owner word must name an owned zone.
     let sentence = cursor.token_slice(cursor.position(), usize::MAX);
     let sentence = &sentence[..sentence
         .iter()
-        .position(|token| token.raw == "." || token.raw == ",")
+        .position(|token| token.raw == ".")
         .unwrap_or(sentence.len())];
-    sentence.windows(3).any(|triple| {
-        (triple[0].raw.eq_ignore_ascii_case("card") || triple[0].raw.eq_ignore_ascii_case("cards"))
-            && (triple[1].raw.eq_ignore_ascii_case("from")
-                || triple[1].raw.eq_ignore_ascii_case("in"))
-            && (triple[2].raw.eq_ignore_ascii_case("your")
-                || triple[2].raw.eq_ignore_ascii_case("target"))
+    let Some(noun) = sentence.iter().position(|token| {
+        token.raw.eq_ignore_ascii_case("card") || token.raw.eq_ignore_ascii_case("cards")
+    }) else {
+        return false;
+    };
+    sentence[noun + 1..].windows(2).any(|pair| {
+        (pair[0].raw.eq_ignore_ascii_case("from") || pair[0].raw.eq_ignore_ascii_case("in"))
+            && zone_owner_head(&pair[1].raw)
     })
+}
+
+/// A word that begins an owned-zone phrase after `from|in`.
+fn zone_owner_head(raw: &str) -> bool {
+    ["your", "target", "a", "an", "all", "each"]
+        .iter()
+        .any(|word| raw.eq_ignore_ascii_case(word))
+}
+
+/// `a graveyard`, `an opponent's graveyard`, `all graveyards`, `each
+/// opponent's graveyard`, `all [your] opponents' graveyards`: the population
+/// whose zones the collection reads. `None` without consuming when the
+/// owner is not a population. The zone word itself is read by the caller.
+fn recognize_zone_owner_population(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<PlayerSetReferenceNode>> {
+    let opponents = |raw: &str| {
+        [
+            "opponent's",
+            "opponent\u{2019}s",
+            "opponents'",
+            "opponents\u{2019}",
+        ]
+        .iter()
+        .any(|form| raw.eq_ignore_ascii_case(form))
+    };
+    let head = cursor.peek().map(str::to_ascii_lowercase);
+    let population = match head.as_deref() {
+        Some("a")
+            if cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("graveyard")) =>
+        {
+            cursor.consume("a")?;
+            PlayerSetReferenceNode::EachPlayer
+        }
+        Some("an" | "each") if cursor.peek_ahead(1).is_some_and(opponents) => {
+            let head = cursor.peek().unwrap_or("an").to_owned();
+            cursor.consume(&head)?;
+            let role = cursor.peek().unwrap_or("opponent's").to_owned();
+            cursor.consume(&role)?;
+            PlayerSetReferenceNode::OpponentsOfAbilityController
+        }
+        Some("all") => {
+            cursor.consume("all")?;
+            if cursor
+                .peek()
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
+                && cursor.peek_ahead(1).is_some_and(opponents)
+            {
+                cursor.consume("your")?;
+            }
+            if cursor.peek().is_some_and(opponents) {
+                let role = cursor.peek().unwrap_or("opponents'").to_owned();
+                cursor.consume(&role)?;
+                PlayerSetReferenceNode::OpponentsOfAbilityController
+            } else {
+                PlayerSetReferenceNode::EachPlayer
+            }
+        }
+        _ => return Ok(None),
+    };
+    Ok(Some(population))
 }
 
 pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
@@ -136,17 +212,51 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
         let owner = if trial.peek().is_some_and(|v| v.eq_ignore_ascii_case("your")) {
             trial.consume("your")?;
             CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
+        } else if let Some(population) = recognize_zone_owner_population(&mut trial)? {
+            CardZoneOwnerNode::Players(population)
         } else {
             CardZoneOwnerNode::TargetPlayer(recognize_possessive_target_player(&mut trial)?)
         };
         committed = true;
         trial.enter("collection.zone.name");
         let zone = recognize_card_zone_atom(&mut trial)?;
+        // `hand or graveyard`, `hand and/or graveyard`: a coordinated zone
+        // of the same owner. A connector followed by anything else is the
+        // parent's (`... from your graveyard and you gain 1 life`).
+        let mut additional_zones = Vec::new();
+        while trial.peek().is_some_and(|raw| {
+            ["or", "and", "and/or"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+        }) && trial.peek_ahead(1).is_some_and(|raw| {
+            ["hand", "graveyard", "library", "exile"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+        }) {
+            trial.enter("collection.zone.coordinated");
+            let connector = trial.peek().unwrap_or("or").to_owned();
+            trial.consume(&connector)?;
+            let other = recognize_card_zone_atom(&mut trial)?;
+            if other != zone && !additional_zones.contains(&other) {
+                additional_zones.push(other);
+            }
+        }
+        if matches!(owner, CardZoneOwnerNode::Players(_)) {
+            // Another player's hidden zone is not an open collection to
+            // read or choose from (CR 400.2); only public zones admit a
+            // population of owners.
+            trial.enter("collection.zone.population-zone");
+            trial.require(
+                matches!(zone, CardZoneName::Graveyard | CardZoneName::Exile),
+                "a public graveyard or exile zone for a population of owners",
+            )?;
+        }
         Ok(CardZoneCollectionNode {
             zone,
             owner,
             predicate,
             quantity,
+            additional_zones,
         })
     })();
     match result {

@@ -1,0 +1,306 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/source-moves",
+  "cases": [
+    {
+      "id": "exact-flood-of-recollection-spell-exiles-itself",
+      "request": {
+        "cardName": "Flood of Recollection",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}{U}",
+        "oracleText": "Return target instant or sorcery card from your graveyard to your hand. Exile Flood of Recollection.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/cards/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-restock-spell-exiles-itself",
+      "request": {
+        "cardName": "Restock",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Return two target cards from your graveyard to your hand. Exile Restock.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/cards/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-magus-of-the-bridge-exiles-its-source",
+      "request": {
+        "cardName": "Magus of the Bridge",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{B}{B}{B}",
+        "oracleText": "Whenever a nontoken creature is put into your graveyard from the battlefield, create a 2/2 black Zombie creature token.\nWhen a creature is put into an opponent's graveyard from the battlefield, exile this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flickering-spirit-exile-then-return-the-exiled-object",
+      "request": {
+        "cardName": "Flickering Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\n{3}{W}: Exile this creature, then return it to the battlefield under its owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/cards/binding",
+                "equals": "exiledObject"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/1/to/player/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-saga-flip-shape-returns-transformed-under-your-control",
+      "request": {
+        "cardName": "Shared Flip Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "{2}: Exile this creature, then return it to the battlefield transformed under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to/faceChange/kind",
+                "equals": "transformFace"
+              },
+              {
+                "pointer": "/effects/1/to/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-tapped-transformed-controller-and-counter",
+      "request": {
+        "cardName": "Shared Flip Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "{2}: Exile this creature, then return it to the battlefield tapped and transformed under your control with a +1/+1 counter on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/to/faceChange/kind",
+                "equals": "transformFace"
+              },
+              {
+                "pointer": "/effects/1/to/enterWithCounters/0/counter",
+                "equals": "+1/+1"
+              },
+              {
+                "pointer": "/effects/1/to/player/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-face-down-and-transformed-are-exclusive",
+      "request": {
+        "cardName": "Shared Flip Negative",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "{2}: Exile this creature, then return it to the battlefield face down and transformed under your control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-looked-cards-face-down",
+      "request": {
+        "cardName": "Shared Hidden Exile",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Look at the top two cards of your library, then exile them face down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/1/to/faceDown",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

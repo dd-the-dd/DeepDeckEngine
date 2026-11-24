@@ -14,20 +14,19 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/effects/0/kind", "equals": "moveCards" },
+              { "pointer": "/effects/0/cards/zone/players/kind", "equals": "eachPlayer" },
+              { "pointer": "/effects/0/to/kind", "equals": "exile" }
+            ]
           }
         ]
       }

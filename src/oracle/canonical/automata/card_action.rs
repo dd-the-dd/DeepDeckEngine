@@ -66,13 +66,16 @@ pub(in crate::oracle::canonical) enum CardActionNode {
     /// looking player sees the cards; they become the observed collection.
     LookAt(CardOperandNode),
     Reveal(CardOperandNode),
-    /// `reveal cards from the top of your library until you reveal QUANTITY
-    /// PREDICATE`: every revealed card is the observed collection; the last
-    /// QUANTITY matching cards are the antecedent of `that card`.
+    /// `reveal|exile cards from the top of your library until you
+    /// reveal|exile QUANTITY PREDICATE`: every revealed or exiled card is the
+    /// observed collection; the last QUANTITY matching cards are the
+    /// antecedent of `that card`. `verb` is the action performed on each
+    /// card (CR 701.20a reveal, CR 406.3 exile).
     RevealUntil {
         quantity: NumericExpression,
         predicate: ObjectPredicate,
         owner: LocalPlayerReference,
+        verb: CardCollectionVerb,
     },
     Move {
         cards: CardOperandNode,
@@ -208,6 +211,14 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     if head.eq_ignore_ascii_case("shuffle") {
         cursor.enter("card-action.shuffle");
         cursor.consume("shuffle")?;
+        if super::shuffle_object_follows(cursor) {
+            // `shuffle OBJECT into LIBRARY` (CR 701.24b): the shared card
+            // operand, then the library destination that owns the shuffle.
+            cursor.enter("card-action.shuffle.object");
+            let cards = operand(cursor)?;
+            let destination = super::recognize_shuffle_library_destination(cursor)?;
+            return Ok(Some(CardActionNode::Move { cards, destination }));
+        }
         if cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
@@ -233,7 +244,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
                 .peek_ahead(1)
                 .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
         {
-            return recognize_reveal_until(cursor).map(Some);
+            return recognize_reveal_until(cursor, CardCollectionVerb::Revealed).map(Some);
         }
         return operand(cursor).map(|value| Some(CardActionNode::Reveal(value)));
     }
@@ -242,6 +253,17 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
             crate::oracle::canonical::automata::verb_entry(VerbLemma::Exile)
                 .surface(VerbForm::Base),
         )?;
+        // `exile cards from the top of your library until you exile ...`:
+        // the same until-reader as reveal, with the exile action.
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("cards"))
+            && cursor
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("from"))
+        {
+            return recognize_reveal_until(cursor, CardCollectionVerb::Exiled).map(Some);
+        }
         let cards = operand(cursor)?;
         let destination = recognize_card_action_destination(cursor, "exile")?;
         return Ok(Some(CardActionNode::Move { cards, destination }));
@@ -307,6 +329,7 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
     };
     cursor.require(
         zone.zone == CardZoneName::Hand
+            && zone.additional_zones.is_empty()
             && zone.predicate.is_none()
             && zone.quantity.is_none()
             && matches!(zone.owner, CardZoneOwnerNode::TargetPlayer(_)),
@@ -681,6 +704,7 @@ fn try_recognize_permitted_card_query(
                         CardSelectionQuantityNode::All { .. } => None,
                         other => Some(other),
                     },
+                    additional_zones: Vec::new(),
                 })
             }
         })
@@ -697,11 +721,28 @@ fn try_recognize_permitted_card_query(
     }
 }
 
-fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActionNode> {
+fn recognize_reveal_until(
+    cursor: &mut OracleTokenCursor<'_>,
+    verb: CardCollectionVerb,
+) -> MachineResult<CardActionNode> {
     cursor.enter("card-action.reveal-until.source");
     cursor.consume_phrase(&["cards", "from", "the", "top", "of", "your", "library"])?;
     cursor.enter("card-action.reveal-until.condition");
-    cursor.consume_phrase(&["until", "you", "reveal"])?;
+    cursor.consume("until")?;
+    // The acting player restated: `you`, or `they` after a player
+    // performer's person shift.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
+    {
+        cursor.consume("they")?;
+    } else {
+        cursor.consume("you")?;
+    }
+    cursor.consume(match verb {
+        CardCollectionVerb::Revealed => "reveal",
+        CardCollectionVerb::Exiled => "exile",
+    })?;
     cursor.enter("card-action.reveal-until.quantity");
     // One object noun phrase: its count and card query; this parent
     // type-checks a chosen exact count of unscoped cards.
@@ -719,6 +760,11 @@ fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<C
     if let NumericExpression::Atom(NumericAtom::Integer(value)) = &quantity {
         cursor.require(*value > 0, "a positive reveal-until quantity")?;
     }
+    // Exiling stops at the first matching card (one exile-until writer).
+    cursor.require(
+        verb == CardCollectionVerb::Revealed || quantity == NumericExpression::from(1),
+        "one matching card ends an exile-until",
+    )?;
     cursor.enter("card-action.reveal-until.predicate");
     cursor.require(
         phrase.query.relations().is_empty() && phrase.domain == Some(ObjectKind::Card),
@@ -728,6 +774,7 @@ fn recognize_reveal_until(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<C
         quantity,
         predicate: phrase.query.predicate().clone(),
         owner: LocalPlayerReference::Controller,
+        verb,
     })
 }
 
@@ -804,6 +851,10 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
     verb: &str,
 ) -> MachineResult<CardMoveDestinationNode> {
     if is_verb_form(&verb, VerbLemma::Exile, VerbForm::Base) {
+        // `exile OBJECT face down`: the shared entry-modifier list of the
+        // exile destination (CR 406.3).
+        let mut modifiers = EntryModifiers::new(CardMoveOwnerNode::EachCardOwner);
+        recognize_entry_modifiers(cursor, CardZoneName::Exile, &mut modifiers)?;
         return Ok(CardMoveDestinationNode {
             zone: CardZoneName::Exile,
             owner: CardMoveOwnerNode::EachCardOwner,
@@ -811,6 +862,10 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             order: None,
             tapped: false,
             entering_counters: None,
+            face_down: modifiers.face_down,
+            transformed: false,
+            shuffle: false,
+            attached_to: None,
         });
     }
     cursor.enter("card-action.move.destination");

@@ -39,6 +39,8 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
 
         Some("moveAbilitySourceToHand") => true,
+        // CR 701.24b: the libraries that received these cards.
+        Some("shuffleLibrariesHolding") => object_expression_supported(&effect["cards"]),
         _ => false,
     }
 }
@@ -157,6 +159,30 @@ impl GameEngine {
                     &owner_id,
                     std::slice::from_ref(&instance_id),
                 );
+            }
+            Some("shuffleLibrariesHolding") => {
+                let cards = self
+                    .resolve_runtime_object_ids_for_effect(
+                        &effect["cards"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?
+                    .unwrap_or_default();
+                for player_id in self.libraries_holding(&cards) {
+                    let player_index = self.player_index(&player_id)?;
+                    super::super::library_shuffle::shuffle_library_excluding(
+                        &mut self.state.players[player_index].library,
+                        &[],
+                        &mut self.rng,
+                    );
+                    self.record_event(
+                        "zoneShuffled",
+                        Some(player_id),
+                        Some(stack_object.card.instance_id.clone()),
+                        json!({ "zone": "library", "stackId": stack_object.id }),
+                    );
+                }
             }
             Some("moveAbilitySourceToHand") => {
                 let player_index = self.player_index(&stack_object.card.owner)?;

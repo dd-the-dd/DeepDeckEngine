@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/performer-card-collections",
+  "cases": [
+    {
+      "id": "exact-show-and-tell-each-player-coordinated-card-types",
+      "request": {
+        "cardName": "Show and Tell",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Each player may put an artifact, creature, enchantment, or land card from their hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    }
+  ]
+}

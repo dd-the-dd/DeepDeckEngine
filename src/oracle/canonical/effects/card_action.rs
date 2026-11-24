@@ -537,9 +537,9 @@ impl CardCollectionMemory {
                 CardTargetZoneOwner::Player(LocalPlayerReference::Controller) => {
                     graveyard(controller())
                 }
-                CardTargetZoneOwner::AnyPlayer | CardTargetZoneOwner::OnePlayer => {
-                    json!({"kind":"anyGraveyard"})
-                }
+                CardTargetZoneOwner::AnyPlayer
+                | CardTargetZoneOwner::OnePlayer
+                | CardTargetZoneOwner::Opponent => json!({"kind":"anyGraveyard"}),
                 _ => return Err(cursor.fail("a bound target-card zone owner")),
             };
             let id = fresh("targetCardOperand", &mut self.next_card_target);
@@ -552,15 +552,22 @@ impl CardCollectionMemory {
             if target.exclude_source {
                 decision["candidates"]["excludeSource"] = json!(true);
             }
+            // `from an opponent's graveyard`: cards an opponent owns.
+            if target.owner == CardTargetZoneOwner::Opponent {
+                decision["candidates"]["owner"] =
+                    json!({"kind":"opponentsOf", "player":controller()});
+            }
             // `any number of target ... cards` (CR 601.2c): the shared count.
             if target.unbounded {
                 let applied = apply_target_count_to_decision(&mut decision, &target.count());
                 cursor
                     .require_value(applied, "an unbounded card-target count the IR represents")?;
             }
-            if target.owner == CardTargetZoneOwner::OnePlayer
-                && (target.unbounded
-                    || target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE)
+            if matches!(
+                target.owner,
+                CardTargetZoneOwner::OnePlayer | CardTargetZoneOwner::Opponent
+            ) && (target.unbounded
+                || target.cardinality != ExpressedTargetCardinality::EXACTLY_ONE)
             {
                 decision["selectionConstraint"] =
                     json!({"kind":"sameZoneOwner","zone":target.zone.ir_name()});
@@ -802,13 +809,39 @@ impl CardCollectionMemory {
             ),
             "an executable hand, graveyard or exile collection",
         )?;
-        let player = self.zone_owner_player(cursor, &query.owner, target_decisions)?;
-        let mut objects =
-            json!({"kind":"cardsInZone","zone":{"kind":query.zone.ir_name(),"player":player}});
+        // `all graveyards`, `an opponent's graveyard`: the zone of every
+        // player of the population, read on resolution.
+        let zone = match &query.owner {
+            CardZoneOwnerNode::Players(players) => json!({"kind":query.zone.ir_name(),
+                "players":lower_player_set_reference(*players)}),
+            owner => json!({"kind":query.zone.ir_name(),
+                "player":self.zone_owner_player(cursor, owner, target_decisions)?}),
+        };
+        let mut objects = json!({"kind":"cardsInZone","zone":zone});
         if let Some(predicate) = &query.predicate {
             validate_object_predicate_numeric_expressions(predicate, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
             objects["where"] = lower_card_object_predicate(predicate)
+        }
+        // `from your hand or graveyard`: one union of the same owner's
+        // zones, each with the same filter.
+        if !query.additional_zones.is_empty() {
+            cursor.require(
+                query.additional_zones.iter().all(|zone| {
+                    matches!(
+                        zone,
+                        CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
+                    )
+                }) && !matches!(query.owner, CardZoneOwnerNode::Players(_)),
+                "a coordinated hand, graveyard or exile zone of one owner",
+            )?;
+            let mut sets = vec![objects.clone()];
+            for other in &query.additional_zones {
+                let mut set = objects.clone();
+                set["zone"]["kind"] = json!(other.ir_name());
+                sets.push(set);
+            }
+            objects = json!({"kind":"union", "sets":sets});
         }
         Ok(objects)
     }
@@ -825,6 +858,9 @@ impl CardCollectionMemory {
             CardZoneOwnerNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
             CardZoneOwnerNode::Player(_) => {
                 Err(cursor.fail("a resolved collection owner reference"))
+            }
+            CardZoneOwnerNode::Players(_) => {
+                Err(cursor.fail("one zone owner, not a population of players"))
             }
             CardZoneOwnerNode::TargetPlayer(targets) => {
                 let [slot] = targets.slots.as_slice() else {
@@ -937,6 +973,10 @@ impl CardCollectionMemory {
                     Some(quantity) => cast_maximum(cursor, quantity)?,
                     None => None,
                 };
+                cursor.require(
+                    query.additional_zones.is_empty(),
+                    "one source zone for a resolution-time cast",
+                )?;
                 (cards, maximum, query.zone)
             }
             // `you may cast target instant card from your graveyard without
@@ -1069,6 +1109,7 @@ impl CardCollectionMemory {
                     // whole hand; `from it` names that hand afterwards.
                     CardOperandNode::ZoneCollection(query)
                         if query.zone == CardZoneName::Hand
+                            && query.additional_zones.is_empty()
                             && query.predicate.is_none()
                             && query.quantity.is_none() =>
                     {
@@ -1102,10 +1143,43 @@ impl CardCollectionMemory {
                 }
                 self.last_revealed = Some((cards, maximum));
             }
+            // `exile cards from the top of your library until you exile a
+            // PREDICATE card`: the shared exile-until writer. Every exiled
+            // card is observed in exile; the matching card is `that card`,
+            // the others `the rest`, all of them `the exiled cards`.
+            CardActionNode::RevealUntil {
+                predicate,
+                owner,
+                verb: CardCollectionVerb::Exiled,
+                ..
+            } => {
+                cursor.enter("lower.card-action.exile-until");
+                cursor.require(
+                    *owner == LocalPlayerReference::Controller,
+                    "a supported explicit library owner",
+                )?;
+                let id = fresh("exiledUntil", &mut self.next_view);
+                self.allocated_ids.insert(id.clone());
+                let hit = fresh("exiledUntilMatch", &mut self.next_view);
+                self.allocated_ids.insert(hit.clone());
+                effects.push(json!({"kind":"exileFromTopUntil",
+                    "zone":{"kind":"library", "player":controller()},
+                    "bind":id, "stopCardBind":hit, "faceDown":false,
+                    "stopWhere":lower_card_object_predicate(predicate),
+                    "alsoStopsWhen":{"kind":"sourceZoneEmpty"}}));
+                self.observe(&id, None);
+                self.view_verb = Some(CardCollectionVerb::Exiled);
+                self.view_zone = Some(CardZoneName::Exile);
+                self.last_exiled = Some((bound(&id), None));
+                self.selected.push(bound(&hit));
+                self.complement_exclusions.push(bound(&hit));
+                self.mention((bound(&hit), Some(1)));
+            }
             CardActionNode::RevealUntil {
                 quantity,
                 predicate,
                 owner,
+                verb: CardCollectionVerb::Revealed,
             } => {
                 cursor.require(
                     *owner == LocalPlayerReference::Controller,
@@ -1180,6 +1254,7 @@ impl CardCollectionMemory {
                             && query.owner
                                 == CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
                             && matches!(query.zone, CardZoneName::Graveyard | CardZoneName::Exile)
+                            && query.additional_zones.is_empty()
                             && permit.duration == Some(EffectDurationNode::UntilEndOfCurrentTurn)
                             && permit.window.is_none()
                             && !permit.without_paying_mana_cost
@@ -1312,7 +1387,8 @@ impl CardCollectionMemory {
                 };
                 let mut to = json!({"kind":destination.zone.ir_name(), "player":player});
                 if destination.zone == CardZoneName::Exile {
-                    to["faceDown"] = json!(false)
+                    // `exile ... face down` (CR 406.3): hidden in exile.
+                    to["faceDown"] = json!(destination.face_down)
                 }
                 if let Some(position) = destination.position {
                     to["position"] = json!(match position {
@@ -1404,6 +1480,13 @@ impl CardCollectionMemory {
                         "one battlefield entry of chosen, targeted, exiled or zone-queried cards",
                     )?;
                     to["tapped"] = json!(destination.tapped);
+                    // The shared entry modifiers (CR 712.14a, 708.2).
+                    if destination.transformed {
+                        to["faceChange"] = json!({"kind":"transformFace"});
+                    }
+                    if destination.face_down {
+                        to["faceDown"] = json!(true);
+                    }
                     if let Some(counters) = &destination.entering_counters {
                         let count =
                             lower_targetless_numeric_expression(&counters.count, declarations)
@@ -1411,15 +1494,41 @@ impl CardCollectionMemory {
                         to["enterWithCounters"] =
                             json!([{"counter": counters.counter.as_str(), "count": count}]);
                     }
+                    // `attached to OBJECT` (CR 303.4f): the recipient is
+                    // declared or chosen before the entry; the entered object
+                    // is attached to it afterwards.
+                    let attachment = match &destination.attached_to {
+                        Some(attachment) => {
+                            let id = self.allocate_selection_id("attachRecipient");
+                            Some(lower_entry_attachment_recipient(
+                                cursor,
+                                attachment,
+                                &id,
+                                declarations,
+                                &mut effects,
+                                target_decisions,
+                            )?)
+                        }
+                        None => None,
+                    };
                     self.allocated_ids
                         .insert(MOVED_ONTO_BATTLEFIELD_BINDING.to_string());
                     effects.push(json!({"kind":"moveCards", "cards":cards, "to":to,
                         "bind":MOVED_ONTO_BATTLEFIELD_BINDING}));
+                    if let Some(recipient) = attachment {
+                        effects.push(json!({"kind":"attachPermanent",
+                            "attachment":bound(MOVED_ONTO_BATTLEFIELD_BINDING),
+                            "to":recipient}));
+                    }
                     return Ok(effects);
                 }
                 cursor.require(
-                    !destination.tapped && destination.entering_counters.is_none(),
-                    "an untapped, counterless nonbattlefield destination",
+                    !destination.tapped
+                        && destination.entering_counters.is_none()
+                        && !destination.transformed
+                        && destination.attached_to.is_none()
+                        && (!destination.face_down || destination.zone == CardZoneName::Exile),
+                    "an untapped, counterless, untransformed nonbattlefield destination, face down only in exile",
                 )?;
                 if matches!(operand, CardOperandNode::LibraryTop(_))
                     && destination.zone == CardZoneName::Exile
@@ -1450,7 +1559,23 @@ impl CardCollectionMemory {
                 if let Some(order) = order {
                     movement["order"] = order;
                 }
-                effects.push(movement);
+                if destination.shuffle {
+                    // `shuffle X into a library` (CR 701.24b): the moved
+                    // cards name each library to shuffle. Shuffled cards
+                    // are no later antecedent.
+                    cursor.require(
+                        destination.zone == CardZoneName::Library,
+                        "a shuffle only after a library placement",
+                    )?;
+                    let id = fresh("shuffledCards", &mut self.next_selection);
+                    self.allocated_ids.insert(id.clone());
+                    movement["bind"] = json!(id);
+                    effects.push(movement);
+                    effects.push(lower_shuffle_libraries_holding(bound(&id)));
+                    self.clear_antecedent();
+                } else {
+                    effects.push(movement);
+                }
             }
         }
         Ok(effects)

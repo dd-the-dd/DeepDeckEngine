@@ -11,6 +11,10 @@ pub(super) enum PrivateZoneDestination {
     LibraryBottom,
 }
 
+/// The finishing-step record of a resolving spell its own effect moved into
+/// its owner's library (CR 608.2n).
+const RESOLVING_SPELL_TO_LIBRARY: &str = "resolvingSpellToLibrary";
+
 pub(super) struct PrivateZoneReceipt {
     pub card_id: String,
     pub owner_id: String,
@@ -189,6 +193,62 @@ impl GameEngine {
             prepared.push(moved.card);
         }
         self.put_cards_in_owners_private_zones(prepared, destination)
+    }
+
+    /// CR 608.2n: an instruction that moves the resolving spell itself
+    /// (`Exile NAME.`, `Shuffle NAME into its owner's library.`) replaces
+    /// the spell's own move to its owner's graveyard as it finishes
+    /// resolving. The card is on the stack, in no card zone this movement
+    /// can take it from, so the move is recorded for the finishing step and
+    /// the remaining objects are moved as usual. A copy is never moved
+    /// (CR 707.10a): it ceases to exist as it finishes resolving.
+    pub(super) fn claim_resolving_spell_movement(
+        &mut self,
+        destination: &serde_json::Value,
+        stack_object: &super::StackObject,
+        objects: Vec<String>,
+    ) -> Vec<String> {
+        let spell_id = stack_object.card.instance_id.as_str();
+        let spell_is_moved = super::stack_object_is_spell(stack_object)
+            && !super::is_spell_copy(&stack_object.card)
+            && objects.iter().any(|object| object == spell_id)
+            && self
+                .prepare_card_movement_source(spell_id, None)
+                .ok()
+                .flatten()
+                .is_none();
+        if !spell_is_moved {
+            return objects;
+        }
+        let modifier = match super::value_kind(destination) {
+            Some("exile") if destination["faceDown"].as_bool() != Some(true) => {
+                Some(serde_json::json!({"kind":"exileResolvingSpell", "cardInstanceId":spell_id}))
+            }
+            Some("library") => Some(
+                serde_json::json!({"kind":RESOLVING_SPELL_TO_LIBRARY, "cardInstanceId":spell_id}),
+            ),
+            _ => None,
+        };
+        let Some(modifier) = modifier else {
+            return objects;
+        };
+        self.state.rule_modifiers.push(modifier);
+        objects
+            .into_iter()
+            .filter(|object| object != spell_id)
+            .collect()
+    }
+
+    /// Whether an effect of the resolving spell moved that spell into its
+    /// owner's library (CR 608.2n); the record is consumed. The finishing
+    /// step then shuffles it into that library (CR 701.24a).
+    pub(super) fn take_resolving_spell_library_move(&mut self, spell_id: &str) -> bool {
+        let before = self.state.rule_modifiers.len();
+        self.state.rule_modifiers.retain(|modifier| {
+            super::value_kind(modifier) != Some(RESOLVING_SPELL_TO_LIBRARY)
+                || modifier["cardInstanceId"].as_str() != Some(spell_id)
+        });
+        self.state.rule_modifiers.len() != before
     }
 
     /// CR111.8: after a token has left the battlefield it cannot change zones

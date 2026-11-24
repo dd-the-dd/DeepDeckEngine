@@ -22,6 +22,8 @@ pub(in crate::oracle::canonical) enum SelectedPermanentAction {
     Untap,
     /// Each selected permanent moves to its owner's hand (CR 400.3).
     ReturnToOwnerHand,
+    /// Each selected permanent moves to exile (CR 406.2).
+    Exile,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
