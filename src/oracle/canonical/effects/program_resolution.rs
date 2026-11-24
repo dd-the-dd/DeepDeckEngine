@@ -92,7 +92,9 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         }
         CardOperandNode::ZoneCollection(_)
         | CardOperandNode::Targets(_)
-        | CardOperandNode::LibraryTop(_) => false,
+        | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::CardCopies { .. }
+        | CardOperandNode::HiddenChoice(_) => false,
     }
 }
 
@@ -156,6 +158,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             CardActionNode::Reveal(operand) => simple_operand(operand),
             // A permission window is lowered by the native collection lowerer.
             CardActionNode::Permit(_)
+            | CardActionNode::Copy { .. }
             | CardActionNode::LookAt(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
@@ -320,7 +323,9 @@ impl CollectionScope {
             }
             CardOperandNode::ZoneCollection(_)
             | CardOperandNode::Targets(_)
-            | CardOperandNode::LibraryTop(_) => {
+            | CardOperandNode::LibraryTop(_)
+            | CardOperandNode::CardCopies { .. }
+            | CardOperandNode::HiddenChoice(_) => {
                 unreachable!("outside the checked scope slice")
             }
         }
@@ -404,6 +409,7 @@ fn resolve_sequence(
                 CardActionNode::Reveal(operand) => collections.operand(operand)?,
                 CardActionNode::Move { cards, .. } => collections.operand(cards)?,
                 CardActionNode::Permit(_)
+                | CardActionNode::Copy { .. }
                 | CardActionNode::LookAt(_)
                 | CardActionNode::RevealUntil { .. }
                 | CardActionNode::Choose(_)

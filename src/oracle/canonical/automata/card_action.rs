@@ -10,6 +10,72 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     ZoneCollection(CardZoneCollectionNode),
     Targets(CardTargetOperandNode),
     LibraryTop(CardLibraryTopNode),
+    /// `the copy` / `the copies` / `any number of the copies`: the card
+    /// copies the preceding copy action of this program created (CR
+    /// 707.12). `plural` admits every copy, each cast or not (CR 707.12a).
+    CardCopies {
+        plural: bool,
+    },
+    /// A choice among cards of a hidden zone or from outside the game.
+    HiddenChoice(HiddenCardChoiceNode),
+}
+
+/// Where the cards of a hidden choice are.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum HiddenCardSourceNode {
+    /// `from outside the game` (CR 400.11a: the sideboard). Only cards the
+    /// choosing player owns are there.
+    OutsideGame,
+    /// `from your|target player's hand|graveyard`.
+    Zone {
+        zone: CardZoneName,
+        owner: CardZoneOwnerNode,
+    },
+}
+
+/// `QUANTITY PREDICATE card(s) you own from outside the game` or
+/// `QUANTITY PREDICATE card(s) at random from ZONE`: a quantity, a card
+/// predicate, a source and a selection policy as independent slots. The
+/// chosen cards are the observed collection of a later `it`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct HiddenCardChoiceNode {
+    pub quantity: CardSelectionQuantityNode,
+    pub predicate: ObjectPredicate,
+    pub source: HiddenCardSourceNode,
+    /// `at random`: the engine selects with its replayable random source.
+    pub random: bool,
+}
+
+/// The base-cost policy of a cast during resolution or of a casting
+/// permission (CR 118.9, 601.2f).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardCastCostNode {
+    /// The spell's mana cost and every other cost.
+    Printed,
+    /// `without paying its|their mana cost(s)` (CR 118.9a).
+    WithoutManaCost,
+    /// `by paying COST rather than paying its mana cost` (CR 118.9).
+    Alternative(ManaCostNode),
+}
+
+/// Whose graveyard a cast spell's exile replacement watches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CastGraveyardOwnerNode {
+    /// `your graveyard`: only a spell the controller owns (CR 404.1).
+    Controller,
+    /// `a graveyard`, `their graveyard`, `its owner's graveyard`.
+    Any,
+}
+
+/// `If that spell|those spells|a [PREDICATE] spell cast this way would be
+/// put into GRAVEYARD, exile it|them instead.` (CR 614.1a): a replacement of
+/// the graveyard destination of each spell the action casts, from wherever
+/// the spell would go there (resolution or a counter).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CastGraveyardExileNode {
+    /// The spells cast this way the replacement applies to; `None` is all.
+    pub predicate: Option<ObjectPredicate>,
+    pub graveyard: CastGraveyardOwnerNode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,12 +99,15 @@ pub(in crate::oracle::canonical) enum CardPermissionWindowNode {
     UntilSourceExilesAnother,
 }
 
-/// `you may play|cast CARDS [DURATION]`: a player permission over cards that
-/// were already bound by an earlier action, or over a quantified card query
-/// with its origin (`a spell with mana value 3 or less from your hand`).
-/// The window is part of the action, either trailing or supplied by a
-/// preposed sentence duration. No stated window means the effect lasts for
-/// the rest of the game (CR 611.2a).
+/// One cast/play frame (CR 601.2, 608.2g) with independent slots:
+/// optionality (`you may cast` or an imperative `cast` performed if able),
+/// the cards (a bound card, declared card targets, a card query with its
+/// origin, or the copies a copy action created), the base-cost policy, the
+/// window and the graveyard exile replacement of the spells cast. With a
+/// window it is a player permission; without one the cards are cast while
+/// the effect resolves. A trailing `if CONDITION` stays with the sequence's
+/// postposed condition. The static self-cast permission of a card is a
+/// different frame (`ability-frame.permission`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardPermissionNode {
     pub verb: CardPermissionVerb,
@@ -47,12 +116,25 @@ pub(in crate::oracle::canonical) struct CardPermissionNode {
     /// A window the shared duration does not name, trailing or preposed.
     /// Never present together with `duration`.
     pub window: Option<CardPermissionWindowNode>,
-    /// `without paying its|their mana cost(s)`: with no window, the cards are
-    /// cast while the ability resolves (CR 608.2g), not later.
-    pub without_paying_mana_cost: bool,
+    /// `you may` (true) or an imperative `cast` (false), which the player
+    /// performs if able (CR 608.2g).
+    pub optional: bool,
+    /// The base-cost policy. Without a window, a free cast happens while
+    /// the ability resolves (CR 608.2g), not later.
+    pub cost: CardCastCostNode,
     /// `, and mana of any type can be spent to cast that spell|it|them`: a
     /// spending policy of the permitted casts (CR 609.4b).
     pub mana_of_any_type: bool,
+    /// The following `If that spell would be put into a graveyard, exile it
+    /// instead.` sentence, which amends exactly the spells this frame casts.
+    pub graveyard_exile: Option<CastGraveyardExileNode>,
+}
+
+impl CardPermissionNode {
+    /// `without paying its|their mana cost(s)`.
+    pub(in crate::oracle::canonical) fn without_paying_mana_cost(&self) -> bool {
+        self.cost == CardCastCostNode::WithoutManaCost
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,6 +164,13 @@ pub(in crate::oracle::canonical) enum CardActionNode {
         destination: CardMoveDestinationNode,
     },
     Permit(CardPermissionNode),
+    /// `copy CARD [twice|N times]` (CR 707.12): copies of a bound card in
+    /// the zone it is in. The copies are the antecedent of `the copy` /
+    /// `the copies`, which the following cast frame consumes.
+    Copy {
+        cards: CardOperandNode,
+        count: NumericExpression,
+    },
     /// `[you] choose SELECTION` (CR 608.2d): the controller chooses cards from
     /// an observed collection while the effect resolves. The choice is the
     /// singular or plural antecedent of a later `that card`, `it` or `them`.
@@ -93,6 +182,16 @@ pub(in crate::oracle::canonical) enum CardActionNode {
 }
 
 fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode> {
+    if let Some(copies) = try_recognize_card_copies(cursor)? {
+        return Ok(copies);
+    }
+    match try_recognize_hidden_card_choice(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => {
+            return Ok(CardOperandNode::HiddenChoice(fragment.node));
+        }
+        CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+        CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
+    }
     match try_recognize_card_target_operand(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => {
             return Ok(CardOperandNode::Targets(fragment.node));
@@ -162,9 +261,12 @@ pub(in crate::oracle::canonical) fn recognize_card_action(
     let Some(head) = cursor.peek() else {
         return Ok(None);
     };
-    if permission_head_starts(cursor) {
+    if permission_head_starts(cursor) || imperative_cast_starts(cursor) {
         return recognize_card_permission(cursor, supplied_duration, None)
             .map(|node| Some(CardActionNode::Permit(node)));
+    }
+    if card_copy_starts(cursor) {
+        return recognize_card_copy(cursor).map(Some);
     }
     if head.eq_ignore_ascii_case("for") || head.eq_ignore_ascii_case("until") {
         // `For as long as that card remains exiled, you may play it.` /
@@ -319,6 +421,25 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
         });
     }
     cursor.enter("card-action.look.zone");
+    if let Some(player) = try_recognize_bound_possessive_player(cursor)? {
+        // `look at that player's|defending player's hand`: the whole hand of
+        // the player the binding environment names (CR 401.2, 402.3).
+        cursor.enter("card-action.look.bound-hand");
+        let zone = recognize_card_zone_atom(cursor)?;
+        cursor.require(
+            zone == CardZoneName::Hand,
+            "a bound player's hand to look at",
+        )?;
+        return Ok(CardActionNode::LookAt(CardOperandNode::ZoneCollection(
+            CardZoneCollectionNode {
+                zone,
+                owner: CardZoneOwnerNode::Player(LocalPlayerReference::Bound(player)),
+                predicate: None,
+                quantity: None,
+                additional_zones: Vec::new(),
+            },
+        )));
+    }
     let zone = match try_recognize_card_zone_collection(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => fragment.node,
         CollectionOperandAttempt::NotClaimed => {
@@ -340,6 +461,36 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
     )))
 }
 
+/// `that player's` / `defending player's`: the shared bound-player
+/// resolver reads the possessive as its player head over a view of the same
+/// tokens whose possessive role word is the plain noun (equal length,
+/// indices and spans). `None` consumes nothing.
+fn try_recognize_bound_possessive_player(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<BoundPlayerReference>> {
+    let possessive = cursor.peek_ahead(1).is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("player's") || raw.eq_ignore_ascii_case("player\u{2019}s")
+    });
+    if !(possessive && (peek_word(cursor, 0, "that") || peek_word(cursor, 0, "defending"))) {
+        return Ok(None);
+    }
+    let environment = cursor
+        .binding_environment()
+        .cloned()
+        .ok_or_else(|| cursor.fail("a binding environment naming the possessive player"))?;
+    let start = cursor.position();
+    let mut view = cursor.token_slice(0, usize::MAX).to_vec();
+    view[start + 1].raw = "player".to_string();
+    let mut trial = cursor.with_tokens(&view);
+    let player = recognize_bound_player_reference(&mut trial, &environment)?;
+    cursor.require(
+        trial.position() == start + 2,
+        "a possessive player head of two words",
+    )?;
+    cursor.advance_to(start + 2)?;
+    Ok(Some(player))
+}
+
 fn peek_word(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
     cursor
         .peek_ahead(offset)
@@ -351,6 +502,259 @@ fn permission_head_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     peek_word(cursor, 0, "you")
         && peek_word(cursor, 1, "may")
         && (peek_word(cursor, 2, "play") || peek_word(cursor, 2, "cast"))
+}
+
+/// An imperative `cast` at the clause head (CR 608.2g: the player casts
+/// the cards while the effect resolves, if able). Pure lookahead; the
+/// static `cast this spell only ...` restriction never reaches an effect
+/// program, and `cast spells ... as though they had flash` is a player rule
+/// that fails at its operand.
+fn imperative_cast_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    peek_word(cursor, 0, "cast")
+}
+
+/// `copy CARD` over a card reference (`it`, `that card`, `the exiled card`,
+/// `those cards`). A stack object (`copy target spell`, `copy that spell`,
+/// `copy it` naming the cast spell of the event) stays with the stack-copy
+/// frame. Pure lookahead.
+fn card_copy_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    if !peek_word(cursor, 0, "copy") || super::copy_stack_object_starts(cursor) {
+        return false;
+    }
+    let mut trial = cursor.clone();
+    if trial.consume("copy").is_err() {
+        return false;
+    }
+    matches!(
+        try_recognize_card_collection_reference(&mut trial),
+        CollectionOperandAttempt::Recognized(_)
+    )
+}
+
+/// `copy CARD [twice|thrice|N times]` (CR 707.12). The copy exists only to
+/// be cast: the next instruction must cast `the copy` / `the copies`
+/// (CR 707.10a makes an uncast card copy cease to exist), so a copy that
+/// nothing casts is an explicit failure here, never a dangling object.
+fn recognize_card_copy(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActionNode> {
+    cursor.enter("card-action.copy.verb");
+    cursor.consume("copy")?;
+    cursor.enter("card-action.copy.card");
+    let cards = match try_recognize_card_collection_reference(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => CardOperandNode::Reference(fragment.node),
+        CollectionOperandAttempt::NotClaimed => {
+            return Err(cursor.fail("a bound card to copy (it, that card, the exiled card)"));
+        }
+        CollectionOperandAttempt::RejectedCandidate(failure)
+        | CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+    };
+    cursor.enter("card-action.copy.count");
+    let count = recognize_repetition_count(cursor)?;
+    cursor.enter("card-action.copy.cast-follows");
+    cursor.require(
+        copy_cast_follows(cursor),
+        "an instruction casting the copy right after the copy (CR 707.12)",
+    )?;
+    Ok(CardActionNode::Copy { cards, count })
+}
+
+/// `once` / `twice` / `thrice` / `N times` after an action; absent means
+/// one performance. The number is the shared numeric grammar.
+fn recognize_repetition_count(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    for (word, count) in [("once", 1), ("twice", 2), ("thrice", 3)] {
+        if peek_word(cursor, 0, word) {
+            cursor.consume(word)?;
+            return Ok(NumericExpression::from(count));
+        }
+    }
+    let counted = peek_word(cursor, 1, "times")
+        && cursor.peek().is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("x") || super::super::parse_number_word(raw).is_some()
+        });
+    if !counted {
+        return Ok(NumericExpression::from(1));
+    }
+    cursor.enter("card-action.repetition.count");
+    let count = recognize_numeric_expression(cursor, None)?;
+    if let NumericExpression::Atom(NumericAtom::Integer(value)) = &count {
+        cursor.require(*value > 0, "a positive repetition count")?;
+    }
+    cursor.enter("card-action.repetition.times");
+    cursor.consume("times")?;
+    Ok(count)
+}
+
+/// Whether the next instruction casts `the copy` / `the copies`: after the
+/// sentence end or a coordinator, an optional `you may`, then `cast the
+/// copy|copies` or `cast any number of the copies`. Pure lookahead.
+fn copy_cast_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut offset = 0;
+    if peek_word(cursor, offset, ",") {
+        offset += 1;
+    }
+    if peek_word(cursor, offset, ".")
+        || peek_word(cursor, offset, "then")
+        || peek_word(cursor, offset, "and")
+    {
+        offset += 1;
+    } else if offset == 0 {
+        return false;
+    }
+    if peek_word(cursor, offset, "then") {
+        offset += 1;
+    }
+    if peek_word(cursor, offset, "you") && peek_word(cursor, offset + 1, "may") {
+        offset += 2;
+    }
+    if !peek_word(cursor, offset, "cast") {
+        return false;
+    }
+    offset += 1;
+    if peek_word(cursor, offset, "any")
+        && peek_word(cursor, offset + 1, "number")
+        && peek_word(cursor, offset + 2, "of")
+    {
+        offset += 3;
+    }
+    peek_word(cursor, offset, "the")
+        && (peek_word(cursor, offset + 1, "copy") || peek_word(cursor, offset + 1, "copies"))
+}
+
+/// `the copy` / `the copies` / `any number of the copies` (CR 707.12a: each
+/// copy is cast or not individually). `None` consumes nothing.
+fn try_recognize_card_copies(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<CardOperandNode>> {
+    let (width, plural) = if peek_word(cursor, 0, "the") && peek_word(cursor, 1, "copy") {
+        (2, false)
+    } else if peek_word(cursor, 0, "the") && peek_word(cursor, 1, "copies") {
+        (2, true)
+    } else if peek_word(cursor, 0, "any")
+        && peek_word(cursor, 1, "number")
+        && peek_word(cursor, 2, "of")
+        && peek_word(cursor, 3, "the")
+        && peek_word(cursor, 4, "copies")
+    {
+        (5, true)
+    } else {
+        return Ok(None);
+    };
+    cursor.enter("card-action.copies");
+    cursor.advance_to(cursor.position() + width)?;
+    Ok(Some(CardOperandNode::CardCopies { plural }))
+}
+
+/// Lexical signal of a hidden-zone choice in the current clause: `outside
+/// the game` or `at random` before the sentence end. Pure lookahead.
+fn hidden_choice_signal(cursor: &OracleTokenCursor<'_>) -> bool {
+    (0..16)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| raw != "." && raw != ";")
+        })
+        .any(|offset| {
+            (peek_word(cursor, offset, "outside")
+                && peek_word(cursor, offset + 1, "the")
+                && peek_word(cursor, offset + 2, "game"))
+                || (peek_word(cursor, offset, "at") && peek_word(cursor, offset + 1, "random"))
+        })
+}
+
+/// `QUANTITY PREDICATE card(s) you own from outside the game` (CR 400.11a)
+/// or `QUANTITY PREDICATE card(s) at random from ZONE`: the shared object
+/// noun phrase in the card domain, then the source. The phrase is committed
+/// at its source (`from outside the game`, `at random from`).
+fn try_recognize_hidden_card_choice(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> CollectionOperandAttempt<HiddenCardChoiceNode> {
+    if !hidden_choice_signal(cursor) {
+        return CollectionOperandAttempt::NotClaimed;
+    }
+    let mut trial = cursor.clone();
+    let mut committed = false;
+    let result = (|| -> MachineResult<HiddenCardChoiceNode> {
+        trial.enter("card-action.hidden-choice.cards");
+        let phrase = recognize_object_noun_phrase(
+            &mut trial,
+            ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
+        )?;
+        let quantity = match &phrase.determiner {
+            Some(ObjectDeterminer::Chosen {
+                quantity,
+                another: false,
+            }) => match quantity {
+                ChosenObjectQuantity::Exactly(count) => {
+                    CardSelectionQuantityNode::Exactly(count.clone())
+                }
+                ChosenObjectQuantity::UpTo(count) => CardSelectionQuantityNode::UpTo(count.clone()),
+                ChosenObjectQuantity::AnyNumber => CardSelectionQuantityNode::AnyNumber,
+            },
+            _ => {
+                return Err(trial
+                    .fail("a chosen quantity of cards (`a`, `N`, `up to N` or `any number of`)"));
+            }
+        };
+        trial.require(
+            !phrase.exclude_source && phrase.domain == Some(ObjectKind::Card),
+            "a card-domain query without a source exclusion",
+        )?;
+        if peek_word(&trial, 0, "at") {
+            trial.enter("card-action.hidden-choice.random");
+            trial.consume_phrase(&["at", "random", "from"])?;
+            committed = true;
+            trial.require(
+                phrase.query.relations().is_empty(),
+                "no player relation on cards chosen at random from a zone",
+            )?;
+            let predicate = phrase.query.predicate().clone();
+            let (zone, owner) = match recognize_permitted_card_origin(&mut trial)? {
+                PermittedCardOrigin::Zone { zone, owner } => (zone, owner),
+                PermittedCardOrigin::Collection(_) => {
+                    return Err(trial.fail("a hand or graveyard to choose from at random"));
+                }
+            };
+            trial.require(
+                matches!(zone, CardZoneName::Hand | CardZoneName::Graveyard),
+                "a hand or graveyard to choose from at random",
+            )?;
+            return Ok(HiddenCardChoiceNode {
+                quantity,
+                predicate,
+                source: HiddenCardSourceNode::Zone { zone, owner },
+                random: true,
+            });
+        }
+        trial.enter("card-action.hidden-choice.outside-game");
+        trial.consume_phrase(&["from", "outside", "the", "game"])?;
+        committed = true;
+        // CR 400.11a: outside the game is the choosing player's sideboard,
+        // which holds only cards they own; the phrase states that owner.
+        trial.enter("card-action.hidden-choice.outside-game.owner");
+        let related = phrase.query.into_related_query(&mut trial)?;
+        trial.require(
+            related.objects.controller.is_none()
+                && related.ownership == Some(ObjectOwnershipScope::AbilityController),
+            "cards `you own` from outside the game",
+        )?;
+        Ok(HiddenCardChoiceNode {
+            quantity,
+            predicate: related.objects.predicate,
+            source: HiddenCardSourceNode::OutsideGame,
+            random: false,
+        })
+    })();
+    match result {
+        Ok(node) => {
+            trial.enter("card-action.hidden-choice.complete");
+            let end_position = trial.position();
+            *cursor = trial;
+            CollectionOperandAttempt::Recognized(RecognizedEffectFragment { node, end_position })
+        }
+        Err(failure) if committed => CollectionOperandAttempt::FailedCommitted(failure),
+        Err(failure) => CollectionOperandAttempt::RejectedCandidate(failure),
+    }
 }
 
 /// A preposed `WINDOW,` followed by a permission head, on a trial cursor.
@@ -562,6 +966,22 @@ fn recognize_permitted_card_origin(
     let owner = if peek_word(cursor, 0, "your") {
         cursor.consume("your")?;
         CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
+    } else if peek_word(cursor, 0, "a") && peek_word(cursor, 1, "graveyard") {
+        // `from a graveyard`: any player's graveyard, one public zone union.
+        cursor.consume("a")?;
+        CardZoneOwnerNode::Players(PlayerSetReferenceNode::EachPlayer)
+    } else if peek_word(cursor, 0, "an")
+        && cursor.peek_ahead(1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("opponent's") || raw.eq_ignore_ascii_case("opponent\u{2019}s")
+        })
+        && peek_word(cursor, 2, "graveyard")
+    {
+        // `from an opponent's graveyard`: the union of the opponents'
+        // graveyards, from which one card is chosen.
+        let role = cursor.peek_ahead(1).unwrap_or("opponent's").to_owned();
+        cursor.consume("an")?;
+        cursor.consume(&role)?;
+        CardZoneOwnerNode::Players(PlayerSetReferenceNode::OpponentsOfAbilityController)
     } else if starts_possessive_target_player(cursor) {
         CardZoneOwnerNode::TargetPlayer(recognize_possessive_target_player(cursor)?)
     } else {
@@ -576,6 +996,10 @@ fn recognize_permitted_card_origin(
             CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
         ),
         "a hand, graveyard or exile origin of the permitted cards",
+    )?;
+    cursor.require(
+        !matches!(owner, CardZoneOwnerNode::Players(_)) || zone == CardZoneName::Graveyard,
+        "a population of owners only for the public graveyard (CR 400.2)",
     )?;
     Ok(PermittedCardOrigin::Zone { zone, owner })
 }
@@ -778,16 +1202,185 @@ fn recognize_reveal_until(
     })
 }
 
+/// `by paying COST rather than paying its|their mana cost(s)` (CR 118.9):
+/// the shared mana-cost reader supplies the substituted cost.
+fn recognize_alternative_base_cost(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ManaCostNode>> {
+    if !(peek_word(cursor, 0, "by") && peek_word(cursor, 1, "paying")) {
+        return Ok(None);
+    }
+    cursor.enter("card-action.permit.alternative-cost");
+    cursor.consume_phrase(&["by", "paying"])?;
+    let cost = recognize_mana_cost(cursor)?;
+    cursor.enter("card-action.permit.alternative-cost.replaced");
+    cursor.consume_phrase(&["rather", "than", "paying"])?;
+    let (possessive, noun) = if peek_word(cursor, 0, "their") {
+        ("their", "costs")
+    } else {
+        ("its", "cost")
+    };
+    cursor.consume_phrase(&[possessive, "mana", noun])?;
+    Ok(Some(cost))
+}
+
+/// The base-cost policy of the frame, where Oracle states it.
+fn recognize_cast_cost_policy(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CardCastCostNode> {
+    if recognize_without_paying(cursor)? {
+        return Ok(CardCastCostNode::WithoutManaCost);
+    }
+    Ok(match recognize_alternative_base_cost(cursor)? {
+        Some(cost) => CardCastCostNode::Alternative(cost),
+        None => CardCastCostNode::Printed,
+    })
+}
+
+/// `if able` after an imperative cast (CR 608.2g): the player must cast
+/// the cards when a legal cast exists. Consumed only when complete.
+fn recognize_if_able(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<bool> {
+    if !(peek_word(cursor, 0, "if") && peek_word(cursor, 1, "able")) {
+        return Ok(false);
+    }
+    cursor.enter("card-action.cast.if-able");
+    cursor.consume_phrase(&["if", "able"])?;
+    Ok(true)
+}
+
+/// The end of a frame without a stated window: the sentence end, a
+/// spending-policy coordinator, or a postposed `if CONDITION` that the
+/// enclosing sequence owns (CR 608.2c).
+fn permission_ends_without_window(cursor: &OracleTokenCursor<'_>) -> bool {
+    matches!(cursor.peek(), None | Some("."))
+        || any_type_spending_starts(cursor)
+        || peek_word(cursor, 0, "if")
+}
+
+/// Lexical lookahead for the graveyard-exile sentence that amends the
+/// spells this frame casts: `. If ... would be put into ...`.
+fn cast_graveyard_exile_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    peek_word(cursor, 0, ".")
+        && peek_word(cursor, 1, "if")
+        && (2..12).any(|offset| {
+            peek_word(cursor, offset, "would")
+                && peek_word(cursor, offset + 1, "be")
+                && peek_word(cursor, offset + 2, "put")
+                && peek_word(cursor, offset + 3, "into")
+        })
+}
+
+/// `. If SPELLS would be put into GRAVEYARD, exile it|them instead`: the
+/// replacement the cast spells carry (CR 614.1a). SPELLS restates them:
+/// `that spell`, `those spells`, or `a [PREDICATE] spell cast this way`,
+/// whose predicate is read by the shared noun phrase in the spell domain
+/// and checked on the card (CR 601.2a: same characteristics). The final
+/// sentence terminator stays with the enclosing sequence.
+fn recognize_cast_graveyard_exile(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CastGraveyardExileNode> {
+    cursor.enter("card-action.cast.graveyard-exile");
+    cursor.consume(".")?;
+    cursor.consume("if")?;
+    cursor.enter("card-action.cast.graveyard-exile.spells");
+    let (predicate, plural) = if peek_word(cursor, 0, "that") {
+        cursor.consume_phrase(&["that", "spell"])?;
+        (None, false)
+    } else if peek_word(cursor, 0, "those") {
+        cursor.consume_phrase(&["those", "spells"])?;
+        (None, true)
+    } else {
+        // `a|an [PREDICATE] spell cast this way`: the noun phrase is read on
+        // a bounded view that ends before its `cast this way` participle.
+        let length = (1..10)
+            .find(|offset| {
+                peek_word(cursor, *offset, "cast")
+                    && peek_word(cursor, offset + 1, "this")
+                    && peek_word(cursor, offset + 2, "way")
+            })
+            .ok_or_else(|| {
+                cursor.fail("`that spell`, `those spells` or `a spell cast this way`")
+            })?;
+        let end = cursor.position() + length;
+        let phrase = cursor.bounded(end, |inner| {
+            recognize_object_noun_phrase(
+                inner,
+                ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Spell]),
+            )
+        })?;
+        cursor.require(
+            matches!(
+                phrase.determiner,
+                Some(ObjectDeterminer::Chosen {
+                    quantity: ChosenObjectQuantity::Exactly(_),
+                    another: false,
+                })
+            ) && !phrase.exclude_source
+                && phrase.query.relations().is_empty()
+                && phrase.domain == Some(ObjectKind::Spell),
+            "an unscoped spell query restating the spells cast this way",
+        )?;
+        let predicate = spell_query_as_card_query(phrase.query.predicate());
+        cursor.consume_phrase(&["cast", "this", "way"])?;
+        (
+            (predicate != ObjectPredicate::ObjectKind(ObjectKind::Card)).then_some(predicate),
+            false,
+        )
+    };
+    cursor.enter("card-action.cast.graveyard-exile.event");
+    cursor.consume_phrase(&["would", "be", "put", "into"])?;
+    let graveyard = if peek_word(cursor, 0, "your") {
+        cursor.consume("your")?;
+        CastGraveyardOwnerNode::Controller
+    } else if peek_word(cursor, 0, "a") || peek_word(cursor, 0, "their") {
+        let word = cursor.peek().unwrap_or("a").to_string();
+        cursor.consume(&word)?;
+        CastGraveyardOwnerNode::Any
+    } else {
+        cursor.consume_phrase(&["its", "owner's"])?;
+        CastGraveyardOwnerNode::Any
+    };
+    cursor.consume("graveyard")?;
+    cursor.enter("card-action.cast.graveyard-exile.replacement");
+    cursor.consume_phrase(&[",", "exile"])?;
+    // A plural restatement takes `them`; `a spell cast this way` / `that
+    // spell` takes `it`.
+    let pronoun = if plural || peek_word(cursor, 0, "them") {
+        "them"
+    } else {
+        "it"
+    };
+    cursor.require(
+        plural == (pronoun == "them"),
+        "a pronoun agreeing with the restated spells",
+    )?;
+    cursor.consume(pronoun)?;
+    cursor.consume("instead")?;
+    cursor.enter("card-action.cast.graveyard-exile.terminator");
+    cursor.require(
+        matches!(cursor.peek(), None | Some(".")),
+        "the end of the replacement sentence",
+    )?;
+    Ok(CastGraveyardExileNode {
+        predicate,
+        graveyard,
+    })
+}
+
 fn recognize_card_permission(
     cursor: &mut OracleTokenCursor<'_>,
     supplied_duration: Option<&EffectDurationNode>,
     preposed_window: Option<CardPermissionWindowNode>,
 ) -> MachineResult<CardPermissionNode> {
     cursor.enter("card-action.permit.head");
-    cursor.consume_phrase(&["you", "may"])?;
-    let verb = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("play"))
+    let optional = peek_word(cursor, 0, "you");
+    if optional {
+        cursor.consume_phrase(&["you", "may"])?;
+    }
+    let verb = if optional
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("play"))
     {
         cursor.consume("play")?;
         CardPermissionVerb::Play
@@ -811,10 +1404,12 @@ fn recognize_card_permission(
                 | CardOperandNode::Selection(_)
                 | CardOperandNode::ZoneCollection(_)
                 | CardOperandNode::Targets(_)
+                | CardOperandNode::CardCopies { .. }
         ),
-        "a bound card collection, declared card targets or a quantified card query as the permission object",
+        "a bound card collection, declared card targets, card copies or a quantified card query as the cast object",
     )?;
-    let mut without_paying_mana_cost = recognize_without_paying(cursor)?;
+    let mut if_able = recognize_if_able(cursor)?;
+    let mut cost = recognize_cast_cost_policy(cursor)?;
     cursor.enter("card-action.permit.window");
     let (duration, window) = if supplied_duration.is_some() || preposed_window.is_some() {
         cursor.require(
@@ -824,25 +1419,44 @@ fn recognize_card_permission(
         (supplied_duration.cloned(), preposed_window)
     } else if permission_window_starts(cursor) {
         recognize_trailing_permission_window(cursor)?
-    } else if matches!(cursor.peek(), None | Some(".")) || any_type_spending_starts(cursor) {
+    } else if permission_ends_without_window(cursor) {
         (None, None)
     } else {
         (Some(recognize_play_window_duration(cursor)?), None)
     };
-    if !without_paying_mana_cost {
+    if cost == CardCastCostNode::Printed {
         // `this turn without paying their mana costs`: the base-cost policy
         // may follow the window.
-        without_paying_mana_cost = recognize_without_paying(cursor)?;
+        cost = recognize_cast_cost_policy(cursor)?;
+    }
+    if !if_able {
+        if_able = recognize_if_able(cursor)?;
     }
     cursor.enter("card-action.permit.spending");
     let mana_of_any_type = recognize_any_type_spending(cursor)?;
+    cursor.enter("card-action.cast.optionality");
+    cursor.require(
+        optional || (duration.is_none() && window.is_none()),
+        "an imperative cast performed while the effect resolves, without a window",
+    )?;
+    cursor.require(
+        !(optional && if_able),
+        "`if able` only after an imperative cast",
+    )?;
+    let graveyard_exile = if cast_graveyard_exile_starts(cursor) {
+        Some(recognize_cast_graveyard_exile(cursor)?)
+    } else {
+        None
+    };
     Ok(CardPermissionNode {
         verb,
         cards,
         duration,
         window,
-        without_paying_mana_cost,
+        optional,
+        cost,
         mana_of_any_type,
+        graveyard_exile,
     })
 }
 

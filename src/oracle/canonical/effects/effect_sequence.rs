@@ -167,6 +167,7 @@ fn reads_card_collection_reference(following: &[LocalEffectNode]) -> bool {
         LocalEffectNode::CardAction(
             CardActionNode::Move { cards, .. }
             | CardActionNode::Reveal(cards)
+            | CardActionNode::Copy { cards, .. }
             | CardActionNode::Permit(CardPermissionNode { cards, .. }),
         ) => Some(matches!(cards, CardOperandNode::Reference(_))),
         LocalEffectNode::CardAction(_) => Some(false),
@@ -2149,10 +2150,22 @@ fn lower_local_effect_sequence_with_collections(
                     });
                 }
                 decisions.push(decision);
-                effects.push(
-                    lower_target_card_move_effect(zone_change, &target_id)
-                        .ok_or_else(|| cursor.fail("a supported targeted card move"))?,
-                );
+                let mut operation = lower_target_card_move_effect(zone_change, &target_id)
+                    .ok_or_else(|| cursor.fail("a supported targeted card move"))?;
+                // A later card action reading `it`/`that card` names the card
+                // this exile produced (CR 400.7); bound only when read.
+                if zone_change.action == CardZoneChangeAction::Exile
+                    && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
+                {
+                    operation["bind"] = json!(match zone_change.cardinality.maximum {
+                        NumericAtom::Integer(1) => collections.observe_exiled_object(),
+                        NumericAtom::Integer(maximum) => {
+                            collections.observe_exiled_objects(Some(maximum))
+                        }
+                        NumericAtom::VariableX => collections.observe_exiled_objects(None),
+                    });
+                }
+                effects.push(operation);
                 if zone_change.cardinality == ExpressedTargetCardinality::EXACTLY_ONE {
                     card_target_bindings.push((
                         TargetBinding {
