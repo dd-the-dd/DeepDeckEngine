@@ -437,6 +437,135 @@
       }
     },
     {
+      "id": "exact-myriad-landscape-found-set-shares-a-land-type",
+      "request": {
+        "cardName": "Myriad Landscape",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {C}.\n{2}, {T}, Sacrifice this land: Search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-three-dreams-found-set-with-different-names",
+      "request": {
+        "cardName": "Three Dreams",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}",
+        "oracleText": "Search your library for up to three Aura cards with different names, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/setConstraints/0/kind",
+                "equals": "distinctValues"
+              },
+              {
+                "pointer": "/effects/0/setConstraints/0/property",
+                "equals": "name"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-found-set-total-mana-value",
+      "request": {
+        "cardName": "Total Search Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Search your library for up to two artifact cards with total mana value 4 or less, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/setConstraints/0/kind",
+                "equals": "totalAtMost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-search-for-a-card-with-flashback",
+      "request": {
+        "cardName": "Flashback Seeker Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Search your library for a card with flashback, put it into your graveyard, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-set-constraint-on-one-found-card",
+      "request": {
+        "cardName": "Singular Distinct Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Search your library for a card with different names, reveal it, put it into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-empty-exclusion-list",
       "request": {
         "cardName": "Empty Exclusion Probe",
