@@ -36,7 +36,7 @@ fn recognize_add_fixed_mana_or_choice_effect(
         state = match state {
             AddFixedManaChoiceState::Action => {
                 cursor.enter("effect.add-fixed-mana-choice.action");
-                cursor.consume("add")?;
+                consume_add_head(cursor)?;
                 AddFixedManaChoiceState::Option
             }
             AddFixedManaChoiceState::Option => {
@@ -226,7 +226,7 @@ fn recognize_add_any_mana_head(
         state = match state {
             AddAnyColorManaState::Action => {
                 cursor.enter("effect.add-any-color-mana.action");
-                cursor.consume("add")?;
+                consume_add_head(cursor)?;
                 AddAnyColorManaState::Amount
             }
             AddAnyColorManaState::Amount => {
@@ -453,6 +453,85 @@ fn recognize_optional_mana_for_each_count(
     }))
 }
 
+/// The written width of the production verb: `add`, or `add an additional`
+/// (`its controller adds an additional {G}`). `additional` only says that the
+/// mana comes on top of what the event's mana ability produced (CR 605.1b,
+/// 106.4); the production itself is the ordinary one.
+fn add_head_width(cursor: &OracleTokenCursor<'_>) -> usize {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(1, "an") && word(2, "additional") {
+        3
+    } else {
+        1
+    }
+}
+
+/// Consumes `add` and an optional `an additional` (see [`add_head_width`]).
+fn consume_add_head(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+    let additional = add_head_width(cursor) == 3;
+    cursor.consume("add")?;
+    if additional {
+        cursor.enter("effect.add-mana.additional");
+        cursor.consume_phrase(&["an", "additional"])?;
+    }
+    Ok(())
+}
+
+/// `that NOUN produced` after `any type`: the types of mana the event's
+/// permanent just produced (CR 106.1b, 605.1b). Lexical lookahead only.
+fn produced_mana_domain_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && (1..6)
+            .map_while(|offset| cursor.peek_ahead(offset))
+            .take_while(|raw| !matches!(*raw, "." | "," | ";"))
+            .any(|raw| raw.eq_ignore_ascii_case("produced"))
+}
+
+/// `N mana of any type that NOUN produced`: one type among the mana the
+/// permanent of the triggering mana ability produced (CR 106.1b, 605.1b,
+/// 106.11a). The noun names the event's permanent, which the trigger frame
+/// must bind; the production is read from the event record at resolution.
+fn recognize_produced_mana_domain(
+    cursor: &mut OracleTokenCursor<'_>,
+    amount: NumericExpression,
+    output_domain: ManaOutputDomain,
+) -> MachineResult<AddScopedManaEffectNode> {
+    cursor.enter("effect.add-produced-mana-type.amount");
+    let amount = literal_mana_amount(&amount)
+        .ok_or_else(|| cursor.fail("a positive literal amount of a produced mana type"))?;
+    cursor.enter("effect.add-produced-mana-type.domain");
+    cursor.require(
+        output_domain == ManaOutputDomain::Type,
+        "`any type` before the mana an event's permanent produced",
+    )?;
+    cursor.enter("effect.add-produced-mana-type.object");
+    cursor.consume("that")?;
+    cursor.require(
+        super::installed_binding_environment(cursor)
+            .frame
+            .event_object
+            .is_some(),
+        "a permanent tapped for mana bound by the triggering event",
+    )?;
+    let query = recognize_object_query(cursor)?;
+    cursor.require(
+        query.controller.is_none(),
+        "the event's permanent without another controller relation",
+    )?;
+    cursor.enter("effect.add-produced-mana-type.verb");
+    cursor.consume("produced")?;
+    Ok(AddScopedManaEffectNode {
+        amount,
+        domain: ManaChoiceDomain::EventProducedTypes,
+    })
+}
+
 /// Dispatches between independent fixed-symbol and unrestricted color-choice
 /// mana-production children from the shared token cursor.
 fn recognize_add_mana_output(
@@ -466,19 +545,24 @@ fn recognize_add_mana_output(
         return super::recognize_add_each_color_mana(cursor).map(AddManaEffectNode::EachColor);
     }
 
+    let head = add_head_width(cursor);
     if cursor
-        .peek_ahead(1)
+        .peek_ahead(head)
         .is_some_and(|raw| raw.starts_with('{') && raw.ends_with('}'))
     {
         let production = recognize_add_fixed_mana_or_choice_effect(cursor)?;
         return recognize_optional_mana_for_each_count(cursor, production);
     }
-    if stored_color_production_starts(cursor, 1) {
+    if stored_color_production_starts(cursor, head) {
         cursor.enter("effect.add-stored-color-mana.action");
-        cursor.consume("add")?;
+        consume_add_head(cursor)?;
         return recognize_stored_color_production(cursor, Vec::new());
     }
     let (amount, output_domain, distribution) = recognize_add_any_mana_head(cursor, true)?;
+    if produced_mana_domain_starts(cursor) {
+        return recognize_produced_mana_domain(cursor, amount, output_domain)
+            .map(AddManaEffectNode::ScopedColor);
+    }
     if cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))

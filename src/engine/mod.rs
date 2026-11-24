@@ -4077,7 +4077,7 @@ fn mana_value_supported(value: &Value) -> bool {
         Some("chooseCommanderColor") => value["amount"]
             .as_i64()
             .is_none_or(|amount| (1..=10).contains(&amount)),
-        Some("manaTypesLandsYouControlCouldProduce") => {
+        Some("manaTypesLandsYouControlCouldProduce" | "manaTypesProducedByEvent") => {
             integer_value(&value["amount"]).is_some_and(|amount| (1..=10).contains(&amount))
         }
         Some("manaTypesOfSacrificedPermanent") => {
