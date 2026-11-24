@@ -46,6 +46,16 @@ pub(in crate::oracle::canonical) enum PerformerNode {
     /// The same declared players, already declared by an earlier verb of
     /// the clause (`each lose 2 life and sacrifice a creature`).
     BoundPlayers(PlayerBinding),
+    /// `For each OBJECT VERBed this way, its controller|owner ACTION`: the
+    /// action is performed once per object the earlier action at
+    /// `effect_index` affected, each time by that object's player, read by
+    /// its last known information once it left the battlefield (CR 608.2c,
+    /// 608.2h, 108.3, 109.4).
+    EachAffectedObject {
+        relation: ObjectPlayerRelation,
+        effect_index: usize,
+        filter: super::ActionResultFilter,
+    },
 }
 
 impl PerformerNode {
@@ -344,6 +354,18 @@ fn recognize_declared_players(
     ))
 }
 
+/// `its controller` / `its owner` at the cursor: the player of the object a
+/// preposed `for each OBJECT VERBed this way` iterates. Lexical lookahead.
+pub(in crate::oracle::canonical) fn affected_object_player_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<ObjectPlayerRelation> {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("its"))
+        .then(|| cursor.peek_ahead(1).and_then(written_player_relation))
+        .flatten()
+}
+
 /// The relation an object-related player subject writes before `of`.
 fn written_player_relation(raw: &str) -> Option<ObjectPlayerRelation> {
     if raw.eq_ignore_ascii_case("owner") {
@@ -534,6 +556,9 @@ pub(in crate::oracle::canonical) fn performer_description(
         PerformerNode::Chosen { .. } => "a player chosen on resolution (`an opponent`)",
         PerformerNode::DeclaredPlayers { .. } | PerformerNode::BoundPlayers(_) => {
             "declared target players (`two target players each`)"
+        }
+        PerformerNode::EachAffectedObject { .. } => {
+            "the player of each affected object (`its controller` after `for each`)"
         }
     }
 }

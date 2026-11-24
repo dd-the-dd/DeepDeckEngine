@@ -1578,9 +1578,59 @@ fn recognize_effect_sequence_attempt_scoped(
                                 trial.enter("sequence.for-each.preposed-separator");
                                 trial.consume(",")?;
                                 *cursor = trial;
-                                preposed_for_each = Some(count);
                                 attempt_frame.clear();
                                 effect_start = cursor.position();
+                                // `For each OBJECT VERBed this way, its
+                                // controller|owner ACTION.`: one pass per
+                                // affected object, performed by that
+                                // object's player (CR 608.2c, 608.2h). The
+                                // action is that player's own instruction.
+                                if let PreposedForEach::ActionResult(reference) = &count
+                                    && let Some(relation) = super::affected_object_player_at(cursor)
+                                {
+                                    attempt_frame.commit();
+                                    cursor.enter("sequence.for-each.affected-object-player");
+                                    let mut written = memory.effects.clone();
+                                    written.extend(memory.effects.last().cloned());
+                                    let (producer, filter) = cursor.require_value(
+                                        super::resolve_action_result_antecedent(
+                                            &written, reference,
+                                        ),
+                                        "an earlier action of this program whose affected objects the phrase restates",
+                                    )?;
+                                    cursor.advance_to(cursor.position() + 2)?;
+                                    let performer = super::PerformerNode::EachAffectedObject {
+                                        relation,
+                                        effect_index: producer,
+                                        filter,
+                                    };
+                                    let tokens = super::person_shifted_tokens(
+                                        cursor,
+                                        super::VerbAgreement::ThirdPersonSingular,
+                                        super::performer_description(&performer),
+                                    )?;
+                                    let mut shifted = cursor.with_tokens(&tokens);
+                                    let controller = super::PlayerEffectSubject::Controller;
+                                    let action = read_action(
+                                        &mut shifted,
+                                        Some(&controller),
+                                        attempt_frame,
+                                    )?;
+                                    let end = shifted.position();
+                                    if let Some(ambiguous) = super::controller_reference_failure(
+                                        cursor,
+                                        cursor.position(),
+                                        end,
+                                    ) {
+                                        return Err(ambiguous);
+                                    }
+                                    cursor.advance_to(end)?;
+                                    break LocalEffectNode::Performed(super::PerformedEffectNode {
+                                        performer,
+                                        effect: Box::new(action),
+                                    });
+                                }
+                                preposed_for_each = Some(count);
                                 continue;
                             }
                             // `Until DURATION, EFFECTS.`: the introducer is read

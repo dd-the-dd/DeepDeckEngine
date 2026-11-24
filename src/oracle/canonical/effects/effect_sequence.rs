@@ -3756,6 +3756,49 @@ fn apply_performer(
             }));
             return Ok(());
         }
+        // `For each OBJECT VERBed this way, its controller ACTION` (CR
+        // 608.2c, 608.2h): one pass per object the earlier action affected,
+        // each performed by that object's player (last known information).
+        PerformerNode::EachAffectedObject {
+            relation,
+            effect_index: producer,
+            filter,
+        } => {
+            let bind = format!("performedObject{effect_index}");
+            let bound = json!({
+                "kind": "boundObjects",
+                "binding": action_result_binding(*producer),
+            });
+            let objects = match filter {
+                ActionResultFilter::All => bound,
+                ActionResultFilter::Cards(predicate) => json!({
+                    "kind": "filterObjects",
+                    "objects": bound,
+                    "where": lower_card_object_predicate(predicate),
+                }),
+            };
+            let player = json!({
+                "kind": match relation {
+                    ObjectPlayerRelation::Controller => "controllerOf",
+                    ObjectPlayerRelation::Owner => "ownerOf",
+                },
+                "object": {"kind": "boundValue", "id": bind},
+            });
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = player.clone();
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachObject",
+                "objects": objects,
+                "bind": bind,
+                "effects": body,
+            }));
+            return Ok(());
+        }
         PerformerNode::Population {
             players,
             excluding_controller,

@@ -195,9 +195,9 @@ mod object_predicate;
 mod object_predicate_eval;
 mod object_relation_eval;
 mod object_snapshot;
+mod offered_action;
 mod one_shot_modifier;
 mod opponent_extremum;
-mod offered_action;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -30764,14 +30764,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .controller
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .controller
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Controller,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
@@ -30810,14 +30818,22 @@ impl GameEngine {
                 };
                 match self.resolve_target(&reference["object"], stack_object, bindings)? {
                     TargetRef::Player { player_id } => Some(player_id),
-                    TargetRef::Permanent { instance_id } => departed().or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&instance_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .owner
-                                .clone(),
-                        )
-                    }),
+                    TargetRef::Permanent { instance_id } => departed()
+                        .or_else(|| {
+                            let (player_index, card_index) =
+                                self.permanent_position(&instance_id)?;
+                            Some(
+                                self.state.players[player_index].battlefield[card_index]
+                                    .owner
+                                    .clone(),
+                            )
+                        })
+                        .or_else(|| {
+                            self.departed_permanent_player(
+                                object_relation_lki::ObjectPlayerRelation::Owner,
+                                &instance_id,
+                            )
+                        }),
                     TargetRef::Card { instance_id } => self
                         .card_outside_battlefield(&instance_id)
                         .map(|card| card.owner.clone()),
