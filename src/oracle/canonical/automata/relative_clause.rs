@@ -336,6 +336,31 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
     let pronoun = cursor.peek().unwrap_or_default().to_string();
     cursor.require(is_relative_pronoun(cursor), "`that`, `which` or `who`")?;
     cursor.consume(&pronoun)?;
+    recognize_relative_predicate(cursor)
+}
+
+/// True at a verb phrase `recognize_relative_predicate` reads without its
+/// pronoun after another subject (`if it shares a creature type with this
+/// creature`, `as long as it entered this turn`, `as long as this Equipment
+/// is attached to a creature`). Status copulas and possession stay with the
+/// subject's own reader. A pure lookahead.
+pub(in crate::oracle::canonical) fn relative_predicate_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    copular_participle_at(cursor, 0).is_some()
+        || share_verb_at(cursor, 0).is_some()
+        || past_fact_at(cursor, 0).is_some()
+        || negated_past_at(cursor, 0).is_some()
+        || dealt_damage_to_player_at(cursor, 0).is_some()
+        || targets_clause_starts(cursor, 0)
+}
+
+/// The verb phrase of a relative clause after its pronoun (or after the
+/// subject of a condition, `relative_predicate_starts`): one grammar for the
+/// object predicate it states.
+pub(in crate::oracle::canonical) fn recognize_relative_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ObjectPredicate> {
     if let Some(copula_width) = copular_participle_at(cursor, 0) {
         // `that are attached to it`: the present copula before the same
         // participle; the relation holds now (CR 301.5, 303.4).

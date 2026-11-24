@@ -73,6 +73,25 @@ pub(in crate::oracle::canonical) fn recognize_bound_object_numeric_condition(
             }
             BoundNumericConditionState::Anaphor => {
                 cursor.enter("condition.bound-object-numeric.anaphor");
+                // Any other verb phrase of the pronoun (`its power is less
+                // than or equal to EXPR`, `it's white`, `it shares a color
+                // with ...`) is the shared object predicate of the condition
+                // language over the same bound target.
+                if super::bound_pronoun_predicate_starts(cursor)
+                    && !(cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("it"))
+                        && cursor
+                            .peek_ahead(1)
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("has"))
+                        && cursor
+                            .peek_ahead(2)
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("mana")))
+                {
+                    let predicate = super::recognize_bound_pronoun_predicate(cursor)?;
+                    cursor.enter("condition.bound-object-numeric.complete");
+                    return Ok(BoundObjectConditionNode { object, predicate });
+                }
                 let anaphor = cursor.consume_type("referenceWord")?;
                 cursor.require(
                     anaphor.raw.eq_ignore_ascii_case("it"),

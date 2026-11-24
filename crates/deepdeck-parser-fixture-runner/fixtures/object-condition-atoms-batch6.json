@@ -1,0 +1,973 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-condition-atoms-batch6",
+  "cases": [
+    {
+      "id": "real-skyline-despot-you-are-the-monarch",
+      "request": {
+        "cardName": "Skyline Despot",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "Flying\nWhen this creature enters, you become the monarch.\nAt the beginning of your upkeep, if you're the monarch, create a 5/5 red Dragon creature token with flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "playerIsMonarch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-throne-warden-end-step-monarch",
+      "request": {
+        "cardName": "Throne Warden",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "At the beginning of your end step, if you're the monarch, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "playerIsMonarch",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-queen-marchesa-an-opponent-is-the-monarch",
+      "request": {
+        "cardName": "Queen Marchesa",
+        "typeLine": "Legendary Creature — Human Assassin",
+        "manaCost": "{1}{R}{W}{B}",
+        "oracleText": "Deathtouch, haste\nWhen Queen Marchesa enters, you become the monarch.\nAt the beginning of your upkeep, if an opponent is the monarch, create a 1/1 black Assassin creature token with deathtouch and haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "playerQuantifier",
+                  "quantifier": "some",
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "condition": {
+                    "kind": "playerIsMonarch",
+                    "player": {
+                      "kind": "quantifiedPlayer"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-monarch-and-poisoned",
+      "request": {
+        "cardName": "Crowned Venom Probe",
+        "typeLine": "Creature — Human Rogue",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, if no opponent is the monarch and you're poisoned, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "not",
+                      "operand": {
+                        "kind": "playerQuantifier",
+                        "quantifier": "some",
+                        "players": {
+                          "kind": "opponentsOf",
+                          "player": {
+                            "kind": "controllerOf",
+                            "object": {
+                              "kind": "self"
+                            }
+                          }
+                        },
+                        "condition": {
+                          "kind": "playerIsMonarch",
+                          "player": {
+                            "kind": "quantifiedPlayer"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": {
+                        "kind": "countPlayerCounters",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        },
+                        "counter": "poison"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-past-monarch-is-not-recorded",
+      "request": {
+        "cardName": "Former Monarch Probe",
+        "typeLine": "Creature — Human Noble",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your upkeep, if you were the monarch, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.player-copula.tense"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-sylvan-smite-starting-player",
+      "request": {
+        "cardName": "Sylvan Smite",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature you control if you weren't the starting player. Then that creature deals damage equal to its power to target creature you don't control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cindercone-smite-starting-player",
+      "request": {
+        "cardName": "Cindercone Smite",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Cindercone Smite deals 2 damage to target creature. Then create a Treasure token if you weren't the starting player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-viridian-betrayers-an-opponent-is-poisoned",
+      "request": {
+        "cardName": "Viridian Betrayers",
+        "typeLine": "Creature — Phyrexian Elf Warrior",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "This creature has infect as long as an opponent is poisoned. (It deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-glademuse-not-their-turn",
+      "request": {
+        "cardName": "Glademuse",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{2}{G}",
+        "oracleText": "Whenever a player casts a spell, if it's not their turn, that player draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "isPlayersTurn",
+                    "player": {
+                      "kind": "triggeringPlayer"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponents-turn",
+      "request": {
+        "cardName": "Night Watch Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each end step, if it's an opponent's turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "notYourTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-their-turn-without-an-event-player",
+      "request": {
+        "cardName": "Their Turn Probe",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each end step, if it's not their turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.player-turn.possessor"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-kami-of-terrible-secrets-elided-control",
+      "request": {
+        "cardName": "Kami of Terrible Secrets",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{B}",
+        "oracleText": "When this creature enters, if you control an artifact and an enchantment, you draw a card and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-elided-control-disjunction",
+      "request": {
+        "cardName": "Grove Ward Probe",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}",
+        "oracleText": "When this creature enters, if you control a Forest or a Plains, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-myr-servitor-source-on-the-battlefield",
+      "request": {
+        "cardName": "Myr Servitor",
+        "typeLine": "Artifact Creature — Myr",
+        "manaCost": "{1}",
+        "oracleText": "At the beginning of your upkeep, if this creature is on the battlefield, each player returns all cards named Myr Servitor from their graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "sourceOnBattlefield"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-blood-operative-graveyard-zone-of-function",
+      "request": {
+        "cardName": "Blood Operative",
+        "typeLine": "Creature — Vampire Assassin",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Lifelink\nWhen this creature enters, you may exile target card from a graveyard.\nWhenever you surveil, if this card is in your graveyard, you may pay 3 life. If you do, return this card to your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 2,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.zone-of-function"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-sold-out-was-dealt-damage-this-turn",
+      "request": {
+        "cardName": "Sold Out",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "Exile target creature. If it was dealt damage this turn, create a Clue token. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-crew-captain-entered-this-turn",
+      "request": {
+        "cardName": "Crew Captain",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{B}{R}{G}",
+        "oracleText": "Haste\nThis creature has indestructible as long as it entered this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-conquerors-flail-attached-to-a-creature",
+      "request": {
+        "cardName": "Conqueror's Flail",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature gets +1/+1 for each color among permanents you control.\nAs long as this Equipment is attached to a creature, your opponents can't cast spells during your turn.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-event-object-shares-a-creature-type",
+      "request": {
+        "cardName": "Kinsmen Probe",
+        "typeLine": "Creature — Elf Warrior",
+        "manaCost": "{2}",
+        "oracleText": "Whenever another creature you control enters, if it shares a creature type with this creature, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-depressurize-property-threshold",
+      "request": {
+        "cardName": "Depressurize",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target creature gets -3/-0 until end of turn. Then if that creature's power is 0 or less, destroy it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-reject-imperfection-past-mana-value",
+      "request": {
+        "cardName": "Reject Imperfection",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Counter target spell. If that spell's mana value was 3 or less, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-karsus-depthguard-source-power-threshold",
+      "request": {
+        "cardName": "Karsus Depthguard",
+        "typeLine": "Creature — Lizard Warrior",
+        "manaCost": "{2}{R}",
+        "oracleText": "Defender\nAs long as this creature's power is 5 or greater, it can attack as though it didn't have defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-geistwave-you-controlled-that-permanent",
+      "request": {
+        "cardName": "Geistwave",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return target nonland permanent to its owner's hand. If you controlled that permanent, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gleeful-demolition-you-controlled-that-artifact",
+      "request": {
+        "cardName": "Gleeful Demolition",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Destroy target artifact. If you controlled that artifact, create three 1/1 red Phyrexian Goblin creature tokens.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-unified-strike-bound-target-expression",
+      "request": {
+        "cardName": "Unified Strike",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Exile target attacking creature if its power is less than or equal to the number of Soldiers on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/condition/where/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/effects/0/condition/where/left",
+                "equals": {
+                  "kind": "powerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-ghastly-demise-bound-toughness",
+      "request": {
+        "cardName": "Ghastly Demise",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy target nonblack creature if its toughness is less than or equal to the number of cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/condition/where/left",
+                "equals": {
+                  "kind": "toughnessOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-bound-target-zone-is-no-characteristic",
+      "request": {
+        "cardName": "Zone Probe",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Destroy target creature if it's on the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.bound-object.characteristic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-pestilence-no-creatures-on-the-battlefield",
+      "request": {
+        "cardName": "Pestilence",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.\n{B}: This enchantment deals 1 damage to each creature and each player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "<=",
+                  "left": {
+                    "kind": "countPermanents",
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "allPlayers": true
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-mortal-combat-cards-in-your-graveyard",
+      "request": {
+        "cardName": "Mortal Combat",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "At the beginning of your upkeep, if twenty or more creature cards are in your graveyard, you win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-vengeful-firebrand-a-card-is-in-your-graveyard",
+      "request": {
+        "cardName": "Vengeful Firebrand",
+        "typeLine": "Creature — Elemental Warrior",
+        "manaCost": "{3}{R}",
+        "oracleText": "This creature has haste as long as a Warrior card is in your graveyard.\n{R}: This creature gets +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-lethargy-trap-three-or-more-creatures-are-attacking",
+      "request": {
+        "cardName": "Lethargy Trap",
+        "typeLine": "Instant — Trap",
+        "manaCost": "{3}{U}",
+        "oracleText": "If three or more creatures are attacking, you may pay {U} rather than pay this spell's mana cost.\nAttacking creatures get -3/-0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-rite-of-the-serpent-last-known-counter",
+      "request": {
+        "cardName": "Rite of the Serpent",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Destroy target creature. If that creature had a +1/+1 counter on it, create a 1/1 green Snake creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-brackish-blunder-last-known-tapped",
+      "request": {
+        "cardName": "Brackish Blunder",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Return target creature to its owner's hand. If it was tapped, create a Map token. (It's an artifact with \"{1}, {T}, Sacrifice this token: Target creature you control explores. Activate only as a sorcery.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-mise-that-card-has-the-chosen-name",
+      "request": {
+        "cardName": "Mise",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Choose a nonland card name, then reveal the top card of your library. If that card has the chosen name, you draw three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cursed-scroll-chosen-name",
+      "request": {
+        "cardName": "Cursed Scroll",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{3}, {T}: Choose a card name, then reveal a card at random from your hand. If that card has the chosen name, this artifact deals 2 damage to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    }
+  ]
+}

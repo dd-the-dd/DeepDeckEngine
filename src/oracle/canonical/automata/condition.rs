@@ -9,11 +9,14 @@
 //! ```text
 //! Compare(Num, op, Num, player subject)   counts, life, X, power, ...
 //! ObjectSatisfies(BindingRef, Pred)       the source, a target, a bound card
+//!   ObjectZone(BindingRef, zones)         `is still on the battlefield`
+//!   ObjectControl(BindingRef)             `you controlled that permanent`
 //! EventHistory(Pattern, scope)            this-turn / last-turn event counts
 //! CastFact                                kicked, cast, cast from a zone
 //! ActionOutcome                           `if you can't`, `if you don't`
-//! TurnOwnership                           `it's [not] your turn`
-//! PlayerDesignation                       enduring story, completed dungeon
+//! TurnOwnership                           `it's [not] your|their turn`
+//! PlayerDesignation(holder)               enduring story, completed dungeon,
+//!                                         the monarch, the starting player
 //! ```
 //!
 //! A parent declares which families its evaluation moment can resolve
@@ -118,19 +121,32 @@ pub(in crate::oracle::canonical) enum ConditionAtom {
     ActionOutcome(ActionOutcomeNode),
     /// `it's [not] your turn`.
     TurnOwnership(ControllerTurnPropositionNode),
-    /// A designation the controller holds (CR 309.7, enduring story).
+    /// `it's [not] their turn`, `it's an opponent's turn`: the turn of a
+    /// player other than the controller (CR 102.1, 500.1).
+    PlayerTurn(PlayerTurnNode),
+    /// A designation a player holds (CR 309.7, enduring story, CR 724 the
+    /// monarch, CR 103.1 the starting player).
     PlayerDesignation(PlayerDesignationNode),
+    /// The zone a referenced object is in (`this creature is on the
+    /// battlefield`, CR 400.1): typed zones, never an object predicate.
+    ObjectZone(ObjectZoneConditionNode),
+    /// `you control|controlled it`, `you didn't control that permanent`:
+    /// the referenced object's controller is the ability's controller (CR
+    /// 108.4), read as last known information once it left (CR 608.2h).
+    ObjectControl(ObjectControlConditionNode),
 }
 
 impl ConditionAtom {
     pub(in crate::oracle::canonical) fn family(&self) -> ConditionFamily {
         match self {
             Self::Compare(_) => ConditionFamily::Compare,
-            Self::ObjectSatisfies(_) => ConditionFamily::ObjectSatisfies,
+            Self::ObjectSatisfies(_) | Self::ObjectZone(_) | Self::ObjectControl(_) => {
+                ConditionFamily::ObjectSatisfies
+            }
             Self::EventHistory(_) => ConditionFamily::EventHistory,
             Self::CastFact(_) => ConditionFamily::CastFact,
             Self::ActionOutcome(_) => ConditionFamily::ActionOutcome,
-            Self::TurnOwnership(_) => ConditionFamily::TurnOwnership,
+            Self::TurnOwnership(_) | Self::PlayerTurn(_) => ConditionFamily::TurnOwnership,
             Self::PlayerDesignation(_) => ConditionFamily::PlayerDesignation,
         }
     }
@@ -505,6 +521,19 @@ pub(in crate::oracle::canonical) enum PlayerDesignation {
     CompletedDungeon {
         dungeon: Option<String>,
     },
+    /// CR 724.1: `the monarch`, a designation one player at most holds.
+    Monarch,
+    /// CR 103.1: the player who took the game's first turn. It is a fact
+    /// of the game, so its present and past forms state the same thing.
+    StartingPlayer,
+}
+
+impl PlayerDesignation {
+    /// Whether the designation is recorded for one player of the game
+    /// (any player can be asked), rather than for the controller only.
+    pub(in crate::oracle::canonical) const fn is_per_player(&self) -> bool {
+        matches!(self, Self::Monarch | Self::StartingPlayer)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -512,6 +541,105 @@ pub(in crate::oracle::canonical) struct PlayerDesignationNode {
     pub designation: PlayerDesignation,
     /// False for `you haven't completed ...`.
     pub held: bool,
+    /// The player asked: the controller, a quantified population or the
+    /// player the triggering event records.
+    pub subject: ConditionPlayerSubject,
+}
+
+/// The turn of a player other than the controller (`it's not their turn`,
+/// `it's an opponent's turn`). `is_turn` is false for the negated form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct PlayerTurnNode {
+    pub player: ConditionPlayerSubject,
+    pub is_turn: bool,
+}
+
+/// A zone of the game (CR 400.1) as an object condition names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ConditionZone {
+    Battlefield,
+    Graveyard,
+    Exile,
+    Hand,
+    Library,
+    Stack,
+    Command,
+}
+
+impl ConditionZone {
+    /// The zone a prepositional phrase names at `offset` (`on the
+    /// battlefield`, `in your graveyard`, `in exile`, `in the command
+    /// zone`), with its width. A personal zone is the referenced card's own
+    /// (its owner's, CR 400.3): only `your` and `a` name it.
+    pub(in crate::oracle::canonical) fn at(
+        cursor: &OracleTokenCursor<'_>,
+        offset: usize,
+    ) -> Option<(Self, usize)> {
+        let word = |at: usize, expected: &str| {
+            cursor
+                .peek_ahead(offset + at)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+        };
+        if word(0, "on") && word(1, "the") && word(2, "battlefield") {
+            return Some((Self::Battlefield, 3));
+        }
+        if word(0, "on") && word(1, "the") && word(2, "stack") {
+            return Some((Self::Stack, 3));
+        }
+        if !word(0, "in") {
+            return None;
+        }
+        if word(1, "exile") {
+            return Some((Self::Exile, 2));
+        }
+        if word(1, "the") && word(2, "command") && word(3, "zone") {
+            return Some((Self::Command, 4));
+        }
+        if word(1, "your") || word(1, "a") {
+            let zone = if word(2, "graveyard") {
+                Self::Graveyard
+            } else if word(2, "hand") {
+                Self::Hand
+            } else if word(2, "library") {
+                Self::Library
+            } else {
+                return None;
+            };
+            return Some((zone, 3));
+        }
+        None
+    }
+
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::Battlefield => "battlefield",
+            Self::Graveyard => "graveyard",
+            Self::Exile => "exile",
+            Self::Hand => "hand",
+            Self::Library => "library",
+            Self::Stack => "stack",
+            Self::Command => "commandZone",
+        }
+    }
+}
+
+/// `OBJECT is [not] [still] in ZONE [or ZONE]`: the referenced object is in
+/// one of the zones (CR 400.1). The object is resolved like every object
+/// condition subject; the zones are a typed disjunction.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectZoneConditionNode {
+    pub object: ConditionObjectReference,
+    pub zones: Vec<ConditionZone>,
+    pub negated: bool,
+}
+
+/// `you [didn't] control[led] OBJECT`: whether the ability's controller is
+/// the referenced object's controller (its last known controller once it
+/// left the battlefield).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectControlConditionNode {
+    pub object: ConditionObjectReference,
+    pub negated: bool,
 }
 
 /// Typed turn-ownership proposition `it's [not] your turn`. The enclosing
@@ -744,6 +872,191 @@ pub(in crate::oracle::canonical) fn recognize_action_result_condition_atom(
     }))
 }
 
+/// Where a counted object phrase is stated to be, after its copula.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum LocatedQuantityTail {
+    /// `on the battlefield`: permanents of every player (CR 110.1).
+    Battlefield,
+    /// `in your graveyard`, `in your hand`: the controller's card zone.
+    ControllerZone(super::PlayerCardZone),
+    /// A registered permanent status (`attacking`, `tapped`): battlefield
+    /// permanents in that state.
+    Status(ObjectPredicate),
+}
+
+/// The tail of a located quantity at `offset`, with its width. A status is
+/// claimed only when the clause ends after it (`attacking you` names a
+/// relation this tail does not read).
+fn located_quantity_tail_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(LocatedQuantityTail, usize)> {
+    let word = |at: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + at)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(0, "on") && word(1, "the") && word(2, "battlefield") {
+        return Some((LocatedQuantityTail::Battlefield, 3));
+    }
+    if word(0, "in") && word(1, "your") {
+        if word(2, "graveyard") {
+            return Some((
+                LocatedQuantityTail::ControllerZone(super::PlayerCardZone::Graveyard),
+                3,
+            ));
+        }
+        if word(2, "hand") {
+            return Some((
+                LocatedQuantityTail::ControllerZone(super::PlayerCardZone::Hand),
+                3,
+            ));
+        }
+        return None;
+    }
+    let status = cursor
+        .peek_ahead(offset)
+        .and_then(super::lookup_status_predicate)?;
+    let ends = cursor.peek_ahead(offset + 1).is_none_or(|raw| {
+        matches!(
+            raw.to_ascii_lowercase().as_str(),
+            "," | "." | ";" | "and" | "or"
+        )
+    });
+    ends.then_some((LocatedQuantityTail::Status(status), 1))
+}
+
+/// The offset of the copula of `QUANTITY OBJECTS is|are TAIL` before the end
+/// of the clause. Lexical lookahead only.
+fn located_quantity_copula_offset(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let quantity = cursor.peek().is_some_and(|raw| {
+        ["a", "an", "another", "no", "at", "exactly", "one"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+            || raw.parse::<i64>().is_ok()
+            || super::super::parse_number_word(raw).is_some()
+    });
+    if !quantity {
+        return None;
+    }
+    (1..12)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            cursor.peek_ahead(*offset).is_some_and(|raw| {
+                raw.eq_ignore_ascii_case("is") || raw.eq_ignore_ascii_case("are")
+            }) && located_quantity_tail_at(cursor, offset + 1).is_some()
+        })
+}
+
+/// Lexical lookahead for `QUANTITY OBJECTS is|are on the battlefield|in your
+/// ZONE|STATUS`.
+pub(in crate::oracle::canonical) fn located_quantity_atom_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    located_quantity_copula_offset(cursor).is_some()
+}
+
+/// `no creatures are on the battlefield`, `another creature is on the
+/// battlefield`, `seven or more land cards are in your graveyard`, `a
+/// Warrior card is in your graveyard`, `three or more creatures are
+/// attacking`: `Compare(count(QUERY located there), op, N)`. The object
+/// phrase is the shared object query (permanents of every player unless it
+/// names a controller) or the shared card selector of the controller's
+/// zone; the quantity is the shared threshold (`another` excludes the
+/// source).
+pub(in crate::oracle::canonical) fn recognize_located_quantity_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.located-quantity.quantity");
+    let offset = located_quantity_copula_offset(cursor).ok_or_else(|| {
+        cursor.fail("a counted object phrase followed by `is|are` and a location")
+    })?;
+    let copula = cursor.position() + offset;
+    let plural = cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("are"));
+    let (tail, tail_width) = located_quantity_tail_at(cursor, offset + 1)
+        .ok_or_else(|| cursor.fail("`on the battlefield`, `in your ZONE` or a status"))?;
+    let another = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("another"));
+    let threshold = if another {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+        CountThreshold::at_least(1)
+    } else {
+        super::recognize_count_threshold(cursor, true)?
+    };
+    let atom = match &tail {
+        LocatedQuantityTail::ControllerZone(zone) => {
+            let zone = *zone;
+            cursor.enter("condition.located-quantity.cards");
+            cursor.require(!another, "counted cards without `another`")?;
+            let predicate = cursor.bounded(copula, |cursor| {
+                super::recognize_search_card_selector(cursor, plural)
+            })?;
+            ConditionAtom::Compare(ConditionComparison::measured(
+                ConditionPlayerSubject::Controller,
+                PlayerStateMeasure::CardsInZone { zone, predicate },
+                threshold,
+            ))
+        }
+        LocatedQuantityTail::Battlefield | LocatedQuantityTail::Status(_) => {
+            cursor.enter("condition.located-quantity.permanents");
+            let mut query = cursor.bounded(copula, |cursor| {
+                super::recognize_query_excluding_source(cursor, recognize_object_query)
+            })?;
+            cursor.require(
+                !(another && query.exclude_source),
+                "one source exclusion for one object query",
+            )?;
+            query.exclude_source |= another;
+            cursor.require(
+                matches!(
+                    query.controller,
+                    None | Some(super::ObjectControllerScope::AbilityController)
+                        | Some(super::ObjectControllerScope::OpponentOfAbilityController)
+                ),
+                "permanents of every player, of the controller or of the opponents",
+            )?;
+            cursor.require(
+                query.denotes_battlefield_permanents(),
+                "a selector that establishes the permanent domain",
+            )?;
+            let predicate = match &tail {
+                LocatedQuantityTail::Status(status) => {
+                    ObjectPredicate::Intersection(vec![query.predicate, status.clone()])
+                }
+                _ => query.predicate,
+            };
+            let (operator, value) = threshold_comparison(threshold);
+            ConditionAtom::Compare(ConditionComparison {
+                subject: ConditionPlayerSubject::Controller,
+                left: ConditionNumber::Expression(NumericExpression::PermanentCount(Box::new(
+                    super::PermanentCountNode {
+                        predicate,
+                        controller: query.controller,
+                        exclude_source: query.exclude_source,
+                        measure: super::PermanentCountMeasure::Objects,
+                    },
+                ))),
+                operator,
+                right: ConditionNumber::Integer(value),
+            })
+        }
+    };
+    cursor.enter("condition.located-quantity.location");
+    for _ in 0..1 + tail_width {
+        let raw = cursor.peek().unwrap_or_default().to_owned();
+        cursor.consume(&raw)?;
+    }
+    Ok(atom)
+}
+
 /// Reads `if ATOM,` for a family parent that composes exactly one family.
 /// The atom is read by the shared reader; the family is the allow-list.
 fn recognize_family_envelope(
@@ -816,7 +1129,90 @@ enum ControlledPermanentPresenceState {
 pub(in crate::oracle::canonical) fn recognize_controlled_permanent_presence_query(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ControlledPermanentCountConditionNode> {
-    let mut state = ControlledPermanentPresenceState::Player;
+    controlled_permanent_presence_from(cursor, ControlledPermanentPresenceState::Player)
+}
+
+/// Words after which a backward scan for an elided `you control` stops: a
+/// subject or a finite verb other than `control` opens another clause.
+const ELLIPSIS_CLAUSE_BOUNDARIES: &[&str] = &[
+    ",", ".", ";", ":", "if", "unless", "as", "controls", "has", "have", "had", "is", "are", "was",
+    "were", "it", "it's", "they", "that", "this", "there", "you've", "you're",
+];
+
+/// Coordination ellipsis of a shared subject and verb (`if you control an
+/// artifact and an enchantment`, `as long as you control a Forest or a
+/// Plains`): true at the determiner of a conjunct directly after `and|or`
+/// whose preceding conjunct in the same clause is `you control a|an|another
+/// PERMANENT`. Lexical lookbehind only; the conjunct is read by the same
+/// presence query, so `you control A and B` is `you control A` and `you
+/// control B` (their Boolean connector belongs to the list parent).
+pub(in crate::oracle::canonical) fn elided_controlled_presence_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let at = |index: usize| {
+        cursor
+            .token_slice(index, index + 1)
+            .first()
+            .map(|token| token.raw.replace('\u{2019}', "'").to_ascii_lowercase())
+    };
+    let determiner = |raw: Option<String>| matches!(raw.as_deref(), Some("a" | "an" | "another"));
+    let position = cursor.position();
+    if position < 4
+        || !determiner(at(position))
+        || !matches!(at(position - 1).as_deref(), Some("and" | "or"))
+    {
+        return false;
+    }
+    for index in (1..position - 1).rev() {
+        let Some(raw) = at(index) else {
+            return false;
+        };
+        if raw == "control" {
+            if !(at(index - 1).as_deref() == Some("you") && determiner(at(index + 1))) {
+                return false;
+            }
+            // The conjunct is only the presence query: a conjunct with its
+            // own verb (`and a creature died this turn`) is another atom.
+            let mut trial = cursor.clone();
+            return controlled_permanent_presence_from(
+                &mut trial,
+                ControlledPermanentPresenceState::Determiner,
+            )
+            .is_ok()
+                && trial.peek().is_none_or(|raw| {
+                    matches!(
+                        raw.to_ascii_lowercase().as_str(),
+                        "," | "." | ";" | "and" | "or"
+                    )
+                });
+        }
+        if ELLIPSIS_CLAUSE_BOUNDARIES.contains(&raw.as_str()) {
+            return false;
+        }
+    }
+    false
+}
+
+/// Reads the conjunct whose `you control` was elided (see
+/// `elided_controlled_presence_starts`): the presence query from its
+/// determiner, the same controller comparison as the stated conjunct.
+pub(in crate::oracle::canonical) fn recognize_elided_controlled_presence_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.controlled-permanent-presence.elided");
+    cursor.require(
+        elided_controlled_presence_starts(cursor),
+        "a conjunct after `you control a PERMANENT and|or`",
+    )?;
+    controlled_permanent_presence_from(cursor, ControlledPermanentPresenceState::Determiner)
+        .map(ControlledPermanentCountConditionNode::into_atom)
+}
+
+fn controlled_permanent_presence_from(
+    cursor: &mut OracleTokenCursor<'_>,
+    start: ControlledPermanentPresenceState,
+) -> MachineResult<ControlledPermanentCountConditionNode> {
+    let mut state = start;
     let mut predicate = None;
     let mut exclude_source = false;
     loop {
