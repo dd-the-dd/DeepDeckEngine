@@ -236,10 +236,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "ceaseToExist"
             | "conjureNamedCard"
             | "becomeCopyOfPermanent"
-            | "createTokens"
-            | "createTokenCopy"
-            | "createTokenCopyOfPermanent"
-            | "createModifiedTokenCopy",
+            | "createTokens",
         ) => Some(Domain::TokensCopies),
         Some(
             "setPrepared"

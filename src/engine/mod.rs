@@ -26711,9 +26711,13 @@ impl GameEngine {
                             "source": { "kind": "self" },
                             "costs": [{ "kind": "tap", "object": { "kind": "self" } }],
                             "effects": [{
-                                "kind": "createTokenCopyOfPermanent",
-                                "object": { "kind": "abilitySource" },
-                                "grantKeywords": ["haste"],
+                                "kind": "createTokens",
+                                "quantity": { "kind": "integer", "value": 1 },
+                                "token": {
+                                    "kind": "copyOf",
+                                    "object": { "kind": "abilitySource" },
+                                    "except": [{ "kind": "grantKeyword", "keyword": "haste" }],
+                                },
                                 "exileAtNextEndStep": true,
                             }],
                         })),
@@ -34277,66 +34281,6 @@ impl GameEngine {
             return Ok(());
         }
         self.counter_stack_object(stack_id, source, source_controller, exile_instead)
-    }
-
-    fn create_token_copy<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack_object: &StackObject,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        let controller_index = self.player_index(&stack_object.controller)?;
-        let mut definition = stack_object
-            .card
-            .printed_definition
-            .clone()
-            .unwrap_or_else(|| stack_object.card.definition.clone());
-        definition.id = format!("token-copy:{}", definition.id);
-        definition.is_token = true;
-        definition.is_game_piece = true;
-        definition.is_sideboard = false;
-        definition.power = integer_value(&effect["basePower"]).map(|power| power.to_string());
-        definition.toughness =
-            integer_value(&effect["baseToughness"]).map(|toughness| toughness.to_string());
-        let instance_id = format!(
-            "{}:token-copy:{}:{}",
-            stack_object.controller, stack_object.id, definition.id
-        );
-        let mut created = CardInstance {
-            instance_id: instance_id.clone(),
-            printed_definition: Some(definition.clone()),
-            definition,
-            owner: stack_object.controller.clone(),
-            controller: stack_object.controller.clone(),
-            tapped: false,
-            summoning_sick: true,
-            damage_marked: 0,
-            power_modifier: 0,
-            toughness_modifier: 0,
-            counters: BTreeMap::new(),
-            flags: BTreeMap::new(),
-            battle_protector: None,
-            attached_to: None,
-        };
-        self.apply_enter_replacements(&mut created, provider)?;
-        self.admit_new_card_carrier(&mut created)?;
-        self.state.players[controller_index]
-            .battlefield
-            .push(created.clone());
-        self.record_event(
-            "tokenCreated",
-            Some(stack_object.controller.clone()),
-            Some(instance_id.clone()),
-            json!({
-                "basePower": effect["basePower"],
-                "baseToughness": effect["baseToughness"],
-                "copyOf": stack_object.card.instance_id,
-            }),
-        );
-        self.enqueue_token_created_triggers(&stack_object.controller, &created);
-        self.ensure_prepared_spell_copy(&instance_id)?;
-        self.enqueue_enter_battlefield_triggers(&created);
-        Ok(())
     }
 
     fn choose_resolution_objects<P: DecisionProvider>(

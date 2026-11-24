@@ -152,6 +152,28 @@ impl GameEngine {
         modifier["layer"].as_str() == Some("7a")
     }
 
+    /// A characteristic marker a resolved effect recorded on an object: not
+    /// a copiable value (CR 707.2), so a copy drops it.
+    pub(in crate::engine) fn is_resolved_characteristic_marker(rule: &Value) -> bool {
+        rule.get("temporaryUntilTurn").is_some()
+            || matches!(
+                value_kind(rule),
+                Some(
+                    CARD_TYPE_SET_MARKER
+                        | COLOR_SET_MARKER
+                        | BASE_POWER_TOUGHNESS_MARKER
+                        | "subtypeSetModification"
+                )
+            )
+    }
+
+    /// A color set that is part of a copy's copiable values (CR 707.9b):
+    /// the same characteristic the effective color queries read, without a
+    /// duration, so it lasts as long as the copy.
+    pub(in crate::engine) fn copiable_color_set(colors: &Value) -> Value {
+        json!({ "kind": COLOR_SET_MARKER, "colors": colors, "copiable": true })
+    }
+
     /// The layer-7a modifiers of `card`'s own characteristic-defining
     /// abilities. On the battlefield they come from the active static sites,
     /// so an object that lost its abilities (layer 6) no longer defines its

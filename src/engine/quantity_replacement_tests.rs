@@ -676,10 +676,7 @@ fn a_plural_counter_instruction_refuses_before_any_recipient_changes() {
 
 #[test]
 fn copying_an_opponents_permanent_uses_the_real_creator_and_owner() {
-    for (kind, creator) in [
-        ("createTokenCopyOfPermanent", "player-0"),
-        ("createModifiedTokenCopy", "player-1"),
-    ] {
+    for creator in ["player-0", "player-1"] {
         let mut engine = engine();
         install(
             &mut engine,
@@ -696,7 +693,7 @@ fn copying_an_opponents_permanent_uses_the_real_creator_and_owner() {
         let copied = card_instance("player-1", &definition("copied", "Creature"), 402);
         let copied_id = copied.instance_id.clone();
         engine.state.players[1].battlefield.push(copied);
-        let mut effect = json!({"kind":kind,"object":{"kind":"chosenTarget","id":"copied"},"exileAtNextEndStep":false});
+        let mut effect = json!({"kind":"createTokens","quantity":{"kind":"integer","value":1},"token":{"kind":"copyOf","object":{"kind":"chosenTarget","id":"copied"},"except":[]}});
         if creator == "player-1" {
             effect["controller"] = json!({"kind":"chosenTarget","id":"creator"});
         }
@@ -1099,7 +1096,7 @@ fn modified_copy_explicit_creator_owns_controls_contains_and_publishes_each_toke
     let copied = card_instance("player-0", &definition("copied", "Creature"), 602);
     let copied_id = copied.instance_id.clone();
     engine.state.players[0].battlefield.push(copied);
-    let rule = json!({"kind":"spellAbility","source":{"kind":"self"},"effects":[{"kind":"createModifiedTokenCopy","object":{"kind":"chosenTarget","id":"copied"},"controller":{"kind":"chosenTarget","id":"creator"},"counters":[{"counter":"charge","count":{"kind":"integer","value":1}}]}]});
+    let rule = json!({"kind":"spellAbility","source":{"kind":"self"},"effects":[{"kind":"createTokens","quantity":{"kind":"integer","value":1},"token":{"kind":"copyOf","object":{"kind":"chosenTarget","id":"copied"},"except":[]},"controller":{"kind":"chosenTarget","id":"creator"},"counters":[{"counter":"charge","count":{"kind":"integer","value":1}}]}]});
     engine.admit_explicit_test_fixture_objects().unwrap();
     engine
         .execute_canonical_rule(

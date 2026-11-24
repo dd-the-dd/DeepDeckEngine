@@ -95,6 +95,16 @@ impl GameEngine {
         if requested_quantity == 0 {
             return Ok(Vec::new());
         }
+        if value_kind(&effect["token"]) == Some("copyOf") {
+            return self.create_token_copies_inner(
+                effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+                requested_quantity,
+            );
+        }
         let token_controller = self.token_creator(effect, stack_object, bindings)?;
         let controller_index = self.player_index(&token_controller)?;
         let token = &effect["token"];
@@ -338,82 +348,199 @@ impl GameEngine {
         Ok(created_ids)
     }
 
-    pub(super) fn create_token_copy_of_permanent_inner<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
+    /// The one copied object of a `copyOf` token (CR 707.2): the source, a
+    /// declared target, or a bound singular object. `None` when it no longer
+    /// exists; several objects are an error, never a silent first pick.
+    fn token_copy_source_id(
+        &self,
+        object: &Value,
         stack_object: &StackObject,
         bindings: &BTreeMap<String, RuntimeBinding>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        let resolved_source_id;
-        let source_id = match value_kind(&effect["object"]) {
-            Some("self" | "abilitySource") => &stack_object.card.instance_id,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<Option<String>, EngineError> {
+        let ids = match value_kind(object) {
+            Some("self" | "abilitySource") => vec![stack_object.card.instance_id.clone()],
+            _ if target_reference_supported(object) => self
+                .resolve_target(object, stack_object, bindings)
+                .and_then(|target| match target {
+                    TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                        Some(vec![instance_id])
+                    }
+                    TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
+                })
+                .unwrap_or_default(),
             _ => {
-                let Some(TargetRef::Permanent { instance_id }) =
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                else {
-                    return Ok(());
-                };
-                resolved_source_id = instance_id;
-                &resolved_source_id
+                self.resolve_runtime_object_ids_checked(object, stack_object, bindings, decisions)?
             }
         };
-        let Some((source_player, source_index)) = self.permanent_position(source_id) else {
-            return Ok(());
-        };
-        let source = self.state.players[source_player].battlefield[source_index].clone();
-        let token_controller = self.token_creator(effect, stack_object, bindings)?;
-        let controller_index = self.player_index(&token_controller)?;
-        let base_quantity = effect
-            .get("quantity")
-            .and_then(|quantity| {
-                self.runtime_numeric_expression(
-                    quantity,
-                    stack_object,
-                    bindings,
-                    &stack_object.decisions,
-                )
-            })
-            .unwrap_or(1)
-            .max(0) as usize;
-        let mut definition = source
+        match ids.as_slice() {
+            [] => Ok(None),
+            [id] => Ok(Some(id.clone())),
+            _ => Err(EngineError::new("a token copy of more than one object")),
+        }
+    }
+
+    /// The copiable values of an object (CR 707.2): its printed definition as
+    /// modified by copy effects, without the characteristic markers that
+    /// resolved effects recorded on it (they are not copiable). A permanent
+    /// is read on the battlefield; a card in another zone, or the source as
+    /// it last existed, from its definition there.
+    fn copiable_definition(&self, id: &str, stack_object: &StackObject) -> Option<CardDefinition> {
+        let card = self
+            .permanent_position(id)
+            .map(|(player, index)| &self.state.players[player].battlefield[index])
+            .or_else(|| self.card_outside_battlefield(id))
+            .or_else(|| (stack_object.card.instance_id == id).then_some(&stack_object.card))?;
+        let mut definition = card
             .printed_definition
             .clone()
-            .unwrap_or_else(|| source.definition.clone());
+            .unwrap_or_else(|| card.definition.clone());
+        definition
+            .printed_rules_mut()
+            .retain(|rule| !Self::is_resolved_characteristic_marker(rule));
         definition.id = format!("token-copy:{}", definition.id);
         definition.is_token = true;
         definition.is_game_piece = true;
         definition.is_sideboard = false;
-        if effect["removeLegendary"].as_bool().unwrap_or(false) {
-            definition.type_line = definition
-                .type_line
-                .split_whitespace()
-                .filter(|part| !part.eq_ignore_ascii_case("legendary"))
-                .collect::<Vec<_>>()
-                .join(" ");
+        Some(definition)
+    }
+
+    /// Applies one copiable-value exception of a token copy (CR 707.9b). The
+    /// operations are the characteristic-change vocabulary without object or
+    /// duration; each changes the copy's copiable values.
+    fn apply_copy_exception(
+        &self,
+        definition: &mut CardDefinition,
+        exception: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        match value_kind(exception) {
+            Some("setBasePowerToughness") => {
+                let power = self.checked_runtime_numeric_expression(
+                    &exception["power"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                    "copyOf.except.power",
+                )?;
+                let toughness = self.checked_runtime_numeric_expression(
+                    &exception["toughness"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                    "copyOf.except.toughness",
+                )?;
+                definition.power = Some(power.to_string());
+                definition.toughness = Some(toughness.to_string());
+            }
+            Some("removeSupertype") => {
+                let supertype = exception["supertype"].as_str().unwrap_or_default();
+                definition.type_line = definition
+                    .type_line
+                    .split(' ')
+                    .filter(|part| !part.eq_ignore_ascii_case(supertype))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+            }
+            Some("addCardType") => {
+                let card_type = exception["cardType"].as_str().unwrap_or_default();
+                if !type_line_contains(&definition.type_line, card_type) {
+                    definition.type_line = match definition.type_line.split_once(" - ") {
+                        Some((types, subtypes)) => format!("{types} {card_type} - {subtypes}"),
+                        None => format!("{} {card_type}", definition.type_line),
+                    };
+                }
+            }
+            Some("addSubtypes") => {
+                let added = exception["subtypes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .filter(|subtype| !type_line_contains(&definition.type_line, subtype))
+                    .collect::<Vec<_>>();
+                if !added.is_empty() {
+                    definition.type_line = if definition.type_line.contains(" - ") {
+                        format!("{} {}", definition.type_line, added.join(" "))
+                    } else {
+                        format!("{} - {}", definition.type_line, added.join(" "))
+                    };
+                }
+            }
+            Some("setColors") => {
+                // The copy's colors are a copiable value: the same color-set
+                // characteristic the color queries read (CR 105.3, 707.9b).
+                definition
+                    .printed_rules_mut()
+                    .push(Self::copiable_color_set(&exception["colors"]));
+            }
+            Some("grantKeyword") => {
+                definition.printed_rules_mut().push(json!({
+                    "kind": "keywordAbility",
+                    "source": { "kind": "self" },
+                    "ability": { "kind": exception["keyword"] },
+                }));
+            }
+            Some("grantAbility") => {
+                definition
+                    .printed_rules_mut()
+                    .push(exception["ability"].clone());
+            }
+            _ => {
+                return Err(EngineError::new(format!(
+                    "unsupported token copy exception: {}",
+                    value_kind(exception).unwrap_or("missingKind")
+                )));
+            }
         }
-        for keyword in effect["grantKeywords"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-        {
-            definition.printed_rules_mut().push(json!({
-                "kind": "keywordAbility",
-                "source": { "kind": "self" },
-                "ability": { "kind": keyword },
-            }));
+        Ok(())
+    }
+
+    /// `createTokens` whose token is `copyOf` an object (CR 111.8, 707.2):
+    /// the same quantity replacement, entry, counters and created-token
+    /// binding as a described token. A copy that is an Aura is attached as
+    /// it enters (CR 303.4f).
+    pub(super) fn create_token_copies_inner<P: DecisionProvider>(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+        provider: &mut P,
+        requested_quantity: i32,
+    ) -> Result<Vec<String>, EngineError> {
+        let token = &effect["token"];
+        let Some(copied_id) =
+            self.token_copy_source_id(&token["object"], stack_object, bindings, decisions)?
+        else {
+            return Ok(Vec::new());
+        };
+        let Some(mut definition) = self.copiable_definition(&copied_id, stack_object) else {
+            return Ok(Vec::new());
+        };
+        for exception in token["except"].as_array().into_iter().flatten() {
+            self.apply_copy_exception(
+                &mut definition,
+                exception,
+                stack_object,
+                bindings,
+                decisions,
+            )?;
         }
+        let token_controller = self.token_creator(effect, stack_object, bindings)?;
+        let controller_index = self.player_index(&token_controller)?;
         let quantity = self.token_creation_quantity(
-            i32::try_from(base_quantity)
-                .map_err(|_| EngineError::new("token quantity overflow"))?,
+            requested_quantity,
             &token_controller,
             &definition,
             provider,
         )?;
+        let tapped = effect["tapped"].as_bool().unwrap_or(false);
+        let mut created_ids = Vec::new();
         let mut prepared = Vec::new();
         for copy_index in 0..quantity {
-            let definition = definition.clone();
             self.copy_sequence += 1;
             let instance_id = format!(
                 "{}:token-copy:{}:{}:{copy_index}",
@@ -422,10 +549,10 @@ impl GameEngine {
             let mut created = CardInstance {
                 instance_id: instance_id.clone(),
                 printed_definition: Some(definition.clone()),
-                definition,
+                definition: definition.clone(),
                 owner: token_controller.clone(),
                 controller: token_controller.clone(),
-                tapped: false,
+                tapped,
                 summoning_sick: true,
                 damage_marked: 0,
                 power_modifier: 0,
@@ -435,242 +562,101 @@ impl GameEngine {
                 battle_protector: None,
                 attached_to: None,
             };
-            self.apply_enter_replacements(&mut created, provider)?;
-            prepared.push((controller_index, created));
-        }
-        let created_tokens = self.install_prepared_battlefield_entries(prepared);
-        for created in created_tokens {
-            let instance_id = created.instance_id.clone();
-            if effect["exileAtNextEndStep"].as_bool().unwrap_or(false) {
-                self.state.rule_modifiers.push(json!({
-                    "kind": "exileAtEndStep",
-                    "cardInstanceId": instance_id,
-                    "notBeforeTurn": self.state.turn_number,
-                }));
-            }
-            self.record_event(
-                "tokenCreated",
-                Some(token_controller.clone()),
-                Some(instance_id.clone()),
-                json!({ "copyOf": source.instance_id }),
-            );
-            self.enqueue_token_created_triggers(&token_controller, &created);
-            self.publish_prepared_enter_battlefield_triggers(&created);
-        }
-        Ok(())
-    }
-
-    pub(super) fn create_modified_token_copy_inner<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack_object: &StackObject,
-        bindings: &BTreeMap<String, RuntimeBinding>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        let Some(TargetRef::Permanent { instance_id }) =
-            self.resolve_target(&effect["object"], stack_object, bindings)
-        else {
-            return Ok(());
-        };
-        let Some((source_player, source_index)) = self.permanent_position(&instance_id) else {
-            return Ok(());
-        };
-        let copied = self.state.players[source_player].battlefield[source_index].clone();
-        let token_controller = self.token_creator(effect, stack_object, bindings)?;
-        let controller_index = self.player_index(&token_controller)?;
-        let mut definition = copied
-            .printed_definition
-            .clone()
-            .unwrap_or_else(|| copied.definition.clone());
-        definition.id = format!("token-copy:{}", definition.id);
-        definition.is_token = true;
-        definition.is_game_piece = true;
-        definition.is_sideboard = false;
-        if effect["removeLegendary"].as_bool().unwrap_or(false) {
-            definition.type_line = definition
-                .type_line
-                .split_whitespace()
-                .filter(|part| !part.eq_ignore_ascii_case("Legendary"))
-                .collect::<Vec<_>>()
-                .join(" ");
-        }
-        if let Some(power) = integer_value(&effect["basePower"]) {
-            definition.power = Some(power.to_string());
-        }
-        if let Some(toughness) = integer_value(&effect["baseToughness"]) {
-            definition.toughness = Some(toughness.to_string());
-        }
-        for card_type in effect["addTypes"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-        {
-            if !type_line_contains(&definition.type_line, card_type) {
-                definition.type_line = format!("{card_type} {}", definition.type_line);
-            }
-        }
-        let added_subtypes = effect["addSubtypes"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .filter(|subtype| !type_line_contains(&definition.type_line, subtype))
-            .collect::<Vec<_>>();
-        if !added_subtypes.is_empty() {
-            if definition.type_line.contains(" - ") {
-                definition.type_line =
-                    format!("{} {}", definition.type_line, added_subtypes.join(" "));
-            } else {
-                definition.type_line =
-                    format!("{} - {}", definition.type_line, added_subtypes.join(" "));
-            }
-        }
-        let color_symbols = effect["addColors"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .filter_map(color_name_to_symbol)
-            .collect::<Vec<_>>();
-        if !color_symbols.is_empty() {
-            definition.printed_rules_mut().push(json!({
-                "kind": "rulesMarker",
-                "text": format!("Color indicator: {}.", color_symbols.join(", ")),
-                "colorIndicator": color_symbols,
-            }));
-        }
-        for keyword in effect["grantKeywords"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-        {
-            definition.printed_rules_mut().push(json!({
-                "kind": "keywordAbility",
-                "source": { "kind": "self" },
-                "ability": { "kind": keyword },
-            }));
-        }
-        if effect["diesDrawCard"].as_bool().unwrap_or(false) {
-            definition.printed_rules_mut().push(json!({
-                "kind": "triggeredAbility",
-                "source": { "kind": "self" },
-                "event": {
-                    "kind": "permanentDied",
-                    "object": { "kind": "self" },
-                },
-                "effects": [{
-                    "kind": "drawCards",
-                    "player": {
-                        "kind": "controllerOf",
-                        "object": { "kind": "self" },
-                    },
-                    "count": { "kind": "integer", "value": 1 },
-                }],
-            }));
-        }
-        let quantity = self.token_creation_quantity(1, &token_controller, &definition, provider)?;
-        let mut prepared = Vec::new();
-        for copy_index in 0..quantity {
-            let definition = definition.clone();
-            self.copy_sequence += 1;
-            let token_id = format!(
-                "{}:modified-copy:{}:{}:{copy_index}",
-                stack_object.controller, stack_object.id, self.copy_sequence
-            );
-            let mut token = CardInstance {
-                instance_id: token_id.clone(),
-                printed_definition: Some(definition.clone()),
-                definition,
-                owner: token_controller.clone(),
-                controller: token_controller.clone(),
-                tapped: false,
-                summoning_sick: true,
-                damage_marked: 0,
-                power_modifier: 0,
-                toughness_modifier: 0,
-                counters: BTreeMap::new(),
-                flags: BTreeMap::new(),
-                battle_protector: None,
-                attached_to: None,
-            };
-            if type_line_contains(&token.definition.type_line, "Aura") {
-                let enchant_filter = token.definition.printed_rules().iter().find_map(|rule| {
-                    (value_kind(rule) == Some("keywordAbility")
-                        && value_kind(&rule["ability"]) == Some("enchant"))
-                    .then(|| rule["ability"]["where"].clone())
-                });
-                let Some(enchant_filter) = enchant_filter else {
+            if type_line_contains(&created.definition.type_line, "Aura") {
+                let Some(attached_to) =
+                    self.choose_entering_aura_host(&created, stack_object, provider)?
+                else {
+                    // CR 303.4f: an Aura with nothing it could enchant stays
+                    // where it is; a token is simply not created.
                     continue;
                 };
-                let candidates = self
-                    .state
-                    .players
-                    .iter()
-                    .filter(|player| !player.has_lost)
-                    .flat_map(|player| player.battlefield.iter())
-                    .filter(|permanent| {
-                        self.permanent_matches_effective_filter(permanent, &enchant_filter)
-                    })
-                    .map(|permanent| permanent.instance_id.clone())
-                    .collect::<Vec<_>>();
-                let selected = self.choose_resolution_objects(
-                    stack_object,
-                    provider,
-                    &stack_object.controller,
-                    "yennaAuraAttachment",
-                    candidates,
-                    1,
-                    1,
-                    "Choose a permanent for the Aura token to enchant.",
-                )?;
-                let Some(attached_to) = selected.into_iter().next() else {
-                    continue;
-                };
-                token.attached_to = Some(attached_to);
+                created.attached_to = Some(attached_to);
             }
             for counter in effect["counters"].as_array().into_iter().flatten() {
                 let Some(counter_name) = counter["counter"].as_str() else {
                     continue;
                 };
                 let count = self
-                    .runtime_numeric_expression(
+                    .checked_runtime_numeric_expression(
                         &counter["count"],
                         stack_object,
                         bindings,
-                        &stack_object.decisions,
-                    )
-                    .unwrap_or(0)
+                        decisions,
+                        "createTokens.counters",
+                    )?
                     .max(0);
-                *token.counters.entry(counter_name.to_string()).or_default() += count;
+                *created
+                    .counters
+                    .entry(counter_name.to_string())
+                    .or_default() += count;
             }
-            self.apply_enter_replacements(&mut token, provider)?;
-            prepared.push((controller_index, token));
+            self.apply_enter_replacements(&mut created, provider)?;
+            created_ids.push(instance_id);
+            prepared.push((controller_index, created));
         }
         let created_tokens = self.install_prepared_battlefield_entries(prepared);
-        for token in created_tokens {
-            let token_id = token.instance_id.clone();
-            if effect["sacrificeAtNextEndStep"].as_bool().unwrap_or(false) {
-                self.state.rule_modifiers.push(json!({
-                    "kind": "sacrificeAtEndStep",
-                    "cardInstanceId": token_id,
-                    "notBeforeTurn": self.state.turn_number,
-                }));
+        for created in created_tokens {
+            let instance_id = created.instance_id.clone();
+            for (flag, kind) in [
+                ("sacrificeAtNextEndStep", "sacrificeAtEndStep"),
+                ("exileAtNextEndStep", "exileAtEndStep"),
+            ] {
+                if effect[flag].as_bool().unwrap_or(false) {
+                    self.state.rule_modifiers.push(json!({
+                        "kind": kind,
+                        "cardInstanceId": instance_id,
+                        "notBeforeTurn": self.state.turn_number,
+                    }));
+                }
             }
             self.record_event(
                 "tokenCreated",
                 Some(token_controller.clone()),
-                Some(token_id),
-                json!({
-                    "copyOf": instance_id,
-                    "modifiedCopy": true,
-                }),
+                Some(instance_id.clone()),
+                json!({ "copyOf": copied_id, "tapped": tapped }),
             );
-            self.enqueue_token_created_triggers(&token_controller, &token);
-            self.publish_prepared_enter_battlefield_triggers(&token);
+            self.enqueue_token_created_triggers(&token_controller, &created);
+            self.ensure_prepared_spell_copy(&instance_id)?;
+            self.publish_prepared_enter_battlefield_triggers(&created);
         }
-        Ok(())
+        Ok(created_ids)
+    }
+
+    /// CR 303.4f: an Aura entering without being cast is attached to an
+    /// object it could enchant, chosen by its controller as it enters.
+    fn choose_entering_aura_host<P: DecisionProvider>(
+        &mut self,
+        aura: &CardInstance,
+        stack_object: &StackObject,
+        provider: &mut P,
+    ) -> Result<Option<String>, EngineError> {
+        let Some(enchant_filter) = aura.definition.printed_rules().iter().find_map(|rule| {
+            (value_kind(rule) == Some("keywordAbility")
+                && value_kind(&rule["ability"]) == Some("enchant"))
+            .then(|| rule["ability"]["where"].clone())
+        }) else {
+            return Ok(None);
+        };
+        let candidates = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| self.permanent_matches_effective_filter(permanent, &enchant_filter))
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>();
+        let selected = self.choose_resolution_objects(
+            stack_object,
+            provider,
+            &aura.controller,
+            "auraTokenAttachment",
+            candidates,
+            1,
+            1,
+            "Choose a permanent for the Aura token to enchant.",
+        )?;
+        Ok(selected.into_iter().next())
     }
 
     #[cfg(test)]
@@ -688,29 +674,5 @@ impl GameEngine {
             decisions,
             &mut super::quantity_replacement::OptionalQuantityProvider(None),
         )
-    }
-
-    pub(super) fn create_token_copy_of_permanent<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack: &StackObject,
-        bindings: &BTreeMap<String, RuntimeBinding>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        self.with_quantity_program_transaction(effect, Some(&stack.card.definition), |engine| {
-            engine.create_token_copy_of_permanent_inner(effect, stack, bindings, provider)
-        })
-    }
-
-    pub(super) fn create_modified_token_copy<P: DecisionProvider>(
-        &mut self,
-        effect: &Value,
-        stack: &StackObject,
-        bindings: &BTreeMap<String, RuntimeBinding>,
-        provider: &mut P,
-    ) -> Result<(), EngineError> {
-        self.with_quantity_program_transaction(effect, Some(&stack.card.definition), |engine| {
-            engine.create_modified_token_copy_inner(effect, stack, bindings, provider)
-        })
     }
 }
