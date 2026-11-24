@@ -452,6 +452,20 @@ fn lower_object_condition(
     bindings: Option<&ConditionObjectBindings<'_>>,
 ) -> Lowered {
     let Some(bindings) = bindings else {
+        if let ConditionObjectReference::Permanent(PermanentEffectReference::Attached(_)) =
+            node.object
+        {
+            // The permanent the source is attached to (CR 301.5a, 303.4a).
+            let filter = lower_permanent_object_predicate(&node.predicate);
+            if filter.is_null() {
+                return Err("a characteristic that lowers to a nonempty object filter");
+            }
+            return Ok(json!({
+                "kind": "objectMatchesFilter",
+                "object": { "kind": "attachedPermanent", "attachment": self_ref() },
+                "where": filter,
+            }));
+        }
         if node.object != ConditionObjectReference::SOURCE {
             return Err("an object binding of an effect program");
         }

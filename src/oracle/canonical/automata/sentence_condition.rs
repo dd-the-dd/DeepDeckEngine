@@ -100,6 +100,12 @@ pub(in crate::oracle::canonical) struct ConditionContext<'a> {
     pub source_subject: bool,
     /// The optional payment whose omission `you don't` reads.
     pub payment: Option<ChoiceBinding>,
+    /// How the ability's source is attached, which `enchanted PERMANENT` /
+    /// `equipped creature` names (CR 301.5a, 303.4a).
+    pub source_attachment: Option<AttachedObjectRole>,
+    /// Outside a program, the object `it` denotes when it is not the source
+    /// (the attached permanent a static ability's subject names).
+    pub subject_object: Option<ConditionObjectReference>,
 }
 
 impl<'a> ConditionContext<'a> {
@@ -116,6 +122,8 @@ impl<'a> ConditionContext<'a> {
             program: None,
             source_subject,
             payment: None,
+            source_attachment: None,
+            subject_object: None,
         }
     }
 
@@ -130,6 +138,8 @@ impl<'a> ConditionContext<'a> {
             program: Some(context),
             source_subject: false,
             payment: None,
+            source_attachment: context.effects.source_attachment,
+            subject_object: None,
         }
     }
 
@@ -351,6 +361,11 @@ fn read_condition_atom(
         && (word_is(cursor, 1, "your") || (word_is(cursor, 1, "not") && word_is(cursor, 2, "your")))
     {
         return recognize_controller_turn_proposition(cursor).map(ConditionAtom::TurnOwnership);
+    }
+    // ObjectSatisfies with the attached permanent as subject (`equipped
+    // creature is a Human`, `enchanted creature is red`).
+    if super::attached_object_reference_starts(cursor) {
+        return recognize_attached_object_atom(cursor, context).map(ConditionAtom::ObjectSatisfies);
     }
     // ObjectSatisfies / CastFact with the source as subject.
     if source_reference_starts_at(
@@ -1035,6 +1050,20 @@ fn recognize_cast_zone(
     Ok((zone, negated))
 }
 
+/// `enchanted PERMANENT` / `equipped creature` followed by the shared object
+/// state predicate: the permanent the source is attached to, which the
+/// runtime binds (CR 301.5a, 303.4a). The role must match the source face.
+fn recognize_attached_object_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+) -> MachineResult<ReferencedObjectConditionNode> {
+    cursor.enter("condition.attached-object.subject");
+    let role = recognize_attached_object_reference(cursor, context.source_attachment)?;
+    let object = ConditionObjectReference::Permanent(PermanentEffectReference::Attached(role));
+    let predicate = recognize_object_state_predicate(cursor, false)?;
+    finish_referenced_object(cursor, context, object, predicate)
+}
+
 /// `it's a CHARACTERISTIC`, `it isn't …`, `that NOUN is …`, `it has mana
 /// value N or less`, `its PROPERTY is N or greater`, `it's tapped`.
 fn recognize_referenced_object_atom(
@@ -1317,6 +1346,9 @@ fn resolve_object_anaphor(
 ) -> MachineResult<ConditionObjectReference> {
     cursor.enter("condition.sentence.object.antecedent");
     let Some(program) = context.program else {
+        if let Some(subject) = context.subject_object {
+            return Ok(subject);
+        }
         cursor.require(
             context.source_subject,
             "`it` that denotes the ability's own source",

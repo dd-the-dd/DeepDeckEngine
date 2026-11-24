@@ -38,19 +38,48 @@ pub(in crate::oracle::canonical) struct StaticConditionContext<'a> {
     pub name_failure: Option<&'a NameResolutionFailure>,
 }
 
+/// What a static ability's source and subject let a condition name.
+#[derive(Clone, Copy, Debug, Default)]
+pub(in crate::oracle::canonical) struct StaticConditionSubject {
+    /// How the source is attached (`enchanted creature`, `equipped
+    /// creature`, CR 301.5a, 303.4a), from the source face.
+    pub source_attachment: Option<super::AttachedObjectRole>,
+    /// The ability's subject is the permanent the source is attached to, so
+    /// `it` / `its` denote that permanent (`Enchanted creature gets +2/+2 as
+    /// long as it's black`).
+    pub attached_subject: bool,
+}
+
 /// Reads the Boolean program after `as long as`. The clause terminator (`,` or
 /// the sentence end) stays with the parent.
 pub(in crate::oracle::canonical) fn recognize_static_condition(
     cursor: &mut OracleTokenCursor<'_>,
     context: StaticConditionContext<'_>,
 ) -> MachineResult<StaticConditionNode> {
+    recognize_static_condition_for(cursor, context, StaticConditionSubject::default())
+}
+
+/// `recognize_static_condition` for a parent that knows its source's
+/// attachment and whether its subject is the attached permanent.
+pub(in crate::oracle::canonical) fn recognize_static_condition_for(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: StaticConditionContext<'_>,
+    subject: StaticConditionSubject,
+) -> MachineResult<StaticConditionNode> {
     cursor.enter("condition.static.boolean-program");
-    let context = ConditionContext::standalone(
+    let mut context = ConditionContext::standalone(
         ConditionScope::Static,
         context.name_links,
         context.name_failure,
         context.source_subject,
     );
+    context.source_attachment = subject.source_attachment;
+    context.subject_object = match (subject.attached_subject, subject.source_attachment) {
+        (true, Some(role)) => Some(super::ConditionObjectReference::Permanent(
+            super::PermanentEffectReference::Attached(role),
+        )),
+        _ => None,
+    };
     recognize_boolean_condition_list_before_separator(cursor, |cursor| {
         recognize_condition_atom(cursor, &context)
     })

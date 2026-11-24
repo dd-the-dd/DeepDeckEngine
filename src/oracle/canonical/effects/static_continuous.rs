@@ -117,9 +117,10 @@ fn read_static_continuous_effect(
         cursor.consume_phrase(&["as", "long", "as"])?;
         *committed = true;
         // `it` before the subject is not yet bound to the source.
-        condition = Some(recognize_static_condition(
+        condition = Some(recognize_static_condition_for(
             cursor,
             condition_context(input, false),
+            condition_subject(input, false),
         )?);
         cursor.enter("static.continuous.leading-condition.separator");
         cursor.consume(",")?;
@@ -140,6 +141,7 @@ fn read_static_continuous_effect(
     }
     let (objects, subject_predicate, subject_number) = read_static_subject(cursor, input)?;
     let source_subject = objects == self_ref();
+    let attached_subject = objects["kind"] == "attachedPermanent";
     let mut modifiers = Vec::new();
     let mut granted = Vec::new();
     let mut changes_types = false;
@@ -339,7 +341,12 @@ fn read_static_continuous_effect(
                 // (`during your turn`), read by the shared condition readers.
                 cursor.require(condition.is_none(), "one condition for the static ability")?;
                 cursor.enter("static.continuous.trailing-condition");
-                condition = Some(read_trailing_condition(cursor, input, source_subject)?);
+                condition = Some(read_trailing_condition(
+                    cursor,
+                    input,
+                    source_subject,
+                    attached_subject,
+                )?);
                 cursor.enter("static.continuous.trailing-condition.terminator");
                 cursor.consume(".")?;
                 break;
@@ -655,21 +662,33 @@ fn read_trailing_condition(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
     source_subject: bool,
+    attached_subject: bool,
 ) -> MachineResult<StaticConditionNode> {
     if let Some(turn_condition) = recognize_optional_turn_condition(cursor)? {
         return Ok(turn_condition);
     }
+    let context = condition_context(input, source_subject);
+    let subject = condition_subject(input, attached_subject);
     if as_long_as_starts(cursor) {
         cursor.consume_phrase(&["as", "long", "as"])?;
-        return recognize_static_condition(cursor, condition_context(input, source_subject));
+        return recognize_static_condition_for(cursor, context, subject);
     }
     if word_in(cursor.peek(), &["if"]) {
         cursor.consume("if")?;
-        return recognize_static_condition(cursor, condition_context(input, source_subject));
+        return recognize_static_condition_for(cursor, context, subject);
     }
     cursor.consume("unless")?;
-    recognize_static_condition(cursor, condition_context(input, source_subject))
+    recognize_static_condition_for(cursor, context, subject)
         .map(|condition| BooleanConditionNode::Not(Box::new(condition)))
+}
+
+/// The source's attachment (from its face) and whether the ability's
+/// subject is the attached permanent, for the condition's references.
+fn condition_subject(input: &AbilityInput<'_>, attached_subject: bool) -> StaticConditionSubject {
+    StaticConditionSubject {
+        source_attachment: source_attachment_role(input.face_type_line),
+        attached_subject,
+    }
 }
 
 fn as_long_as_starts(cursor: &OracleTokenCursor<'_>) -> bool {
