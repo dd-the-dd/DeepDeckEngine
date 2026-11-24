@@ -148,17 +148,9 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 2,
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "effect.start",
-            "found": "cast"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
       }
     },
     {
@@ -1080,7 +1072,7 @@
       }
     },
     {
-      "id": "near-miss-play-during-resolution",
+      "id": "sibling-play-during-resolution",
       "request": {
         "cardName": "Frame Witness",
         "typeLine": "Sorcery",
@@ -1090,14 +1082,8 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical"
       }
     }
   ]

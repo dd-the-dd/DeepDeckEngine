@@ -23,6 +23,8 @@ pub(in crate::oracle::canonical) struct OptionalCardDeploymentEffectNode {
     pub source: CardDeploymentSourceZone,
     pub destination: CardDeploymentDestination,
     pub tapped: bool,
+    /// `tapped and attacking [DEFENDER]` (CR 508.4).
+    pub attacking: Option<super::EnteringAttackNode>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,6 +51,7 @@ struct OptionalCardDeploymentFrame {
     source: Option<CardDeploymentSourceZone>,
     destination: Option<CardDeploymentDestination>,
     tapped: bool,
+    attacking: Option<super::EnteringAttackNode>,
 }
 
 /// Recognizes an optional, selection-backed card deployment such as
@@ -188,6 +191,17 @@ pub(in crate::oracle::canonical) fn recognize_optional_card_deployment_effect_wi
                 {
                     cursor.consume("tapped")?;
                     frame.tapped = true;
+                    // `tapped and attacking`: the shared entering-attack reader.
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                        && cursor
+                            .peek_ahead(1)
+                            .is_some_and(|raw| raw.eq_ignore_ascii_case("attacking"))
+                    {
+                        cursor.consume("and")?;
+                        frame.attacking = Some(super::recognize_entering_attack(cursor)?);
+                    }
                 }
                 OptionalCardDeploymentState::Complete
             }
@@ -200,6 +214,7 @@ pub(in crate::oracle::canonical) fn recognize_optional_card_deployment_effect_wi
                     destination: cursor
                         .require_value(frame.destination, "a deployment destination")?,
                     tapped: frame.tapped,
+                    attacking: frame.attacking,
                 });
             }
         };

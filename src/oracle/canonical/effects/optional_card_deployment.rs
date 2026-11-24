@@ -25,9 +25,15 @@ pub(in crate::oracle::canonical) fn lower_optional_card_deployment(
     if !domain_filter_is_representable(&deployment.filter) {
         return Err(TargetlessLoweringError::UnsupportedCollectionPredicate);
     }
+    let mut to = json!({"kind":"battlefield","player":controller(),"tapped":deployment.tapped});
+    if let Some(attack) = &deployment.attacking {
+        // CR 508.4: the shared attacking-entry policy.
+        to["attacking"] = lower_entering_attack_policy(attack)
+            .ok_or(TargetlessLoweringError::UnsupportedEffect)?;
+    }
     Ok(vec![
         json!({"kind":"chooseCards","id":id,"player":controller(),"minimum":integer(0),"maximum":integer(1),
             "candidates":{"kind":"cards","zone":controller_card_zone(deployment.source,controller()),"where":lower_card_object_predicate(&deployment.filter)}}),
-        json!({"kind":"moveCards","cards":decision_result(id),"to":{"kind":"battlefield","player":controller(),"tapped":deployment.tapped}}),
+        json!({"kind":"moveCards","cards":decision_result(id),"to":to}),
     ])
 }

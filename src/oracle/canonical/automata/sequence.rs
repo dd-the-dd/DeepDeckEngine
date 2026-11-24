@@ -1059,7 +1059,11 @@ fn recognize_effect_sequence_attempt_scoped(
                             super::recognize_card_action(
                                 child,
                                 move_ellipsis,
-                                action_context.preposed_duration.as_ref(),
+                                super::CardActionReadContext::of(
+                                    &action_context,
+                                    name_links,
+                                    name_failure,
+                                ),
                             )
                         }) {
                             return Ok(LocalEffectNode::CardAction(action));

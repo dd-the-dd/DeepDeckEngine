@@ -442,7 +442,7 @@
       }
     },
     {
-      "id": "near-miss-revealed-until-card-still-unproved",
+      "id": "sibling-revealed-until-card-onto-the-battlefield",
       "request": {
         "cardName": "Antecedent Probe",
         "typeLine": "Sorcery",
@@ -452,15 +452,9 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "lower.card-action.battlefield-entry"
-          }
-        ]
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
       }
     },
     {

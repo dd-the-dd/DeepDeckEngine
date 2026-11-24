@@ -85,6 +85,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                         "untilEndOfCurrentTurn"
                             | "untilEndOfNextTurn"
                             | "untilNextEndStep"
+                            | "untilNextTurn"
+                            | "untilNextUpkeep"
                             | "whileSourceControlled"
                             | "whileInExile"
                     )
@@ -330,6 +332,14 @@ impl GameEngine {
                     Some("untilEndOfNextTurn" | "untilNextEndStep") => self
                         .next_turn_number_for_player(&player_id)
                         .unwrap_or(self.state.turn_number),
+                    // `until your next turn|upkeep`: through the turn before
+                    // the player's next turn; nothing is played in its untap
+                    // step (CR 502.4), before its upkeep (CR 503.1).
+                    Some("untilNextTurn" | "untilNextUpkeep") => self
+                        .next_turn_number_for_player(&player_id)
+                        .map_or(self.state.turn_number, |next| {
+                            next.saturating_sub(1).max(self.state.turn_number)
+                        }),
                     _ => self.state.turn_number,
                 };
                 if effect["replacePermissionsFromSource"].as_bool() == Some(true) {

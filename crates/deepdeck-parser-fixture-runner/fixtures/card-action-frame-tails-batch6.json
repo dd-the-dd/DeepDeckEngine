@@ -1,0 +1,921 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card-action-frame-tails-batch6",
+  "cases": [
+    {
+      "id": "exact-glamdring-mana-value-at-most-that-damage",
+      "request": {
+        "cardName": "Glamdring",
+        "typeLine": "Legendary Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature has first strike and gets +1/+0 for each instant and sorcery card in your graveyard.\nWhenever equipped creature deals combat damage to a player, you may cast an instant or sorcery spell from your hand with mana value less than or equal to that damage without paying its mana cost.\nEquip {3}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "cardsInZone"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-aisha-of-sparks-and-smoke",
+      "request": {
+        "cardName": "Aisha of Sparks and Smoke",
+        "typeLine": "Legendary Creature — Human Warrior",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Prowess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)\n{R/W}: Aisha of Sparks and Smoke gains first strike until end of turn.\nWhenever Aisha deals combat damage, you may cast a sorcery spell from your hand with mana value less than or equal to that damage without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-buster-sword-after-a-draw",
+      "request": {
+        "cardName": "Buster Sword",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Equipped creature gets +3/+2.\nWhenever equipped creature deals combat damage to a player, draw a card, then you may cast a spell from your hand with mana value less than or equal to that damage without paying its mana cost.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kellan-equal-or-lesser-than-the-cast-spell",
+      "request": {
+        "cardName": "Kellan, the Kid",
+        "typeLine": "Legendary Creature — Human Faerie Rogue",
+        "manaCost": "{G}{W}{U}",
+        "oracleText": "Flying, lifelink\nWhenever you cast a spell from anywhere other than your hand, you may cast a permanent spell with equal or lesser mana value from your hand without paying its mana cost. If you don't, you may put a land card from your hand onto the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/cards/where/kind",
+                "equals": "and"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-geode-golem-commander-from-the-command-zone",
+      "request": {
+        "cardName": "Geode Golem",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{5}",
+        "oracleText": "Trample\nWhenever this creature deals combat damage to a player, you may cast your commander from the command zone without paying its mana cost. (You still pay any additional costs.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "commandZone"
+              },
+              {
+                "pointer": "/effects/0/cardsWhere/kind",
+                "equals": "isCommander"
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-anrakyr-life-cost-from-hand-or-graveyard",
+      "request": {
+        "cardName": "Anrakyr the Traveller",
+        "typeLine": "Legendary Artifact Creature — Necron",
+        "manaCost": "{4}{B}",
+        "oracleText": "Lord of the Pyrrhian Legions — Whenever Anrakyr the Traveller attacks, you may cast an artifact spell from your hand or graveyard by paying life equal to its mana value rather than paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZones",
+                "equals": [
+                  "hand",
+                  "graveyard"
+                ]
+              },
+              {
+                "pointer": "/effects/0/alternativeCost/kind",
+                "equals": "payLife"
+              },
+              {
+                "pointer": "/effects/0/withoutPayingManaCost",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-bismuth-mindrender-the-spells-mana-value-in-life",
+      "request": {
+        "cardName": "Bismuth Mindrender",
+        "typeLine": "Creature — Eldrazi",
+        "manaCost": "{3}{B}",
+        "oracleText": "Devoid (This card has no color.)\nMenace\nWhenever this creature deals combat damage to a player, that player exiles cards from the top of their library until they exile a nonland card. You may cast that card by paying life equal to the spell's mana value rather than paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-elkin-bottle-until-the-beginning-of-your-next-upkeep",
+      "request": {
+        "cardName": "Elkin Bottle",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{3}, {T}: Exile the top card of your library. Until the beginning of your next upkeep, you may play that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilNextUpkeep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-epistolary-librarian-where-x-after-the-frame",
+      "request": {
+        "cardName": "Epistolary Librarian",
+        "typeLine": "Creature — Astartes Wizard",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Veil of Time — Whenever this creature attacks, you may cast a spell with mana value X or less from your hand without paying its mana cost, where X is the number of attacking creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-kaalia-tapped-and-attacking-that-opponent",
+      "request": {
+        "cardName": "Kaalia of the Vast",
+        "typeLine": "Legendary Creature — Human Cleric",
+        "manaCost": "{1}{R}{W}{B}",
+        "oracleText": "Flying\nWhenever Kaalia attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/1/to/attacking/kind",
+                "equals": "player"
+              },
+              {
+                "pointer": "/effects/1/to/attacking/player/kind",
+                "equals": "triggeringPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-preeminent-captain-tapped-and-attacking",
+      "request": {
+        "cardName": "Preeminent Captain",
+        "typeLine": "Creature — Kithkin Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "First strike (This creature deals combat damage before creatures without first strike.)\nWhenever this creature attacks, you may put a Soldier creature card from your hand onto the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to/attacking/kind",
+                "equals": "anyDefender"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-yore-tiller-target-card-tapped-and-attacking",
+      "request": {
+        "cardName": "Yore-Tiller Nephilim",
+        "typeLine": "Creature — Nephilim",
+        "manaCost": "{W}{U}{B}{R}",
+        "oracleText": "Whenever this creature attacks, return target creature card from your graveyard to the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-raph-and-mikey-revealed-card-tapped-and-attacking",
+      "request": {
+        "cardName": "Raph & Mikey, Troublemakers",
+        "typeLine": "Legendary Creature — Mutant Ninja Turtle",
+        "manaCost": "{5}{R/G}{R/G}",
+        "oracleText": "Trample, haste\nWhenever Raph & Mikey attack, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield tapped and attacking and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-jet-rebel-leader-chosen-card-tapped-and-attacking",
+      "request": {
+        "cardName": "Jet, Rebel Leader",
+        "typeLine": "Legendary Creature — Human Rebel Ally",
+        "manaCost": "{3}{W}",
+        "oracleText": "Whenever Jet attacks, look at the top five cards of your library. You may put a creature card with mana value 3 or less from among them onto the battlefield tapped and attacking. Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-clifftop-lookout-revealed-land-onto-the-battlefield",
+      "request": {
+        "cardName": "Clifftop Lookout",
+        "typeLine": "Creature — Frog Scout",
+        "manaCost": "{2}{G}",
+        "oracleText": "Reach\nWhen this creature enters, reveal cards from the top of your library until you reveal a land card. Put that card onto the battlefield tapped and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/1/to/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-the-key-to-the-vault-that-many-from-the-top",
+      "request": {
+        "cardName": "The Key to the Vault",
+        "typeLine": "Legendary Artifact — Equipment",
+        "manaCost": "{1}{U}",
+        "oracleText": "Whenever equipped creature deals combat damage to a player, look at that many cards from the top of your library. You may exile a nonland card from among them. Put the rest on the bottom of your library in a random order. You may cast the exiled card without paying its mana cost.\nEquip {2}{U}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dream-pillager-from-among-those-exiled-cards",
+      "request": {
+        "cardName": "Dream Pillager",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{5}{R}{R}",
+        "oracleText": "Flying\nWhenever this creature deals combat damage to a player, exile that many cards from the top of your library. Until end of turn, you may cast spells from among those exiled cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-lightning-security-sergeant-while-you-control-the-named-source",
+      "request": {
+        "cardName": "Lightning, Security Sergeant",
+        "typeLine": "Legendary Creature — Human Soldier",
+        "manaCost": "{2}{R}",
+        "oracleText": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever Lightning deals combat damage to a player, exile the top card of your library. You may play that card for as long as you control Lightning.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "whileSourceControlled"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-victor-mancha-while-you-control-the-named-source",
+      "request": {
+        "cardName": "Victor Mancha, Runaway",
+        "typeLine": "Legendary Artifact Creature — Human Hero",
+        "manaCost": "{5}",
+        "oracleText": "When Victor Mancha enters, exile target card from your graveyard. You may play it for as long as you control Victor Mancha.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-that-damage-and-life-cost-from-graveyard",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever this creature deals combat damage to a player, you may cast an instant spell from your graveyard with mana value less than or equal to that damage by paying life equal to its mana value rather than paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/alternativeCost/kind",
+                "equals": "payLife"
+              },
+              {
+                "pointer": "/effects/0/cards/where/kind",
+                "equals": "and"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-strictly-lesser-than-the-cast-spell",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{U}",
+        "oracleText": "Whenever you cast a noncreature spell, you may cast a creature spell with lesser mana value from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-play-that-card-until-your-next-turn",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Exile the top card of your library. You may play that card until your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilNextTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-trailing-next-upkeep-window",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Exile the top card of your library. You may play that card until your next upkeep.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilNextUpkeep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-many-cards-look-then-hand-and-bottom",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature deals combat damage to a player, look at that many cards from the top of your library. Put one of them into your hand and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-graveyard-card-tapped-and-attacking",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever this creature attacks, you may put a creature card from your graveyard onto the battlefield tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/to/attacking/kind",
+                "equals": "anyDefender"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-revealed-creature-attacking-defending-player-or-planeswalker",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Scout",
+        "manaCost": "{2}{R}{G}",
+        "oracleText": "Whenever this creature attacks, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield tapped and attacking defending player or a planeswalker they control and the rest into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-play-the-exiled-card-during-resolution",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top card of your library. You may play it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/playLands",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-graveyard-or-hand-printed-cost",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature attacks, you may cast a creature spell from your graveyard or hand with mana value 2 or less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/sourceZones",
+                "equals": [
+                  "graveyard",
+                  "hand"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-opponents-graveyard",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}",
+        "oracleText": "Each opponent mills three cards, then you may cast a spell from each opponent's graveyard without paying its mana cost. If a spell cast this way would be put into a graveyard, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-that-damage-outside-a-damage-event",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever you gain life, you may cast a spell from your hand with mana value greater than that damage without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-tapped-and-attacking-into-a-hand",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever this creature attacks, return target creature card from your graveyard to your hand tapped and attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reinterpret-relative-comparison-without-a-cast-event",
+      "request": {
+        "cardName": "Reinterpret",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Counter target spell. You may cast a spell with equal or lesser mana value from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-infamous-cruelclaw-discard-alternative-cost",
+      "request": {
+        "cardName": "The Infamous Cruelclaw",
+        "typeLine": "Legendary Creature — Weasel Mercenary",
+        "manaCost": "{1}{B}{R}",
+        "oracleText": "Menace\nWhenever The Infamous Cruelclaw deals combat damage to a player, exile cards from the top of your library until you exile a nonland card. You may cast that card by discarding a card rather than paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 1,
+            "state": "engine.gap.resolution-cost-action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-imperative-play-has-no-writer",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Exile the top card of your library. Play it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-your-commander-from-your-hand",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Golem",
+        "manaCost": "{5}",
+        "oracleText": "Whenever this creature deals combat damage to a player, you may cast your commander from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-opponent-outside-an-attack-event",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, you may put a creature card from your hand onto the battlefield tapped and attacking that opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-command-zone-window-has-no-route",
+      "request": {
+        "cardName": "Frame Tail Witness",
+        "typeLine": "Creature — Golem",
+        "manaCost": "{5}",
+        "oracleText": "Whenever this creature deals combat damage to a player, you may cast your commander from the command zone until the end of your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    }
+  ]
+}

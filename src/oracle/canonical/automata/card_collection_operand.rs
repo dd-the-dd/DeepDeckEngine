@@ -80,6 +80,17 @@ pub(in crate::oracle::canonical) fn try_recognize_card_collection_reference(
             }
             CardCollectionReferenceNode::Selected
         }
+        // `those exiled cards`: the plural restatement of `the exiled cards`.
+        Some("those")
+            if trial
+                .peek_ahead(1)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("exiled")) =>
+        {
+            if let Err(f) = trial.consume_phrase(&["those", "exiled", "cards"]) {
+                return CollectionOperandAttempt::RejectedCandidate(f);
+            }
+            CardCollectionReferenceNode::Exiled
+        }
         Some("those") => {
             if let Err(f) = trial.consume_phrase(&["those", "cards"]) {
                 return CollectionOperandAttempt::RejectedCandidate(f);

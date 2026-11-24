@@ -99,7 +99,8 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         | CardOperandNode::Targets(_)
         | CardOperandNode::LibraryTop(_)
         | CardOperandNode::CardCopies { .. }
-        | CardOperandNode::HiddenChoice(_) => false,
+        | CardOperandNode::HiddenChoice(_)
+        | CardOperandNode::CommandZone { .. } => false,
     }
 }
 
@@ -333,7 +334,8 @@ impl CollectionScope {
             | CardOperandNode::Targets(_)
             | CardOperandNode::LibraryTop(_)
             | CardOperandNode::CardCopies { .. }
-            | CardOperandNode::HiddenChoice(_) => {
+            | CardOperandNode::HiddenChoice(_)
+            | CardOperandNode::CommandZone { .. } => {
                 unreachable!("outside the checked scope slice")
             }
         }
