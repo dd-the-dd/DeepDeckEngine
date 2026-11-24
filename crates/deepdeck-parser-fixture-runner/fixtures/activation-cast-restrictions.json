@@ -1,0 +1,1611 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "activation-cast-restrictions/turn-windows-limits-activators-labels",
+  "cases": [
+    {
+      "id": "exact-colossus-of-sardia-your-upkeep",
+      "request": {
+        "cardName": "Colossus of Sardia",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{9}",
+        "oracleText": "Trample (This creature can deal excess combat damage to the player or planeswalker it's attacking.)\nThis creature doesn't untap during your untap step.\n{9}: Untap this creature. Activate only during your upkeep.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "upkeep"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-goblin-firestarter-your-turn-before-attackers",
+      "request": {
+        "cardName": "Goblin Firestarter",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{R}",
+        "oracleText": "Sacrifice this creature: It deals 1 damage to any target. Activate only during your turn, before attackers are declared.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "untap",
+                        "upkeep",
+                        "draw",
+                        "precombatMain",
+                        "beginningOfCombat"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-eternal-dragon-graveyard-upkeep-window",
+      "request": {
+        "cardName": "Eternal Dragon",
+        "typeLine": "Creature — Dragon Spirit",
+        "manaCost": "{5}{W}{W}",
+        "oracleText": "Flying\n{3}{W}{W}: Return this card from your graveyard to your hand. Activate only during your upkeep.\nPlainscycling {2} ({2}, Discard this card: Search your library for a Plains card, reveal it, put it into your hand, then shuffle.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "upkeep"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vampire-bats-no-more-than-twice",
+      "request": {
+        "cardName": "Vampire Bats",
+        "typeLine": "Creature — Bat",
+        "manaCost": "{B}",
+        "oracleText": "Flying (This creature can't be blocked except by creatures with flying or reach.)\n{B}: This creature gets +1/+0 until end of turn. Activate no more than twice each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "timesPerTurn",
+                  "maximum": 2,
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stalking-drone-colorless-symbol-reminder",
+      "request": {
+        "cardName": "Stalking Drone",
+        "typeLine": "Creature — Eldrazi Drone",
+        "manaCost": "{1}{G}",
+        "oracleText": "Devoid (This card has no color.)\n{C}: This creature gets +1/+2 until end of turn. Activate only once each turn. ({C} represents colorless mana.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerTurn",
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-boreal-centaur-snow-symbol-reminder",
+      "request": {
+        "cardName": "Boreal Centaur",
+        "typeLine": "Snow Creature — Centaur Warrior",
+        "manaCost": "{1}{G}",
+        "oracleText": "{S}: This creature gets +1/+1 until end of turn. Activate only once each turn. ({S} can be paid with one mana from a snow source.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerTurn",
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-pyretic-prankster-phyrexian-symbol-reminder",
+      "request": {
+        "cardName": "Pyretic Prankster // Glistening Goremonger",
+        "typeLine": "Creature — Devil // Creature — Phyrexian Devil",
+        "manaCost": null,
+        "oracleText": null,
+        "layout": "transform",
+        "faces": [
+          {
+            "id": "0ee40c4b-2ca3-4cda-bc9e-451455c17adc:face-0",
+            "name": "Pyretic Prankster",
+            "typeLine": "Creature — Devil",
+            "manaCost": "{1}{R}",
+            "oracleText": "{3}{B/P}: Transform this creature. Activate only as a sorcery. ({B/P} can be paid with either {B} or 2 life.)",
+            "power": "2",
+            "toughness": "1",
+            "loyalty": null
+          },
+          {
+            "id": "0ee40c4b-2ca3-4cda-bc9e-451455c17adc:face-1",
+            "name": "Glistening Goremonger",
+            "typeLine": "Creature — Phyrexian Devil",
+            "manaCost": "",
+            "oracleText": "When this creature dies, each opponent sacrifices an artifact or creature of their choice.",
+            "power": "3",
+            "toughness": "2",
+            "loyalty": null
+          }
+        ]
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-dungeon-map-venture-reminder",
+      "request": {
+        "cardName": "Dungeon Map",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: Add {C}.\n{3}, {T}: Venture into the dungeon. Activate only as a sorcery. (Enter the first room or advance to the next room.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "sorceryTiming"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-june-bounty-hunter-clue-reminder",
+      "request": {
+        "cardName": "June, Bounty Hunter",
+        "typeLine": "Legendary Creature — Human Mercenary",
+        "manaCost": "{1}{B}",
+        "oracleText": "June can't be blocked as long as you've drawn two or more cards this turn.\n{1}, Sacrifice another creature: Create a Clue token. Activate only during your turn. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "duringControllerTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vintara-elephant-any-player",
+      "request": {
+        "cardName": "Vintara Elephant",
+        "typeLine": "Creature — Elephant",
+        "manaCost": "{4}{G}",
+        "oracleText": "Trample\n{3}: This creature loses trample until end of turn. Any player may activate this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-samite-sanctuary-any-player",
+      "request": {
+        "cardName": "Samite Sanctuary",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "{2}: Prevent the next 1 damage that would be dealt to target creature this turn. Any player may activate this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-squallmonger-any-player",
+      "request": {
+        "cardName": "Squallmonger",
+        "typeLine": "Creature — Monger",
+        "manaCost": "{3}{G}",
+        "oracleText": "{2}: This creature deals 1 damage to each creature with flying and each player. Any player may activate this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-well-of-knowledge-their-draw-step",
+      "request": {
+        "cardName": "Well of Knowledge",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}: Draw a card. Any player may activate this ability but only during their draw step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "abilityController"
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "draw"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-infinite-hourglass-any-upkeep-step",
+      "request": {
+        "cardName": "Infinite Hourglass",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "At the beginning of your upkeep, put a time counter on this artifact.\nAll creatures get +1/+0 for each time counter on this artifact.\n{3}: Remove a time counter from this artifact. Any player may activate this ability but only during any upkeep step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "duringSteps",
+                  "steps": [
+                    "upkeep"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rally-the-troops-declare-attackers-and-attacked",
+      "request": {
+        "cardName": "Rally the Troops",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Cast this spell only during the declare attackers step and only if you've been attacked this step.\nUntap all creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stackOrCast"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castOnlyIf",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "condition": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "duringSteps",
+                        "steps": [
+                          "declareAttackers"
+                        ]
+                      },
+                      {
+                        "kind": "controllerIsBeingAttacked"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-just-fate-declare-attackers-and-attacked",
+      "request": {
+        "cardName": "Just Fate",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Cast this spell only during the declare attackers step and only if you've been attacked this step.\nDestroy target attacking creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stackOrCast"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castOnlyIf",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "condition": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "duringSteps",
+                        "steps": [
+                          "declareAttackers"
+                        ]
+                      },
+                      {
+                        "kind": "controllerIsBeingAttacked"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-command-of-unsummoning-declare-attackers-and-attacked",
+      "request": {
+        "cardName": "Command of Unsummoning",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Cast this spell only during the declare attackers step and only if you've been attacked this step.\nReturn one or two target attacking creatures to their owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "rule": {
+              "kind": "staticAbility",
+              "source": {
+                "kind": "self"
+              },
+              "activeWhile": {
+                "kind": "inZone",
+                "object": {
+                  "kind": "self"
+                },
+                "zone": {
+                  "kind": "stackOrCast"
+                }
+              },
+              "modifiers": [
+                {
+                  "kind": "castOnlyIf",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "condition": {
+                    "kind": "and",
+                    "operands": [
+                      {
+                        "kind": "duringSteps",
+                        "steps": [
+                          "declareAttackers"
+                        ]
+                      },
+                      {
+                        "kind": "controllerIsBeingAttacked"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-teleport-declare-attackers-step",
+      "request": {
+        "cardName": "Teleport",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}{U}",
+        "oracleText": "Cast this spell only during the declare attackers step.\nTarget creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "duringSteps",
+                  "steps": [
+                    "declareAttackers"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reset-opponent-turn-after-their-upkeep",
+      "request": {
+        "cardName": "Reset",
+        "typeLine": "Instant",
+        "manaCost": "{U}{U}",
+        "oracleText": "Cast this spell only during an opponent's turn after their upkeep step.\nUntap all lands you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "notYourTurn"
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "draw",
+                        "precombatMain",
+                        "beginningOfCombat",
+                        "declareAttackers",
+                        "declareBlockers",
+                        "combatDamage",
+                        "endOfCombat",
+                        "postcombatMain",
+                        "endStep",
+                        "cleanup"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-festival-opponent-upkeep",
+      "request": {
+        "cardName": "Festival",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Cast this spell only during an opponent's upkeep.\nCreatures can't attack this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "notYourTurn"
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "upkeep"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-winter-cursed-rider-exhaust",
+      "request": {
+        "cardName": "Winter, Cursed Rider",
+        "typeLine": "Legendary Creature — Human Warlock",
+        "manaCost": "{U}{B}",
+        "oracleText": "Ward—Pay 2 life.\nArtifacts you control have \"Ward—Pay 2 life.\"\nExhaust — {2}{U}{B}, {T}, Exile X artifact cards from your graveyard: Each other nonartifact creature gets -X/-X until end of turn. (Activate each exhaust ability only once.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerGameObjectAbility",
+                  "id": "exhaust"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mindspring-merfolk-exhaust",
+      "request": {
+        "cardName": "Mindspring Merfolk",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{U}",
+        "oracleText": "Exhaust — {X}{U}{U}, {T}: Draw X cards. Put a +1/+1 counter on each Merfolk creature you control. (Activate each exhaust ability only once.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/abilityClass",
+                "equals": "exhaust"
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerGameObjectAbility",
+                  "id": "exhaust"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-extremis-elite-power-up",
+      "request": {
+        "cardName": "Extremis Elite",
+        "typeLine": "Creature — Human Mercenary Villain",
+        "manaCost": "{1}{R}",
+        "oracleText": "Power-up — {4}{R}: Put two +1/+1 counters on this creature. It deals 1 damage to any target. (Activate each power-up ability only once. Reduce the cost by its mana cost if it entered this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/abilityClass",
+                "equals": "powerUp"
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerGameObjectAbility",
+                  "id": "powerUp"
+                }
+              },
+              {
+                "pointer": "/activationCostModifiers/0",
+                "equals": {
+                  "kind": "reduceManaCost",
+                  "amount": {
+                    "kind": "manaCostOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "condition": {
+                    "kind": "sourceFlagSet",
+                    "flag": "enteredThisTurn"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-varragoth-bloodsky-sire-boast",
+      "request": {
+        "cardName": "Varragoth, Bloodsky Sire",
+        "typeLine": "Legendary Creature — Demon Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "Deathtouch\nBoast — {1}{B}: Target player searches their library for a card, then shuffles and puts that card on top. (Activate only if this creature attacked this turn and only once each turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/abilityClass",
+                "equals": "boast"
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "objectMatchesFilter",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "where": {
+                    "kind": "attackedThisTurn"
+                  }
+                }
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerTurn",
+                  "id": "boast"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-fearless-pup-boast",
+      "request": {
+        "cardName": "Fearless Pup",
+        "typeLine": "Creature — Wolf",
+        "manaCost": "{R}",
+        "oracleText": "First strike\nBoast — {2}{R}: This creature gets +2/+0 until end of turn. (Activate only if this creature attacked this turn and only once each turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/abilityClass",
+                "equals": "boast"
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "objectMatchesFilter",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "where": {
+                    "kind": "attackedThisTurn"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-skyscribing-forecast-reveal-cost-gap",
+      "request": {
+        "cardName": "Skyscribing",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}{U}",
+        "oracleText": "Each player draws X cards.\nForecast — {2}{U}, Reveal this card from your hand: Each player draws a card. (Activate only during your upkeep and only once each turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-any-player-upkeep-once-each-turn",
+      "request": {
+        "cardName": "Generic Communal Well",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}: Draw a card. Any player may activate this ability only during your upkeep and only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/anyPlayerMayActivate",
+                "equals": true
+              },
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "abilityController"
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "upkeep"
+                      ]
+                    }
+                  ]
+                }
+              },
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerTurn",
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-combat-before-blockers",
+      "request": {
+        "cardName": "Generic Skirmisher",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "{1}: This creature gets +1/+1 until end of turn. Activate only during combat before blockers are declared.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "duringSteps",
+                  "steps": [
+                    "beginningOfCombat",
+                    "declareAttackers"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-turn-and-before-combat",
+      "request": {
+        "cardName": "Generic Lookout",
+        "typeLine": "Creature — Human Scout",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Draw a card. Activate only during an opponent's turn and only before combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationCondition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "notYourTurn"
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "untap",
+                        "upkeep",
+                        "draw",
+                        "precombatMain"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-only-once-per-object",
+      "request": {
+        "cardName": "Generic Relic",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{2}, {T}: Draw a card. Activate only once.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "oncePerGameObjectAbility",
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-three-times-each-turn-and-sorcery",
+      "request": {
+        "cardName": "Generic Totem",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}: Target creature gets +1/+0 until end of turn. Activate no more than three times each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationLimit",
+                "equals": {
+                  "kind": "timesPerTurn",
+                  "maximum": 3,
+                  "id": "activationRestriction"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-before-combat-or-before-blockers",
+      "request": {
+        "cardName": "Generic Ambush",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Cast this spell only before combat or during combat before blockers are declared.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "duringSteps",
+                  "steps": [
+                    "untap",
+                    "upkeep",
+                    "draw",
+                    "precombatMain",
+                    "beginningOfCombat",
+                    "declareAttackers"
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-during-combat-on-your-turn",
+      "request": {
+        "cardName": "Generic Charge",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Cast this spell only during combat on your turn.\nCreatures you control get +1/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "duringControllerTurn",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    {
+                      "kind": "duringSteps",
+                      "steps": [
+                        "beginningOfCombat",
+                        "declareAttackers",
+                        "declareBlockers",
+                        "combatDamage",
+                        "endOfCombat"
+                      ]
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-combat-damage-is-not-a-window",
+      "request": {
+        "cardName": "Generic Misfire",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{2}",
+        "oracleText": "{1}: This creature gets +1/+0 until end of turn. Activate only during combat damage.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "window.period"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cast-window-of-combat-damage",
+      "request": {
+        "cardName": "Generic Misstep",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Cast this spell only during combat damage.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "window.period"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-symbol-reminder-not-used-by-the-cost",
+      "request": {
+        "cardName": "Generic Drone",
+        "typeLine": "Creature — Eldrazi Drone",
+        "manaCost": "{2}",
+        "oracleText": "{2}: This creature gets +1/+2 until end of turn. Activate only once each turn. ({C} represents colorless mana.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.reminder.symbol"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unowned-reminder-after-restriction",
+      "request": {
+        "cardName": "Generic Statue",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{2}",
+        "oracleText": "{1}: This creature gets +1/+0 until end of turn. Activate only once each turn. (This statue remembers.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.reminder.mechanic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-parenthesized-restriction-without-keyword",
+      "request": {
+        "cardName": "Generic Scholar",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}",
+        "oracleText": "{1}: Draw a card. (Activate only once each turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.keyword-reminder.owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-boast-reminder-restating-another-rule",
+      "request": {
+        "cardName": "Generic Braggart",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{2}",
+        "oracleText": "Boast — {1}: Draw a card. (Activate only once each turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.keyword-reminder.definition"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-their-turn-without-any-player-antecedent",
+      "request": {
+        "cardName": "Generic Sentinel",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{1}: Draw a card. Activate only during their turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "window.owner"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-count-limit-on-a-cast",
+      "request": {
+        "cardName": "Generic Rush",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Cast this spell only once each turn.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "activation.restriction.clause"
+          }
+        ]
+      }
+    }
+  ]
+}
