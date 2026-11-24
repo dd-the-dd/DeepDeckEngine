@@ -19,6 +19,8 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
         Some("revealCard") => Some(
             value_kind(&cost["card"]) == Some("self") || target_reference_supported(&cost["card"]),
         ),
+        // CR 701.43a: exerting the source permanent.
+        Some("exert") => Some(value_kind(&cost["object"]) == Some("self")),
         // CR 701.13a: the payer mills N cards (CR 118.3: N must be there).
         Some("millCards") => {
             Some(integer_value(&cost["count"]).is_some_and(|count| (1..=64).contains(&count)))
@@ -306,7 +308,7 @@ impl GameEngine {
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|cost| matches!(value_kind(cost), Some("revealCard" | "millCards")))
+            .filter(|cost| matches!(value_kind(cost), Some("revealCard" | "millCards" | "exert")))
             .cloned()
             .collect::<Vec<_>>();
         if costs.is_empty() {
@@ -338,6 +340,24 @@ impl GameEngine {
                         .as_str()
                         .ok_or_else(|| EngineError::new("reveal cost has no card choice"))?;
                     revealed.push(self.chosen_hand_card(action, id)?);
+                }
+                Some("exert") => {
+                    // CR 701.43a: it won't untap during its controller's
+                    // next untap step (the shared skip-next-untap rule).
+                    if self.permanent_position(&source_id).is_none() {
+                        return Err(EngineError::new("an exerted source left the battlefield"));
+                    }
+                    self.state.rule_modifiers.push(json!({
+                        "kind": "skipNextUntap",
+                        "sourceCardInstanceId": source_id,
+                        "cardInstanceId": source_id,
+                    }));
+                    self.record_event(
+                        "permanentExerted",
+                        Some(action.player_id.clone()),
+                        Some(source_id.clone()),
+                        json!({ "reason": "cost" }),
+                    );
                 }
                 Some("millCards") => {
                     mill += integer_value(&cost["count"])

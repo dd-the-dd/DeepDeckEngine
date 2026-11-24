@@ -249,6 +249,7 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::PutChosenCounters(_)
         | LocalActivationCostNode::RevealSelf
         | LocalActivationCostNode::RevealCards(_)
+        | LocalActivationCostNode::ExertSelf
         | LocalActivationCostNode::Blight(_) => false,
         // A mill cost moves the payer's top library cards (CR 701.13a).
         LocalActivationCostNode::Mill { .. } => true,

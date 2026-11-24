@@ -82,6 +82,7 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::PutChosenCounters(_)
                 | Cost::RevealCards(_)
                 | Cost::Mill { .. }
+                | Cost::ExertSelf
                 | Cost::Blight(_) => {}
                 // `Sacrifice another ...` cannot move the source (CR 109.1);
                 // without `another` the payer may choose the source itself.

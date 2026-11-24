@@ -378,6 +378,10 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             "kind": "revealCard",
             "card": self_ref(),
         }),
+        LocalActivationCostNode::ExertSelf => json!({
+            "kind": "exert",
+            "object": self_ref(),
+        }),
         LocalActivationCostNode::Mill { count } => json!({
             "kind": "millCards",
             "count": integer(*count),

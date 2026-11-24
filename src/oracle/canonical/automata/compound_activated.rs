@@ -58,6 +58,9 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     Mill {
         count: i64,
     },
+    /// `exert this PERMANENT` (CR 701.43a): it won't untap during its
+    /// controller's next untap step.
+    ExertSelf,
     /// `blight N` (CR 701.65a): N -1/-1 counters on one creature the payer
     /// controls, chosen while paying.
     Blight(BlightActivationCostNode),
@@ -227,6 +230,7 @@ impl ActivationCostSequenceNode {
                     ExileSelfSourceZone::Battlefield => requirements.battlefield = true,
                 },
                 LocalActivationCostNode::TapSelf(_)
+                | LocalActivationCostNode::ExertSelf
                 | LocalActivationCostNode::SacrificeSelf(_)
                 | LocalActivationCostNode::ReturnSelf
                 | LocalActivationCostNode::PutSourceCounters(_)
@@ -634,13 +638,21 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
             }))
         }
         PaymentActionNode::Mill { count } => Ok(LocalActivationCostNode::Mill { count }),
+        PaymentActionNode::Exert(PaymentObjectsNode::Source(noun)) => {
+            cursor.enter("activation.exert-self.source-type");
+            cursor.require(
+                noun == PaymentSourceNoun::Permanent,
+                "a source noun naming a permanent after `exert`",
+            )?;
+            Ok(LocalActivationCostNode::ExertSelf)
+        }
         // The engine has no activation-cost program for these actions; the
         // cost fails here, explicitly, instead of being approximated.
         PaymentActionNode::Untap(_) | PaymentActionNode::Exert(_) => {
             cursor.enter("activation.unsupported-action");
             Err(cursor.engine_gap(
                 crate::oracle::canonical::engine_gap::EngineGap::ActivationCostAction,
-                "an activation cost the engine can pay (untap and exert have no activation cost schema)",
+                "an activation cost the engine can pay (untap and exerting chosen permanents have no activation cost schema)",
             ))
         }
     }
