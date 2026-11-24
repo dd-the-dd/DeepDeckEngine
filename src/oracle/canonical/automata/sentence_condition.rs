@@ -50,8 +50,16 @@ impl ConditionObjectReference {
 pub(in crate::oracle::canonical) type SentenceConditionNode = ConditionNode;
 
 /// A conditional instruction over the flat action list of its sequence.
-/// `then_first..then_end` are the actions of the `If` sentence and
-/// `then_end..else_end` those of its `Otherwise` sentence.
+/// `then_first..then_end` are the actions of the `If` sentence. `else_end`
+/// bounds the branch taken when the condition is false, on either side of
+/// the `If` sentence:
+///
+/// - after it (`else_end > then_end`): `then_end..else_end` are the actions
+///   of its `Otherwise` sentence;
+/// - before it (`else_end < then_first`): `else_end..then_first` are the
+///   actions of the sentence a replacing `If COND, ... instead` sentence
+///   replaces (`replacing_conditional.rs`). The condition is checked where
+///   that replaced sentence begins.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct SentenceConditionalNode {
     pub condition: SentenceConditionNode,
@@ -61,8 +69,24 @@ pub(in crate::oracle::canonical) struct SentenceConditionalNode {
 }
 
 impl SentenceConditionalNode {
+    /// The first action of the replaced sentence of an `instead` form.
+    pub(in crate::oracle::canonical) fn replaced_first(&self) -> Option<usize> {
+        self.else_end.filter(|end| *end < self.then_first)
+    }
+
+    /// The end of the `Otherwise` sentence, when one follows.
+    pub(in crate::oracle::canonical) fn otherwise_end(&self) -> Option<usize> {
+        self.else_end.filter(|end| *end > self.then_end)
+    }
+
+    /// The first action the conditional instruction governs.
+    pub(in crate::oracle::canonical) fn start(&self) -> usize {
+        self.replaced_first().unwrap_or(self.then_first)
+    }
+
+    /// The end (exclusive) of the actions the conditional governs.
     pub(in crate::oracle::canonical) fn end(&self) -> usize {
-        self.else_end.unwrap_or(self.then_end)
+        self.otherwise_end().unwrap_or(self.then_end)
     }
 
     pub(in crate::oracle::canonical) fn shifted(&self, offset: usize) -> Self {
@@ -181,6 +205,22 @@ fn consume_current(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
     cursor.consume(&raw)
 }
 
+/// `SUBJECT can't|cannot` where SUBJECT restates the performer of the
+/// previous instruction: `you`, `they`, `that player`, `the player`. The
+/// width of the subject; the program lowering binds that instruction.
+fn impossible_outcome_subject_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let width = if word_is(cursor, 0, "you") || word_is(cursor, 0, "they") {
+        1
+    } else if (word_is(cursor, 0, "that") || word_is(cursor, 0, "the"))
+        && word_is(cursor, 1, "player")
+    {
+        2
+    } else {
+        return None;
+    };
+    (contraction_is(cursor, width, "can", "t") || word_is(cursor, width, "cannot")).then_some(width)
+}
+
 /// True at a sentence-initial `if` whose condition this child may read.
 pub(in crate::oracle::canonical) fn sentence_condition_starts(
     cursor: &OracleTokenCursor<'_>,
@@ -203,6 +243,15 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition(
     cursor.enter("condition.sentence.separator");
     cursor.consume(",")?;
     cursor.enter("condition.sentence.instead");
+    // `If COND, instead BODY.` (CR 608.2c): only the program parent that
+    // gives the conditional its replacement form reads the medial `instead`.
+    if context.effects.replacing_conditionals
+        && word_is(cursor, 0, "instead")
+        && !word_is(cursor, 1, "of")
+    {
+        cursor.consume("instead")?;
+        return Ok(condition);
+    }
     cursor.require(
         !word_is(cursor, 0, "instead"),
         "a conditional sentence that does not replace an earlier instruction with `instead`",
@@ -253,12 +302,13 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
-    // ActionOutcome: `you can't`, `you don't`.
-    if word_is(cursor, 0, "you")
-        && (contraction_is(cursor, 1, "can", "t") || word_is(cursor, 1, "cannot"))
-    {
+    // ActionOutcome: `you can't`, `you don't`; `the player can't`, `they
+    // can't` restate the performer of the previous instruction (CR 609.3).
+    if let Some(subject_width) = impossible_outcome_subject_width(cursor) {
         cursor.enter("condition.action-outcome.previous-action");
-        cursor.consume("you")?;
+        for _ in 0..subject_width {
+            consume_current(cursor)?;
+        }
         consume_current(cursor)?;
         return Ok(ConditionAtom::ActionOutcome(
             ActionOutcomeNode::PreviousActionImpossible,
@@ -327,6 +377,11 @@ fn read_condition_atom(
     // was spent to cast it`, `no mana was spent to cast that spell`.
     if mana_spent_atom_starts(cursor) {
         return recognize_mana_spent_atom(cursor, context);
+    }
+    // Compare: the objects an earlier action affected, restated in the
+    // active voice by its performer (`you discard a creature card this way`).
+    if super::active_action_result_condition_starts(cursor) {
+        return super::recognize_active_action_result_condition_atom(cursor);
     }
     // EventHistory with a player actor: `an opponent searched their library
     // this turn`, `a player cast two or more spells last turn`.
@@ -848,6 +903,18 @@ fn recognize_controller_cast_source_atom(
     } else {
         recognize_source_reference(cursor, context.name_links, context.name_failure)?
     };
+    if word_is(cursor, 0, "during") {
+        // `If you cast this spell during your main phase` (Addendum): a
+        // timing the spell keeps from its cast. A permanent's pronoun is
+        // not read here; only the spell resolving with the record does.
+        cursor.enter("condition.sentence.cast.timing");
+        cursor.require(!pronoun, "`this spell` for a cast timing")?;
+        cursor.consume_phrase(&["during", "your", "main", "phase"])?;
+        return Ok(ConditionAtom::CastFact(CastFactNode {
+            spell: CastSpellReference::Source(spell),
+            fact: CastFact::CastDuringMainPhase,
+        }));
+    }
     if !word_is(cursor, 0, "from") {
         return Ok(ConditionAtom::CastFact(CastFactNode {
             spell: CastSpellReference::Source(spell),

@@ -1,4 +1,5 @@
-//! Resolution-time life, sacrifice and discard costs with an explicit payer.
+//! Resolution-time life, sacrifice, discard, exile and return costs with an
+//! explicit payer.
 //! This module prepares payment alternatives only; its caller owns decline,
 //! provider choice, Boolean results and the enclosing resolution checkpoint.
 use super::*;
@@ -128,6 +129,39 @@ impl GameEngine {
                     })
                     .collect())
             }
+            // `return a QUERY you control to its owner's hand` (CR 118.3):
+            // one permanent the payer controls, chosen while paying.
+            Some("returnPermanentToOwnersHand") => {
+                if !cost["where"].is_null() && !card_filter_supported(&cost["where"]) {
+                    return Err(EngineError::new("unsupported return cost filter"));
+                }
+                Ok(self
+                    .state
+                    .players
+                    .iter()
+                    .flat_map(|player| player.battlefield.iter())
+                    .filter(|permanent| {
+                        self.permanent_can_pay_return_cost(permanent, player_id, cost, source)
+                            && (cost["where"].is_null()
+                                || self.permanent_matches_target_filter_with_decisions(
+                                    permanent,
+                                    &cost["where"],
+                                    player_id,
+                                    decisions,
+                                ))
+                    })
+                    .map(|permanent| {
+                        card_cost_option(
+                            source,
+                            player_id,
+                            &format!("return:{}", permanent.instance_id),
+                            format!("Return {} to its owner's hand", permanent.definition.name),
+                            "costReturnPermanent",
+                            json!(permanent.instance_id),
+                        )
+                    })
+                    .collect())
+            }
             Some("discardCard") => {
                 let required = self.card_cost_reference_id(&cost["card"], source, bindings)?;
                 if cost.get("where").is_none() && required.is_none() {
@@ -207,7 +241,13 @@ impl GameEngine {
     ) -> Result<bool, EngineError> {
         if !matches!(
             value_kind(cost),
-            Some("payLife" | "sacrificePermanent" | "discardCard" | "exileCard")
+            Some(
+                "payLife"
+                    | "sacrificePermanent"
+                    | "discardCard"
+                    | "exileCard"
+                    | "returnPermanentToOwnersHand"
+            )
         ) {
             return Ok(false);
         }
@@ -277,9 +317,44 @@ impl GameEngine {
                     ));
                 }
             }
+            Some("returnPermanentToOwnersHand") => {
+                let id = payment.decisions["costReturnPermanent"]
+                    .as_str()
+                    .ok_or_else(|| EngineError::new("prepared return has no object identity"))?;
+                let (owner, index) = self
+                    .permanent_position(id)
+                    .ok_or_else(|| EngineError::new("prepared return left the battlefield"))?;
+                let permanent = &self.state.players[owner].battlefield[index];
+                if !self.permanent_can_pay_return_cost(permanent, player_id, cost, source)
+                    || (!cost["where"].is_null()
+                        && !self.permanent_matches_effective_filter(permanent, &cost["where"]))
+                {
+                    return Err(EngineError::new("prepared return is no longer payable"));
+                }
+                let id = id.to_string();
+                self.return_permanent_to_hand(&id)?;
+            }
             _ => unreachable!("card cost domain was validated before commitment"),
         }
         Ok(true)
+    }
+}
+
+impl GameEngine {
+    /// A permanent the payer controls that a return cost may move: not
+    /// phased out, not the excluded source, and not kept on the battlefield
+    /// by a static prohibition of the same activation return cost.
+    fn permanent_can_pay_return_cost(
+        &self,
+        permanent: &CardInstance,
+        player_id: &str,
+        cost: &Value,
+        source: &StackObject,
+    ) -> bool {
+        permanent.controller == player_id
+            && !permanent.flags.get("phasedOut").copied().unwrap_or(false)
+            && !(cost["excludeSource"] == true && permanent.instance_id == source.card.instance_id)
+            && !self.static_modifier_applies_to("cantBeBeamedUp", permanent)
     }
 }
 
@@ -289,3 +364,10 @@ impl GameEngine {
 ))]
 #[path = "card_costs_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "return_cost_tests.rs"]
+mod return_cost_tests;

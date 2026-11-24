@@ -1,0 +1,672 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/program-control-outcomes",
+  "cases": [
+    {
+      "id": "exact-life-goes-on-postposed-instead",
+      "request": {
+        "cardName": "Life Goes On",
+        "typeLine": "Instant",
+        "manaCost": "{G}",
+        "oracleText": "You gain 4 life. If a creature died this turn, you gain 8 life instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/else/0/kind",
+                "equals": "gainLife"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flare-of-faith-medial-instead",
+      "request": {
+        "cardName": "Flare of Faith",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Target creature gets +2/+2 until end of turn. If it's a Human, instead it gets +3/+3 and gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-elder-cathar-trigger-instead",
+      "request": {
+        "cardName": "Elder Cathar",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature dies, put a +1/+1 counter on target creature you control. If that creature is a Human, put two +1/+1 counters on it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-zimone-activated-instead",
+      "request": {
+        "cardName": "Zimone, Quandrix Prodigy",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{G}{U}",
+        "oracleText": "{1}, {T}: You may put a land card from your hand onto the battlefield tapped.\n{4}, {T}: Draw a card. If you control eight or more lands, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-emiel-outcome-body-instead",
+      "request": {
+        "cardName": "Emiel the Blessed",
+        "typeLine": "Legendary Creature — Unicorn",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "{3}: Exile another target creature you control, then return it to the battlefield under its owner's control.\nWhenever another creature you control enters, you may pay {G/W}. If you do, put a +1/+1 counter on it. If it's a Unicorn, put two +1/+1 counters on it instead. ({G/W} can be paid with either {G} or {W}.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-eldrazi-monument-sacrifice-or-cant",
+      "request": {
+        "cardName": "Eldrazi Monument",
+        "typeLine": "Artifact",
+        "manaCost": "{5}",
+        "oracleText": "Creatures you control get +1/+1 and have flying and indestructible.\nAt the beginning of your upkeep, sacrifice a creature. If you can't, sacrifice this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-coral-atoll-return-land-unless",
+      "request": {
+        "cardName": "Coral Atoll",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\nWhen this land enters, sacrifice it unless you return an untapped Island you control to its owner's hand.\n{T}: Add {C}{U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-book-devourer-discard-hand-measured",
+      "request": {
+        "cardName": "Book Devourer",
+        "typeLine": "Creature — Beast",
+        "manaCost": "{5}{R}",
+        "oracleText": "Trample\nWhenever this creature deals combat damage to a player, you may discard all the cards in your hand. If you do, draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-wrench-mind-unless-they",
+      "request": {
+        "cardName": "Wrench Mind",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}{B}",
+        "oracleText": "Target player discards two cards unless they discard an artifact card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-raven-eagle-exiled-this-way",
+      "request": {
+        "cardName": "Raven Eagle",
+        "typeLine": "Creature — Bird Assassin",
+        "manaCost": "{2}{B}",
+        "oracleText": "Flying\nWhenever this creature enters or attacks, exile up to one target card from a graveyard. If a creature card is exiled this way, create a Clue token. (It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhenever you draw your second card each turn, each opponent loses 1 life and you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-feral-appetite-exiled-this-way",
+      "request": {
+        "cardName": "Feral Appetite",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "Attacking Pests you control get +1/+0 and have deathtouch.\n{1}{G}: Exile target card from a graveyard. If a creature card is exiled this way, create a 1/1 black and green Pest creature token with \"When this token dies, you gain 1 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-loyalty-optional-discard-if-you-do",
+      "request": {
+        "cardName": "Synthetic Fireblood",
+        "typeLine": "Legendary Planeswalker — Sarkhan",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "+1: You may discard a card. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "unused-combination-loyalty-postposed-instead",
+      "request": {
+        "cardName": "Synthetic Artificer",
+        "typeLine": "Legendary Planeswalker — Tezzeret",
+        "manaCost": "{2}{U}{U}",
+        "oracleText": "0: Draw a card. If you control three or more artifacts, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-sorcery-postposed-instead-controlled-count",
+      "request": {
+        "cardName": "Synthetic Insight",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card. If you control a Wizard, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-medial-instead-life",
+      "request": {
+        "cardName": "Synthetic Blessing",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "You gain 2 life. If you control a Cleric, instead you gain 5 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-optional-remove-counter-measured",
+      "request": {
+        "cardName": "Synthetic Prodigy",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "At the beginning of your upkeep, if this creature has one or more +1/+1 counters on it, you may remove a +1/+1 counter from it. If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-return-creature-unless-another",
+      "request": {
+        "cardName": "Synthetic Quickling",
+        "typeLine": "Creature — Faerie Rogue",
+        "manaCost": "{1}{U}",
+        "oracleText": "When this creature enters, sacrifice it unless you return another creature you control to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-stonybrook-angler-tap-or-untap",
+      "request": {
+        "cardName": "Stonybrook Angler",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "{1}{U}, {T}: You may tap or untap target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-geothermal-kami-optional-return-cost",
+      "request": {
+        "cardName": "Geothermal Kami",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature enters, you may return an enchantment you control to its owner's hand. If you do, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-noosegraf-mob-remove-counter-if-you-do",
+      "request": {
+        "cardName": "Noosegraf Mob",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "This creature enters with five +1/+1 counters on it.\nWhenever a player casts a spell, remove a +1/+1 counter from this creature. If you do, create a 2/2 black Zombie creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-sphinxs-insight-addendum",
+      "request": {
+        "cardName": "Sphinx's Insight",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Draw two cards.\nAddendum — If you cast this spell during your main phase, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "unused-combination-addendum-replacing-instead",
+      "request": {
+        "cardName": "Haunting Hymn",
+        "typeLine": "Instant",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Target player discards two cards. If you cast this spell during your main phase, that player discards four cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition/kind",
+                "equals": "wasCastDuringMainPhase"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-trigger-may-tap-or-untap",
+      "request": {
+        "cardName": "Synthetic Tidecaller",
+        "typeLine": "Creature — Merfolk",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature attacks, you may tap or untap target permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-cast-timing-other-than-main-phase",
+      "request": {
+        "cardName": "Synthetic Late Spell",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card. If you cast this spell during your end step, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-crovax-complementary-outcomes",
+      "request": {
+        "cardName": "Crovax the Cursed",
+        "typeLine": "Legendary Creature — Vampire Noble",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Crovax enters with four +1/+1 counters on it.\nAt the beginning of your upkeep, you may sacrifice a creature. If you do, put a +1/+1 counter on Crovax. If you don't, remove a +1/+1 counter from Crovax.\n{B}: Crovax gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-ravenous-vampire-complementary-outcomes",
+      "request": {
+        "cardName": "Ravenous Vampire",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Flying\nAt the beginning of your upkeep, you may sacrifice a nonartifact creature. If you do, put a +1/+1 counter on this creature. If you don't, tap this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "near-miss-complement-after-reflexive",
+      "request": {
+        "cardName": "Synthetic Reflex",
+        "typeLine": "Creature — Human",
+        "manaCost": "{1}{R}",
+        "oracleText": "When this creature enters, you may pay {1}. When you do, draw a card. If you don't, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-deathbringer-liege-permission-postposed-if",
+      "request": {
+        "cardName": "Deathbringer Liege",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{2}{W/B}{W/B}{W/B}",
+        "oracleText": "Other white creatures you control get +1/+1.\nOther black creatures you control get +1/+1.\nWhenever you cast a white spell, you may tap target creature.\nWhenever you cast a black spell, you may destroy target creature if it's tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 4
+      }
+    },
+    {
+      "id": "sibling-permission-postposed-if-lifts-the-permission",
+      "request": {
+        "cardName": "Synthetic Warden",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever this creature attacks, you may tap target creature if you control an artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/then/0/kind",
+                "equals": "optionalEffects"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-instead-without-replaced-sentence",
+      "request": {
+        "cardName": "Synthetic Lone Instead",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "If you control a Wizard, draw three cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-if-you-do-without-producer",
+      "request": {
+        "cardName": "Synthetic Orphan Outcome",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "If you do, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-medial-instead-in-own-paragraph",
+      "request": {
+        "cardName": "Synthetic Threshold",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card.\nThreshold — If seven or more cards are in your graveyard, instead draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rhystic-tutor-preposed-unless-any-player",
+      "request": {
+        "cardName": "Rhystic Tutor",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Unless any player pays {2}, search your library for a card, put that card into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "sequence.unless.payer.indefinite-player"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-return-two-lands-unless",
+      "request": {
+        "cardName": "Synthetic Elephant",
+        "typeLine": "Creature — Elephant",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, sacrifice it unless you return two Forests you control to their owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "cost.resolution.return.quantity"
+          }
+        ]
+      }
+    }
+  ]
+}

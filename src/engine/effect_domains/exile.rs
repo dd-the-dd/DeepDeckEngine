@@ -349,8 +349,9 @@ impl GameEngine {
                 let object_ids = self
                     .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
                     .unwrap_or_default();
-                // The exiled cards a later `it` / `that card` names (CR 400.7).
-                let mut exiled_card_ids = Vec::new();
+                // `bind` records the cards this instruction actually exiled
+                // (CR 608.2c `exiled this way`), in their new incarnation.
+                let mut exiled_ids = Vec::new();
                 for instance_id in object_ids {
                     if let Some(stack_index) = self
                         .state
@@ -384,6 +385,7 @@ impl GameEngine {
                             )?;
                             self.state.players[owner_index].exile.push(card);
                         }
+                        exiled_ids.push(card_id.clone());
                         self.record_event(
                             "stackObjectExiled",
                             Some(stack_object.controller.clone()),
@@ -408,8 +410,9 @@ impl GameEngine {
                             &super::super::card_zone_transition::ObjectZone::Exile,
                             super::super::card_zone_transition::ObjectTransitionReason::Reexile,
                         )?;
+                        let exiled_id = card.card.instance_id.clone();
                         self.state.players[owner_index].exile.push(card.card);
-                        exiled_card_ids.push(instance_id.clone());
+                        exiled_ids.push(exiled_id);
                         self.record_event(
                             "cardExiled",
                             Some(stack_object.controller.clone()),
@@ -418,11 +421,8 @@ impl GameEngine {
                         );
                     }
                 }
-                if let Some(binding) = effect["bind"].as_str() {
-                    bindings.insert(
-                        binding.to_string(),
-                        RuntimeBinding::Objects(exiled_card_ids),
-                    );
+                if let Some(binding_id) = effect["bind"].as_str() {
+                    bindings.insert(binding_id.to_string(), RuntimeBinding::Objects(exiled_ids));
                 }
             }
             _ => {

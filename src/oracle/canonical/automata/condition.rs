@@ -478,6 +478,9 @@ pub(in crate::oracle::canonical) enum CastFact {
         zone: Option<SourceCastZone>,
         negated: bool,
     },
+    /// `you cast this spell during your main phase` (Addendum): the spell
+    /// was cast while its caster was the active player in a main phase.
+    CastDuringMainPhase,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

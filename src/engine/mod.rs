@@ -3061,6 +3061,9 @@ fn condition_supported(condition: &Value) -> bool {
         }
         Some("wasCast") => value_kind(&condition["object"]) == Some("self"),
         Some("wasCastFromHand") => value_kind(&condition["object"]) == Some("self"),
+        Some(cast_events::CAST_DURING_MAIN_PHASE_FLAG) => {
+            value_kind(&condition["object"]) == Some("self")
+        }
         Some("wasCastFromZone") => {
             value_kind(&condition["object"]) == Some("self")
                 && matches!(
@@ -8981,6 +8984,10 @@ impl GameEngine {
                 .unwrap_or(false),
             Some("wasCastFromHand") => source
                 .and_then(|card| card.flags.get("wasCastFromHand"))
+                .copied()
+                .unwrap_or(false),
+            Some(cast_events::CAST_DURING_MAIN_PHASE_FLAG) => source
+                .and_then(|card| card.flags.get(cast_events::CAST_DURING_MAIN_PHASE_FLAG))
                 .copied()
                 .unwrap_or(false),
             Some("wasCastFromZone") => {
@@ -25674,6 +25681,11 @@ impl GameEngine {
                 card.flags.insert(
                     "wasCastFromHand".to_string(),
                     casting_cost::CastingMode::of(&action.decisions).from_zone == "hand",
+                );
+                let main_phase = self.casting_during_own_main_phase(&action.player_id);
+                card.flags.insert(
+                    cast_events::CAST_DURING_MAIN_PHASE_FLAG.to_string(),
+                    main_phase,
                 );
                 let next_creature_modifier = is_creature(&card.definition)
                     .then(|| {

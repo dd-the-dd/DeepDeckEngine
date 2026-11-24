@@ -9,6 +9,23 @@
 //! zone, turn relations, stored-choice relations). One matcher evaluates it.
 use super::*;
 
+/// The flag a cast spell keeps when it was cast during its caster's own main
+/// phase (the Addendum timing, `If you cast this spell during your main
+/// phase`).
+pub(super) const CAST_DURING_MAIN_PHASE_FLAG: &str = "wasCastDuringMainPhase";
+
+impl GameEngine {
+    /// True while `player_id` is the active player in a main phase: a spell
+    /// that player casts now is cast during their main phase.
+    pub(super) fn casting_during_own_main_phase(&self, player_id: &str) -> bool {
+        self.state.players[self.state.active_player].id == player_id
+            && matches!(
+                self.state.step,
+                GameStep::PrecombatMain | GameStep::PostcombatMain
+            )
+    }
+}
+
 /// One spell cast.
 pub(super) struct CastEventRecord<'a> {
     pub caster: &'a str,

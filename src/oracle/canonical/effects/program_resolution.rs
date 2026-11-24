@@ -241,11 +241,14 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
             permission: Some(player),
             producer: OutcomeProducer::Cost(_),
             body,
+            otherwise: None,
             ..
         } => *player == LocalPlayerReference::Controller && program_in_slice(body),
         // The checked scope walks one sequence; independent steps and the
         // two sentences of an outcome action keep the native lowering checks.
-        EffectProgramNode::Steps(_) | EffectProgramNode::Outcome { .. } => false,
+        EffectProgramNode::Steps(_)
+        | EffectProgramNode::Outcome { .. }
+        | EffectProgramNode::Alternatives { .. } => false,
     }
 }
 
