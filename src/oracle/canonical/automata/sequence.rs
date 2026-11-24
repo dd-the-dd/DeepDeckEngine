@@ -15,8 +15,8 @@ use super::{
     recognize_destroy_referenced_set_effect, recognize_earthbend_action,
     recognize_effect_connector, recognize_empower_jace_effect, recognize_empower_jace_reminder,
     recognize_exile_graveyard_collection_effect, recognize_for_each_count,
-    recognize_investigate_effect, recognize_library_look_reminder, recognize_mill_cards_effect,
-    recognize_move_cards_effect, recognize_named_token_creation_reminder,
+    recognize_investigate_effect, recognize_library_look_reminder, recognize_move_cards_effect,
+    recognize_named_token_creation_reminder,
     recognize_optional_card_deployment_effect_with_context, recognize_optional_library_search,
     recognize_ordinary_sacrifice_effect, recognize_put_counters_effect,
     recognize_quantified_player_action, recognize_referenced_draw_effect, recognize_scry_effect,
@@ -1096,29 +1096,111 @@ fn recognize_effect_sequence_attempt_scoped(
                                 .clone()
                                 .filter(|(_, _, sentence)| *sentence == memory.sentence_start)
                                 .map(|(performer, agreement, _)| Ok((performer, agreement)));
-                            let performer =
-                                super::recognize_performer(&mut head, &performer_context).or_else(
-                                    || {
-                                        head = cursor.clone();
-                                        continued
-                                    },
-                                );
+                            // The performer slot may declare a target player
+                            // or choose an opponent under this action's index.
+                            let performer = super::recognize_declaring_performer(
+                                &mut head,
+                                &performer_context,
+                                Some(super::PlayerBinding(effect_index)),
+                            )
+                            .or_else(|| {
+                                head = cursor.clone();
+                                continued
+                            });
                             match performer {
                                 None => Err(failure),
                                 Some(Err(subject)) => Err(furthest(failure, subject)),
-                                // `PLAYER may ...` stays with the program-level
-                                // permission readers: a population's permission
-                                // is withdrawn until its simultaneous puts are
-                                // proved at runtime (CR 101.4).
-                                Some(Ok(_))
-                                    if head
-                                        .peek()
-                                        .and_then(super::lookup_auxiliary)
-                                        .is_some_and(|(auxiliary, _)| {
-                                            auxiliary == super::Auxiliary::May
-                                        }) =>
+                                // `PLAYER may VERB ...` (CR 608.2d): the
+                                // performer's own permission. The shared
+                                // permission reader reads the sentence in the
+                                // performer's person; the performer, put on the
+                                // optional wrapper, owns the decision.
+                                // A bound player's permission (`that player
+                                // may`, `its controller may`) keeps the
+                                // program-level permission reader and its
+                                // historical IR; it already names its actor.
+                                Some(Ok((super::PerformerNode::Player(player), _)))
+                                    if !matches!(
+                                        player,
+                                        super::PlayerEffectSubject::DeclaredTarget { .. }
+                                    ) && super::performer_modality(&head)
+                                        == super::ClauseModality::May =>
                                 {
                                     Err(failure)
+                                }
+                                Some(Ok((performer, _)))
+                                    if super::performer_modality(&head)
+                                        == super::ClauseModality::May =>
+                                {
+                                    let description = super::performer_description(&performer);
+                                    // The permission needs its written subject:
+                                    // a continued verb (`and may ...`) has none.
+                                    let mut subject = cursor.clone();
+                                    subject.enter("clause.performer.may.subject");
+                                    match subject
+                                        .require(
+                                            head.position() > cursor.position(),
+                                            "an explicit performer subject before `may`",
+                                        )
+                                        .and_then(|()| {
+                                            super::person_shifted_permission_tokens(
+                                                &head,
+                                                description,
+                                            )
+                                        }) {
+                                        Err(verb) => Err(furthest(failure, verb)),
+                                        Ok((tokens, subject_end)) => {
+                                            let _ = subject.advance_to(subject_end);
+                                            let mut shifted = subject.with_tokens(&tokens);
+                                            let mut permission_context = action_context.clone();
+                                            // CR 118.12: the payer decides before
+                                            // the permission; a permission body
+                                            // keeps rejecting `unless`.
+                                            permission_context.unless_frames =
+                                                super::UnlessFrameSupport::Unsupported;
+                                            // The permission owns its sentence;
+                                            // the body keeps the original token
+                                            // positions for its diagnostics.
+                                            let body = shifted.attempt(|body| {
+                                                body.enter("clause.performer.may.permission");
+                                                body.consume_phrase(&["you", "may"])?;
+                                                let end = super::permission_sentence_end(body)?;
+                                                body.bounded(end + 1, |body| {
+                                                    recognize_effect_sequence_with_context(
+                                                        body,
+                                                        name_links,
+                                                        name_failure,
+                                                        &permission_context,
+                                                    )
+                                                })
+                                                .map(|sequence| (sequence, end))
+                                            });
+                                            match body {
+                                                Ok((body, end)) => {
+                                                    match super::controller_reference_failure(
+                                                        &head,
+                                                        head.position(),
+                                                        end,
+                                                    ) {
+                                                        Some(ambiguous) => Err(ambiguous),
+                                                        None => cursor.advance_to(end).map(|()| {
+                                                            LocalEffectNode::Performed(
+                                                                super::PerformedEffectNode {
+                                                                    performer,
+                                                                    effect: Box::new(
+                                                                        LocalEffectNode::OptionalSequence(
+                                                                            body,
+                                                                        ),
+                                                                    ),
+                                                                },
+                                                            )
+                                                        }),
+                                                    }
+                                                }
+                                                Err(body) => Err(furthest(failure, body)),
+                                            }
+                                        }
+                                    }
                                 }
                                 Some(Ok((performer, agreement))) => {
                                     let description = super::performer_description(&performer);
@@ -1398,6 +1480,15 @@ fn recognize_effect_sequence_attempt_scoped(
                         // modeled explicitly, never let `it` fall back to a target
                         // chosen by an earlier, unrelated effect.
                         memory.last_target = None;
+                        // `Search target player's library ...`: the declared
+                        // holder is the player antecedent of a later `that
+                        // player` (`Then that player shuffles.`).
+                        if matches!(
+                            search.origin.holder,
+                            super::SearchedPlayer::DeclaredTarget(_)
+                        ) {
+                            memory.last_player_target = Some(PlayerTargetBinding { effect_index });
+                        }
                     }
                     _ => {}
                 }
@@ -1483,9 +1574,18 @@ fn recognize_effect_sequence_attempt_scoped(
                 {
                     memory.last_player_target = Some(life.player);
                 }
+                // A declared performer is the program's player antecedent:
+                // a later `that player` names it (CR 608.2c).
+                if let LocalEffectNode::Performed(node) = &effect
+                    && let Some(binding) = node.performer.declared_player()
+                {
+                    memory.last_player_target = Some(PlayerTargetBinding {
+                        effect_index: binding.0,
+                    });
+                }
                 memory.current_performer = match &effect {
                     LocalEffectNode::Performed(node) => Some((
-                        node.performer.clone(),
+                        node.performer.continued(),
                         performed_agreement(&node.performer, cursor, effect_start),
                         memory.sentence_start,
                     )),
@@ -2766,8 +2866,9 @@ fn recognize_subject_frame(
 /// `target PLAYER VERBs ...` / `target OBJECT VERBs ...` not claimed by the
 /// permanent-subject or combat frames (S3, PlayerRef): the declared subject
 /// is read with the shared target list, then its verb is looked up in the
-/// lexicon. A target player who mills is the mill frame; any other verb
-/// fails naming the lemma and the subject kind, never as a missing player.
+/// lexicon. The failure names the lemma and the subject kind, never a
+/// missing player; for a declared player it hands the clause to the
+/// performer reader, which owns every verb of a declared player.
 fn recognize_declared_subject_clause(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<LocalEffectNode> {
@@ -2794,16 +2895,10 @@ fn recognize_declared_subject_clause(
         subject.enter("target-list.complete");
         return Err(subject.fail("a complete target list before the subject's verb"));
     }
+    // A declared target player is a performer slot: the sequence's
+    // performer reader declares it and reads every verb the clause readers
+    // know as that player's instruction. This frame only names the verb.
     subject.enter("effect.subject.declared.verb");
-    let mills = subject
-        .peek()
-        .and_then(super::lookup_effect_verb)
-        .is_some_and(|(entry, forms)| {
-            entry.lemma == VerbLemma::Mill && forms.contains(&VerbForm::ThirdPersonSingular)
-        });
-    if players && mills {
-        return recognize_mill_cards_effect(cursor).map(LocalEffectNode::MillCards);
-    }
     Err(super::clause_verb_unsupported(
         &subject,
         if players {

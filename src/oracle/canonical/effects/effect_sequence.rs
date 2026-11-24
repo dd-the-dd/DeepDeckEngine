@@ -300,24 +300,44 @@ fn lower_local_effect_sequence_with_collections(
         .filter(|effect| matches!(effect, LocalEffectNode::TargetCardZoneChange(_)))
         .count();
     let mut card_target_ordinal = 0_usize;
+    let local_player_target_binding = |effect_index: usize, effect: &LocalEffectNode| match effect {
+        LocalEffectNode::Choose(ChooseInstructionNode {
+            domain: ChoiceDomainNode::PlayerTarget(_),
+            ..
+        }) => Some(PlayerTargetBinding { effect_index }),
+        LocalEffectNode::TargetPlayerLife(life) if life.declares_target => Some(life.player),
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            player: PlayerEffectSubject::DeclaredTarget { binding, .. },
+            ..
+        }) => Some(PlayerTargetBinding {
+            effect_index: binding.0,
+        }),
+        LocalEffectNode::ControllerLibrarySearch(search)
+            if matches!(search.origin.holder, SearchedPlayer::DeclaredTarget(_)) =>
+        {
+            Some(PlayerTargetBinding { effect_index })
+        }
+        _ => None,
+    };
     let player_target_bindings = sequence
         .effects
         .iter()
         .enumerate()
-        .filter_map(|(effect_index, effect)| match effect {
-            LocalEffectNode::Choose(ChooseInstructionNode {
-                domain: ChoiceDomainNode::PlayerTarget(_),
-                ..
-            }) => Some(PlayerTargetBinding { effect_index }),
-            LocalEffectNode::TargetPlayerLife(life) if life.declares_target => Some(life.player),
-            LocalEffectNode::PlayerAction(PlayerActionNode {
-                player: PlayerEffectSubject::DeclaredTarget { binding, .. },
-                ..
-            }) => Some(PlayerTargetBinding {
-                effect_index: binding.0,
-            }),
-            _ => None,
+        .flat_map(|(effect_index, effect)| {
+            // A declared performer (`target opponent VERBs`) is written
+            // before its action's own targets.
+            let performer = match performers.get(effect_index) {
+                Some(Some(PerformerNode::Player(PlayerEffectSubject::DeclaredTarget {
+                    binding,
+                    ..
+                }))) => Some(PlayerTargetBinding {
+                    effect_index: binding.0,
+                }),
+                _ => None,
+            };
+            [performer, local_player_target_binding(effect_index, effect)]
         })
+        .flatten()
         .fold(Vec::new(), |mut bindings, binding| {
             if !bindings.contains(&binding) {
                 bindings.push(binding);
@@ -344,6 +364,13 @@ fn lower_local_effect_sequence_with_collections(
             &declared_player_targets,
         )?;
         if let Some(Some(performer)) = performers.get(effect_index) {
+            declare_performer_target(
+                cursor,
+                performer,
+                &player_target_bindings,
+                &mut decisions,
+                &mut declared_player_targets,
+            )?;
             pending_performer = Some((effects.len(), effect_index, performer.clone()));
         }
         if !creature_type_chosen
@@ -929,9 +956,29 @@ fn lower_local_effect_sequence_with_collections(
                     effects.push(json!({"kind":"putCounters", "permanent":object, "counter":node.counter.as_str(), "count":count}));
                 }
             }
-            LocalEffectNode::ControllerLibrarySearch(search) => {
-                effects.extend(lower_controller_library_search_effects(cursor, search)?);
-            }
+            LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
+                SearchedPlayer::Searcher => {
+                    effects.extend(lower_controller_library_search_effects(cursor, search)?);
+                }
+                // `Search target player's library ...`: the holder is one
+                // declared player target of this action (CR 115.1).
+                SearchedPlayer::DeclaredTarget(target) => {
+                    cursor.enter("lower.library-search.declared-holder");
+                    let id = declare_player_target(
+                        cursor,
+                        target,
+                        PlayerTargetBinding { effect_index },
+                        &player_target_bindings,
+                        &mut decisions,
+                        &mut declared_player_targets,
+                    )?;
+                    effects.extend(lower_controller_search_of_holder(
+                        cursor,
+                        search,
+                        chosen_target(&id),
+                    )?);
+                }
+            },
             LocalEffectNode::OptionalLibrarySearch(search) => {
                 cursor.enter("lower.optional-library-search.player");
                 if let Err(failure) = cursor.require(
@@ -3058,13 +3105,28 @@ fn apply_performer(
                 .ok_or_else(|| cursor.fail("an earlier declared player for the performer"))?;
             chosen_target(&id)
         }
-        PerformerNode::Player(
-            PlayerEffectSubject::Controller | PlayerEffectSubject::DeclaredTarget { .. },
-        ) => {
-            return Err(EffectSequenceLoweringFailure::FailedInvariant(cursor.fail(
-                "a performer other than the controller or a new declaration",
-            )));
+        // The declaration was lowered where the action began.
+        PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { binding, .. }) => {
+            let id = declared_player_targets
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding.0).then_some(id.clone()))
+                .ok_or_else(|| cursor.fail("the declared target player of the performer"))?;
+            chosen_target(&id)
         }
+        PerformerNode::Player(PlayerEffectSubject::Controller) => {
+            return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                cursor.fail("a performer other than the controller"),
+            ));
+        }
+        // CR 608.2d: the controller chooses one player of the population on
+        // resolution; every primitive of the action (and of the verbs that
+        // continue it) names the same choice.
+        PerformerNode::Chosen { players, binding } => json!({
+            "kind": "chosenPlayer",
+            "id": format!("chosenPerformer{}", binding.0),
+            "chooser": controller(),
+            "players": lower_player_set_reference(*players),
+        }),
         PerformerNode::Population {
             players,
             excluding_controller,
@@ -3097,6 +3159,68 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// A declared performer (`target opponent VERBs`, CR 115.1, 601.2c) is one
+/// player target declared where its action begins, under the shared
+/// player-target ordinal; later `that player` reuses its id.
+fn declare_performer_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    performer: &PerformerNode,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { target, binding }) = performer
+    else {
+        return Ok(());
+    };
+    cursor.enter("lower.performer.declared-target");
+    declare_player_target(
+        cursor,
+        target,
+        PlayerTargetBinding {
+            effect_index: binding.0,
+        },
+        player_target_bindings,
+        decisions,
+        declared_player_targets,
+    )
+    .map(|_| ())
+}
+
+/// One player slot declared by an action (a performer, a searched zone's
+/// holder): its target decision under the shared player-target ordinal,
+/// once per binding. Returns the declaration id.
+fn declare_player_target(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+    key: PlayerTargetBinding,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<String, EffectSequenceLoweringFailure> {
+    if let Some((_, id)) = declared_player_targets
+        .iter()
+        .find(|(declared, _)| *declared == key)
+    {
+        return Ok(id.clone());
+    }
+    let [slot] = target.slots.as_slice() else {
+        return Err(EffectSequenceLoweringFailure::FailedInvariant(
+            cursor.fail("one declared player target slot"),
+        ));
+    };
+    let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+        .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+    let ordinal = player_target_bindings
+        .iter()
+        .position(|value| *value == key)
+        .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+    let target_id = player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+    decisions.push(target_decision(&target_id, candidates, 1, 1));
+    declared_player_targets.push((key, target_id.clone()));
+    Ok(target_id)
 }
 
 /// The deployed card's move binds the moved-onto-battlefield result only

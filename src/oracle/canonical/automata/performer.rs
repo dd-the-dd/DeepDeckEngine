@@ -29,6 +29,93 @@ pub(in crate::oracle::canonical) enum PerformerNode {
         players: PlayerSetReferenceNode,
         excluding_controller: bool,
     },
+    /// `an opponent`: one player of the population, chosen by the ability's
+    /// controller on resolution (CR 608.2d). `binding` names the choice: every
+    /// later verb the same subject continues reads the same chosen player.
+    Chosen {
+        players: PlayerSetReferenceNode,
+        binding: PlayerBinding,
+    },
+}
+
+impl PerformerNode {
+    /// The performer a subjectless later verb of the same sentence continues
+    /// (`target opponent reveals their hand and discards a card`): a declared
+    /// target is declared once, then bound; every other performer is itself.
+    pub(in crate::oracle::canonical) fn continued(&self) -> Self {
+        match self {
+            Self::Player(PlayerEffectSubject::DeclaredTarget { binding, .. }) => {
+                Self::Player(PlayerEffectSubject::Bound(*binding))
+            }
+            other => other.clone(),
+        }
+    }
+
+    /// The player binding a later `that player` names after this performer:
+    /// only a declared target is a program-level player antecedent.
+    pub(in crate::oracle::canonical) fn declared_player(&self) -> Option<PlayerBinding> {
+        match self {
+            Self::Player(PlayerEffectSubject::DeclaredTarget { binding, .. }) => Some(*binding),
+            _ => None,
+        }
+    }
+}
+
+/// The shared clause modality at the cursor after a performer subject
+/// (CR 608.2c, 608.2d). Only the indicative and `may` are a performer's
+/// instruction; another modal (`can't`, `would`) is no performed action and
+/// is refused by the caller with the clause's own diagnostic.
+pub(in crate::oracle::canonical) fn performer_modality(
+    cursor: &OracleTokenCursor<'_>,
+) -> super::ClauseModality {
+    match cursor.peek().and_then(super::lookup_auxiliary) {
+        Some((super::Auxiliary::May, _)) => super::ClauseModality::May,
+        Some((super::Auxiliary::Would, _)) => super::ClauseModality::Would,
+        Some((super::Auxiliary::Cannot, _)) => super::ClauseModality::Cannot,
+        _ => super::ClauseModality::Indicative,
+    }
+}
+
+/// `PLAYER may VERB ...` read as the performer's own permission: the
+/// predicate after `may` in the performer's person, and the subject's last
+/// token read as `you`, so the shared permission reader (`you may ...`)
+/// owns the optional sentence. Returns the tokens and the position of that
+/// `you`. Spans and indices stay the original ones. `cursor` is at `may`.
+pub(in crate::oracle::canonical) fn person_shifted_permission_tokens(
+    cursor: &OracleTokenCursor<'_>,
+    subject: &str,
+) -> MachineResult<(Vec<RecognizedEntity>, usize)> {
+    let mut verb = cursor.clone();
+    verb.enter("clause.performer.may");
+    let may = verb.position();
+    verb.require(may > 0, "a performer subject before `may`")?;
+    verb.consume("may")?;
+    let mut tokens = person_shifted_tokens(&verb, VerbAgreement::Base, subject)?;
+    replace_word(&mut tokens[may - 1], "you");
+    Ok((tokens, may - 1))
+}
+
+/// The position of the period that ends the permission's sentence at the
+/// cursor; quoted abilities and reminder parentheses are nested scopes (CR
+/// 113.1, 207.2a). A permission owns its sentence only.
+pub(in crate::oracle::canonical) fn permission_sentence_end(
+    cursor: &OracleTokenCursor<'_>,
+) -> MachineResult<usize> {
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut offset = 0;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        match raw {
+            "\"" | "\u{201c}" | "\u{201d}" => quoted = !quoted,
+            _ if quoted => {}
+            "(" => depth += 1,
+            ")" => depth = depth.saturating_sub(1),
+            "." if depth == 0 => return Ok(cursor.position() + offset),
+            _ => {}
+        }
+        offset += 1;
+    }
+    Err(cursor.fail("a complete permission sentence"))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -48,10 +135,24 @@ pub(in crate::oracle::canonical) struct PerformerContext {
 
 /// A performer subject at the cursor and the agreement its verb takes.
 /// `None` when no player subject other than the controller starts here; a
-/// subject whose binding fails is the clause's failure.
+/// subject whose binding fails is the clause's failure. Without a
+/// declaration slot, `target player` is no performer here.
 pub(in crate::oracle::canonical) fn recognize_performer(
     cursor: &mut OracleTokenCursor<'_>,
     context: &PerformerContext,
+) -> Option<MachineResult<(PerformerNode, VerbAgreement)>> {
+    recognize_declaring_performer(cursor, context, None)
+}
+
+/// The performer reader of an effect program that can declare a player
+/// slot: `target player|opponent` declares one target player under
+/// `declaration` (CR 115.1, 601.2c), and `an opponent` is chosen on
+/// resolution under the same binding (CR 608.2d). Every other head is the
+/// one [`recognize_performer`] reads.
+pub(in crate::oracle::canonical) fn recognize_declaring_performer(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &PerformerContext,
+    declaration: Option<PlayerBinding>,
 ) -> Option<MachineResult<(PerformerNode, VerbAgreement)>> {
     let head = (0..3)
         .map(|offset| cursor.peek_ahead(offset).unwrap_or("").to_ascii_lowercase())
@@ -103,6 +204,32 @@ pub(in crate::oracle::canonical) fn recognize_performer(
             )
         })
     };
+    if let Some(declaration) = declaration {
+        // `target player|opponent VERBs`: one declared target player. A
+        // possessive head (`target player's`) is a zone owner, never here.
+        if is(0, "target") && (is(1, "player") || is(1, "opponent")) {
+            return Some(single(recognize_player_effect_subject(
+                cursor,
+                declaration,
+                context.player_antecedent,
+                context.event_player,
+            )));
+        }
+        // `an opponent VERBs`: the controller chooses one opponent while the
+        // effect resolves; no target is declared (CR 608.2d).
+        if is(0, "an") && is(1, "opponent") {
+            cursor.enter("clause.performer.chosen-opponent");
+            return Some(cursor.advance_to(cursor.position() + 2).map(|()| {
+                (
+                    PerformerNode::Chosen {
+                        players: PlayerSetReferenceNode::OpponentsOfAbilityController,
+                        binding: declaration,
+                    },
+                    VerbAgreement::ThirdPersonSingular,
+                )
+            }));
+        }
+    }
     if is(0, "that") && is(1, "player") {
         return Some(single(recognize_player_effect_subject(
             cursor,
@@ -186,7 +313,11 @@ pub(in crate::oracle::canonical) fn performer_description(
 ) -> &'static str {
     match performer {
         PerformerNode::Population { .. } => "a player population (`each player`)",
+        PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { .. }) => {
+            "a declared target player"
+        }
         PerformerNode::Player(_) => "a player other than the controller",
+        PerformerNode::Chosen { .. } => "a player chosen on resolution (`an opponent`)",
     }
 }
 

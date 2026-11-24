@@ -2925,7 +2925,7 @@ fn object_expression_supported(expression: &Value) -> bool {
         Some("cardsInZone") => {
             matches!(
                 value_kind(&expression["zone"]),
-                Some("graveyard" | "hand" | "exile")
+                Some("graveyard" | "hand" | "exile" | "library")
             ) && player_query::zone_holders_supported(&expression["zone"])
                 && expression.get("where").is_none_or(|predicate| {
                     // The card-zone domain evaluates definition data only

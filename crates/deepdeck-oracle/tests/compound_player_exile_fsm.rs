@@ -118,29 +118,24 @@ fn malformed_family_members_fail_in_the_responsible_local_automaton() {
 }
 
 #[test]
-fn unrelated_player_exile_phrases_remain_outside_the_promoted_boundary() {
-    // The shared program owns the unrelated phrase and rejects it explicitly.
+fn unrelated_player_exile_phrases_are_the_declared_performers_instruction() {
+    // Outside the compound-exile family, a declared target player is a
+    // performer slot (CR 608.2c, 115.1): the ordinary exile reader reads
+    // `exile a card from your graveyard` as that player's instruction, and
+    // the lowering declares the player once and puts it on every primitive.
     let parsed = parse("Target opponent exiles a card from their graveyard.");
-    assert_eq!(parsed.status, "unsupported");
-    let ability = &parsed.abilities[0];
-    assert!(ability.rule.is_none());
-    assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("contextual-effect-program")
-    );
-    // The effect dispatcher reads the declared subject and routes only a
-    // target player who mills to the mill frame; any other verb fails at the
-    // shared clause state naming the lemma and the subject kind (S3).
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("clause.verb.unsupported")
-    );
-    assert!(
-        ability.diagnostics[0]
-            .expected
-            .as_deref()
-            .is_some_and(|expected| expected.contains("a declared target player")),
-        "{:#?}",
-        ability.diagnostics
-    );
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.abilities);
+    let rule = parsed.abilities[0].rule.as_ref().expect("native rule");
+    let decisions = rule["declaration"]["decisions"]
+        .as_array()
+        .expect("target declaration");
+    assert_eq!(decisions.len(), 1, "{rule:#}");
+    assert_eq!(decisions[0]["candidates"]["kind"], "players", "{rule:#}");
+    let target_id = decisions[0]["id"].clone();
+    let effects = rule["effects"].as_array().expect("primitive effects");
+    assert!(!effects.is_empty());
+    for effect in effects {
+        assert_eq!(effect["performer"]["kind"], "chosenTarget", "{rule:#}");
+        assert_eq!(effect["performer"]["id"], target_id, "{rule:#}");
+    }
 }
