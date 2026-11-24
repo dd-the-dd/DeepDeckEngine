@@ -340,6 +340,7 @@ impl GameEngine {
                 json!({
                     "attacking": attacking,
                     "tapped": tapped,
+                    "typeLine": created.definition.type_line,
                 }),
             );
             self.enqueue_token_created_triggers(&token_controller, &created);
@@ -692,7 +693,11 @@ impl GameEngine {
                 "tokenCreated",
                 Some(token_controller.clone()),
                 Some(instance_id.clone()),
-                json!({ "copyOf": copied_id, "tapped": tapped }),
+                json!({
+                    "copyOf": copied_id,
+                    "tapped": tapped,
+                    "typeLine": created.definition.type_line,
+                }),
             );
             self.enqueue_token_created_triggers(&token_controller, &created);
             self.ensure_prepared_spell_copy(&instance_id)?;

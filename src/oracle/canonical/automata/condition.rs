@@ -262,6 +262,56 @@ pub(in crate::oracle::canonical) enum HistoryEvent {
     PermanentEntered,
     /// CR 701.23.
     LibrarySearched,
+    /// CR 119.3: a life gain or a life loss (`gained or lost life`).
+    LifeChanged,
+    /// CR 701.21: the sacrifice record keeps the permanent's type line.
+    PermanentSacrificed,
+    /// CR 701.9.
+    CardDiscarded,
+    /// CR 702.29: cycling a card.
+    CardCycled,
+    /// CR 111.1: the creation record keeps the token's type line.
+    TokenCreated,
+    /// CR 122.1: counters put on a permanent; the event's player is the
+    /// permanent's controller, the actor a related player.
+    CountersPlaced,
+    /// CR 305.1.
+    LandPlayed,
+    /// Cards put into a graveyard from anywhere (one arrival record per
+    /// move, with each card's type line). Descending reads this record.
+    CardsPutIntoGraveyard,
+}
+
+/// The casting mode a cast record keeps (`a spell was warped`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum HistoryCastMode {
+    Warp,
+}
+
+/// The zone a departing permanent was put into.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum HistoryDestination {
+    Hand,
+}
+
+/// Qualifiers of a history pattern beyond its player and object: each one
+/// is an exact recorded field of the event, never inferred.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct HistoryQualifiers {
+    /// `another`: the event object is not the ability's source.
+    pub exclude_source: bool,
+    /// The counter kind of a counter placement.
+    pub counter: Option<crate::oracle::counter_name::CounterName>,
+    /// The control relation of the permanent that received counters (the
+    /// pattern's player is then the player who put them).
+    pub recipient_controller: Option<HistoryPlayer>,
+    /// The casting mode of a cast record.
+    pub cast_mode: Option<HistoryCastMode>,
+    /// The pattern's player reads a departing card's owner (`put into your
+    /// graveyard`, CR 404.2), not the permanent's controller.
+    pub zone_owner: bool,
+    /// The recorded destination of a departure.
+    pub destination: Option<HistoryDestination>,
 }
 
 /// The player relation of the event's player (the actor, the recipient of
@@ -280,6 +330,8 @@ pub(in crate::oracle::canonical) enum HistoryMeasure {
     Occurrences,
     /// The event's amount (life, damage).
     Amount,
+    /// The cards of one arrival record that satisfy the object predicate.
+    Cards,
 }
 
 /// The turn a history pattern reads.
@@ -307,6 +359,7 @@ pub(in crate::oracle::canonical) struct EventHistoryPattern {
     /// The event object's predicate; `None` for every object of the event.
     pub object: Option<ObjectPredicate>,
     pub measure: HistoryMeasure,
+    pub qualifiers: HistoryQualifiers,
 }
 
 /// `EventHistory(Pattern, scope)` compared with a fixed count.

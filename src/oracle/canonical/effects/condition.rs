@@ -247,19 +247,41 @@ fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
     }
 }
 
-/// The recorded event kind of a history pattern.
-fn history_event_kind(event: HistoryEvent) -> &'static str {
-    match event {
+/// The recorded event kind(s) of a history pattern.
+fn history_event_kind(event: HistoryEvent) -> Value {
+    let kind = match event {
         HistoryEvent::SpellCast => "spellCast",
         HistoryEvent::CardDrawn => "cardDrawn",
         HistoryEvent::LifeGained => "lifeGained",
         HistoryEvent::LifeLost => "lifeLost",
+        HistoryEvent::LifeChanged => return json!(["lifeGained", "lifeLost"]),
         HistoryEvent::DamageDealtToPlayer => "damageDealt",
         HistoryEvent::AttackerDeclared => "attackerDeclared",
         HistoryEvent::PermanentDied => "permanentDied",
         HistoryEvent::PermanentLeftBattlefield => "permanentLeftBattlefield",
         HistoryEvent::PermanentEntered => "permanentEnteredBattlefield",
         HistoryEvent::LibrarySearched => "librarySearched",
+        HistoryEvent::PermanentSacrificed => "permanentSacrificed",
+        HistoryEvent::CardDiscarded => "cardDiscarded",
+        HistoryEvent::CardCycled => "cardCycled",
+        HistoryEvent::TokenCreated => "tokenCreated",
+        HistoryEvent::CountersPlaced => "countersPlaced",
+        HistoryEvent::LandPlayed => "landPlayed",
+        HistoryEvent::CardsPutIntoGraveyard => "cardsEnteredGraveyard",
+    };
+    json!(kind)
+}
+
+/// The player relation of a history player, relative to the controller.
+fn history_player_relation(player: HistoryPlayer, event: HistoryEvent) -> Option<Value> {
+    match player {
+        // Damage to a player: an event of any player, never of a creature.
+        HistoryPlayer::Any if event == HistoryEvent::DamageDealtToPlayer => {
+            Some(json!({ "kind": "eachPlayer" }))
+        }
+        HistoryPlayer::Any => None,
+        HistoryPlayer::Controller => Some(controller()),
+        HistoryPlayer::Opponent => Some(json!({ "kind": "opponentsOf", "player": controller() })),
     }
 }
 
@@ -275,6 +297,7 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
         && pattern.measure == HistoryMeasure::Amount
         && node.scope == HistoryScope::ThisTurn
         && node.aggregate == HistoryAggregate::Total
+        && pattern.qualifiers == HistoryQualifiers::default()
     {
         let fact = match pattern.event {
             HistoryEvent::LifeGained => Some("lifeGainedThisTurn"),
@@ -296,16 +319,26 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
         },
         "event": history_event_kind(pattern.event),
     });
-    match pattern.player {
-        // Damage to a player: an event of any player, never of a creature.
-        HistoryPlayer::Any if pattern.event == HistoryEvent::DamageDealtToPlayer => {
-            count["player"] = json!({ "kind": "eachPlayer" });
+    let qualifiers = &pattern.qualifiers;
+    let player = history_player_relation(pattern.player, pattern.event);
+    if pattern.event == HistoryEvent::CountersPlaced {
+        // The placement's player is the permanent's controller; the actor
+        // is the recorded placer.
+        if let Some(actor) = player {
+            count["relatedPlayers"] = json!({ "placedByPlayerId": actor });
         }
-        HistoryPlayer::Any => {}
-        HistoryPlayer::Controller => count["player"] = controller(),
-        HistoryPlayer::Opponent => {
-            count["player"] = json!({ "kind": "opponentsOf", "player": controller() });
+        if let Some(recipient) = qualifiers
+            .recipient_controller
+            .and_then(|recipient| history_player_relation(recipient, pattern.event))
+        {
+            count["player"] = recipient;
         }
+    } else if let Some(player) = player {
+        count["player"] = player;
+    }
+    if qualifiers.zone_owner {
+        // CR 404.2: the departing card's owner, not its controller.
+        count["relation"] = json!("owner");
     }
     let filter = pattern
         .object
@@ -314,6 +347,11 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
             HistoryEvent::SpellCast => {
                 lower_spell_object_predicate(predicate).unwrap_or(Value::Null)
             }
+            HistoryEvent::CardDiscarded
+            | HistoryEvent::CardCycled
+            | HistoryEvent::CardDrawn
+            | HistoryEvent::LandPlayed
+            | HistoryEvent::CardsPutIntoGraveyard => lower_card_object_predicate(predicate),
             _ => lower_permanent_object_predicate(predicate),
         });
     match node.scope {
@@ -324,8 +362,27 @@ fn lower_event_history(node: &EventHistoryNode) -> Value {
             }
         }
     }
-    if pattern.measure == HistoryMeasure::Amount {
-        count["measure"] = json!("amount");
+    let mut detail = serde_json::Map::new();
+    if let Some(counter) = &qualifiers.counter {
+        detail.insert("counter".to_string(), json!(counter.as_str()));
+    }
+    if let Some(HistoryDestination::Hand) = qualifiers.destination {
+        detail.insert("destination".to_string(), json!("hand"));
+    }
+    if let Some(HistoryCastMode::Warp) = qualifiers.cast_mode {
+        // A JSON pointer into the cast record's decisions.
+        detail.insert("/decisions/useWarp".to_string(), json!(true));
+    }
+    if !detail.is_empty() {
+        count["detail"] = Value::Object(detail);
+    }
+    if qualifiers.exclude_source {
+        count["excludeObject"] = json!({ "kind": "self" });
+    }
+    match pattern.measure {
+        HistoryMeasure::Occurrences => {}
+        HistoryMeasure::Amount => count["measure"] = json!("amount"),
+        HistoryMeasure::Cards => count["measure"] = json!("cards"),
     }
     if node.scope == HistoryScope::LastTurn || node.aggregate == HistoryAggregate::GreatestPerPlayer
     {

@@ -23253,15 +23253,11 @@ impl GameEngine {
         if cards.is_empty() {
             return;
         }
-        let card_ids = cards
-            .iter()
-            .map(|card| card.instance_id.clone())
-            .collect::<Vec<_>>();
         self.record_event(
             "cardsEnteredGraveyard",
             Some(player_id.to_string()),
             None,
-            json!({"cardIds":card_ids}),
+            event_history::graveyard_arrival_detail(cards),
         );
     }
 
