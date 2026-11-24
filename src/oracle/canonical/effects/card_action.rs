@@ -1158,8 +1158,11 @@ impl CardCollectionMemory {
                     target_decisions,
                 )?;
                 cursor.enter("lower.card-action.permit");
-                let permits_exiled_view = self.view_verb == Some(CardCollectionVerb::Exiled)
-                    && Some(&cards) == self.view.as_ref();
+                // Cards this program exiled, or cards exiled with the source
+                // (CR 607.2a): both are in exile when the permission begins.
+                let permits_exiled_view = (self.view_verb == Some(CardCollectionVerb::Exiled)
+                    && Some(&cards) == self.view.as_ref())
+                    || value_kind_name(&cards) == Some("cardsExiledWithSource");
                 cursor.require(
                     matches!(
                         value_kind_name(&cards),
@@ -1169,6 +1172,7 @@ impl CardCollectionMemory {
                                 | "chosenTargets"
                                 | "filterObjects"
                                 | "setDifference"
+                                | "cardsExiledWithSource"
                         )
                     ),
                     "a bound card collection as the permission object",
