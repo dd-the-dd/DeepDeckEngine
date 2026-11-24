@@ -475,9 +475,9 @@ fn lower_next_damage_shield(
             && governed[0].get("recipient").is_none()
             && governed[0].get("source").is_none()
             && governed[0]["combatOnly"] == json!(false),
-        "exactly `prevent that damage` as the shield's modification",
+        "exactly `prevent that damage` or `that damage is dealt to PARTY instead` as the shield's modification",
     )?;
-    Ok(json!({
+    let mut shield = json!({
         "kind": "preventDamage",
         "amount": {"kind": "all"},
         "combatOnly": combat_only,
@@ -485,7 +485,12 @@ fn lower_next_damage_shield(
         "sourceChoice": {"where": filter},
         "nextTimeOnly": true,
         "duration": {"kind": "untilEndOfCurrentTurn"},
-    }))
+    });
+    // CR 614.9: the same once-only shield redirects instead of preventing.
+    if let Some(redirect) = governed[0].get("redirectTo") {
+        shield["redirectTo"] = redirect.clone();
+    }
+    Ok(shield)
 }
 
 /// One delayed triggered ability over its lowered range (CR 603.7).

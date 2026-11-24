@@ -499,6 +499,98 @@
       }
     },
     {
+      "id": "exact-thespians-stage",
+      "request": {
+        "cardName": "Thespian's Stage",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{2}, {T}: This land becomes a copy of target land, except it has this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/retainResolvingAbility",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cryptoplasm",
+      "request": {
+        "cardName": "Cryptoplasm",
+        "typeLine": "Creature — Shapeshifter",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "At the beginning of your upkeep, you may have this creature become a copy of another target creature, except it has this ability.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-beacon-of-destiny",
+      "request": {
+        "cardName": "Beacon of Destiny",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{1}{W}",
+        "oracleText": "{T}: The next time a source of your choice would deal damage to you this turn, that damage is dealt to this creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-rimefire-torque",
+      "request": {
+        "cardName": "Rimefire Torque",
+        "typeLine": "Artifact",
+        "manaCost": "{1}{U}",
+        "oracleText": "As this artifact enters, choose a creature type.\nWhenever a permanent you control of the chosen type enters, put a charge counter on this artifact.\n{T}, Remove three charge counters from this artifact: When you next cast an instant or sorcery spell this turn, copy it. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-mister-fantastic",
+      "request": {
+        "cardName": "Mister Fantastic",
+        "typeLine": "Legendary Creature — Human Scientist Hero",
+        "manaCost": "{2}{U}",
+        "oracleText": "Reach, vigilance\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, draw a card.\n{R}{G}{W}{U}, {T}: Copy target triggered ability you control twice. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
       "id": "sibling-all-combat-damage-to-target-redirected-to-you",
       "request": {
         "cardName": "Synthetic Bodyguard",

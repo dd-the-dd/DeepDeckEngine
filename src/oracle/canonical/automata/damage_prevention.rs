@@ -257,6 +257,11 @@ pub(in crate::oracle::canonical) fn damage_redirection_starts(
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
+    // `that damage is dealt to PARTY instead`: the event damage of a
+    // created next-damage rule (CR 615.7, 614.9).
+    if word(0, "that") && word(1, "damage") && word(2, "is") && word(3, "dealt") {
+        return true;
+    }
     let mut offset = if word(0, "all") {
         1
     } else if word(0, "the") && word(1, "next") && cursor.peek_ahead(2).is_some() {
@@ -299,6 +304,34 @@ pub(in crate::oracle::canonical) fn recognize_damage_redirection_effect(
 ) -> MachineResult<PreventDamageEffectNode> {
     cursor.enter("effect.redirect-damage.subject");
     let mut trial = cursor.clone();
+    if trial
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+    {
+        // The event, its parties and its lifetime belong to the rule that
+        // introduced the sentence; only the new recipient is read here.
+        trial.enter("effect.redirect-damage.event-damage");
+        trial.consume_phrase(&["that", "damage", "is", "dealt", "to"])?;
+        let party = recognize_party(
+            &mut trial,
+            PartyRole::Redirected,
+            name_links,
+            name_failure,
+            context,
+        )?;
+        trial.enter("effect.redirect-damage.instead");
+        trial.consume("instead")?;
+        *cursor = trial;
+        return Ok(PreventDamageEffectNode {
+            amount: PreventedDamageAmount::EventDamage,
+            combat_only: false,
+            recipient: None,
+            source: None,
+            recipient_also_source: false,
+            redirect: Some(party),
+            duration: EffectDurationNode::UntilEndOfCurrentTurn,
+        });
+    }
     let node = recognize_damage_shield(
         &mut trial,
         name_links,
