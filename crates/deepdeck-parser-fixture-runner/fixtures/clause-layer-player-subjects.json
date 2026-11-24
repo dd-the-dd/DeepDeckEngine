@@ -1,0 +1,773 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "clause-layer/player-subjects-and-verbs",
+  "cases": [
+    {
+      "id": "exact-timetwister-population-shuffles-zones-then-draws",
+      "request": {
+        "cardName": "Timetwister",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Each player shuffles their hand and graveyard into their library, then draws seven cards. (Then put Timetwister into its owner's graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/effects/0/cards/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/effects/0/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/1/effects/0/cards/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/2/effects/0/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/effects/0/kind",
+                "equals": "drawCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-feldons-cane-imperative-shuffle-into",
+      "request": {
+        "cardName": "Feldon's Cane",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}, Exile this artifact: Shuffle your graveyard into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/1/zone/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-bound-player-shuffles-graveyard",
+      "request": {
+        "cardName": "Shuffle Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target player mills three cards. That player shuffles their graveyard into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/performer/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/2/performer/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-related-player-shuffles-graveyard",
+      "request": {
+        "cardName": "Shuffle Probe",
+        "typeLine": "Creature — Eldrazi",
+        "manaCost": "{1}",
+        "oracleText": "When this creature dies, its owner shuffles their graveyard into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "ownerOf"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleZone"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shuffle-permanents-into-library",
+      "request": {
+        "cardName": "Shuffle Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Each player shuffles their hand, graveyard, and all permanents they own into their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-recoil-owner-of-returned-permanent-discards",
+      "request": {
+        "cardName": "Recoil",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}{B}",
+        "oracleText": "Return target permanent to its owner's hand. Then that player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "returnToOwnersHand"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/1/performer",
+                "equals": {
+                  "kind": "ownerOf",
+                  "object": {
+                    "kind": "chosenTarget",
+                    "id": "targetPermanent"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-controller-of-target-an-opponent-controls-loses-life",
+      "request": {
+        "cardName": "Suspended Sentence Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target creature an opponent controls. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/1/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-object-related-performer-then-that-player",
+      "request": {
+        "cardName": "Performer Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target creature. Its controller mills three cards. That player gains 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/2/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-player-or-object",
+      "request": {
+        "cardName": "Performer Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Draw a card. That player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-its-controller-without-object-antecedent",
+      "request": {
+        "cardName": "Performer Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Its controller mills three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-after-a-target-you-control",
+      "request": {
+        "cardName": "Performer Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target creature you control. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-chain-of-vapor-controller-may-draw",
+      "request": {
+        "cardName": "Permission Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Return target nonland permanent to its owner's hand. Then that permanent's controller may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-controller-of-target-artifact-sacrifices-it",
+      "request": {
+        "cardName": "Declared Owner Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "The controller of target artifact sacrifices it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseTargets"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-owner-of-target-creature-draws",
+      "request": {
+        "cardName": "Declared Owner Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "The owner of target creature draws two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "drawCards"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-owner-of-target-spell",
+      "request": {
+        "cardName": "Declared Owner Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "The controller of target instant or sorcery spell draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "exactly one target permanent whose owner or controller performs the clause"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-owner-of-target-with-modal",
+      "request": {
+        "cardName": "Declared Owner Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "The owner of target creature may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "a finite verb performed by the declared object's player"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-time-walk-extra-turn",
+      "request": {
+        "cardName": "Time Walk",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Take an extra turn after this one.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0",
+                "equals": {
+                  "kind": "grantExtraTurn",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-time-warp-target-player-extra-turn",
+      "request": {
+        "cardName": "Time Warp",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Target player takes an extra turn after this one.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "grantExtraTurn"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-object-related-player-extra-turn",
+      "request": {
+        "cardName": "Extra Turn Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile target creature. Its owner takes an extra turn after this one.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantExtraTurn"
+              },
+              {
+                "pointer": "/effects/1/player/kind",
+                "equals": "ownerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-extra-turn-without-order",
+      "request": {
+        "cardName": "Extra Turn Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Take an extra turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "after"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-object-related-player-scries",
+      "request": {
+        "cardName": "Scry Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Destroy target artifact. Its controller scries 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "lookAtTopCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-population-investigates",
+      "request": {
+        "cardName": "Investigate Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Each opponent investigates.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "createTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-declared-player-surveils",
+      "request": {
+        "cardName": "Surveil Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target player surveils 2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-source-subject-become-names-its-lemma",
+      "request": {
+        "cardName": "Jade Statue",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "{2}: This artifact becomes a 3/6 Golem artifact creature until end of combat. Activate only during combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "messageContains": "is not read for a source or anaphor object subject"
+          }
+        ]
+      }
+    }
+  ]
+}
