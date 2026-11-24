@@ -360,6 +360,12 @@ fn lower_local_effect_sequence_with_collections(
     let mut resolution_players = Vec::<String>::new();
 
     for (effect_index, effect) in sequence.effects.iter().enumerate() {
+        declare_query_possessor_targets(
+            cursor,
+            &mut effects,
+            &mut decisions,
+            &mut declared_player_targets,
+        )?;
         apply_performer(
             cursor,
             &mut effects,
@@ -2242,6 +2248,12 @@ fn lower_local_effect_sequence_with_collections(
         }
     }
 
+    declare_query_possessor_targets(
+        cursor,
+        &mut effects,
+        &mut decisions,
+        &mut declared_player_targets,
+    )?;
     apply_performer(
         cursor,
         &mut effects,
@@ -3411,6 +3423,25 @@ fn apply_performer(
         effect["performer"] = player.clone();
     }
     Ok(())
+}
+
+/// The player targets that query possessors (`target opponent controls`)
+/// of the actions lowered so far declare, resolved by the shared pass.
+fn declare_query_possessor_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    match super::declare_embedded_player_targets(effects, decisions, declared_player_targets) {
+        Ok(()) => Ok(()),
+        Err(expected) => {
+            cursor.enter("lower.query-possessor.declared-player");
+            Err(EffectSequenceLoweringFailure::FailedSupport(
+                cursor.fail(expected),
+            ))
+        }
+    }
 }
 
 /// A declared performer (`target opponent VERBs`, CR 115.1, 601.2c) is one

@@ -8,6 +8,9 @@ use super::super::*;
 pub(in crate::oracle::canonical) fn lower_scoped_object_query_amount(
     query: &ScopedObjectQueryNode,
 ) -> Option<Value> {
+    if let Some(history) = query.departures {
+        return lower_departure_count(query, history);
+    }
     let [zone] = query.zones.as_slice() else {
         return None;
     };
@@ -37,9 +40,60 @@ pub(in crate::oracle::canonical) fn lower_scoped_object_query_amount(
     Some(count)
 }
 
+/// The departures of this turn a query counts, as the engine's event-history
+/// count of `permanentDied` records (CR 700.4). The filter reads each
+/// record's last known characteristics (CR 603.10a); `under PLAYER's
+/// control` reads the record's player (its controller as it died) and `into
+/// PLAYER's graveyard` the departing card's owner (CR 404.2). A history with
+/// both relations, or a present-object relation, has no single record field
+/// and stays unlowered.
+fn lower_departure_count(
+    query: &ScopedObjectQueryNode,
+    history: DepartureHistory,
+) -> Option<Value> {
+    if !query.zones.is_empty()
+        || query.holders.is_some()
+        || query.objects.objects.controller.is_some()
+        || query.objects.ownership.is_some()
+    {
+        return None;
+    }
+    let relative = |player: DeparturePlayer| match player {
+        DeparturePlayer::AbilityController => controller(),
+        DeparturePlayer::OpponentOfAbilityController => {
+            json!({ "kind": "opponentsOf", "player": controller() })
+        }
+    };
+    let mut count = json!({
+        "kind": "countEventsThisTurn",
+        "event": "permanentDied",
+    });
+    let filter = lower_permanent_object_predicate(&query.objects.objects.predicate);
+    if !filter.is_null() {
+        count["where"] = filter;
+    }
+    match (history.controller, history.graveyard_owner) {
+        (Some(_), Some(_)) => return None,
+        (Some(player), None) => count["player"] = relative(player),
+        (None, Some(owner)) => {
+            count["player"] = relative(owner);
+            count["relation"] = json!("owner");
+        }
+        (None, None) => {}
+    }
+    if query.objects.objects.exclude_source {
+        count["excludeObject"] = self_ref();
+    }
+    Some(count)
+}
+
 pub(in crate::oracle::canonical) fn lower_scoped_object_query_count(
     query: &ScopedObjectQueryNode,
 ) -> Option<Value> {
+    // A casting cost reads present objects only.
+    if query.departures.is_some() {
+        return None;
+    }
     let [zone] = query.zones.as_slice() else {
         return None;
     };

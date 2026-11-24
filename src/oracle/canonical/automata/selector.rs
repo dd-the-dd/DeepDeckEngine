@@ -40,6 +40,8 @@ struct ObjectQueryFrame {
     /// so a parent reading it as the `ownedBy` characteristic keeps its
     /// position in the composed predicate.
     owner_qualifier_index: Option<usize>,
+    /// `other than this creature` read after the noun.
+    source_exclusion: Option<RelationSite>,
     logical_connectors: Vec<super::ContextualListConnector>,
     pending_logical_connector: Option<super::ContextualListConnector>,
     logical_comma: bool,
@@ -112,6 +114,39 @@ enum QuerySubjectScope {
     OpponentOfAbilityController,
     /// `defending player` / `that player` bound by the triggering event.
     EventPlayer,
+    /// Any other single player a controller relation names: a player the
+    /// binding environment names or a player target this possessor declares.
+    Player(RelatedPlayer),
+}
+
+/// The single player a controller relation names when it is neither the
+/// ability controller nor a population relative to it (CR 108.4). The query
+/// never resolves it: a bound player comes from the binding environment and a
+/// declared player is a target of the action that reads the query.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum RelatedPlayer {
+    /// `that player controls`, `its controller controls`, `that creature's
+    /// owner controls`: a player the binding environment names, never a new
+    /// declaration (CR 108.3, 109.4).
+    Bound(super::BoundPlayerReference),
+    /// `target player controls` / `target opponent controls` (CR 115.1,
+    /// 601.2c): one player target that the action reading this query
+    /// declares. `binding` is that action's program position and `site` the
+    /// token of `target`, so two possessors of one action stay distinct.
+    DeclaredTarget {
+        binding: super::PlayerBinding,
+        opponent: bool,
+        site: usize,
+    },
+}
+
+/// Where a departure-history clause was read, with the history it states.
+/// The objects it describes have left the battlefield, so only a consumer
+/// counting those departures can represent it (CR 400.7, 700.4).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ReadDeparture {
+    history: super::DepartureHistory,
+    site: RelationSite,
 }
 
 /// Where one relation verb was read, so a parent that cannot consume the
@@ -141,6 +176,10 @@ pub(in crate::oracle::canonical) struct QueryRelations {
     controller: Option<ReadRelation>,
     caster: Option<ReadRelation>,
     owner: Option<ReadRelation>,
+    /// `that died this turn`, `put into your graveyard from the battlefield
+    /// this turn`: the objects are departures of this turn, not present
+    /// objects. Like a relation, it ends a coordinated set.
+    departure: Option<ReadDeparture>,
 }
 
 impl QueryRelations {
@@ -152,9 +191,17 @@ impl QueryRelations {
         }
     }
 
-    /// Whether the phrase states no player relation at all.
+    /// Whether the phrase states no player relation and no departure history.
     pub(in crate::oracle::canonical) fn is_empty(&self) -> bool {
-        self.controller.is_none() && self.caster.is_none() && self.owner.is_none()
+        self.controller.is_none()
+            && self.caster.is_none()
+            && self.owner.is_none()
+            && self.departure.is_none()
+    }
+
+    /// The departure history the phrase states, if any.
+    pub(in crate::oracle::canonical) fn departure(&self) -> Option<super::DepartureHistory> {
+        self.departure.as_ref().map(|read| read.history)
     }
 
     fn controller_scope(&self) -> Option<QuerySubjectScope> {
@@ -187,6 +234,40 @@ fn refuse_relation(
     });
     cursor.fail_with_span(
         expected.surface(site.third_person),
+        site.token_index,
+        site.span_start,
+        site.span_end,
+        site.raw.clone(),
+    )
+}
+
+/// A departure history the parent cannot represent fails at its verb: a
+/// present-object consumer must not silently read departed objects as the
+/// permanents now on the battlefield (CR 400.7).
+fn refuse_departure(
+    cursor: &mut OracleTokenCursor<'_>,
+    departure: &ReadDeparture,
+) -> super::super::MachineFailure {
+    let site = &departure.site;
+    cursor.enter("selector.departure-history.consumer");
+    cursor.fail_with_span(
+        "a consumer counting the objects that left the battlefield this turn",
+        site.token_index,
+        site.span_start,
+        site.span_end,
+        site.raw.clone(),
+    )
+}
+
+/// A postnominal source exclusion (`other than this creature`) that no
+/// parent took over fails at `other`: dropping it would widen the query.
+fn refuse_source_exclusion(
+    cursor: &mut OracleTokenCursor<'_>,
+    site: &RelationSite,
+) -> super::super::MachineFailure {
+    cursor.enter("selector.exclusion.consumer");
+    cursor.fail_with_span(
+        "a parent that lowers the source exclusion of its object query",
         site.token_index,
         site.span_start,
         site.span_end,
@@ -289,6 +370,9 @@ pub(in crate::oracle::canonical) struct RecognizedObjectQuery {
     /// controller read as the `ownedBy` characteristic, at its position.
     owned_predicate: Option<SelectorPredicate>,
     relations: QueryRelations,
+    /// `other than this creature` after the noun (CR 109.5 `this` names
+    /// the source): read here, lowered only by a parent that takes it.
+    source_exclusion: Option<RelationSite>,
 }
 
 impl RecognizedObjectQuery {
@@ -301,15 +385,42 @@ impl RecognizedObjectQuery {
         &self.relations
     }
 
+    /// Takes over the postnominal source exclusion (`other than this
+    /// creature`). A parent that lowers a source exclusion calls this before
+    /// projecting; every projection refuses an exclusion left in place.
+    pub(in crate::oracle::canonical) fn take_source_exclusion(&mut self) -> bool {
+        self.source_exclusion.take().is_some()
+    }
+
+    /// The projections' shared refusals: a departure history or a
+    /// postnominal exclusion the projection cannot carry.
+    fn refuse_unprojected(&self, cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
+        if let Some(departure) = &self.relations.departure {
+            return Err(refuse_departure(cursor, departure));
+        }
+        if let Some(site) = &self.source_exclusion {
+            return Err(refuse_source_exclusion(cursor, site));
+        }
+        Ok(())
+    }
+
     /// Coordinates the noun phrases of one set (`artifacts and creatures you
     /// control`). The set composes the characteristic predicates; its player
-    /// relations are the last branch's, since a relation ends a set.
+    /// relations are the last branch's, since a relation ends a set. A
+    /// postnominal exclusion of an earlier branch has no coordinated scope.
     pub(in crate::oracle::canonical) fn coordinate(
         branches: Vec<RecognizedObjectQuery>,
         compose: impl Fn(Vec<SelectorPredicate>) -> Option<SelectorPredicate>,
     ) -> Option<RecognizedObjectQuery> {
-        let last = branches.last()?;
+        let (last, preceding) = branches.split_last()?;
+        if preceding
+            .iter()
+            .any(|branch| branch.source_exclusion.is_some())
+        {
+            return None;
+        }
         let relations = last.relations.clone();
+        let source_exclusion = last.source_exclusion.clone();
         let owned_last = last.owned_predicate.clone();
         let plain: Vec<SelectorPredicate> = branches
             .into_iter()
@@ -329,6 +440,7 @@ impl RecognizedObjectQuery {
             predicate: compose(plain)?,
             owned_predicate,
             relations,
+            source_exclusion,
         })
     }
 
@@ -339,6 +451,7 @@ impl RecognizedObjectQuery {
         &self,
         cursor: &mut OracleTokenCursor<'_>,
     ) -> MachineResult<SelectorPredicate> {
+        self.refuse_unprojected(cursor)?;
         if let Some(caster) = &self.relations.caster {
             return Err(refuse_relation(cursor, caster, RelationVerb::Control));
         }
@@ -351,7 +464,9 @@ impl RecognizedObjectQuery {
                         "an ownership characteristic composed with the query",
                     )
                 }
-                QuerySubjectScope::OpponentOfAbilityController | QuerySubjectScope::EventPlayer => {
+                QuerySubjectScope::OpponentOfAbilityController
+                | QuerySubjectScope::EventPlayer
+                | QuerySubjectScope::Player(_) => {
                     Err(refuse_relation(cursor, owner, RelationVerb::Control))
                 }
             },
@@ -382,6 +497,7 @@ impl RecognizedObjectQuery {
         self,
         cursor: &mut OracleTokenCursor<'_>,
     ) -> MachineResult<super::SpellCastQueryNode> {
+        self.refuse_unprojected(cursor)?;
         if let Some(relation) = self
             .relations
             .controller
@@ -405,6 +521,7 @@ impl RecognizedObjectQuery {
         self,
         cursor: &mut OracleTokenCursor<'_>,
     ) -> MachineResult<RelatedObjectQueryNode> {
+        self.refuse_unprojected(cursor)?;
         if let Some(caster) = &self.relations.caster {
             return Err(refuse_relation(cursor, caster, RelationVerb::Control));
         }
@@ -419,6 +536,63 @@ impl RecognizedObjectQuery {
             },
             ownership: self.relations.owner_scope().map(object_ownership_scope),
         })
+    }
+
+    /// The departures of this turn the phrase describes (`creatures that
+    /// died this turn`, `nontoken creatures put into your graveyard from the
+    /// battlefield this turn`), as the shared scoped query whose source set
+    /// is the turn's departure records (CR 700.4: dying is being put into a
+    /// graveyard from the battlefield). The objects were permanents; their
+    /// characteristics are their last known ones (CR 603.10a). A present
+    /// player relation (`you control`) would describe other objects and
+    /// fails at its verb; `None` when the phrase states no departure.
+    pub(in crate::oracle::canonical) fn into_departure_query(
+        self,
+        cursor: &mut OracleTokenCursor<'_>,
+        exclude_source: bool,
+    ) -> MachineResult<Option<super::ScopedObjectQueryNode>> {
+        let Some(departure) = self.relations.departure.clone() else {
+            return Ok(None);
+        };
+        if let Some(site) = &self.source_exclusion {
+            return Err(refuse_source_exclusion(cursor, site));
+        }
+        if let Some(relation) = self
+            .relations
+            .controller
+            .as_ref()
+            .or(self.relations.owner.as_ref())
+            .or(self.relations.caster.as_ref())
+        {
+            cursor.enter("selector.departure-history.present-relation");
+            let site = &relation.site;
+            return Err(cursor.fail_with_span(
+                "the departure's own player relation (`under your control`, `into your graveyard`)",
+                site.token_index,
+                site.span_start,
+                site.span_end,
+                site.raw.clone(),
+            ));
+        }
+        cursor.enter("selector.departure-history.domain");
+        cursor.require(
+            self.predicate.is_in_domain(ObjectKind::Permanent),
+            "departed objects named by a battlefield-permanent noun",
+        )?;
+        Ok(Some(super::ScopedObjectQueryNode {
+            domain: ObjectKind::Permanent,
+            objects: RelatedObjectQueryNode {
+                objects: super::ObjectQueryNode {
+                    predicate: self.predicate,
+                    controller: None,
+                    exclude_source,
+                },
+                ownership: None,
+            },
+            zones: Vec::new(),
+            holders: None,
+            departures: Some(departure.history),
+        }))
     }
 }
 
@@ -741,6 +915,85 @@ fn recognize_object_query_frame(
                         scope: PostnominalQualifierScope::WholeQuery,
                     });
                     ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(clause) = super::departure_clause_at(cursor) {
+                    // `that died this turn`, `put into your graveyard from
+                    // the battlefield this turn`: the objects are departures
+                    // of this turn (CR 700.4). Only a consumer counting them
+                    // projects the phrase; every other one fails at the verb.
+                    cursor.enter("selector.departure-history");
+                    let site = relation_site_at(cursor, clause.verb_offset)?;
+                    cursor.require(
+                        frame.relations.departure.is_none(),
+                        "one departure history for one object query",
+                    )?;
+                    cursor.advance_to(cursor.position() + clause.width)?;
+                    frame.relations.departure = Some(ReadDeparture {
+                        history: clause.history,
+                        site,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if source_exclusion_clause_starts(cursor) {
+                    // `other than this creature` (CR 109.5): the source is
+                    // not a member. A parent that lowers the exclusion takes
+                    // it; every projection refuses one left in place.
+                    cursor.enter("selector.exclusion.source");
+                    let site = relation_site_at(cursor, 0)?;
+                    cursor.consume_phrase(&["other", "than"])?;
+                    let names = cursor.source_names().to_vec();
+                    super::recognize_source_reference(cursor, &names, None)?;
+                    cursor.require(
+                        frame.source_exclusion.is_none(),
+                        "one source exclusion for one object query",
+                    )?;
+                    frame.source_exclusion = Some(site);
+                    ObjectQueryState::ReadPostnominalQualifier
+                } else if let Some(negated) = copular_characteristic_starts(cursor) {
+                    // `that isn't a Dragon`, `that are artifacts`, `that
+                    // aren't of the chosen type`: the copula relates the
+                    // object to characteristics of the same query grammar,
+                    // as `that's` does.
+                    cursor.enter("selector.relative-clause.copula-characteristic");
+                    let pronoun = cursor.peek().expect("checked relative pronoun").to_string();
+                    cursor.consume(&pronoun)?;
+                    let copula = cursor.peek().expect("checked copula").to_string();
+                    cursor.consume(&copula)?;
+                    if cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("not"))
+                    {
+                        cursor.consume("not")?;
+                    }
+                    let characteristic =
+                        if let Some(length) = chosen_creature_type_qualifier_length(cursor) {
+                            cursor.advance_to(cursor.position() + length)?;
+                            SelectorPredicate::ChosenCreatureType
+                        } else {
+                            consume_optional_selector_article(cursor)?;
+                            let relative = recognize_object_query_frame(
+                                cursor,
+                                ObjectQueryContext {
+                                    quota: context.quota,
+                                    source_available: query_source_available,
+                                    stack_targets: context.stack_targets,
+                                },
+                                true,
+                            )?
+                            .into_object_query(cursor)?;
+                            cursor.require(
+                                relative.controller.is_none(),
+                                "a relative characteristic without another controller qualifier",
+                            )?;
+                            relative.predicate
+                        };
+                    frame.postnominal_qualifiers.push(PostnominalQualifier {
+                        predicate: if negated {
+                            SelectorPredicate::Not(Box::new(characteristic))
+                        } else {
+                            characteristic
+                        },
+                        scope: PostnominalQualifierScope::WholeQuery,
+                    });
+                    ObjectQueryState::ReadPostnominalQualifier
                 } else if super::relative_clause_starts_in(cursor, context.stack_targets) {
                     // `that was dealt damage this turn`, `that has a counter
                     // on it`, `that aren't enchanted`: the relative slot.
@@ -843,6 +1096,7 @@ fn recognize_object_query_frame(
                     predicate,
                     owned_predicate,
                     relations: frame.relations,
+                    source_exclusion: frame.source_exclusion,
                 });
             }
         };
@@ -890,6 +1144,12 @@ fn retain_player_relation(
     verb: RelationVerb,
     relation: ReadRelation,
 ) -> MachineResult<()> {
+    // A related player (`target opponent`, `its controller`) is read for
+    // control only (CR 108.4); its ownership and casting readings have no
+    // representation yet and fail at their verb.
+    if matches!(relation.scope, QuerySubjectScope::Player(_)) && verb != RelationVerb::Control {
+        return Err(refuse_relation(cursor, &relation, RelationVerb::Control));
+    }
     let slot = frame.relations.slot_mut(verb);
     cursor.require(slot.is_none(), "at most one relation for each player role")?;
     *slot = Some(relation);
@@ -1534,14 +1794,31 @@ enum PlayerRelationState {
 }
 
 /// A player subject of a relation clause at the cursor: `you`, `an
-/// opponent`, `your opponents`, or a bound player (`defending player
-/// controls`). Dispatch hint only; the relation reader validates the clause.
+/// opponent`, `your opponents`, a bound player (`defending player
+/// controls`, `its controller controls`) or a declared player (`target
+/// opponent controls`). Dispatch hint only; the relation reader validates
+/// the clause.
 fn player_relation_subject_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("you")
             || token.eq_ignore_ascii_case("an")
             || token.eq_ignore_ascii_case("your")
     }) || bound_player_relation_starts(cursor)
+        || declared_player_relation_starts(cursor)
+}
+
+/// `target player controls` / `target opponent controls`: a possessor
+/// that declares one player target. Pure lookahead; `another target
+/// player` and other determiners are not this subject.
+fn declared_player_relation_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "target")
+        && (word(1, "player") || word(1, "opponent"))
+        && (word(2, "controls") || word(2, "owns") || word(2, "casts"))
 }
 
 /// Recognizes one relation clause after an object noun: a player subject
@@ -1570,17 +1847,53 @@ fn recognize_player_relation(
             PlayerRelationState::Subject => {
                 cursor.enter("selector.controller-qualifier.subject");
                 if bound_player_relation_starts(cursor) {
-                    // `defending player controls`, `that player owns`: the
-                    // player is resolved by the binding environment (C2),
-                    // never guessed by this query.
+                    // `defending player controls`, `that player owns`, `its
+                    // controller controls`: the player is resolved by the
+                    // binding environment (C2), never guessed by this query.
                     cursor.enter("selector.controller-qualifier.bound-player");
                     let environment = super::installed_binding_environment(cursor);
                     let player = super::recognize_bound_player_reference(cursor, &environment)?;
-                    cursor.require(
-                        player == super::BoundPlayerReference::EventPlayer,
-                        "a player the triggering event records",
+                    scope = Some(match player {
+                        super::BoundPlayerReference::EventPlayer => QuerySubjectScope::EventPlayer,
+                        other => {
+                            // The query is lowered without the program's
+                            // target table; a player that needs one (`that
+                            // player` after `target player`) stays refused.
+                            cursor.enter("selector.controller-qualifier.bound-player.lowering");
+                            cursor.require(
+                                crate::oracle::canonical::effects::bound_player_reference_value(
+                                    other,
+                                    &[],
+                                    &[],
+                                )
+                                .is_some(),
+                                "a bound player resolvable without a declaration of this program",
+                            )?;
+                            QuerySubjectScope::Player(RelatedPlayer::Bound(other))
+                        }
+                    });
+                    third_person = true;
+                    PlayerRelationState::Verb
+                } else if declared_player_relation_starts(cursor) {
+                    // `target opponent controls` (CR 115.1, 601.2c): the
+                    // action reading this query declares the player target.
+                    cursor.enter("selector.controller-qualifier.declared-player");
+                    let site = cursor.position();
+                    cursor.consume("target")?;
+                    let opponent = cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("opponent"));
+                    cursor.consume(if opponent { "opponent" } else { "player" })?;
+                    cursor.enter("selector.controller-qualifier.declared-player.binding");
+                    let binding = cursor.require_value(
+                        super::installed_binding_environment(cursor).effect_index,
+                        "an action of an effect program that declares the possessor's player target",
                     )?;
-                    scope = Some(QuerySubjectScope::EventPlayer);
+                    scope = Some(QuerySubjectScope::Player(RelatedPlayer::DeclaredTarget {
+                        binding: super::PlayerBinding(binding),
+                        opponent,
+                        site,
+                    }));
                     third_person = true;
                     PlayerRelationState::Verb
                 } else if cursor
@@ -1672,6 +1985,7 @@ fn object_controller_scope(scope: QuerySubjectScope) -> ObjectControllerScope {
             ObjectControllerScope::OpponentOfAbilityController
         }
         QuerySubjectScope::EventPlayer => ObjectControllerScope::EventPlayer,
+        QuerySubjectScope::Player(player) => ObjectControllerScope::Player(player),
     }
 }
 
@@ -1683,19 +1997,100 @@ fn object_ownership_scope(scope: QuerySubjectScope) -> ObjectOwnershipScope {
             ObjectOwnershipScope::OpponentOfAbilityController
         }
         QuerySubjectScope::EventPlayer => ObjectOwnershipScope::EventPlayer,
+        QuerySubjectScope::Player(_) => {
+            unreachable!("a related player is refused for ownership when its relation is read")
+        }
     }
 }
 
-/// `defending player controls|owns` / `that player controls|owns`.
+/// `defending player controls|owns`, `that player controls|owns`, `its
+/// controller controls`, `that creature's owner controls`: a player head the
+/// binding environment resolves, followed by a third-person relation verb.
 fn bound_player_relation_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     let word = |offset: usize, expected: &str| {
         cursor
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
     };
-    (word(0, "defending") || word(0, "that"))
-        && word(1, "player")
-        && (word(2, "controls") || word(2, "owns") || word(2, "casts"))
+    let head = if (word(0, "defending") || word(0, "that")) && word(1, "player") {
+        2
+    } else if let Some(length) = super::object_related_player_head_length(cursor) {
+        length
+    } else {
+        return false;
+    };
+    word(head, "controls") || word(head, "owns") || word(head, "casts")
+}
+
+/// A token of a clause the query read, `offset` tokens ahead, as the site a
+/// consumer that cannot represent the clause reports.
+fn relation_site_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> MachineResult<RelationSite> {
+    let token_index = cursor.position() + offset;
+    let token = cursor
+        .token_slice(token_index, token_index + 1)
+        .first()
+        .ok_or_else(|| cursor.fail("a token of the read clause"))?;
+    Ok(RelationSite {
+        token_index,
+        span_start: token.span_start,
+        span_end: token.span_end,
+        raw: token.raw.clone(),
+        negated: false,
+        third_person: false,
+    })
+}
+
+/// `other than this creature` / `other than NAME` when the name links to
+/// the source. Pure lookahead: another reference is not claimed.
+fn source_exclusion_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let mut trial = cursor.clone();
+    if trial.consume_phrase(&["other", "than"]).is_err() {
+        return false;
+    }
+    let names = trial.source_names().to_vec();
+    super::recognize_source_reference(&mut trial, &names, None).is_ok()
+}
+
+/// `that|which is|are|isn't|aren't [not] [a|an] CHARACTERISTIC` and `...
+/// of the chosen type`: a characteristic relative clause. Returns whether
+/// the copula negates it. A status (`that are tapped`) keeps the relative
+/// clause's own reading. Pure lookahead.
+fn copular_characteristic_starts(cursor: &OracleTokenCursor<'_>) -> Option<bool> {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if !(word(0, "that") || word(0, "which")) {
+        return None;
+    }
+    let copula = cursor
+        .peek_ahead(1)?
+        .to_ascii_lowercase()
+        .replace('\u{2019}', "'");
+    let mut negated = match copula.as_str() {
+        "is" | "are" => false,
+        "isn't" | "aren't" => true,
+        _ => return None,
+    };
+    let mut at = 2;
+    if word(at, "not") {
+        negated = !negated;
+        at += 1;
+    }
+    if cursor
+        .peek_ahead(at)
+        .is_some_and(|raw| super::lookup_status_predicate(raw).is_some())
+    {
+        return None;
+    }
+    let mut lookahead = cursor.clone();
+    lookahead.advance_to(cursor.position() + at).ok()?;
+    if chosen_creature_type_qualifier_length(&lookahead).is_some() {
+        return Some(negated);
+    }
+    consume_optional_selector_article(&mut lookahead).ok()?;
+    object_selector_phrase_starts(&lookahead).then_some(negated)
 }
 
 fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
@@ -1706,6 +2101,9 @@ fn spell_caster_scope(scope: QuerySubjectScope) -> SpellCasterScope {
             SpellCasterScope::OpponentOfAbilityController
         }
         QuerySubjectScope::EventPlayer => SpellCasterScope::EventPlayer,
+        QuerySubjectScope::Player(_) => {
+            unreachable!("a related player is refused for casting when its relation is read")
+        }
     }
 }
 

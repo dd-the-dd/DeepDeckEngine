@@ -147,6 +147,8 @@ fn lower_object_predicate(
                         }
                         // Refused by the engine's target-relation validator.
                         ObjectControllerScope::EventPlayer => "eventPlayer",
+                        // Refused by the relative clause before lowering.
+                        ObjectControllerScope::Player(_) => "relatedPlayer",
                     });
                 }
                 atom["permanents"] = query;

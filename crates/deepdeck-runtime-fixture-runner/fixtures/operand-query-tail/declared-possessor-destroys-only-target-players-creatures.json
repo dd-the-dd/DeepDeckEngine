@@ -1,0 +1,77 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "operand-query-tail/declared-possessor-destroys-only-the-target-players-creatures",
+  "seed": 7311,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [{
+        "id": "possessorTargetPlayer",
+        "kind": "chooseTargets",
+        "minimum": 1,
+        "maximum": 1,
+        "candidates": {
+          "kind": "players",
+          "where": {
+            "kind": "isOpponentOf",
+            "player": { "kind": "controllerOf", "object": { "kind": "self" } }
+          }
+        }
+      }]
+    },
+    "effects": [{
+      "kind": "destroyPermanent",
+      "permanent": {
+        "kind": "eachPermanent",
+        "where": { "kind": "cardTypeContains", "value": "Creature" },
+        "player": { "kind": "chosenTarget", "id": "possessorTargetPlayer" }
+      }
+    }]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Caster",
+        "hand": [{ "id": "possessor-wrath", "name": "Possessor Wrath", "typeLine": "Sorcery", "manaCost": "{B}" }],
+        "battlefield": [
+          { "id": "own-bear", "name": "Own Bear", "typeLine": "Creature - Bear", "power": "2", "toughness": "2" }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target opponent",
+        "battlefield": [
+          { "id": "target-bear", "name": "Target Bear", "typeLine": "Creature - Bear", "power": "2", "toughness": "2" },
+          { "id": "target-giant", "name": "Target Giant", "typeLine": "Creature - Giant", "power": "3", "toughness": "3" },
+          { "id": "target-land", "name": "Target Land", "typeLine": "Land" },
+          {
+            "id": "borrowed-elf",
+            "name": "Borrowed Elf",
+            "typeLine": "Creature - Elf",
+            "power": "1",
+            "toughness": "1",
+            "controllerId": "player-0"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "possessor-wrath",
+    "targets": { "possessorTargetPlayer": { "player": { "playerId": "player-1" } } }
+  },
+  "assertions": [
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "target-bear", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "graveyard", "definitionId": "target-giant", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "target-land", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-1", "zone": "battlefield", "definitionId": "borrowed-elf", "equals": true },
+    { "kind": "zoneContains", "playerId": "player-0", "zone": "battlefield", "definitionId": "own-bear", "equals": true },
+    { "kind": "decisionCount", "equals": 0 },
+    { "kind": "stackDepth", "equals": 0 }
+  ]
+}

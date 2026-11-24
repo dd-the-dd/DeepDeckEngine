@@ -68,7 +68,9 @@ pub(in crate::oracle::canonical) fn lower_permanent_query_in_context(
 ) -> Result<(Value, Option<LoweredQueryController>), TargetlessLoweringError> {
     validate_object_predicate_numeric_expressions(&query.predicate, declarations)?;
     let controller = query.controller.map(|scope| match scope {
-        ObjectControllerScope::AbilityController | ObjectControllerScope::EventPlayer => {
+        ObjectControllerScope::AbilityController
+        | ObjectControllerScope::EventPlayer
+        | ObjectControllerScope::Player(_) => {
             LoweredQueryController::Player(lower_object_controller_scope(scope))
         }
         ObjectControllerScope::OpponentOfAbilityController
@@ -80,6 +82,119 @@ pub(in crate::oracle::canonical) fn lower_permanent_query_in_context(
         lower_permanent_object_predicate(&query.predicate),
         controller,
     ))
+}
+
+/// The placeholder kind a declared possessor (`target opponent controls`)
+/// lowers to inside an action. The enclosing effect program replaces it with
+/// the player target it declares (`declare_embedded_player_targets`); the
+/// engine refuses any placeholder left in a rule.
+pub(in crate::oracle::canonical) const EMBEDDED_PLAYER_TARGET: &str = "embeddedPlayerTarget";
+
+/// The player one controller relation names (CR 108.4). A bound player is the
+/// value the binding environment proved; a declared player is a placeholder
+/// the program declaration pass resolves.
+pub(in crate::oracle::canonical) fn lower_related_player(player: RelatedPlayer) -> Value {
+    match player {
+        // The selector admits only references with a context-free value.
+        RelatedPlayer::Bound(reference) => bound_player_reference_value(reference, &[], &[])
+            .unwrap_or_else(|| json!({ "kind": "unresolvedRelatedPlayer" })),
+        RelatedPlayer::DeclaredTarget {
+            binding,
+            opponent,
+            site,
+        } => json!({
+            "kind": EMBEDDED_PLAYER_TARGET,
+            "binding": binding.0,
+            "opponent": opponent,
+            "site": site,
+        }),
+    }
+}
+
+/// Declares the player targets that possessors of queries (`tap all
+/// creatures target player controls`, `for each creature target opponent
+/// controls`) introduced in `effects`, in reading order: one `chooseTargets`
+/// decision per possessor (CR 115.1, 601.2c), and each placeholder becomes
+/// the chosen target. The declaration is recorded under its action's player
+/// binding, so a later `that player` of the program reads the same player.
+/// An action that already declared another player under that binding is
+/// refused: one action has one declared player.
+pub(in crate::oracle::canonical) fn declare_embedded_player_targets(
+    effects: &mut [Value],
+    decisions: &mut Vec<Value>,
+    declared: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), &'static str> {
+    fn collect(value: &Value, found: &mut Vec<(usize, bool, usize)>) {
+        if value["kind"].as_str() == Some(EMBEDDED_PLAYER_TARGET) {
+            if let (Some(binding), Some(opponent), Some(site)) = (
+                value["binding"].as_u64(),
+                value["opponent"].as_bool(),
+                value["site"].as_u64(),
+            ) {
+                let entry = (binding as usize, opponent, site as usize);
+                if !found.contains(&entry) {
+                    found.push(entry);
+                }
+            }
+            return;
+        }
+        match value {
+            Value::Array(values) => values.iter().for_each(|value| collect(value, found)),
+            Value::Object(values) => values.values().for_each(|value| collect(value, found)),
+            _ => {}
+        }
+    }
+    fn replace(value: &mut Value, site: usize, id: &str) {
+        if value["kind"].as_str() == Some(EMBEDDED_PLAYER_TARGET)
+            && value["site"].as_u64() == Some(site as u64)
+        {
+            *value = chosen_target(id);
+            return;
+        }
+        match value {
+            Value::Array(values) => values.iter_mut().for_each(|value| replace(value, site, id)),
+            Value::Object(values) => values
+                .values_mut()
+                .for_each(|value| replace(value, site, id)),
+            _ => {}
+        }
+    }
+    let mut found = Vec::new();
+    effects
+        .iter()
+        .for_each(|effect| collect(effect, &mut found));
+    for (binding, opponent, site) in found {
+        let key = PlayerTargetBinding {
+            effect_index: binding,
+        };
+        if declared.iter().any(|(declared, _)| *declared == key) {
+            return Err("one declared player for one action of the program");
+        }
+        let selector = TargetSelector::Player(if opponent {
+            PlayerPredicate::Opponent
+        } else {
+            PlayerPredicate::Any
+        });
+        let (_, candidates) = lower_target_selector_candidates(&selector)
+            .ok_or("a supported player target selector")?;
+        let used = |id: &str| {
+            decisions
+                .iter()
+                .any(|decision| decision["id"].as_str() == Some(id))
+        };
+        let mut id = "possessorTargetPlayer".to_string();
+        let mut ordinal = 1_usize;
+        while used(&id) {
+            ordinal += 1;
+            id = format!("possessorTargetPlayer{ordinal}");
+        }
+        decisions.push(target_decision(&id, candidates, 1, 1));
+        effects
+            .iter_mut()
+            .for_each(|effect| replace(effect, site, &id));
+        declared.push((key, id));
+    }
+    Ok(())
 }
 
 /// One declared-count bound as a numeric IR value. A literal stays a
