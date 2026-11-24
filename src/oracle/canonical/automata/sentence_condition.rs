@@ -302,6 +302,10 @@ fn read_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &ConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // ObjectControl: `you controlled it`, `you don't control that creature`.
+    if let Some((width, negated)) = object_control_verb(cursor) {
+        return recognize_object_control_atom(cursor, context, width, negated);
+    }
     // ActionOutcome: `you can't`, `you don't`; `the player can't`, `they
     // can't` restate the performer of the previous instruction (CR 609.3).
     if let Some(subject_width) = impossible_outcome_subject_width(cursor) {
@@ -1563,6 +1567,71 @@ fn finish_object_verb_phrase(
             }))
         }
     }
+}
+
+/// `you control|controlled|don't control|didn't control|did not control`
+/// before a bound object reference (`it`, `that NOUN`): the verb's width
+/// after `you` and whether it is negated. A counted query (`you control a
+/// Forest`) is the controlled-permanent comparison's, not this atom's.
+fn object_control_verb(cursor: &OracleTokenCursor<'_>) -> Option<(usize, bool)> {
+    if !word_is(cursor, 0, "you") {
+        return None;
+    }
+    let (width, negated) = if word_is(cursor, 1, "control") || word_is(cursor, 1, "controlled") {
+        (1, false)
+    } else if (contraction_is(cursor, 1, "don", "t") || contraction_is(cursor, 1, "didn", "t"))
+        && word_is(cursor, 2, "control")
+    {
+        (2, true)
+    } else if (word_is(cursor, 1, "do") || word_is(cursor, 1, "did"))
+        && word_is(cursor, 2, "not")
+        && word_is(cursor, 3, "control")
+    {
+        (3, true)
+    } else {
+        return None;
+    };
+    let mut object = cursor.clone();
+    object.advance_to(cursor.position() + 1 + width).ok()?;
+    super::bound_object_reference_starts(&object).then_some((width, negated))
+}
+
+/// `you controlled it`, `you didn't control that permanent` (CR 108.4): the
+/// controller relation of one bound permanent, which the runtime reads as
+/// last known information once the permanent left (CR 608.2h). The object
+/// is resolved like every object condition subject; nothing is guessed.
+fn recognize_object_control_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &ConditionContext<'_>,
+    width: usize,
+    negated: bool,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.object-control.subject");
+    cursor.consume("you")?;
+    for _ in 0..width {
+        consume_current(cursor)?;
+    }
+    cursor.enter("condition.object-control.object");
+    let object = if cursor.peek().is_some_and(super::is_source_anaphor) {
+        consume_current(cursor)?;
+        resolve_object_anaphor(cursor, context)?
+    } else {
+        let program = cursor.require_value(
+            context.program,
+            "a nominal anaphor of an effect program's proven antecedent",
+        )?;
+        let environment = condition_binding_environment(cursor, program.effects);
+        ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
+    };
+    cursor.enter("condition.object-control.permanent");
+    cursor.require(
+        matches!(object, ConditionObjectReference::Permanent(_)),
+        "a permanent whose controller (or last known controller) the condition reads",
+    )?;
+    Ok(ConditionAtom::ObjectControl(ObjectControlConditionNode {
+        object,
+        negated,
+    }))
 }
 
 /// A player predicate after a copula.

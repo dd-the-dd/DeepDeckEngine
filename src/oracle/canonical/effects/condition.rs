@@ -110,7 +110,30 @@ fn lower_condition_atom(
         ConditionAtom::PlayerTurn(node) => lower_player_turn(node),
         ConditionAtom::PlayerDesignation(node) => lower_player_designation(node),
         ConditionAtom::ObjectZone(node) => lower_object_zone(node, bindings),
+        ConditionAtom::ObjectControl(node) => lower_object_control(node, bindings),
     }
+}
+
+/// `you [didn't] control[led] OBJECT`: the shared player equality of the
+/// object's controller (its last known controller once it left the
+/// battlefield, CR 608.2h) and the ability's controller. Only an effect
+/// program's resolution binds the object.
+fn lower_object_control(
+    node: &ObjectControlConditionNode,
+    bindings: Option<&ConditionObjectBindings<'_>>,
+) -> Lowered {
+    let bindings = bindings.ok_or("an object binding of an effect program")?;
+    let ConditionObjectReference::Permanent(reference) = node.object else {
+        return Err("a permanent whose controller the runtime reads");
+    };
+    let object = bound_permanent_reference_value(reference, bindings.permanent_targets)
+        .ok_or("the previously declared permanent target slot in this lexical scope")?;
+    let fact = json!({
+        "kind": "playersEqual",
+        "left": { "kind": "controllerOf", "object": object },
+        "right": controller(),
+    });
+    Ok(if node.negated { not(fact) } else { fact })
 }
 
 /// `it's [not] their turn`: whether the active player is the player the

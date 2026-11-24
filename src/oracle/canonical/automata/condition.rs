@@ -127,13 +127,19 @@ pub(in crate::oracle::canonical) enum ConditionAtom {
     /// The zone a referenced object is in (`this creature is on the
     /// battlefield`, CR 400.1): typed zones, never an object predicate.
     ObjectZone(ObjectZoneConditionNode),
+    /// `you control|controlled it`, `you didn't control that permanent`:
+    /// the referenced object's controller is the ability's controller (CR
+    /// 108.4), read as last known information once it left (CR 608.2h).
+    ObjectControl(ObjectControlConditionNode),
 }
 
 impl ConditionAtom {
     pub(in crate::oracle::canonical) fn family(&self) -> ConditionFamily {
         match self {
             Self::Compare(_) => ConditionFamily::Compare,
-            Self::ObjectSatisfies(_) | Self::ObjectZone(_) => ConditionFamily::ObjectSatisfies,
+            Self::ObjectSatisfies(_) | Self::ObjectZone(_) | Self::ObjectControl(_) => {
+                ConditionFamily::ObjectSatisfies
+            }
             Self::EventHistory(_) => ConditionFamily::EventHistory,
             Self::CastFact(_) => ConditionFamily::CastFact,
             Self::ActionOutcome(_) => ConditionFamily::ActionOutcome,
@@ -621,6 +627,15 @@ impl ConditionZone {
 pub(in crate::oracle::canonical) struct ObjectZoneConditionNode {
     pub object: ConditionObjectReference,
     pub zones: Vec<ConditionZone>,
+    pub negated: bool,
+}
+
+/// `you [didn't] control[led] OBJECT`: whether the ability's controller is
+/// the referenced object's controller (its last known controller once it
+/// left the battlefield).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ObjectControlConditionNode {
+    pub object: ConditionObjectReference,
     pub negated: bool,
 }
 
