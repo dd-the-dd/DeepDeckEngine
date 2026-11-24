@@ -9256,6 +9256,12 @@ impl GameEngine {
         if let Some(value) = integer_value(expression) {
             return Some(value);
         }
+        // A relation count reads its anchor from a source: undefined here.
+        if let Some(count) =
+            self.related_permanent_count_with_source(expression, controller_id, None)
+        {
+            return count;
+        }
         match value_kind(expression) {
             Some("opponentExtremum") => self.opponent_extremum(expression, controller_id),
             Some("cardsDiscardedThisTurn") => Some(
