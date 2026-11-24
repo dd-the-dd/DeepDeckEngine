@@ -6,9 +6,9 @@ use std::collections::BTreeMap;
 
 use super::{
     CardDefinition, CardInstance, CastingDeclaration, DecisionProvider, EngineError, GameEngine,
-    LegalAction, card_filter_supported, card_matches_protection_quality, cost_supported,
-    distinct_card_types, integer_value, kicker_ability_supported, matches_card_filter,
-    player_reference_supported, value_kind,
+    LegalAction, MAX_DECLARATION_OPTIONS, card_filter_supported, card_matches_protection_quality,
+    cost_supported, distinct_card_types, integer_value, kicker_ability_supported, mana_value,
+    matches_card_filter, player_reference_supported, value_kind,
 };
 
 /// The declared choice of a kicker cost that is not mana (CR 702.33a).
@@ -119,6 +119,125 @@ pub(super) fn printed_hexproof_from(permanent: &CardInstance, source: &CardDefin
                     .any(|quality| card_matches_protection_quality(source, quality))
         })
     })
+}
+
+/// The declared permanent an alternative cost sacrifices (CR 118.9).
+const ALTERNATIVE_SACRIFICE: &str = "alternativeSacrificePermanent";
+/// The generic mana the sacrificed permanent's mana value takes off the
+/// spell's total cost (emerge, CR 702.119a).
+const ALTERNATIVE_REDUCTION: &str = "alternativeCostGenericReduction";
+
+/// `sacrificePermanent` as an alternative cost: a chosen permanent the
+/// caster controls matching `where`; `reduceByManaValue` reduces the total
+/// cost by its mana value (emerge).
+pub(super) fn alternative_sacrifice_supported(cost: &Value) -> bool {
+    card_filter_supported(&cost["where"])
+        && cost.get("reduceByManaValue").is_none_or(Value::is_boolean)
+}
+
+fn alternative_sacrifice_cost(ability: &Value) -> Option<&Value> {
+    ability["costs"]
+        .as_array()?
+        .iter()
+        .find(|cost| value_kind(cost) == Some("sacrificePermanent"))
+}
+
+/// The generic reduction a declared alternative sacrifice grants.
+pub(super) fn alternative_cost_generic_reduction(decisions: &BTreeMap<String, Value>) -> i32 {
+    decisions
+        .get(ALTERNATIVE_REDUCTION)
+        .and_then(integer_value)
+        .unwrap_or(0)
+        .max(0)
+}
+
+impl GameEngine {
+    /// Each declaration using an alternative cost that sacrifices a
+    /// permanent declares that permanent; without a payable permanent the
+    /// alternative is unavailable.
+    pub(super) fn expand_alternative_sacrifice_declarations(
+        &self,
+        controller_id: &str,
+        assignments: Vec<CastingDeclaration>,
+    ) -> Vec<CastingDeclaration> {
+        let mut expanded = Vec::new();
+        for assignment in assignments {
+            let cost = assignment
+                .decisions
+                .get("effectiveAlternativeCost")
+                .filter(|_| {
+                    assignment
+                        .decisions
+                        .get("useAlternativeCost")
+                        .and_then(Value::as_bool)
+                        == Some(true)
+                })
+                .and_then(alternative_sacrifice_cost)
+                .cloned();
+            let Some(cost) = cost else {
+                expanded.push(assignment);
+                continue;
+            };
+            let reduces = cost["reduceByManaValue"].as_bool() == Some(true);
+            for permanent in self
+                .state
+                .players
+                .iter()
+                .flat_map(|player| player.battlefield.iter())
+                .filter(|permanent| {
+                    permanent.controller == controller_id
+                        && self.permanent_matches_effective_filter(permanent, &cost["where"])
+                })
+            {
+                let mut declared = assignment.clone();
+                declared.decisions.insert(
+                    ALTERNATIVE_SACRIFICE.to_string(),
+                    Value::String(permanent.instance_id.clone()),
+                );
+                if reduces {
+                    declared.decisions.insert(
+                        ALTERNATIVE_REDUCTION.to_string(),
+                        Value::from(mana_value(&permanent.definition)),
+                    );
+                }
+                expanded.push(declared);
+            }
+        }
+        expanded.truncate(MAX_DECLARATION_OPTIONS);
+        expanded
+    }
+
+    /// Sacrifices the declared permanent of a selected alternative cost.
+    pub(super) fn apply_alternative_sacrifice_payment(
+        &mut self,
+        action: &LegalAction,
+        ability: &Value,
+    ) -> Result<Option<String>, EngineError> {
+        let Some(cost) = alternative_sacrifice_cost(ability).cloned() else {
+            return Ok(None);
+        };
+        let instance_id = action
+            .decisions
+            .get(ALTERNATIVE_SACRIFICE)
+            .and_then(Value::as_str)
+            .ok_or_else(|| EngineError::new("the alternative sacrifice permanent is missing"))?
+            .to_string();
+        let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
+            return Err(EngineError::new(
+                "the alternative sacrifice left the battlefield",
+            ));
+        };
+        let permanent = &self.state.players[player_index].battlefield[card_index];
+        if permanent.controller != action.player_id
+            || !self.permanent_matches_effective_filter(permanent, &cost["where"])
+        {
+            return Err(EngineError::new(
+                "the permanent cannot pay the alternative sacrifice cost",
+            ));
+        }
+        self.move_permanent_to_graveyard(&instance_id, "sacrificed")?;
+        Ok(Some(instance_id))
+    }
 }
 
 /// The ability that lets a card be cast from its owner's graveyard by

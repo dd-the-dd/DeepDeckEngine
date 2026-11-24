@@ -349,6 +349,60 @@ fn entwine_declares_every_mode_and_adds_its_cost() {
     assert_eq!(engine.state.players[0].life, 23, "both modes resolved");
 }
 
+/// Emerge (CR 702.119a): sacrifice a creature and pay the emerge cost
+/// reduced by that creature's mana value.
+#[test]
+fn emerge_sacrifices_a_creature_and_reduces_by_its_mana_value() {
+    let mut engine = test_engine();
+    engine.state.players[0].mana_pool = pool(&["U", "U", "C"]);
+    let mut card = test_definition("emerge-creature", "Creature");
+    card.mana_cost = "{6}{U}{U}".to_string();
+    card.rules.push(keyword_rule(json!({
+        "kind": "alternativeCost",
+        "mode": "emerge",
+        "costs": [
+            { "kind": "payMana", "manaCost": "{5}{U}{U}" },
+            {
+                "kind": "sacrificePermanent",
+                "where": { "kind": "cardTypeContains", "value": "Creature" },
+                "reduceByManaValue": true,
+            },
+        ],
+    })));
+    assert!(keyword_rule_supported(&card.rules[0]));
+    engine.state.players[0]
+        .hand
+        .push(test_instance("emerge-creature", card, "player-0"));
+    let mut fodder = test_definition("fodder", "Creature");
+    fodder.mana_cost = "{4}".to_string();
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("fodder", fodder, "player-0"));
+    let emerged = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .find(|action| {
+            action.card_instance_id.as_deref() == Some("emerge-creature")
+                && action.decisions.get("alternativeSacrificePermanent")
+                    == Some(&Value::String("fodder".to_string()))
+        })
+        .expect("{5}{U}{U} reduced by four is payable with three mana");
+    assert_eq!(emerged.decisions["alternativeCostMode"], "emerge");
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .apply_priority_action(&emerged, &mut FirstOption)
+        .expect("the emerged spell is cast");
+    assert!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .any(|card| card.instance_id == "fodder")
+    );
+    assert!(engine.state.players[0].mana_pool.is_empty());
+}
+
 /// `Hexproof from black` stops black sources of opponents only (CR 702.11d).
 #[test]
 fn printed_hexproof_from_a_quality_stops_only_opponents_matching_sources() {

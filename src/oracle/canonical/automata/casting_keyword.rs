@@ -8,7 +8,8 @@
 //! Parameter := ε                         (conspire, gravestorm, paradigm,
 //!                                          retrace, jump-start)
 //!            | N                         (teamwork)
-//!            | MANA                      (spectacle, surge, web-slinging, mayhem)
+//!            | MANA                      (spectacle, surge, web-slinging, mayhem,
+//!                                          emerge)
 //!            | MANA | "—" COSTS          (blitz, escalate, entwine)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
@@ -44,6 +45,8 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     Awaken,
     Blitz,
     Conspire,
+    /// CR 702.119a.
+    Emerge,
     /// CR 702.42a.
     Entwine,
     Escalate,
@@ -125,6 +128,15 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.",
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Emerge,
+        lexeme: "emerge",
+        rules_section: "702.119a",
+        parameter: Parameter::Mana,
+        reminders: &[
+            "You may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.",
         ],
     },
     Definition {

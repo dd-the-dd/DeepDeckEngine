@@ -161,6 +161,16 @@ fn alternative_cost_keywords_share_the_alternative_cast_permission() {
     assert_eq!(surge["condition"]["left"]["event"], "spellCast");
     assert_eq!(surge["condition"]["operator"], ">=");
 
+    let emerge = ability(
+        "Elder Deep-Fiend",
+        "Creature — Eldrazi Octopus",
+        "Emerge {5}{U}{U} (You may cast this spell by sacrificing a creature and paying the emerge cost reduced by that creature's mana value.)",
+    );
+    assert_eq!(emerge["mode"], "emerge");
+    assert_eq!(emerge["costs"][0], pay("{5}{U}{U}"));
+    assert_eq!(emerge["costs"][1]["kind"], "sacrificePermanent");
+    assert_eq!(emerge["costs"][1]["reduceByManaValue"], true);
+
     let web = ability(
         "Spider-Girl",
         "Legendary Creature — Spider Human Hero",

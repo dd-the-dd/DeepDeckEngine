@@ -3641,6 +3641,9 @@ fn alternative_cost_supported(value: &Value) -> bool {
                         && card_filter_supported(&cost["where"])
                 }
                 Some("returnPermanentToOwnersHand") => card_filter_supported(&cost["where"]),
+                Some("sacrificePermanent") => {
+                    keyword_programs::alternative_sacrifice_supported(cost)
+                }
                 _ => false,
             })
         })
@@ -14154,6 +14157,9 @@ impl GameEngine {
             self.return_permanent_to_hand(instance_id)?;
             paid_object = Some(instance_id.to_string());
         }
+        if let Some(sacrificed) = self.apply_alternative_sacrifice_payment(action, &ability)? {
+            paid_object = Some(sacrificed);
+        }
         self.record_event(
             "alternativeCostPaid",
             Some(action.player_id.clone()),
@@ -16094,6 +16100,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
+        assignments = self.expand_alternative_sacrifice_declarations(controller_id, assignments);
         for (instance_index, _) in self.replicate_costs(card, controller_id).iter().enumerate() {
             let decision_id = replicate_decision_id(instance_index);
             let max_count = MAX_REPLICATE_PAYMENTS.min(

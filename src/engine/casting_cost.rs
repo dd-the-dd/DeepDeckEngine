@@ -446,6 +446,11 @@ impl GameEngine {
                     casting_source,
                 )?,
             )
+            .and_then(|total| {
+                total.checked_add(keyword_programs::alternative_cost_generic_reduction(
+                    decisions,
+                ))
+            })
             .map(|amount| amount.max(0))
             .ok_or_else(|| EngineError::new("casting reduction total exceeds i32"))
     }

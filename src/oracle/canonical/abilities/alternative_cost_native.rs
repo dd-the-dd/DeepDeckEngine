@@ -214,6 +214,17 @@ pub(in crate::oracle::canonical) fn alternative_return_payment(
     })
 }
 
+/// A controlled permanent sacrificed as an alternative cost (CR 118.9);
+/// the runtime declares it among the payer's permanents.
+pub(in crate::oracle::canonical) fn alternative_sacrifice_payment(
+    predicate: &ObjectPredicate,
+) -> Value {
+    json!({
+        "kind": "sacrificePermanent",
+        "where": lower_permanent_object_predicate(predicate),
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Casting keywords (CR 702)
 
@@ -363,6 +374,21 @@ fn lower_casting_keyword(
             ],
             None,
         ),
+        // CR 702.119a: pay [cost] and sacrifice a creature rather than the
+        // mana cost; the total cost is reduced by its mana value.
+        CastingKeyword::Emerge => {
+            let mut sacrifice =
+                alternative_sacrifice_payment(&ObjectPredicate::CardType(ObjectCardType::Creature));
+            sacrifice["reduceByManaValue"] = json!(true);
+            lower_alternative_cast_permission(
+                Some("emerge"),
+                vec![
+                    keyword_mana(cursor, node, "an emerge mana cost")?,
+                    sacrifice,
+                ],
+                None,
+            )
+        }
         CastingKeyword::Escape => escape_ability(cursor, node)?,
         // The runtime owns blitz's haste, dies-draw and delayed sacrifice
         // (CR 702.152a); it pays a mana blitz cost only.
