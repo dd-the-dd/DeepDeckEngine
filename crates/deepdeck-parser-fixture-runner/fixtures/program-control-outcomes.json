@@ -307,6 +307,156 @@
       }
     },
     {
+      "id": "exact-stonybrook-angler-tap-or-untap",
+      "request": {
+        "cardName": "Stonybrook Angler",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "{1}{U}, {T}: You may tap or untap target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "chooseOneEffect"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-geothermal-kami-optional-return-cost",
+      "request": {
+        "cardName": "Geothermal Kami",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}",
+        "oracleText": "When this creature enters, you may return an enchantment you control to its owner's hand. If you do, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-noosegraf-mob-remove-counter-if-you-do",
+      "request": {
+        "cardName": "Noosegraf Mob",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "This creature enters with five +1/+1 counters on it.\nWhenever a player casts a spell, remove a +1/+1 counter from this creature. If you do, create a 2/2 black Zombie creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-sphinxs-insight-addendum",
+      "request": {
+        "cardName": "Sphinx's Insight",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Draw two cards.\nAddendum — If you cast this spell during your main phase, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "unused-combination-addendum-replacing-instead",
+      "request": {
+        "cardName": "Haunting Hymn",
+        "typeLine": "Instant",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Target player discards two cards. If you cast this spell during your main phase, that player discards four cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition/kind",
+                "equals": "wasCastDuringMainPhase"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-trigger-may-tap-or-untap",
+      "request": {
+        "cardName": "Synthetic Tidecaller",
+        "typeLine": "Creature — Merfolk",
+        "manaCost": "{2}{U}",
+        "oracleText": "Whenever this creature attacks, you may tap or untap target permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-cast-timing-other-than-main-phase",
+      "request": {
+        "cardName": "Synthetic Late Spell",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Draw a card. If you cast this spell during your end step, draw two cards instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-instead-without-replaced-sentence",
       "request": {
         "cardName": "Synthetic Lone Instead",

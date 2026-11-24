@@ -903,6 +903,18 @@ fn recognize_controller_cast_source_atom(
     } else {
         recognize_source_reference(cursor, context.name_links, context.name_failure)?
     };
+    if word_is(cursor, 0, "during") {
+        // `If you cast this spell during your main phase` (Addendum): a
+        // timing the spell keeps from its cast. A permanent's pronoun is
+        // not read here; only the spell resolving with the record does.
+        cursor.enter("condition.sentence.cast.timing");
+        cursor.require(!pronoun, "`this spell` for a cast timing")?;
+        cursor.consume_phrase(&["during", "your", "main", "phase"])?;
+        return Ok(ConditionAtom::CastFact(CastFactNode {
+            spell: CastSpellReference::Source(spell),
+            fact: CastFact::CastDuringMainPhase,
+        }));
+    }
     if !word_is(cursor, 0, "from") {
         return Ok(ConditionAtom::CastFact(CastFactNode {
             spell: CastSpellReference::Source(spell),

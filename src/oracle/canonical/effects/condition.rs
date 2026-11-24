@@ -170,6 +170,9 @@ fn lower_cast_fact(node: &CastFactNode) -> Lowered {
     Ok(match node.fact {
         CastFact::ManaSpent { .. } => unreachable!("the mana spent was lowered above"),
         CastFact::Kicked => json!({ "kind": "wasKicked", "spell": self_ref() }),
+        CastFact::CastDuringMainPhase => {
+            json!({ "kind": "wasCastDuringMainPhase", "object": self_ref() })
+        }
         CastFact::Cast { zone, negated } => {
             let fact = match zone {
                 None => json!({ "kind": "wasCast", "object": self_ref() }),
