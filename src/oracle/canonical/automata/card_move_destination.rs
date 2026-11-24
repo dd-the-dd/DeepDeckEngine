@@ -112,13 +112,13 @@ impl EntryModifiers {
 /// A modifier word that may follow `and` inside the modifier list. Any other
 /// `and` belongs to the parent's connector (`tapped and attacking` is not an
 /// entry modifier this reader owns).
-fn entry_modifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+fn entry_modifier_starts(cursor: &OracleTokenCursor<'_>, offset: usize, battlefield: bool) -> bool {
     match cursor
         .peek_ahead(offset)
         .map(str::to_ascii_lowercase)
         .as_deref()
     {
-        Some("tapped" | "transformed") => true,
+        Some("tapped" | "transformed") => battlefield,
         Some("face") => cursor
             .peek_ahead(offset + 1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("down") || raw.eq_ignore_ascii_case("up")),
@@ -141,7 +141,7 @@ pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
         if cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
-            && entry_modifier_starts(cursor, 1)
+            && entry_modifier_starts(cursor, 1, battlefield)
         {
             cursor.consume("and")?;
         }
