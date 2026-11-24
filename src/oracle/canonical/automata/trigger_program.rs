@@ -238,6 +238,28 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             event,
             GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
         )
+        // `becomes the target of a spell or ability an opponent controls`:
+        // the record binds the controller of the targeting object, the
+        // player the event wrote (CR 115.1).
+        || event_names_targeting_player(event)
+}
+
+/// A targeting event whose spell-or-ability selector writes its controller.
+fn event_names_targeting_player(event: &GenericTriggerEventNode) -> bool {
+    match event {
+        GenericTriggerEventNode::BecameTarget(node) => node.targeting_stack.controller.is_some(),
+        GenericTriggerEventNode::SourceEvent(node) => {
+            node.verbs == [super::SourceEventVerb::BecameTarget]
+                && node.modifiers.iter().any(|modifier| {
+                    matches!(
+                        modifier,
+                        super::SourceEventModifier::TargetingStack(selector)
+                            if selector.controller.is_some()
+                    )
+                })
+        }
+        _ => false,
+    }
 }
 
 /// The dealt-damage complement of a source, attached or object damage event.
@@ -271,15 +293,18 @@ fn event_names_defending_player(event: &GenericTriggerEventNode) -> bool {
         // A modified attack of the source (`attacks alone`, `attacks and
         // isn't blocked`): the generic attack and unblocked patterns record
         // the defending player too.
+        // A blocked attacker has the defending player its attack recorded
+        // (CR 506.2, 509.1h); the block record binds that player too.
         event,
         GenericTriggerEventNode::SourceEvent(node)
             if node.verbs == [super::SourceEventVerb::Attacked]
+                || node.verbs == [super::SourceEventVerb::BecameBlocked]
     ) || matches!(
-        // One attacking creature: the generic attack pattern binds the
-        // player it attacks.
+        // One attacking or blocked creature: the generic attack and block
+        // patterns bind the player it attacks.
         event,
         GenericTriggerEventNode::Object(super::ObjectEventNode {
-            verb: super::ObjectEventVerb::Attack,
+            verb: super::ObjectEventVerb::Attack | super::ObjectEventVerb::BecomeBlocked,
             subject,
             ..
         }) if subject.multiplicity == super::EventMultiplicity::PerObject
@@ -355,14 +380,14 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                     PermanentDiedEventBranchNode::Filtered { predicate, .. } => {
                         Some(predicate.clone())
                     }
-                    PermanentDiedEventBranchNode::Source(_) => None,
+                    // `this creature or another creature you control`: the
+                    // source as written, when its surface names a nominal.
+                    PermanentDiedEventBranchNode::Source(_) => subjects
+                        .source_nominal
+                        .map(|nominal| nominal.as_predicate()),
                 })
                 .collect::<Option<Vec<_>>>()?;
-            let predicate = match predicates.as_slice() {
-                [] => return None,
-                [single] => single.clone(),
-                _ => ObjectPredicate::Union(predicates),
-            };
+            let predicate = union_predicate(predicates)?;
             Some(EventObjectSlot {
                 reference: PermanentEffectReference::Observed(match kind {
                     PermanentTransitionKind::Entered => TypedObservedEventObject::EnteringPermanent,
@@ -393,7 +418,9 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 ObjectEventVerb::Attack
                 | ObjectEventVerb::BecomeBlocked
                 | ObjectEventVerb::BeDealtDamage(_)
-                | ObjectEventVerb::DealCombatDamageToPlayer => subject_slot(false),
+                | ObjectEventVerb::DealCombatDamageToPlayer
+                // The permanent turned face up (CR 708.8).
+                | ObjectEventVerb::TurnedFaceUp => subject_slot(false),
                 ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
                     DamageRecipient::Permanent(recipient) => {
                         permanent(recipient.predicate.clone(), false, false)
@@ -403,6 +430,38 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 _ => None,
             }
         }
+        // `a creature an opponent controls becomes the target of ...`: the
+        // targeted permanent the record binds (CR 115.1). A spell branch has
+        // no permanent to name.
+        GenericTriggerEventNode::BecameTarget(node) => {
+            let predicates = node
+                .objects
+                .iter()
+                .map(|object| {
+                    (object.domain == super::TargetedObjectDomain::Permanent)
+                        .then(|| object.predicate.clone())
+                })
+                .collect::<Option<Vec<_>>>()?;
+            let controller = node.objects.first()?.controller;
+            Some(EventObjectSlot {
+                reference: PermanentEffectReference::Observed(
+                    TypedObservedEventObject::EventPermanent,
+                ),
+                predicate: union_predicate(predicates)?,
+                subject: true,
+                departed: false,
+                controller: node
+                    .objects
+                    .iter()
+                    .all(|object| object.controller == controller)
+                    .then_some(controller),
+            })
+        }
+        // An occurrence with its event-time condition binds what its event
+        // binds; a trigger condition list binds an object only when every
+        // member binds the same one in the same role (CR 603.2).
+        GenericTriggerEventNode::Conditioned { event, .. } => event_object_slot(event),
+        GenericTriggerEventNode::Compound(members) => shared_member_slot(members),
         // The permanent the source is attached to as the event's subject
         // (`whenever enchanted land becomes tapped`, `enchanted creature is
         // dealt damage`, `equipped creature deals damage`): the attached
@@ -460,6 +519,48 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
         }) => permanent(creature(), true, true),
         _ => None,
     }
+}
+
+/// One predicate for the alternatives an event wrote for its object.
+fn union_predicate(mut predicates: Vec<ObjectPredicate>) -> Option<ObjectPredicate> {
+    predicates.dedup();
+    match predicates.len() {
+        0 => None,
+        1 => predicates.pop(),
+        _ => Some(ObjectPredicate::Union(predicates)),
+    }
+}
+
+/// The object every member of a trigger condition list binds, when each
+/// member binds the same reference as its subject or as its non-subject
+/// alike and with the same departure: its predicate is the union of the
+/// members' (`deals damage to a creature or planeswalker` names the damaged
+/// permanent either way). Members that bind different objects (the damage
+/// source for a player recipient, the damaged permanent otherwise) bind none.
+fn shared_member_slot(members: &[GenericTriggerEventNode]) -> Option<EventObjectSlot> {
+    let slots = members
+        .iter()
+        .map(event_object_slot)
+        .collect::<Option<Vec<_>>>()?;
+    let first = slots.first()?;
+    if !slots.iter().all(|slot| {
+        slot.reference == first.reference
+            && slot.subject == first.subject
+            && slot.departed == first.departed
+    }) {
+        return None;
+    }
+    Some(EventObjectSlot {
+        reference: first.reference,
+        predicate: union_predicate(slots.iter().map(|slot| slot.predicate.clone()).collect())?,
+        subject: first.subject,
+        departed: first.departed,
+        controller: slots
+            .iter()
+            .all(|slot| slot.controller == first.controller)
+            .then_some(first.controller)
+            .flatten(),
+    })
 }
 
 /// What the attachment guarantees about the attached permanent: an
@@ -521,6 +622,7 @@ pub(in crate::oracle::canonical) fn event_frame(
         combat_counterpart: event_names_combat_counterpart(event),
         event_object: event_object_slot(event),
         event_card: event_card_zone(event),
+        combat_defending_player: false,
         // A cast record binds its spell; a copy has no cast record.
         event_spell: matches!(
             event,

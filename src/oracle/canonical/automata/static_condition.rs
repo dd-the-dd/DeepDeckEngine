@@ -319,7 +319,9 @@ fn comparative_subject_at(
                 population: super::PlayerPopulation::Opponents,
             },
         ))
-    } else if word_is(cursor, 0, "that") && word_is(cursor, 1, "player") {
+    } else if super::condition_player_reference_starts(cursor) {
+        // `that player` / `defending player`: resolved by the binding
+        // environment when the atom is read.
         Some((2, ConditionPlayerSubject::EventPlayer))
     } else {
         None
@@ -380,18 +382,19 @@ pub(in crate::oracle::canonical) fn recognize_player_comparative_atom(
     cursor.enter("condition.player.comparative.subject");
     let (length, subject) =
         comparative_subject_at(cursor).ok_or_else(|| cursor.fail("a player subject"))?;
-    if subject == ConditionPlayerSubject::EventPlayer {
+    let subject = if subject == ConditionPlayerSubject::EventPlayer {
         let environment = super::installed_binding_environment(cursor);
-        let event_player = matches!(
-            super::recognize_that_player(cursor, &environment)?,
-            super::BoundPlayerReference::EventPlayer
-        );
-        cursor.require(event_player, "the player the triggering event records")?;
+        match super::recognize_condition_player_reference(cursor, &environment)? {
+            super::BoundPlayerReference::EventPlayer => ConditionPlayerSubject::EventPlayer,
+            super::BoundPlayerReference::DefendingPlayer => ConditionPlayerSubject::DefendingPlayer,
+            _ => return Err(cursor.fail("the player the triggering event records")),
+        }
     } else {
         for _ in 0..length {
             consume_current(cursor)?;
         }
-    }
+        subject
+    };
     cursor.enter("condition.player.comparative.verb");
     consume_current(cursor)?;
     let operator = if word_is(cursor, 0, "more") {
@@ -421,10 +424,10 @@ pub(in crate::oracle::canonical) fn recognize_player_comparative_atom(
             let others = if more { least() } else { greatest() };
             (ConditionPlayerSubject::Controller, controller(), others)
         }
-        ConditionPlayerSubject::EventPlayer => {
+        bound @ (ConditionPlayerSubject::EventPlayer | ConditionPlayerSubject::DefendingPlayer) => {
             cursor.consume("you")?;
             (
-                ConditionPlayerSubject::EventPlayer,
+                bound,
                 ConditionNumber::Player(measure.clone()),
                 controller(),
             )

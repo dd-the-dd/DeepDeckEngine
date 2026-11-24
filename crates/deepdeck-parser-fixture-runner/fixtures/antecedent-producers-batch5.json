@@ -1,0 +1,654 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "antecedent-producers-batch5",
+  "cases": [
+    {
+      "id": "sealock-monster-exact-cant-attack-unless-defending-player",
+      "request": {
+        "cardName": "Sealock Monster",
+        "typeLine": "Creature — Octopus",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "This creature can't attack unless defending player controls an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "defendingPlayerCombatRestriction"
+              },
+              {
+                "pointer": "/modifiers/0/restriction",
+                "equals": "cantAttack"
+              },
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/modifiers/0/condition/operand/left/player",
+                "equals": {
+                  "kind": "defendingPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "bubbling-beebles-exact-cant-be-blocked-as-long-as-defending-player",
+      "request": {
+        "cardName": "Bubbling Beebles",
+        "typeLine": "Creature — Beeble",
+        "manaCost": "{4}{U}",
+        "oracleText": "This creature can't be blocked as long as defending player controls an enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/restriction",
+                "equals": "cantBeBlocked"
+              },
+              {
+                "pointer": "/modifiers/0/condition/left/player",
+                "equals": {
+                  "kind": "defendingPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "orgg-sibling-cant-attack-if-defending-player-controls-a-filtered-creature",
+      "request": {
+        "cardName": "Orgg",
+        "typeLine": "Creature — Orgg",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "This creature can't attack if defending player controls an untapped creature with power 3 or greater.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/restriction",
+                "equals": "cantAttack"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "vantress-gargoyle-sibling-defending-player-graveyard-possession",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Artifact Creature — Gargoyle",
+        "manaCost": "{1}{U}",
+        "oracleText": "This creature can't attack unless defending player has seven or more cards in their graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/restriction",
+                "equals": "cantAttack"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-defending-player-in-a-standing-static-condition",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{2}",
+        "oracleText": "As long as defending player controls an Island, this creature gets +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-defending-player-gates-a-must-attack-requirement",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{2}",
+        "oracleText": "This creature attacks each combat if able unless defending player controls an Island.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "spectral-bears-sibling-attack-guard-reads-defending-player",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, if defending player controls an Island, it gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "robber-sibling-attack-guard-defending-player-comparative",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Rogue",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature attacks, if defending player has more cards in hand than you, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "flint-golem-exact-becomes-blocked-defending-player-mills",
+      "request": {
+        "cardName": "Flint Golem",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{4}",
+        "oracleText": "Whenever this creature becomes blocked, defending player mills three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/player",
+                "equals": {
+                  "kind": "triggeringPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "slate-street-ruffian-sibling-becomes-blocked-defending-player-discards",
+      "request": {
+        "cardName": "Slate Street Ruffian",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature becomes blocked, defending player discards a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-defending-player-after-a-non-combat-event",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Golem",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature becomes tapped, defending player mills three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ur-dragon-sibling-batch-attack-that-many",
+      "request": {
+        "cardName": "Dragon Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}",
+        "oracleText": "Whenever one or more Dragons you control attack, draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-many-after-a-per-object-attack",
+      "request": {
+        "cardName": "Dragon Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a Dragon you control attacks, draw that many cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ambuscade-shaman-exact-source-or-other-entering-that-creature",
+      "request": {
+        "cardName": "Ambuscade Shaman",
+        "typeLine": "Creature — Orc Shaman",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature or another creature you control enters, that creature gets +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-named-source-branch-writes-no-nominal",
+      "request": {
+        "cardName": "Ardoz, Cobbler of War",
+        "typeLine": "Legendary Creature — Goblin Shaman",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Whenever Ardoz or another creature you control enters, that creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "salt-road-ambushers-exact-turned-face-up-pronoun",
+      "request": {
+        "cardName": "Salt Road Ambushers",
+        "typeLine": "Creature — Hound Warrior",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Whenever another permanent you control is turned face up, if it's a creature, put two +1/+1 counters on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "willbreaker-sibling-became-target-that-creature",
+      "request": {
+        "cardName": "Target Probe",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a creature an opponent controls becomes the target of a spell or ability you control, tap that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-damage-to-creature-or-planeswalker-that-permanent",
+      "request": {
+        "cardName": "Damage Probe",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "Whenever this creature deals damage to a creature or planeswalker, destroy that permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "crystallization-sibling-enchanted-event-subject-that-creature",
+      "request": {
+        "cardName": "Aura Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nWhen enchanted creature becomes the target of a spell or ability, exile that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "wellspring-exact-enchanted-land-antecedent",
+      "request": {
+        "cardName": "Wellspring",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{G}{W}",
+        "oracleText": "Enchant land\nWhen this Aura enters, gain control of enchanted land.\nAt the beginning of your upkeep, untap enchanted land. You gain control of that land until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3,
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-creature-without-a-producer",
+      "request": {
+        "cardName": "Antecedent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Draw a card. That creature gets +1/+1 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "psychic-venom-exact-enchanted-land-event-controller",
+      "request": {
+        "cardName": "Psychic Venom",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant land\nWhenever enchanted land becomes tapped, this Aura deals 2 damage to that land's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "thunderbreak-regent-exact-targeting-player",
+      "request": {
+        "cardName": "Thunderbreak Regent",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Flying\nWhenever a Dragon you control becomes the target of a spell or ability an opponent controls, this creature deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-targeting-player-unwritten",
+      "request": {
+        "cardName": "Target Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a Dragon you control becomes the target of a spell or ability, this creature deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "enslave-sibling-clause-subject-owner",
+      "request": {
+        "cardName": "Aura Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nAt the beginning of your upkeep, enchanted creature deals 1 damage to its owner.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-defending-player-comparative-gates-an-attack",
+      "request": {
+        "cardName": "Defending Probe",
+        "typeLine": "Creature — Serpent",
+        "manaCost": "{2}",
+        "oracleText": "This creature can't attack unless defending player controls more creatures than you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "defendingPlayerCombatRestriction"
+              },
+              {
+                "pointer": "/modifiers/0/condition/operand/operator",
+                "equals": ">"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

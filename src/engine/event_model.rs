@@ -1213,6 +1213,37 @@ impl GameEngine {
         Ok(())
     }
 
+    /// `Whenever one or more CREATURES you control attack, ... that many`
+    /// (CR 508.1, 603.2c): the number of the source controller's attackers
+    /// of this declaration that the batch pattern matched, bound as the
+    /// event's object count. Rules without that pattern bind nothing.
+    pub(super) fn bind_attack_batch_count(
+        &self,
+        rule: &Value,
+        source: &CardInstance,
+        attacker_ids: &[String],
+        decisions: &mut BTreeMap<String, Value>,
+    ) {
+        let Some(event) = triggered_event_variants(&rule["event"])
+            .into_iter()
+            .find(|event| value_kind(event) == Some("controlledCreaturesAttacked"))
+        else {
+            return;
+        };
+        let count = attacker_ids
+            .iter()
+            .filter_map(|attacker_id| self.permanent_position(attacker_id))
+            .filter(|(player_index, card_index)| {
+                let permanent = &self.state.players[*player_index].battlefield[*card_index];
+                permanent.controller == source.controller
+                    && event.get("where").is_none_or(|filter| {
+                        self.permanent_matches_effective_filter(permanent, filter)
+                    })
+            })
+            .count();
+        decisions.insert("eventObjectCount".to_string(), Value::from(count as u64));
+    }
+
     /// Bindings of a generic block pattern: both combatants, and the other
     /// combatant of the subject with its object identity (CR 400.7).
     fn bind_generic_block_counterparts(
@@ -1343,14 +1374,15 @@ impl GameEngine {
                 "triggeringPermanentId".to_string(),
                 Value::String(record.attacker.clone()),
             )]);
-            if rule_combat_patterns(&rule).iter().any(|pattern| {
-                pattern.group == PublicationGroup::AttackerBlocked
-                    && pattern.relation == SubjectRelation::Source
-            }) {
-                // The defending player of the blocked attacker.
+            if rule_combat_patterns(&rule)
+                .iter()
+                .any(|pattern| pattern.group == PublicationGroup::AttackerBlocked)
+            {
+                // The defending player of the blocked attacker (CR 506.2),
+                // whichever attacker the pattern observes.
                 decisions.insert(
                     "triggeringPlayerId".to_string(),
-                    Value::String(record.actor.clone()),
+                    Value::String(record.defending_player.clone()),
                 );
             }
             self.bind_generic_block_counterparts(
@@ -1599,3 +1631,10 @@ mod trigger_condition_runtime_tests;
 ))]
 #[path = "event_subject_state_tests.rs"]
 mod event_subject_state_tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "antecedent_producer_runtime_tests.rs"]
+mod antecedent_producer_runtime_tests;
