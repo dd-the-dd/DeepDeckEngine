@@ -1078,6 +1078,44 @@ fn recognize_attached_object_atom(
     context: &ConditionContext<'_>,
 ) -> MachineResult<ReferencedObjectConditionNode> {
     cursor.enter("condition.attached-object.subject");
+    if contraction_is(cursor, 1, "creature", "s") {
+        // `equipped creature's power is greater than EXPR`: a property of the
+        // attached permanent compared with the shared numeric grammar.
+        cursor.enter("condition.attached-object.possessive");
+        let role = if word_is(cursor, 0, "equipped") {
+            AttachedObjectRole::Equipped
+        } else {
+            AttachedObjectRole::Enchanted
+        };
+        cursor.require(
+            context.source_attachment == Some(role),
+            "the attachment relation of the source face",
+        )?;
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        let object = ConditionObjectReference::Permanent(PermanentEffectReference::Attached(role));
+        cursor.enter("condition.attached-object.property");
+        let property = recognize_selector_numeric_property(cursor)?;
+        cursor.enter("condition.attached-object.copula");
+        cursor.require(
+            word_is(cursor, 0, "is") || word_is(cursor, 0, "was"),
+            "`is` or `was` after the possessed property",
+        )?;
+        consume_current(cursor)?;
+        let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+        cursor.require(!halved, "a whole operand of the property comparison")?;
+        let right = match right {
+            ConditionNumber::Integer(value) => NumericExpression::from(value),
+            ConditionNumber::Expression(expression) => expression,
+            _ => return Err(cursor.fail("a numeric operand of the property comparison")),
+        };
+        let predicate = ObjectPredicate::NumericComparison {
+            left: property,
+            operator,
+            right: Box::new(right),
+        };
+        return finish_referenced_object(cursor, context, object, predicate);
+    }
     let role = recognize_attached_object_reference(cursor, context.source_attachment)?;
     let object = ConditionObjectReference::Permanent(PermanentEffectReference::Attached(role));
     let predicate = recognize_object_state_predicate(cursor, false)?;
