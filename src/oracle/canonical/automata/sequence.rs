@@ -2258,7 +2258,15 @@ fn recognize_token_creation_frame(
         )
         .map(LocalEffectNode::CreateTokens);
     }
-    match super::try_recognize_token_creation_action(cursor, inputs.antecedent) {
+    match super::try_recognize_token_creation_action_in_context(
+        cursor,
+        inputs.antecedent,
+        Some(super::TokenObjectContext {
+            name_links: inputs.name_links,
+            name_failure: inputs.name_failure,
+            context: inputs.context,
+        }),
+    ) {
         super::TokenCreationAttempt::Recognized(effect) => Ok(effect),
         super::TokenCreationAttempt::FailedCommitted(failure) => Err(failure),
         super::TokenCreationAttempt::NotClaimed => {
