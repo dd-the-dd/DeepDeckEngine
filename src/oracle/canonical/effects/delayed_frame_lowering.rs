@@ -208,6 +208,29 @@ fn operates_on_event_object(value: &Value, parent: Option<&str>) -> bool {
     }
 }
 
+/// True when every declared target a value reads was declared by an action
+/// before the created rule.
+fn targets_declared_before(value: &Value, declared: &BTreeSet<&str>) -> bool {
+    match value {
+        Value::Array(items) => items
+            .iter()
+            .all(|item| targets_declared_before(item, declared)),
+        Value::Object(object) => {
+            let kind = object.get("kind").and_then(Value::as_str);
+            if matches!(kind, Some("chosenTarget" | "chosenTargets")) {
+                return object
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .is_some_and(|id| declared.contains(id));
+            }
+            object
+                .values()
+                .all(|child| targets_declared_before(child, declared))
+        }
+        _ => true,
+    }
+}
+
 /// Replaces each occurrence of `from` by `to`.
 fn replace_reference(value: &mut Value, from: &Value, to: &Value) {
     if value == from {
@@ -487,6 +510,23 @@ fn lower_delayed_trigger(
         }
         _ => None,
     };
+    // A target an action of the created trigger declares is chosen when that
+    // trigger is put on the stack (CR 603.3d), not by the ability that
+    // created it; the shared declaration has no such moment yet.
+    if scope == EventScope::Occurrence {
+        cursor.enter("lower.created-trigger.own-targets");
+        let declared_before = target_bindings
+            .iter()
+            .filter(|(binding, _)| binding.effect_index < frame.first_effect)
+            .map(|(_, id)| id.as_str())
+            .collect::<BTreeSet<_>>();
+        cursor.require(
+            delayed
+                .iter()
+                .all(|effect| targets_declared_before(effect, &declared_before)),
+            "created trigger actions reading only targets the creating ability declared",
+        )?;
+    }
     cursor.enter("lower.delayed.object-references");
     let mut captures = Captures::new(frame.first_effect);
     delayed
