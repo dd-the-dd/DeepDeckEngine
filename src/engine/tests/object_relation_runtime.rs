@@ -428,3 +428,63 @@ fn a_static_bonus_counts_the_equipment_attached_to_its_source() {
     assert_eq!(engine.current_power(&adapter), 4, "2 printed + 2 attached");
     assert_eq!(engine.current_toughness(&adapter), 4);
 }
+
+#[test]
+fn a_declared_target_filter_binds_its_relation_from_the_source() {
+    // `Destroy target Aura attached to a creature` / `target creature
+    // blocking it`: the anchor is bound from the source when the targets
+    // are chosen (CR 601.2c), so candidate matching reads game state only.
+    let mut engine = test_engine(2);
+    engine.state.players[1].battlefield = vec![
+        permanent("bear", "Creature \u{2014} Bear", "player-1", None),
+        permanent("forest", "Land \u{2014} Forest", "player-1", None),
+        permanent(
+            "on-bear",
+            "Enchantment \u{2014} Aura",
+            "player-1",
+            Some("bear"),
+        ),
+        permanent(
+            "on-forest",
+            "Enchantment \u{2014} Aura",
+            "player-1",
+            Some("forest"),
+        ),
+    ];
+    let source = permanent("harpist", "Creature \u{2014} Human", "player-0", None);
+    engine.state.players[0].battlefield = vec![source.clone()];
+    let mut candidates = json!({
+        "kind": "permanents",
+        "where": {
+            "kind": "and",
+            "operands": [
+                { "kind": "subtypeContains", "value": "Aura" },
+                {
+                    "kind": "attachedTo",
+                    "object": {
+                        "kind": "eachPermanent",
+                        "where": { "kind": "cardTypeContains", "value": "Creature" },
+                    },
+                },
+            ],
+        },
+    });
+    assert!(super::super::target_candidates_supported(&candidates));
+    // A declared-target anchor cannot be bound from the source.
+    assert!(!super::super::target_candidates_supported(&json!({
+        "kind": "permanents",
+        "where": { "kind": "attachedTo", "object": { "kind": "chosenTarget", "id": "t" } },
+    })));
+    engine
+        .bind_source_candidates(&mut candidates, &source)
+        .expect("the source binds the anchor");
+    let legal = engine.state.players[1]
+        .battlefield
+        .iter()
+        .filter(|permanent| {
+            engine.permanent_matches_target_filter(permanent, &candidates["where"], "player-0")
+        })
+        .map(|permanent| permanent.instance_id.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(legal, vec!["on-bear"]);
+}

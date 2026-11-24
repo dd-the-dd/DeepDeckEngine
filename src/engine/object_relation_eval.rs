@@ -166,6 +166,50 @@ pub(super) fn related_collection_supported(expression: &Value) -> bool {
         && object_expression_supported(&rest)
 }
 
+/// An anchor a declared target's filter can bind from the ability source
+/// alone, when targets are chosen and again on resolution (CR 601.2c,
+/// 608.2b): the source, the permanent it is attached to, or a query whose
+/// filter and controllers need no binding.
+fn source_bindable_anchor(anchor: &Value) -> bool {
+    let source_controller = |reference: &Value| {
+        value_kind(reference) == Some("controllerOf")
+            && matches!(
+                value_kind(&reference["object"]),
+                Some("self" | "abilitySource")
+            )
+    };
+    match value_kind(anchor) {
+        Some("self" | "abilitySource") => true,
+        Some("attachedPermanent") => value_kind(&anchor["attachment"]) == Some("self"),
+        Some("eachPermanent") => {
+            anchor.get("where").is_none_or(|filter| {
+                !filter_has_relation(filter) && permanent_filter_supported(filter)
+            }) && anchor.get("player").is_none_or(|player| {
+                source_controller(player)
+                    || (value_kind(player) == Some("opponentsOf")
+                        && source_controller(&player["player"]))
+            })
+        }
+        _ => false,
+    }
+}
+
+/// A declared target's candidate filter: relation leaves whose anchor the
+/// source binds (`bind_source_relations`), every other leaf the shared
+/// permanent filter.
+pub(super) fn target_filter_supported_with_relations(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some(kind) if is_relation_kind(kind) => {
+            relation_atom_supported(filter) && source_bindable_anchor(&filter["object"])
+        }
+        Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
+            !operands.is_empty() && operands.iter().all(target_filter_supported_with_relations)
+        }),
+        Some("not") => target_filter_supported_with_relations(&filter["operand"]),
+        _ => permanent_filter_supported(filter),
+    }
+}
+
 /// The values of one characteristic an object has (CR 105.1, 205.2, 205.3).
 /// `all_creature_types` is set for an object with every creature type
 /// (changeling, CR 702.73a).
@@ -579,6 +623,41 @@ impl GameEngine {
                         })
                 })
             })
+    }
+
+    /// Binds the relation leaves of a candidate domain's filter (each set of
+    /// a `union`) to `source`. `None` when an anchor cannot be bound; the
+    /// leaf then stays unprepared and matches no candidate.
+    pub(super) fn bind_source_relations(
+        &self,
+        candidates: &mut Value,
+        source: &CardInstance,
+    ) -> Option<()> {
+        fn bind(engine: &GameEngine, filter: &mut Value, source: &CardInstance) -> Option<()> {
+            match value_kind(filter) {
+                Some(kind) if is_relation_kind(kind) => {
+                    *filter = engine.prepare_object_relation_for_source(filter, Some(source))?;
+                }
+                Some("and" | "or") => {
+                    for operand in filter["operands"].as_array_mut()? {
+                        bind(engine, operand, source)?;
+                    }
+                }
+                Some("not") => bind(engine, &mut filter["operand"], source)?,
+                _ => {}
+            }
+            Some(())
+        }
+        if value_kind(candidates) == Some("union") {
+            for set in candidates["sets"].as_array_mut()? {
+                self.bind_source_relations(set, source)?;
+            }
+            return Some(());
+        }
+        match candidates.get_mut("where") {
+            Some(filter) if filter_has_relation(filter) => bind(self, filter, source),
+            _ => Some(()),
+        }
     }
 
     /// Tests one candidate against a prepared relation atom. An unprepared

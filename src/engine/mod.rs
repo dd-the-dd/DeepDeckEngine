@@ -3161,7 +3161,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
     match value_kind(candidates) {
         Some("players" | "anyTarget") => true,
         Some("permanents") => {
-            permanent_filter_supported(&candidates["where"])
+            object_relation_eval::target_filter_supported_with_relations(&candidates["where"])
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || (value_kind(controller) == Some("opponentsOf")
@@ -11097,6 +11097,11 @@ impl GameEngine {
         controller_id: &str,
     ) -> bool {
         match value_kind(filter) {
+            Some(kind) if object_relation_eval::is_relation_kind(kind) => self
+                .eval_object_relation(
+                    filter,
+                    runtime_object_filter::ObjectFilterView::Permanent(permanent),
+                ),
             Some("dealtDamageThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && event.kind == "damageDealt"
