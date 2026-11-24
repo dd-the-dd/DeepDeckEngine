@@ -215,6 +215,14 @@ fn optional_action_measured(instruction: &Value) -> bool {
         Some("discardCards") => {
             single_player(&instruction["player"]) && instruction.get("cards").is_none()
         }
+        // Every card held when the instruction began was discarded.
+        Some("discardHand") => single_player(&instruction["player"]),
+        // The full count left the player's graveyard (CR 701.13a).
+        Some("exileCards") => single_player(&instruction["from"]["player"]),
+        // At least the stated number of counters left the one object.
+        Some("removeCounters") => {
+            instruction["permanent"].is_object() && instruction["counter"].is_string()
+        }
         Some("sacrificePermanents") => {
             single_player(&instruction["player"]) && instruction.get("objects").is_none()
         }
@@ -491,6 +499,19 @@ pub(in crate::oracle::canonical) fn lower_resolution_cost(cost: &ResolutionCostN
             "kind": "sacrificePermanent",
             "permanent": self_ref(),
         }),
+        ResolutionCostNode::ReturnToHand {
+            object,
+            exclude_source,
+        } => {
+            let mut value = json!({
+                "kind": "returnPermanentToOwnersHand",
+                "where": lower_permanent_object_predicate(&object.predicate),
+            });
+            if *exclude_source {
+                value["excludeSource"] = json!(true);
+            }
+            value
+        }
         // The unrestricted card selector lowers to `null` (any card).
         ResolutionCostNode::DiscardCard { filter } => json!({
             "kind": "discardCard",

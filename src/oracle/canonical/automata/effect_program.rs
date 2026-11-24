@@ -90,6 +90,28 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
+    // A program-initial `Then` restates that this sentence follows the
+    // previous one (CR 608.2c): the program's step order already says so.
+    // `Then you may ...` keeps its own permission reader.
+    if sentence_then_width(cursor) == 1
+        && !optional_program_starts(cursor)
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| raw != "." && raw != ",")
+    {
+        cursor.enter("program.steps.leading-then");
+        cursor.consume("then")?;
+    }
+    // `Unless PLAYER pays COST, PROGRAM.` (CR 118.12): the preposed form of
+    // the `unless` frame, guarding its own sentence.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("unless"))
+        && context.unless_frames == UnlessFrameSupport::SharedLowering
+    {
+        let block = recognize_preposed_unless(cursor, name_links, name_failure, context)?;
+        return complete_outcome_block(cursor, block, name_links, name_failure, context);
+    }
     if !optional_program_starts(cursor) {
         let sequence = cursor.attempt(|attempt| {
             recognize_effect_sequence_with_context(attempt, name_links, name_failure, context)
@@ -97,6 +119,43 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         let failure = match sequence {
             Ok(sequence) => return Ok(EffectProgramNode::Sequence(sequence)),
             Err(failure) => failure,
+        };
+        // `If COND, BODY instead.` replaces the sentence before it (CR
+        // 608.2c). It is read here when it ends before any outcome block;
+        // an outcome body it amends is read by `recognize_outcome_body`.
+        let outcome_start = if mandatory_outcome_follows_first_sentence(cursor) {
+            Some(cursor.position())
+        } else {
+            match (
+                later_optional_outcome_block(cursor),
+                later_mandatory_outcome_block(cursor),
+            ) {
+                (Some(optional), Some(mandatory)) => Some(optional.min(mandatory)),
+                (optional, mandatory) => optional.or(mandatory),
+            }
+        };
+        let failure = match replacing_sentence(cursor)
+            .filter(|sentence| outcome_start.is_none_or(|start| sentence.end <= start))
+        {
+            Some(sentence) => match cursor.attempt(|attempt| {
+                recognize_replacing_sequence(attempt, sentence, name_links, name_failure, context)
+            }) {
+                Ok(sequence) => {
+                    return complete_outcome_block(
+                        cursor,
+                        EffectProgramNode::Sequence(sequence),
+                        name_links,
+                        name_failure,
+                        context,
+                    );
+                }
+                // Report the reading that progressed furthest.
+                Err(replacing_failure) if replacing_failure.token_index > failure.token_index => {
+                    replacing_failure
+                }
+                Err(_) => failure,
+            },
+            None => failure,
         };
         // A mandatory first sentence may be the producer of an `If you do,`
         // or reflexive `When you do,` outcome (CR 608.2c, 603.12).
@@ -149,10 +208,13 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             return Err(failure);
         };
         cursor.enter("program.steps.leading");
+        // The leading sentences are a program of their own: a replacing
+        // sentence among them is read with the sentence it replaces.
         let leading = cursor.bounded(block_start, |cursor| {
-            recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+            recognize_effect_program_with_context(cursor, name_links, name_failure, context)
         })?;
-        let mut steps = vec![EffectProgramNode::Sequence(leading)];
+        let mut steps = Vec::new();
+        push_program_steps(&mut steps, leading);
         push_program_steps(
             &mut steps,
             recognize_effect_program_with_context(cursor, name_links, name_failure, context)?,
@@ -168,6 +230,38 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
         return Ok(EffectProgramNode::Sequence(sequence));
     }
     recognize_permission_program(cursor, name_links, name_failure, context)
+}
+
+/// `Unless PLAYER pays COST, ACTIONS.`: the shared `unless` clause child
+/// reads the payer and the cost (no action precedes it, so no guarded
+/// declaration binds the payer); the guarded sentence is the shared
+/// sequence, and the frame guards every action of that sentence.
+fn recognize_preposed_unless(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<EffectProgramNode> {
+    cursor.enter("program.preposed-unless.clause");
+    let clause = recognize_unless_clause(cursor, None, None, false)?;
+    cursor.enter("program.preposed-unless.separator");
+    cursor.consume(",")?;
+    cursor.enter("program.preposed-unless.guarded");
+    let end = top_level_sentence_end(cursor)
+        .ok_or_else(|| cursor.fail("one guarded sentence after the `unless` clause"))?;
+    let mut sequence = cursor.bounded(end, |cursor| {
+        recognize_effect_sequence_with_context(cursor, name_links, name_failure, context)
+    })?;
+    cursor.require(
+        !sequence.effects.is_empty() && sequence.unless.is_empty(),
+        "one guarded sentence without another `unless` frame",
+    )?;
+    sequence.unless.push(UnlessFrameNode {
+        first_effect: 0,
+        end_effect: sequence.effects.len(),
+        clause,
+    });
+    Ok(EffectProgramNode::Sequence(sequence))
 }
 
 /// `PLAYER may ...`: an optional program whose actor is the controller or a
@@ -501,6 +595,15 @@ fn recognize_outcome_body(
     context: &EffectRecognitionContext,
 ) -> MachineResult<EffectProgramNode> {
     cursor.enter(state);
+    // `If you do, put a +1/+1 counter on it. If it's a Unicorn, put two
+    // +1/+1 counters on it instead.`: the replacing sentence amends the
+    // outcome's own sentence and belongs to the same outcome body.
+    if let Some(sentence) =
+        replacing_sentence(cursor).filter(|sentence| sentence.replaced_start == cursor.position())
+    {
+        return recognize_replacing_sequence(cursor, sentence, name_links, name_failure, context)
+            .map(EffectProgramNode::Sequence);
+    }
     let body_end = sentence_end_with_reminders(cursor);
     if outcome == PerformanceOutcome::Reflexive {
         let ability_end = reflexive_ability_end(cursor, context);
@@ -569,6 +672,8 @@ fn complete_outcome_block(
     if cursor.peek().is_none()
         || (context.ability_restriction_owner == AbilityRestrictionOwner::Triggered
             && trigger_limit_starts(cursor))
+        || (context.ability_restriction_owner == AbilityRestrictionOwner::Activated
+            && activation_restriction_starts(cursor))
     {
         cursor.enter("program.optional-outcome.complete");
         return Ok(block);
@@ -649,6 +754,26 @@ fn recognize_other_player_permission(
         Err(failure) if failure.token_index > sequence_failure.token_index => Err(failure),
         Err(_) => Err(sequence_failure),
     }
+}
+
+/// True when the body at the cursor needs the program reader rather than
+/// one shared sequence: a permission, an outcome connector, a reflexive
+/// ability, a replacing `instead` sentence, a preposed `Unless` or a
+/// program-initial `Then` (lexical lookahead only; the program's children
+/// prove it).
+pub(in crate::oracle::canonical) fn effect_program_operator_follows(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    optional_program_starts(cursor)
+        || sentence_then_width(cursor) == 1
+        || cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("unless"))
+        || mandatory_outcome_follows_first_sentence(cursor)
+        || later_optional_outcome_block(cursor).is_some()
+        || later_mandatory_outcome_block(cursor).is_some()
+        || reflexive_action_block_follows(cursor)
+        || replacing_sentence(cursor).is_some()
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {

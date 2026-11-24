@@ -37,6 +37,13 @@ pub(in crate::oracle::canonical) enum ResolutionCostNode {
     },
     /// `sacrifice this PERMANENT`: the resolving ability's source.
     SacrificeSource,
+    /// `return a QUERY you control to its owner's hand`: one permanent the
+    /// payer controls, chosen while paying (the activation `ReturnToHand`
+    /// payment read at resolution, CR 118.3). `another` excludes the source.
+    ReturnToHand {
+        object: ObjectQueryNode,
+        exclude_source: bool,
+    },
     /// One card from the payer's hand matching the shared card selector.
     DiscardCard {
         filter: ObjectPredicate,
@@ -158,7 +165,7 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
         // never approximated by another program.
         PaymentActionNode::Untap(_)
         | PaymentActionNode::TapTotalPower(_)
-        | PaymentActionNode::ReturnToHand(_)
+        | PaymentActionNode::ReturnToHand(PaymentObjectsNode::Source(_))
         | PaymentActionNode::PutCounters(_)
         | PaymentActionNode::Reveal { .. }
         | PaymentActionNode::Mill { .. }
@@ -170,6 +177,25 @@ pub(in crate::oracle::canonical) fn resolution_cost_from_payment(
             ))
         }
         PaymentActionNode::Pay(payment) => Ok(ResolutionCostNode::Payment(payment)),
+        PaymentActionNode::ReturnToHand(PaymentObjectsNode::Chosen(chosen)) => {
+            cursor.enter("cost.resolution.return.quantity");
+            cursor.require(
+                chosen.count == NumericAtom::Integer(1),
+                "one returned permanent (several returned permanents have no resolution cost program)",
+            )?;
+            cursor.enter("cost.resolution.return.selection-method");
+            cursor.require(
+                chosen.method == CollectionSelectionMethod::Choice,
+                "a payer-chosen returned permanent",
+            )?;
+            let PaymentObjectFilter::Permanents(object) = chosen.filter else {
+                return Err(cursor.fail("a permanent the payer controls"));
+            };
+            Ok(ResolutionCostNode::ReturnToHand {
+                object,
+                exclude_source: chosen.exclude_source,
+            })
+        }
         PaymentActionNode::Blight { amount } => Ok(ResolutionCostNode::Blight { amount }),
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("cost.resolution.sacrifice.source");

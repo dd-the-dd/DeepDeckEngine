@@ -10,11 +10,15 @@
 //! ```text
 //! ActionResult := ObjectCollection Verb "this" "way"
 //! Verb         := "destroyed" | "milled" | "discarded" | "revealed"
+//!               | "exiled" | "sacrificed"
+//! Active       := "you" ActiveVerb Threshold ObjectCollection "this" "way"
 //! ```
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    LocalEffectNode, ObjectKind, ObjectPredicate, PlayerActionNode, SingularPlayerAction,
-    ZoneChangeAction, recognize_object_collection,
+    CardZoneChangeAction, ConditionAtom, ConditionComparison, ConditionNumber,
+    ConditionPlayerSubject, LocalEffectNode, ObjectKind, ObjectPredicate, PlayerActionNode,
+    SacrificeEffectNode, SingularPlayerAction, ZoneChangeAction, recognize_count_threshold,
+    recognize_object_collection, threshold_comparison,
 };
 
 /// The action whose affected objects a `VERBed this way` phrase restates.
@@ -28,14 +32,22 @@ pub(in crate::oracle::canonical) enum ActionResultVerb {
     Discarded,
     /// Cards revealed (CR 701.16): they stay where they are.
     Revealed,
+    /// Target cards moved to exile from a card zone (CR 701.13a). They keep
+    /// their characteristics there; a permanent exiled from the battlefield
+    /// (a token ceases to exist) has no producer of this verb yet.
+    Exiled,
+    /// Permanents put into a graveyard by sacrifice (CR 701.21a).
+    Sacrificed,
 }
 
 impl ActionResultVerb {
-    pub(in crate::oracle::canonical) const ALL: [Self; 4] = [
+    pub(in crate::oracle::canonical) const ALL: [Self; 6] = [
         Self::Destroyed,
         Self::Milled,
         Self::Discarded,
         Self::Revealed,
+        Self::Exiled,
+        Self::Sacrificed,
     ];
 
     pub(in crate::oracle::canonical) fn from_word(word: &str) -> Option<Self> {
@@ -44,7 +56,23 @@ impl ActionResultVerb {
             "milled" => Some(Self::Milled),
             "discarded" => Some(Self::Discarded),
             "revealed" => Some(Self::Revealed),
+            "exiled" => Some(Self::Exiled),
+            "sacrificed" => Some(Self::Sacrificed),
             _ => None,
+        }
+    }
+
+    /// The active forms a performer restates (`you discard`, `you exiled`):
+    /// present, third person and past tense of the same verb.
+    pub(in crate::oracle::canonical) fn from_active_word(word: &str) -> Option<Self> {
+        match word.to_ascii_lowercase().as_str() {
+            "destroy" | "destroys" => Some(Self::Destroyed),
+            "mill" | "mills" => Some(Self::Milled),
+            "discard" | "discards" => Some(Self::Discarded),
+            "reveal" | "reveals" => Some(Self::Revealed),
+            "exile" | "exiles" => Some(Self::Exiled),
+            "sacrifice" | "sacrifices" => Some(Self::Sacrificed),
+            past => Self::from_word(past),
         }
     }
 
@@ -54,6 +82,8 @@ impl ActionResultVerb {
             Self::Milled => "milled",
             Self::Discarded => "discarded",
             Self::Revealed => "revealed",
+            Self::Exiled => "exiled",
+            Self::Sacrificed => "sacrificed",
         }
     }
 
@@ -69,6 +99,8 @@ impl ActionResultVerb {
             Self::Milled => &["mill"],
             Self::Discarded => &["discardCards"],
             Self::Revealed => &["revealCards", "revealFromTopUntilCount"],
+            Self::Exiled => &["exileTargetCards"],
+            Self::Sacrificed => &["sacrificePermanents", "sacrificePermanent"],
         }
     }
 
@@ -77,7 +109,10 @@ impl ActionResultVerb {
     /// card noun can be re-read on the bound objects. A permanent that left
     /// the battlefield (a token ceases to exist) is never re-read.
     pub(in crate::oracle::canonical) const fn preserves_card_characteristics(self) -> bool {
-        matches!(self, Self::Milled | Self::Discarded | Self::Revealed)
+        matches!(
+            self,
+            Self::Milled | Self::Discarded | Self::Revealed | Self::Exiled
+        )
     }
 }
 
@@ -409,6 +444,19 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
                     ..
                 })
         ),
+        ActionResultVerb::Exiled => matches!(
+            effect,
+            LocalEffectNode::TargetCardZoneChange(node)
+                if node.action == CardZoneChangeAction::Exile
+        ),
+        ActionResultVerb::Sacrificed => matches!(
+            effect,
+            LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { .. })
+                | LocalEffectNode::PlayerAction(PlayerActionNode {
+                    action: SingularPlayerAction::Sacrifice(_),
+                    ..
+                })
+        ),
     }
 }
 
@@ -433,6 +481,27 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
             guaranteed_by(&reference.predicate, &node.objects.predicate)
                 .then_some(ActionResultFilter::All)?
         }
+        // Sacrificed permanents left the battlefield; only the noun their
+        // own selection guarantees is counted.
+        LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { object, .. }) => {
+            guaranteed_by(&reference.predicate, &object.predicate)
+                .then_some(ActionResultFilter::All)?
+        }
+        LocalEffectNode::PlayerAction(PlayerActionNode {
+            action: SingularPlayerAction::Sacrifice(sacrifice),
+            ..
+        }) => guaranteed_by(&reference.predicate, &sacrifice.object.predicate)
+            .then_some(ActionResultFilter::All)?,
+        // Exiled target cards keep their characteristics in exile.
+        LocalEffectNode::TargetCardZoneChange(_) => {
+            if reference.predicate == ObjectPredicate::ObjectKind(ObjectKind::Card) {
+                ActionResultFilter::All
+            } else if reference.predicate.is_in_domain(ObjectKind::Card) {
+                ActionResultFilter::Cards(reference.predicate.clone())
+            } else {
+                return None;
+            }
+        }
         // Milled and discarded cards keep their characteristics in the
         // graveyard.
         LocalEffectNode::PlayerAction(_)
@@ -449,6 +518,86 @@ pub(in crate::oracle::canonical) fn resolve_action_result_antecedent(
         _ => return None,
     };
     Some((index, filter))
+}
+
+/// Lexical lookahead for the active voice of an action-result condition:
+/// `you VERB QUANTITY NOUN this way` before the end of the clause
+/// (`If you discard a creature card this way`, `If you exiled a land card
+/// this way`, `If you sacrifice an Island this way`).
+pub(in crate::oracle::canonical) fn active_action_result_condition_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    word(0, "you")
+        && cursor
+            .peek_ahead(1)
+            .and_then(ActionResultVerb::from_active_word)
+            .is_some()
+        && active_result_end(cursor).is_some()
+}
+
+/// Offset of `this` in `... this way` before the end of the clause.
+fn active_result_end(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    (2..14)
+        .take_while(|offset| {
+            cursor
+                .peek_ahead(offset - 1)
+                .is_some_and(|raw| !matches!(raw, "." | "," | ";" | ":"))
+        })
+        .find(|offset| {
+            cursor
+                .peek_ahead(*offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+                && cursor
+                    .peek_ahead(offset + 1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("way"))
+        })
+}
+
+/// `you VERB QUANTITY NOUN this way` (CR 608.2c): the same comparison as the
+/// passive `QUANTITY NOUN was VERBed this way`, whose performer the active
+/// subject restates. The program lowering binds the nearest earlier action
+/// of the verb, or fails when there is none.
+pub(in crate::oracle::canonical) fn recognize_active_action_result_condition_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.action-result.active.subject");
+    let end = active_result_end(cursor)
+        .map(|offset| cursor.position() + offset)
+        .ok_or_else(|| cursor.fail("an active `you VERB OBJECTS this way` clause"))?;
+    cursor.consume("you")?;
+    cursor.enter("condition.action-result.active.verb");
+    let verb = cursor
+        .peek()
+        .and_then(ActionResultVerb::from_active_word)
+        .ok_or_else(|| {
+            cursor.fail("`discard`, `exile`, `sacrifice`, `mill`, `reveal` or `destroy`")
+        })?;
+    let raw = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&raw)?;
+    cursor.enter("condition.action-result.active.quantity");
+    let threshold = recognize_count_threshold(cursor, true)?;
+    cursor.enter("condition.action-result.active.objects");
+    let query = cursor.bounded(end, recognize_object_collection)?;
+    cursor.require(
+        !query.exclude_source && query.controller.is_none() && query.predicate.has_nominal_head(),
+        "a nominal object phrase without a controller relation",
+    )?;
+    cursor.consume_phrase(&["this", "way"])?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::ActionResultObjects(ActionResultReferenceNode {
+            predicate: query.predicate,
+            verb,
+        }),
+        operator,
+        right: ConditionNumber::Integer(value),
+    }))
 }
 
 #[cfg(test)]

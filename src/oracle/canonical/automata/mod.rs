@@ -196,6 +196,7 @@ mod rebound;
 mod reference;
 mod regenerate;
 mod relative_clause;
+mod replacing_conditional;
 mod replicate;
 mod resolution_cost;
 mod resource_payment;
@@ -458,6 +459,7 @@ pub(super) use rebound::*;
 pub(super) use reference::*;
 pub(super) use regenerate::*;
 pub(super) use relative_clause::*;
+pub(super) use replacing_conditional::*;
 pub(super) use replicate::*;
 pub(super) use resolution_cost::*;
 pub(super) use resource_payment::*;
@@ -640,6 +642,11 @@ pub(in crate::oracle::canonical) struct EffectRecognitionContext {
     /// lowerer, which owns sentence-conditional ranges. Family parents that
     /// destructure actions directly never receive a conditional sentence.
     pub sentence_conditionals: bool,
+    /// Set only by the program parent that reads a replacing sentence
+    /// (`If COND, instead BODY.`, `replacing_conditional.rs`) and gives its
+    /// conditional the replacement form; every other parent keeps `instead`
+    /// after a condition an explicit failure.
+    pub replacing_conditionals: bool,
     /// Whether the parent lowers `unless` frames through the shared sequence
     /// lowering. Any other parent rejects `unless` at the sentence boundary.
     pub unless_frames: UnlessFrameSupport,

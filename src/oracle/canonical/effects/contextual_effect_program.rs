@@ -159,7 +159,8 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
                     return EffectProgramParseAttempt::Failed(failure);
                 }
             }
-            match try_recognize_activated_effect_sequence_with_cost_context(
+            let checkpoint = cursor.checkpoint();
+            let sequence_failure = match try_recognize_activated_effect_sequence_with_cost_context(
                 &mut cursor,
                 input.name_links,
                 input.name_resolution_failure,
@@ -167,19 +168,50 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
                 |costs, base| activation_body_context(input.face_type_line, costs, base),
             ) {
                 ActivatedEffectSequenceParseAttempt::Parsed(program) => {
-                    restrictions = program.restrictions;
-                    reduction = program.reduction;
-                    (
+                    return finish_contextual_effect_program(
+                        &mut cursor,
+                        context,
                         Some(program.costs),
                         EffectProgramNode::Sequence(program.effects),
                         program.timing_annotation,
-                    )
+                        program.reduction,
+                        program.restrictions,
+                    );
                 }
                 ActivatedEffectSequenceParseAttempt::UnsupportedSupportLimit(failure) => {
-                    return EffectProgramParseAttempt::Unpromoted(failure);
+                    EffectProgramParseAttempt::Unpromoted(failure)
                 }
                 ActivatedEffectSequenceParseAttempt::FailedCommitted(failure) => {
-                    return EffectProgramParseAttempt::Failed(failure);
+                    EffectProgramParseAttempt::Failed(failure)
+                }
+            };
+            // A body the one sequence declined may need the shared program
+            // reader (`{T}: Add {U}. If you played a land this turn, add {B}
+            // instead.`); the program envelope claims it only then.
+            cursor.rollback(checkpoint);
+            match cursor.attempt(|attempt| {
+                recognize_activated_effect_program_with_cost_context(
+                    attempt,
+                    input.name_links,
+                    input.name_resolution_failure,
+                    &recognition_context,
+                    |costs, base| activation_body_context(input.face_type_line, costs, base),
+                )
+            }) {
+                Ok((costs, program, trailer)) => {
+                    restrictions = trailer.restrictions;
+                    reduction = trailer.reduction;
+                    (Some(costs), program, trailer.timing_annotation)
+                }
+                Err(program_failure) => {
+                    return match sequence_failure {
+                        EffectProgramParseAttempt::Failed(failure)
+                            if program_failure.token_index > failure.token_index =>
+                        {
+                            EffectProgramParseAttempt::Failed(program_failure)
+                        }
+                        sequence_failure => sequence_failure,
+                    };
                 }
             }
         }
@@ -191,16 +223,33 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
         }
         EffectProgramContext::Mana => unreachable!("mana context is derived from typed effects"),
     };
-    let outcome = lower_contextual_effect_program_with_annotation(
+    finish_contextual_effect_program(
         &mut cursor,
         context,
         costs,
         effects,
         annotation,
+        reduction,
+        restrictions,
+    )
+}
+
+/// Lowers a recognized body with its activation metadata.
+fn finish_contextual_effect_program(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: EffectProgramContext,
+    costs: Option<ActivationCostSequenceNode>,
+    effects: EffectProgramNode,
+    annotation: Option<ActivationTimingAnnotation>,
+    reduction: Option<ActivationCostReductionNode>,
+    restrictions: ActivationRestrictionsNode,
+) -> EffectProgramParseAttempt {
+    let outcome = lower_contextual_effect_program_with_annotation(
+        cursor, context, costs, effects, annotation,
     );
-    let outcome = apply_activation_cost_reduction(&mut cursor, outcome, reduction);
-    let outcome = refuse_indefinite_grant_to_the_spell(&mut cursor, context, outcome);
-    apply_activation_restrictions(&mut cursor, outcome, restrictions)
+    let outcome = apply_activation_cost_reduction(cursor, outcome, reduction);
+    let outcome = refuse_indefinite_grant_to_the_spell(cursor, context, outcome);
+    apply_activation_restrictions(cursor, outcome, restrictions)
 }
 
 /// A modal activated ability (CR 700.2, 602.2b): the shared activation-cost
@@ -366,12 +415,7 @@ fn recognize_imperative_program_body(
     recognition_context: &EffectRecognitionContext,
 ) -> Result<EffectProgramNode, EffectProgramParseAttempt> {
     let checkpoint = cursor.checkpoint();
-    let optional_head = cursor.peek().is_some_and(|s| s.eq_ignore_ascii_case("you"))
-        && cursor
-            .peek_ahead(1)
-            .is_some_and(|s| s.eq_ignore_ascii_case("may"))
-        || later_optional_outcome_block(cursor).is_some()
-        || reflexive_action_block_follows(cursor);
+    let optional_head = effect_program_operator_follows(cursor);
     match try_recognize_effect_sequence_with_context(
         cursor,
         input.name_links,
@@ -467,23 +511,45 @@ pub(in crate::oracle::canonical) fn parse_loyalty_effect_program(
     };
     let mut context = activation_body_context(input.face_type_line, &no_costs, &base);
     context.ability_restriction_owner = AbilityRestrictionOwner::Activated;
-    let effects = match try_recognize_effect_sequence_before_activation_annotation(
+    // The body is the shared program, exactly as a spell's: one sequence
+    // when it reads as one, otherwise permissions, outcome blocks, reflexive
+    // abilities and replacing sentences (`+1: You may discard a card. If you
+    // do, draw a card.`, `-8: Draw four cards. When you do, ...`).
+    let checkpoint = cursor.checkpoint();
+    let program_operator = effect_program_operator_follows(&cursor);
+    let program = match try_recognize_effect_sequence_before_activation_annotation(
         &mut cursor,
         input.name_links,
         input.name_resolution_failure,
         &context,
     ) {
-        EffectSequenceParseAttempt::Parsed(effects) => effects,
+        EffectSequenceParseAttempt::Parsed(effects) => EffectProgramNode::Sequence(effects),
         EffectSequenceParseAttempt::RejectedCandidate(failure)
-        | EffectSequenceParseAttempt::FailedCommitted(failure) => return Err(failure),
+        | EffectSequenceParseAttempt::FailedCommitted(failure)
+            if !program_operator =>
+        {
+            return Err(failure);
+        }
+        EffectSequenceParseAttempt::RejectedCandidate(_)
+        | EffectSequenceParseAttempt::FailedCommitted(_) => {
+            cursor.rollback(checkpoint);
+            cursor.enter("loyalty-ability.program");
+            recognize_effect_program_with_context(
+                &mut cursor,
+                input.name_links,
+                input.name_resolution_failure,
+                &context,
+            )?
+        }
     };
     cursor.enter("loyalty-ability.complete");
     cursor.finish()?;
-    let mut draft = match lower_contextual_effect_program(
+    let mut draft = match lower_contextual_effect_program_with_annotation(
         &mut cursor,
         EffectProgramContext::Activated,
         Some(no_costs),
-        effects,
+        program,
+        None,
     ) {
         EffectProgramParseAttempt::Parsed(draft) => draft,
         EffectProgramParseAttempt::Unpromoted(failure)

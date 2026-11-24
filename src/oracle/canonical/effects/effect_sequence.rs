@@ -2442,7 +2442,7 @@ fn lower_local_effect_sequence_with_collections(
         &declared_player_targets,
         &mut effects,
     )?;
-    conditional_scopes.wrap(cursor, sequence, &action_starts, &mut effects)?;
+    conditional_scopes.wrap(cursor, sequence, &action_starts, &decisions, &mut effects)?;
     apply_where_x_bindings(
         cursor,
         &sequence.where_x,
@@ -2471,9 +2471,12 @@ fn lower_local_effect_sequence_with_collections(
 }
 
 /// Per-sentence state of the conditional instructions of one sequence
-/// (CR 608.2c). Each condition is lowered where its sentence begins, with the
-/// bindings visible there; each branch starts from the same card-collection
-/// scope, and a scope that differs after the instruction does not escape it.
+/// (CR 608.2c). Each condition is lowered where its `If` sentence begins, with
+/// the bindings visible there; each branch starts from the same
+/// card-collection scope, and a scope that differs after the instruction does
+/// not escape it. A replacing (`instead`) conditional opens its scope where
+/// the replaced sentence begins: its `If` branch starts from the scope before
+/// the replaced actions, which it replaces.
 struct ConditionalScopes {
     conditions: Vec<Option<Value>>,
     before: Vec<Option<CardCollectionMemory>>,
@@ -2489,11 +2492,11 @@ impl ConditionalScopes {
         let mut previous_end = 0;
         for conditional in &sequence.conditionals {
             cursor.require(
-                previous_end <= conditional.then_first
+                previous_end <= conditional.start()
                     && conditional.then_first < conditional.then_end
-                    && conditional
-                        .else_end
-                        .is_none_or(|end| conditional.then_end < end)
+                    && conditional.else_end.is_none_or(|end| {
+                        conditional.then_end < end || end < conditional.then_first
+                    })
                     && conditional.end() <= sequence.effects.len(),
                 "ordered, nonempty and disjoint conditional sentence ranges",
             )?;
@@ -2540,11 +2543,25 @@ impl ConditionalScopes {
             }
         }
         for (index, conditional) in sequence.conditionals.iter().enumerate() {
-            if conditional.else_end.is_some() && conditional.then_end == effect_index {
+            if conditional.otherwise_end().is_some() && conditional.then_end == effect_index {
                 self.after_then[index] = Some(collections.clone());
                 let before = self.before[index]
                     .as_ref()
                     .expect("a conditional scope opens before its other branch");
+                collections.restore_scope(before);
+            }
+        }
+        for (index, conditional) in sequence.conditionals.iter().enumerate() {
+            // The replaced sentence is the branch written first; the
+            // replacing branch starts from the scope before it.
+            if conditional.replaced_first() == Some(effect_index) {
+                self.before[index] = Some(collections.clone());
+            }
+            if conditional.replaced_first().is_some() && conditional.then_first == effect_index {
+                self.after_then[index] = Some(collections.clone());
+                let before = self.before[index]
+                    .as_ref()
+                    .expect("a replaced sentence opens its conditional scope");
                 collections.restore_scope(before);
             }
         }
@@ -2577,7 +2594,9 @@ impl ConditionalScopes {
                     EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
                 })?;
                 self.conditions[index] = Some(condition);
-                self.before[index] = Some(collections.clone());
+                if conditional.replaced_first().is_none() {
+                    self.before[index] = Some(collections.clone());
+                }
             }
         }
         Ok(())
@@ -2585,21 +2604,44 @@ impl ConditionalScopes {
 
     /// Replaces each conditional's action range by one `conditional` node.
     /// Target declarations stay ability-wide (CR 601.2c); a branch governed
-    /// by a cast choice such as kicker cannot own a required target.
+    /// by a cast choice such as kicker cannot own a required target. A
+    /// target both branches act on is required whichever branch is taken
+    /// (`Target creature gets -2/-2 ... If this spell was kicked, that
+    /// creature gets -6/-6 ... instead.`).
     fn wrap(
         &mut self,
         cursor: &mut OracleTokenCursor<'_>,
         sequence: &EffectSequenceNode,
         action_starts: &[(usize, usize)],
+        decisions: &[Value],
         effects: &mut Vec<Value>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
         for (index, conditional) in sequence.conditionals.iter().enumerate().rev() {
-            let (then_from, decisions_from) = action_starts[conditional.then_first];
+            let (start_from, decisions_from) = action_starts[conditional.start()];
+            let (then_from, _) = action_starts[conditional.then_first];
             let (then_to, _) = action_starts[conditional.then_end];
             let (else_to, decisions_to) = action_starts[conditional.end()];
+            let condition = self.conditions[index]
+                .take()
+                .expect("every conditional is lowered at its first action");
+            let (then, otherwise) = if conditional.replaced_first().is_some() {
+                // `instead`: the replaced sentence is the other branch.
+                let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
+                let otherwise = effects.drain(start_from..then_from).collect::<Vec<_>>();
+                (then, otherwise)
+            } else {
+                let otherwise = effects.drain(then_to..else_to).collect::<Vec<_>>();
+                let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
+                (then, otherwise)
+            };
             cursor.enter("lower.sentence-conditional.cast-choice-targets");
+            let governed = decisions.get(decisions_from..decisions_to).unwrap_or(&[]);
             if sentence_condition_depends_on_cast_choice(&conditional.condition)
-                && decisions_from != decisions_to
+                && !governed.iter().all(|decision| {
+                    decision["id"].as_str().is_some_and(|id| {
+                        mentions_identifier(&then, id) && mentions_identifier(&otherwise, id)
+                    })
+                })
             {
                 return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
                     cursor.fail(
@@ -2607,13 +2649,8 @@ impl ConditionalScopes {
                     ),
                 ));
             }
-            let condition = self.conditions[index]
-                .take()
-                .expect("every conditional is lowered at its first action");
-            let otherwise = effects.drain(then_to..else_to).collect::<Vec<_>>();
-            let then = effects.drain(then_from..then_to).collect::<Vec<_>>();
             effects.insert(
-                then_from,
+                start_from,
                 json!({
                     "kind": "conditional",
                     "condition": condition,
@@ -2624,6 +2661,19 @@ impl ConditionalScopes {
         }
         Ok(())
     }
+}
+
+/// Whether a lowered program names the declaration `id` anywhere.
+fn mentions_identifier(effects: &[Value], id: &str) -> bool {
+    fn walk(value: &Value, id: &str) -> bool {
+        match value {
+            Value::String(text) => text == id,
+            Value::Array(items) => items.iter().any(|item| walk(item, id)),
+            Value::Object(map) => map.values().any(|child| walk(child, id)),
+            _ => false,
+        }
+    }
+    effects.iter().any(|effect| walk(effect, id))
 }
 
 fn collect_action_result_references(value: &Value, found: &mut Vec<usize>) {
@@ -2714,7 +2764,19 @@ struct PreviousActionResult<'a> {
 impl PreviousActionResult<'_> {
     /// Runtime actions whose `bind` records whether they were performed: the
     /// object they acted on, or nothing when they could not act.
-    const RECORDING_KINDS: [&'static str; 1] = ["removeCounters"];
+    const RECORDING_KINDS: [&'static str; 2] = ["removeCounters", "sacrificePermanent"];
+
+    /// Whether `effect` records whether it was performed in its `bind`: a
+    /// recording kind, or the sacrifice of exactly one chosen permanent
+    /// (`sacrifice a creature. If you can't, ...`, CR 701.21a), whose bound
+    /// set is empty exactly when the player had nothing to sacrifice.
+    fn records_performance(effect: &Value) -> bool {
+        effect["kind"]
+            .as_str()
+            .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
+            || (effect["kind"].as_str() == Some("sacrificePermanents")
+                && effect["count"].as_i64() == Some(1))
+    }
 
     /// Binds the result of the instruction before `reader`, which must be
     /// exactly one top-level recording action. `None` without an earlier
@@ -2732,11 +2794,7 @@ impl PreviousActionResult<'_> {
             return Ok(None);
         };
         let producers = (from..self.effects.len())
-            .filter(|position| {
-                self.effects[*position]["kind"]
-                    .as_str()
-                    .is_some_and(|kind| Self::RECORDING_KINDS.contains(&kind))
-            })
+            .filter(|position| Self::records_performance(&self.effects[*position]))
             .collect::<Vec<_>>();
         let [position] = producers.as_slice() else {
             return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(

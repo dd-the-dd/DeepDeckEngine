@@ -79,6 +79,16 @@ impl CostProgram {
     }
 }
 
+/// `returnPermanentToOwnersHand`: one permanent the payer controls,
+/// chosen while paying and returned to its owner's hand (CR 118.3).
+fn controlled_return_cost_supported(cost: &Value) -> bool {
+    cost.get("permanent").is_none()
+        && cost
+            .get("where")
+            .is_some_and(|filter| filter.is_null() || card_filter_supported(filter))
+        && cost.get("excludeSource").is_none_or(Value::is_boolean)
+}
+
 /// `exileCard`: one card the payer chooses from their hand or graveyard.
 fn zone_card_exile_cost_supported(cost: &Value) -> bool {
     matches!(cost["zone"].as_str(), Some("hand" | "graveyard"))
@@ -156,6 +166,15 @@ impl CostProgram {
             } else {
                 Err(EngineError::new(
                     "unsupported resolution cost program: invalid card exile cost",
+                ))
+            };
+        }
+        if value_kind(cost) == Some("returnPermanentToOwnersHand") {
+            return if controlled_return_cost_supported(cost) {
+                Ok(Self::NonMana(cost.clone()))
+            } else {
+                Err(EngineError::new(
+                    "unsupported resolution cost program: invalid controlled return cost",
                 ))
             };
         }
