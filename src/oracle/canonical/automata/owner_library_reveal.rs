@@ -55,6 +55,7 @@ fn predicate_is_valid_permanent_target(predicate: &ObjectPredicate) -> bool {
         ObjectPredicate::ObjectKind(ObjectKind::Card | ObjectKind::Spell)
         | ObjectPredicate::PermanentCard
         | ObjectPredicate::ChosenCreatureType => false,
+        ObjectPredicate::Relation(relation) => relation.supports_domain(ObjectKind::Permanent),
         ObjectPredicate::Not(operand) => predicate_is_valid_permanent_target(operand),
         ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
             operands.iter().all(predicate_is_valid_permanent_target)

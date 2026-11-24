@@ -88,6 +88,59 @@ impl CounterPresence {
     }
 }
 
+/// The player a damage history relation names (`to you`, `to an
+/// opponent`, `to a player`), relative to the ability controller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DamagedPlayer {
+    AbilityController,
+    OpponentOfAbilityController,
+    AnyPlayer,
+}
+
+impl DamagedPlayer {
+    pub(in crate::oracle::canonical) const fn ir_name(self) -> &'static str {
+        match self {
+            Self::AbilityController => "abilityController",
+            Self::OpponentOfAbilityController => "opponentOfAbilityController",
+            Self::AnyPlayer => "anyPlayer",
+        }
+    }
+}
+
+/// A relation of the object to a name, a player or the turn's history,
+/// read by a postnominal or relative clause of the shared object query
+/// (`named Fenric`, `that dealt combat damage to you this turn`). Each
+/// relation states the object domains it can be evaluated in.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum ObjectRelation {
+    /// `named NAME` (CR 201.2): the object's name is NAME.
+    Named(String),
+    /// `that dealt [combat] damage to PLAYER this turn` (CR 120.1, 510.2):
+    /// a damage event of this turn whose source is this permanent and whose
+    /// recipient is that player.
+    DealtDamageToPlayerThisTurn {
+        recipient: DamagedPlayer,
+        combat_only: bool,
+    },
+}
+
+impl ObjectRelation {
+    /// A name is a characteristic of every object (CR 109.3); a damage
+    /// history is read from a battlefield permanent's own events.
+    pub(in crate::oracle::canonical) fn supports_domain(&self, domain: ObjectKind) -> bool {
+        match self {
+            Self::Named(_) => true,
+            Self::DealtDamageToPlayerThisTurn { .. } => domain == ObjectKind::Permanent,
+        }
+    }
+
+    /// Whether the relation reads the permanent's state or history rather
+    /// than a characteristic of its definition.
+    pub(in crate::oracle::canonical) fn reads_object_state(&self) -> bool {
+        matches!(self, Self::DealtDamageToPlayerThisTurn { .. })
+    }
+}
+
 /// A property predicate over an object selected by a surrounding query.
 ///
 /// The surrounding grammar still owns the object domain, zone, controller,
@@ -129,6 +182,8 @@ pub(in crate::oracle::canonical) enum ObjectPredicate {
     /// instruction of the same effect program (CR 608.2d). The binding is
     /// symbolic; the program lowering proves its producer.
     ChosenCreatureType,
+    /// A relation to a name, a player or the turn's history.
+    Relation(ObjectRelation),
     NumericComparison {
         left: SelectorNumericProperty,
         operator: NumericComparisonOperator,
@@ -210,6 +265,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::Relation(_)
             | Self::NumericComparison { .. }
             | Self::Not(_) => false,
         }
@@ -242,6 +298,7 @@ impl ObjectPredicate {
             | Self::Designation(_)
             | Self::OwnedByAbilityController { .. }
             | Self::HasCounter(_) => domain == ObjectKind::Permanent,
+            Self::Relation(relation) => relation.supports_domain(domain),
             Self::PermanentCard => domain != ObjectKind::Permanent,
             Self::Not(operand) => operand.supports_domain(domain),
             Self::Intersection(operands) | Self::Union(operands) => {
@@ -433,6 +490,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::Relation(_)
             | Self::NumericComparison { .. } => false,
         }
     }
@@ -471,6 +529,7 @@ impl ObjectPredicate {
             | Self::PermanentCard
             | Self::HasCounter(_)
             | Self::ChosenCreatureType
+            | Self::Relation(_)
             | Self::NumericComparison { .. } => false,
         }
     }

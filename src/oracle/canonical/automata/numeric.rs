@@ -1,7 +1,7 @@
 use super::super::{MachineResult, OracleTokenCursor, parse_number_word, parse_ordinal_word};
 use super::arithmetic_expression::recognize_arithmetic_expression;
 use super::{
-    EventNumericBinding, GraveyardScope, NumericAtom, NumericExpression, TargetBinding,
+    EventNumericBinding, NumericAtom, NumericExpression, TargetBinding,
     recognize_source_object_property,
 };
 
@@ -28,29 +28,20 @@ pub(in crate::oracle::canonical) fn recognize_that_many_event_value(
         .ok_or_else(|| cursor.fail("a numeric value bound by the triggering event"))
 }
 
-/// Recognizes the reusable quantity `the number of card types among cards in
-/// ZONE`. Zone ownership remains typed so the lowering layer can distinguish
-/// the controller's graveyard from the union of all graveyards.
+/// `the number of card types among COLLECTION`: the shared `the number of`
+/// aggregate whose measure is card types. A parent that needs exactly this
+/// measure (a characteristic-defining P/T) type-checks the aggregate it
+/// read; the phrase itself is no separate grammar.
 pub(in crate::oracle::canonical) fn recognize_distinct_card_type_count(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<NumericExpression> {
-    cursor.enter("numeric.distinct-card-types.quantity");
-    cursor.consume_phrase(&["the", "number", "of", "card", "types"])?;
-    cursor.enter("numeric.distinct-card-types.collection");
-    cursor.consume_phrase(&["among", "cards", "in"])?;
-    cursor.enter("numeric.distinct-card-types.zone-scope");
-    let zone = if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("your"))
-    {
-        cursor.consume_phrase(&["your", "graveyard"])?;
-        GraveyardScope::Controller
-    } else {
-        cursor.consume_phrase(&["all", "graveyards"])?;
-        GraveyardScope::AllPlayers
-    };
-    cursor.enter("numeric.distinct-card-types.complete");
-    Ok(NumericExpression::CountDistinctCardTypes { zone })
+    let count = super::recognize_number_of_count(cursor)?;
+    cursor.enter("numeric.distinct-card-types.measure");
+    cursor.require(
+        matches!(count, NumericExpression::CountDistinctCardTypes { .. }),
+        "the number of card types among a graveyard collection",
+    )?;
+    Ok(count)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

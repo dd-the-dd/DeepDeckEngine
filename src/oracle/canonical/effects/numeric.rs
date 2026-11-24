@@ -208,13 +208,20 @@ fn lower_numeric_expression_in_context(
         NumericExpression::OpponentCount(OpponentFact::AttackedByControllerThisCombat) => {
             Some(json!({ "kind": "countOpponentsAttackedThisCombat", "player": controller() }))
         }
-        NumericExpression::CountDistinctCardTypes { zone } => Some(json!({
-            "kind": "countDistinctCardTypes",
-            "zone": match zone {
-                GraveyardScope::Controller => graveyard(controller()),
-                GraveyardScope::AllPlayers => json!({ "kind": "anyGraveyard" }),
-            },
-        })),
+        NumericExpression::CountDistinctCardTypes { zone, predicate } => {
+            let mut count = json!({
+                "kind": "countDistinctCardTypes",
+                "zone": match zone {
+                    GraveyardScope::Controller => graveyard(controller()),
+                    GraveyardScope::AllPlayers => json!({ "kind": "anyGraveyard" }),
+                },
+            });
+            let filter = lower_card_object_predicate(predicate);
+            if !filter.is_null() {
+                count["where"] = filter;
+            }
+            Some(count)
+        }
         NumericExpression::Add { left, right } => Some(json!({
             "kind": "add",
             "left": lower_numeric_expression_in_context(left, event_binding, target_binding, query_support)?,

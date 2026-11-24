@@ -119,9 +119,11 @@ fn card_count_predicate_supported(predicate: &ObjectPredicate) -> bool {
         }
         // Printed characteristics of a card in a public or hidden zone are
         // its actual characteristics (CR 109.4 has no other source there).
-        ObjectPredicate::Subtype(_) | ObjectPredicate::Color(_) | ObjectPredicate::Supertype(_) => {
-            true
-        }
+        ObjectPredicate::Subtype(_)
+        | ObjectPredicate::Color(_)
+        | ObjectPredicate::Supertype(_)
+        | ObjectPredicate::Relation(ObjectRelation::Named(_)) => true,
+        ObjectPredicate::Relation(ObjectRelation::DealtDamageToPlayerThisTurn { .. }) => false,
         ObjectPredicate::IsCommander
         | ObjectPredicate::IsToken
         | ObjectPredicate::CharacteristicBatch(_)

@@ -2371,6 +2371,9 @@ fn card_filter_supported(filter: &Value) -> bool {
                 && filter["parity"]["decisionId"].is_string()
         }
         Some("hasKeyword") => filter["value"].is_string(),
+        Some("dealtDamageToPlayerThisTurn") => {
+            event_history::dealt_damage_to_player_supported(filter)
+        }
         Some("compare") => {
             matches!(
                 value_kind(&filter["left"]),
@@ -2668,11 +2671,14 @@ fn numeric_expression_supported(expression: &Value) -> bool {
                     .get("excludeSource")
                     .is_none_or(Value::is_boolean)
         }
-        Some("countDistinctCardTypes") => match value_kind(&expression["zone"]) {
-            Some("graveyard") => player_reference_supported(&expression["zone"]["player"]),
-            Some("anyGraveyard") => true,
-            _ => false,
-        },
+        Some("countDistinctCardTypes") => {
+            object_predicate::distinct_card_type_filter_supported(&expression["where"])
+                && match value_kind(&expression["zone"]) {
+                    Some("graveyard") => player_reference_supported(&expression["zone"]["player"]),
+                    Some("anyGraveyard") => true,
+                    _ => false,
+                }
+        }
         Some("countDecisionCardsMatching") => {
             expression["decisionId"].is_string() && card_filter_supported(&expression["where"])
         }
@@ -5229,7 +5235,8 @@ fn filter_reads_object_history(filter: &Value) -> bool {
             | "blockedThisTurn"
             | "dealtDamageThisTurn"
             | "wasDealtDamageThisTurn"
-            | "dealtDamageToControllerThisTurn",
+            | "dealtDamageToControllerThisTurn"
+            | "dealtDamageToPlayerThisTurn",
         ) => true,
         Some("and" | "or") => filter["operands"]
             .as_array()
@@ -9348,6 +9355,7 @@ impl GameEngine {
                 Some(
                     cards
                         .into_iter()
+                        .filter(|card| matches_card_filter(&card.definition, &expression["where"]))
                         .flat_map(|card| {
                             card.definition
                                 .type_line
@@ -11061,6 +11069,9 @@ impl GameEngine {
                         .as_i64()
                         .is_some_and(|amount| amount > 0)
             }),
+            Some("dealtDamageToPlayerThisTurn") => {
+                self.permanent_dealt_damage_to_player_this_turn(permanent, filter, controller_id)
+            }
             Some("dealtDamageToControllerThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && event.kind == "damageDealt"

@@ -276,6 +276,15 @@ fn recognize_primary(
     {
         return super::recognize_subject_possessive_property(cursor, subject);
     }
+    // `where X is its power`: without a parent subject, the possessive
+    // names what the binding environment binds to `it`.
+    if query_context.kind == NumericReadKind::Definition
+        && query_context.subject.is_none()
+        && super::environment_possessive_property_starts(cursor)
+    {
+        let environment = super::installed_binding_environment(cursor);
+        return super::recognize_environment_possessive_property(cursor, &environment);
+    }
     if matches!(
         query_context.kind,
         NumericReadKind::Query | NumericReadKind::Definition

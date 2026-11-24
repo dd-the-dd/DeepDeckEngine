@@ -317,6 +317,12 @@ impl GameEngine {
                     matches_card_filter_with_decisions(card, filter, decisions)
                 }
                 ObjectFilterView::Permanent(permanent) => match value_kind(filter) {
+                    Some("dealtDamageToPlayerThisTurn") => self
+                        .permanent_dealt_damage_to_player_this_turn(
+                            permanent,
+                            filter,
+                            &stack_object.controller,
+                        ),
                     // A color count reads the effective color characteristic.
                     Some("compare") if value_kind(&filter["left"]) == Some("colorCountOf") => {
                         self.permanent_matches_effective_filter(permanent, filter)

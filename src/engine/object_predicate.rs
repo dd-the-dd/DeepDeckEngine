@@ -153,6 +153,22 @@ pub(in crate::engine) fn matches_object_predicate(
     }
 }
 
+/// The filter of a card-types measure over graveyard cards: absent, or a
+/// predicate every leaf of which the definition view evaluates.
+pub(super) fn distinct_card_type_filter_supported(filter: &Value) -> bool {
+    filter.is_null()
+        || try_map_predicate_leaves(filter, 0, &mut |leaf| {
+            if definition_atom_supported(leaf) {
+                Ok(leaf.clone())
+            } else {
+                Err(super::EngineError::new(
+                    "unsupported card-types measure filter",
+                ))
+            }
+        })
+        .is_ok()
+}
+
 /// Property applicability of this definition view, independent of a caller's
 /// broad IR schema. State-only predicates cannot become false under NOT.
 pub(super) fn definition_atom_supported(predicate: &Value) -> bool {
