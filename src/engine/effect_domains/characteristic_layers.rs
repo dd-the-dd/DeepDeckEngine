@@ -61,11 +61,14 @@ fn supports_known_effect(effect: &Value) -> bool {
                             .is_some_and(|value| PERMANENT_CARD_TYPES.contains(&value))
                     })
             }),
-            Some("setColors") => effect["colors"].as_array().is_some_and(|colors| {
-                colors
-                    .iter()
-                    .all(|color| matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G")))
-            }),
+            Some("setColors") => {
+                effect["colors"].as_array().is_some_and(|colors| {
+                    colors
+                        .iter()
+                        .all(|color| matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G")))
+                }) || (value_kind(&effect["colors"]) == Some("decisionResult")
+                    && effect["colors"]["decisionId"].is_string())
+            }
             Some("setBasePowerToughness") => {
                 numeric_expression_supported(&effect["power"])
                     && numeric_expression_supported(&effect["toughness"])
@@ -115,7 +118,105 @@ pub(in crate::engine) fn marker_base_power_toughness(
     })
 }
 
+/// The colors of a `setColors`: a stated list, or the color symbols the
+/// controller chose for this effect (`the color or colors of your choice`).
+/// A missing or malformed choice is an error, never an empty color set.
+fn chosen_or_stated_colors(
+    colors: &Value,
+    decisions: &BTreeMap<String, Value>,
+) -> Result<Value, EngineError> {
+    if value_kind(colors) != Some("decisionResult") {
+        return Ok(colors.clone());
+    }
+    let chosen = colors["decisionId"]
+        .as_str()
+        .and_then(|id| decisions.get(id))
+        .and_then(Value::as_array)
+        .ok_or_else(|| EngineError::new("setColors reads a missing color choice"))?;
+    if !chosen
+        .iter()
+        .all(|color| matches!(color.as_str(), Some("W" | "U" | "B" | "R" | "G")))
+    {
+        return Err(EngineError::new(
+            "setColors reads a choice that is not color symbols",
+        ));
+    }
+    Ok(Value::Array(chosen.clone()))
+}
+
 impl GameEngine {
+    /// A characteristic-defining modifier (CR 604.3) is applied in layer 7a
+    /// by [`Self::characteristic_defining_power_toughness`], never as a
+    /// layer-7b setting effect of a battlefield static ability.
+    pub(in crate::engine) fn is_layer_7a_modifier(modifier: &Value) -> bool {
+        modifier["layer"].as_str() == Some("7a")
+    }
+
+    /// The layer-7a modifiers of `card`'s own characteristic-defining
+    /// abilities. On the battlefield they come from the active static sites,
+    /// so an object that lost its abilities (layer 6) no longer defines its
+    /// power and toughness; in any other zone a CDA functions from the card's
+    /// printed rules (CR 604.3, 113.6).
+    fn characteristic_defining_modifiers(&self, card: &CardInstance) -> Vec<Value> {
+        let defines_self = |modifier: &Value| {
+            Self::is_layer_7a_modifier(modifier) && value_kind(&modifier["objects"]) == Some("self")
+        };
+        if self.permanent_position(&card.instance_id).is_some() {
+            return self
+                .battlefield_static_modifier_sites()
+                .into_iter()
+                .filter(|site| {
+                    site.source.instance_id == card.instance_id
+                        && self.static_modifier_site_is_active(site)
+                        && defines_self(&site.modifier)
+                })
+                .map(|site| site.modifier)
+                .collect();
+        }
+        card.definition
+            .printed_rules()
+            .iter()
+            .filter(|rule| value_kind(rule) == Some("staticAbility"))
+            .flat_map(|rule| rule["modifiers"].as_array().into_iter().flatten())
+            .filter(|modifier| defines_self(modifier))
+            .cloned()
+            .collect()
+    }
+
+    /// Layer 7a (CR 613.4a): the base power and toughness defined by the
+    /// object's own characteristic-defining abilities, each amount evaluated
+    /// with the object as its source. A stat no CDA defines keeps its printed
+    /// value; `None` when no CDA applies.
+    pub(in crate::engine) fn characteristic_defining_power_toughness(
+        &self,
+        card: &CardInstance,
+    ) -> Option<(i32, i32)> {
+        let mut power = None;
+        let mut toughness = None;
+        for modifier in self.characteristic_defining_modifiers(card) {
+            match value_kind(&modifier) {
+                Some("setBasePowerToughness") => {
+                    power = Some(self.static_numeric_expression(card, &modifier["power"]));
+                    toughness = Some(self.static_numeric_expression(card, &modifier["toughness"]));
+                }
+                Some("setPower") => {
+                    power = Some(self.static_numeric_expression(card, &modifier["power"]));
+                }
+                Some("setToughness") => {
+                    toughness = Some(self.static_numeric_expression(card, &modifier["toughness"]));
+                }
+                _ => {}
+            }
+        }
+        if power.is_none() && toughness.is_none() {
+            return None;
+        }
+        Some((
+            power.unwrap_or_else(|| parse_stat(&card.definition.power)),
+            toughness.unwrap_or_else(|| parse_stat(&card.definition.toughness)),
+        ))
+    }
+
     /// The permanents an effect affects, determined once when it begins
     /// (CR 611.2c). A missing or departed object is a rules no-op.
     pub(in crate::engine) fn characteristic_object_ids(
@@ -170,12 +271,15 @@ impl GameEngine {
                 "cardTypesSet",
                 json!({ "cardTypes": effect["cardTypes"], "duration": effect["duration"] }),
             ),
-            Some("setColors") => (
-                COLOR_SET_MARKER,
-                json!({ "colors": effect["colors"] }),
-                "colorsSet",
-                json!({ "colors": effect["colors"], "duration": effect["duration"] }),
-            ),
+            Some("setColors") => {
+                let colors = chosen_or_stated_colors(&effect["colors"], decisions)?;
+                (
+                    COLOR_SET_MARKER,
+                    json!({ "colors": colors }),
+                    "colorsSet",
+                    json!({ "colors": colors, "duration": effect["duration"] }),
+                )
+            }
             Some("setBasePowerToughness") => {
                 let power = self.checked_runtime_numeric_expression(
                     &effect["power"],

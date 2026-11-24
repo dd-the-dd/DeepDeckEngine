@@ -5529,6 +5529,12 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["power"])
                 && modifier.get("condition").is_none_or(condition_supported)
         }
+        // Only a characteristic-defining ability sets toughness alone.
+        Some("setToughness") => {
+            modifier["layer"].as_str() == Some("7a")
+                && value_kind(&modifier["objects"]) == Some("self")
+                && numeric_expression_supported(&modifier["toughness"])
+        }
         Some("setStoredColor") => {
             static_object_selector_supported(&modifier["objects"])
                 && modifier["decisionId"].is_string()
@@ -11436,6 +11442,7 @@ impl GameEngine {
             .iter()
             .filter(|(source, modifier)| {
                 value_kind(modifier) == Some("setBasePowerToughness")
+                    && !Self::is_layer_7a_modifier(modifier)
                     && Self::static_selector_matches(source, &modifier["objects"], permanent)
                     && modifier.get("condition").is_none_or(|condition| {
                         self.condition_value_with_source(
@@ -11453,6 +11460,7 @@ impl GameEngine {
                     self.static_numeric_expression(source, &modifier["toughness"]),
                 )
             })
+            .or_else(|| self.characteristic_defining_power_toughness(permanent))
     }
 
     fn static_set_power(&self, permanent: &CardInstance) -> Option<i32> {
@@ -11467,6 +11475,7 @@ impl GameEngine {
             .iter()
             .filter(|(source, modifier)| {
                 value_kind(modifier) == Some("setPower")
+                    && !Self::is_layer_7a_modifier(modifier)
                     && Self::static_selector_matches(source, &modifier["objects"], permanent)
                     && modifier.get("condition").is_none_or(|condition| {
                         self.condition_value_with_source(

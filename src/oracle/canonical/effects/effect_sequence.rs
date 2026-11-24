@@ -1028,11 +1028,33 @@ fn lower_local_effect_sequence_with_collections(
                     &mut decisions,
                     &mut target_bindings,
                 )?;
+                // `becomes a copy of OBJECT`: the copied object is one more
+                // operand of the same shared permanent-subject lowering.
+                let copy = match &change.copy_of {
+                    Some(copied) => {
+                        cursor.enter("lower.become-types.copy");
+                        let copied = lower_ordinary_permanent_subject(
+                            cursor,
+                            copied,
+                            effect_index,
+                            false,
+                            &permanent_target_base_ids,
+                            &mut used_target_base_ids,
+                            &mut decisions,
+                            &mut target_bindings,
+                        )?;
+                        let [copied] = <[Value; 1]>::try_from(copied)
+                            .map_err(|_| cursor.fail("one copied object"))?;
+                        Some(copied)
+                    }
+                    None => None,
+                };
                 for object in objects {
                     effects.extend(
                         lower_become_types_to_object(
                             change,
                             &object,
+                            copy.as_ref(),
                             &format!("characteristicObjects{effect_index}"),
                         )
                         .map_err(|expected| cursor.fail(expected))?,
