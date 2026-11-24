@@ -185,6 +185,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Buyback, Evoke, Offspring | natifs | cadres de coût additionnel/alternatif à la permission (`ability-frame.permission.action`, `effect.start`) |
 | Affinity (702.41a) | natif | IR identique pour « artifacts », mais « for each [text] » exige le singulier de la qualité imprimée ; le nœud typé natif l'évite |
 | Cascade (`keyword_programs.rs`) | natif | programme moteur paramétré par la valeur de mana capturée au lancement, pas un texte Oracle |
+| Fuse (702.102a) | natif intrinsèque | pas de définition « means » ; mot-clé sans paramètre du registre partagé avec son rappel exact, IR `keywordAbility {fuse}` déjà exécutée par `fused_split_definition` (fixture `fuse-keyword.json`) |
 
 ## Lignes ajoutées
 
