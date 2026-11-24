@@ -50,11 +50,11 @@ pub(in crate::oracle::canonical) fn recognize_uncast_relative_clause(
             .iter()
             .any(|form| raw.eq_ignore_ascii_case(form))
     };
-    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+    fn word(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
         cursor
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
+    }
     let relative = word(trial, 0, "that")
         && trial.peek_ahead(1).is_some_and(negated_past)
         && word(trial, 2, "cast");
