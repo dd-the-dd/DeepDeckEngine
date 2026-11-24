@@ -33187,6 +33187,8 @@ mod clause_subject_cells_runtime;
 mod combat_restriction_family_runtime;
 #[path = "tests/damage_prevention_runtime.rs"]
 mod damage_prevention_runtime;
+#[path = "tests/stack_and_damage_cells_runtime.rs"]
+mod stack_and_damage_cells_runtime;
 #[path = "tests/equal_amount_reflexive_runtime.rs"]
 mod equal_amount_reflexive_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]

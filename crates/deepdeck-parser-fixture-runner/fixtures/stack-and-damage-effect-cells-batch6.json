@@ -1,0 +1,854 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch6/stack-and-damage-effect-cells",
+  "cases": [
+    {
+      "id": "exact-warrior-en-kor",
+      "request": {
+        "cardName": "Warrior en-Kor",
+        "typeLine": "Creature — Kor Warrior Knight",
+        "manaCost": "{W}{W}",
+        "oracleText": "{0}: The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "preventDamage"
+              },
+              {
+                "pointer": "/effects/0/redirectTo/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/recipient/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sivvis-valor",
+      "request": {
+        "cardName": "Sivvi's Valor",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "If you control a Plains, you may tap an untapped creature you control rather than pay this spell's mana cost.\nAll damage that would be dealt to target creature this turn is dealt to you instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/redirectTo/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-carom",
+      "request": {
+        "cardName": "Carom",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "The next 1 damage that would be dealt to target creature this turn is dealt to another target creature instead.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-kor-chant",
+      "request": {
+        "cardName": "Kor Chant",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "All damage that would be dealt this turn to target creature you control by a source of your choice is dealt to another target creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-zhalfirin-crusader",
+      "request": {
+        "cardName": "Zhalfirin Crusader",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{1}{W}{W}",
+        "oracleText": "Flanking (Whenever a creature without flanking blocks this creature, the blocking creature gets -1/-1 until end of turn.)\n{1}{W}: The next 1 damage that would be dealt to this creature this turn is dealt to any target instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-deflection",
+      "request": {
+        "cardName": "Deflection",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Change the target of target spell with a single target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "changeTargets"
+              },
+              {
+                "pointer": "/effects/0/mode",
+                "equals": "all"
+              },
+              {
+                "pointer": "/declaration/decisions/0/candidates/singleTarget",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-redirect-lightning",
+      "request": {
+        "cardName": "Redirect Lightning",
+        "typeLine": "Instant — Lesson",
+        "manaCost": "{R}",
+        "oracleText": "As an additional cost to cast this spell, pay 5 life or pay {2}.\nChange the target of target spell or ability with a single target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mode",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-goblin-flectomancer",
+      "request": {
+        "cardName": "Goblin Flectomancer",
+        "typeLine": "Creature — Goblin Wizard",
+        "manaCost": "{U}{R}{R}",
+        "oracleText": "Sacrifice this creature: You may change the targets of target instant or sorcery spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-fork",
+      "request": {
+        "cardName": "Fork",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except that the copy is red. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "copyStackItem"
+              },
+              {
+                "pointer": "/effects/0/except/0/kind",
+                "equals": "setColors"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-storm-of-saruman",
+      "request": {
+        "cardName": "Storm of Saruman",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Ward {3}\nWhenever you cast your second spell each turn, copy it, except the copy isn't legendary. You may choose new targets for the copy. (A copy of a permanent spell becomes a token.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-mirari",
+      "request": {
+        "cardName": "Mirari",
+        "typeLine": "Legendary Artifact",
+        "manaCost": "{5}",
+        "oracleText": "Whenever you cast an instant or sorcery spell, you may pay {3}. If you do, copy that spell. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-chancellor-of-tales",
+      "request": {
+        "cardName": "Chancellor of Tales",
+        "typeLine": "Creature — Faerie Advisor",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\nWhenever you cast an Adventure spell, you may copy it. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-kiku-nights-flower",
+      "request": {
+        "cardName": "Kiku, Night's Flower",
+        "typeLine": "Legendary Creature — Human Assassin",
+        "manaCost": "{B}{B}",
+        "oracleText": "{2}{B}{B}, {T}: Target creature deals damage to itself equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-hellrider",
+      "request": {
+        "cardName": "Hellrider",
+        "typeLine": "Creature — Devil",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Haste\nWhenever a creature you control attacks, this creature deals 1 damage to the player or planeswalker it's attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-arc-trail",
+      "request": {
+        "cardName": "Arc Trail",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Arc Trail deals 2 damage to any target and 1 damage to any other target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-cone-of-flame",
+      "request": {
+        "cardName": "Cone of Flame",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{R}",
+        "oracleText": "Cone of Flame deals 1 damage to any target, 2 damage to another target, and 3 damage to a third target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-incremental-growth",
+      "request": {
+        "cardName": "Incremental Growth",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature, two +1/+1 counters on another target creature, and three +1/+1 counters on a third target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-reckless-embermage",
+      "request": {
+        "cardName": "Reckless Embermage",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{R}",
+        "oracleText": "{1}{R}: This creature deals 1 damage to any target and 1 damage to itself.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-firedrinker-satyr",
+      "request": {
+        "cardName": "Firedrinker Satyr",
+        "typeLine": "Creature — Satyr Shaman",
+        "manaCost": "{R}",
+        "oracleText": "Whenever this creature is dealt damage, it deals that much damage to you.\n{1}{R}: This creature gets +1/+0 until end of turn and deals 1 damage to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-vein-drinker",
+      "request": {
+        "cardName": "Vein Drinker",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "Flying\n{R}, {T}: This creature deals damage equal to its power to target creature. That creature deals damage equal to its power to this creature.\nWhenever a creature dealt damage by this creature this turn dies, put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-razorkin-needlehead",
+      "request": {
+        "cardName": "Razorkin Needlehead",
+        "typeLine": "Creature — Human Assassin",
+        "manaCost": "{R}{R}",
+        "oracleText": "This creature has first strike during your turn.\nWhenever an opponent draws a card, this creature deals 1 damage to them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-nekrataal",
+      "request": {
+        "cardName": "Nekrataal",
+        "typeLine": "Creature — Human Assassin",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "First strike\nWhen this creature enters, destroy target nonartifact, nonblack creature. That creature can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-raging-ravine",
+      "request": {
+        "cardName": "Raging Ravine",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\n{T}: Add {R} or {G}.\n{2}{R}{G}: Until end of turn, this land becomes a 3/3 red and green Elemental creature with \"Whenever this creature attacks, put a +1/+1 counter on it.\" It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-natural-affinity",
+      "request": {
+        "cardName": "Natural Affinity",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "All lands become 2/2 creatures until end of turn. They're still lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-destiny-spinner",
+      "request": {
+        "cardName": "Destiny Spinner",
+        "typeLine": "Enchantment Creature — Human",
+        "manaCost": "{1}{G}",
+        "oracleText": "Creature and enchantment spells you control can't be countered.\n{3}{G}: Target land you control becomes an X/X Elemental creature with trample and haste until end of turn, where X is the number of enchantments you control. It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-out-cold",
+      "request": {
+        "cardName": "Out Cold",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "This spell can't be countered. (This includes by the ward ability.)\nTap up to two target creatures and put a stun counter on each of them. Investigate. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "sibling-all-combat-damage-to-target-redirected-to-you",
+      "request": {
+        "cardName": "Synthetic Bodyguard",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "All combat damage that would be dealt to target creature you control this turn is dealt to you instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-next-x-damage-redirected-to-any-target",
+      "request": {
+        "cardName": "Synthetic Deflector",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "The next X damage that would be dealt to you this turn is dealt to any target instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-change-a-target-of-ability-to-source",
+      "request": {
+        "cardName": "Synthetic Lightning Rod",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{1}{R}",
+        "oracleText": "{2}: Change a target of target activated or triggered ability to this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-optional-change-the-target-single-target",
+      "request": {
+        "cardName": "Synthetic Swerve",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "You may change the target of target instant spell with a single target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-next-cast-copy-not-legendary",
+      "request": {
+        "cardName": "Synthetic Echo Chamber",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Copy target creature spell you control, except the copy isn't legendary and has haste.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-copy-twice-plural-exception",
+      "request": {
+        "cardName": "Synthetic Twinning",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Copy target instant or sorcery spell twice, except the copies are blue. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-itself-from-source-after-target",
+      "request": {
+        "cardName": "Synthetic Backlash",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{1}{R}",
+        "oracleText": "{T}: This creature deals 2 damage to any other target and 2 damage to itself.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-third-target-counters",
+      "request": {
+        "cardName": "Synthetic Growth",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Put a +1/+1 counter on target creature, a +1/+1 counter on another target creature, and two +1/+1 counters on a third target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-retained-type-is-a-new-type",
+      "request": {
+        "cardName": "Synthetic Awakening",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "All artifacts become 3/3 Construct artifact creatures until end of turn. They're still artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-retention-after-where-x",
+      "request": {
+        "cardName": "Synthetic Animist",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target land you control becomes an X/X Elemental creature until end of turn, where X is the number of lands you control. It's still a land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-that-land-cant-be-regenerated",
+      "request": {
+        "cardName": "Synthetic Quake",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Destroy target land. That land can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-attacking-that-creature-recipient",
+      "request": {
+        "cardName": "Synthetic Raid",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{R}",
+        "oracleText": "Whenever a creature you control attacks, this enchantment deals 2 damage to the player or planeswalker that creature is attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-text-change-is-not-retarget",
+      "request": {
+        "cardName": "Synthetic Mind",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Change the text of target spell or permanent by replacing all instances of one color word with another.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-copy-exception",
+      "request": {
+        "cardName": "Synthetic Fork",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except the copy costs {1} less.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-redirection-without-duration-scope",
+      "request": {
+        "cardName": "Synthetic Martyr",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Until end of turn, all damage that would be dealt to you is dealt to target creature instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-retention-pronoun-disagrees",
+      "request": {
+        "cardName": "Synthetic Animist",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target land becomes a 3/3 creature until end of turn. They're still lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-itself-without-singular-damage-source",
+      "request": {
+        "cardName": "Synthetic Reflex",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Each creature deals 1 damage to itself.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-attacked-recipient-outside-attack",
+      "request": {
+        "cardName": "Synthetic Spite",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "{T}: This creature deals 1 damage to the player or planeswalker it's attacking.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-nominal-regeneration-type-mismatch",
+      "request": {
+        "cardName": "Synthetic Doom",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Destroy target permanent. That creature can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}
