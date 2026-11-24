@@ -408,6 +408,158 @@ pub(in crate::oracle::canonical) fn recognize_alternative_mana_cost_envelope(
     }
 }
 
+// ---------------------------------------------------------------------------
+// The alternative-cast permission sentence (CR 118.9, 601.2b)
+//
+// ```text
+// Sentence := [ "If" COND "," ] "you" "may" Permission [ "if" COND ] "."
+// Permission := COSTS "rather" "than" "pay" CurrentSpellManaCost
+//             | "cast" "this" "spell" "without" "paying" "its" "mana" "cost"
+// COSTS    := the shared activation-cost sequence (`, ` / `and`)
+// COND     := the one condition language, as a state evaluated when the
+//             spell is cast
+// ```
+//
+// One parent for every printed alternative cost: the payments are the
+// shared cost children, the condition the shared Boolean atom program, and
+// the zero-cost permission an absent cost sequence.
+
+/// A printed alternative-cast permission.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct AlternativeCastSentenceNode {
+    pub condition: Option<super::ConditionNode>,
+    /// The payments instead of the mana cost; `None` for `without paying
+    /// its mana cost`.
+    pub costs: Option<super::ActivationCostSequenceNode>,
+}
+
+const RATHER_THAN_PAY: &[&str] = &["rather", "than", "pay"];
+const WITHOUT_PAYING: &[&str] = &[
+    "cast", "this", "spell", "without", "paying", "its", "mana", "cost",
+];
+
+fn words_at(
+    tokens: &[crate::oracle::model::RecognizedEntity],
+    index: usize,
+    words: &[&str],
+) -> bool {
+    words.iter().enumerate().all(|(offset, word)| {
+        tokens
+            .get(index + offset)
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case(word))
+    })
+}
+
+/// Structural claim: `you may ... rather than pay this spell's mana cost`
+/// or `you may cast this spell without paying its mana cost`, opening the
+/// ability or after an `If CONDITION,` introducer.
+pub(in crate::oracle::canonical) fn alternative_cast_sentence_starts(
+    tokens: &[crate::oracle::model::RecognizedEntity],
+) -> bool {
+    let Some(permission) =
+        (0..tokens.len()).find(|index| words_at(tokens, *index, &["you", "may"]))
+    else {
+        return false;
+    };
+    let introduced = permission == 0
+        || (words_at(tokens, 0, &["if"])
+            && tokens
+                .get(permission.wrapping_sub(1))
+                .is_some_and(|token| token.raw == ","));
+    introduced
+        && (words_at(tokens, permission + 2, WITHOUT_PAYING)
+            || (permission + 2..tokens.len()).any(|index| {
+                words_at(tokens, index, RATHER_THAN_PAY)
+                    && tokens.get(index + 3).is_some_and(|token| {
+                        token.raw.eq_ignore_ascii_case("this")
+                            || token.raw.eq_ignore_ascii_case("its")
+                    })
+            }))
+}
+
+fn first_root_index(
+    cursor: &OracleTokenCursor<'_>,
+    matches: impl Fn(&[crate::oracle::model::RecognizedEntity], usize) -> bool,
+) -> Option<usize> {
+    let tokens = cursor.token_slice(0, usize::MAX);
+    (cursor.position()..tokens.len()).find(|index| matches(tokens, *index))
+}
+
+fn recognize_bounded_condition(
+    cursor: &mut OracleTokenCursor<'_>,
+    end: usize,
+    context: &super::ConditionContext<'_>,
+) -> MachineResult<super::ConditionNode> {
+    cursor.bounded(end, |cursor| {
+        super::recognize_boolean_condition_list(cursor, |cursor| {
+            super::recognize_condition_atom(cursor, context)
+        })
+    })
+}
+
+/// Reads one alternative-cast permission sentence.
+pub(in crate::oracle::canonical) fn recognize_alternative_cast_sentence(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &super::ConditionContext<'_>,
+) -> MachineResult<AlternativeCastSentenceNode> {
+    let mut condition = None;
+    cursor.enter("alternative-cast.condition");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
+    {
+        cursor.consume("if")?;
+        let comma = first_root_index(cursor, |tokens, index| tokens[index].raw == ",");
+        let comma = cursor.require_value(comma, "the comma closing the `If` condition")?;
+        condition = Some(recognize_bounded_condition(cursor, comma, context)?);
+        cursor.enter("alternative-cast.condition-separator");
+        cursor.consume(",")?;
+    }
+    cursor.enter("alternative-cast.permission");
+    cursor.consume_phrase(&["you", "may"])?;
+    let costs = if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("cast"))
+    {
+        cursor.enter("alternative-cast.without-paying");
+        cursor.consume_phrase(WITHOUT_PAYING)?;
+        None
+    } else {
+        cursor.enter("alternative-cast.costs");
+        let rather = first_root_index(cursor, |tokens, index| {
+            words_at(tokens, index, RATHER_THAN_PAY)
+        });
+        let rather = cursor.require_value(rather, "`rather than pay` after the payments")?;
+        let costs = cursor.bounded(rather, super::recognize_activation_cost_sequence)?;
+        cursor.enter("alternative-cast.substitution");
+        cursor.consume_phrase(&["rather", "than"])?;
+        let action = cursor.consume_type("costActionWord")?;
+        cursor.require(
+            is_verb_form(&action.raw, VerbLemma::Pay, VerbForm::Base),
+            "`pay`",
+        )?;
+        cursor.enter("alternative-cast.replaced-cost");
+        recognize_current_spell_mana_cost_reference(cursor)?;
+        Some(costs)
+    };
+    cursor.enter("alternative-cast.postposed-condition");
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("if"))
+    {
+        cursor.require(condition.is_none(), "one condition on the permission")?;
+        cursor.consume("if")?;
+        let period = first_root_index(cursor, |tokens, index| tokens[index].raw == ".");
+        let period = cursor.require_value(period, "the period closing the permission")?;
+        condition = Some(recognize_bounded_condition(cursor, period, context)?);
+    }
+    cursor.enter("alternative-cast.terminator");
+    cursor.consume(".")?;
+    cursor.enter("alternative-cast.complete");
+    cursor.finish()?;
+    Ok(AlternativeCastSentenceNode { condition, costs })
+}
+
 #[path = "casting_keyword.rs"]
 mod casting_keyword;
 

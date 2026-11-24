@@ -2,7 +2,7 @@
 
 use serde_json::{Value, json};
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
     CardDefinition, CardInstance, CastingDeclaration, DecisionProvider, EngineError, GameEngine,
@@ -121,25 +121,52 @@ pub(super) fn printed_hexproof_from(permanent: &CardInstance, source: &CardDefin
     })
 }
 
-/// The declared permanent an alternative cost sacrifices (CR 118.9).
-const ALTERNATIVE_SACRIFICE: &str = "alternativeSacrificePermanent";
-/// The generic mana the sacrificed permanent's mana value takes off the
+/// The objects an alternative cost's object payment chose, per cost index
+/// (CR 601.2h): permanents to sacrifice or tap, cards to discard.
+fn alternative_objects_key(index: usize) -> String {
+    format!("alternativeObjects:{index}")
+}
+
+/// The generic mana the sacrificed permanents' mana values take off the
 /// spell's total cost (emerge, CR 702.119a).
 const ALTERNATIVE_REDUCTION: &str = "alternativeCostGenericReduction";
 
-/// `sacrificePermanent` as an alternative cost: a chosen permanent the
-/// caster controls matching `where`; `reduceByManaValue` reduces the total
-/// cost by its mana value (emerge).
-pub(super) fn alternative_sacrifice_supported(cost: &Value) -> bool {
-    card_filter_supported(&cost["where"])
+/// An object payment of an alternative cost: `count` chosen permanents the
+/// caster controls to sacrifice or tap, or cards in hand to discard, each
+/// matching `where`. A sacrifice with `reduceByManaValue` reduces the total
+/// cost by the sacrificed mana values (emerge).
+pub(super) fn alternative_object_cost_supported(cost: &Value) -> bool {
+    matches!(
+        value_kind(cost),
+        Some("sacrificePermanent" | "tap" | "discardCard")
+    ) && card_filter_supported(&cost["where"])
+        && cost
+            .get("count")
+            .is_none_or(|count| integer_value(count).is_some_and(|count| count > 0))
         && cost.get("reduceByManaValue").is_none_or(Value::is_boolean)
 }
 
-fn alternative_sacrifice_cost(ability: &Value) -> Option<&Value> {
+fn alternative_object_costs(ability: &Value) -> Vec<(usize, Value)> {
     ability["costs"]
-        .as_array()?
-        .iter()
-        .find(|cost| value_kind(cost) == Some("sacrificePermanent"))
+        .as_array()
+        .into_iter()
+        .flatten()
+        .enumerate()
+        .filter(|(_, cost)| alternative_object_cost_supported(cost))
+        .map(|(index, cost)| (index, cost.clone()))
+        .collect()
+}
+
+fn alternative_object_count(cost: &Value) -> usize {
+    integer_value(&cost["count"])
+        .and_then(|count| usize::try_from(count).ok())
+        .unwrap_or(1)
+}
+
+fn selected_alternative_ability(decisions: &BTreeMap<String, Value>) -> Option<&Value> {
+    decisions
+        .get("effectiveAlternativeCost")
+        .filter(|_| decisions.get("useAlternativeCost").and_then(Value::as_bool) == Some(true))
 }
 
 /// The generic reduction a declared alternative sacrifice grants.
@@ -152,91 +179,215 @@ pub(super) fn alternative_cost_generic_reduction(decisions: &BTreeMap<String, Va
 }
 
 impl GameEngine {
-    /// Each declaration using an alternative cost that sacrifices a
-    /// permanent declares that permanent; without a payable permanent the
-    /// alternative is unavailable.
-    pub(super) fn expand_alternative_sacrifice_declarations(
+    fn alternative_object_candidates(
+        &self,
+        cost: &Value,
+        controller_id: &str,
+        casting_card: Option<&str>,
+    ) -> Vec<String> {
+        if value_kind(cost) == Some("discardCard") {
+            return self
+                .player_index(controller_id)
+                .ok()
+                .map(|player_index| {
+                    self.state.players[player_index]
+                        .hand
+                        .iter()
+                        .filter(|card| Some(card.instance_id.as_str()) != casting_card)
+                        .filter(|card| matches_card_filter(&card.definition, &cost["where"]))
+                        .map(|card| card.instance_id.clone())
+                        .collect()
+                })
+                .unwrap_or_default();
+        }
+        let tap = value_kind(cost) == Some("tap");
+        self.state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| {
+                permanent.controller == controller_id
+                    && !(tap && permanent.tapped)
+                    && self.permanent_matches_effective_filter(permanent, &cost["where"])
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect()
+    }
+
+    fn permanent_mana_value(&self, instance_id: &str) -> i32 {
+        self.permanent_position(instance_id)
+            .map(|(player_index, card_index)| {
+                mana_value(&self.state.players[player_index].battlefield[card_index].definition)
+            })
+            .unwrap_or(0)
+    }
+
+    /// Each declaration using an alternative cost with object payments
+    /// declares distinct objects for each of them; without enough payable
+    /// objects the alternative is unavailable.
+    pub(super) fn expand_alternative_object_declarations(
         &self,
         controller_id: &str,
+        casting_source: Option<&CardInstance>,
         assignments: Vec<CastingDeclaration>,
     ) -> Vec<CastingDeclaration> {
+        let casting_card = casting_source.map(|card| card.instance_id.as_str());
         let mut expanded = Vec::new();
         for assignment in assignments {
-            let cost = assignment
-                .decisions
-                .get("effectiveAlternativeCost")
-                .filter(|_| {
-                    assignment
-                        .decisions
-                        .get("useAlternativeCost")
-                        .and_then(Value::as_bool)
-                        == Some(true)
-                })
-                .and_then(alternative_sacrifice_cost)
-                .cloned();
-            let Some(cost) = cost else {
+            let costs = selected_alternative_ability(&assignment.decisions)
+                .map(alternative_object_costs)
+                .unwrap_or_default();
+            if costs.is_empty() {
                 expanded.push(assignment);
                 continue;
-            };
-            let reduces = cost["reduceByManaValue"].as_bool() == Some(true);
-            for permanent in self
-                .state
-                .players
-                .iter()
-                .flat_map(|player| player.battlefield.iter())
-                .filter(|permanent| {
-                    permanent.controller == controller_id
-                        && self.permanent_matches_effective_filter(permanent, &cost["where"])
-                })
-            {
-                let mut declared = assignment.clone();
-                declared.decisions.insert(
-                    ALTERNATIVE_SACRIFICE.to_string(),
-                    Value::String(permanent.instance_id.clone()),
-                );
-                if reduces {
-                    declared.decisions.insert(
-                        ALTERNATIVE_REDUCTION.to_string(),
-                        Value::from(mana_value(&permanent.definition)),
-                    );
+            }
+            let mut partial = vec![assignment];
+            for (index, cost) in &costs {
+                let candidates =
+                    self.alternative_object_candidates(cost, controller_id, casting_card);
+                let count = alternative_object_count(cost);
+                let reduces = cost["reduceByManaValue"].as_bool() == Some(true);
+                let mut next = Vec::new();
+                for declaration in partial {
+                    let used = costs
+                        .iter()
+                        .filter_map(|(other, _)| {
+                            declaration.decisions.get(&alternative_objects_key(*other))
+                        })
+                        .flat_map(|ids| ids.as_array().into_iter().flatten())
+                        .filter_map(Value::as_str)
+                        .map(ToOwned::to_owned)
+                        .collect::<BTreeSet<_>>();
+                    let available = candidates
+                        .iter()
+                        .filter(|id| !used.contains(*id))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    for selection in
+                        Self::resolution_selections(&available, count, MAX_DECLARATION_OPTIONS)
+                    {
+                        let mut declared = declaration.clone();
+                        if reduces {
+                            let reduction = selection
+                                .iter()
+                                .map(|id| self.permanent_mana_value(id))
+                                .sum::<i32>()
+                                .saturating_add(alternative_cost_generic_reduction(
+                                    &declared.decisions,
+                                ));
+                            declared
+                                .decisions
+                                .insert(ALTERNATIVE_REDUCTION.to_string(), Value::from(reduction));
+                        }
+                        declared.decisions.insert(
+                            alternative_objects_key(*index),
+                            Value::Array(selection.into_iter().map(Value::String).collect()),
+                        );
+                        next.push(declared);
+                        if next.len() >= MAX_DECLARATION_OPTIONS {
+                            break;
+                        }
+                    }
                 }
-                expanded.push(declared);
+                partial = next;
+            }
+            expanded.extend(partial);
+            if expanded.len() >= MAX_DECLARATION_OPTIONS {
+                break;
             }
         }
         expanded.truncate(MAX_DECLARATION_OPTIONS);
         expanded
     }
 
-    /// Sacrifices the declared permanent of a selected alternative cost.
-    pub(super) fn apply_alternative_sacrifice_payment(
+    /// Pays the declared object payments of a selected alternative cost:
+    /// sacrifices, taps and discards each chosen object (CR 601.2h).
+    pub(super) fn apply_alternative_object_payments(
         &mut self,
         action: &LegalAction,
         ability: &Value,
     ) -> Result<Option<String>, EngineError> {
-        let Some(cost) = alternative_sacrifice_cost(ability).cloned() else {
-            return Ok(None);
-        };
-        let instance_id = action
-            .decisions
-            .get(ALTERNATIVE_SACRIFICE)
-            .and_then(Value::as_str)
-            .ok_or_else(|| EngineError::new("the alternative sacrifice permanent is missing"))?
-            .to_string();
-        let Some((player_index, card_index)) = self.permanent_position(&instance_id) else {
-            return Err(EngineError::new(
-                "the alternative sacrifice left the battlefield",
-            ));
-        };
-        let permanent = &self.state.players[player_index].battlefield[card_index];
-        if permanent.controller != action.player_id
-            || !self.permanent_matches_effective_filter(permanent, &cost["where"])
-        {
-            return Err(EngineError::new(
-                "the permanent cannot pay the alternative sacrifice cost",
-            ));
+        let mut paid_object = None;
+        let player_index = self.player_index(&action.player_id)?;
+        for (index, cost) in alternative_object_costs(ability) {
+            let ids = action
+                .decisions
+                .get(&alternative_objects_key(index))
+                .and_then(Value::as_array)
+                .ok_or_else(|| EngineError::new("an alternative-cost object payment is missing"))?
+                .iter()
+                .map(|id| {
+                    id.as_str()
+                        .map(ToOwned::to_owned)
+                        .ok_or_else(|| EngineError::new("an alternative-cost object id is invalid"))
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            if ids.len() != alternative_object_count(&cost)
+                || ids.iter().collect::<BTreeSet<_>>().len() != ids.len()
+            {
+                return Err(EngineError::new(
+                    "the alternative-cost object payment chose the wrong objects",
+                ));
+            }
+            for id in ids {
+                match value_kind(&cost) {
+                    Some("discardCard") => {
+                        let card_index = self.state.players[player_index]
+                            .hand
+                            .iter()
+                            .position(|card| {
+                                card.instance_id == id
+                                    && matches_card_filter(&card.definition, &cost["where"])
+                            })
+                            .ok_or_else(|| {
+                                EngineError::new(
+                                    "the alternative-cost discard is no longer payable",
+                                )
+                            })?;
+                        let (discarded, destination) =
+                            self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                        self.put_owned_card_into_prepared_graveyard(
+                            player_index,
+                            discarded,
+                            destination,
+                        )?;
+                        self.record_event(
+                            "cardDiscarded",
+                            Some(action.player_id.clone()),
+                            Some(id.clone()),
+                            json!({ "reason": "cost" }),
+                        );
+                        self.enqueue_card_discarded_triggers(&action.player_id);
+                    }
+                    kind => {
+                        let Some((owner, card_index)) = self.permanent_position(&id) else {
+                            return Err(EngineError::new(
+                                "an alternative-cost permanent left the battlefield",
+                            ));
+                        };
+                        let permanent = &self.state.players[owner].battlefield[card_index];
+                        if permanent.controller != action.player_id
+                            || !self.permanent_matches_effective_filter(permanent, &cost["where"])
+                            || (kind == Some("tap") && permanent.tapped)
+                        {
+                            return Err(EngineError::new(
+                                "the permanent cannot pay the alternative cost",
+                            ));
+                        }
+                        if kind == Some("tap") {
+                            let tapped = self.tap_permanent(&id)?.ok_or_else(|| {
+                                EngineError::new("the alternative-cost tap could not be paid")
+                            })?;
+                            self.enqueue_permanent_tapped_triggers(&tapped);
+                        } else {
+                            self.move_permanent_to_graveyard(&id, "sacrificed")?;
+                        }
+                    }
+                }
+                paid_object = Some(id);
+            }
         }
-        self.move_permanent_to_graveyard(&instance_id, "sacrificed")?;
-        Ok(Some(instance_id))
+        Ok(paid_object)
     }
 }
 

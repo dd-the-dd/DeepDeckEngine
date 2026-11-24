@@ -203,6 +203,127 @@ fn alternative_life_payment(amount: i64) -> Value {
     json!({ "kind": "payLife", "player": controller(), "amount": integer(amount) })
 }
 
+/// One printed payment of an alternative cost, in the schema the casting
+/// runtime declares and pays (CR 601.2h). A payment that schema cannot
+/// carry fails explicitly.
+fn lower_alternative_cast_payment(
+    cursor: &OracleTokenCursor<'_>,
+    cost: &LocalActivationCostNode,
+) -> MachineResult<Value> {
+    let chosen = |exclude_source: bool| {
+        cursor.require(
+            !exclude_source,
+            "an alternative-cost object other than the spell (`another` has no alternative-cost runtime)",
+        )
+    };
+    Ok(match cost {
+        LocalActivationCostNode::PayMana(mana) => {
+            mana.fixed_runtime_mana_value()
+                .map_err(|error| cursor.fail(error.expected()))?;
+            lower_resource_mana_payment(mana)
+        }
+        LocalActivationCostNode::PayLife(life) => alternative_life_payment(life.amount),
+        LocalActivationCostNode::SacrificeObject(sacrifice) => {
+            chosen(sacrifice.exclude_source)?;
+            json!({
+                "kind": "sacrificePermanent",
+                "where": lower_permanent_object_predicate(&sacrifice.object.predicate),
+                "count": integer(sacrifice.count),
+            })
+        }
+        LocalActivationCostNode::TapObjects(tap) => {
+            chosen(tap.tap.exclude_source)?;
+            json!({
+                "kind": "tap",
+                "where": lower_permanent_object_predicate(&tap.tap.object.predicate),
+                "count": integer(tap.tap.count),
+            })
+        }
+        LocalActivationCostNode::DiscardCard(discard)
+            if discard.method == CollectionSelectionMethod::Choice =>
+        {
+            json!({
+                "kind": "discardCard",
+                "where": lower_card_object_predicate(&discard.filter),
+                "count": integer(discard.count),
+            })
+        }
+        LocalActivationCostNode::ReturnObjects(returned) if returned.count == 1 => {
+            chosen(returned.exclude_source)?;
+            alternative_return_payment(&returned.object.predicate)
+        }
+        LocalActivationCostNode::ExileCards(exile)
+            if exile.zone == PaymentOriginZone::Hand && exile.count == 1 =>
+        {
+            chosen(exile.exclude_source)?;
+            json!({
+                "kind": "exileCard",
+                "zone": { "kind": "hand", "player": controller() },
+                "where": lower_card_object_predicate(&exile.filter),
+            })
+        }
+        _ => {
+            return Err(cursor.fail(
+                "an alternative-cost payment the casting runtime pays: mana, life, chosen permanents to sacrifice or tap, chosen cards to discard, or one permanent to return or hand card to exile",
+            ));
+        }
+    })
+}
+
+/// `[If COND,] you may COSTS rather than pay this spell's mana cost [if
+/// COND].` and `... you may cast this spell without paying its mana cost.`
+pub(in crate::oracle::canonical) fn claims_alternative_cast_sentence_family(
+    input: &AbilityInput<'_>,
+) -> bool {
+    alternative_cast_sentence_starts(input.tokens)
+}
+
+pub(in crate::oracle::canonical) fn parse_alternative_cast_sentence(
+    input: &AbilityInput<'_>,
+) -> MachineResult<CanonicalRuleDraft> {
+    let mut cursor = OracleTokenCursor::new("alternative-cast", input.tokens);
+    let context = ConditionContext::standalone(
+        ConditionScope::Static,
+        input.name_links,
+        input.name_resolution_failure,
+        false,
+    );
+    let sentence = recognize_alternative_cast_sentence(&mut cursor, &context)?;
+    cursor.enter("alternative-cast.lowering");
+    let costs = match &sentence.costs {
+        Some(costs) => costs
+            .costs
+            .iter()
+            .map(|cost| lower_alternative_cast_payment(&cursor, cost))
+            .collect::<MachineResult<Vec<_>>>()?,
+        None => Vec::new(),
+    };
+    let trace = cursor
+        .transitions()
+        .iter()
+        .map(|transition| transition.state)
+        .collect::<Vec<_>>()
+        .join(" -> ");
+    Ok(draft(
+        json!({
+            "kind": "keywordAbility",
+            "source": self_ref(),
+            "ability": lower_alternative_cast_permission(
+                None,
+                costs,
+                sentence.condition.as_ref().map(lower_condition),
+            ),
+        }),
+        &[
+            "Recognize the alternative-cast permission and its optional condition",
+            "Read the payments with the shared activation-cost sequence",
+            "Read the condition with the shared condition atom program",
+            "Lower through the one alternative-cast permission",
+            &trace,
+        ],
+    ))
+}
+
 /// A controlled permanent returned to its owner's hand as an alternative
 /// cost (CR 118.9); the runtime chooses it among the payer's permanents.
 pub(in crate::oracle::canonical) fn alternative_return_payment(
@@ -508,3 +629,7 @@ pub(in crate::oracle::canonical) fn parse_casting_keyword(
         ],
     ))
 }
+
+#[cfg(test)]
+#[path = "alternative_cast_sentence_tests.rs"]
+mod alternative_cast_sentence_tests;

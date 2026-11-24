@@ -383,8 +383,7 @@ fn emerge_sacrifices_a_creature_and_reduces_by_its_mana_value() {
         .into_iter()
         .find(|action| {
             action.card_instance_id.as_deref() == Some("emerge-creature")
-                && action.decisions.get("alternativeSacrificePermanent")
-                    == Some(&Value::String("fodder".to_string()))
+                && action.decisions.get("alternativeObjects:1") == Some(&json!(["fodder"]))
         })
         .expect("{5}{U}{U} reduced by four is payable with three mana");
     assert_eq!(emerged.decisions["alternativeCostMode"], "emerge");
@@ -401,6 +400,103 @@ fn emerge_sacrifices_a_creature_and_reduces_by_its_mana_value() {
             .any(|card| card.instance_id == "fodder")
     );
     assert!(engine.state.players[0].mana_pool.is_empty());
+}
+
+/// `You may sacrifice two Mountains rather than pay this spell's mana
+/// cost.` and `You may discard a Plains card rather than ...`: each object
+/// payment declares distinct objects and pays them as the spell is cast.
+#[test]
+fn alternative_object_payments_declare_distinct_objects_and_pay_them() {
+    let mut engine = test_engine();
+    let mut card = test_definition("free-spell", "Creature");
+    card.mana_cost = "{4}{R}".to_string();
+    card.rules.push(keyword_rule(json!({
+        "kind": "alternativeCost",
+        "costs": [{
+            "kind": "sacrificePermanent",
+            "where": { "kind": "subtypeContains", "value": "Mountain" },
+            "count": { "kind": "integer", "value": 2 },
+        }],
+    })));
+    assert!(keyword_rule_supported(&card.rules[0]));
+    engine.state.players[0]
+        .hand
+        .push(test_instance("free-spell", card, "player-0"));
+    for id in ["mountain-a", "mountain-b", "mountain-c"] {
+        engine.state.players[0].battlefield.push(test_instance(
+            id,
+            test_definition(id, "Basic Land - Mountain"),
+            "player-0",
+        ));
+    }
+    let alternatives = engine
+        .legal_priority_actions(0)
+        .into_iter()
+        .filter(|action| {
+            action.card_instance_id.as_deref() == Some("free-spell")
+                && action
+                    .decisions
+                    .get("useAlternativeCost")
+                    .and_then(Value::as_bool)
+                    == Some(true)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(alternatives.len(), 3, "each pair of the three Mountains");
+    let action = alternatives[0].clone();
+    let chosen = action.decisions["alternativeObjects:0"]
+        .as_array()
+        .expect("the declared Mountains")
+        .clone();
+    assert_eq!(chosen.len(), 2);
+    assert_ne!(chosen[0], chosen[1]);
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    engine
+        .apply_priority_action(&action, &mut FirstOption)
+        .expect("the sacrifices pay for the spell");
+    assert_eq!(
+        engine.state.players[0]
+            .graveyard
+            .iter()
+            .filter(|card| card.instance_id.starts_with("mountain"))
+            .count(),
+        2
+    );
+
+    let mut engine = test_engine();
+    let mut discard = test_definition("discard-spell", "Instant");
+    discard.mana_cost = "{2}{W}{W}".to_string();
+    discard.rules.push(keyword_rule(json!({
+        "kind": "alternativeCost",
+        "costs": [{
+            "kind": "discardCard",
+            "where": { "kind": "subtypeContains", "value": "Plains" },
+        }],
+    })));
+    assert!(keyword_rule_supported(&discard.rules[0]));
+    let mut plains = test_definition("plains-card", "Basic Land - Plains");
+    plains.mana_cost = String::new();
+    engine.state.players[0]
+        .hand
+        .push(test_instance("discard-spell", discard.clone(), "player-0"));
+    engine.state.players[0]
+        .hand
+        .push(test_instance("plains-card", plains, "player-0"));
+    let mut declarations = engine
+        .declarations_for_card(&discard, "player-0")
+        .expect("the discard alternative is declared");
+    declarations.retain(|declaration| {
+        declaration
+            .decisions
+            .get("useAlternativeCost")
+            .and_then(Value::as_bool)
+            == Some(true)
+    });
+    assert!(!declarations.is_empty());
+    assert!(declarations.iter().all(|declaration| {
+        declaration.decisions.get("alternativeObjects:0") == Some(&json!(["plains-card"]))
+    }));
 }
 
 /// `Hexproof from black` stops black sources of opponents only (CR 702.11d).

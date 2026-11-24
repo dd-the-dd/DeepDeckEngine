@@ -1519,6 +1519,20 @@ fn parse_existing_native_rule(
         };
     }
 
+    // CR 118.9: every other printed alternative-cast permission.
+    if claims_alternative_cast_sentence_family(input) {
+        return match parse_alternative_cast_sentence(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if ability_kind == "spellAbility" && claims_promoted_library_search_partition_family(input) {
         return match parse_promoted_library_search_partition(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
