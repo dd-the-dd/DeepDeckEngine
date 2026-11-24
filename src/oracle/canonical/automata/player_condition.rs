@@ -433,6 +433,27 @@ pub(in crate::oracle::canonical) fn recognize_count_threshold(
             value: 0,
         });
     }
+    // `fewer than N` is at most N - 1, `more than N` at least N + 1.
+    if (word_is(cursor, 0, "fewer")
+        || word_is(cursor, 0, "less")
+        || word_is(cursor, 0, "more")
+        || word_is(cursor, 0, "greater"))
+        && word_is(cursor, 1, "than")
+    {
+        let upper = word_is(cursor, 0, "fewer") || word_is(cursor, 0, "less");
+        consume_current(cursor)?;
+        cursor.consume("than")?;
+        let value = recognize_threshold_value(cursor)?;
+        return Ok(if upper {
+            cursor.require(value >= 1, "a positive bound after `fewer than`")?;
+            CountThreshold {
+                operator: ThresholdOperator::AtMost,
+                value: value - 1,
+            }
+        } else {
+            CountThreshold::at_least(value + 1)
+        });
+    }
     if word_is(cursor, 0, "exactly") {
         cursor.consume("exactly")?;
         let value = recognize_threshold_value(cursor)?;

@@ -164,6 +164,7 @@ use granted_mana_program::ManaProgramOrigin;
 mod captured_binding;
 mod effect_performer;
 mod event_history;
+mod opponent_extremum;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -2860,6 +2861,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("triggeringSpellManaValue" | "triggeringSpellManaSpent") => true,
         Some("manaSpentToCastSource" | "colorsOfManaSpentToCastSource") => true,
         Some("manaSpentToCast") => mana_payment::mana_spent_to_cast_supported(expression),
+        Some("opponentExtremum") => opponent_extremum::opponent_extremum_supported(expression),
         Some("sourceCastXValue") => true,
         Some("countObjects") => object_expression_supported(&expression["objects"]),
         Some("maximumManaValue") => {
@@ -9244,6 +9246,7 @@ impl GameEngine {
             return Some(value);
         }
         match value_kind(expression) {
+            Some("opponentExtremum") => self.opponent_extremum(expression, controller_id),
             Some("cardsDiscardedThisTurn") => Some(
                 self.state
                     .events
@@ -31518,6 +31521,7 @@ impl GameEngine {
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
             Some("manaSpentToCast") => self.runtime_mana_spent_to_cast(expression, stack_object),
+            Some("opponentExtremum") => self.opponent_extremum(expression, &stack_object.controller),
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }

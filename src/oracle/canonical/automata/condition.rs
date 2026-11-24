@@ -247,6 +247,8 @@ pub(in crate::oracle::canonical) enum ConditionNumber {
     Player(PlayerStateMeasure),
     /// The greatest value of a measure among the opponents of the subject.
     GreatestOpponent(PlayerStateMeasure),
+    /// The least value of a measure among the opponents of the subject.
+    LeastOpponent(PlayerStateMeasure),
     /// A measure of the ability's controller whatever the comparison's
     /// subject (`that player controls more lands than you`).
     ControllerMeasure(PlayerStateMeasure),

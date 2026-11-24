@@ -282,6 +282,11 @@ fn read_condition_atom(
     if word_is(cursor, 0, "you") && word_is(cursor, 1, "control") {
         return recognize_controlled_permanents_atom(cursor);
     }
+    // Compare: one measure of two players (`an opponent has more cards in
+    // hand than you`, `you have more life than each opponent`).
+    if super::player_comparative_starts(cursor) {
+        return super::recognize_player_comparative_atom(cursor);
+    }
     // Compare: the state of the player the binding environment names.
     if word_is(cursor, 0, "that")
         && word_is(cursor, 1, "player")
@@ -365,9 +370,119 @@ fn read_condition_atom(
         return recognize_referenced_object_atom(cursor, context)
             .map(ConditionAtom::ObjectSatisfies);
     }
+    // Compare: a numeric subject of the shared definition grammar (`your
+    // devotion to white is less than five`, `your life total is 5 or less`).
+    if let Some(atom) = try_numeric_subject_comparison(cursor)? {
+        return Ok(atom);
+    }
     Err(cursor.fail(
         "a supported condition: a player's state or history, a count comparison, an object's state, turn ownership, a cast fact of this spell, or the outcome of an earlier action",
     ))
+}
+
+/// `EXPRESSION is COMPARISON`, where EXPRESSION is any operand of the
+/// shared numeric definition grammar. The subject is read transactionally:
+/// only an expression followed by `is|was` commits this reader.
+fn try_numeric_subject_comparison(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<ConditionAtom>> {
+    let mut trial = cursor.clone();
+    let Ok(left) = recognize_variable_definition_expression(&mut trial) else {
+        return Ok(None);
+    };
+    if !(word_is(&trial, 0, "is") || word_is(&trial, 0, "was")) {
+        return Ok(None);
+    }
+    *cursor = trial;
+    cursor.enter("condition.numeric-subject.copula");
+    consume_current(cursor)?;
+    let (operator, right, halved) = recognize_comparison_tail(cursor)?;
+    // `L OP half R` is `2 * L OP R`: the comparison needs no rounding.
+    let left = if halved {
+        NumericExpression::multiply(NumericExpression::from(2), left)
+    } else {
+        left
+    };
+    Ok(Some(ConditionAtom::Compare(ConditionComparison {
+        subject: ConditionPlayerSubject::Controller,
+        left: ConditionNumber::Expression(left),
+        operator,
+        right,
+    })))
+}
+
+/// After the copula: `less than [or equal to] R`, `greater than [or equal
+/// to] R`, `equal to R`, a threshold (`5 or less`, `at least 10`, `exactly
+/// 20`) or a bare number. R is a number or an expression of the shared
+/// definition grammar, optionally `half R` (returned as `true`).
+fn recognize_comparison_tail(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(NumericComparisonOperator, ConditionNumber, bool)> {
+    cursor.enter("condition.numeric-subject.operator");
+    let relation = if word_is(cursor, 0, "less") && word_is(cursor, 1, "than") {
+        Some(if word_is(cursor, 2, "or") {
+            NumericComparisonOperator::LessThanOrEqual
+        } else {
+            NumericComparisonOperator::LessThan
+        })
+    } else if word_is(cursor, 0, "greater") && word_is(cursor, 1, "than") {
+        Some(if word_is(cursor, 2, "or") {
+            NumericComparisonOperator::GreaterThanOrEqual
+        } else {
+            NumericComparisonOperator::GreaterThan
+        })
+    } else if word_is(cursor, 0, "equal") && word_is(cursor, 1, "to") {
+        Some(NumericComparisonOperator::Equal)
+    } else {
+        None
+    };
+    if let Some(operator) = relation {
+        consume_current(cursor)?;
+        consume_current(cursor)?;
+        if matches!(
+            operator,
+            NumericComparisonOperator::LessThanOrEqual
+                | NumericComparisonOperator::GreaterThanOrEqual
+        ) {
+            cursor.consume_phrase(&["or", "equal", "to"])?;
+        }
+        cursor.enter("condition.numeric-subject.right");
+        let halved = word_is(cursor, 0, "half");
+        if halved {
+            cursor.consume("half")?;
+        }
+        let number = cursor
+            .peek()
+            .and_then(|raw| raw.parse::<i64>().ok().or_else(|| parse_number_word(raw)))
+            .filter(|_| !word_is(cursor, 0, "a") && !word_is(cursor, 0, "an"));
+        let right = match number {
+            Some(value) if !halved => {
+                consume_current(cursor)?;
+                ConditionNumber::Integer(value)
+            }
+            _ => ConditionNumber::Expression(recognize_variable_definition_expression(cursor)?),
+        };
+        return Ok((operator, right, halved));
+    }
+    let bare = cursor
+        .peek()
+        .and_then(|raw| raw.parse::<i64>().ok().or_else(|| parse_number_word(raw)))
+        .filter(|_| !word_is(cursor, 1, "or"));
+    if let Some(value) = bare {
+        consume_current(cursor)?;
+        return Ok((
+            NumericComparisonOperator::Equal,
+            ConditionNumber::Integer(value),
+            false,
+        ));
+    }
+    let threshold = recognize_count_threshold(cursor, false)?;
+    cursor.require(
+        !(threshold.operator == ThresholdOperator::AtMost && threshold.value == 0),
+        "a numeric threshold rather than `no`",
+    )?;
+    let (operator, value) = threshold_comparison(threshold);
+    Ok((operator, ConditionNumber::Integer(value), false))
 }
 
 /// `you control a|an|another PERMANENT` (at least one) or `you control N or

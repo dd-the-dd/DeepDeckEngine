@@ -196,6 +196,9 @@ pub(in crate::oracle::canonical) fn recognize_controller_history_atom(
         || word_is(cursor, 0, "cast")
         || word_is(cursor, 0, "no")
         || word_is(cursor, 0, "at")
+        || word_is(cursor, 0, "exactly")
+        || ((word_is(cursor, 0, "fewer") || word_is(cursor, 0, "more"))
+            && word_is(cursor, 1, "than"))
         || cursor.peek().is_some_and(|raw| {
             !raw.eq_ignore_ascii_case("an")
                 && !raw.eq_ignore_ascii_case("a")
@@ -271,6 +274,146 @@ fn recognize_completed_dungeon_atom(
         cursor.advance_to(cursor.position() + 1)?;
     }
     Ok(designation(Some(words.join(" "))))
+}
+
+/// The player subject of a comparative possession and its token length.
+fn comparative_subject_at(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<(usize, ConditionPlayerSubject)> {
+    if word_is(cursor, 0, "you") {
+        Some((1, ConditionPlayerSubject::Controller))
+    } else if word_is(cursor, 0, "an") && word_is(cursor, 1, "opponent") {
+        Some((
+            2,
+            ConditionPlayerSubject::Quantified {
+                quantifier: super::PlayerQuantifier::Some,
+                population: super::PlayerPopulation::Opponents,
+            },
+        ))
+    } else if word_is(cursor, 0, "that") && word_is(cursor, 1, "player") {
+        Some((2, ConditionPlayerSubject::EventPlayer))
+    } else {
+        None
+    }
+}
+
+/// True at `PLAYER has|have more|fewer|less MEASURE than PLAYER`.
+pub(in crate::oracle::canonical) fn player_comparative_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let Some((length, _)) = comparative_subject_at(cursor) else {
+        return false;
+    };
+    (word_is(cursor, length, "has") || word_is(cursor, length, "have"))
+        && (word_is(cursor, length + 1, "more")
+            || word_is(cursor, length + 1, "fewer")
+            || word_is(cursor, length + 1, "less"))
+        && !word_is(cursor, length + 2, "than")
+}
+
+/// `life`, `cards in hand`, `cards in your|their hand|graveyard`: a measure
+/// of each compared player.
+fn recognize_comparative_measure(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PlayerStateMeasure> {
+    cursor.enter("condition.player.comparative.measure");
+    if word_is(cursor, 0, "life") {
+        cursor.consume("life")?;
+        return Ok(PlayerStateMeasure::Life);
+    }
+    cursor.consume("cards")?;
+    cursor.consume("in")?;
+    if word_is(cursor, 0, "your") || word_is(cursor, 0, "their") {
+        consume_current(cursor)?;
+    }
+    let zone = if word_is(cursor, 0, "hand") {
+        PlayerCardZone::Hand
+    } else if word_is(cursor, 0, "graveyard") {
+        PlayerCardZone::Graveyard
+    } else {
+        return Err(cursor.fail("`hand` or `graveyard`"));
+    };
+    consume_current(cursor)?;
+    Ok(PlayerStateMeasure::CardsInZone {
+        zone,
+        predicate: ObjectPredicate::ObjectKind(ObjectKind::Card),
+    })
+}
+
+/// `an opponent has more cards in hand than you`, `you have more life than
+/// each opponent`, `you have less life than an opponent`, `that player has
+/// more cards in hand than you`: one measure of two players compared. The
+/// quantified player is the comparison's subject; the controller's own
+/// measure is read whatever that subject (`ControllerMeasure`).
+pub(in crate::oracle::canonical) fn recognize_player_comparative_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<ConditionAtom> {
+    cursor.enter("condition.player.comparative.subject");
+    let (length, subject) =
+        comparative_subject_at(cursor).ok_or_else(|| cursor.fail("a player subject"))?;
+    if subject == ConditionPlayerSubject::EventPlayer {
+        let environment = super::installed_binding_environment(cursor);
+        cursor.require(
+            matches!(
+                super::recognize_that_player(cursor, &environment)?,
+                super::BoundPlayerReference::EventPlayer
+            ),
+            "the player the triggering event records",
+        )?;
+    } else {
+        for _ in 0..length {
+            consume_current(cursor)?;
+        }
+    }
+    cursor.enter("condition.player.comparative.verb");
+    consume_current(cursor)?;
+    let operator = if word_is(cursor, 0, "more") {
+        NumericComparisonOperator::GreaterThan
+    } else {
+        NumericComparisonOperator::LessThan
+    };
+    consume_current(cursor)?;
+    let measure = recognize_comparative_measure(cursor)?;
+    cursor.enter("condition.player.comparative.than");
+    cursor.consume("than")?;
+    cursor.enter("condition.player.comparative.other");
+    let more = operator == NumericComparisonOperator::GreaterThan;
+    let controller = || ConditionNumber::ControllerMeasure(measure.clone());
+    // Some opponent exceeds a value iff the greatest opponent value does;
+    // every opponent does iff the least one does (CR 102.2-102.3).
+    let greatest = || ConditionNumber::GreatestOpponent(measure.clone());
+    let least = || ConditionNumber::LeastOpponent(measure.clone());
+    let (subject, left, right) = match subject {
+        ConditionPlayerSubject::Controller if word_is(cursor, 0, "each") => {
+            cursor.consume_phrase(&["each", "opponent"])?;
+            let others = if more { greatest() } else { least() };
+            (ConditionPlayerSubject::Controller, controller(), others)
+        }
+        ConditionPlayerSubject::Controller => {
+            cursor.consume_phrase(&["an", "opponent"])?;
+            let others = if more { least() } else { greatest() };
+            (ConditionPlayerSubject::Controller, controller(), others)
+        }
+        ConditionPlayerSubject::EventPlayer => {
+            cursor.consume("you")?;
+            (
+                ConditionPlayerSubject::EventPlayer,
+                ConditionNumber::Player(measure.clone()),
+                controller(),
+            )
+        }
+        _ => {
+            cursor.consume("you")?;
+            let opponent = if more { greatest() } else { least() };
+            (ConditionPlayerSubject::Controller, opponent, controller())
+        }
+    };
+    Ok(ConditionAtom::Compare(ConditionComparison {
+        subject,
+        left,
+        operator,
+        right,
+    }))
 }
 
 /// `an opponent controls more|fewer ...` or `you control more|fewer ...`: a

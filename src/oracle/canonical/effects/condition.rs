@@ -280,9 +280,20 @@ fn lower_condition_number(number: &ConditionNumber, player: Value) -> Lowered {
             "player": player,
             "where": lower_permanent_object_predicate(predicate),
         })),
-        ConditionNumber::GreatestOpponent(_) => {
-            Err("the greatest opponent value of a measure other than controlled permanents")
-        }
+        // CR 102.2-102.3: the extreme value of one measure over the
+        // opponents of `player`, each opponent read as the measure's player.
+        ConditionNumber::GreatestOpponent(measure) => Ok(json!({
+            "kind": "opponentExtremum",
+            "extremum": "greatest",
+            "player": player,
+            "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
+        })),
+        ConditionNumber::LeastOpponent(measure) => Ok(json!({
+            "kind": "opponentExtremum",
+            "extremum": "least",
+            "player": player,
+            "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
+        })),
     }
 }
 
