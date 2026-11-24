@@ -429,6 +429,35 @@ fn first_root_index(
     (start..end).find(|index| word_at(tokens, *index, word))
 }
 
+/// `you may ACTION` (CR 609.3, 601.2b): the static permission frame reads
+/// the action lemma and its operands with the shared readers. When that
+/// frame owns the action and stops, its diagnostic names the missing child
+/// (an origin, a condition, a cost or a reminder); otherwise the frame
+/// reports the action head it has no reader for.
+fn optional_permission_frame_failure(input: &AbilityInput<'_>, start: usize) -> MachineFailure {
+    let mut cursor = OracleTokenCursor::new("ability-frame", input.tokens);
+    if cursor.advance_to(start).is_ok() {
+        match try_recognize_static_player_permission(
+            &mut cursor,
+            input.name_links,
+            input.name_resolution_failure,
+        ) {
+            // Only a failure the frame owns replaces the head diagnostic; a
+            // collection allowance whose envelope rejects a tail keeps it.
+            CastingPermissionRecognition::FailedCommitted(failure) => return failure,
+            CastingPermissionRecognition::NotClaimed
+            | CastingPermissionRecognition::RejectedEnvelope(_)
+            | CastingPermissionRecognition::Parsed(_) => {}
+        }
+    }
+    fail_at(
+        input,
+        "ability-frame.permission.action",
+        start + 2,
+        "an optional action, permission or alternative cost supported by the shared program (CR 609.3, 601.2b)",
+    )
+}
+
 /// The frame owning an unclaimed ability and the failure inside that frame.
 pub(in crate::oracle::canonical) fn claim_unclaimed_ability_frame(
     input: &AbilityInput<'_>,
@@ -490,12 +519,7 @@ pub(in crate::oracle::canonical) fn claim_unclaimed_ability_frame(
             "an additional cost action supported by the shared cost reader (CR 601.2b)",
         ),
         AbilityFrame::Prevention => static_prevention_frame_failure(input, start),
-        AbilityFrame::OptionalPermission => fail_at(
-            input,
-            "ability-frame.permission.action",
-            start + 2,
-            "an optional action, permission or alternative cost supported by the shared program (CR 609.3, 601.2b)",
-        ),
+        AbilityFrame::OptionalPermission => optional_permission_frame_failure(input, start),
         AbilityFrame::ConditionalStatic | AbilityFrame::StaticContinuous => {
             static_continuous_frame_failure(input).unwrap_or_else(|| {
                 fail_at(

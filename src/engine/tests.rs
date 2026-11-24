@@ -241,6 +241,9 @@ mod coordinated_static_subject_runtime;
 #[path = "tests/alternative_life_payment_runtime.rs"]
 mod alternative_life_payment_runtime;
 
+#[path = "tests/static_player_permissions_runtime.rs"]
+mod static_player_permissions_runtime;
+
 #[path = "tests/object_domain_inference_runtime.rs"]
 mod object_domain_inference_runtime;
 

@@ -163,6 +163,7 @@ mod mana_discovery_session;
 mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
+mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
 mod captured_binding;
@@ -5905,7 +5906,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["count"])
         }
         Some("nonbasicLandsBecomeMountains") => condition_supported(&modifier["condition"]),
-        _ => false,
+        _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
 
@@ -12259,6 +12260,7 @@ impl GameEngine {
         });
         controlled_permanent_permission
             || attacking_legendary_permission
+            || self.printed_self_flash_permission(player_id, card, source_zone)
             || self.one_shot_flash_permission(player_id, card)
             || self.state.rule_modifiers.iter().any(|modifier| {
                 value_kind(modifier) == Some("nextCreatureSpellModifier")
@@ -12958,6 +12960,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> Vec<String> {
         let mut costs = Vec::new();
+        costs.extend(static_player_permissions::static_permission_mana_costs(
+            decisions,
+        ));
         for (rule_index, rule) in card.printed_rules().iter().enumerate() {
             if value_kind(rule) == Some("spellAbility") {
                 self.collect_conditional_mana_costs(
@@ -17615,7 +17620,12 @@ impl GameEngine {
                     ));
             let commander_conditional_flash = plotted_permission.is_none()
                 && has_keyword(&card.definition, "flashIfTargetsCommander");
-            let instant_timing = unconditional_instant_timing || commander_conditional_flash;
+            let timing_cost = (plotted_permission.is_none() && !unconditional_instant_timing)
+                .then(|| self.printed_self_flash_cost(&player.id, &card.definition, source_zone))
+                .flatten();
+            let instant_timing = unconditional_instant_timing
+                || commander_conditional_flash
+                || timing_cost.is_some();
             let sorcery_timing = active_main && self.state.stack.is_empty();
             if !instant_timing && !sorcery_timing && miracle_permission.is_none() {
                 continue;
@@ -17691,7 +17701,10 @@ impl GameEngine {
                 source_zone,
                 declarations,
                 permission,
-                sorcery_timing || unconditional_instant_timing || commander_conditional_flash,
+                sorcery_timing
+                    || unconditional_instant_timing
+                    || commander_conditional_flash
+                    || timing_cost.is_some(),
             )?;
             let mut prepared_declarations = Vec::new();
             for route in routes {
@@ -17744,6 +17757,15 @@ impl GameEngine {
                     })
                 {
                     continue;
+                }
+                if !sorcery_timing
+                    && !unconditional_instant_timing
+                    && let Some(cost) = &timing_cost
+                {
+                    declaration.decisions.insert(
+                        static_player_permissions::FLASH_TIMING_MANA_COST.to_string(),
+                        Value::String(cost.clone()),
+                    );
                 }
                 declaration.decisions.insert(
                     "castSourceZone".to_string(),
@@ -36594,6 +36616,7 @@ impl GameEngine {
                 });
             }
         }
+        self.add_exert_attack_options(&mut actions);
         let required_attack_available = actions.iter().any(|action| {
             action
                 .attacker_id
@@ -36694,6 +36717,7 @@ impl GameEngine {
                 .flags
                 .insert("attacking".to_string(), true);
         }
+        self.apply_exert_attack_option(action, &attacker_id)?;
         let attacking_power = self
             .permanent_position(&attacker_id)
             .map(|(player_index, card_index)| {
@@ -37150,6 +37174,7 @@ impl GameEngine {
             self.enqueue_permanent_tapped_triggers(&source);
         }
         self.enqueue_declared_attacker_triggers(&attacker_ids);
+        self.enqueue_exert_reflexive_triggers();
         self.run_priority_window(provider)?;
         if self.state.outcome.is_some() || self.force_end_turn {
             self.clear_combat_state();
@@ -37525,6 +37550,12 @@ impl GameEngine {
             if blocker_ids.is_empty() {
                 continue;
             }
+            if let Some(unblocked) =
+                self.choose_unblocked_combat_damage(provider, &attacker, attacker_power)?
+            {
+                assignments.insert(attacker_id.clone(), unblocked);
+                continue;
+            }
 
             let mut attacker_assignments = BTreeMap::new();
             if self.permanent_has_keyword(&attacker, "trample") {
@@ -37699,6 +37730,18 @@ impl GameEngine {
             let attacker_deals_damage = self.deals_combat_damage_in_step(attacker, step);
             let attacker_has_trample = self.permanent_has_keyword(attacker, "trample");
             if let Some(blocker_ids) = blocks.get(attacker_id) {
+                // CR 510.1c-d: the attacker's damage goes to what it attacks;
+                // its blockers still deal theirs.
+                let as_though_unblocked = static_player_permissions::assigned_as_though_unblocked(
+                    assignments.get(attacker_id),
+                );
+                if attacker_deals_damage && as_though_unblocked {
+                    damage_instances.extend(self.as_though_unblocked_damage(
+                        attacker_id,
+                        &attack.defender,
+                        attacker_power,
+                    ));
+                }
                 let current_blockers = blocker_ids
                     .iter()
                     .filter_map(|blocker_id| {
@@ -37715,7 +37758,11 @@ impl GameEngine {
                     })
                     .collect::<Vec<_>>();
                 if current_blockers.is_empty() {
-                    if attacker_deals_damage && attacker_has_trample && attacker_power > 0 {
+                    if attacker_deals_damage
+                        && !as_though_unblocked
+                        && attacker_has_trample
+                        && attacker_power > 0
+                    {
                         match &attack.defender {
                             TargetRef::Player { player_id } => damage_instances.push((
                                 attacker_id.clone(),
@@ -37740,7 +37787,7 @@ impl GameEngine {
                     }
                     continue;
                 }
-                if attacker_deals_damage {
+                if attacker_deals_damage && !as_though_unblocked {
                     let attacker_assignments = assignments.get(attacker_id).ok_or_else(|| {
                         EngineError::new("blocked attacker has no combat damage assignment")
                     })?;

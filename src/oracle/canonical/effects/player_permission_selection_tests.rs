@@ -177,10 +177,11 @@ fn library_top_origin_composes_look_play_and_cast_actions_into_one_card_filter()
 #[test]
 fn permission_near_misses_fail_at_their_own_capability() {
     for (type_line, text) in [
-        // The runtime holds these permissions for the source's controller only.
+        // A spell-history ordinal is counted for the controller only; a
+        // player set holds the flash permission without one.
         (
             "Enchantment",
-            "Any player may cast spells as though they had flash.",
+            "Any player may cast the first creature spell they cast each turn as though it had flash.",
         ),
         // Only land plays have a graveyard play route.
         ("Enchantment", "You may play cards from your graveyard."),

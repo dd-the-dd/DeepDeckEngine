@@ -7,6 +7,8 @@
 //!                | PlayerSubject PlayerPredicate TemporaryDuration
 //!                | "damage" PROHIBITION "be" "prevented" TemporaryDuration
 //!                | "the" "next" SPELLS "you" "cast" "this" "turn" NextSpellRule
+//!                | "you" "may" "cast" SPELLS "this" "turn"
+//!                  "as" "though" "they" "had" "flash"        (CR 702.8a, 601.3)
 //! Allowance     := PLAYER "may" "play" N "additional" ("land" | "lands")
 //! PlayerSubject / PlayerPredicate := `static_player_predicate.rs`
 //!                | "you" "have" "no" "maximum" "hand" "size"   (CR 402.2)
@@ -51,6 +53,10 @@ pub(in crate::oracle::canonical) enum TemporaryRuleNode {
         spells: ObjectPredicate,
         modification: NextSpellModification,
     },
+    /// `you may cast SPELLS this turn as though they had flash`: the
+    /// controller casts every matching spell with instant timing while the
+    /// rule lasts (CR 702.8a, 601.3). Costs and zones are unchanged.
+    FlashCasting { spells: ObjectPredicate },
 }
 
 /// What a next-spell rule does to the spell it applies to.
@@ -183,6 +189,13 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
     if word_at(cursor, 0, "you") && word_at(cursor, 1, "may") && word_at(cursor, 2, "play") {
         return try_recognize_temporary_allowance(cursor);
     }
+    if word_at(cursor, 0, "you")
+        && word_at(cursor, 1, "may")
+        && word_at(cursor, 2, "cast")
+        && let Some(offsets) = flash_manner_offsets(cursor)
+    {
+        return try_recognize_temporary_flash_permission(cursor, offsets);
+    }
     if word_at(cursor, 0, "damage")
         && super::player_prohibition_word_at(cursor, 1)
         && word_at(cursor, 2, "be")
@@ -199,6 +212,72 @@ pub(in crate::oracle::canonical) fn try_recognize_temporary_player_permission(
         return try_recognize_next_spell_rule(cursor);
     }
     try_recognize_temporary_player_rule(cursor)
+}
+
+/// Offsets of the written lifetime `this turn` and of the timing manner
+/// `as though they had flash` in the current sentence, when the lifetime
+/// precedes the manner. Without both, `you may cast ...` is another frame's
+/// (a card permission, a static permission or an optional instruction).
+fn flash_manner_offsets(cursor: &OracleTokenCursor<'_>) -> Option<(usize, usize)> {
+    let mut lifetime = None;
+    let mut offset = 3;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        if matches!(raw, "." | "(" | ";") {
+            return None;
+        }
+        if lifetime.is_none()
+            && word_at(cursor, offset, "this")
+            && word_at(cursor, offset + 1, "turn")
+        {
+            lifetime = Some(offset);
+        }
+        if ["as", "though", "they", "had", "flash"]
+            .iter()
+            .enumerate()
+            .all(|(at, word)| word_at(cursor, offset + at, word))
+        {
+            return lifetime.map(|lifetime| (lifetime, offset));
+        }
+        offset += 1;
+    }
+    None
+}
+
+/// `you may cast SPELLS this turn as though they had flash`. The spell query
+/// is the shared spell collection, bounded by the written lifetime; once the
+/// lifetime and manner are both present the frame owns its failures.
+fn try_recognize_temporary_flash_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    (lifetime, manner): (usize, usize),
+) -> TemporaryPlayerPermissionParseAttempt {
+    if manner != lifetime + 2 {
+        return TemporaryPlayerPermissionParseAttempt::NotClaimed;
+    }
+    let start = cursor.position();
+    let parsed = (|| -> MachineResult<ObjectPredicate> {
+        cursor.enter("temporary-rule.flash-permission.head");
+        cursor.consume_phrase(&["you", "may", "cast"])?;
+        cursor.enter("temporary-rule.flash-permission.spells");
+        let query = cursor.bounded(start + lifetime, super::recognize_spell_cast_collection)?;
+        cursor.require(
+            query.caster.is_none() && !super::object_predicate_uses_x(&query.predicate),
+            "a spell query without its own caster or an undeclared numeric producer",
+        )?;
+        cursor.enter("temporary-rule.flash-permission.lifetime");
+        cursor.consume_phrase(&["this", "turn"])?;
+        cursor.enter("temporary-rule.flash-permission.manner");
+        cursor.consume_phrase(&["as", "though", "they", "had", "flash"])?;
+        Ok(query.predicate)
+    })();
+    match parsed {
+        Ok(spells) => {
+            TemporaryPlayerPermissionParseAttempt::Parsed(TemporaryPlayerPermissionNode {
+                rule: TemporaryRuleNode::FlashCasting { spells },
+                duration: TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn),
+            })
+        }
+        Err(failure) => TemporaryPlayerPermissionParseAttempt::FailedCommitted(failure),
+    }
 }
 
 /// The offset of `you cast this turn` closing a next-spell subject.
