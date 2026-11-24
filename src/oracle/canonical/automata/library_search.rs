@@ -2,9 +2,47 @@ use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     CardZoneName, CollectionBinding, LibrarySearchEffectNode, LocalPlayerReference, ObjectKind,
     ObjectPredicate, SearchDestination, SearchShuffleOrder, TargetBinding, TargetCardinality,
-    recognize_card_zone_atom, recognize_player_reference, recognize_search_card_selector,
+    TargetListNode, recognize_card_zone_atom, recognize_card_zone_list, recognize_player_reference,
+    recognize_possessive_target_player, recognize_search_card_selector,
     recognize_target_cardinality,
 };
+
+/// The zones of the searched player a search looks through (CR 701.23a):
+/// the library alone, or the library with other zones of the same player
+/// (`your library and/or graveyard`, `your graveyard, hand, and library`).
+/// The written list is read by the shared zone-list reader; the searched
+/// library is always one of its zones, and a search with it is followed by
+/// the library's shuffle.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct SearchOrigin {
+    /// Whose zones are searched (CR 701.23a).
+    pub holder: SearchedPlayer,
+    pub zones: Vec<CardZoneName>,
+}
+
+/// The player whose zones a search looks through: the searching player's own
+/// (`your library`), or one target player the possessive declares (`target
+/// player's library`, CR 115.1). The possessive is the shared target-list
+/// reader's; the declared player is the program's player antecedent, so a
+/// later `that player shuffles` names it.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum SearchedPlayer {
+    Searcher,
+    DeclaredTarget(TargetListNode),
+}
+
+impl SearchOrigin {
+    pub(in crate::oracle::canonical) fn library() -> Self {
+        Self {
+            holder: SearchedPlayer::Searcher,
+            zones: vec![CardZoneName::Library],
+        }
+    }
+
+    pub(in crate::oracle::canonical) fn is_library_only(&self) -> bool {
+        self.zones == [CardZoneName::Library]
+    }
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum LibrarySearchState {
@@ -12,10 +50,13 @@ enum LibrarySearchState {
     Permission,
     SearchAction,
     PossessiveLibrary,
+    OriginZones,
     FilterArticle,
     Filter,
     EffectSeparator,
     PostFilterAction,
+    ExileReference,
+    ExileCompletion,
     RevealReference,
     RevealSeparator,
     ShuffleAction,
@@ -32,6 +73,8 @@ enum LibrarySearchState {
 #[derive(Default)]
 struct LibrarySearchMemory {
     player: Option<LocalPlayerReference>,
+    holder: Option<SearchedPlayer>,
+    origin: Option<SearchOrigin>,
     filter: Option<ObjectPredicate>,
     cardinality: Option<TargetCardinality>,
     destination: Option<SearchDestination>,
@@ -89,11 +132,48 @@ fn recognize_library_search(
             }
             LibrarySearchState::PossessiveLibrary => {
                 cursor.enter("effect.library-search.possessive-library");
-                cursor.consume_phrase(&[
-                    library_player_possessive(memory.player.expect("recognized searching player")),
-                    "library",
-                    "for",
-                ])?;
+                // The controller's own search may look through a declared
+                // player's zones; a referenced player searches their own.
+                if controller_owned
+                    && cursor
+                        .peek()
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+                {
+                    let target = recognize_possessive_target_player(cursor)?;
+                    memory.holder = Some(SearchedPlayer::DeclaredTarget(target));
+                } else {
+                    cursor.consume(library_player_possessive(
+                        memory.player.expect("recognized searching player"),
+                    ))?;
+                    memory.holder = Some(SearchedPlayer::Searcher);
+                }
+                LibrarySearchState::OriginZones
+            }
+            LibrarySearchState::OriginZones => {
+                // One possessive, then the shared zone list: every listed
+                // zone is the searched player's own.
+                cursor.enter("effect.library-search.origin-zones");
+                let zones = recognize_card_zone_list(cursor)?;
+                cursor.enter("effect.library-search.origin-library");
+                cursor.require(
+                    zones.contains(&CardZoneName::Library),
+                    "the searched player's library among the searched zones",
+                )?;
+                cursor.require(
+                    zones.iter().all(|zone| {
+                        matches!(
+                            zone,
+                            CardZoneName::Library | CardZoneName::Graveyard | CardZoneName::Hand
+                        )
+                    }),
+                    "the searched player's own library, graveyard or hand",
+                )?;
+                memory.origin = Some(SearchOrigin {
+                    holder: memory.holder.take().expect("recognized searched player"),
+                    zones,
+                });
+                cursor.enter("effect.library-search.origin-complete");
+                cursor.consume("for")?;
                 LibrarySearchState::FilterArticle
             }
             LibrarySearchState::FilterArticle => {
@@ -118,7 +198,19 @@ fn recognize_library_search(
             }
             LibrarySearchState::EffectSeparator => {
                 cursor.enter("effect.library-search.effect-separator");
-                cursor.consume(",")?;
+                // `... and exile them`: the coordinated move of the found
+                // cards; every other action follows its comma.
+                if cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("and"))
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("exile"))
+                {
+                    cursor.consume("and")?;
+                } else {
+                    cursor.consume(",")?;
+                }
                 LibrarySearchState::PostFilterAction
             }
             LibrarySearchState::PostFilterAction => {
@@ -137,12 +229,56 @@ fn recognize_library_search(
                         memory.shuffle_order = Some(SearchShuffleOrder::MoveThenShuffle);
                         LibrarySearchState::MoveAction
                     }
+                    // `exile it|them, then shuffle` (CR 406.1): the move of
+                    // the found cards to exile, the same move as `put`.
+                    Some("exile") => {
+                        crate::oracle::canonical::automata::consume_lemma(
+                            cursor,
+                            crate::oracle::canonical::automata::VerbLemma::Exile,
+                            crate::oracle::canonical::automata::VerbAgreement::Base,
+                        )?;
+                        memory.shuffle_order = Some(SearchShuffleOrder::MoveThenShuffle);
+                        memory.destination = Some(SearchDestination::Zone(CardZoneName::Exile));
+                        LibrarySearchState::ExileReference
+                    }
                     Some("then") => {
                         cursor.consume("then")?;
                         memory.shuffle_order = Some(SearchShuffleOrder::ShuffleThenMove);
                         LibrarySearchState::ShuffleAction
                     }
-                    _ => Err(cursor.fail("`reveal`, `put`, or `then shuffle`"))?,
+                    _ => Err(cursor.fail("`reveal`, `put`, `exile`, or `then shuffle`"))?,
+                }
+            }
+            LibrarySearchState::ExileReference => {
+                cursor.enter("effect.library-search.exile-reference");
+                recognize_search_result_reference(
+                    cursor,
+                    memory
+                        .cardinality
+                        .expect("recognized search cardinality")
+                        .maximum
+                        != 1,
+                )?;
+                LibrarySearchState::ExileCompletion
+            }
+            LibrarySearchState::ExileCompletion => {
+                cursor.enter("effect.library-search.exile-completion");
+                if cursor.peek() == Some(",") {
+                    LibrarySearchState::PostMoveShuffleSeparator
+                } else {
+                    // `Search target player's library for X and exile them.
+                    // Then that player shuffles.`: the searched player's own
+                    // later instruction shuffles (CR 701.20a); only a
+                    // declared player's library leaves the shuffle to it.
+                    cursor.require(
+                        matches!(
+                            memory.origin.as_ref().map(|origin| &origin.holder),
+                            Some(SearchedPlayer::DeclaredTarget(_))
+                        ),
+                        "`, then shuffle` after exiling from the searcher's own library",
+                    )?;
+                    memory.shuffle_order = Some(SearchShuffleOrder::ByHolderInstruction);
+                    LibrarySearchState::Complete
                 }
             }
             LibrarySearchState::RevealReference => {
@@ -280,6 +416,7 @@ fn recognize_library_search(
                 };
                 return Ok(LibrarySearchEffectNode {
                     player: cursor.require_value(memory.player, "a resolved searching player")?,
+                    origin: cursor.require_value(memory.origin, "the resolved searched zones")?,
                     filter,
                     minimum,
                     maximum: cardinality.maximum,

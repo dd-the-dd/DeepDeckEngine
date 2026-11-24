@@ -274,6 +274,7 @@ fn plain_expansion_draw() -> DrawCardsEffectNode {
 fn expansion_search(filter: ObjectPredicate) -> LibrarySearchEffectNode {
     LibrarySearchEffectNode {
         player: LocalPlayerReference::Controller,
+        origin: super::SearchOrigin::library(),
         filter,
         minimum: 0,
         maximum: 1,

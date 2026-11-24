@@ -1855,11 +1855,16 @@ pub(super) enum SearchDestination {
 pub(super) enum SearchShuffleOrder {
     MoveThenShuffle,
     ShuffleThenMove,
+    /// The searched player's own later instruction shuffles (`Then that
+    /// player shuffles.`); the search itself does not.
+    ByHolderInstruction,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct LibrarySearchEffectNode {
     pub player: LocalPlayerReference,
+    /// The searched player's zones (`library_search.rs`).
+    pub origin: SearchOrigin,
     pub filter: ObjectPredicate,
     pub minimum: u32,
     pub maximum: u32,
@@ -2353,7 +2358,8 @@ mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    performer_description, person_shifted_tokens, recognize_performer,
+    performer_description, performer_modality, person_shifted_permission_tokens,
+    person_shifted_tokens, recognize_declaring_performer, recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
     ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,

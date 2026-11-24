@@ -94,12 +94,51 @@ fn a_declared_subject_names_its_verb_never_a_missing_player() {
     );
     assert!(!object.expected.contains("exactly one target player"));
 
-    let player = sequence_failure("Target opponent exiles the top two cards of their library.");
+    // A declared target player is a performer slot: a verb without a
+    // lexicon lemma fails at the clause naming the word and the subject.
+    let player = sequence_failure("Target opponent vanquishes a creature.");
     assert_eq!(player.state, "clause.verb.unsupported", "{player:?}");
-    assert!(player.expected.contains("lemma `exile`"), "{player:?}");
+    assert!(player.expected.contains("no lexicon lemma"), "{player:?}");
     assert!(
         player.expected.contains("a declared target player"),
         "{player:?}"
+    );
+    // A known lemma is read as the performer's own instruction: its
+    // unsupported predicate is that reader's failure, past the subject,
+    // never a missing player.
+    let predicate = sequence_failure("Target opponent exiles the moon.");
+    assert!(predicate.token_index >= 2, "{predicate:?}");
+    assert!(
+        !predicate.expected.contains("exactly one target player"),
+        "{predicate:?}"
+    );
+}
+
+#[test]
+fn a_declared_target_player_performs_any_known_instruction() {
+    // CR 608.2c, 115.1: the declared player performs the verb the clause
+    // readers know; the sequence keeps one performer action.
+    for text in [
+        "Target player draws a card and loses 1 life.",
+        "Target opponent exiles a card from their graveyard.",
+        "Target opponent discards a card.",
+    ] {
+        let effects = sequence_effects(text);
+        assert!(!effects.is_empty(), "{text}");
+    }
+    let effects = sequence_effects("Target opponent exiles a card from their graveyard.");
+    assert!(
+        matches!(
+            effects.as_slice(),
+            [LocalEffectNode::Performed(node)]
+                if matches!(
+                    node.performer,
+                    super::super::PerformerNode::Player(
+                        super::super::PlayerEffectSubject::DeclaredTarget { .. }
+                    )
+                )
+        ),
+        "{effects:?}"
     );
 }
 
