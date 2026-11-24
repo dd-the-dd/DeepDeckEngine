@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hidden-zone/gonti-look-at-target-opponent-library-is-private",
+  "seed": 17,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "lookAtTopCards",
+        "zone": {
+          "kind": "library",
+          "player": {
+            "kind": "chosenTarget",
+            "id": "targetZonePlayer"
+          }
+        },
+        "count": {
+          "kind": "integer",
+          "value": 4
+        },
+        "bind": "lookedCards"
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "battlefield": [
+          {
+            "id": "gonti",
+            "name": "Gonti, Lord of Luxury",
+            "typeLine": "Legendary Creature — Aetherborn Rogue",
+            "power": "2",
+            "toughness": "3"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "library": [
+          {
+            "id": "secret-0",
+            "name": "Secret 0",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "secret-1",
+            "name": "Secret 1",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "secret-2",
+            "name": "Secret 2",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "secret-3",
+            "name": "Secret 3",
+            "typeLine": "Instant"
+          },
+          {
+            "id": "secret-4",
+            "name": "Secret 4",
+            "typeLine": "Instant"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "gonti",
+    "targets": {
+      "targetZonePlayer": {
+        "player": {
+          "playerId": "p1"
+        }
+      }
+    }
+  },
+  "assertions": [
+    {
+      "kind": "eventDetails",
+      "eventKind": "cardsLookedAt",
+      "playerId": "p0",
+      "fields": {
+        "zonePlayerId": "p1",
+        "count": 4
+      },
+      "equals": 1
+    },
+    {
+      "kind": "eventCount",
+      "eventKind": "cardsLookedAt",
+      "playerId": "p1",
+      "equals": 0
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "knownLibraryCards",
+        "playerId": "p1",
+        "viewerId": "p0"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "knownLibraryCards",
+        "playerId": "p1",
+        "viewerId": "p1"
+      },
+      "equals": 0
+    },
+    {
+      "kind": "zoneCount",
+      "playerId": "p1",
+      "zone": "library",
+      "equals": 5
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hidden-zone/escape-to-the-wilds-permission-ends-after-next-turn",
+  "seed": 41,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "bind",
+        "id": "topCards",
+        "value": {
+          "kind": "libraryTopCards",
+          "zone": {
+            "kind": "library",
+            "player": {
+              "kind": "controllerOf",
+              "object": {
+                "kind": "self"
+              }
+            }
+          },
+          "count": {
+            "kind": "integer",
+            "value": 2
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "boundObjects",
+          "binding": "topCards"
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      },
+      {
+        "kind": "grantPermission",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "action": {
+          "kind": "play",
+          "card": {
+            "kind": "boundObjects",
+            "binding": "topCards"
+          },
+          "normalTimingApplies": true,
+          "normalCostsApply": true
+        },
+        "duration": {
+          "kind": "untilEndOfNextTurn",
+          "player": {
+            "kind": "controllerOf",
+            "object": {
+              "kind": "self"
+            }
+          }
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Wanderer",
+        "manaPool": [
+          "R"
+        ],
+        "hand": [
+          {
+            "id": "escape-to-the-wilds",
+            "name": "Escape to the Wilds",
+            "typeLine": "Sorcery",
+            "manaCost": "{3}{R}{G}"
+          }
+        ],
+        "library": [
+          {
+            "id": "cheap-instant",
+            "name": "Cheap Instant",
+            "typeLine": "Instant",
+            "manaCost": "{R}",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 3
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "cheap-creature",
+            "name": "Cheap Creature",
+            "typeLine": "Creature — Bear",
+            "manaCost": "{1}{G}",
+            "power": "2",
+            "toughness": "2"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "escape-to-the-wilds"
+  },
+  "assertions": [
+    {
+      "kind": "zoneCount",
+      "playerId": "player-0",
+      "zone": "exile",
+      "equals": 2
+    },
+    {
+      "kind": "eventDetails",
+      "eventKind": "permissionGranted",
+      "playerId": "player-0",
+      "fields": {
+        "action": "play",
+        "expiresAfterTurn": 3
+      },
+      "equals": 2
+    },
+    {
+      "kind": "spellCastAvailable",
+      "controllerId": "player-0",
+      "sourceDefinitionId": "cheap-instant",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 0
+    }
+  ]
+}
