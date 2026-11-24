@@ -181,7 +181,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effects(
     scope: Option<&str>,
 ) -> Result<Vec<Value>, TargetlessLoweringError> {
     if let LocalEffectNode::CreateExplicitTokens(node) = effect {
-        return lower_explicit_token_creation(node, declarations).map(|effect| vec![effect]);
+        return lower_explicit_token_creations(node, declarations);
     }
     // `to each creature and each player`: the same source and amount reach
     // every recipient group; each group is one shared damage atom.

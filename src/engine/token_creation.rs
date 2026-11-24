@@ -202,10 +202,7 @@ impl GameEngine {
         );
         let attacking = effect["attacking"].as_bool().unwrap_or(false);
         let tapped = effect["tapped"].as_bool().unwrap_or(false);
-        let mut flags = BTreeMap::new();
-        if attacking {
-            flags.insert("attacking".to_string(), true);
-        }
+        let flags = BTreeMap::new();
         let token_power = token.get("power").and_then(|power| {
             self.runtime_numeric_expression(power, stack_object, bindings, decisions)
         });
@@ -307,24 +304,8 @@ impl GameEngine {
         let created_tokens = self.install_prepared_battlefield_entries(prepared);
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
-            if attacking
-                && let Some(attacker_id) = decisions
-                    .get("triggeringPermanentId")
-                    .and_then(Value::as_str)
-                    .or(Some(stack_object.card.instance_id.as_str()))
-                && let Some(assignment) = self
-                    .state
-                    .combat
-                    .attackers
-                    .iter()
-                    .find(|assignment| assignment.attacker_id == attacker_id)
-                    .cloned()
-            {
-                self.state.combat.attackers.push(DeclaredAttacker {
-                    attacker_id: instance_id.clone(),
-                    defender: assignment.defender,
-                    defending_player_id: assignment.defending_player_id,
-                });
+            if attacking {
+                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
             }
             if effect["sacrificeAtNextEndStep"].as_bool().unwrap_or(false) {
                 self.state.rule_modifiers.push(json!({
@@ -622,6 +603,7 @@ impl GameEngine {
             provider,
         )?;
         let tapped = effect["tapped"].as_bool().unwrap_or(false);
+        let attacking = effect["attacking"].as_bool().unwrap_or(false);
         let mut created_ids = Vec::new();
         let mut prepared = Vec::new();
         for copy_index in 0..quantity {
@@ -681,6 +663,9 @@ impl GameEngine {
         let created_tokens = self.install_prepared_battlefield_entries(prepared);
         for created in created_tokens {
             let instance_id = created.instance_id.clone();
+            if attacking {
+                self.put_token_onto_battlefield_attacking(&instance_id, stack_object, provider)?;
+            }
             for (flag, kind) in [
                 ("sacrificeAtNextEndStep", "sacrificeAtEndStep"),
                 ("exileAtNextEndStep", "exileAtEndStep"),
@@ -699,6 +684,7 @@ impl GameEngine {
                 Some(instance_id.clone()),
                 json!({
                     "copyOf": copied_id,
+                    "attacking": attacking,
                     "tapped": tapped,
                     "typeLine": created.definition.type_line,
                 }),
@@ -708,6 +694,99 @@ impl GameEngine {
             self.publish_prepared_enter_battlefield_triggers(&created);
         }
         Ok(created_ids)
+    }
+
+    /// CR 508.4: a token put onto the battlefield attacking was never
+    /// declared as an attacker; its controller chooses the player,
+    /// planeswalker or battle it attacks among those the active player could
+    /// attack. Outside the combat steps, or under the control of a player
+    /// other than the active player, it enters but is not attacking
+    /// (CR 506.3, 508.4a).
+    fn put_token_onto_battlefield_attacking<P: DecisionProvider>(
+        &mut self,
+        token_id: &str,
+        stack_object: &StackObject,
+        provider: &mut P,
+    ) -> Result<(), EngineError> {
+        let Some((player_index, card_index)) = self.permanent_position(token_id) else {
+            return Ok(());
+        };
+        let controller = self.state.players[player_index].battlefield[card_index]
+            .controller
+            .clone();
+        let active_player_id = self.state.players[self.state.active_player].id.clone();
+        let in_combat = matches!(
+            self.state.step,
+            GameStep::DeclareAttackers | GameStep::DeclareBlockers | GameStep::CombatDamage
+        );
+        if !in_combat || controller != active_player_id {
+            return Ok(());
+        }
+        let mut defenders = self
+            .state
+            .players
+            .iter()
+            .map(|player| TargetRef::Player {
+                player_id: player.id.clone(),
+            })
+            .chain(self.state.players.iter().flat_map(|player| {
+                player
+                    .battlefield
+                    .iter()
+                    .map(|permanent| TargetRef::Permanent {
+                        instance_id: permanent.instance_id.clone(),
+                    })
+            }))
+            .filter_map(|defender| {
+                self.attack_defending_player_id(&active_player_id, &defender)
+                    .map(|defending_player_id| (defender, defending_player_id))
+            })
+            .collect::<Vec<_>>();
+        let label = |defender: &TargetRef| match defender {
+            TargetRef::Player { player_id } => player_id.clone(),
+            TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                instance_id.clone()
+            }
+            TargetRef::StackObject { stack_id } => stack_id.clone(),
+        };
+        let (defender, defending_player_id) = match defenders.len() {
+            0 => return Ok(()),
+            1 => defenders.remove(0),
+            _ => {
+                let options = defenders
+                    .iter()
+                    .map(|(defender, _)| label(defender))
+                    .collect();
+                let selected = self.choose_resolution_option(
+                    stack_object,
+                    provider,
+                    &controller,
+                    options,
+                    "Choose the player, planeswalker or battle the token is attacking.",
+                )?;
+                let index = selected
+                    .and_then(|selected| {
+                        defenders
+                            .iter()
+                            .position(|(defender, _)| label(defender) == selected)
+                    })
+                    .ok_or_else(|| {
+                        EngineError::new("an attacking token needs a chosen defender")
+                    })?;
+                defenders.remove(index)
+            }
+        };
+        if let Some((player_index, card_index)) = self.permanent_position(token_id) {
+            self.state.players[player_index].battlefield[card_index]
+                .flags
+                .insert("attacking".to_string(), true);
+        }
+        self.state.combat.attackers.push(DeclaredAttacker {
+            attacker_id: token_id.to_string(),
+            defender,
+            defending_player_id,
+        });
+        Ok(())
     }
 
     /// CR 303.4f: an Aura entering without being cast is attached to an

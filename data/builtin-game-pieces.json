@@ -163,6 +163,162 @@
         "manaValue": 0,
         "urlFront": ""
       }
+    ],
+    "gold": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "gold",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Gold",
+        "oracleText": "Sacrifice this token: Add one mana of any color.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "junk": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "junk",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Junk",
+        "oracleText": "{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "powerstone": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "powerstone",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Powerstone",
+        "oracleText": "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "shard": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "shard",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Shard",
+        "oracleText": "{2}, Sacrifice this token: Scry 1, then draw a card.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "vibranium": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "vibranium",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Artifact - Vibranium",
+        "oracleText": "Indestructible\n{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "monster role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "monster-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has trample.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "royal role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "royal-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has ward {1}.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "sorcerer role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "sorcerer-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has \"Whenever this creature attacks, scry 1.\"",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "virtuous role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "virtuous-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 for each enchantment you control.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "wicked role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "wicked-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1.\nWhen this token is put into a graveyard, each opponent loses 1 life.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "young hero role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "young-hero-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature has \"Whenever this creature attacks, if its toughness is 3 or less, put a +1/+1 counter on it.\"",
+        "manaValue": 0,
+        "urlFront": ""
+      }
+    ],
+    "cursed role": [
+      {
+        "setCode": "builtin",
+        "collectorNumber": "cursed-role",
+        "isToken": true,
+        "isGamePiece": true,
+        "layout": "token",
+        "typeLine": "Token Enchantment - Aura Role",
+        "oracleText": "Enchant creature\nEnchanted creature has base power and toughness 1/1.",
+        "manaValue": 0,
+        "urlFront": ""
+      }
     ]
   },
   "sets": {

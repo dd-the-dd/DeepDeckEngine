@@ -71,7 +71,7 @@ pub(in super::super) fn token_copy_effect_supported(effect: &Value) -> Option<bo
                         && numeric_expression_supported(&counter["count"])
                 })
             })
-            && ["tapped", "sacrificeAtNextEndStep", "exileAtNextEndStep"]
+            && ["tapped", "attacking", "sacrificeAtNextEndStep", "exileAtNextEndStep"]
                 .iter()
                 .all(|flag| effect.get(*flag).is_none_or(Value::is_boolean))
             && effect.get("bind").is_none_or(Value::is_string),

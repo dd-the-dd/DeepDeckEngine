@@ -101,6 +101,12 @@ pub(in crate::oracle::canonical) fn recognize_source_reference(
                             // CR 205.3: `this Equipment`, `this Aura`, `this
                             // Saga`... name the source by one of its subtypes.
                             || lookup_noncreature_subtype(raw).is_some()
+                            // `this token's power` (CR 111.1): the token's
+                            // own quoted ability names it by `token`, whose
+                            // possessive is not a lexical type possessive.
+                            || ["token's", "token\u{2019}s"]
+                                .iter()
+                                .any(|form| raw.eq_ignore_ascii_case(form))
                     })
                     .ok_or_else(|| cursor.fail("a source-object type after `this`"))?
                     .to_string();

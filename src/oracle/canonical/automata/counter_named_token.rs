@@ -194,6 +194,20 @@ fn recognize_named_token_reminder_body(
         "a token type description",
     )?;
     cursor.consume("with")?;
+    // `with indestructible and "..."`: keyword abilities listed before the
+    // quoted ones are lines of the same printed Oracle text (CR 111.4).
+    cursor.enter("reminder.named-token.keyword-lines");
+    let keyword_start = cursor.position();
+    while cursor.peek().is_some_and(|raw| raw != "\"") {
+        cursor.advance_to(cursor.position() + 1)?;
+    }
+    let keyword_lines =
+        keyword_reminder_lines(cursor.token_slice(keyword_start, cursor.position()));
+    cursor.require(
+        keyword_lines.is_some(),
+        "keyword abilities joined by `,` and a closing `and` before the quoted abilities",
+    )?;
+    cursor.enter("reminder.named-token.semantic-match");
     cursor.consume("\"")?;
     let oracle_start = cursor.position();
     while cursor.peek().is_some_and(|raw| raw != "\"") {
@@ -252,15 +266,43 @@ fn recognize_named_token_reminder_body(
         .as_deref()
         .ok_or_else(|| cursor.fail("catalog token Oracle"))?;
     let embedded_tokens = cursor.token_slice(oracle_start, oracle_end);
-    let embedded_rules = compile_token_rules_with_shared_grammar(
-        token_name,
-        type_line,
-        &source_text(embedded_tokens),
-    );
+    let embedded_oracle = keyword_lines
+        .unwrap_or_default()
+        .into_iter()
+        .chain(std::iter::once(source_text(embedded_tokens)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let embedded_rules =
+        compile_token_rules_with_shared_grammar(token_name, type_line, &embedded_oracle);
     let matches = embedded_rules.is_some()
         && embedded_rules
             == compile_token_rules_with_shared_grammar(token_name, type_line, catalog_oracle);
     cursor.require(matches, "the catalog token type line and canonical rules")
+}
+
+/// The keyword abilities a reminder lists before its quoted abilities, as
+/// printed Oracle lines (`indestructible and` -> `Indestructible`). Empty
+/// when the quote follows `with` directly; `None` when the words are not a
+/// `,`/`and` list closed by `and`.
+fn keyword_reminder_lines(tokens: &[RecognizedEntity]) -> Option<Vec<String>> {
+    if tokens.is_empty() {
+        return Some(Vec::new());
+    }
+    let (last, items) = tokens.split_last()?;
+    if !last.raw.eq_ignore_ascii_case("and") {
+        return None;
+    }
+    let mut lines = Vec::new();
+    for item in items.split(|token| token.raw == "," || token.raw.eq_ignore_ascii_case("and")) {
+        if item.is_empty() {
+            continue;
+        }
+        let text = source_text(item);
+        let mut characters = text.chars();
+        let first = characters.next()?;
+        lines.push(first.to_uppercase().chain(characters).collect());
+    }
+    (!lines.is_empty()).then_some(lines)
 }
 
 /// Rebuilds source text from token spans; gaps become single spaces.

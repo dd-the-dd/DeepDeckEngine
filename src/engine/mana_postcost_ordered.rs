@@ -56,6 +56,8 @@ pub(super) fn mana_pool_entry_can_pay(
                     .is_some_and(|card| matches_card_filter(card, &restriction["where"]))
             || value_kind(restriction) == Some("castSpellFromZone")
                 && spending_source_zone == restriction["zone"].as_str()
+            || super::mana_spend_prohibition::is_cast_spell_prohibition(restriction)
+                && super::mana_spend_prohibition::prohibition_permits(restriction, spending_card)
     })
 }
 

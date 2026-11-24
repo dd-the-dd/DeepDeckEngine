@@ -417,6 +417,15 @@ fn scan_token_ranges(text: &str) -> Vec<(usize, usize)> {
             continue;
         }
         if character.is_alphanumeric() {
+            // `X/X`, `X/1`, `1/X`: an unsigned symbolic stat pair is three
+            // tokens (component, separator, component), as for `+X/+0`.
+            if let Some((left_end, right_end)) = scan_symbolic_stat_pair(text, position) {
+                ranges.push((position, left_end));
+                ranges.push((left_end, left_end + 1));
+                ranges.push((left_end + 1, right_end));
+                position = right_end;
+                continue;
+            }
             let mut end = character_end;
             for (relative, candidate) in text[character_end..].char_indices() {
                 // A slash before a signed right component is a structural
@@ -448,6 +457,32 @@ fn scan_token_ranges(text: &str) -> Vec<(usize, usize)> {
         position = character_end;
     }
     ranges
+}
+
+/// An unsigned stat pair with at least one variable component (`X/X`,
+/// `X/1`, `1/X`), ending at a word boundary. Literal pairs stay one
+/// `counterValue` token; other slash words (`Mystery/Word`) stay whole.
+fn scan_symbolic_stat_pair(text: &str, start: usize) -> Option<(usize, usize)> {
+    let bytes = text.as_bytes();
+    let component = |from: usize| -> Option<(usize, bool)> {
+        if matches!(bytes.get(from), Some(b'X' | b'x')) {
+            return Some((from + 1, true));
+        }
+        let mut end = from;
+        while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+            end += 1;
+        }
+        (end > from).then_some((end, false))
+    };
+    let (left_end, left_variable) = component(start)?;
+    if bytes.get(left_end) != Some(&b'/') {
+        return None;
+    }
+    let (right_end, right_variable) = component(left_end + 1)?;
+    let boundary = text[right_end..].chars().next().is_none_or(|next| {
+        !(next.is_alphanumeric() || matches!(next, '\'' | '\u{2019}' | '/' | '-'))
+    });
+    ((left_variable || right_variable) && boundary).then_some((left_end, right_end))
 }
 
 fn scan_power_toughness(text: &str, start: usize) -> Option<usize> {
