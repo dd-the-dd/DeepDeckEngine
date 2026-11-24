@@ -996,3 +996,41 @@ fn recognize_relation_anchor(
     )?;
     Ok(RelationAnchor::Query(Box::new(query)))
 }
+
+/// Whether a relation of `predicate` is anchored on a bound object other
+/// than the source (`that shares a color with it`, `it` an event object).
+/// `other` before such a collection names that anchor, not the source
+/// (`destroy all other creatures that share a color with it`), which no
+/// source exclusion represents: the collection parent refuses it.
+pub(in crate::oracle::canonical) fn relates_to_bound_non_source(
+    predicate: &ObjectPredicate,
+) -> bool {
+    match predicate {
+        ObjectPredicate::Relation(ObjectRelation::Related(related)) => matches!(
+            related.anchor,
+            RelationAnchor::Object(reference)
+                if !matches!(reference, PermanentEffectReference::Source(_))
+        ),
+        ObjectPredicate::Not(operand) => relates_to_bound_non_source(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().any(relates_to_bound_non_source)
+        }
+        _ => false,
+    }
+}
+
+/// Refuses `other` before a collection whose relation anchor is another
+/// bound object (see `relates_to_bound_non_source`).
+pub(in crate::oracle::canonical) fn refuse_other_than_relation_anchor(
+    cursor: &mut OracleTokenCursor<'_>,
+    predicate: &ObjectPredicate,
+    exclude_source: bool,
+) -> MachineResult<()> {
+    if exclude_source && relates_to_bound_non_source(predicate) {
+        cursor.enter("selector.relation.other-antecedent");
+        return Err(cursor.fail(
+            "an `other` collection whose antecedent is the source, not the relation's anchor",
+        ));
+    }
+    Ok(())
+}

@@ -295,7 +295,7 @@
         "cardName": "Prism Purge Probe",
         "typeLine": "Creature — Elemental",
         "manaCost": "{3}{W}",
-        "oracleText": "When this creature enters, destroy all other creatures that share a color with it.",
+        "oracleText": "{T}: Destroy all other creatures that share a color with this creature.",
         "layout": "normal",
         "faces": []
       },
@@ -306,7 +306,53 @@
           {
             "index": 0,
             "status": "canonical",
-            "recognizer": "native"
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/permanent/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/permanent/where",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    {
+                      "kind": "sharesCharacteristic",
+                      "object": {
+                        "kind": "self"
+                      },
+                      "characteristic": "color"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-names-the-relation-anchor-not-the-source",
+      "request": {
+        "cardName": "Spreading Plague",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{B}",
+        "oracleText": "Whenever a creature enters, destroy all other creatures that share a color with it. They can't be regenerated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }

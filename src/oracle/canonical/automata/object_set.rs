@@ -301,6 +301,11 @@ pub(in crate::oracle::canonical) fn recognize_object_set_query(
                     !(postnominal && frame.exclude_source),
                     "one source exclusion for one object set",
                 )?;
+                super::refuse_other_than_relation_anchor(
+                    cursor,
+                    query.predicate(),
+                    frame.exclude_source || postnominal,
+                )?;
                 return Ok(ObjectSetQuery {
                     query,
                     exclude_source: frame.exclude_source || postnominal,

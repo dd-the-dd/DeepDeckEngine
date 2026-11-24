@@ -84,6 +84,11 @@ pub(in crate::oracle::canonical) fn recognize_permanent_operand(
                     "a universal permanent collection after `each` or `all`",
                 )?;
                 let mut collection = phrase.query.clone().into_object_query(cursor)?;
+                super::refuse_other_than_relation_anchor(
+                    cursor,
+                    &collection.predicate,
+                    phrase.exclude_source,
+                )?;
                 collection.exclude_source = phrase.exclude_source;
                 frame.exclude_source = phrase.exclude_source;
                 frame.collection = Some(collection);
