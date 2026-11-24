@@ -892,6 +892,10 @@ pub(super) enum NumericExpression {
     /// among it (shared `for each` count child).
     PermanentCount(Box<PermanentCountNode>),
     SourceCastX,
+    /// The number of colors of mana spent to cast the source spell (CR
+    /// 601.2h records the payment; Converge reads it). Only the spell's own
+    /// resolution carries that payment.
+    ColorsOfManaSpentToCastSource,
     EventValue(EventNumericBinding),
     /// `card types among COLLECTION` (CR 205.2a): the distinct card types
     /// among the cards of a graveyard collection, read by the shared scoped
@@ -1154,6 +1158,7 @@ impl NumericExpression {
             | Self::CountCounters { .. }
             | Self::CountersOnRecipient { .. }
             | Self::SourceCastX
+            | Self::ColorsOfManaSpentToCastSource
             | Self::EventValue(_)
             | Self::CountDistinctCardTypes { .. }
             | Self::OpponentCount(_)

@@ -2423,7 +2423,10 @@ fn resolution_amount(expression: &super::NumericExpression, source_available: bo
         NumericExpression::CountQuery(query) => {
             crate::oracle::canonical::effects::lower_scoped_object_query_amount(query).is_some()
         }
-        NumericExpression::SacrificedCostObjectProperty(_) => true,
+        // The spell's own payment, read from the resolving spell (the card
+        // context keeps it in spell abilities).
+        NumericExpression::SacrificedCostObjectProperty(_)
+        | NumericExpression::ColorsOfManaSpentToCastSource => true,
         NumericExpression::Add { left, right }
         | NumericExpression::Subtract { left, right }
         | NumericExpression::Multiply { left, right }

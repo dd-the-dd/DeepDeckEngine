@@ -370,6 +370,9 @@ fn lower_numeric_expression_in_context(
         NumericExpression::CountersOnRecipient { .. } => None,
         NumericExpression::PermanentCount(count) => lower_permanent_count(count),
         NumericExpression::SourceCastX => Some(json!({ "kind": "sourceCastXValue" })),
+        NumericExpression::ColorsOfManaSpentToCastSource => {
+            Some(json!({ "kind": "colorsOfManaSpentToCastSource" }))
+        }
         NumericExpression::EventValue(EventNumericBinding::DamageAmount) => {
             Some(decision_result("damageAmount"))
         }

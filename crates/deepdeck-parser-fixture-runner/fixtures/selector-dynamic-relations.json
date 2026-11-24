@@ -328,6 +328,115 @@
       }
     },
     {
+      "id": "exact-brilliant-spectrum-converge-where-x",
+      "request": {
+        "cardName": "Brilliant Spectrum",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Converge — Draw X cards, where X is the number of colors of mana spent to cast this spell. Then discard two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-radiant-flames-converge-damage-to-each-creature",
+      "request": {
+        "cardName": "Radiant Flames",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Converge — Radiant Flames deals X damage to each creature, where X is the number of colors of mana spent to cast this spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-for-each-color-of-mana-spent",
+      "request": {
+        "cardName": "Prismatic Blessing Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain 2 life for each color of mana spent to cast this spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-converge-read-by-an-enters-trigger",
+      "request": {
+        "cardName": "Archaic Trigger Probe",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{5}{U}",
+        "oracleText": "When this creature enters, you may draw X cards, where X is the number of colors of mana spent to cast this spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_context_binding_failure",
+            "state": "binding.mana-spent-colors.source"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-colors-spent-of-another-object",
+      "request": {
+        "cardName": "Anaphoric Converge Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain 2 life for each color of mana spent to cast it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-empty-exclusion-list",
       "request": {
         "cardName": "Empty Exclusion Probe",
