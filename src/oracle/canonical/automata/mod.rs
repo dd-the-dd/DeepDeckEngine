@@ -1648,6 +1648,8 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     pub to: SourceZone,
     pub face_change: SourceFaceChange,
     pub controller: SourceMoveController,
+    /// `to the battlefield tapped` (CR 110.5): the source enters tapped.
+    pub tapped: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

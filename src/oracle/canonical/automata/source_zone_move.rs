@@ -31,6 +31,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 to: SourceZone::Exile,
                 face_change: SourceFaceChange::Preserve,
                 controller: SourceMoveController::Preserve,
+                tapped: false,
             })
         }
         Some("return") => {
@@ -62,6 +63,32 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
             };
             cursor.enter("effect.move-source.return.destination");
             cursor.consume("to")?;
+            if origin == Some(SourceZone::Graveyard)
+                && cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+            {
+                // `from your graveyard to the battlefield [tapped]`: the card
+                // enters under the control of the player putting it there
+                // (CR 110.2), the ability's controller.
+                cursor.enter("effect.move-source.return.battlefield");
+                cursor.consume_phrase(&["the", "battlefield"])?;
+                let tapped = cursor
+                    .peek()
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case("tapped"));
+                if tapped {
+                    cursor.consume("tapped")?;
+                }
+                cursor.enter("effect.move-source.complete");
+                return Ok(MoveSourceEffectNode {
+                    source,
+                    from: SourceZone::Graveyard,
+                    to: SourceZone::Battlefield,
+                    face_change: SourceFaceChange::Preserve,
+                    controller: SourceMoveController::Preserve,
+                    tapped,
+                });
+            }
             if origin == Some(SourceZone::Graveyard) {
                 cursor.consume("your")?;
                 cursor.consume("hand")?;
@@ -72,6 +99,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     to: SourceZone::Hand,
                     face_change: SourceFaceChange::Preserve,
                     controller: SourceMoveController::Preserve,
+                    tapped: false,
                 });
             }
             if origin.is_none()
@@ -100,6 +128,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                     to: SourceZone::Hand,
                     face_change: SourceFaceChange::Preserve,
                     controller: SourceMoveController::Owner,
+                    tapped: false,
                 });
             }
             cursor.consume_phrase(&["the", "battlefield"])?;
@@ -129,6 +158,7 @@ pub(in crate::oracle::canonical) fn recognize_source_zone_move_effect(
                 to: SourceZone::Battlefield,
                 face_change: SourceFaceChange::Transform,
                 controller: SourceMoveController::Owner,
+                tapped: false,
             })
         }
         _ => Err(cursor.fail("`exile` or `return` source-zone action")),
