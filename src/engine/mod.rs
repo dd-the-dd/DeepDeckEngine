@@ -3726,7 +3726,7 @@ fn fuse_ability_supported(value: &Value) -> bool {
 }
 
 fn morph_ability_supported(value: &Value) -> bool {
-    value_kind(value) == Some("morph")
+    keyword_programs::is_face_down_casting_keyword(value)
         && value_kind(&value["cost"]) == Some("payMana")
         && value["cost"]["manaCost"]
             .as_str()
@@ -3772,7 +3772,7 @@ fn face_down_creature_definition(card: &CardDefinition) -> CardDefinition {
         mana_cost: String::new(),
         power: Some("2".to_string()),
         toughness: Some("2".to_string()),
-        rules: Vec::new(),
+        rules: keyword_programs::face_down_rules(card),
     }
 }
 
@@ -3910,21 +3910,7 @@ fn graveyard_discard_cast_ability(card: &CardDefinition) -> bool {
 }
 
 fn escape_ability_supported(value: &Value) -> bool {
-    value_kind(value) == Some("escape")
-        && value["costs"].as_array().is_some_and(|costs| {
-            costs.len() == 2
-                && value_kind(&costs[0]) == Some("payMana")
-                && cost_supported(&costs[0])
-                && value_kind(&costs[1]) == Some("exileGraveyardCards")
-                && player_reference_supported(&costs[1]["player"])
-                && card_filter_supported(&costs[1]["where"])
-                && costs[1]["excludeSource"].is_boolean()
-                && value_kind(&costs[1]["quantity"]) == Some("anyNumber")
-                && value_kind(&costs[1]["aggregateCondition"]) == Some("distinctCardTypesAtLeast")
-                && integer_value(&costs[1]["aggregateCondition"]["count"])
-                    .is_some_and(|count| count > 0)
-                && costs[1]["decisionId"].is_string()
-        })
+    keyword_programs::escape_ability_supported(value)
 }
 
 fn escape_ability(card: &CardDefinition) -> Option<&Value> {
@@ -15333,7 +15319,6 @@ impl GameEngine {
         let ability = escape_ability(&casting_card.definition)?;
         let exile_cost = ability["costs"].as_array()?.get(1)?;
         let decision_id = exile_cost["decisionId"].as_str()?;
-        let minimum_types = integer_value(&exile_cost["aggregateCondition"]["count"])?;
         let player_index = self.player_index(controller_id).ok()?;
         let candidates = self.state.players[player_index]
             .graveyard
@@ -15343,7 +15328,7 @@ impl GameEngine {
             .map(|card| card.instance_id.clone())
             .collect::<Vec<_>>();
         let mut valid_selections = Vec::new();
-        for count in 1..=candidates.len() {
+        for count in keyword_programs::escape_selection_sizes(exile_cost, candidates.len()) {
             for selection in
                 Self::resolution_selections(&candidates, count, MAX_DECLARATION_OPTIONS)
             {
@@ -15354,7 +15339,7 @@ impl GameEngine {
                         .find(|card| card.instance_id == *instance_id)
                         .map(|card| &card.definition)
                 });
-                if distinct_card_types(selected_definitions).len() as i32 >= minimum_types {
+                if keyword_programs::escape_selection_satisfies(exile_cost, selected_definitions) {
                     valid_selections.push(selection);
                     if valid_selections.len() >= MAX_DECLARATION_OPTIONS {
                         break;
@@ -20533,13 +20518,12 @@ impl GameEngine {
                     })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let minimum_types = integer_value(&exile_cost["aggregateCondition"]["count"])
-            .ok_or_else(|| EngineError::new("escape card-type threshold is invalid"))?;
-        if (distinct_card_types(selected_cards.iter().map(|card| &card.definition)).len() as i32)
-            < minimum_types
-        {
+        if !keyword_programs::escape_selection_satisfies(
+            exile_cost,
+            selected_cards.iter().map(|card| &card.definition),
+        ) {
             return Err(EngineError::new(
-                "the selected escape cards do not contain enough distinct card types",
+                "the selected escape cards do not pay the escape exile cost",
             ));
         }
         Ok(())

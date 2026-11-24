@@ -408,6 +408,14 @@ pub(in crate::oracle::canonical) fn recognize_alternative_mana_cost_envelope(
     }
 }
 
+#[path = "casting_keyword.rs"]
+mod casting_keyword;
+
+pub(in crate::oracle::canonical) use casting_keyword::{
+    CastingKeyword, CastingKeywordNode, KeywordCostNode, casting_keyword_starts,
+    recognize_casting_keyword,
+};
+
 #[cfg(test)]
 #[path = "alternative_cost_tests.rs"]
 mod tests;

@@ -1,10 +1,26 @@
 //! A keyword envelope around the shared typed cost child, never a spell effect.
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{LocalActivationCostNode, ManaCostNode, recognize_activation_cost_sequence};
+use super::{
+    ActivationCostSequenceNode, LocalActivationCostNode, ManaCostNode,
+    recognize_activation_cost_sequence,
+};
 
+/// `Flashback [cost]` (CR 702.34a). A mana cost follows the keyword; any
+/// other payment is the shared cost sequence after an em dash
+/// (`Flashback—{1}{U}, Pay 3 life.`), which the keyword-cost lowering reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct FlashbackKeywordNode {
-    pub cost: ManaCostNode,
+    pub costs: ActivationCostSequenceNode,
+}
+
+impl FlashbackKeywordNode {
+    /// The printed cost when it is exactly one mana payment.
+    pub(in crate::oracle::canonical) fn mana(&self) -> Option<&ManaCostNode> {
+        match self.costs.costs.as_slice() {
+            [LocalActivationCostNode::PayMana(mana)] => Some(mana),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,7 +40,8 @@ pub(in crate::oracle::canonical) fn recognize_flashback_keyword(
 ) -> MachineResult<FlashbackKeywordNode> {
     let mut state = FlashbackState::Keyword;
     let mut costs = None;
-    let mut printed_mana = None;
+    let mut dashed = false;
+    let mut retained = None;
     loop {
         state = match state {
             FlashbackState::Keyword => {
@@ -32,6 +49,7 @@ pub(in crate::oracle::canonical) fn recognize_flashback_keyword(
                 cursor.consume("flashback")?;
                 if cursor.peek() == Some("\u{2014}") {
                     cursor.consume("\u{2014}")?;
+                    dashed = true;
                 }
                 FlashbackState::Cost
             }
@@ -43,12 +61,22 @@ pub(in crate::oracle::canonical) fn recognize_flashback_keyword(
             FlashbackState::CostSupport => {
                 cursor.enter("keyword.flashback.cost-support");
                 let costs = cursor.require_value(costs.take(), "a shared typed payment cost")?;
-                let [LocalActivationCostNode::PayMana(mana)] = costs.costs.as_slice() else {
-                    return Err(cursor.fail("one mana payment; nonmana and composite Flashback costs require their own runtime proof"));
-                };
-                mana.fixed_runtime_mana_value()
-                    .map_err(|error| cursor.fail(error.expected()))?;
-                printed_mana = Some(mana.clone());
+                // Without the em dash only one mana payment follows the
+                // keyword; a nonmana or composite cost is written after it.
+                if !dashed {
+                    let [LocalActivationCostNode::PayMana(_)] = costs.costs.as_slice() else {
+                        return Err(cursor.fail(
+                            "one mana payment, or a nonmana or composite cost after the Flashback em dash",
+                        ));
+                    };
+                }
+                for cost in &costs.costs {
+                    if let LocalActivationCostNode::PayMana(mana) = cost {
+                        mana.fixed_runtime_mana_value()
+                            .map_err(|error| cursor.fail(error.expected()))?;
+                    }
+                }
+                retained = Some(costs);
                 FlashbackState::Envelope
             }
             FlashbackState::Envelope => {
@@ -109,8 +137,7 @@ pub(in crate::oracle::canonical) fn recognize_flashback_keyword(
                 cursor.enter("keyword.flashback.complete");
                 cursor.finish()?;
                 return Ok(FlashbackKeywordNode {
-                    cost: cursor
-                        .require_value(printed_mana, "the retained fixed Flashback mana cost")?,
+                    costs: cursor.require_value(retained, "the retained Flashback cost")?,
                 });
             }
         };

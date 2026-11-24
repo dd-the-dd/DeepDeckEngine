@@ -1028,6 +1028,20 @@ fn parse_existing_native_rule(
         };
     }
 
+    // CR 702: keywords that state a rule about casting their own spell.
+    if claims_casting_keyword_family(input) {
+        return match parse_casting_keyword(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
+
     if claims_parameterized_keyword_family(input) {
         return match parse_parameterized_keyword(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {
