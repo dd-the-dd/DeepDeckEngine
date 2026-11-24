@@ -35,6 +35,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("bind") => {
             effect["id"].is_string()
                 && (player_reference_supported(&effect["value"])
+                    || entry_observation::observed_object_reference_supported(&effect["value"])
                     || target_reference_supported(&effect["value"])
                     || object_expression_supported(&effect["value"])
                     || numeric_expression_supported(&effect["value"]))
@@ -309,7 +310,19 @@ impl GameEngine {
                 let Some(id) = effect["id"].as_str() else {
                     return Ok(());
                 };
-                if let Some(target) = self.resolve_target(&effect["value"], stack_object, bindings)
+                if value_kind(&effect["value"]) == Some("observedEventObject") {
+                    let binding = match self
+                        .resolve_observed_event_permanent(&effect["value"], stack_object)?
+                    {
+                        Some(instance_id) => {
+                            RuntimeBinding::Target(TargetRef::Permanent { instance_id })
+                        }
+                        // The permanent changed zones: the binding names no object.
+                        None => RuntimeBinding::Objects(Vec::new()),
+                    };
+                    bindings.insert(id.to_string(), binding);
+                } else if let Some(target) =
+                    self.resolve_target(&effect["value"], stack_object, bindings)
                 {
                     bindings.insert(id.to_string(), RuntimeBinding::Target(target));
                 } else if let Some(player_id) =

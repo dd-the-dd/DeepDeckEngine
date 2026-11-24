@@ -2660,7 +2660,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("countAttackingCreatures") => player_reference_supported(&expression["player"]),
         Some("countPermanentsControlledByOpponents") => {
             player_reference_supported(&expression["player"])
-                && card_filter_supported(&expression["where"])
+                && permanent_filter_supported(&expression["where"])
         }
         Some("countDistinctPermanentNames") => {
             player_reference_supported(&expression["player"])
@@ -4866,6 +4866,9 @@ fn triggered_event_supported(event: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = event_model::became_untapped_event_supported(event) {
+        return supported;
+    }
+    if let Some(supported) = event_model::controlled_creature_state_event_supported(event) {
         return supported;
     }
     // Keyword actions named by a keyword ability (exploit, CR 702.110b).
@@ -9329,7 +9332,7 @@ impl GameEngine {
                     .iter()
                     .filter(|player| !player.has_lost && player.id != controller_id)
                     .flat_map(|player| player.battlefield.iter())
-                    .filter(|card| matches_card_filter(&card.definition, &expression["where"]))
+                    .filter(|card| self.permanent_state_matches(card, &expression["where"]))
                     .count() as i32,
             ),
             Some("greatestSharedCreatureTypeCount") => {
@@ -10304,12 +10307,7 @@ impl GameEngine {
         if self.permanent_loses_all_abilities(permanent) {
             return false;
         }
-        if self.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("temporaryKeywordLoss")
-                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
-                && modifier["keyword"].as_str() == Some(keyword)
-                && modifier["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-        }) {
+        if self.keyword_removed_by_resolved_effect(permanent, keyword) {
             return false;
         }
         let keyword_counter = match keyword {
@@ -10787,9 +10785,9 @@ impl GameEngine {
                         });
                 // A classless filter names a creature subtype by its registry
                 // membership; the marker's class is that subtype's class.
-                let marker_class = filter["subtypeClass"].as_str().or_else(|| {
-                    object_predicate::is_creature_subtype(subtype).then_some("creature")
-                });
+                let marker_class = filter["subtypeClass"]
+                    .as_str()
+                    .or_else(|| subtypes::registered_subtype_class(subtype));
                 let marker_membership = marker_class.and_then(|subtype_class| {
                     subtypes::marker_subtype_membership(
                         &permanent.definition,
@@ -12292,7 +12290,7 @@ impl GameEngine {
     }
 
     fn static_basic_land_mana(&self, permanent: &CardInstance) -> Vec<Vec<String>> {
-        let mut symbols = basic_land_mana(&permanent.definition)
+        let mut symbols = subtypes::effective_basic_land_mana(&permanent.definition)
             .into_iter()
             .flatten()
             .collect::<BTreeSet<_>>();
@@ -31241,9 +31239,7 @@ impl GameEngine {
                             .iter()
                             .filter(|player| !player.has_lost && player.id != player_id)
                             .flat_map(|player| player.battlefield.iter())
-                            .filter(|card| {
-                                matches_card_filter(&card.definition, &expression["where"])
-                            })
+                            .filter(|card| self.permanent_state_matches(card, &expression["where"]))
                             .count() as i32,
                     );
                 }

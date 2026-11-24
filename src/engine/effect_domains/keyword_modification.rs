@@ -52,14 +52,68 @@ impl GameEngine {
     }
 }
 
+/// A keyword a resolved effect removed for as long as the object stays on
+/// the battlefield (`it loses defender`). The marker lives on the object, so
+/// a zone change ends it (CR 400.7); it is not a copiable value (CR 707.2).
+pub(in crate::engine) const KEYWORD_LOSS_MARKER: &str = "keywordLossModification";
+
+/// Whether the latest loss marker of `keyword` on this object is still in
+/// force: a later resolved grant of the same keyword, recorded after it,
+/// has a later timestamp and restores the keyword (CR 613.7).
+fn marker_removes_keyword(definition: &CardDefinition, keyword: &str) -> bool {
+    let rules = definition.printed_rules();
+    let Some(loss) = rules.iter().rposition(|rule| {
+        value_kind(rule) == Some(KEYWORD_LOSS_MARKER) && rule["keyword"].as_str() == Some(keyword)
+    }) else {
+        return false;
+    };
+    !rules[loss + 1..].iter().any(|rule| {
+        value_kind(rule) == Some("keywordAbility") && value_kind(&rule["ability"]) == Some(keyword)
+    })
+}
+
+impl GameEngine {
+    /// Records an indefinite keyword loss on a battlefield object.
+    fn record_keyword_loss_marker(&mut self, instance_id: &str, keyword: &str) {
+        let Some((player_index, card_index)) = self.permanent_position(instance_id) else {
+            return;
+        };
+        self.state.players[player_index].battlefield[card_index]
+            .definition
+            .printed_rules_mut()
+            .push(json!({ "kind": KEYWORD_LOSS_MARKER, "keyword": keyword }));
+    }
+
+    /// Whether a resolved `loses KEYWORD` effect removes `keyword` from the
+    /// permanent now: an until-end-of-turn loss of this turn, or an
+    /// indefinite loss marker recorded on the object.
+    pub(in crate::engine) fn keyword_removed_by_resolved_effect(
+        &self,
+        permanent: &CardInstance,
+        keyword: &str,
+    ) -> bool {
+        self.state.rule_modifiers.iter().any(|modifier| {
+            value_kind(modifier) == Some("temporaryKeywordLoss")
+                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
+                && modifier["keyword"].as_str() == Some(keyword)
+                && modifier["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
+        }) || marker_removes_keyword(&permanent.definition, keyword)
+    }
+}
+
 pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
     Some(supports_known_effect(effect))
 }
 
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
+        // CR 611.2c: a resolved `loses KEYWORD` affects the permanents its
+        // operand names when it begins: a static selector, or any battlefield
+        // object operand (a target, the source, a bound or observed object, a
+        // battlefield collection). A card-zone operand stays unsupported.
         Some("removeKeywordsFromPermanents") => {
-            static_object_selector_supported(&effect["objects"])
+            (static_object_selector_supported(&effect["objects"])
+                || super::battlefield_object_operand_supported(&effect["objects"]))
                 && effect["keywords"].as_array().is_some_and(|keywords| {
                     !keywords.is_empty()
                         && keywords.iter().all(|keyword| {
@@ -68,7 +122,10 @@ fn supports_known_effect(effect: &Value) -> bool {
                             })
                         })
                 })
-                && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+                && matches!(
+                    value_kind(&effect["duration"]),
+                    Some("untilEndOfCurrentTurn" | "permanent")
+                )
         }
 
         Some("installLoseAllAbilities") => {
@@ -92,7 +149,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && value_kind(&effect["ability"]) == Some("flashback")
                 && value_kind(&effect["ability"]["cost"]) == Some("manaCostOf")
                 && value_kind(&effect["ability"]["cost"]["card"]) == Some("abilitySource");
-            let temporary_trigger_supported = target_reference_supported(&effect["object"])
+            // The source or one target gains a triggered ability until end
+            // of turn (CR 611.2a); execution appends it to that object.
+            let temporary_trigger_supported = (matches!(
+                value_kind(&effect["object"]),
+                Some("self" | "abilitySource")
+            ) || target_reference_supported(&effect["object"]))
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
                 && triggered_rule_supported(&effect["ability"]);
             let temporary_static_supported = matches!(
@@ -184,12 +246,10 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
 
         Some("grantSourceOtherAbilities") => target_reference_supported(&effect["object"]),
+        // The affected set is any battlefield object operand, locked in at
+        // resolution (CR 611.2c).
         Some("loseAllAbilitiesPermanently") => {
-            target_reference_supported(&effect["object"])
-                || matches!(
-                    value_kind(&effect["object"]),
-                    Some("self" | "abilitySource")
-                )
+            super::battlefield_object_operand_supported(&effect["object"])
         }
         Some("grantKeywordToTargets") => {
             value_kind(&effect["objects"]) == Some("chosenTargets")
@@ -255,29 +315,52 @@ impl GameEngine {
                     .filter_map(Value::as_str)
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>();
-                let targets = self
-                    .state
-                    .players
-                    .iter()
-                    .flat_map(|player| player.battlefield.iter())
-                    .filter(|permanent| {
-                        Self::static_selector_matches(
-                            &stack_object.card,
-                            &effect["objects"],
-                            permanent,
-                        )
-                    })
-                    .map(|permanent| permanent.instance_id.clone())
-                    .collect::<Vec<_>>();
+                // CR 611.2c: the affected set is locked in at resolution.
+                let targets = if matches!(
+                    value_kind(&effect["objects"]),
+                    Some("permanents" | "attachedPermanent" | "spells")
+                ) {
+                    self.state
+                        .players
+                        .iter()
+                        .flat_map(|player| player.battlefield.iter())
+                        .filter(|permanent| {
+                            Self::static_selector_matches(
+                                &stack_object.card,
+                                &effect["objects"],
+                                permanent,
+                            )
+                        })
+                        .map(|permanent| permanent.instance_id.clone())
+                        .collect::<Vec<_>>()
+                } else {
+                    self.battlefield_operand_ids(
+                        &effect["objects"],
+                        stack_object,
+                        bindings,
+                        decisions,
+                    )?
+                };
+                let lasts_indefinitely = value_kind(&effect["duration"]) == Some("permanent");
                 for instance_id in targets {
                     for keyword in &keywords {
-                        self.state.rule_modifiers.push(json!({
-                            "kind": "temporaryKeywordLoss",
-                            "cardInstanceId": instance_id,
-                            "keyword": keyword,
-                            "expiresAfterTurn": self.state.turn_number,
-                        }));
+                        if lasts_indefinitely {
+                            self.record_keyword_loss_marker(&instance_id, keyword);
+                        } else {
+                            self.state.rule_modifiers.push(json!({
+                                "kind": "temporaryKeywordLoss",
+                                "cardInstanceId": instance_id,
+                                "keyword": keyword,
+                                "expiresAfterTurn": self.state.turn_number,
+                            }));
+                        }
                     }
+                    self.record_event(
+                        "keywordsRemoved",
+                        Some(stack_object.controller.clone()),
+                        Some(instance_id),
+                        json!({ "keywords": keywords, "duration": effect["duration"] }),
+                    );
                 }
             }
             Some("installLoseAllAbilities") => {
@@ -467,21 +550,17 @@ impl GameEngine {
             }
 
             Some("loseAllAbilitiesPermanently") => {
-                let instance_id = if matches!(
-                    value_kind(&effect["object"]),
-                    Some("self" | "abilitySource")
-                ) {
-                    Some(stack_object.card.instance_id.clone())
-                } else {
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                        .and_then(|target| match target {
-                            TargetRef::Permanent { instance_id } => Some(instance_id),
-                            _ => None,
-                        })
-                };
-                if let Some(instance_id) = instance_id
-                    && let Some((player_index, card_index)) = self.permanent_position(&instance_id)
-                {
+                // CR 611.2c: every object of the operand, locked in now.
+                for instance_id in self.battlefield_operand_ids(
+                    &effect["object"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                )? {
+                    let Some((player_index, card_index)) = self.permanent_position(&instance_id)
+                    else {
+                        continue;
+                    };
                     self.state.players[player_index].battlefield[card_index]
                         .definition
                         .printed_rules_mut()
@@ -743,3 +822,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "keyword_modification_tests.rs"]
+mod tests;

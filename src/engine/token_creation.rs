@@ -360,6 +360,10 @@ impl GameEngine {
     ) -> Result<Option<String>, EngineError> {
         let ids = match value_kind(object) {
             Some("self" | "abilitySource") => vec![stack_object.card.instance_id.clone()],
+            Some("observedEventObject") => self
+                .resolve_observed_event_permanent(object, stack_object)?
+                .into_iter()
+                .collect(),
             _ if target_reference_supported(object) => self
                 .resolve_target(object, stack_object, bindings)
                 .and_then(|target| match target {

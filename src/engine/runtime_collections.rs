@@ -188,6 +188,9 @@ impl GameEngine {
                 })?;
                 match bindings.get(id) {
                     Some(RuntimeBinding::Objects(objects)) => Ok(Complete(objects.clone())),
+                    Some(RuntimeBinding::Target(
+                        TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id },
+                    )) => Ok(Complete(vec![instance_id.clone()])),
                     Some(_) => Err(EngineError::new(format!(
                         "runtime collection binding `{id}` has the wrong type"
                     ))),

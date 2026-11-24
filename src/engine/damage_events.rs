@@ -121,7 +121,9 @@ fn damage_source_pattern(source: &Value) -> Option<DamageSourcePattern<'_>> {
 }
 
 fn damage_permanent_query_supported(query: &Value) -> bool {
-    query.get("where").is_none_or(card_filter_supported)
+    query
+        .get("where")
+        .is_none_or(event_model::event_subject_filter_supported)
         && query
             .get("controller")
             .is_none_or(player_action_events::event_player_reference_supported)

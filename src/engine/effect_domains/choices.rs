@@ -88,6 +88,20 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("chooseColor") => {
             effect["id"].is_string() && player_reference_supported(&effect["player"])
         }
+        // `the color or colors of your choice`: between `minimum` and
+        // `maximum` distinct colors among the five (CR 105.1, 608.2d).
+        Some("chooseColors") => {
+            known_fields(effect, &["kind", "id", "player", "minimum", "maximum"])
+                && effect["id"].is_string()
+                && player_reference_supported(&effect["player"])
+                && color_count_bounds(effect).is_some()
+        }
+        // `the basic land type of your choice` (CR 205.3i, 305.6).
+        Some("chooseBasicLandType") => {
+            known_fields(effect, &["kind", "id", "player"])
+                && effect["id"].is_string()
+                && player_reference_supported(&effect["player"])
+        }
         Some("chooseNumber") => {
             effect["id"].is_string()
                 && player_reference_supported(&effect["player"])
@@ -280,6 +294,95 @@ impl GameEngine {
                     Some(player_id),
                     Some(stack_object.card.instance_id.clone()),
                     json!({ "decisionId": decision_id, "color": chosen }),
+                );
+            }
+            Some("chooseColors") => {
+                let Some(decision_id) = effect["id"].as_str() else {
+                    return Ok(());
+                };
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let (minimum, maximum) = color_count_bounds(effect).ok_or_else(|| {
+                    EngineError::new("chooseColors has invalid color-count bounds")
+                })?;
+                // Every set of distinct colors of an allowed size, in WUBRG
+                // order; the recorded value is the color symbols `setColors`
+                // reads.
+                let selections = color_selections(minimum, maximum);
+                let labels = selections
+                    .iter()
+                    .map(|symbols| {
+                        symbols
+                            .iter()
+                            .map(|symbol| color_name_of_symbol(symbol))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    })
+                    .collect::<Vec<_>>();
+                let prompt = if maximum == 1 {
+                    "Choose a color."
+                } else {
+                    "Choose one or more colors."
+                };
+                self.make_resolution_decision(
+                    decision_id,
+                    &player_id,
+                    stack_object,
+                    DecisionChoice::OptionSelection {
+                        decision_id: decision_id.to_string(),
+                        options: labels,
+                        prompt: prompt.to_string(),
+                    },
+                    selections,
+                    decisions,
+                    provider,
+                )?;
+                self.record_event(
+                    "colorsChosen",
+                    Some(player_id),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({ "decisionId": decision_id, "colors": decisions.get(decision_id) }),
+                );
+            }
+            Some("chooseBasicLandType") => {
+                let Some(decision_id) = effect["id"].as_str() else {
+                    return Ok(());
+                };
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let types = super::super::subtypes::BASIC_LAND_TYPES
+                    .iter()
+                    .map(|land_type| (*land_type).to_string())
+                    .collect::<Vec<_>>();
+                let values = types
+                    .iter()
+                    .map(|land_type| vec![land_type.clone()])
+                    .collect();
+                self.make_resolution_decision(
+                    decision_id,
+                    &player_id,
+                    stack_object,
+                    DecisionChoice::OptionSelection {
+                        decision_id: decision_id.to_string(),
+                        options: types,
+                        prompt: "Choose a basic land type.".to_string(),
+                    },
+                    values,
+                    decisions,
+                    provider,
+                )?;
+                let chosen = resolution_choice_text(decisions.get(decision_id)).map(str::to_owned);
+                self.record_event(
+                    "basicLandTypeChosen",
+                    Some(player_id),
+                    Some(stack_object.card.instance_id.clone()),
+                    json!({ "decisionId": decision_id, "landType": chosen }),
                 );
             }
             Some("chooseNumber") => {
@@ -768,6 +871,49 @@ impl GameEngine {
 /// shared color predicate (`colorContains`) reads.
 const RESOLUTION_COLOR_NAMES: [&str; 5] = ["white", "blue", "black", "red", "green"];
 
+/// The color symbols in WUBRG order, aligned with [`RESOLUTION_COLOR_NAMES`].
+const COLOR_SYMBOLS: [&str; 5] = ["W", "U", "B", "R", "G"];
+
+fn known_fields(effect: &Value, fields: &[&str]) -> bool {
+    effect
+        .as_object()
+        .is_some_and(|object| object.keys().all(|key| fields.contains(&key.as_str())))
+}
+
+/// The literal bounds of a `chooseColors`: `1 <= minimum <= maximum <= 5`
+/// distinct colors. A computed bound is refused, never clamped.
+fn color_count_bounds(effect: &Value) -> Option<(usize, usize)> {
+    let minimum = usize::try_from(integer_value(&effect["minimum"])?).ok()?;
+    let maximum = usize::try_from(integer_value(&effect["maximum"])?).ok()?;
+    (1 <= minimum && minimum <= maximum && maximum <= COLOR_SYMBOLS.len())
+        .then_some((minimum, maximum))
+}
+
+/// Every set of distinct color symbols whose size lies in the bounds, each
+/// in WUBRG order, smaller sets first.
+fn color_selections(minimum: usize, maximum: usize) -> Vec<Vec<String>> {
+    let mut selections = (1_u32..(1 << COLOR_SYMBOLS.len()))
+        .map(|mask| {
+            COLOR_SYMBOLS
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| mask & (1 << index) != 0)
+                .map(|(_, symbol)| (*symbol).to_string())
+                .collect::<Vec<_>>()
+        })
+        .filter(|symbols| (minimum..=maximum).contains(&symbols.len()))
+        .collect::<Vec<_>>();
+    selections.sort_by_key(Vec::len);
+    selections
+}
+
+fn color_name_of_symbol(symbol: &str) -> &'static str {
+    COLOR_SYMBOLS
+        .iter()
+        .position(|candidate| *candidate == symbol)
+        .map_or("colorless", |index| RESOLUTION_COLOR_NAMES[index])
+}
+
 /// The one text value a resolution choice recorded (`"red"` or `["red"]`).
 fn resolution_choice_text(value: Option<&Value>) -> Option<&str> {
     let value = value?;
@@ -867,3 +1013,10 @@ impl GameEngine {
             .collect()
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "choices_tests.rs"]
+mod tests;
