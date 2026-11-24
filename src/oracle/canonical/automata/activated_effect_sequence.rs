@@ -3,9 +3,8 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     ActivationCostSequenceNode, ActivationTimingAnnotation, EffectRecognitionContext,
-    EffectSequenceNode, EffectSequenceParseAttempt, recognize_activation_cost_sequence,
-    recognize_activation_timing_annotation, recognize_effect_sequence,
-    try_recognize_effect_sequence_before_activation_annotation,
+    EffectSequenceNode, EffectSequenceParseAttempt, recognize_activation_timing_annotation,
+    recognize_effect_sequence, try_recognize_effect_sequence_before_activation_annotation,
     try_recognize_effect_sequence_with_context,
 };
 
@@ -74,6 +73,7 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::PayLife(_)
                 | Cost::PayPlayerCounters(_)
                 | Cost::TapObjects(_)
+                | Cost::TapTotalPower(_)
                 | Cost::DiscardCard(_)
                 | Cost::RemoveSourceCounters(_)
                 | Cost::RemoveControlledCounters(_)
@@ -102,27 +102,29 @@ impl ExplicitActivationSourceAvailability {
 
 fn recognize_activation_prefix(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<ActivationCostSequenceNode> {
+    name_links: &[ResolvedNameLink],
+) -> MachineResult<(ActivationCostSequenceNode, Option<super::ActivationKeyword>)> {
     // CR 207.2c: an ability word (`Channel —`) labels the ability and has
-    // no rules meaning; the costs start after its em dash.
-    let label_width = cursor
-        .token_slice(cursor.position(), usize::MAX)
-        .iter()
-        .take_while(|token| token.token_type == "abilityWord")
-        .count();
-    if label_width > 0
-        && cursor
-            .peek_ahead(label_width)
-            .is_some_and(|raw| raw == "\u{2014}")
-    {
-        cursor.enter("activation.effect-sequence.label");
-        cursor.advance_to(cursor.position() + label_width + 1)?;
-    }
+    // no rules meaning; an activation keyword (`Boast —`) adds the rules of
+    // its definition. The costs start after the em dash.
+    let keyword = super::recognize_activation_label(cursor)?;
     cursor.enter("activation.effect-sequence.costs");
-    let costs = recognize_activation_cost_sequence(cursor)?;
+    let costs = super::recognize_named_activation_cost_sequence(cursor, name_links)?;
     cursor.enter("activation.effect-sequence.separator");
     cursor.consume(":")?;
-    Ok(costs)
+    Ok((costs, keyword))
+}
+
+/// The restrictions a labeling keyword's definition adds (CR 702.142a,
+/// 702.177a, 702.57b, 702.193a), recorded with the keyword itself.
+fn keyword_restrictions(
+    keyword: Option<super::ActivationKeyword>,
+) -> super::ActivationRestrictionsNode {
+    keyword.map_or_else(super::ActivationRestrictionsNode::default, |keyword| {
+        let mut restrictions = keyword.defined_restrictions();
+        restrictions.keyword = Some(keyword);
+        restrictions
+    })
 }
 
 /// Composes the shared activation-cost and effect-sequence machines around
@@ -132,7 +134,7 @@ pub(in crate::oracle::canonical) fn recognize_activated_effect_sequence(
     name_links: &[ResolvedNameLink],
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<ActivatedEffectSequenceNode> {
-    let costs = recognize_activation_prefix(cursor)?;
+    let (costs, keyword) = recognize_activation_prefix(cursor, name_links)?;
     cursor.enter("activation.effect-sequence.effects");
     let effects = recognize_effect_sequence(cursor, name_links, name_failure)?;
     cursor.enter("activation.effect-sequence.complete");
@@ -141,7 +143,7 @@ pub(in crate::oracle::canonical) fn recognize_activated_effect_sequence(
         costs,
         effects,
         timing_annotation: None,
-        restrictions: super::ActivationRestrictionsNode::default(),
+        restrictions: keyword_restrictions(keyword),
         reduction: None,
     })
 }
@@ -216,8 +218,8 @@ fn try_recognize_activation_program(
     ) -> EffectRecognitionContext,
 ) -> ActivatedEffectSequenceParseAttempt {
     let checkpoint = cursor.checkpoint();
-    let costs = match recognize_activation_prefix(cursor) {
-        Ok(costs) => costs,
+    let (costs, keyword) = match recognize_activation_prefix(cursor, name_links) {
+        Ok(prefix) => prefix,
         Err(failure) => {
             cursor.rollback(checkpoint);
             return ActivatedEffectSequenceParseAttempt::UnsupportedSupportLimit(failure);
@@ -246,22 +248,47 @@ fn try_recognize_activation_program(
             return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
         }
     };
-    let restrictions = if super::activation_restriction_starts(cursor) {
-        match super::recognize_activation_restrictions(cursor) {
-            Ok(restrictions) => restrictions,
+    let mut restrictions = keyword_restrictions(keyword);
+    if super::activation_restriction_starts(cursor) {
+        let printed = match super::recognize_activation_restrictions(cursor) {
+            Ok(printed) => printed,
             Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
+        };
+        if let Err(failure) = restrictions.merge(cursor, printed) {
+            return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
         }
-    } else {
-        super::ActivationRestrictionsNode::default()
-    };
-    let timing_annotation = if allow_annotation && cursor.peek() == Some("(") {
-        match recognize_activation_timing_annotation(cursor) {
-            Ok(annotation) => Some(annotation),
-            Err(failure) => return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure),
+    }
+    // Trailing parentheticals: the instant-timing annotation, the reminder of
+    // the labeling keyword, then reminders owned by a symbol or mechanic the
+    // ability uses (CR 207.2). Each is read once; any other one fails.
+    let mut timing_annotation = None;
+    let mut keyword_reminder_read = false;
+    while allow_annotation && cursor.peek() == Some("(") {
+        let parsed = if timing_annotation.is_none()
+            && super::instant_timing_annotation_starts(cursor)
+        {
+            recognize_activation_timing_annotation(cursor)
+                .map(|annotation| timing_annotation = Some(annotation))
+        } else if super::parenthesized_restriction_starts(cursor) {
+            match keyword {
+                Some(keyword) if !keyword_reminder_read => {
+                    keyword_reminder_read = true;
+                    super::recognize_activation_keyword_reminder(cursor, keyword)
+                }
+                _ => {
+                    cursor.enter("activation.keyword-reminder.owner");
+                    Err(cursor.fail(
+                        "a parenthesized restriction only as the reminder of the ability's labeling keyword",
+                    ))
+                }
+            }
+        } else {
+            super::recognize_owned_ability_reminder(cursor, &effects).map(|_| ())
+        };
+        if let Err(failure) = parsed {
+            return ActivatedEffectSequenceParseAttempt::FailedCommitted(failure);
         }
-    } else {
-        None
-    };
+    }
     let reduction = if allow_annotation
         && cursor
             .peek()

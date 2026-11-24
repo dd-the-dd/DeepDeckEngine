@@ -176,7 +176,7 @@
       }
     },
     {
-      "id": "near-miss-delayed-declared-target",
+      "id": "sibling-delayed-declared-target-captured",
       "request": {
         "cardName": "Test Late Removal",
         "typeLine": "Sorcery",
@@ -186,21 +186,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
-            "recognizer": "native"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "state": "lower.delayed.object-references"
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "installDelayedStepTrigger"
+              },
+              {
+                "pointer": "/effects/1/captureReferences/0/reference/kind",
+                "equals": "chosenTarget"
+              }
+            ]
           }
         ]
       }
@@ -231,6 +234,36 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "state": "zone-change.until.zone"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-delayed-plural-targets",
+      "request": {
+        "cardName": "Test Late Purge",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Draw a card. Destroy two target creatures at the beginning of the next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported",
+            "recognizer": "native"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.delayed.object-references"
           }
         ]
       }

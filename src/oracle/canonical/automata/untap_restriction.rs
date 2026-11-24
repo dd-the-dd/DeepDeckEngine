@@ -95,7 +95,14 @@ pub(in crate::oracle::canonical) fn recognize_untap_restriction(
     }
     if peek_is(cursor, "next") {
         consume_word(cursor, "next")?;
-        cursor.consume_phrase(&["untap", "step"])?;
+        consume_word(cursor, "untap")?;
+        // `their controllers' next untap steps`: one next untap step per
+        // controller; the plural noun agrees with the plural possessor only.
+        if plural && peek_is(cursor, "steps") {
+            consume_word(cursor, "steps")?;
+        } else {
+            consume_word(cursor, "step")?;
+        }
         return Ok(UntapRestrictionNode {
             objects,
             duration: UntapRestrictionDuration::NextUntapStep,

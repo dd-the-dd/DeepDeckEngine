@@ -1,0 +1,201 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "hidden-zone/look-at-target-hand-then-choose-from-it",
+  "seed": 23,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "id": "targetZonePlayer",
+          "kind": "chooseTargets",
+          "minimum": 1,
+          "maximum": 1,
+          "candidates": {
+            "kind": "players"
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "lookAtHand",
+        "player": {
+          "kind": "chosenTarget",
+          "id": "targetZonePlayer"
+        },
+        "viewer": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        }
+      },
+      {
+        "kind": "bind",
+        "id": "lookedHand",
+        "value": {
+          "kind": "cardsInZone",
+          "zone": {
+            "kind": "hand",
+            "player": {
+              "kind": "chosenTarget",
+              "id": "targetZonePlayer"
+            }
+          }
+        }
+      },
+      {
+        "kind": "chooseCards",
+        "id": "cardsForHand",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "from": {
+          "kind": "boundObjects",
+          "binding": "lookedHand"
+        },
+        "count": {
+          "kind": "minimum",
+          "operands": [
+            {
+              "kind": "integer",
+              "value": 1
+            },
+            {
+              "kind": "countObjects",
+              "objects": {
+                "kind": "filterObjects",
+                "objects": {
+                  "kind": "boundObjects",
+                  "binding": "lookedHand"
+                },
+                "where": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "cardTypeContains",
+                    "value": "Land"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "where": {
+          "kind": "not",
+          "operand": {
+            "kind": "cardTypeContains",
+            "value": "Land"
+          }
+        }
+      },
+      {
+        "kind": "moveCards",
+        "cards": {
+          "kind": "decisionResult",
+          "decisionId": "cardsForHand"
+        },
+        "to": {
+          "kind": "exile",
+          "player": {
+            "kind": "ownerOf",
+            "object": {
+              "kind": "candidate"
+            }
+          },
+          "faceDown": false
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 1,
+    "step": "precombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "P0",
+        "hand": [
+          {
+            "id": "peek-witness",
+            "name": "Peek Witness",
+            "typeLine": "Sorcery",
+            "manaCost": "{U}"
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "P1",
+        "hand": [
+          {
+            "id": "hidden-land",
+            "name": "Hidden Land",
+            "typeLine": "Land"
+          },
+          {
+            "id": "hidden-spell",
+            "name": "Hidden Spell",
+            "typeLine": "Instant",
+            "manaCost": "{U}"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "p0",
+    "sourceDefinitionId": "peek-witness",
+    "targets": {
+      "targetZonePlayer": {
+        "player": {
+          "playerId": "p1"
+        }
+      }
+    }
+  },
+  "decisions": [
+    {
+      "kind": "selectCards",
+      "count": 1,
+      "take": "forward"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventDetails",
+      "eventKind": "handLookedAt",
+      "playerId": "p0",
+      "fields": {
+        "handOwnerId": "p1"
+      },
+      "equals": 1
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "exile",
+      "definitionId": "hidden-spell",
+      "equals": true
+    },
+    {
+      "kind": "zoneContains",
+      "playerId": "p1",
+      "zone": "hand",
+      "definitionId": "hidden-land",
+      "equals": true
+    },
+    {
+      "kind": "decisionCount",
+      "equals": 1
+    }
+  ]
+}

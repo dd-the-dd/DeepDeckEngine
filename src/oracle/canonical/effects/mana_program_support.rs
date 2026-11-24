@@ -90,6 +90,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Counters(_)
             | SingularPlayerAction::Hand(_)
             | SingularPlayerAction::CreateTokens(_)
+            | SingularPlayerAction::ExtraTurn
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
@@ -97,6 +98,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         }
         LocalEffectNode::CardAction(action) => match action {
             CardActionNode::Look { .. }
+            | CardActionNode::LookAt(_)
             | CardActionNode::Reveal(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
@@ -231,6 +233,7 @@ fn costs_move_cards_to_or_from_library(costs: &ActivationCostSequenceNode) -> bo
         | LocalActivationCostNode::ExileSelf(_)
         | LocalActivationCostNode::DiscardCard(_)
         | LocalActivationCostNode::TapObjects(_)
+        | LocalActivationCostNode::TapTotalPower(_)
         | LocalActivationCostNode::SacrificeObject(_)
         | LocalActivationCostNode::RemoveSourceCounters(_)
         | LocalActivationCostNode::RemoveControlledCounters(_)

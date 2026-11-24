@@ -58,6 +58,7 @@ fn keyword_registry_id(keyword: GrantedKeyword) -> Option<&'static str> {
         GrantedKeyword::Flanking => "flanking",
         GrantedKeyword::Flash => "flash",
         GrantedKeyword::Flying => "flying",
+        GrantedKeyword::Fuse => "fuse",
         GrantedKeyword::Haste => "haste",
         GrantedKeyword::Hexproof => "hexproof",
         GrantedKeyword::Horsemanship => "horsemanship",
@@ -485,6 +486,11 @@ fn parameterless_reminder_schema(keyword: GrantedKeyword) -> Option<Parameterles
         GrantedKeyword::Devoid => {
             ParameterlessReminderSchema::Exact(&["This", "card", "has", "no", "color", "."])
         }
+        // CR 702.102a.
+        GrantedKeyword::Fuse => ParameterlessReminderSchema::Exact(&[
+            "You", "may", "cast", "one", "or", "both", "halves", "of", "this", "card", "from",
+            "your", "hand", ".",
+        ]),
         GrantedKeyword::UmbraArmor => ParameterlessReminderSchema::Exact(&[
             "If",
             "enchanted",

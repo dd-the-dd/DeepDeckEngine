@@ -38,6 +38,43 @@ pub(in crate::engine) fn characteristic_object_supported(object: &Value) -> bool
         || object_expression_supported(object)
 }
 
+/// One object operand of a resolved effect that changes battlefield
+/// objects (abilities, keywords, copy effects): the characteristic operand
+/// plus the observed entering permanent. Operands that can only name cards
+/// in another zone (a graveyard, a library, exile) are refused, never
+/// accepted and resolved to nothing.
+pub(in crate::engine) fn battlefield_object_operand_supported(object: &Value) -> bool {
+    match value_kind(object) {
+        Some("observedEventObject") => {
+            entry_observation::observed_object_reference_supported(object)
+        }
+        Some(
+            "cardsInZone"
+            | "cardsExiledWithSource"
+            | "cardExiledWithSource"
+            | "triggeringCard"
+            | "triggeringStackObject"
+            | "libraryTopCards"
+            | "cardsDrawnThisTurn"
+            | "opponentsOf",
+        ) => false,
+        Some("filterObjects") => {
+            battlefield_object_operand_supported(&object["objects"])
+                && characteristic_object_supported(object)
+        }
+        Some("setDifference") => {
+            battlefield_object_operand_supported(&object["left"])
+                && characteristic_object_supported(object)
+        }
+        Some("union") => {
+            object["sets"].as_array().is_some_and(|sets| {
+                !sets.is_empty() && sets.iter().all(battlefield_object_operand_supported)
+            }) && characteristic_object_supported(object)
+        }
+        _ => characteristic_object_supported(object),
+    }
+}
+
 fn duration_supported(duration: &Value) -> bool {
     matches!(
         value_kind(duration),
@@ -163,6 +200,7 @@ impl GameEngine {
                         | COLOR_SET_MARKER
                         | BASE_POWER_TOUGHNESS_MARKER
                         | "subtypeSetModification"
+                        | super::keyword_modification::KEYWORD_LOSS_MARKER
                 )
             )
     }
@@ -264,6 +302,25 @@ impl GameEngine {
         ids.into_iter()
             .filter(|instance_id| self.permanent_position(instance_id).is_some())
             .collect()
+    }
+
+    /// The battlefield objects a [`battlefield_object_operand_supported`]
+    /// operand names now (CR 611.2c). The observed entering permanent is the
+    /// same object only while it has not changed zones (CR 400.7).
+    pub(in crate::engine) fn battlefield_operand_ids(
+        &self,
+        object: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<Vec<String>, EngineError> {
+        if value_kind(object) == Some("observedEventObject") {
+            return Ok(self
+                .resolve_observed_event_permanent(object, stack_object)?
+                .into_iter()
+                .collect());
+        }
+        Ok(self.characteristic_object_ids(object, stack_object, bindings, decisions))
     }
 
     pub(super) fn execute_characteristic_layers_domain<P: DecisionProvider>(

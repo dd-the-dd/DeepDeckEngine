@@ -327,10 +327,10 @@ fn lower_local_effect_sequence_with_collections(
             // A declared performer (`target opponent VERBs`) is written
             // before its action's own targets.
             let performer = match performers.get(effect_index) {
-                Some(Some(PerformerNode::Player(PlayerEffectSubject::DeclaredTarget {
-                    binding,
-                    ..
-                }))) => Some(PlayerTargetBinding {
+                Some(Some(
+                    PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { binding, .. })
+                    | PerformerNode::DeclaredPlayers { binding, .. },
+                )) => Some(PlayerTargetBinding {
                     effect_index: binding.0,
                 }),
                 _ => None,
@@ -576,6 +576,12 @@ fn lower_local_effect_sequence_with_collections(
                     }
                     SingularPlayerAction::Proliferate => {
                         effects.push(json!({"kind": "proliferate", "player": lowered.player}));
+                        continue;
+                    }
+                    // CR 500.7: the acting player takes the next turn.
+                    SingularPlayerAction::ExtraTurn => {
+                        cursor.enter("lower.player-action.extra-turn");
+                        effects.push(json!({"kind": "grantExtraTurn", "player": lowered.player}));
                         continue;
                     }
                     SingularPlayerAction::Scry(count) => {
@@ -978,7 +984,12 @@ fn lower_local_effect_sequence_with_collections(
             }
             LocalEffectNode::ControllerLibrarySearch(search) => match &search.origin.holder {
                 SearchedPlayer::Searcher => {
-                    effects.extend(lower_controller_library_search_effects(cursor, search)?);
+                    let lowered = lower_controller_library_search_effects(cursor, search)?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
                 }
                 // `Search target player's library ...`: the holder is one
                 // declared player target of this action (CR 115.1).
@@ -992,11 +1003,13 @@ fn lower_local_effect_sequence_with_collections(
                         &mut decisions,
                         &mut declared_player_targets,
                     )?;
-                    effects.extend(lower_controller_search_of_holder(
-                        cursor,
-                        search,
-                        chosen_target(&id),
-                    )?);
+                    let lowered =
+                        lower_controller_search_of_holder(cursor, search, chosen_target(&id))?;
+                    collections.register_collection_binding_ids(
+                        &lowered,
+                        &lower_collection_binding(search.binding),
+                    );
+                    effects.extend(lowered);
                 }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {
@@ -1007,10 +1020,15 @@ fn lower_local_effect_sequence_with_collections(
                 ) {
                     return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(failure));
                 }
+                let lowered = lower_controller_library_search_effects(cursor, search)?;
+                collections.register_collection_binding_ids(
+                    &lowered,
+                    &lower_collection_binding(search.binding),
+                );
                 effects.push(json!({
                     "kind": "optionalEffects",
                     "player": controller(),
-                    "effects": lower_controller_library_search_effects(cursor, search)?,
+                    "effects": lowered,
                 }));
             }
             LocalEffectNode::OptionalCardDeployment(deployment) => {
@@ -1213,6 +1231,26 @@ fn lower_local_effect_sequence_with_collections(
                     UntapRestrictionDuration::WhileSourceControlled => "whileSourceControlled",
                 };
                 for object in objects {
+                    // A plural operand (`those creatures`, `up to two target
+                    // creatures`, `all nonblue creatures`) restricts each of
+                    // its permanents.
+                    if matches!(
+                        object["kind"].as_str(),
+                        Some("chosenTargets" | "eachPermanent")
+                    ) {
+                        let id = format!("effect{effect_index}:untapRestricted");
+                        effects.push(json!({
+                            "kind": "forEachObject",
+                            "objects": object,
+                            "bind": id.clone(),
+                            "effects": [{
+                                "kind": "installUntapRestriction",
+                                "permanent": {"kind": "boundValue", "id": id},
+                                "duration": {"kind": duration},
+                            }],
+                        }));
+                        continue;
+                    }
                     effects.push(json!({
                         "kind": "installUntapRestriction",
                         "permanent": object,
@@ -1295,6 +1333,15 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({"kind": "exchangeControl", "objects": objects}));
                     }
                 }
+            }
+            LocalEffectNode::CopyStackObject(copy) if copy.event_spell => {
+                // The spell the triggering cast record binds (CR 707.10).
+                effects.push(json!({
+                    "kind": "copyStackItem",
+                    "object": {"kind": "triggeringStackObject"},
+                    "controller": controller(),
+                    "mayChooseNewTargets": copy.may_choose_new_targets,
+                }));
             }
             LocalEffectNode::CopyStackObject(copy) => {
                 cursor.enter("lower.copy-stack-object.target");
@@ -1623,6 +1670,39 @@ fn lower_local_effect_sequence_with_collections(
                     ReferencedPermanentAction::Destroy => "destroyPermanent",
                     ReferencedPermanentAction::Exile => "exilePermanent",
                     ReferencedPermanentAction::Sacrifice => "sacrificePermanent",
+                    // CR 400.3: the permanent goes to its owner's library.
+                    ReferencedPermanentAction::PutOnOwnerLibrary(placement) => {
+                        effects.push(json!({
+                            "kind": "putPermanentOnOwnerLibrary",
+                            "permanent": reference,
+                            "position": match placement {
+                                OwnerLibraryPlacement::Top => "top",
+                                OwnerLibraryPlacement::Bottom => "bottom",
+                                OwnerLibraryPlacement::OwnerChoiceTopOrBottom => {
+                                    "ownerChoiceTopOrBottom"
+                                }
+                            },
+                        }));
+                        continue;
+                    }
+                    // CR 701.24a: put into the owner's library, then that
+                    // library is shuffled (its owner by last known
+                    // information once the permanent has left).
+                    ReferencedPermanentAction::ShuffleIntoOwnerLibrary => {
+                        effects.push(json!({
+                            "kind": "putPermanentOnOwnerLibrary",
+                            "permanent": reference.clone(),
+                            "position": "bottom",
+                        }));
+                        effects.push(json!({
+                            "kind": "shuffleZone",
+                            "zone": {
+                                "kind": "library",
+                                "player": {"kind": "ownerOf", "object": reference},
+                            },
+                        }));
+                        continue;
+                    }
                 };
                 let mut lowered = json!({"kind": kind, "permanent": reference});
                 if destroy.cannot_regenerate {
@@ -2197,7 +2277,13 @@ fn lower_local_effect_sequence_with_collections(
     install_action_result_bindings(cursor, sequence, &action_starts, &mut effects)?;
     install_action_result_quantities(cursor, &action_starts, &mut effects)?;
     bind_deployed_card_when_read(cursor, &mut effects, &deployed_choices, collections)?;
-    apply_delayed_frames(cursor, &sequence.delayed, &mut action_starts, &mut effects)?;
+    apply_delayed_frames(
+        cursor,
+        &sequence.delayed,
+        &target_bindings,
+        &mut action_starts,
+        &mut effects,
+    )?;
     apply_unless_frames(
         cursor,
         sequence,
@@ -3282,6 +3368,29 @@ fn apply_performer(
             }
             return Ok(());
         }
+        // `two target players each VERB`: every declared player performs the
+        // action in turn order (CR 115.1, 608.2c).
+        PerformerNode::DeclaredPlayers { binding, .. } | PerformerNode::BoundPlayers(binding) => {
+            let id = declared_player_targets
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding.0).then_some(id.clone()))
+                .ok_or_else(|| cursor.fail("the declared target players of the performer"))?;
+            let bind = format!("performer{effect_index}");
+            let body = effects
+                .drain(start..)
+                .map(|mut effect| {
+                    effect["performer"] = json!({"kind": "boundValue", "id": bind});
+                    effect
+                })
+                .collect::<Vec<_>>();
+            effects.push(json!({
+                "kind": "forEachPlayer",
+                "bind": bind,
+                "players": {"kind": "chosenTargets", "id": id},
+                "effects": body,
+            }));
+            return Ok(());
+        }
         PerformerNode::Population {
             players,
             excluding_controller,
@@ -3326,6 +3435,19 @@ fn declare_performer_target(
     decisions: &mut Vec<Value>,
     declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
 ) -> Result<(), EffectSequenceLoweringFailure> {
+    if let PerformerNode::DeclaredPlayers { target, binding } = performer {
+        cursor.enter("lower.performer.declared-players");
+        return declare_player_targets(
+            cursor,
+            target,
+            PlayerTargetBinding {
+                effect_index: binding.0,
+            },
+            player_target_bindings,
+            decisions,
+            declared_player_targets,
+        );
+    }
     let PerformerNode::Player(PlayerEffectSubject::DeclaredTarget { target, binding }) = performer
     else {
         return Ok(());
@@ -3376,6 +3498,53 @@ fn declare_player_target(
     decisions.push(target_decision(&target_id, candidates, 1, 1));
     declared_player_targets.push((key, target_id.clone()));
     Ok(target_id)
+}
+
+/// Several players declared by one target decision of a performer (`two
+/// target players each`, `any number of target opponents each`): the
+/// decision's bounds are the slot's literal cardinality or its typed count,
+/// under the shared player-target ordinal (CR 115.1, 601.2c).
+fn declare_player_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    target: &TargetListNode,
+    key: PlayerTargetBinding,
+    player_target_bindings: &[PlayerTargetBinding],
+    decisions: &mut Vec<Value>,
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+) -> Result<(), EffectSequenceLoweringFailure> {
+    if declared_player_targets
+        .iter()
+        .any(|(declared, _)| *declared == key)
+    {
+        return Ok(());
+    }
+    let [slot] = target.slots.as_slice() else {
+        return Err(EffectSequenceLoweringFailure::FailedInvariant(
+            cursor.fail("one declared player target slot"),
+        ));
+    };
+    let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+        .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+    let ordinal = player_target_bindings
+        .iter()
+        .position(|value| *value == key)
+        .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+    let target_id = player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+    let mut decision = target_decision(
+        &target_id,
+        candidates,
+        i64::from(slot.cardinality.minimum),
+        i64::from(slot.cardinality.maximum),
+    );
+    if let Some(count) = &slot.count {
+        cursor.require(
+            apply_target_count_to_decision(&mut decision, count).is_some(),
+            "a declared player count the target decision can bound",
+        )?;
+    }
+    decisions.push(decision);
+    declared_player_targets.push((key, target_id));
+    Ok(())
 }
 
 /// The deployed card's move binds the moved-onto-battlefield result only
@@ -3454,7 +3623,8 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
         | PermanentOperandNode::Reference(_) => true,
         PermanentOperandNode::BoundReference(reference) => match reference {
             PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
-            PermanentEffectReference::Target(binding) => sequence
+            PermanentEffectReference::Target(binding)
+            | PermanentEffectReference::TargetSet(binding) => sequence
                 .effects
                 .get(binding.effect_index)
                 .and_then(ordinary_action_targets)

@@ -1,0 +1,736 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/typed-antecedent-binding",
+  "cases": [
+    {
+      "id": "exact-frost-breath-those-creatures-name-the-declared-target-set",
+      "request": {
+        "cardName": "Frost Breath",
+        "typeLine": "Instant",
+        "manaCost": "{2}{U}",
+        "oracleText": "Tap up to two target creatures. Those creatures don't untap during their controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "tapPermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/objects/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              },
+              {
+                "pointer": "/effects/1/effects/0/permanent/kind",
+                "equals": "boundValue"
+              },
+              {
+                "pointer": "/effects/1/effects/0/duration/kind",
+                "equals": "nextUntapStep"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-will-of-the-naga-delve-and-target-set-untap-restriction",
+      "request": {
+        "cardName": "Will of the Naga",
+        "typeLine": "Instant",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nTap up to two target creatures. Those creatures don't untap during their controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-synchronized-strike-they-each-name-the-untapped-targets",
+      "request": {
+        "cardName": "Synchronized Strike",
+        "typeLine": "Instant",
+        "manaCost": "{2}{G}",
+        "oracleText": "Untap up to two target creatures. They each get +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "modifyPowerToughness"
+              },
+              {
+                "pointer": "/effects/1/object/kind",
+                "equals": "chosenTargets"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-artifact-target-set-plural-untap-steps",
+      "request": {
+        "cardName": "Generalized Gear Freeze",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Tap up to three target artifacts. Those artifacts don't untap during their controllers' next untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "forEachObject"
+              },
+              {
+                "pointer": "/effects/1/effects/0/kind",
+                "equals": "installUntapRestriction"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-token-names-the-one-created-token",
+      "request": {
+        "cardName": "Generalized Herald Call",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "Create a 1/1 white Soldier creature token. That token gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "createdTokens"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-vampire-slayer-creature-subtype-event-object-is-that-creature",
+      "request": {
+        "cardName": "Vampire Slayer",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{1}{W}",
+        "oracleText": "Whenever this creature deals damage to a Vampire, destroy that creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-obliterating-bolt-disjunctive-nominal-anaphor",
+      "request": {
+        "cardName": "Obliterating Bolt",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Obliterating Bolt deals 4 damage to target creature or planeswalker. If that creature or planeswalker would die this turn, exile it instead.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-feral-animist-where-x-is-its-power-reads-the-clause-subject",
+      "request": {
+        "cardName": "Feral Animist",
+        "typeLine": "Creature — Goblin Shaman",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "{3}: This creature gets +X/+0 until end of turn, where X is its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stratagem-emulator-its-power-of-the-dying-source",
+      "request": {
+        "cardName": "Stratagem Emulator",
+        "typeLine": "Artifact Creature — Borg",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature dies, create X 1/1 colorless Borg artifact creature tokens, where X is its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-novice-knight-it-names-the-condition-source",
+      "request": {
+        "cardName": "Novice Knight",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{W}",
+        "oracleText": "Defender (This creature can't attack.)\nAs long as this creature is enchanted or equipped, it can attack as though it didn't have defender.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "staticAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-moved-creature-as-damage-source",
+      "request": {
+        "cardName": "Generalized Grave Volley",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{R}",
+        "oracleText": "Return target creature card from your graveyard to the battlefield. That creature deals damage equal to its power to any target.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "lower.damage.object-source",
+            "expectedContains": "a damage source declared as a target"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-first-sentence-nominal-anaphor-has-no-antecedent",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "That creature gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-singular-anaphor-after-plural-target-set",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Tap two target creatures. That creature gains haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.nominal-anaphor.antecedent",
+            "messageContains": "several objects"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-plural-anaphor-after-singular-target",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Tap target creature. Those creatures don't untap during their controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-token-after-two-created-tokens",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Create two 1/1 white Soldier creature tokens. That token gains flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent",
+            "messageContains": "several objects"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-those-lands-not-implied-by-declared-creatures",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Tap up to two target creatures. Those lands don't untap during their controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.nominal"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-assault-intercessor-that-player-is-the-dying-objects-controller",
+      "request": {
+        "cardName": "Assault Intercessor",
+        "typeLine": "Creature — Astartes Warrior",
+        "manaCost": "{1}{W}{B}",
+        "oracleText": "First strike, menace\nChainsword — Whenever a creature an opponent controls dies, that player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-nightshade-harvester-that-player-is-the-entering-lands-controller",
+      "request": {
+        "cardName": "Nightshade Harvester",
+        "typeLine": "Creature — Elf Shaman",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a land an opponent controls enters, that player loses 1 life. Put a +1/+1 counter on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-player-controls-the-destroyed-target",
+      "request": {
+        "cardName": "Generalized Sentence",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy target creature an opponent controls. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-another-players-object",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Instant",
+        "manaCost": "{3}{B}",
+        "oracleText": "Destroy target creature you control. That player loses 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-kitesail-apprentice-it-after-a-source-condition",
+      "request": {
+        "cardName": "Kitesail Apprentice",
+        "typeLine": "Creature — Kor Soldier",
+        "manaCost": "{W}",
+        "oracleText": "As long as this creature is equipped, it gets +1/+1 and has flying.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-join-forces-one-or-two-targets-they-each",
+      "request": {
+        "cardName": "Join Forces",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Untap up to two target creatures. They each get +2/+2 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-bottle-golems-its-power-of-the-dying-source",
+      "request": {
+        "cardName": "Bottle Golems",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{4}",
+        "oracleText": "Trample\nWhen this creature dies, you gain life equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-angelic-chorus-its-toughness-of-the-entering-creature",
+      "request": {
+        "cardName": "Angelic Chorus",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Whenever a creature you control enters, you gain life equal to its toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-its-power-without-any-antecedent",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain life equal to its power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.possessive.antecedent"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-synapse-sliver-its-controller-of-the-event-object",
+      "request": {
+        "cardName": "Synapse Sliver",
+        "typeLine": "Creature — Sliver",
+        "manaCost": "{4}{U}",
+        "oracleText": "Whenever a Sliver deals combat damage to a player, its controller may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flying-crane-technique-they-reread-the-untapped-collection",
+      "request": {
+        "cardName": "Flying Crane Technique",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}{R}{W}",
+        "oracleText": "Untap all creatures you control. They gain flying and double strike until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-breaching-leviathan-those-creatures-after-tapping-a-color-collection",
+      "request": {
+        "cardName": "Breaching Leviathan",
+        "typeLine": "Creature — Leviathan",
+        "manaCost": "{7}{U}{U}",
+        "oracleText": "When this creature enters, if you cast it from your hand, tap all nonblue creatures. Those creatures don't untap during their controllers' next untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-counters-then-those-creatures-gain-a-keyword",
+      "request": {
+        "cardName": "Generalized Rally Banner",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{W}",
+        "oracleText": "Put a +1/+1 counter on each creature you control. Those creatures gain vigilance until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-tapping-changes-the-untapped-collection",
+      "request": {
+        "cardName": "Binding Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Tap all untapped creatures. Those creatures don't untap during their controllers' next untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "permanent.subject.object-set-anaphor.antecedent"
+          }
+        ]
+      }
+    }
+  ]
+}

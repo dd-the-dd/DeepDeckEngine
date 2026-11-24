@@ -115,10 +115,9 @@ fn typed_activation_rolls_back_unsupported_costs_and_independent_suffixes() {
     assert_eq!(
         restricted.restrictions,
         super::super::ActivationRestrictionsNode {
-            sorcery_timing: true,
-            controller_turn: false,
-            once_each_turn: true,
-            condition: None,
+            timing: Some(super::super::ActivationTiming::Sorcery),
+            limit: Some(super::super::ActivationCountLimit::PerTurn(1)),
+            ..Default::default()
         }
     );
     cursor.finish().unwrap();

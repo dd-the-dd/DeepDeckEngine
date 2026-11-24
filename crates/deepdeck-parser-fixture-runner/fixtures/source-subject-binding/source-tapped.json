@@ -497,7 +497,7 @@
       }
     },
     {
-      "id": "untapped-unimplemented",
+      "id": "untapped-source-transition",
       "request": {
         "cardName": "Source Transition Witness",
         "typeLine": "Artifact",
@@ -507,12 +507,49 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event",
+                "equals": {
+                  "kind": "permanentUntapped",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "untapped-source-transition-without-event-player",
+      "request": {
+        "cardName": "Source Transition Witness",
+        "typeLine": "Artifact",
+        "manaCost": "{0}",
+        "oracleText": "Whenever this artifact becomes untapped, it deals 1 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "abilityIndex": 0,
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
           }
         ]
       }

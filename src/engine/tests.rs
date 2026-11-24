@@ -114,6 +114,10 @@ mod counter_spell_fsm_runtime;
 #[path = "tests/arcane_denial_runtime.rs"]
 mod arcane_denial_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/effect_created_rules_runtime.rs"]
+mod effect_created_rules_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/counter_protection_runtime.rs"]
 mod counter_protection_runtime;
@@ -125,6 +129,10 @@ mod riot_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/conditional_static_runtime.rs"]
 mod conditional_static_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/condition_atom_language_runtime.rs"]
+mod condition_atom_language_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/static_characteristics_runtime.rs"]
@@ -199,6 +207,9 @@ mod source_damage_event_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/counter_event_runtime.rs"]
 mod counter_event_runtime;
+
+#[path = "tests/shared_quantity_slots_runtime.rs"]
+mod shared_quantity_slots_runtime;
 
 #[path = "tests/ability_loss_then_destroy_runtime.rs"]
 mod ability_loss_then_destroy_runtime;
@@ -297,6 +308,12 @@ mod parameterized_keyword_runtime;
 
 #[path = "tests/event_count_runtime.rs"]
 mod event_count_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/graveyard_source_return_runtime.rs"]
+mod graveyard_source_return_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
+#[path = "tests/keyword_template_crew_runtime.rs"]
+mod keyword_template_crew_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/keyword_template_runtime.rs"]
 mod keyword_template_runtime;
@@ -30406,10 +30423,6 @@ fn parsed_hob_permanent_animation_and_top_partition_execute_their_rule_ir() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Bolg, Erebor's Reckoning; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -33139,6 +33152,14 @@ mod player_action_sacrifice_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/subject_verb_actions_runtime.rs"]
 mod subject_verb_actions_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/performer_subjects_runtime.rs"]
+mod performer_subjects_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/extra_turn_runtime.rs"]
+mod extra_turn_runtime;
 
 #[path = "tests/choose_instruction_runtime.rs"]
 mod choose_instruction_runtime;

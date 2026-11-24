@@ -262,11 +262,13 @@ pub(in crate::oracle::canonical) fn recognize_player_possession_proposition(
         cursor.enter("condition.player.drawn.amount");
         let threshold = recognize_count_threshold(cursor, true)?;
         cursor.enter("condition.player.drawn.noun");
-        cursor.consume(if threshold.singular() {
-            "card"
-        } else {
-            "cards"
-        })?;
+        // `more than one card`: the noun agrees with the stated number, not
+        // with the bound the threshold keeps.
+        cursor.require(
+            word_is(cursor, 0, "card") || word_is(cursor, 0, "cards"),
+            "`card` or `cards` after a drawn amount",
+        )?;
+        consume_current(cursor)?;
         cursor.enter("condition.player.drawn.duration");
         cursor.consume_phrase(&["this", "turn"])?;
         return Ok(PlayerStateProposition {
@@ -431,6 +433,27 @@ pub(in crate::oracle::canonical) fn recognize_count_threshold(
         return Ok(CountThreshold {
             operator: ThresholdOperator::AtMost,
             value: 0,
+        });
+    }
+    // `fewer than N` is at most N - 1, `more than N` at least N + 1.
+    if (word_is(cursor, 0, "fewer")
+        || word_is(cursor, 0, "less")
+        || word_is(cursor, 0, "more")
+        || word_is(cursor, 0, "greater"))
+        && word_is(cursor, 1, "than")
+    {
+        let upper = word_is(cursor, 0, "fewer") || word_is(cursor, 0, "less");
+        consume_current(cursor)?;
+        cursor.consume("than")?;
+        let value = recognize_threshold_value(cursor)?;
+        return Ok(if upper {
+            cursor.require(value >= 1, "a positive bound after `fewer than`")?;
+            CountThreshold {
+                operator: ThresholdOperator::AtMost,
+                value: value - 1,
+            }
+        } else {
+            CountThreshold::at_least(value + 1)
         });
     }
     if word_is(cursor, 0, "exactly") {

@@ -135,6 +135,7 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
     let once_each_turn = recognize_optional_trigger_limit(cursor)?;
     // A token reminder may follow the limit sentence; it still belongs to the
     // body's last named-token creation and is validated against its catalog.
+    // Any other parenthetical stays unread and fails at completion.
     if once_each_turn
         && cursor.peek() == Some("(")
         && let Some(LocalEffectNode::CreateNamedTokens(creation)) =
@@ -333,6 +334,7 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             predicate,
             subject,
             departed,
+            controller: None,
         })
     };
     let creature = || ObjectPredicate::CardType(ObjectCardType::Creature);
@@ -366,6 +368,7 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
                 predicate,
                 subject: true,
                 departed: *kind == PermanentTransitionKind::Died,
+                controller: shared_branch_controller(subjects),
             })
         }
         GenericTriggerEventNode::Object(ObjectEventNode {
@@ -373,24 +376,30 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             verb,
             damage,
             ..
-        }) if subject.multiplicity == EventMultiplicity::PerObject => match verb {
-            ObjectEventVerb::Die => permanent(subject.query.predicate.clone(), true, true),
-            ObjectEventVerb::Attack
-            | ObjectEventVerb::BecomeBlocked
-            | ObjectEventVerb::BeDealtDamage(_)
-            | ObjectEventVerb::DealCombatDamageToPlayer => {
-                permanent(subject.query.predicate.clone(), true, false)
+        }) if subject.multiplicity == EventMultiplicity::PerObject => {
+            // The event's subject keeps the controller relation it was
+            // written with (`a creature an opponent controls`).
+            let subject_slot = |departed: bool| {
+                permanent(subject.query.predicate.clone(), true, departed).map(|mut slot| {
+                    slot.controller = subject.query.controller;
+                    slot
+                })
+            };
+            match verb {
+                ObjectEventVerb::Die => subject_slot(true),
+                ObjectEventVerb::Attack
+                | ObjectEventVerb::BecomeBlocked
+                | ObjectEventVerb::BeDealtDamage(_)
+                | ObjectEventVerb::DealCombatDamageToPlayer => subject_slot(false),
+                ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
+                    DamageRecipient::Permanent(recipient) => {
+                        permanent(recipient.predicate.clone(), false, false)
+                    }
+                    DamageRecipient::Player(_) => subject_slot(false),
+                },
+                _ => None,
             }
-            ObjectEventVerb::DealDamage => match damage.as_ref()?.recipient.as_ref()? {
-                DamageRecipient::Permanent(recipient) => {
-                    permanent(recipient.predicate.clone(), false, false)
-                }
-                DamageRecipient::Player(_) => {
-                    permanent(subject.query.predicate.clone(), true, false)
-                }
-            },
-            _ => None,
-        },
+        }
         GenericTriggerEventNode::Local(LocalTriggerEventNode::DamageDealt {
             complement, ..
         }) => match complement.recipient.as_ref()? {
@@ -409,14 +418,34 @@ fn event_object_slot(event: &GenericTriggerEventNode) -> Option<EventObjectSlot>
             predicate: nominal.as_predicate(),
             subject: false,
             departed: false,
+            controller: None,
         }),
         GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
             action:
                 AttachedObjectEventAction::Attack | AttachedObjectEventAction::DealCombatDamageToPlayer,
             ..
         }) => permanent(creature(), true, false),
+        // `When enchanted creature dies`: the dying permanent the source was
+        // attached to, read by its last known information (CR 603.10a).
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::AttachedObjectEvent {
+            action: AttachedObjectEventAction::Die,
+            ..
+        }) => permanent(creature(), true, true),
         _ => None,
     }
+}
+
+/// The controller relation every branch of a transition event writes for
+/// its object (`a creature an opponent controls dies`), when they share one.
+fn shared_branch_controller(subjects: &PermanentDiedEventNode) -> Option<ObjectControllerScope> {
+    let mut controllers = subjects.alternatives.iter().map(|branch| match branch {
+        PermanentDiedEventBranchNode::Filtered { controller, .. } => *controller,
+        PermanentDiedEventBranchNode::Source(_) => None,
+    });
+    let first = controllers.next()??;
+    controllers
+        .all(|controller| controller == Some(first))
+        .then_some(first)
 }
 
 /// A source block event whose every branch has a counterpart (`blocks or

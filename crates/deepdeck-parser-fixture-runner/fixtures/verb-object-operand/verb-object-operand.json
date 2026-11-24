@@ -335,7 +335,9 @@
         "outcome": "failure",
         "cardStatus": "unsupported",
         "abilities": [{ "index": 0, "status": "unsupported" }],
-        "diagnostics": [{ "abilityIndex": 0 }]
+        "diagnostics": [
+          { "abilityIndex": 0, "code": "oracle_context_binding_failure", "state": "binding.x-value.source" }
+        ]
       }
     },
     {

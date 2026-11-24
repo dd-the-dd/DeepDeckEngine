@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/graveyard-source-return",
+  "cases": [
+    {
+      "id": "exact-reassembling-skeleton-tapped-return",
+      "request": {
+        "cardName": "Reassembling Skeleton",
+        "typeLine": "Creature — Skeleton Warrior",
+        "manaCost": "{1}{B}",
+        "oracleText": "{1}{B}: Return this card from your graveyard to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/effects/0/from/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-drownyard-temple-land-return",
+      "request": {
+        "cardName": "Drownyard Temple",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{3}: Return this card from your graveyard to the battlefield tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/activationZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-triggered-untapped-graveyard-return",
+      "request": {
+        "cardName": "Darklight Phoenix",
+        "typeLine": "Creature — Phoenix",
+        "manaCost": "{3}{B}",
+        "oracleText": "At the beginning of combat on your turn, if two or more creatures died this turn, return this card from your graveyard to the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/0/to/tapped",
+                "equals": false
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-graveyard-return-attached",
+      "request": {
+        "cardName": "Attached Return Fixture",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{W}",
+        "oracleText": "{2}{W}: Return this card from your graveyard to the battlefield attached to target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-graveyard-return-to-opponent-hand",
+      "request": {
+        "cardName": "Wrong Zone Return Fixture",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "{2}{B}: Return this card from your graveyard to the graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.move-source.return.battlefield"
+          }
+        ]
+      }
+    }
+  ]
+}

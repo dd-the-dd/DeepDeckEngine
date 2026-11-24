@@ -1,10 +1,10 @@
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    AddAnyColorManaEffectNode, AddCountedManaEffectNode, AddFixedManaEffectNode,
-    AddManaChoiceEffectNode, AddManaEffectNode, AddScopedManaEffectNode, ManaChoiceDomain,
-    ManaColorDistribution, NumericAtom, NumericExpression, ObjectCardType, ObjectControllerScope,
-    ObjectPredicate, PermanentCountMeasure, recognize_fixed_mana_sequence, recognize_numeric_atom,
-    recognize_object_query,
+    AddAnyColorAmountManaEffectNode, AddAnyColorManaEffectNode, AddCountedManaEffectNode,
+    AddFixedManaEffectNode, AddManaChoiceEffectNode, AddManaEffectNode, AddScopedManaEffectNode,
+    ManaChoiceDomain, ManaColorDistribution, NumericAtom, NumericExpression, ObjectCardType,
+    ObjectControllerScope, ObjectPredicate, PermanentCountMeasure, recognize_fixed_mana_sequence,
+    recognize_numeric_atom, recognize_object_query,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -131,18 +131,48 @@ enum ManaOutputDomain {
 pub(in crate::oracle::canonical) fn recognize_add_any_color_mana_effect(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<AddAnyColorManaEffectNode> {
-    recognize_add_any_mana_head(cursor, false).map(|(amount, _, distribution)| {
-        AddAnyColorManaEffectNode {
-            amount,
-            distribution,
-        }
+    let (amount, _, distribution) = recognize_add_any_mana_head(cursor, false)?;
+    cursor.enter("effect.add-any-color-mana.literal-amount");
+    let amount = literal_mana_amount(&amount)
+        .ok_or_else(|| cursor.fail("a positive literal mana amount"))?;
+    Ok(AddAnyColorManaEffectNode {
+        amount,
+        distribution,
     })
+}
+
+/// The positive literal of a mana amount, when the amount is one.
+fn literal_mana_amount(amount: &NumericExpression) -> Option<i64> {
+    match amount {
+        NumericExpression::Atom(NumericAtom::Integer(value)) if *value > 0 => Some(*value),
+        _ => None,
+    }
+}
+
+/// The amount slot of a color-choice production: a positive literal, the
+/// variable X, or the event's `that much`/`that many`, all read by the shared
+/// numeric children. A literal stays the positive quantity it always was.
+fn recognize_mana_amount(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<NumericExpression> {
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+    {
+        return super::recognize_that_many_event_value(cursor, None);
+    }
+    match recognize_numeric_atom(cursor)? {
+        NumericAtom::Integer(value) if value > 0 => Ok(NumericExpression::from(value)),
+        NumericAtom::VariableX => Ok(NumericExpression::Atom(NumericAtom::VariableX)),
+        NumericAtom::Integer(_) => {
+            cursor.enter("effect.add-any-color-mana.positive-amount");
+            Err(cursor.fail("a positive mana amount, X, or `that much`"))
+        }
+    }
 }
 
 fn recognize_add_any_mana_head(
     cursor: &mut OracleTokenCursor<'_>,
     allow_types: bool,
-) -> MachineResult<(i64, ManaOutputDomain, ManaColorDistribution)> {
+) -> MachineResult<(NumericExpression, ManaOutputDomain, ManaColorDistribution)> {
     let mut output_domain = ManaOutputDomain::Color;
     let mut distribution = ManaColorDistribution::OneColor;
     let mut state = AddAnyColorManaState::Action;
@@ -156,10 +186,7 @@ fn recognize_add_any_mana_head(
             }
             AddAnyColorManaState::Amount => {
                 cursor.enter("effect.add-any-color-mana.amount");
-                amount = match recognize_numeric_atom(cursor)? {
-                    NumericAtom::Integer(value) if value > 0 => Some(value),
-                    _ => return Err(cursor.fail("a positive literal mana amount")),
-                };
+                amount = Some(recognize_mana_amount(cursor)?);
                 AddAnyColorManaState::ManaNoun
             }
             AddAnyColorManaState::ManaNoun => {
@@ -200,7 +227,10 @@ fn recognize_add_any_mana_head(
                     cursor.consume_type("propertyWord")?;
                     cursor.enter("effect.add-any-color-mana.type-amount");
                     cursor.require(
-                        amount.is_some_and(|amount| amount <= i64::from(i32::MAX)),
+                        amount
+                            .as_ref()
+                            .and_then(literal_mana_amount)
+                            .is_some_and(|amount| amount <= i64::from(i32::MAX)),
                         "a positive mana type amount representable by the runtime i32 quantity",
                     )?;
                     output_domain = ManaOutputDomain::Type;
@@ -250,9 +280,12 @@ enum LandColorDomainState {
 /// object-query child used by targeting and set grammars.
 fn recognize_land_color_domain(
     cursor: &mut OracleTokenCursor<'_>,
-    amount: i64,
+    amount: NumericExpression,
     output_domain: ManaOutputDomain,
 ) -> MachineResult<AddScopedManaEffectNode> {
+    cursor.enter("effect.add-land-color-domain.amount");
+    let amount = literal_mana_amount(&amount)
+        .ok_or_else(|| cursor.fail("a positive literal amount for a scoped color domain"))?;
     let mut state = LandColorDomainState::Relative;
     let mut controller = None;
     loop {
@@ -413,10 +446,43 @@ fn recognize_add_mana_output(
         output_domain == ManaOutputDomain::Color,
         "a scoped land query after any type",
     )?;
-    Ok(AddManaEffectNode::AnyColor(AddAnyColorManaEffectNode {
-        amount,
-        distribution,
-    }))
+    if let Some(amount) = literal_mana_amount(&amount) {
+        return Ok(AddManaEffectNode::AnyColor(AddAnyColorManaEffectNode {
+            amount,
+            distribution,
+        }));
+    }
+    recognize_expression_amount_any_color(cursor, amount, distribution)
+}
+
+/// `Add X mana of any one color, where X is EXPR` / `add that much mana of
+/// any one color`: the same color-choice production whose amount is a shared
+/// numeric expression. A postposed definition right after the production
+/// defines its X (CR 107.3); the production is then the only action that
+/// definition can bind. The amount must be one the mana runtime evaluates.
+fn recognize_expression_amount_any_color(
+    cursor: &mut OracleTokenCursor<'_>,
+    amount: NumericExpression,
+    distribution: ManaColorDistribution,
+) -> MachineResult<AddManaEffectNode> {
+    let amount = if amount == NumericExpression::Atom(NumericAtom::VariableX)
+        && super::where_x_definition_starts(cursor)
+    {
+        super::recognize_where_x_definition(cursor)?
+    } else {
+        amount
+    };
+    cursor.enter("effect.add-mana.expression-amount.runtime");
+    cursor.require(
+        crate::oracle::canonical::effects::lower_numeric_expression(&amount).is_some(),
+        "a mana amount the shared numeric lowering represents",
+    )?;
+    Ok(AddManaEffectNode::AnyColorAmount(
+        AddAnyColorAmountManaEffectNode {
+            amount,
+            distribution,
+        },
+    ))
 }
 
 /// A spending qualifier belongs to this producer, not another executed action.

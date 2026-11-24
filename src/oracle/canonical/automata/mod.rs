@@ -98,6 +98,7 @@ mod earthbend;
 mod effect_head;
 mod effect_program;
 mod effects;
+mod embedded_delayed_trigger;
 mod emblem;
 mod empower_jace;
 mod enchant;
@@ -209,6 +210,7 @@ mod selector_atom;
 mod sentence_condition;
 mod sequence;
 mod set_anaphora;
+mod shuffle_into;
 mod simple_keyword;
 mod source_cast_x_entry;
 mod source_entry;
@@ -356,6 +358,7 @@ pub(super) use earthbend::*;
 pub(super) use effect_head::*;
 pub(super) use effect_program::*;
 pub(super) use effects::*;
+pub(super) use embedded_delayed_trigger::*;
 pub(super) use emblem::*;
 pub(super) use empower_jace::*;
 pub(super) use enchant::*;
@@ -464,6 +467,7 @@ pub(super) use selector::*;
 pub(super) use selector_atom::*;
 pub(super) use sequence::*;
 pub(super) use set_anaphora::*;
+pub(super) use shuffle_into::*;
 pub(super) use simple_keyword::*;
 pub(super) use source_cast_x_entry::*;
 pub(super) use source_entry::*;
@@ -582,6 +586,9 @@ pub(in crate::oracle::canonical) enum TypedObservedEventObject {
 pub(in crate::oracle::canonical) enum PermanentEffectReference {
     Source(LocalObjectReference),
     Target(TargetBinding),
+    /// Every object one plural target slot declared (`those creatures`,
+    /// `they` after `tap up to two target creatures`, CR 115.1, 608.2c).
+    TargetSet(TargetBinding),
     Observed(TypedObservedEventObject),
     /// `enchanted creature` / `equipped creature`: the permanent the ability
     /// source is attached to (CR 301.5a, 303.4a), resolved at execution.
@@ -988,6 +995,14 @@ pub(super) enum EventNumericBinding {
     /// The mana value of the spell a cast record binds (`that spell's mana
     /// value`, CR 202.3), as recorded when it was cast.
     CastSpellManaValue,
+    /// The life a life-gain event records (`whenever you gain life, ...
+    /// that many`, CR 119.10): the runtime's `lifeGainedAmount`.
+    LifeGained,
+    /// The life a life-loss event records (CR 119.3): `lifeLostAmount`.
+    LifeLost,
+    /// The counters one counter-placement event put (CR 122.6):
+    /// `counterCount`.
+    CountersPut,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1260,6 +1275,9 @@ pub(super) enum GrantedKeyword {
     Flanking,
     Flash,
     Flying,
+    /// CR 702.102a: a split card cast from hand may be cast as both halves
+    /// (the engine's fused split definition).
+    Fuse,
     Haste,
     Hexproof,
     Horsemanship,
@@ -1316,6 +1334,7 @@ impl GrantedKeyword {
             Self::Flanking => "flanking",
             Self::Flash => "flash",
             Self::Flying => "flying",
+            Self::Fuse => "fuse",
             Self::Haste => "haste",
             Self::Hexproof => "hexproof",
             Self::Horsemanship => "horsemanship",
@@ -1648,6 +1667,8 @@ pub(in crate::oracle::canonical) struct MoveSourceEffectNode {
     pub to: SourceZone,
     pub face_change: SourceFaceChange,
     pub controller: SourceMoveController,
+    /// `to the battlefield tapped` (CR 110.5): the source enters tapped.
+    pub tapped: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1750,6 +1771,25 @@ pub(super) struct AddAnyColorManaEffectNode {
     pub distribution: ManaColorDistribution,
 }
 
+/// A color-choice production whose amount is a shared numeric expression
+/// (`X mana of any one color, where X is ...`, `that much mana of any one
+/// color`). A literal amount stays `AddAnyColorManaEffectNode`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct AddAnyColorAmountManaEffectNode {
+    pub amount: NumericExpression,
+    pub distribution: ManaColorDistribution,
+}
+
+impl AddAnyColorAmountManaEffectNode {
+    /// Runtime mana-value kind for this distribution.
+    pub(super) fn runtime_mana_kind(&self) -> &'static str {
+        match self.distribution {
+            ManaColorDistribution::OneColor => "chooseColor",
+            ManaColorDistribution::AnyCombination => "chooseColors",
+        }
+    }
+}
+
 /// How the colors of a multi-mana production are chosen (CR 106.1b wording):
 /// `of any [one] color` chooses one color for every mana, while `in any
 /// combination of colors` chooses a color independently for each mana.
@@ -1786,6 +1826,8 @@ pub(super) enum AddManaEffectNode {
     Counted(AddCountedManaEffectNode),
     Choice(AddManaChoiceEffectNode),
     AnyColor(AddAnyColorManaEffectNode),
+    /// A color choice whose amount is a shared numeric expression.
+    AnyColorAmount(AddAnyColorAmountManaEffectNode),
     ScopedColor(AddScopedManaEffectNode),
     EachColor(AddEachColorManaNode),
 }
@@ -1866,6 +1908,10 @@ pub(super) enum SearchShuffleOrder {
     /// The searched player's own later instruction shuffles (`Then that
     /// player shuffles.`); the search itself does not.
     ByHolderInstruction,
+    /// `If you search your library this way, shuffle.` after a search of
+    /// the library and other zones: the searcher chooses whether the
+    /// library is searched, and only then is it shuffled (CR 701.23a).
+    IfLibrarySearched,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1873,7 +1919,13 @@ pub(super) struct LibrarySearchEffectNode {
     pub player: LocalPlayerReference,
     /// The searched player's zones (`library_search.rs`).
     pub origin: SearchOrigin,
+    /// The predicate every found card satisfies: the one card phrase, or
+    /// the union of the slots below.
     pub filter: ObjectPredicate,
+    /// `a Forest card and a Plains card`: one card for each listed phrase,
+    /// each chosen among the cards no earlier slot took. Empty for a search
+    /// with one card phrase and one quantity.
+    pub slots: Vec<ObjectPredicate>,
     pub minimum: u32,
     pub maximum: u32,
     pub destination: SearchDestination,
@@ -2366,13 +2418,14 @@ mod referenced_permanent_action;
 mod untap_restriction;
 pub(in crate::oracle::canonical) use performer::{
     PerformedEffectNode, PerformerContext, PerformerNode, controller_reference_failure,
-    performer_description, performer_modality, permission_sentence_end,
-    person_shifted_permission_tokens, person_shifted_tokens, recognize_declaring_performer,
-    recognize_performer,
+    object_relation_declaration_starts, performer_description, performer_modality,
+    permission_sentence_end, person_shifted_permission_tokens, person_shifted_tokens,
+    recognize_declaring_performer, recognize_object_relation_declaration, recognize_performer,
 };
 pub(in crate::oracle::canonical) use referenced_permanent_action::{
-    ReferencedPermanentAction, ReferencedPermanentActionAttempt, ReferencedPermanentActionNode,
-    recognize_destroy_reference_effect, recognize_referenced_permanent_zone_action,
+    OwnerLibraryPlacement, ReferencedPermanentAction, ReferencedPermanentActionAttempt,
+    ReferencedPermanentActionNode, recognize_destroy_reference_effect,
+    recognize_referenced_permanent_zone_action,
 };
 pub(in crate::oracle::canonical) use untap_restriction::{
     SubjectNumber, UntapRestrictionDuration, UntapRestrictionNode, recognize_untap_restriction,

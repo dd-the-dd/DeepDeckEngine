@@ -7,18 +7,23 @@
 //!           | ("is" | "are" | "isn't" | "aren't") ["not"] Status ("or" Status)*
 //!           | Past ("or" Past)* "this" "turn"                    history
 //!           | "dealt" ["combat"] "damage" "to" Player "this" "turn"
+//!           | "targets" Targeted ("or" Targeted)*                  spell targets
 //! Past     := "entered" ["the" "battlefield"] | "attacked" | "blocked"
 //!           | ("was" | "were") "dealt" "damage" | "dealt" "damage"
 //!           | ("didn't" | "did" "not") Past
 //! Player   := "you" | "an" "opponent" | "a" "player"
+//! Targeted := Player | ("a" | "an") PermanentQuery
 //! ```
 //!
 //! A past-tense clause names a this-turn fact of the object (CR 608.2c
 //! history); the engine reads it from its object history. Other relatives
-//! (`that player controls`, `that targets ...`) are not claimed here and
-//! keep their explicit failure.
+//! (`that player controls`, `that targets only a single ...`) are not
+//! claimed here and keep their explicit failure.
 use super::super::{MachineResult, OracleTokenCursor};
-use super::{DamagedPlayer, ObjectPredicate, ObjectRelation, ObjectStatus};
+use super::{
+    DamagedPlayer, ObjectControllerScope, ObjectPredicate, ObjectQueryContext, ObjectRelation,
+    ObjectStatus, TargetedObjects, TargetedPermanents,
+};
 
 fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
     cursor
@@ -118,7 +123,20 @@ fn negated_past_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<(Obj
     Some((fact, skip + 1))
 }
 
-/// True when a relative clause this slot reads starts at the cursor.
+/// True when a relative clause this slot reads starts at the cursor. The
+/// `that targets ...` relation of a stack object is claimed only when the
+/// parent states that its query describes declared target candidates
+/// (`stack_targets`); another parent (a spell-cast event) reads the targets
+/// of the cast spell with its own typed relation.
+pub(in crate::oracle::canonical) fn relative_clause_starts_in(
+    cursor: &OracleTokenCursor<'_>,
+    stack_targets: bool,
+) -> bool {
+    relative_clause_starts(cursor)
+        || (stack_targets && is_relative_pronoun(cursor) && targets_clause_starts(cursor, 1))
+}
+
+/// True when a relative clause of every query starts at the cursor.
 pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     is_relative_pronoun(cursor)
         && (word_at(cursor, 1, "has") && super::counter_qualifier_starts(cursor, 2)
@@ -130,6 +148,116 @@ pub(in crate::oracle::canonical) fn relative_clause_starts(cursor: &OracleTokenC
             || past_fact_at(cursor, 1).is_some()
             || dealt_damage_to_player_at(cursor, 1).is_some()
             || negated_past_at(cursor, 1).is_some())
+}
+
+/// `targets PLAYER|a QUERY` at `offset`. `targets only a single ...` is a
+/// count of the targets, not this relation, and is not claimed.
+fn targets_clause_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    word_at(cursor, offset, "targets")
+        && (targeted_player_at(cursor, offset + 1).is_some()
+            || word_at(cursor, offset + 1, "a")
+            || word_at(cursor, offset + 1, "an"))
+}
+
+/// The player a spell targets at `offset`, with its width.
+fn targeted_player_at(
+    cursor: &OracleTokenCursor<'_>,
+    offset: usize,
+) -> Option<(DamagedPlayer, usize)> {
+    if word_at(cursor, offset, "you") {
+        Some((DamagedPlayer::AbilityController, 1))
+    } else if word_at(cursor, offset, "an") && word_at(cursor, offset + 1, "opponent") {
+        Some((DamagedPlayer::OpponentOfAbilityController, 2))
+    } else if word_at(cursor, offset, "a") && word_at(cursor, offset + 1, "player") {
+        Some((DamagedPlayer::AnyPlayer, 2))
+    } else {
+        None
+    }
+}
+
+/// `targets you or a permanent you control` (CR 115.1): every alternative is
+/// a player relative to the ability controller or one permanent of the
+/// shared object query, whose own controller relation is kept. At most one
+/// player and one permanent alternative are stated.
+fn recognize_targets_clause(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<ObjectPredicate> {
+    cursor.enter("selector.relative-clause.targets");
+    cursor.consume("targets")?;
+    let mut targeted = TargetedObjects {
+        players: None,
+        permanents: None,
+    };
+    loop {
+        if let Some((player, width)) = targeted_player_at(cursor, 0) {
+            cursor.enter("selector.relative-clause.targets.player");
+            cursor.require(
+                targeted.players.is_none(),
+                "one targeted player alternative",
+            )?;
+            for _ in 0..width {
+                let raw = cursor.peek().unwrap_or_default().to_string();
+                cursor.consume(&raw)?;
+            }
+            targeted.players = Some(player);
+        } else {
+            cursor.enter("selector.relative-clause.targets.object");
+            cursor.require(
+                targeted.permanents.is_none(),
+                "one targeted permanent alternative",
+            )?;
+            let article = cursor.peek().unwrap_or_default().to_string();
+            cursor.require(
+                article.eq_ignore_ascii_case("a") || article.eq_ignore_ascii_case("an"),
+                "`a` or `an` before the targeted object",
+            )?;
+            cursor.consume(&article)?;
+            let query = super::recognize_object_noun_query(cursor, ObjectQueryContext::ORDINARY)?
+                .into_object_query(cursor)?;
+            cursor.enter("selector.relative-clause.targets.object-domain");
+            cursor.require(
+                query.denotes_battlefield_permanents() && !query.exclude_source,
+                "a targeted permanent of the shared battlefield query",
+            )?;
+            cursor.require(
+                !matches!(query.controller, Some(ObjectControllerScope::EventPlayer)),
+                "a targeted permanent's controller relative to the ability controller",
+            )?;
+            cursor.require(
+                literal_numeric_comparisons(&query.predicate),
+                "a targeted permanent compared with literal values only",
+            )?;
+            targeted.permanents = Some(TargetedPermanents {
+                predicate: Box::new(query.predicate),
+                controller: query.controller,
+            });
+        }
+        let another = word_at(cursor, 0, "or")
+            && (targeted_player_at(cursor, 1).is_some()
+                || word_at(cursor, 1, "a")
+                || word_at(cursor, 1, "an"));
+        if !another {
+            break;
+        }
+        cursor.consume("or")?;
+    }
+    Ok(ObjectPredicate::Relation(ObjectRelation::Targets(targeted)))
+}
+
+/// Whether every numeric comparison of `predicate` compares with a literal:
+/// the targeted permanent is tested while the spell is chosen as a target,
+/// with no declaration or resolution context for another operand.
+fn literal_numeric_comparisons(predicate: &ObjectPredicate) -> bool {
+    match predicate {
+        ObjectPredicate::NumericComparison { right, .. } => matches!(
+            right.as_ref(),
+            super::NumericExpression::Atom(super::NumericAtom::Integer(_))
+        ),
+        ObjectPredicate::Not(operand) => literal_numeric_comparisons(operand),
+        ObjectPredicate::Intersection(operands) | ObjectPredicate::Union(operands) => {
+            operands.iter().all(literal_numeric_comparisons)
+        }
+        ObjectPredicate::Relation(ObjectRelation::Targets(_)) => false,
+        _ => true,
+    }
 }
 
 fn status_after_copula(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
@@ -191,6 +319,9 @@ pub(in crate::oracle::canonical) fn recognize_relative_clause(
         } else {
             predicate
         });
+    }
+    if targets_clause_starts(cursor, 0) {
+        return recognize_targets_clause(cursor);
     }
     if let Some((recipient, combat_only, width)) = dealt_damage_to_player_at(cursor, 0) {
         // `that dealt combat damage to you this turn`: a relation of the

@@ -32,6 +32,9 @@ pub(in crate::oracle::canonical) fn lower_prevention_amount(
 ) -> Result<Value, TargetlessLoweringError> {
     match &node.amount {
         PreventedDamageAmount::All => Ok(json!({"kind": "all"})),
+        // Only a created next-damage rule reads this placeholder; the engine
+        // never accepts it as an amount (CR 615.7).
+        PreventedDamageAmount::EventDamage => Ok(json!({"kind": "eventDamage"})),
         PreventedDamageAmount::Next(atom) => lower_targetless_numeric_expression(
             &NumericExpression::Atom(atom.clone()),
             declarations,

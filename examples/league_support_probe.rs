@@ -1,6 +1,14 @@
 //! League support probe: evaluates each card through the public
 //! `POST /oracle/rules` route (same measure as `compact_oracle_rules`).
 //! Usage: league_support_probe <input.jsonl> <output.jsonl>
+//!
+//! Each unexecutable rule also reports its failing support branches
+//! (`unexecutableBranches`): the rule part (event, condition, declaration,
+//! cost, static modifier or effect) whose isolation keeps the rule
+//! unexecutable while every other part is replaced by a neutral supported
+//! part, recursing into nested effect lists. The diagnosis only calls the
+//! public `rule_is_executable`; it never widens support.
+use mtg_engine::engine::rule_is_executable;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use std::io::{BufRead, Write};
@@ -11,6 +19,171 @@ struct Row {
     oracle_id: String,
     name: String,
     request: Value,
+}
+
+/// A supported trigger event that observes only the source.
+fn neutral_event() -> Value {
+    json!({"kind": "enterBattlefield", "object": {"kind": "self"}})
+}
+
+/// A supported effect with no reference other than the source's controller.
+fn neutral_effect() -> Value {
+    json!({
+        "kind": "gainLife",
+        "amount": {"kind": "integer", "value": 1},
+        "player": {"kind": "controllerOf", "object": {"kind": "self"}},
+    })
+}
+
+/// A supported activation cost.
+fn neutral_cost() -> Value {
+    json!({"kind": "tap", "object": {"kind": "self"}})
+}
+
+fn with_effects(rule: &Value, effects: Vec<Value>) -> Value {
+    let mut probe = rule.clone();
+    probe["effects"] = Value::Array(effects);
+    probe
+}
+
+/// Effect lists a control effect nests.
+const NESTED_EFFECT_FIELDS: [&str; 5] =
+    ["effects", "then", "else", "declineEffects", "onPerformed"];
+
+/// `effects` with the effect at `index` kept and every other one neutral.
+fn isolate(effects: &[Value], index: usize, kept: &Value) -> Vec<Value> {
+    (0..effects.len())
+        .map(|position| {
+            if position == index {
+                kept.clone()
+            } else {
+                neutral_effect()
+            }
+        })
+        .collect()
+}
+
+/// Diagnoses one effect list of a rule; `wrap` rebuilds the whole rule from
+/// a replacement list at this position. A failure inside a nested list is
+/// reported at its deepest failing position.
+fn diagnose_effect_list(
+    effects: &[Value],
+    path: &str,
+    wrap: &dyn Fn(Vec<Value>) -> Value,
+    branches: &mut Vec<Value>,
+) {
+    for (index, effect) in effects.iter().enumerate() {
+        if rule_is_executable(&wrap(isolate(effects, index, effect))) {
+            continue;
+        }
+        let effect_path = format!("{path}[{index}]");
+        let mut nested_failure = false;
+        for field in NESTED_EFFECT_FIELDS {
+            let Some(nested) = effect[field].as_array().filter(|nested| !nested.is_empty()) else {
+                continue;
+            };
+            let with_nested = |replacement: Vec<Value>| {
+                let mut parent = effect.clone();
+                parent[field] = Value::Array(replacement);
+                wrap(isolate(effects, index, &parent))
+            };
+            if rule_is_executable(&with_nested(vec![neutral_effect()])) {
+                nested_failure = true;
+                diagnose_effect_list(
+                    nested,
+                    &format!("{effect_path}.{field}"),
+                    &with_nested,
+                    branches,
+                );
+            }
+        }
+        if !nested_failure {
+            branches.push(json!({
+                "part": "effect",
+                "path": effect_path,
+                "kind": effect["kind"],
+                "node": effect,
+            }));
+        }
+    }
+}
+
+/// The failing support branches of an unexecutable rule.
+fn diagnose_rule(rule: &Value) -> Vec<Value> {
+    let mut branches = Vec::new();
+    if rule["kind"] == "staticAbility" {
+        for (index, modifier) in rule["modifiers"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .enumerate()
+        {
+            let mut probe = rule.clone();
+            probe["modifiers"] = json!([modifier]);
+            if !rule_is_executable(&probe) {
+                branches.push(json!({
+                    "part": "modifier",
+                    "path": format!("modifiers[{index}]"),
+                    "kind": modifier["kind"],
+                    "node": modifier,
+                }));
+            }
+        }
+        return branches;
+    }
+    // The rule frame with neutral effects and no declaration or condition.
+    let mut frame = with_effects(rule, vec![neutral_effect()]);
+    if let Some(fields) = frame.as_object_mut() {
+        fields.remove("declaration");
+        fields.remove("condition");
+    }
+    if rule.get("event").is_some() && !rule_is_executable(&frame) {
+        branches
+            .push(json!({"part": "event", "kind": rule["event"]["kind"], "node": rule["event"]}));
+    }
+    let mut neutral_frame = frame.clone();
+    if rule.get("event").is_some() {
+        neutral_frame["event"] = neutral_event();
+    }
+    if rule["kind"] == "activatedAbility" {
+        neutral_frame["costs"] = json!([neutral_cost()]);
+        let mut with_costs = neutral_frame.clone();
+        with_costs["costs"] = rule["costs"].clone();
+        if !rule_is_executable(&with_costs) {
+            branches.push(json!({"part": "costs", "node": rule["costs"]}));
+        }
+    }
+    if !rule_is_executable(&neutral_frame) {
+        branches.push(json!({"part": "frame", "kind": rule["kind"]}));
+        return branches;
+    }
+    for part in ["condition", "declaration"] {
+        if let Some(value) = rule.get(part) {
+            let mut probe = neutral_frame.clone();
+            probe[part] = value.clone();
+            if !rule_is_executable(&probe) {
+                branches.push(json!({"part": part, "kind": value["kind"], "node": value}));
+            }
+        }
+    }
+    let mut effect_frame = rule.clone();
+    if rule.get("event").is_some() {
+        effect_frame["event"] = neutral_event();
+    }
+    if let Some(fields) = effect_frame.as_object_mut() {
+        fields.remove("condition");
+    }
+    if rule["kind"] == "activatedAbility" {
+        effect_frame["costs"] = json!([neutral_cost()]);
+    }
+    let effects = rule["effects"].as_array().cloned().unwrap_or_default();
+    diagnose_effect_list(
+        &effects,
+        "effects",
+        &|replacement: Vec<Value>| with_effects(&effect_frame, replacement),
+        &mut branches,
+    );
+    branches
 }
 
 fn evaluate(row: Row) -> Value {
@@ -57,6 +230,23 @@ fn evaluate(row: Row) -> Value {
                 .collect()
         })
         .unwrap_or_default();
+    // The failing support branches of each unexecutable rule, so a cohort is
+    // clustered by its engine gap rather than by its ability kind.
+    let unexec_branches: Vec<Value> = v["ruleCoverage"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|coverage| coverage["executable"] == false)
+        .filter_map(|coverage| {
+            let index = usize::try_from(coverage["index"].as_u64()?).ok()?;
+            let rule = v["candidateRules"].as_array()?.get(index)?;
+            Some(json!({
+                "index": index,
+                "kind": coverage["kind"],
+                "branches": diagnose_rule(rule),
+            }))
+        })
+        .collect();
     let state = if supported {
         "supported"
     } else if !canonical {
@@ -74,7 +264,7 @@ fn evaluate(row: Row) -> Value {
     json!({"oracle_id":oracle_id,"name":name,"abilities":abilities.len(),"canonical":canonical,"irDigest":ir_digest,
       "executable":executable,"supported":supported,"state":state,"parseStatus":status,
       "engineStatus":v["engineStatus"],"unexecutableRuleCount":unexec,
-      "unexecutableKinds":unexec_kinds,"failures":failures})
+      "unexecutableKinds":unexec_kinds,"unexecutableBranches":unexec_branches,"failures":failures})
 }
 
 fn main() {

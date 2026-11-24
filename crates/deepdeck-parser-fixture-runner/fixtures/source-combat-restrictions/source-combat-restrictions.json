@@ -380,7 +380,7 @@
       }
     },
     {
-      "id": "conditional-tail",
+      "id": "conditional-tail-unless-you-control-a-land-subtype",
       "request": {
         "cardName": "Generic Restriction",
         "typeLine": "Creature - Zombie",
@@ -390,12 +390,51 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/condition/operand/left/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Island"
+                }
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "cantBlock"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "conditional-tail-with-unknown-noun",
+      "request": {
+        "cardName": "Generic Restriction",
+        "typeLine": "Creature - Zombie",
+        "manaCost": "{B}",
+        "oracleText": "This creature can't block unless you control a frobnicator.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
             "code": "oracle_machine_failure",
-            "state": "selector.predicate.start"
+            "state": "selector.predicate.start",
+            "found": "frobnicator"
           }
         ]
       }

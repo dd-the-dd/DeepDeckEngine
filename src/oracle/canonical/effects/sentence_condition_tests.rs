@@ -264,10 +264,11 @@ fn unsupported_or_unproven_conditions_fail_explicitly() {
         "Sorcery",
         "If you control more creatures than each other player, draw a card.",
     );
-    // CR 608.2h: a destroyed permanent needs last-known information.
+    // CR 608.2h: a destroyed permanent is tested with last-known
+    // information; only its captured characteristics answer.
     let (state, expected) = failure(
         "Instant",
-        "Destroy target creature. If its mana value was 3 or less, you gain 3 life.",
+        "Destroy target creature. If it was tapped, you gain 3 life.",
     );
     assert_eq!(state, "condition.sentence.object.last-known-information");
     assert!(expected.contains("last-known information"));

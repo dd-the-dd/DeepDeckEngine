@@ -176,7 +176,7 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
         (value_kind(&event["object"]) == Some("self") && !event_batch::event_is_aggregated(event))
             .then_some(SubjectRelation::Source)?
     } else {
-        card_filter_supported(&event["where"]).then_some(())?;
+        event_model::event_subject_filter_supported(&event["where"]).then_some(())?;
         let controller = match value_kind(&event["player"]) {
             None if event["player"].is_null() => ControllerRelation::Any,
             Some("controllerOf") if player_reference_supported(&event["player"]) => {
@@ -192,8 +192,15 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             exclude_source: optional_bool(event, "excludeSource")?,
         }
     };
-    let filter = matches!(subject, SubjectRelation::Permanents { .. })
-        .then_some((&event["where"], ObjectView::Printed));
+    // Counters and designations are read on the last-known permanent
+    // (CR 603.10a); other atoms keep the established printed view.
+    let view = if event_model::filter_reads_permanent_state(&event["where"]) {
+        ObjectView::PermanentState
+    } else {
+        ObjectView::Printed
+    };
+    let filter =
+        matches!(subject, SubjectRelation::Permanents { .. }).then_some((&event["where"], view));
     Some(ZoneChangePattern {
         filter,
         to: Some("graveyard"),
@@ -328,8 +335,9 @@ fn entry_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             ..ZoneChangePattern::new(SubjectRelation::Source, ZoneChangeGroup::Entry)
         });
     }
-    (event_batch::event_aggregation_supported(event) && card_filter_supported(&event["where"]))
-        .then_some(())?;
+    (event_batch::event_aggregation_supported(event)
+        && event_model::event_subject_filter_supported(&event["where"]))
+    .then_some(())?;
     let controller = if event["anyController"].as_bool() == Some(true) {
         ControllerRelation::Any
     } else if player_reference_supported(&event["player"]) {

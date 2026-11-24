@@ -126,6 +126,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             | SingularPlayerAction::Venture(_)
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::ExtraTurn
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::TargetPlayerLife(node) => independent_number(&node.amount),
@@ -151,6 +152,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
             CardActionNode::Reveal(operand) => simple_operand(operand),
             // A permission window is lowered by the native collection lowerer.
             CardActionNode::Permit(_)
+            | CardActionNode::LookAt(_)
             | CardActionNode::RevealUntil { .. }
             | CardActionNode::Choose(_)
             | CardActionNode::Shuffle { .. } => false,
@@ -287,7 +289,8 @@ impl CollectionScope {
             | CardCollectionReferenceNode::Other
             | CardCollectionReferenceNode::Zone
             | CardCollectionReferenceNode::Exiled
-            | CardCollectionReferenceNode::Linked => {
+            | CardCollectionReferenceNode::Linked
+            | CardCollectionReferenceNode::Revealed => {
                 unreachable!("structurally outside the checked scope slice")
             }
         }
@@ -397,6 +400,7 @@ fn resolve_sequence(
                 CardActionNode::Reveal(operand) => collections.operand(operand)?,
                 CardActionNode::Move { cards, .. } => collections.operand(cards)?,
                 CardActionNode::Permit(_)
+                | CardActionNode::LookAt(_)
                 | CardActionNode::RevealUntil { .. }
                 | CardActionNode::Choose(_)
                 | CardActionNode::Shuffle { .. } => {

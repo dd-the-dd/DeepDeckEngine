@@ -1,0 +1,296 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/keyword-template-crew",
+  "cases": [
+    {
+      "id": "exact-consulate-dreadnought-crew-reminder",
+      "request": {
+        "cardName": "Consulate Dreadnought",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{1}",
+        "oracleText": "Crew 6 (Tap any number of creatures you control with total power 6 or more: This Vehicle becomes an artifact creature until end of turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "keywordExpansion"
+              },
+              {
+                "pointer": "/keyword",
+                "equals": "crew"
+              },
+              {
+                "pointer": "/parameters/N",
+                "equals": 6
+              },
+              {
+                "pointer": "/definition/rulesSection",
+                "equals": "702.122a"
+              },
+              {
+                "pointer": "/rules/0/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/rules/0/costs/0/kind",
+                "equals": "tapPermanentsWithTotalPower"
+              },
+              {
+                "pointer": "/rules/0/costs/0/decisionId",
+                "equals": "activationCostTapPower0"
+              },
+              {
+                "pointer": "/rules/0/costs/0/minimumPower",
+                "equals": {
+                  "kind": "integer",
+                  "value": 6
+                }
+              },
+              {
+                "pointer": "/rules/0/costs/0/excludeSource",
+                "equals": true
+              },
+              {
+                "pointer": "/rules/0/costs/0/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              {
+                "pointer": "/rules/0/effects/0/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/rules/0/effects/1/cardType",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-voyager-glidecar-bare-crew",
+      "request": {
+        "cardName": "Voyager Glidecar",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{W}",
+        "oracleText": "Crew 1",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/keyword",
+                "equals": "crew"
+              },
+              {
+                "pointer": "/parameters/N",
+                "equals": 1
+              },
+              {
+                "pointer": "/rules/0/costs/0/minimumPower",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-printed-total-power-tap-cost",
+      "request": {
+        "cardName": "Total Power Fixture",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Tap any number of other untapped creatures you control with total power 4 or greater: Each opponent loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "tapPermanentsWithTotalPower"
+              },
+              {
+                "pointer": "/costs/0/minimumPower",
+                "equals": {
+                  "kind": "integer",
+                  "value": 4
+                }
+              },
+              {
+                "pointer": "/costs/0/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-total-power-tap-with-mana",
+      "request": {
+        "cardName": "Total Power Mana Fixture",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, Tap any number of untapped creatures you control with total power 3 or more: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/0/kind",
+                "equals": "payMana"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "tapPermanentsWithTotalPower"
+              },
+              {
+                "pointer": "/costs/1/decisionId",
+                "equals": "activationCostTapPower1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-crew-without-number",
+      "request": {
+        "cardName": "Numberless Crew Fixture",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{5}",
+        "oracleText": "Crew",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "ability-frame.static.subject",
+            "code": "oracle_machine_failure",
+            "found": "Crew"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-crew-foreign-reminder",
+      "request": {
+        "cardName": "Foreign Crew Fixture",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{5}",
+        "oracleText": "Crew 2 (Tap two untapped creatures you control: This Vehicle becomes an artifact creature until end of turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "keyword.template.reminder.body"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-total-power-tap-without-controller",
+      "request": {
+        "cardName": "Uncontrolled Tap Fixture",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Tap any number of untapped creatures with total power 3 or greater: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "cost.total-power-tap.domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-total-power-upper-bound",
+      "request": {
+        "cardName": "Upper Bound Tap Fixture",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "Tap any number of untapped creatures you control with total power 3 or less: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "cost.total-power-tap.comparison"
+          }
+        ]
+      }
+    }
+  ]
+}

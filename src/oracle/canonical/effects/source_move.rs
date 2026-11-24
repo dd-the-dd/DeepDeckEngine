@@ -50,7 +50,7 @@ pub(in crate::oracle::canonical) fn lower_source_move_effect(
                     }
                     SourceMoveController::Preserve => controller(),
                 },
-                "tapped": false,
+                "tapped": effect.tapped,
             });
             if effect.face_change == SourceFaceChange::Transform {
                 destination["faceChange"] = json!({ "kind": "transformFace" });

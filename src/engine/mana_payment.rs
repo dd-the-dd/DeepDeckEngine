@@ -694,6 +694,168 @@ impl GameEngine {
     }
 }
 
+/// The mana a cast record distinguishes (CR 106.1, 601.2h): the five colors
+/// and colorless mana.
+const SPENT_MANA_SYMBOLS: [&str; 6] = ["W", "U", "B", "R", "G", "C"];
+
+/// The record a permanent keeps of the mana spent to cast it (CR 601.2h):
+/// threshold flags `manaSpent:SYMBOL:N` and `manaSpent:total:N`, and the
+/// marker `manaSpentRecorded` that distinguishes zero from an absent record.
+pub(super) fn record_mana_spent_flags(
+    flags: &mut BTreeMap<String, bool>,
+    decisions: &BTreeMap<String, Value>,
+) {
+    for symbol in SPENT_MANA_SYMBOLS {
+        let count = mana_symbol_spent_count(decisions, symbol);
+        for threshold in 1..=count {
+            flags.insert(format!("manaSpent:{symbol}:{threshold}"), true);
+        }
+    }
+    let total = usize::try_from(mana_spent_from_cast_decisions(decisions)).unwrap_or(0);
+    for threshold in 1..=total {
+        flags.insert(format!("manaSpent:total:{threshold}"), true);
+    }
+    flags.insert("manaSpentRecorded".to_string(), true);
+}
+
+/// `manaSpentToCast { spell, symbol? }`: the mana of one symbol, or all the
+/// mana, spent to cast a spell. `spell` is the ability's own source or the
+/// spell a cast trigger observed.
+pub(super) fn mana_spent_to_cast_supported(expression: &Value) -> bool {
+    matches!(
+        value_kind(&expression["spell"]),
+        Some("self" | "triggeringSpell")
+    ) && expression.get("symbol").is_none_or(|symbol| {
+        symbol
+            .as_str()
+            .is_some_and(|symbol| SPENT_MANA_SYMBOLS.contains(&symbol))
+    })
+}
+
+/// The amount a cast record answers: one symbol's count, or the total.
+fn counted_from_cast_decisions(decisions: &BTreeMap<String, Value>, symbol: Option<&str>) -> i32 {
+    match symbol {
+        Some(symbol) => {
+            i32::try_from(mana_symbol_spent_count(decisions, symbol)).unwrap_or(i32::MAX)
+        }
+        None => mana_spent_from_cast_decisions(decisions),
+    }
+}
+
+/// The amount a permanent's record answers. A permanent that was not cast
+/// had no mana spent to cast it; a cast permanent without a record is
+/// unknown (`None`), never zero.
+fn counted_from_permanent_record(card: &CardInstance, symbol: Option<&str>) -> Option<i32> {
+    if !card.flags.get("wasCast").copied().unwrap_or(false) {
+        return Some(0);
+    }
+    if !card
+        .flags
+        .get("manaSpentRecorded")
+        .copied()
+        .unwrap_or(false)
+    {
+        return None;
+    }
+    let key = symbol.unwrap_or("total");
+    let mut count = 0_i32;
+    while card
+        .flags
+        .get(&format!("manaSpent:{key}:{}", count + 1))
+        .copied()
+        .unwrap_or(false)
+    {
+        count += 1;
+    }
+    Some(count)
+}
+
+/// The per-symbol record of the spell a cast trigger observed, written in
+/// the trigger's decisions when the spell became cast.
+pub(super) fn triggering_spell_mana_spent_record(
+    cast_decisions: &BTreeMap<String, Value>,
+) -> Value {
+    let mut record = serde_json::Map::new();
+    for symbol in SPENT_MANA_SYMBOLS {
+        record.insert(
+            symbol.to_string(),
+            Value::from(counted_from_cast_decisions(cast_decisions, Some(symbol))),
+        );
+    }
+    record.insert(
+        "total".to_string(),
+        Value::from(mana_spent_from_cast_decisions(cast_decisions)),
+    );
+    Value::Object(record)
+}
+
+impl GameEngine {
+    /// The source's own record: its cast decisions while it is the spell
+    /// being resolved, else the record of its battlefield incarnation.
+    fn source_mana_spent(
+        &self,
+        source: &CardInstance,
+        cast_decisions: Option<&BTreeMap<String, Value>>,
+        symbol: Option<&str>,
+    ) -> Option<i32> {
+        if let Some(decisions) = cast_decisions {
+            return Some(counted_from_cast_decisions(decisions, symbol));
+        }
+        let card = self
+            .permanent_position(&source.instance_id)
+            .map(|(player, index)| &self.state.players[player].battlefield[index])
+            .unwrap_or(source);
+        counted_from_permanent_record(card, symbol)
+    }
+
+    /// `manaSpentToCast` evaluated with a source and decisions (intervening
+    /// `if`, static abilities): the source's permanent record, or the
+    /// observed spell's record in the trigger's decisions.
+    pub(super) fn mana_spent_to_cast(
+        &self,
+        expression: &Value,
+        source: Option<&CardInstance>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Option<i32> {
+        let symbol = expression["symbol"].as_str();
+        match value_kind(&expression["spell"]) {
+            Some("self") => self.source_mana_spent(source?, None, symbol),
+            Some("triggeringSpell") => triggering_spell_mana_spent(decisions, symbol),
+            _ => None,
+        }
+    }
+
+    /// `manaSpentToCast` during resolution: a resolving spell reads its own
+    /// cast decisions; an ability reads its source's permanent record.
+    pub(super) fn runtime_mana_spent_to_cast(
+        &self,
+        expression: &Value,
+        stack_object: &StackObject,
+    ) -> Option<i32> {
+        let symbol = expression["symbol"].as_str();
+        match value_kind(&expression["spell"]) {
+            Some("self") => self.source_mana_spent(
+                &stack_object.card,
+                stack_object_is_spell(stack_object).then_some(&stack_object.decisions),
+                symbol,
+            ),
+            Some("triggeringSpell") => triggering_spell_mana_spent(&stack_object.decisions, symbol),
+            _ => None,
+        }
+    }
+}
+
+fn triggering_spell_mana_spent(
+    decisions: &BTreeMap<String, Value>,
+    symbol: Option<&str>,
+) -> Option<i32> {
+    decisions
+        .get("triggeringSpellManaSpentBySymbol")?
+        .get(symbol.unwrap_or("total"))?
+        .as_i64()
+        .and_then(|value| i32::try_from(value).ok())
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")

@@ -258,7 +258,28 @@ pub(in crate::oracle::canonical) fn recognize_source_combat_restriction(
         cursor.consume(",")?;
     }
     cursor.enter("static.combat-restriction.source");
-    recognize_source_reference(cursor, name_links, name_failure)?;
+    // `As long as this creature is enchanted, it can't block`: the source the
+    // leading condition reads is the antecedent of `it`.
+    let condition_source = condition
+        .as_ref()
+        .and_then(super::condition_object_antecedent)
+        .and_then(|reference| match reference {
+            super::PermanentEffectReference::Source(source) => Some(source),
+            _ => None,
+        });
+    match condition_source {
+        Some(source) => {
+            super::recognize_source_reference_with_antecedent(
+                cursor,
+                name_links,
+                name_failure,
+                Some(&source),
+            )?;
+        }
+        None => {
+            recognize_source_reference(cursor, name_links, name_failure)?;
+        }
+    }
     let mut clauses = Vec::new();
     loop {
         recognize_combat_clause(

@@ -70,6 +70,9 @@ pub(in crate::oracle::canonical) enum SingularPlayerAction {
     /// `scries N` (CR 701.22a): the acting player looks at the top N cards
     /// of their library and orders them on the top and bottom.
     Scry(NumericExpression),
+    /// `takes an extra turn after this one` (CR 500.7): the acting player
+    /// takes the next turn after the current one.
+    ExtraTurn,
 }
 
 /// Counters a player gets: the canonical counter name and the amount.
@@ -318,6 +321,7 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         Ok(player.clone())
     } else if is_verb_form(&head, VerbLemma::Mill, VerbForm::Base)
         || (is_verb_form(&head, VerbLemma::Get, VerbForm::Base) && player_counters_follow(cursor))
+        || (is_verb_form(&head, VerbLemma::Take, VerbForm::Base) && extra_turn_follows(cursor))
         || head.eq_ignore_ascii_case("venture")
         || head.eq_ignore_ascii_case("proliferate")
     {
@@ -378,7 +382,12 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Create, agreement);
     // `target player scries N`: the imperative `scry` keeps its own reader.
     let is_scry = crate::oracle::canonical::automata::lemma_at(cursor, VerbLemma::Scry, agreement);
+    // `take(s) an extra turn after this one`: every player subject, and the
+    // imperative of the controller (CR 500.7). The fragment checks the
+    // subject's agreement.
+    let is_extra_turn = extra_turn_follows(cursor);
     let claimed = is_counters
+        || is_extra_turn
         || is_create
         || is_scry
         || is_draw
@@ -412,6 +421,8 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
             && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
         || (is_create && !matches!(&player, Ok(PlayerEffectSubject::DeclaredTarget { .. })))
         || (is_scry && !matches!(&player, Ok(subject) if *subject != PlayerEffectSubject::Controller))
+        // An unresolved subject leaves the performer reader in charge.
+        || (is_extra_turn && player.is_err())
     {
         cursor.rollback(checkpoint);
         return Ok(None);
@@ -440,6 +451,9 @@ pub(in crate::oracle::canonical) fn try_recognize_player_action_with_object_ante
         SingularPlayerAction::CreateTokens(Box::new(
             super::recognize_performed_token_creation_body(cursor, None)?,
         ))
+    } else if is_extra_turn {
+        recognize_extra_turn_fragment(cursor, form)?;
+        SingularPlayerAction::ExtraTurn
     } else if is_scry {
         cursor.enter("player-action.scry.verb");
         SingularPlayerAction::Scry(super::recognize_player_scry_fragment(
@@ -703,6 +717,41 @@ pub(in crate::oracle::canonical) fn recognize_mill_action_fragment(
     Ok(count)
 }
 
+/// `take(s) an extra turn` at the cursor, in any agreement: the only object
+/// the `take` frame reads (CR 500.7). The other `take` readings (`take the
+/// initiative`, `take N damage`) are not claimed.
+pub(in crate::oracle::canonical) fn extra_turn_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| lookup_verb(raw, &[VerbLemma::Take]).is_some())
+        && ["an", "extra", "turn"]
+            .iter()
+            .enumerate()
+            .all(|(index, word)| {
+                cursor
+                    .peek_ahead(index + 1)
+                    .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+            })
+}
+
+/// Subject-free `take(s) an extra turn after this one` (CR 500.7); the
+/// caller resolves the acting player and the verb agreement. The turn order
+/// is part of the frame: an extra turn at another point fails explicitly.
+pub(in crate::oracle::canonical) fn recognize_extra_turn_fragment(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: VerbAgreement,
+) -> MachineResult<()> {
+    cursor.enter("player-action.extra-turn.verb");
+    cursor.consume(
+        crate::oracle::canonical::automata::verb_entry(VerbLemma::Take).surface(form.form()),
+    )?;
+    cursor.enter("player-action.extra-turn.object");
+    cursor.consume_phrase(&["an", "extra", "turn"])?;
+    cursor.enter("player-action.extra-turn.order");
+    cursor.consume_phrase(&["after", "this", "one"])?;
+    Ok(())
+}
+
 /// `venture into` opens the imperative keyword action (CR 701.49).
 pub(in crate::oracle::canonical) fn venture_action_starts(cursor: &OracleTokenCursor<'_>) -> bool {
     cursor
@@ -757,6 +806,29 @@ pub(in crate::oracle::canonical) fn recognize_venture_action_fragment(
     Ok(VentureActionNode {
         dungeon: Some(words.join(" ")),
     })
+}
+
+/// The printed reminder of `venture into the dungeon` restates CR 701.49a:
+/// `(Enter the first room or advance to the next room.)`. A named Dungeon
+/// has its own entry rules and no reminder grammar here. Owns both
+/// parentheses.
+pub(in crate::oracle::canonical) fn recognize_venture_reminder(
+    cursor: &mut OracleTokenCursor<'_>,
+    venture: &VentureActionNode,
+) -> MachineResult<()> {
+    cursor.enter("player-action.venture.reminder.open");
+    cursor.consume("(")?;
+    cursor.enter("player-action.venture.reminder.dungeon");
+    cursor.require(
+        venture.dungeon.is_none(),
+        "the reminder of venturing into any dungeon",
+    )?;
+    cursor.enter("player-action.venture.reminder.body");
+    cursor.consume_phrase(&[
+        "Enter", "the", "first", "room", "or", "advance", "to", "the", "next", "room", ".",
+    ])?;
+    cursor.enter("player-action.venture.reminder.close");
+    cursor.consume(")")
 }
 
 /// Declarations become bound uses in grammatical memory, never cloned targets.

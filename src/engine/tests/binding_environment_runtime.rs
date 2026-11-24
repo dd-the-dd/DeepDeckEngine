@@ -535,13 +535,14 @@ impl DecisionProvider for RecordingProvider {
 #[test]
 fn another_players_permission_is_that_players_choice() {
     // `that player may discard a card`: the drawing opponent, not the
-    // ability's controller, decides (optionalEffects with triggeringPlayer).
+    // ability's controller, decides (optionalEffects performed by the
+    // triggering player).
     let rules = parsed_rules(
         "Enchantment",
         "Whenever an opponent draws a card, that player may discard a card.",
     );
     assert_eq!(
-        rules[0]["effects"][0]["player"],
+        rules[0]["effects"][0]["performer"],
         json!({"kind":"triggeringPlayer"}),
         "{:#}",
         rules[0]

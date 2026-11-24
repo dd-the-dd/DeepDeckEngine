@@ -12,9 +12,34 @@ use super::{
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CopyStackObjectEffectNode {
+    /// The declared stack-object target; empty when `event_spell` is set.
     pub target: TargetListNode,
+    /// `copy that spell` / `copy it`: the spell the triggering cast record
+    /// binds (CR 707.10), like `counter that spell`.
+    pub event_spell: bool,
     /// Set only by the following new-targets sentence (CR 707.10c).
     pub may_choose_new_targets: bool,
+}
+
+/// `that spell` / `it` naming the spell a cast record binds. An object
+/// antecedent keeps priority for `it` and is never reinterpreted.
+fn event_spell_object_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    let environment = cursor.binding_environment()?;
+    if !environment.frame.event_spell {
+        return None;
+    }
+    let word = |delta: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset + delta)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    if word(0, "that") && word(1, "spell") {
+        Some(2)
+    } else if word(0, "it") && environment.object.is_none() {
+        Some(1)
+    } else {
+        None
+    }
 }
 
 pub(in crate::oracle::canonical) fn copy_stack_object_starts(
@@ -23,9 +48,10 @@ pub(in crate::oracle::canonical) fn copy_stack_object_starts(
     cursor
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("copy"))
-        && cursor
+        && (cursor
             .peek_ahead(1)
             .is_some_and(|raw| raw.eq_ignore_ascii_case("target"))
+            || event_spell_object_at(cursor, 1).is_some())
 }
 
 pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
@@ -33,6 +59,15 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
 ) -> MachineResult<CopyStackObjectEffectNode> {
     cursor.enter("effect.copy-stack-object.action");
     cursor.consume("copy")?;
+    if let Some(width) = event_spell_object_at(cursor, 0) {
+        cursor.enter("effect.copy-stack-object.event-spell");
+        cursor.advance_to(cursor.position() + width)?;
+        return Ok(CopyStackObjectEffectNode {
+            target: TargetListNode { slots: Vec::new() },
+            event_spell: true,
+            may_choose_new_targets: false,
+        });
+    }
     cursor.enter("effect.copy-stack-object.target");
     let target = recognize_target_list(cursor)?;
     cursor.enter("effect.copy-stack-object.target-domain");
@@ -49,6 +84,7 @@ pub(in crate::oracle::canonical) fn recognize_copy_stack_object_effect(
     )?;
     Ok(CopyStackObjectEffectNode {
         target,
+        event_spell: false,
         may_choose_new_targets: false,
     })
 }

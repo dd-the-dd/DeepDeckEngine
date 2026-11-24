@@ -185,7 +185,7 @@ pub(in crate::oracle::canonical) fn try_parse_contextual_effect_program(
     );
     let outcome = apply_activation_cost_reduction(&mut cursor, outcome, reduction);
     let outcome = refuse_indefinite_grant_to_the_spell(&mut cursor, context, outcome);
-    apply_activation_restrictions(outcome, restrictions)
+    apply_activation_restrictions(&mut cursor, outcome, restrictions)
 }
 
 /// A spell is not a battlefield permanent: an indefinite keyword grant to the
@@ -414,6 +414,7 @@ pub(in crate::oracle::canonical) fn parse_loyalty_effect_program(
 /// Restrictions belong to the activated ability itself, so they are applied
 /// to the lowered rule rather than to any effect (CR 602.5b, 602.5d).
 fn apply_activation_restrictions(
+    cursor: &mut OracleTokenCursor<'_>,
     outcome: EffectProgramParseAttempt,
     restrictions: ActivationRestrictionsNode,
 ) -> EffectProgramParseAttempt {
@@ -423,25 +424,8 @@ fn apply_activation_restrictions(
     if restrictions.is_empty() {
         return EffectProgramParseAttempt::Parsed(draft);
     }
-    // Sorcery timing already implies the controller's own turn (CR 307.1).
-    let timing = if restrictions.sorcery_timing {
-        Some(json!({ "kind": "sorceryTiming" }))
-    } else if restrictions.controller_turn {
-        Some(json!({ "kind": "duringControllerTurn", "player": controller() }))
-    } else {
-        None
-    };
-    let condition = restrictions.condition.as_ref().map(lower_condition);
-    match (timing, condition) {
-        (Some(timing), Some(condition)) => {
-            draft.rule["activationCondition"] = and(vec![timing, condition]);
-        }
-        (Some(only), None) | (None, Some(only)) => draft.rule["activationCondition"] = only,
-        (None, None) => {}
-    }
-    if restrictions.once_each_turn {
-        draft.rule["activationLimit"] =
-            json!({ "kind": "oncePerTurn", "id": "activationRestriction" });
+    if let Err(failure) = lower_activation_restrictions(cursor, &mut draft.rule, &restrictions) {
+        return EffectProgramParseAttempt::FailedSupport(failure);
     }
     draft
         .operations
@@ -484,6 +468,7 @@ fn activation_body_context(
         matches!(
             cost,
             LocalActivationCostNode::TapObjects(_)
+                | LocalActivationCostNode::TapTotalPower(_)
                 | LocalActivationCostNode::SacrificeObject(_)
                 | LocalActivationCostNode::ExileCards(_)
                 | LocalActivationCostNode::DiscardCard(_)

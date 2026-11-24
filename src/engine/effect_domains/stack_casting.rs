@@ -33,7 +33,9 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && effect["bind"].is_string()
                 && effect.get("spellWhere").is_none_or(stack_filter_supported)
         }
-        Some("castAnyNumber") => cast_any_number_supported(effect),
+        Some("castAnyNumber") => {
+            cast_any_number_supported(effect) && effect.get("bind").is_none_or(Value::is_string)
+        }
         Some("counterSpell") => {
             target_reference_supported(&effect["spell"])
                 && effect.get("exileInstead").is_none_or(Value::is_boolean)
@@ -99,6 +101,17 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
             Some("castAnyNumber") => {
+                // The offered cards, fixed before any of them is cast.
+                let offered = self
+                    .resolve_runtime_object_ids(&effect["cards"], stack_object, bindings, decisions)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .collect::<BTreeSet<_>>();
+                if let Some(binding) = effect["bind"].as_str() {
+                    // Bound even when nothing is cast: a later `that weren't
+                    // cast` subtracts an empty set, never a missing binding.
+                    bindings.insert(binding.to_string(), RuntimeBinding::Objects(Vec::new()));
+                }
                 self.cast_bound_cards_without_paying(
                     effect,
                     stack_object,
@@ -106,6 +119,18 @@ impl GameEngine {
                     decisions,
                     provider,
                 )?;
+                if let Some(binding) = effect["bind"].as_str() {
+                    // A cast card is the spell on the stack (CR 601.2a); the
+                    // spells of this resolution keep their card identities.
+                    let cast = self
+                        .state
+                        .stack
+                        .iter()
+                        .map(|object| object.card.instance_id.clone())
+                        .filter(|instance_id| offered.contains(instance_id))
+                        .collect::<Vec<_>>();
+                    bindings.insert(binding.to_string(), RuntimeBinding::Objects(cast));
+                }
             }
             Some("castParadigmCopy") => {
                 self.cast_paradigm_copy(stack_object, provider)?;

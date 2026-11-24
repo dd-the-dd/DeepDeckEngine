@@ -181,11 +181,17 @@
                     "colors": [
                       "Red"
                     ],
-                    "power": 3,
+                    "power": {
+                      "kind": "integer",
+                      "value": 3
+                    },
                     "subtypes": [
                       "Goblin"
                     ],
-                    "toughness": 3,
+                    "toughness": {
+                      "kind": "integer",
+                      "value": 3
+                    },
                     "types": [
                       "Creature"
                     ]

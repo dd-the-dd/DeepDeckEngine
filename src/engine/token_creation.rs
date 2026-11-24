@@ -340,6 +340,7 @@ impl GameEngine {
                 json!({
                     "attacking": attacking,
                     "tapped": tapped,
+                    "typeLine": created.definition.type_line,
                 }),
             );
             self.enqueue_token_created_triggers(&token_controller, &created);
@@ -360,6 +361,10 @@ impl GameEngine {
     ) -> Result<Option<String>, EngineError> {
         let ids = match value_kind(object) {
             Some("self" | "abilitySource") => vec![stack_object.card.instance_id.clone()],
+            Some("observedEventObject") => self
+                .resolve_observed_event_permanent(object, stack_object)?
+                .into_iter()
+                .collect(),
             _ if target_reference_supported(object) => self
                 .resolve_target(object, stack_object, bindings)
                 .and_then(|target| match target {
@@ -641,15 +646,20 @@ impl GameEngine {
                 battle_protector: None,
                 attached_to: None,
             };
-            if type_line_contains(&created.definition.type_line, "Aura") {
-                let Some(attached_to) =
-                    self.choose_entering_aura_host(&created, stack_object, provider)?
-                else {
-                    // CR 303.4f: an Aura with nothing it could enchant stays
-                    // where it is; a token is simply not created.
-                    continue;
-                };
-                created.attached_to = Some(attached_to);
+            match self.choose_entering_aura_host(
+                &created.definition,
+                &created.controller.clone(),
+                stack_object,
+                provider,
+                "auraTokenAttachment",
+            )? {
+                super::aura_entry::EnteringAuraHost::NotAnAura => {}
+                super::aura_entry::EnteringAuraHost::Host(host) => {
+                    created.attached_to = Some(host);
+                }
+                // CR 303.4f: an Aura with nothing it could enchant stays
+                // where it is; a token is simply not created.
+                super::aura_entry::EnteringAuraHost::NoLegalHost => continue,
             }
             for counter in effect["counters"].as_array().into_iter().flatten() {
                 let Some(counter_name) = counter["counter"].as_str() else {
@@ -692,50 +702,17 @@ impl GameEngine {
                 "tokenCreated",
                 Some(token_controller.clone()),
                 Some(instance_id.clone()),
-                json!({ "copyOf": copied_id, "tapped": tapped }),
+                json!({
+                    "copyOf": copied_id,
+                    "tapped": tapped,
+                    "typeLine": created.definition.type_line,
+                }),
             );
             self.enqueue_token_created_triggers(&token_controller, &created);
             self.ensure_prepared_spell_copy(&instance_id)?;
             self.publish_prepared_enter_battlefield_triggers(&created);
         }
         Ok(created_ids)
-    }
-
-    /// CR 303.4f: an Aura entering without being cast is attached to an
-    /// object it could enchant, chosen by its controller as it enters.
-    fn choose_entering_aura_host<P: DecisionProvider>(
-        &mut self,
-        aura: &CardInstance,
-        stack_object: &StackObject,
-        provider: &mut P,
-    ) -> Result<Option<String>, EngineError> {
-        let Some(enchant_filter) = aura.definition.printed_rules().iter().find_map(|rule| {
-            (value_kind(rule) == Some("keywordAbility")
-                && value_kind(&rule["ability"]) == Some("enchant"))
-            .then(|| rule["ability"]["where"].clone())
-        }) else {
-            return Ok(None);
-        };
-        let candidates = self
-            .state
-            .players
-            .iter()
-            .filter(|player| !player.has_lost)
-            .flat_map(|player| player.battlefield.iter())
-            .filter(|permanent| self.permanent_matches_effective_filter(permanent, &enchant_filter))
-            .map(|permanent| permanent.instance_id.clone())
-            .collect::<Vec<_>>();
-        let selected = self.choose_resolution_objects(
-            stack_object,
-            provider,
-            &aura.controller,
-            "auraTokenAttachment",
-            candidates,
-            1,
-            1,
-            "Choose a permanent for the Aura token to enchant.",
-        )?;
-        Ok(selected.into_iter().next())
     }
 
     #[cfg(test)]

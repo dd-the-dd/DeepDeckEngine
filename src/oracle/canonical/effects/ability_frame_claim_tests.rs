@@ -25,12 +25,13 @@ fn single(name: &str, type_line: &str, text: &str) -> ParsedOracleAbility {
 fn unclaimed_abilities_are_owned_by_their_structural_frame() {
     let cases: &[(&str, &str, &str, &str, &str)] = &[
         // The colon inside a keyword reminder does not make an activated frame.
+        // (Crew now compiles from its keyword template.)
         (
-            "Mobile Garrison",
-            "Artifact — Vehicle",
-            "Crew 2 (Tap any number of creatures you control with total power 2 or more: This Vehicle becomes an artifact creature until end of turn.)",
+            "Generic Fortification",
+            "Artifact — Fortification",
+            "Fortify {3} ({3}: Attach to target land you control. Fortify only as a sorcery.)",
             "ability-frame.keyword.expansion",
-            "Crew",
+            "Fortify",
         ),
         (
             "Baloth Gorger",

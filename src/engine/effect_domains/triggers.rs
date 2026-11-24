@@ -107,6 +107,13 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("trackedObject")
                     .is_none_or(target_reference_supported)
                 && effect.get("turnOf").is_none_or(player_reference_supported)
+                // `the next turn's STEP` (CR 500.1).
+                && effect.get("nextTurn").is_none_or(Value::is_boolean)
+                && (effect.get("nextTurn").is_none() || effect.get("turnOf").is_none())
+                // References captured when the trigger is created (CR 603.7c).
+                && effect.get("captureReferences").is_none_or(
+                    super::super::captured_binding::captured_references_supported,
+                )
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
                 })
@@ -558,6 +565,14 @@ impl GameEngine {
                 {
                     captured_bindings.insert(key, value);
                 }
+                // A declared target, the source or the creating event's
+                // object or player, with its incarnation (CR 603.7c, 400.7).
+                if let Some(captures) = effect.get("captureReferences") {
+                    captured_bindings.insert(
+                        super::super::captured_binding::CAPTURED_REFERENCES_KEY.to_string(),
+                        self.capture_delayed_references(captures, stack_object, bindings),
+                    );
+                }
                 let tracked_object_id = if let Some(object) = effect.get("trackedObject") {
                     let Some(instance_id) = self
                         .resolve_target(object, stack_object, bindings)
@@ -584,9 +599,13 @@ impl GameEngine {
                     }
                     None => None,
                 };
+                // `the next turn's STEP`: never a step of the current turn.
+                let not_before_turn = (effect["nextTurn"].as_bool() == Some(true))
+                    .then(|| u64::from(self.state.turn_number) + 1);
                 let modifier = json!({
                     "kind": "delayedStepTrigger",
                     "step": effect["step"],
+                    "notBeforeTurn": not_before_turn,
                     "turnPlayerId": turn_player_id,
                     "controllerId": controller_id,
                     "effects": delayed_effects,

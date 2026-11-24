@@ -11,6 +11,7 @@ fn copied_object_supported(object: &Value) -> bool {
     matches!(value_kind(object), Some("self" | "abilitySource"))
         || target_reference_supported(object)
         || object_expression_supported(object)
+        || super::super::entry_observation::observed_object_reference_supported(object)
 }
 
 /// One copiable-value exception (CR 707.9b): the characteristic-change

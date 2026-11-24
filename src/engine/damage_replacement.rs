@@ -493,3 +493,78 @@ impl GameEngine {
             .ok_or_else(|| EngineError::new("damage replacement choice has no matching program"))
     }
 }
+
+impl GameEngine {
+    /// A prevention shield whose source the controller chooses on
+    /// resolution (`a white source of your choice`, CR 609.7a): the choice
+    /// is among the permanents and spells with those characteristics. The
+    /// result is the shield with the chosen object's id, or `None` when the
+    /// effect names no such choice. With no candidate, the shield protects
+    /// from nothing and is not created (`noSource`).
+    pub(super) fn choose_prevention_source<P: super::DecisionProvider>(
+        &mut self,
+        effect: &Value,
+        stack_object: &super::StackObject,
+        decisions: &mut std::collections::BTreeMap<String, Value>,
+        provider: &mut P,
+    ) -> Result<Option<Value>, EngineError> {
+        let Some(choice) = effect.get("sourceChoice") else {
+            return Ok(None);
+        };
+        let filter = &choice["where"];
+        let mut candidates = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .filter(|permanent| {
+                filter.is_null() || self.permanent_matches_effective_filter(permanent, filter)
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>();
+        candidates.extend(
+            self.state
+                .stack
+                .iter()
+                .filter(|object| object.ability_kind.is_none())
+                .filter(|object| {
+                    filter.is_null() || matches_card_filter(&object.card.definition, filter)
+                })
+                .map(|object| object.card.instance_id.clone()),
+        );
+        let mut chosen = effect.clone();
+        if let Some(object) = chosen.as_object_mut() {
+            object.remove("sourceChoice");
+        }
+        if candidates.is_empty() {
+            chosen["noSource"] = Value::Bool(true);
+            return Ok(Some(chosen));
+        }
+        let decision_id = "preventionSourceChoice";
+        self.make_resolution_decision(
+            decision_id,
+            &stack_object.controller.clone(),
+            stack_object,
+            super::DecisionChoice::CardSelection {
+                decision_id: decision_id.to_string(),
+                candidate_card_instance_ids: candidates.clone(),
+                minimum: 1,
+                maximum: 1,
+                prompt: "Choose a source".to_string(),
+            },
+            candidates.iter().map(|id| vec![id.clone()]).collect(),
+            decisions,
+            provider,
+        )?;
+        let source = decisions
+            .get(decision_id)
+            .and_then(Value::as_array)
+            .and_then(|chosen| chosen.first())
+            .and_then(Value::as_str)
+            .filter(|id| candidates.iter().any(|candidate| candidate == id))
+            .ok_or_else(|| EngineError::new("the prevention source choice names no candidate"))?
+            .to_string();
+        chosen["chosenSourceId"] = Value::String(source);
+        Ok(Some(chosen))
+    }
+}

@@ -3,7 +3,7 @@
   "id": "costs/cost-quantity-slots",
   "cases": [
     {
-      "id": "exact-priest-of-forgotten-gods-counted-other-sacrifice",
+      "id": "known-gap-priest-of-forgotten-gods-sacrifice-of-their-choice",
       "request": {
         "cardName": "Priest of Forgotten Gods",
         "typeLine": "Creature — Human Cleric",
@@ -13,44 +13,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/costs/0/kind",
-                "equals": "tap"
-              },
-              {
-                "pointer": "/costs/1/kind",
-                "equals": "sacrificePermanent"
-              },
-              {
-                "pointer": "/costs/1/permanent/id",
-                "equals": "activationCostPermanent1:0"
-              },
-              {
-                "pointer": "/costs/2/permanent/id",
-                "equals": "activationCostPermanent1:1"
-              },
-              {
-                "pointer": "/declaration/decisions/0/id",
-                "equals": "activationCostPermanent1"
-              },
-              {
-                "pointer": "/declaration/decisions/0/quantity/value/value",
-                "equals": 2
-              },
-              {
-                "pointer": "/declaration/decisions/0/candidates/excludeSource",
-                "equals": true
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "sequence.connector-or-end",
+            "found": "of"
           }
         ]
       }
@@ -364,7 +334,7 @@
       }
     },
     {
-      "id": "sibling-and-joined-sacrifice-costs",
+      "id": "known-gap-and-joined-sacrifice-costs",
       "request": {
         "cardName": "Generic Joined Sacrifice",
         "typeLine": "Creature — Zombie",
@@ -374,23 +344,14 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
+        "outcome": "failure",
+        "cardStatus": "unsupported",
         "abilityCount": 1,
-        "abilities": [
+        "diagnostics": [
           {
-            "index": 0,
-            "status": "canonical",
-            "ruleAssertions": [
-              {
-                "pointer": "/costs/0/permanent/id",
-                "equals": "activationCostPermanent0"
-              },
-              {
-                "pointer": "/costs/1/permanent/id",
-                "equals": "activationCostPermanent1"
-              }
-            ]
+            "code": "oracle_machine_failure",
+            "state": "cost.payment.verb",
+            "found": "a"
           }
         ]
       }

@@ -353,7 +353,10 @@ impl GameEngine {
                 })?;
                 (source, source.owner.as_str())
             };
-        if payer != action.player_id {
+        // CR 602.2: `Any player may activate this ability` lets a player who
+        // does not control the source activate it and pay its costs.
+        let any_player = rule["anyPlayerMayActivate"].as_bool() == Some(true);
+        if payer != action.player_id && !any_player {
             return Err(EngineError::new(
                 "activated cost source is not controlled by the payer",
             ));

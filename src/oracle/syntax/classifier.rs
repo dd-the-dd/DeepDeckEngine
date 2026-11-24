@@ -435,6 +435,37 @@ pub(crate) fn is_promoted_static_spell_reduction_envelope(input: &AbilityInput<'
         && tokens[suffix_index + 3].raw == "."
 }
 
+/// An instant or sorcery's text is its spell ability (CR 113.3a, 608.2): a
+/// leading one-shot `When EVENT, EFFECTS.` sentence whose event is a bound
+/// object (`When that creature dies this turn`) or the controller's next
+/// spell (`When you cast your next ... spell this turn`) is a rule the
+/// resolving spell creates (CR 603.7c), read by the spell's effect sequence.
+/// Any other leading trigger word stays a triggered ability, whose frame owns
+/// the nonpermanent-face refusal (CR 113.6).
+fn is_spell_face_created_rule_sentence(input: &AbilityInput<'_>) -> bool {
+    let type_line = input.face_type_line;
+    let card_types = type_line.split('\u{2014}').next().unwrap_or(type_line);
+    let spell_face = card_types
+        .split(|character: char| !character.is_alphabetic())
+        .any(|part| part.eq_ignore_ascii_case("instant") || part.eq_ignore_ascii_case("sorcery"));
+    if !spell_face || type_line_has_permanent_card_type(type_line) {
+        return false;
+    }
+    let tokens = input.tokens;
+    let word = |index: usize, expected: &str| {
+        tokens
+            .get(index)
+            .is_some_and(|token| token.raw.eq_ignore_ascii_case(expected))
+    };
+    if !word(0, "when") {
+        return false;
+    }
+    let next_spell = word(1, "you")
+        && (word(2, "next") || (word(2, "cast") && word(3, "your") && word(4, "next")));
+    let bound_object = word(1, "it") || word(1, "that");
+    next_spell || bound_object
+}
+
 /// Supplies a token-only dispatch hint for promoted envelopes. `None` leaves
 /// unclaimed families to structural native dispatch and explicit failure.
 pub(crate) fn classify_promoted_ability_from_tokens(
@@ -463,6 +494,9 @@ pub(crate) fn classify_promoted_ability_from_tokens(
             })
     {
         return Some("triggeredAbility");
+    }
+    if is_spell_face_created_rule_sentence(input) {
+        return Some("spellAbility");
     }
     if input.tokens.first().is_some_and(|token| {
         token.token_type == "triggerWord"

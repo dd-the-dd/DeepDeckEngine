@@ -107,6 +107,8 @@ fn an_ambiguous_missing_or_departed_antecedent_fails_explicitly() {
     .expect_err("no card antecedent");
     assert_eq!(missing.0, "condition.sentence.object.card-antecedent");
 
+    // CR 608.2h: a moved permanent's recorded type line answers a type
+    // predicate as last-known information.
     let departed = read(
         "If it was a creature,",
         &permanent_target_context(),
@@ -114,9 +116,26 @@ fn an_ambiguous_missing_or_departed_antecedent_fails_explicitly() {
         false,
         &[TARGET],
     )
-    .expect_err("a moved permanent needs last-known information");
+    .expect("the departure records the type line");
+    let BooleanConditionNode::Atom(ConditionAtom::ObjectSatisfies(node)) = departed else {
+        panic!("a referenced-object atom");
+    };
     assert_eq!(
-        departed.0,
+        node.object,
+        ConditionObjectReference::DepartedTarget(TARGET)
+    );
+    // A characteristic the departure does not record is refused, not read
+    // on the new object.
+    let uncaptured = read(
+        "If it was tapped,",
+        &permanent_target_context(),
+        None,
+        false,
+        &[TARGET],
+    )
+    .expect_err("a moved permanent's status is not captured");
+    assert_eq!(
+        uncaptured.0,
         "condition.sentence.object.last-known-information"
     );
 }

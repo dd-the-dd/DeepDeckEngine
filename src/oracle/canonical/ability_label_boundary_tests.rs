@@ -91,12 +91,17 @@ fn a_body_failure_is_reported_at_its_position_in_the_whole_ability() {
 #[test]
 fn labels_with_rules_are_never_stripped() {
     // Exhaust is a keyword ability (CR 702.177): its label is not rules-free.
+    // The label keeps its rule: the ability is classified and limited to
+    // one activation per object, unlike the stripped body alone.
     let exhausted = parse("Creature — Human", "Exhaust \u{2014} {2}: Draw a card.");
     assert_eq!(
-        exhausted.status, "unsupported",
+        exhausted.status, "canonical",
         "{:#?}",
-        exhausted.abilities[0].rule
+        exhausted.diagnostics
     );
+    let rule = exhausted.abilities[0].rule.as_ref().expect("exhaust rule");
+    assert_eq!(rule["abilityClass"], "exhaust");
+    assert_eq!(rule["activationLimit"]["kind"], "oncePerGameObjectAbility");
     // Saga chapter symbols number chapter abilities (CR 714.2b).
     let saga = parse(
         "Enchantment — Saga",

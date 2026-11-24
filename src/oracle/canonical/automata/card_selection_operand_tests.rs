@@ -47,3 +47,60 @@ fn relation_commits_only_the_selection_candidate_and_rejects_unbound_sources() {
         assert_eq!(cursor.position(), 0);
     }
 }
+
+#[test]
+fn any_number_of_reads_a_quantified_query_or_a_bound_collection() {
+    for (text, filtered) in [
+        ("any number of creature cards from among them and", true),
+        ("any number of them and", false),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("collection-selection-any-number", &tokens);
+        let CollectionOperandAttempt::Recognized(fragment) =
+            try_recognize_card_selection_operand(&mut cursor)
+        else {
+            panic!("{text}")
+        };
+        assert_eq!(fragment.node.quantity, CardSelectionQuantityNode::AnyNumber);
+        assert_eq!(fragment.node.predicate.is_some(), filtered, "{text}");
+        assert_eq!(fragment.node.from, CardCollectionReferenceNode::Antecedent);
+        assert_eq!(cursor.peek(), Some("and"));
+    }
+}
+
+#[test]
+fn restated_exile_scope_reads_the_uncast_relative_clause() {
+    for (text, except_cast) in [
+        ("all cards exiled this way that weren't cast into", true),
+        (
+            "cards exiled this way that weren't cast this way into",
+            true,
+        ),
+        ("cards exiled this way into", false),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("collection-selection-uncast", &tokens);
+        let CollectionOperandAttempt::Recognized(fragment) =
+            try_recognize_card_selection_operand(&mut cursor)
+        else {
+            panic!("{text}")
+        };
+        assert_eq!(
+            fragment.node.quantity,
+            CardSelectionQuantityNode::All {
+                via: Some(CardCollectionVerb::Exiled),
+                except_cast,
+            },
+            "{text}"
+        );
+        assert_eq!(cursor.peek(), Some("into"), "{text}");
+    }
+    // A cast relative clause without its verb is not consumed.
+    let tokens = recognize_entities("cards exiled this way that were into");
+    let mut cursor = OracleTokenCursor::new("collection-selection-uncast-negative", &tokens);
+    let CollectionOperandAttempt::Recognized(_) = try_recognize_card_selection_operand(&mut cursor)
+    else {
+        panic!("the restated scope is still read")
+    };
+    assert_eq!(cursor.peek(), Some("that"));
+}

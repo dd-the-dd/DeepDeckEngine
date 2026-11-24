@@ -939,7 +939,17 @@ fn read_life_amount(
                     .map(ClauseAmount::Expression);
             }
             cursor.enter("effect.life.amount-before-resource");
+            let amount_start = cursor.position();
             let amount = recognize_numeric_expression(cursor, antecedent)?;
+            // `lose half your life, rounded up`: an amount whose own operand
+            // is a life total already names the resource (CR 119.3).
+            let names_life = cursor
+                .token_slice(amount_start, cursor.position())
+                .iter()
+                .any(|token| token.raw.eq_ignore_ascii_case("life"));
+            if names_life {
+                return Ok(ClauseAmount::Expression(amount));
+            }
             cursor.enter("effect.life.resource-after-amount");
             cursor.consume("life")?;
             Ok(ClauseAmount::Expression(amount))

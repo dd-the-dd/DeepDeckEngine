@@ -420,12 +420,50 @@
       }
     },
     {
-      "id": "compound-temporal-header-is-not-claimed",
+      "id": "compound-temporal-header-reads-one-of-two-events",
       "request": {
         "cardName": "Compound Temporal Probe",
         "typeLine": "Enchantment",
         "manaCost": "{1}{U}",
         "oracleText": "At the beginning of your upkeep and whenever a creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "stepBegan"
+              },
+              {
+                "pointer": "/event/events/1/kind",
+                "equals": "permanentEntered"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "compound-temporal-header-with-or-is-not-claimed",
+      "request": {
+        "cardName": "Compound Temporal Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{U}",
+        "oracleText": "At the beginning of your upkeep or whenever a creature enters, draw a card.",
         "layout": "normal",
         "faces": []
       },
@@ -448,7 +486,7 @@
             "automaton": "generic-trigger-program",
             "state": "trigger.envelope.separator",
             "expected": ",",
-            "found": "and",
+            "found": "or",
             "tokenIndex": 6
           }
         ]

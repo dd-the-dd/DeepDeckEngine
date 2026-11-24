@@ -149,17 +149,25 @@ fn unsupported_delayed_step_is_reported_by_the_temporal_child() {
 }
 
 #[test]
-fn trailing_sentence_fails_full_consumption_at_the_activated_envelope() {
+fn a_trailing_sentence_composes_after_the_delayed_draw() {
+    // The shared activated program reads the `next turn's` delayed step, so
+    // a following ordinary sentence is one more immediate action rather than
+    // an unconsumed suffix of the former family envelope.
     let parsed = parse(&format!("{MISHRA_BAUBLE_ORACLE} Draw a card."));
     let ability = &parsed.abilities[0];
 
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-    assert_eq!(ability.status, "unsupported");
-    assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("activation.top-card-delayed-draw.complete")
-    );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("Draw"));
+    assert_eq!(ability.status, "canonical", "{:#?}", ability.diagnostics);
+    let effects = ability.rule.as_ref().unwrap()["effects"]
+        .as_array()
+        .unwrap()
+        .clone();
+    assert_eq!(effects[1]["kind"], "installDelayedStepTrigger");
+    assert_eq!(effects.last().unwrap()["kind"], "drawCards");
+    // An unread trailing sentence still fails full consumption explicitly.
+    let parsed = parse(&format!("{MISHRA_BAUBLE_ORACLE} Frobnicate a card."));
+    assert_eq!(parsed.abilities[0].status, "unsupported");
+    assert!(!parsed.abilities[0].diagnostics.is_empty());
 }
 
 #[test]

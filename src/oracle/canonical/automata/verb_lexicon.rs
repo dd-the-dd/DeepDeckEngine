@@ -123,6 +123,13 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Turn,
     /// `commit` in `commit a crime` (CR 700.13), an event verb.
     Commit,
+    /// `take an extra turn after this one` (CR 500.7).
+    Take,
+    /// `play a land` (CR 305.1), an event verb read by turn histories.
+    Play,
+    /// `descend` (a permanent card put into its owner's graveyard from
+    /// anywhere), an event verb read by turn histories.
+    Descend,
 }
 
 /// One inflected form of a lemma.
@@ -214,6 +221,9 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     DamagePrevention,
     /// `the number of COUNTERS on OBJECT` | `OBJECT's power` (CR 701.10).
     Doubling,
+    /// `an extra turn after this one` (CR 500.7): the acting player takes
+    /// the turn directly after the current one.
+    ExtraTurn,
 }
 
 impl ArgumentFrame {
@@ -239,7 +249,8 @@ impl ArgumentFrame {
             | Self::PlayerCounters
             | Self::ManaProduction
             | Self::DamagePrevention
-            | Self::Doubling => None,
+            | Self::Doubling
+            | Self::ExtraTurn => None,
         }
     }
 }
@@ -684,13 +695,77 @@ const VERB_LEXICON: &[VerbEntry] = &[
         frames: &[ArgumentFrame::ObjectSelection],
         voices: &[Voice::Active],
     },
+    VerbEntry {
+        lemma: VerbLemma::Amass,
+        forms: VerbForms {
+            base: "amass",
+            third_person_singular: "amasses",
+            past: "amassed",
+            past_participle: "amassed",
+            present_participle: "amassing",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Investigate,
+        forms: VerbForms {
+            base: "investigate",
+            third_person_singular: "investigates",
+            past: "investigated",
+            past_participle: "investigated",
+            present_participle: "investigating",
+        },
+        frames: &[ArgumentFrame::Intransitive],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Scry,
+        forms: VerbForms {
+            base: "scry",
+            third_person_singular: "scries",
+            past: "scried",
+            past_participle: "scried",
+            present_participle: "scrying",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Surveil,
+        forms: VerbForms {
+            base: "surveil",
+            third_person_singular: "surveils",
+            past: "surveilled",
+            past_participle: "surveilled",
+            present_participle: "surveilling",
+        },
+        frames: &[ArgumentFrame::KeywordAmount],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Take,
+        forms: VerbForms {
+            base: "take",
+            third_person_singular: "takes",
+            past: "took",
+            past_participle: "taken",
+            present_participle: "taking",
+        },
+        frames: &[ArgumentFrame::ExtraTurn],
+        voices: &[Voice::Active],
+    },
 ];
 
 /// Lemmas the effect clause dispatches on (`effect_head.rs`) whose actions
 /// do not yet carry a performer through lowering. They are full lexicon
 /// rows (forms, frames, voices) for every clause reader, but the
 /// performer's person shift (`ALL_LEMMAS`) does not admit them: `each player
-/// scries 2` keeps failing explicitly until the primitive reads a performer.
+/// adds {B}` keeps failing explicitly until a performed mana ability is
+/// classified and executed as that player's (CR 605.1a, 106.4). A lemma whose
+/// primitives name only `you` (`scry`, `investigate`, `surveil`, `amass`) is
+/// a performed row: the engine runs the ordinary primitive as the
+/// performer's instruction (CR 608.2c).
 const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
     VerbEntry {
         lemma: VerbLemma::Support,
@@ -765,18 +840,6 @@ const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
         voices: &[Voice::Active],
     },
     VerbEntry {
-        lemma: VerbLemma::Amass,
-        forms: VerbForms {
-            base: "amass",
-            third_person_singular: "amasses",
-            past: "amassed",
-            past_participle: "amassed",
-            present_participle: "amassing",
-        },
-        frames: &[ArgumentFrame::KeywordAmount],
-        voices: &[Voice::Active],
-    },
-    VerbEntry {
         lemma: VerbLemma::Empower,
         forms: VerbForms {
             base: "empower",
@@ -786,42 +849,6 @@ const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
             present_participle: "empowering",
         },
         frames: &[ArgumentFrame::ObjectSelection],
-        voices: &[Voice::Active],
-    },
-    VerbEntry {
-        lemma: VerbLemma::Investigate,
-        forms: VerbForms {
-            base: "investigate",
-            third_person_singular: "investigates",
-            past: "investigated",
-            past_participle: "investigated",
-            present_participle: "investigating",
-        },
-        frames: &[ArgumentFrame::Intransitive],
-        voices: &[Voice::Active],
-    },
-    VerbEntry {
-        lemma: VerbLemma::Scry,
-        forms: VerbForms {
-            base: "scry",
-            third_person_singular: "scries",
-            past: "scried",
-            past_participle: "scried",
-            present_participle: "scrying",
-        },
-        frames: &[ArgumentFrame::KeywordAmount],
-        voices: &[Voice::Active],
-    },
-    VerbEntry {
-        lemma: VerbLemma::Surveil,
-        forms: VerbForms {
-            base: "surveil",
-            third_person_singular: "surveils",
-            past: "surveilled",
-            past_participle: "surveilled",
-            present_participle: "surveilling",
-        },
-        frames: &[ArgumentFrame::KeywordAmount],
         voices: &[Voice::Active],
     },
     VerbEntry {
@@ -961,6 +988,30 @@ const EVENT_VERB_LEXICON: &[VerbEntry] = &[
             present_participle: "committing",
         },
         frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Play,
+        forms: VerbForms {
+            base: "play",
+            third_person_singular: "plays",
+            past: "played",
+            past_participle: "played",
+            present_participle: "playing",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active, Voice::Passive],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Descend,
+        forms: VerbForms {
+            base: "descend",
+            third_person_singular: "descends",
+            past: "descended",
+            past_participle: "descended",
+            present_participle: "descending",
+        },
+        frames: &[ArgumentFrame::Intransitive],
         voices: &[Voice::Active],
     },
 ];

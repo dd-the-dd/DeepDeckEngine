@@ -53,6 +53,16 @@ Emplacements (définitions et rappels) :
 | `$Nw` | le nombre en toutes lettres (`two`), jusqu'à vingt |
 | `$N{UN|PLUSIEURS}` | accord en nombre : `UN` si N = 1, sinon `PLUSIEURS` |
 | `$cost` | le coût de mana tel qu'imprimé |
+| `$Nrepeat[TEXTE]` | TEXTE écrit N fois (`{R}{R}` ; forme CR `N TEXTE`) |
+| `$Ntimes[TEXTE]` | TEXTE, `twice TEXTE`, `three times TEXTE`… (multiple, rappel de Devour) |
+| `$subtypes` | les sous-types de la face, dans l'ordre imprimé (rappels seulement) |
+| `$subtypeAlternatives` | les sous-types joints par `and/or` (`Bird and/or Soldier`, rappels seulement) |
+
+Un rappel peut reformuler la définition avec les sous-types de la carte
+(Embalm : `a white Zombie Human Warrior`, Amplify : `each Beast card`) : ces
+emplacements lisent la ligne de type de la face et sont refusés dans une
+définition, qui cite la forme symbolique de la CR (`render_rules_form`
+échoue).
 
 L'accord est explicite dans les données parce que la grammaire vérifie le
 nombre (`put a +1/+1 counter`, `put two +1/+1 counters`) ; aucune flexion
@@ -175,6 +185,7 @@ donne une IR exécutable équivalente, prouvée par test.
 | Buyback, Evoke, Offspring | natifs | cadres de coût additionnel/alternatif à la permission (`ability-frame.permission.action`, `effect.start`) |
 | Affinity (702.41a) | natif | IR identique pour « artifacts », mais « for each [text] » exige le singulier de la qualité imprimée ; le nœud typé natif l'évite |
 | Cascade (`keyword_programs.rs`) | natif | programme moteur paramétré par la valeur de mana capturée au lancement, pas un texte Oracle |
+| Fuse (702.102a) | natif intrinsèque | pas de définition « means » ; mot-clé sans paramètre du registre partagé avec son rappel exact, IR `keywordAbility {fuse}` déjà exécutée par `fused_split_definition` (fixture `fuse-keyword.json`) |
 
 ## Lignes ajoutées
 
@@ -191,6 +202,58 @@ donne une IR exécutable équivalente, prouvée par test.
 | Vanishing | 702.63a | N | `vanishing_removes_a_time_counter_each_upkeep_and_sacrifices_at_the_last` |
 | Bloodthirst | 702.54a | N | `bloodthirst_counters_depend_on_damage_dealt_to_an_opponent_this_turn` |
 | Modular | 702.43a | N | `modular_moves_the_last_known_counters_of_its_dead_source` (dernière information connue, ci-dessous) |
+| Crew | 702.122a | N | `crew_taps_creatures_with_enough_total_power_and_animates_the_vehicle`, `crew_rejects_a_declared_set_below_the_total_power` (coût par force totale, ci-dessous) |
+
+## Coût de force totale (Crew, Saddle, coûts imprimés)
+
+`Tap any number of [other] [untapped] QUERY with total power N or greater`
+(CR 702.122a, 702.171a) est une action de coût ordinaire de la séquence de
+coûts partagée (`cost.rs`, `recognize_total_power_tap_cost`) : la quantité
+`any number of` n'est pas un compte mais une borne agrégée sur l'ensemble
+choisi. La requête d'objets partagée est bornée par `with total power` et doit
+nommer des permanents du payeur (`you control`) ; `or greater` et `or more`
+sont la même borne inférieure ; `or less` échoue explicitement
+(`cost.total-power-tap.comparison`). `other` exclut la source.
+
+IR (projection d'activation, `activated_native.rs`) :
+
+```json
+{"kind": "tapPermanentsWithTotalPower", "decisionId": "activationCostTapPower0",
+ "where": {"kind": "cardTypeContains", "value": "Creature"},
+ "minimumPower": {"kind": "integer", "value": 3}, "excludeSource": true}
+```
+
+Moteur (`src/engine/creature_tap_cost.rs`, crochets d'une ligne dans
+`mod.rs`) : la déclaration d'activation énumère les ensembles légaux (plus
+petits d'abord, dans le budget partagé de déclarations) ; avant tout paiement
+l'ensemble déclaré est revérifié (permanents dégagés du payeur, filtre
+effectif, source exclue si `other` ou si un `{T}` la dégage, pas de doublon,
+pas de source de mana du même paiement, somme des forces courantes ≥ N), puis
+chaque permanent est engagé et ses déclencheurs « devient engagé » publiés.
+Le mal d'invocation ne restreint pas ce coût (ce n'est pas `{T}`, CR 302.6).
+Un coût de résolution ou `unless` n'a pas de schéma pour cette action : échec
+explicite. Les coûts imprimés de même forme (`Tap any number of other
+untapped creatures you control with total power 4 or greater: …`) composent
+sans code (cas frère des fixtures `keyword-template-crew.json`).
+
+Restent explicites : `crews Vehicles as though its power were N greater`
+(lemme `crew` absent du lexique des verbes), `crews Vehicles using its
+toughness`, `Whenever this Vehicle becomes crewed` (événement CR 702.122e non
+publié), `Crew N. Activate only once each turn.`
+
+## Retour de la carte source depuis le cimetière
+
+L'enfant partagé de déplacement de la source (`source_zone_move.rs`) lit
+`return this card from your graveyard to the battlefield [tapped]` (CR 110.2 :
+sous le contrôle du joueur qui la met en jeu, le contrôleur de la capacité ;
+CR 110.5 : engagée). L'IR est le `moveCards` existant (`from` cimetière,
+`to.tapped`) ; l'origine cimetière fixe `activationZone: graveyard`. C'est la
+première partie d'Unearth et une forme imprimée fréquente (Reassembling
+Skeleton, Bloodghast, Drownyard Temple). `attached to …`, `with a finality
+counter on it` et `tapped and attacking` restent non lus (échec de la séquence
+englobante). Preuves : `graveyard-source-return.json`,
+`a_graveyard_activation_returns_its_own_card_to_the_battlefield_tapped`,
+`an_untapped_graveyard_return_enters_untapped`.
 
 ## Défauts trouvés par les preuves runtime
 
@@ -449,15 +512,38 @@ Lignes du corpus (toutes cartes) par état d'arrêt de la définition :
 | Ingest | 9 | `effect.start` (`that player exiles the top card`) |
 | Provoke | 8 | `choose.verb` |
 | Decayed | 1 | `lower.delayed.object-references` (`sacrifice it at end of combat`) |
-| Backup | — | non ajouté : « the non-backup abilities printed below » demande une référence au texte imprimé |
-| Devour | — | non ajouté : le rappel « twice / three times that many » n'a pas de forme d'emplacement |
+| Unearth | 57 | `effect.move-source.return.destination` résolu ; reste l'antécédent `It gains haste` après un retour de la source et `If it would leave the battlefield, exile it instead…` |
+| Backup | 26 | `condition.sentence.atom-kind` (« the non-backup abilities printed below » : référence au texte imprimé) |
+| Encore | 26 | `sequence.for-each-player.body` (copie par adversaire qui attaque ce joueur) |
+| Saddle | 34 | effet `becomes saddled until end of turn` (désignation à durée) ; le coût est celui de Crew |
+| Devour | 19 | `ability-frame.entry-replacement.modification` (`As this object enters, you may sacrifice …`) |
+| Firebending | 18 | `effect.start` (`Until end of combat, you don't lose this mana…`) |
+| Embalm | 15 | `reference.source.antecedent-kind` (copie `except it's white, it has no mana cost, …`) |
+| Scavenge | 14 | `collection.card-noun` (`a number of … equal to the power of the card you exiled`) |
+| Squad | 14 | `ability-frame.additional-cost.action` (`pay [cost] any number of times`) |
+| Transmute | 14 | `selector.search-card.basic-land-type` (`with the same mana value as the discarded card`) |
+| Enlist | 15 | `ability-frame.static.subject` (`As this creature attacks, you may tap …`) |
+| Ravenous | 12 | `binding.x-value.source` (X du sort d'un permanent, CR 107.3m) |
+| Eternalize | 11 | `effect.start` (copie `except it's black, it's 4/4, …`) |
+| Amplify | 9 | `ability-frame.entry-replacement.modification` (révélation à l'entrée) |
 
 Cinq lignes échouent sur un rappel de libellé ancien ou rare (`one fade
 counter`, `enters the battlefield`, enchantement/terrain) : échec explicite
 `keyword.template.reminder.body`.
 
+Les rappels de ces lignes sont déjà validés (texte imprimé du corpus :
+Unearth 49/51, Encore 25/25, Devour 19/19, Backup 23/24, Saddle 24/24,
+Embalm 14/14, Eternalize 10/11, Transmute 13/14, Firebending 16/16) : seule la
+définition reste à compiler, et chaque correction de la grammaire partagée
+nommée ci-dessus débloque le mot-clé sans code de plus.
+
+Non ajoutés : Station (une grammaire historique produit encore
+`stationCreaturePower` en mode complet, et le rappel `It's an artifact
+creature at N+` décrit la bande P/T de la carte, pas le mot-clé), Myriad
+(programme moteur historique `resolveMyriad`), Champion (paramètre « an
+[object] »), Double team (`conjure`).
+
 Hors périmètre (mécanismes moteur nouveaux), cartes bloquées seulement par
-eux : Crew 74, Unearth 40, Madness 39, Partner 32 (règle de construction),
-Start your engines! 29, Power-up 28, Visit 25, Exhaust 23, Spree 21,
-Ninjutsu 14, Sneak 14, Encore 13, Myriad 13, Escape 12, Embalm 10, Banding
-10, Blitz 9, Eternalize 9, Phasing 7.
+eux : Madness 39, Partner 32 (règle de construction), Start your engines! 29,
+Power-up 28, Visit 25, Exhaust 23, Spree 21, Ninjutsu 14, Sneak 14, Escape 12,
+Banding 10, Blitz 9, Phasing 7.

@@ -10,9 +10,9 @@ use std::collections::BTreeMap;
 
 use super::{
     ActionKind, CardInstance, DecisionKind, DecisionProvider, EngineDecisionRequest, EngineError,
-    GameEngine, LegalAction, StackObject, TargetRef, matches_stack_filter,
-    matches_stack_item_filter, stack_object_is_spell, target_candidates_supported,
-    triggered_event_variants, triggered_rule_supported, value_kind,
+    GameEngine, LegalAction, StackObject, TargetRef, matches_stack_item_filter,
+    stack_object_is_spell, target_candidates_supported, triggered_event_variants,
+    triggered_rule_supported, value_kind,
 };
 
 pub(super) fn became_target_event_supported(event: &Value) -> Option<bool> {
@@ -452,9 +452,9 @@ impl GameEngine {
                             &source.controller,
                         )
                     })
-                    && selector
-                        .get("where")
-                        .is_none_or(|filter| matches_stack_filter(&object.card.definition, filter))
+                    && selector.get("where").is_none_or(|filter| {
+                        self.spell_candidate_matches(object, filter, &source.controller)
+                    })
             }
             _ => false,
         }

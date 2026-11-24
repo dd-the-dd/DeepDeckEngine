@@ -216,11 +216,17 @@
                             }
                           ],
                           "colors": [],
-                          "power": 0,
+                          "power": {
+                            "kind": "integer",
+                            "value": 0
+                          },
                           "subtypes": [
                             "Construct"
                           ],
-                          "toughness": 0,
+                          "toughness": {
+                            "kind": "integer",
+                            "value": 0
+                          },
                           "types": [
                             "Artifact",
                             "Creature"
@@ -599,12 +605,18 @@
                           }
                         ],
                         "colors": [],
-                        "power": 0,
+                        "power": {
+                          "kind": "integer",
+                          "value": 0
+                        },
                         "subtypes": [
                           "Eldrazi",
                           "Spawn"
                         ],
-                        "toughness": 1,
+                        "toughness": {
+                          "kind": "integer",
+                          "value": 1
+                        },
                         "types": [
                           "Creature"
                         ]

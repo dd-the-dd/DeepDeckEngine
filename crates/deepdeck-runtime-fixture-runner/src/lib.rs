@@ -877,7 +877,15 @@ fn validate_fixture(fixture: &RuntimeFixture) -> Result<(), String> {
             source_definition_id,
             battlefield_only,
         );
-        if source_count != 1 {
+        // An executed rule may move another player's card and grant the
+        // controller a permission to cast it (`You may cast that card`, CR
+        // 601.2a): the source then occurs exactly once anywhere in the
+        // initial state, and the engine resolves it in its current zone.
+        let permission_cast = matches!(action, FixtureAction::CastSpell { .. })
+            && source_count == 0
+            && fixture.execution.is_some()
+            && fixture_initial_definition_count(&fixture.initial_state, source_definition_id) == 1;
+        if source_count != 1 && !permission_cast {
             return Err(format!(
                 "action source {source_definition_id} must occur exactly once in its required zone for {controller_id}; found {source_count}"
             ));

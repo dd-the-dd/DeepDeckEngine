@@ -148,11 +148,13 @@ fn source_return_without_a_proved_origin_or_with_conflicting_zone_fails() {
         ),
         EffectProgramParseAttempt::FailedSupport(_)
     ));
-    // Another zone or destination stays unsupported.
+    // Another destination stays unsupported. (The battlefield destination
+    // is a supported graveyard return since the Unearth/Reassembling
+    // Skeleton capability; a library destination is not.)
     assert!(!matches!(
         parse_activation(
             "Creature",
-            "{4}{G}: Return this card from your graveyard to the battlefield."
+            "{4}{G}: Return this card from your graveyard to the top of your library."
         ),
         EffectProgramParseAttempt::Parsed(_)
     ));

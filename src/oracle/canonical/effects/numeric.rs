@@ -183,6 +183,16 @@ fn lower_numeric_expression_in_context(
         NumericExpression::EventValue(EventNumericBinding::DamageAmount) => {
             Some(decision_result("damageAmount"))
         }
+        // The amounts the runtime records with each triggering occurrence.
+        NumericExpression::EventValue(EventNumericBinding::LifeGained) => {
+            Some(decision_result("lifeGainedAmount"))
+        }
+        NumericExpression::EventValue(EventNumericBinding::LifeLost) => {
+            Some(decision_result("lifeLostAmount"))
+        }
+        NumericExpression::EventValue(EventNumericBinding::CountersPut) => {
+            Some(decision_result("counterCount"))
+        }
         NumericExpression::EventValue(EventNumericBinding::CastSpellManaValue) => {
             Some(json!({ "kind": "triggeringSpellManaValue" }))
         }

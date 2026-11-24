@@ -56,12 +56,13 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .is_none_or(Value::is_boolean)
                 && effect.get("bind").is_none_or(Value::is_string)
         }
+        // CR 707.2, 611.2c: each object of a battlefield operand (the
+        // source, a target, a bound or observed object, a collection)
+        // becomes a copy of one object: the source, a target, or the
+        // observed entering permanent.
         Some("becomeCopyOfPermanent") => {
-            (matches!(
-                value_kind(&effect["object"]),
-                Some("self" | "abilitySource")
-            ) || target_reference_supported(&effect["object"]))
-                && target_reference_supported(&effect["copy"])
+            super::battlefield_object_operand_supported(&effect["object"])
+                && copied_object_supported(&effect["copy"])
                 && effect["retainResolvingAbility"].is_boolean()
                 && effect.get("duration").is_none_or(|duration| {
                     matches!(
@@ -85,7 +86,167 @@ fn supports_known_effect(effect: &Value) -> bool {
     }
 }
 
+/// The one object a copy effect copies (CR 707.2).
+fn copied_object_supported(copy: &Value) -> bool {
+    matches!(value_kind(copy), Some("self" | "abilitySource"))
+        || target_reference_supported(copy)
+        || entry_observation::observed_object_reference_supported(copy)
+}
+
 impl GameEngine {
+    /// The instance the copied-object reference names: the source (its
+    /// last-known information when it left, CR 608.2h), a target, or the
+    /// observed entering permanent.
+    fn copied_object_id(
+        &self,
+        copy: &Value,
+        stack_object: &StackObject,
+        bindings: &BTreeMap<String, RuntimeBinding>,
+    ) -> Result<Option<String>, EngineError> {
+        Ok(match value_kind(copy) {
+            Some("self" | "abilitySource") => Some(stack_object.card.instance_id.clone()),
+            Some("observedEventObject") => {
+                self.resolve_observed_event_permanent(copy, stack_object)?
+            }
+            _ => {
+                self.resolve_target(copy, stack_object, bindings)
+                    .and_then(|target| match target {
+                        TargetRef::Permanent { instance_id } | TargetRef::Card { instance_id } => {
+                            Some(instance_id)
+                        }
+                        TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
+                    })
+            }
+        })
+    }
+
+    /// The copiable values of the copied object (CR 707.2): a card this
+    /// source exiled as it last existed, a permanent on the battlefield, or
+    /// the source as it last existed.
+    fn copied_definition(
+        &self,
+        copy_id: &str,
+        stack_object: &StackObject,
+    ) -> Option<CardDefinition> {
+        self.state
+            .rule_modifiers
+            .iter()
+            .find(|modifier| {
+                value_kind(modifier) == Some("exiledWithSource")
+                    && modifier["sourceCardInstanceId"].as_str()
+                        == Some(stack_object.card.instance_id.as_str())
+                    && modifier["cardInstanceId"].as_str() == Some(copy_id)
+            })
+            .and_then(|modifier| {
+                serde_json::from_value::<CardDefinition>(modifier["lastKnownDefinition"].clone())
+                    .ok()
+            })
+            .or_else(|| {
+                let (player_index, card_index) = self.permanent_position(copy_id)?;
+                Some(Self::copiable_values(
+                    &self.state.players[player_index].battlefield[card_index],
+                ))
+            })
+            .or_else(|| {
+                (stack_object.card.instance_id == copy_id)
+                    .then(|| Self::copiable_values(&stack_object.card))
+            })
+    }
+
+    /// One battlefield object becomes a copy of `copied_definition`.
+    fn become_copy(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        object_id: String,
+        copy_id: &str,
+        copied_definition: &CardDefinition,
+    ) {
+        let source_id = stack_object.card.instance_id.clone();
+        let Some((object_player_index, object_card_index)) = self.permanent_position(&object_id)
+        else {
+            return;
+        };
+        let original_definition = self.state.players[object_player_index].battlefield
+            [object_card_index]
+            .definition
+            .clone();
+        let original_printed_definition = self.state.players[object_player_index].battlefield
+            [object_card_index]
+            .printed_definition
+            .clone();
+        let retained_rule = effect["retainResolvingAbility"]
+            .as_bool()
+            .unwrap_or(false)
+            .then(|| stack_object.ability_rule.clone())
+            .flatten()
+            .or_else(|| {
+                original_definition
+                    .printed_rules()
+                    .iter()
+                    .find(|rule| {
+                        value_kind(rule) == Some("activatedAbility")
+                            && rule["effects"].as_array().is_some_and(|effects| {
+                                effects.iter().any(|effect| {
+                                    value_kind(effect) == Some("becomeCopyOfPermanent")
+                                })
+                            })
+                    })
+                    .cloned()
+            });
+        let mut definition = copied_definition.clone();
+        definition.is_commander = original_definition.is_commander;
+        definition.is_game_piece = original_definition.is_game_piece;
+        definition.is_sideboard = original_definition.is_sideboard;
+        definition.is_token = original_definition.is_token;
+        if let Some(rule) = retained_rule
+            && !definition.printed_rules().contains(&rule)
+        {
+            definition.printed_rules_mut().push(rule);
+        }
+        let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
+        if temporary {
+            self.state.players[object_player_index].battlefield[object_card_index]
+                .printed_definition = Some(original_definition.clone());
+            self.state.players[object_player_index].battlefield[object_card_index]
+                .flags
+                .insert("temporaryCopyUntilEndOfTurn".to_string(), true);
+            self.state.rule_modifiers.retain(|modifier| {
+                value_kind(modifier) != Some("temporaryCopyUntilEndOfTurn")
+                    || modifier["cardInstanceId"].as_str() != Some(object_id.as_str())
+            });
+            self.state.rule_modifiers.push(json!({
+                "kind": "temporaryCopyUntilEndOfTurn",
+                "cardInstanceId": object_id.clone(),
+                "originalDefinition": original_definition.clone(),
+                "expiresAfterTurn": self.state.turn_number,
+            }));
+        }
+        if value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield") {
+            self.state.players[object_player_index].battlefield[object_card_index]
+                .printed_definition = Some(original_definition.clone());
+            self.state.rule_modifiers.retain(|modifier| {
+                value_kind(modifier) != Some("copyWhileSourceOnBattlefield")
+                    || modifier["targetCardInstanceId"].as_str() != Some(object_id.as_str())
+            });
+            self.state.rule_modifiers.push(json!({
+                "kind": "copyWhileSourceOnBattlefield",
+                "sourceCardInstanceId": source_id,
+                "targetCardInstanceId": object_id.clone(),
+                "originalDefinition": original_definition,
+                "originalPrintedDefinition": original_printed_definition,
+            }));
+        }
+        self.state.players[object_player_index].battlefield[object_card_index].definition =
+            definition;
+        self.record_event(
+            "permanentBecameCopy",
+            Some(stack_object.controller.clone()),
+            Some(object_id),
+            json!({ "copiedPermanentId": copy_id, "retainedResolvingAbility": effect["retainResolvingAbility"] }),
+        );
+    }
+
     pub(super) fn execute_tokens_copies_domain<P: DecisionProvider>(
         &mut self,
         effect: &Value,
@@ -259,138 +420,32 @@ impl GameEngine {
             }
             Some("becomeCopyOfPermanent") => {
                 let Some(copy_id) =
-                    self.resolve_target(&effect["copy"], stack_object, bindings)
-                        .and_then(|target| match target {
-                            TargetRef::Permanent { instance_id }
-                            | TargetRef::Card { instance_id } => Some(instance_id),
-                            TargetRef::Player { .. } | TargetRef::StackObject { .. } => None,
-                        })
+                    self.copied_object_id(&effect["copy"], stack_object, bindings)?
                 else {
                     return Ok(());
                 };
-                let copied_definition = self
-                    .state
-                    .rule_modifiers
-                    .iter()
-                    .find(|modifier| {
-                        value_kind(modifier) == Some("exiledWithSource")
-                            && modifier["sourceCardInstanceId"].as_str()
-                                == Some(stack_object.card.instance_id.as_str())
-                            && modifier["cardInstanceId"].as_str() == Some(copy_id.as_str())
-                    })
-                    .and_then(|modifier| {
-                        serde_json::from_value::<CardDefinition>(
-                            modifier["lastKnownDefinition"].clone(),
-                        )
-                        .ok()
-                    })
-                    .or_else(|| {
-                        let (player_index, card_index) = self.permanent_position(&copy_id)?;
-                        Some(
-                            self.state.players[player_index].battlefield[card_index]
-                                .definition
-                                .clone(),
-                        )
-                    });
-                let Some(copied_definition) = copied_definition else {
+                let Some(copied_definition) = self.copied_definition(&copy_id, stack_object) else {
                     return Ok(());
                 };
-                let source_id = stack_object.card.instance_id.clone();
-                let object_id = if matches!(
-                    value_kind(&effect["object"]),
-                    Some("self" | "abilitySource")
-                ) {
-                    source_id.clone()
-                } else if let Some(TargetRef::Permanent { instance_id }) =
-                    self.resolve_target(&effect["object"], stack_object, bindings)
-                {
-                    instance_id
-                } else {
-                    return Ok(());
-                };
-                let Some((object_player_index, object_card_index)) =
-                    self.permanent_position(&object_id)
-                else {
-                    return Ok(());
-                };
-                let original_definition = self.state.players[object_player_index].battlefield
-                    [object_card_index]
-                    .definition
-                    .clone();
-                let original_printed_definition = self.state.players[object_player_index]
-                    .battlefield[object_card_index]
-                    .printed_definition
-                    .clone();
-                let retained_rule = effect["retainResolvingAbility"]
-                    .as_bool()
-                    .unwrap_or(false)
-                    .then(|| stack_object.ability_rule.clone())
-                    .flatten()
-                    .or_else(|| {
-                        original_definition
-                            .printed_rules()
-                            .iter()
-                            .find(|rule| {
-                                value_kind(rule) == Some("activatedAbility")
-                                    && rule["effects"].as_array().is_some_and(|effects| {
-                                        effects.iter().any(|effect| {
-                                            value_kind(effect) == Some("becomeCopyOfPermanent")
-                                        })
-                                    })
-                            })
-                            .cloned()
-                    });
-                let mut definition = copied_definition;
-                definition.is_commander = original_definition.is_commander;
-                definition.is_game_piece = original_definition.is_game_piece;
-                definition.is_sideboard = original_definition.is_sideboard;
-                definition.is_token = original_definition.is_token;
-                if let Some(rule) = retained_rule
-                    && !definition.printed_rules().contains(&rule)
-                {
-                    definition.printed_rules_mut().push(rule);
+                // CR 611.2c: the affected set is locked in at resolution. An
+                // object that would copy itself keeps its copiable values.
+                for object_id in self.battlefield_operand_ids(
+                    &effect["object"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                )? {
+                    if object_id == copy_id {
+                        continue;
+                    }
+                    self.become_copy(
+                        effect,
+                        stack_object,
+                        object_id,
+                        &copy_id,
+                        &copied_definition,
+                    );
                 }
-                let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
-                if temporary {
-                    self.state.players[object_player_index].battlefield[object_card_index]
-                        .printed_definition = Some(original_definition.clone());
-                    self.state.players[object_player_index].battlefield[object_card_index]
-                        .flags
-                        .insert("temporaryCopyUntilEndOfTurn".to_string(), true);
-                    self.state.rule_modifiers.retain(|modifier| {
-                        value_kind(modifier) != Some("temporaryCopyUntilEndOfTurn")
-                            || modifier["cardInstanceId"].as_str() != Some(object_id.as_str())
-                    });
-                    self.state.rule_modifiers.push(json!({
-                        "kind": "temporaryCopyUntilEndOfTurn",
-                        "cardInstanceId": object_id.clone(),
-                        "originalDefinition": original_definition.clone(),
-                        "expiresAfterTurn": self.state.turn_number,
-                    }));
-                }
-                if value_kind(&effect["duration"]) == Some("whileSourceOnBattlefield") {
-                    self.state.players[object_player_index].battlefield[object_card_index]
-                        .printed_definition = Some(original_definition.clone());
-                    self.state.rule_modifiers.retain(|modifier| {
-                        value_kind(modifier) != Some("copyWhileSourceOnBattlefield")
-                            || modifier["targetCardInstanceId"].as_str() != Some(object_id.as_str())
-                    });
-                    self.state.rule_modifiers.push(json!({
-                        "kind": "copyWhileSourceOnBattlefield",
-                        "sourceCardInstanceId": source_id,
-                        "targetCardInstanceId": object_id.clone(),
-                        "originalDefinition": original_definition,
-                        "originalPrintedDefinition": original_printed_definition,
-                    }));
-                }
-                self.state.players[object_player_index].battlefield[object_card_index].definition =
-                    definition;
-                self.record_event(
-                    "permanentBecameCopy",
-                    Some(stack_object.controller.clone()),
-                    Some(object_id),
-                    json!({ "copiedPermanentId": copy_id, "retainedResolvingAbility": effect["retainResolvingAbility"] }),
-                );
             }
             Some("createTokens") => {
                 let created_ids = self.create_tokens_with_provider(
@@ -423,3 +478,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "tokens_copies_tests.rs"]
+mod tests;

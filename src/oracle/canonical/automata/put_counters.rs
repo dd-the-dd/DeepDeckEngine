@@ -303,9 +303,33 @@ fn recognize_counters_from(
     context: &EffectRecognitionContext,
 ) -> MachineResult<PutCountersOnObjectEffectNode> {
     cursor.enter("effect.remove-counters.count");
-    let count = recognize_counter_count(cursor, context)?;
+    // `all KIND counters` (universal determiner): every counter of that kind
+    // the operand has, i.e. the recipient's own count of that kind, the
+    // count `double the number of` reads (CR 122.8).
+    let universal = cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("all"));
+    let count = if universal {
+        cursor.consume("all")?;
+        None
+    } else {
+        Some(recognize_counter_count(cursor, context)?)
+    };
     cursor.enter("effect.remove-counters.kind");
+    if universal
+        && cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("counters"))
+    {
+        // `all counters`: every kind at once has no one counter name.
+        return Err(
+            cursor.fail("a counter kind after `all` (counters of every kind are not one removal)")
+        );
+    }
     let counter = recognize_counter_name(cursor)?;
+    let count = count.unwrap_or_else(|| NumericExpression::CountersOnRecipient {
+        counter: counter.clone(),
+    });
     cursor.enter("effect.remove-counters.noun");
     let singular = matches!(count, NumericExpression::Atom(NumericAtom::Integer(1)));
     cursor.consume(if singular { "counter" } else { "counters" })?;

@@ -28,6 +28,7 @@ impl GameEngine {
                     || (value_kind(modifier) == Some("setLandSubtype")
                         && Self::static_selector_matches(source, &modifier["objects"], permanent))
             })
+            || subtypes::land_rules_text_replaced(&permanent.definition)
     }
 
     fn legacy_mana_resolver(
@@ -872,7 +873,7 @@ impl GameEngine {
         }
         let mut branch_sources = visited_sources.clone();
         branch_sources.insert(permanent.instance_id.clone());
-        let mut produced_types = basic_land_mana(&permanent.definition)
+        let mut produced_types = subtypes::effective_basic_land_mana(&permanent.definition)
             .into_iter()
             .flatten()
             .collect::<BTreeSet<_>>();

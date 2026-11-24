@@ -1,0 +1,927 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "card-actions/hidden-zone-card-actions",
+  "cases": [
+    {
+      "id": "exact-kari-zevs-expertise",
+      "request": {
+        "cardName": "Kari Zev's Expertise",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Gain control of target creature or Vehicle until end of turn. Untap it. It gains haste until end of turn.\nYou may cast a spell with mana value 2 or less from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-spell-query-from-hand",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "You may cast an instant or sorcery spell with mana value 3 or less from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 1
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/cards/zone/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/0/withoutPayingManaCost",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/0/bind",
+                "equals": "castCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-electrodominance-declared-x",
+      "request": {
+        "cardName": "Electrodominance",
+        "typeLine": "Instant",
+        "manaCost": "{X}{R}{R}",
+        "oracleText": "Electrodominance deals X damage to any target. You may cast a spell with mana value X or less from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-postposed-qualifier-from-graveyard",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Mill four cards. You may cast an instant or sorcery spell from your graveyard with mana value 4 or less without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/1/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/1/cards/where/kind",
+                "equals": "and"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-epic-experiment",
+      "request": {
+        "cardName": "Epic Experiment",
+        "typeLine": "Sorcery",
+        "manaCost": "{X}{U}{R}",
+        "oracleText": "Exile the top X cards of your library. You may cast instant and sorcery spells with mana value X or less from among them without paying their mana costs. Then put all cards exiled this way that weren't cast into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/cards/kind",
+                "equals": "filterObjects"
+              },
+              {
+                "pointer": "/effects/2/bind",
+                "equals": "castCards"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/3/cards/right/binding",
+                "equals": "castCards"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-up-to-two-spells-among-exiled",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Exile the top six cards of your library. You may cast up to two sorcery spells with mana value 3 or less from among them without paying their mana costs.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/maximum/value",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-uncast-exiled-cards-to-hand",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Exile the top four cards of your library. You may cast a spell from among them without paying its mana cost. Put the exiled cards that weren't cast this way into your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-target-card-from-your-graveyard",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "You may cast target instant or sorcery card from your graveyard without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/0/sourceZone",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/0/kind",
+                "equals": "chooseTargets"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-activated-omnispell",
+      "request": {
+        "cardName": "Omnispell Adept",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{4}{U}",
+        "oracleText": "{2}{U}, {T}: You may cast an instant or sorcery spell from your hand without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unseen-look-at-hand-then-cast-from-among-them",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{B}",
+        "oracleText": "Look at target player's hand. You may cast a sorcery spell from among them without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtHand"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "bind"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/2/sourceZone",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/2/maximum/value",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-collected-conjuring-not-cast-this-way",
+      "request": {
+        "cardName": "Collected Conjuring",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}{R}",
+        "oracleText": "Exile the top six cards of your library. You may cast up to two sorcery spells with mana value 3 or less from among them without paying their mana costs. Put the exiled cards not cast this way on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "castAnyNumber"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/3/to/position",
+                "equals": "bottom"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-escape-to-the-wilds",
+      "request": {
+        "cardName": "Escape to the Wilds",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}{G}",
+        "oracleText": "Exile the top five cards of your library. You may play cards exiled this way until the end of your next turn.\nYou may play an additional land this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-cards-exiled-this-way-this-turn",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile the top two cards of your library. You may play cards exiled this way this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/action/kind",
+                "equals": "play"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "untilEndOfCurrentTurn"
+              },
+              {
+                "pointer": "/effects/2/action/card/kind",
+                "equals": "boundObjects"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-hostage-taker",
+      "request": {
+        "cardName": "Hostage Taker",
+        "typeLine": "Creature — Human Pirate",
+        "manaCost": "{2}{U}{B}",
+        "oracleText": "When this creature enters, exile another target creature or artifact until this creature leaves the battlefield. You may cast that card for as long as it remains exiled, and mana of any type can be spent to cast that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-preposed-while-exiled",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "Exile the top card of your library. For as long as that card remains exiled, you may play it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/duration/kind",
+                "equals": "whileInExile"
+              },
+              {
+                "pointer": "/effects/2/action/card/kind",
+                "equals": "boundObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-haste-magic-next-end-step",
+      "request": {
+        "cardName": "Haste Magic",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Target creature gets +3/+1 and gains haste until end of turn. Exile the top card of your library. You may play it until your next end step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-furious-rise-source-exiles-another",
+      "request": {
+        "cardName": "Furious Rise",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "At the beginning of your end step, if you control a creature with power 4 or greater, exile the top card of your library. You may play that card until you exile another card with this enchantment.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-minds-desire-free-window",
+      "request": {
+        "cardName": "Mind's Desire",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{U}{U}",
+        "oracleText": "Shuffle your library. Then exile the top card of your library. Until end of turn, you may play that card without paying its mana cost.\nStorm (When you cast this spell, copy it for each spell cast before it this turn.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-expressive-iteration-exiled-card",
+      "request": {
+        "cardName": "Expressive Iteration",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}{R}",
+        "oracleText": "Look at the top three cards of your library. Put one of them into your hand, put one of them on the bottom of your library, and exile one of them. You may play the exiled card this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-any-type-spending-trailing-window",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Exile the top card of your library. You may cast that card this turn, and mana of any type can be spent to cast it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantPermission"
+              },
+              {
+                "pointer": "/effects/2/action/kind",
+                "equals": "cast"
+              },
+              {
+                "pointer": "/effects/2/action/spendManaAsAnyType",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-orcish-spy",
+      "request": {
+        "cardName": "Orcish Spy",
+        "typeLine": "Creature — Orc Rogue",
+        "manaCost": "{R}",
+        "oracleText": "{T}: Look at the top three cards of target player's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/0/zone/player/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/count/value",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-glasses-of-urza",
+      "request": {
+        "cardName": "Glasses of Urza",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "{T}: Look at target player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtHand"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-peek",
+      "request": {
+        "cardName": "Peek",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Look at target player's hand.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sorcerous-sight",
+      "request": {
+        "cardName": "Sorcerous Sight",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at target opponent's hand.\nDraw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-look-hand-choose-exile",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Look at target opponent's hand and choose a nonland card from it. Exile that card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtHand"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lead-the-stampede",
+      "request": {
+        "cardName": "Lead the Stampede",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Look at the top five cards of your library. You may reveal any number of creature cards from among them and put the revealed cards into your hand. Put the rest on the bottom of your library in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-forging-the-anchor",
+      "request": {
+        "cardName": "Forging the Anchor",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Look at the top five cards of your library. You may reveal any number of artifact cards from among them and put the revealed cards into your hand. Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-reveal-any-number-in-hand",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Reveal any number of green cards in your hand. You gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/minimum/value",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "revealCards"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cast-it-without-bound-card",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "You may cast it without paying its mana cost.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-play-lands-from-graveyard-as-effect",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You may play lands from your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-one-spell-from-graveyard-this-turn",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "You may cast a creature spell from your graveyard this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-golden-wish-outside-the-game",
+      "request": {
+        "cardName": "Golden Wish",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "You may reveal an artifact or enchantment card you own from outside the game and put it into your hand. Exile Golden Wish.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-uncast-without-preceding-cast",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Exile the top three cards of your library. Put all cards exiled this way that weren't cast into your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-filtered-hand-look",
+      "request": {
+        "cardName": "Hidden Zone Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at all creature cards in target player's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

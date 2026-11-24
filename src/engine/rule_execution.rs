@@ -96,12 +96,41 @@ impl GameEngine {
             ("commandZone", &player.command_zone),
             ("library", &player.library),
         ];
-        let copies = zones
+        let has_legal_action = |card: &CardInstance| {
+            legal_actions.iter().any(|action| {
+                action.kind == kind
+                    && action.card_instance_id.as_deref() == Some(card.instance_id.as_str())
+            })
+        };
+        let mut copies = zones
             .into_iter()
             .filter(|(zone, _)| source_zone.is_none_or(|requested| requested == *zone))
             .flat_map(|(_, cards)| cards.iter())
             .filter(|card| card.definition.id == definition_id)
             .collect::<Vec<_>>();
+        // A permission may admit a card another player owns (`you may cast
+        // that card` after exiling it from an opponent's library, CR
+        // 601.2a): such a copy is a source only when the engine offers this
+        // player the action for it.
+        copies.extend(
+            self.state
+                .players
+                .iter()
+                .enumerate()
+                .filter(|(index, _)| *index != player_index)
+                .flat_map(|(_, owner)| {
+                    [
+                        ("hand", &owner.hand),
+                        ("exile", &owner.exile),
+                        ("graveyard", &owner.graveyard),
+                        ("commandZone", &owner.command_zone),
+                        ("library", &owner.library),
+                    ]
+                })
+                .filter(|(zone, _)| source_zone.is_none_or(|requested| requested == *zone))
+                .flat_map(|(_, cards)| cards.iter())
+                .filter(|card| card.definition.id == definition_id && has_legal_action(card)),
+        );
         if copies.is_empty() {
             return Err(EngineError::new(format!(
                 "definition {definition_id} is absent from {}'s card zones",

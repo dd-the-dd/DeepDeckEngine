@@ -11,6 +11,7 @@
 //! symbol also pays it (`{T}, Sacrifice X Goats`). Other cost parents
 //! (resolution, `unless`) have no announcement and fail binding instead.
 use crate::oracle::counter_name::CounterName;
+use crate::oracle::syntax::ResolvedNameLink;
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
@@ -35,6 +36,8 @@ pub(in crate::oracle::canonical) enum LocalActivationCostNode {
     ExileSelf(ExileSelfCostNode),
     DiscardCard(ChosenDiscardCostNode),
     TapObjects(ChosenTapCostNode),
+    /// `tap any number of QUERY with total power N or greater` (Crew).
+    TapTotalPower(ChosenTotalPowerTapCostNode),
     RemoveSourceCounters(SourceCounterRemovalCostNode),
     RemoveControlledCounters(ControlledCounterRemovalCostNode),
     ExileCards(ChosenExileCostNode),
@@ -131,6 +134,14 @@ pub(in crate::oracle::canonical) struct ChosenTapCostNode {
     pub cost_index: usize,
 }
 
+/// Untapped permanents chosen while paying whose total power is at least
+/// the cost's bound (CR 702.122a). The ordinal names the declared choice.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct ChosenTotalPowerTapCostNode {
+    pub tap: super::TotalPowerTapCostNode,
+    pub cost_index: usize,
+}
+
 /// N cards from the payer's hand discarded as a cost, chosen by the payer or
 /// at random (CR 701.9b). Unlike `DiscardSelf`, it constrains no source zone:
 /// the source is only the ability's host, never the discarded card.
@@ -202,6 +213,7 @@ impl ActivationCostSequenceNode {
                 | LocalActivationCostNode::PayPlayerCounters(_)
                 | LocalActivationCostNode::DiscardCard(_)
                 | LocalActivationCostNode::TapObjects(_)
+                | LocalActivationCostNode::TapTotalPower(_)
                 | LocalActivationCostNode::SacrificeObject(_)
                 | LocalActivationCostNode::ReturnObjects(_)
                 | LocalActivationCostNode::PutChosenCounters(_)
@@ -211,6 +223,20 @@ impl ActivationCostSequenceNode {
         }
         requirements
     }
+}
+
+/// The activation cost list of an ability whose name links are known: the
+/// cost children may name the source by the card's name (`Sacrifice Major
+/// Teroh:`, CR 201.5). The links are installed for the list only and the
+/// enclosing ones restored, whatever the outcome.
+pub(in crate::oracle::canonical) fn recognize_named_activation_cost_sequence(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+) -> MachineResult<ActivationCostSequenceNode> {
+    let previous = cursor.replace_source_names(Some(name_links.into()));
+    let costs = recognize_activation_cost_sequence(cursor);
+    cursor.replace_source_names(previous);
+    costs
 }
 
 pub(in crate::oracle::canonical) fn recognize_activation_cost_sequence(
@@ -345,6 +371,16 @@ pub(in crate::oracle::canonical) fn activation_cost_from_payment(
                 },
                 cost_index,
             }))
+        }
+        PaymentActionNode::TapTotalPower(tap) => {
+            cursor.enter("activation.tap-total-power.numeric-context");
+            cursor.require(
+                !object_predicate_uses_x(&tap.object.predicate),
+                "no {X} in the tapped-permanent predicate",
+            )?;
+            Ok(LocalActivationCostNode::TapTotalPower(
+                ChosenTotalPowerTapCostNode { tap, cost_index },
+            ))
         }
         PaymentActionNode::Sacrifice(PaymentObjectsNode::Source(noun)) => {
             cursor.enter("activation.sacrifice-self.source-type");

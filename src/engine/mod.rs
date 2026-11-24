@@ -111,6 +111,7 @@ mod cost_query;
 mod counter_placement;
 mod counter_protection;
 mod counter_selection;
+mod creature_tap_cost;
 mod damage_events;
 mod damage_execution;
 mod damage_preparation;
@@ -161,9 +162,11 @@ mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
 use granted_mana_program::ManaProgramOrigin;
+mod aura_entry;
 mod captured_binding;
 mod effect_performer;
 mod event_history;
+mod extra_turn;
 mod mana_payment_substitutions;
 mod mana_payment_validation;
 mod mana_production;
@@ -185,8 +188,10 @@ mod object_identity_initialization;
 #[cfg(test)]
 mod object_identity_test_setup;
 mod object_predicate;
+mod object_predicate_eval;
 mod object_snapshot;
 mod one_shot_modifier;
+mod opponent_extremum;
 mod optional_action;
 mod optional_payment;
 mod permanent_presence_query;
@@ -199,6 +204,7 @@ mod player_damage_replacement_order;
 mod player_iteration;
 mod player_quantifier;
 mod player_query;
+mod quantity_cost_payers;
 mod quantity_preflight;
 mod quantity_replacement;
 mod rebound;
@@ -262,6 +268,9 @@ mod zone_change_triggers;
 mod zone_entry;
 
 pub use activated_rule_execution::{CanonicalActivatedAbilityActivation, CanonicalTargetSelection};
+use activated_rule_execution::{
+    activation_limit_flag, activation_limit_use_count, activation_limit_use_prefix,
+};
 use invariants::LoopResourceSnapshot;
 use mana::*;
 pub use rule_execution::{
@@ -1890,35 +1899,6 @@ fn card_matches_protection_quality(card: &CardDefinition, quality: &str) -> bool
     has_card_type(card, quality) || type_line_contains(&card.type_line, quality)
 }
 
-fn activation_limit_flag(limit: &Value, turn_number: u32, _rule_index: usize) -> Option<String> {
-    let id = limit["id"].as_str()?;
-    Some(match value_kind(limit) {
-        Some("oncePerTurn") => format!("{id}:turn:{turn_number}"),
-        Some("oncePerGameObject") => id.to_string(),
-        _ => return None,
-    })
-}
-
-fn activation_limit_use_prefix(limit: &Value, rule_index: usize) -> Option<String> {
-    if value_kind(limit) != Some("oncePerGameObjectAbility") {
-        return None;
-    }
-    Some(format!(
-        "{}:ability:{rule_index}:use:",
-        limit["id"].as_str()?
-    ))
-}
-
-fn activation_limit_use_count(permanent: &CardInstance, limit: &Value, rule_index: usize) -> usize {
-    activation_limit_use_prefix(limit, rule_index).map_or(0, |prefix| {
-        permanent
-            .flags
-            .iter()
-            .filter(|(flag, used)| **used && flag.starts_with(&prefix))
-            .count()
-    })
-}
-
 fn phyrexian_life_payment(
     mana: &[(String, bool)],
     requirement: &ManaRequirement,
@@ -2395,6 +2375,7 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "isAttacking"
             | "isAttackingAlone"
             | "isUnblockedAttacker"
+            | "isBlocked"
             | "isBlocking"
             | "isEquipped"
             | "isModified"
@@ -2660,7 +2641,7 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("countAttackingCreatures") => player_reference_supported(&expression["player"]),
         Some("countPermanentsControlledByOpponents") => {
             player_reference_supported(&expression["player"])
-                && card_filter_supported(&expression["where"])
+                && permanent_filter_supported(&expression["where"])
         }
         Some("countDistinctPermanentNames") => {
             player_reference_supported(&expression["player"])
@@ -2859,6 +2840,8 @@ fn numeric_expression_supported(expression: &Value) -> bool {
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("triggeringSpellManaValue" | "triggeringSpellManaSpent") => true,
         Some("manaSpentToCastSource" | "colorsOfManaSpentToCastSource") => true,
+        Some("manaSpentToCast") => mana_payment::mana_spent_to_cast_supported(expression),
+        Some("opponentExtremum") => opponent_extremum::opponent_extremum_supported(expression),
         Some("sourceCastXValue") => true,
         Some("countObjects") => object_expression_supported(&expression["objects"]),
         Some("maximumManaValue") => {
@@ -3020,6 +3003,9 @@ fn condition_supported(condition: &Value) -> bool {
             })
         }
         Some("noManaSpentToCastTargetSpell") => target_reference_supported(&condition["spell"]),
+        Some("departedObjectMatches") => {
+            event_history::departed_object_condition_supported(condition)
+        }
         Some("not") => condition_supported(&condition["operand"]),
         Some("or" | "and") => condition["operands"]
             .as_array()
@@ -3097,6 +3083,7 @@ fn condition_supported(condition: &Value) -> bool {
         Some("sorceryTiming" | "ninjutsuTiming") => true,
         Some("duringControllerMainPhase") => player_reference_supported(&condition["player"]),
         Some("duringControllerTurn") => player_reference_supported(&condition["player"]),
+        Some("duringSteps") => activated_rule_execution::during_steps_supported(condition),
         Some("isTapped" | "isBlocking") => {
             matches!(
                 value_kind(&condition["object"]),
@@ -3209,7 +3196,9 @@ fn target_candidates_supported(candidates: &Value) -> bool {
                     .is_none_or(Value::is_boolean)
         }
         Some("spells") => {
-            candidates.get("where").is_none_or(stack_filter_supported)
+            candidates
+                .get("where")
+                .is_none_or(object_predicate_eval::spell_candidate_filter_supported)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || player_complement_reference_supported(controller)
@@ -4395,6 +4384,9 @@ fn cost_supported(cost: &Value) -> bool {
             card_filter_supported(&cost["where"])
                 && integer_value(&cost["count"]).is_some_and(|count| count > 0)
         }
+        Some(creature_tap_cost::TOTAL_POWER_TAP_COST) => {
+            creature_tap_cost::total_power_tap_cost_supported(cost)
+        }
         Some("discardCards") => cost_payment::random_discard_cost_supported(cost),
         Some("discardCard") => {
             target_reference_supported(&cost["card"])
@@ -4808,12 +4800,7 @@ fn activated_rule_supported(rule: &Value) -> bool {
                 !modifiers.is_empty() && modifiers.iter().all(activation_cost_modifier_supported)
             })
         })
-        && rule.get("activationLimit").is_none_or(|limit| {
-            matches!(
-                value_kind(limit),
-                Some("oncePerGameObject" | "oncePerGameObjectAbility" | "oncePerTurn")
-            ) && limit["id"].is_string()
-        })
+        && activated_rule_execution::activated_rule_limit_supported(rule)
         && rule["effects"]
             .as_array()
             .is_some_and(|effects| !effects.is_empty() && effects.iter().all(effect_supported))
@@ -4866,6 +4853,9 @@ fn triggered_event_supported(event: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = event_model::became_untapped_event_supported(event) {
+        return supported;
+    }
+    if let Some(supported) = event_model::controlled_creature_state_event_supported(event) {
         return supported;
     }
     // Keyword actions named by a keyword ability (exploit, CR 702.110b).
@@ -5249,7 +5239,8 @@ fn filter_reads_object_history(filter: &Value) -> bool {
             | "dealtDamageThisTurn"
             | "wasDealtDamageThisTurn"
             | "dealtDamageToControllerThisTurn"
-            | "dealtDamageToPlayerThisTurn",
+            | "dealtDamageToPlayerThisTurn"
+            | "isBlocked",
         ) => true,
         Some("and" | "or") => filter["operands"]
             .as_array()
@@ -5991,6 +5982,7 @@ fn rule_supported(rule: &Value) -> bool {
         Some("staticAbility") => {
             battlefield_static_rule_supported(rule)
                 || casting_static_rule_supported(rule)
+                || activated_rule_execution::cast_restriction_rule_supported(rule)
                 || eminence_static_rule_supported(rule)
                 // CR 604.3: statics that say they function from a graveyard,
                 // hand or exile join the continuous-effect collector there.
@@ -8632,6 +8624,9 @@ impl GameEngine {
                     | RuntimeBinding::Target(_)
                     | RuntimeBinding::Integer(_) => true,
                 }),
+            Some("departedObjectMatches") => {
+                self.departed_object_matches(condition, stack_object, bindings)
+            }
             Some("noManaSpentToCastTargetSpell") => self
                 .resolve_target(&condition["spell"], stack_object, bindings)
                 .and_then(|target| match target {
@@ -9100,6 +9095,9 @@ impl GameEngine {
             Some("duringControllerTurn") => {
                 self.state.players[self.state.active_player].id == controller_id
             }
+            Some("duringSteps") => {
+                activated_rule_execution::during_steps_holds(&self.state.step, condition)
+            }
             Some("isTapped") => source.is_some_and(|source| {
                 self.permanent_position(&source.instance_id).is_some_and(
                     |(player_index, card_index)| {
@@ -9243,6 +9241,7 @@ impl GameEngine {
             return Some(value);
         }
         match value_kind(expression) {
+            Some("opponentExtremum") => self.opponent_extremum(expression, controller_id),
             Some("cardsDiscardedThisTurn") => Some(
                 self.state
                     .events
@@ -9329,7 +9328,7 @@ impl GameEngine {
                     .iter()
                     .filter(|player| !player.has_lost && player.id != controller_id)
                     .flat_map(|player| player.battlefield.iter())
-                    .filter(|card| matches_card_filter(&card.definition, &expression["where"]))
+                    .filter(|card| self.permanent_state_matches(card, &expression["where"]))
                     .count() as i32,
             ),
             Some("greatestSharedCreatureTypeCount") => {
@@ -9943,6 +9942,7 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.mana_spent_to_cast(expression, source, decisions),
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }
@@ -10304,12 +10304,7 @@ impl GameEngine {
         if self.permanent_loses_all_abilities(permanent) {
             return false;
         }
-        if self.state.rule_modifiers.iter().any(|modifier| {
-            value_kind(modifier) == Some("temporaryKeywordLoss")
-                && modifier["cardInstanceId"].as_str() == Some(permanent.instance_id.as_str())
-                && modifier["keyword"].as_str() == Some(keyword)
-                && modifier["expiresAfterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-        }) {
+        if self.keyword_removed_by_resolved_effect(permanent, keyword) {
             return false;
         }
         let keyword_counter = match keyword {
@@ -10787,9 +10782,9 @@ impl GameEngine {
                         });
                 // A classless filter names a creature subtype by its registry
                 // membership; the marker's class is that subtype's class.
-                let marker_class = filter["subtypeClass"].as_str().or_else(|| {
-                    object_predicate::is_creature_subtype(subtype).then_some("creature")
-                });
+                let marker_class = filter["subtypeClass"]
+                    .as_str()
+                    .or_else(|| subtypes::registered_subtype_class(subtype));
                 let marker_membership = marker_class.and_then(|subtype_class| {
                     subtypes::marker_subtype_membership(
                         &permanent.definition,
@@ -10934,18 +10929,8 @@ impl GameEngine {
                                 ))
                         })
             }
-            Some("isUnblockedAttacker") => {
-                self.state
-                    .combat
-                    .attackers
-                    .iter()
-                    .any(|attacker| attacker.attacker_id == permanent.instance_id)
-                    && !self
-                        .state
-                        .combat
-                        .blockers
-                        .iter()
-                        .any(|blocker| blocker.attacker_id == permanent.instance_id)
+            Some(kind @ ("isBlocked" | "isUnblockedAttacker")) => {
+                self.combat_block_status_matches(permanent, kind) == Some(true)
             }
             Some("hasAttachedAura") => self
                 .state
@@ -11011,6 +10996,9 @@ impl GameEngine {
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(card, kind),
+            Some(kind) if object_predicate_eval::combat_block_status_kind(kind) => {
+                self.combat_block_status_matches(card, kind) == Some(true)
+            }
             _ => matches_permanent_filter(card, filter),
         }
     }
@@ -12292,7 +12280,7 @@ impl GameEngine {
     }
 
     fn static_basic_land_mana(&self, permanent: &CardInstance) -> Vec<Vec<String>> {
-        let mut symbols = basic_land_mana(&permanent.definition)
+        let mut symbols = subtypes::effective_basic_land_mana(&permanent.definition)
             .into_iter()
             .flatten()
             .collect::<BTreeSet<_>>();
@@ -12519,27 +12507,6 @@ impl GameEngine {
             .filter_map(|(_, modifier)| integer_value(&modifier["amount"]))
             .sum::<i32>()
             .max(0)
-    }
-
-    fn activation_limit_reached(
-        &self,
-        permanent: &CardInstance,
-        rule: &Value,
-        rule_index: usize,
-    ) -> bool {
-        let Some(limit) = rule.get("activationLimit") else {
-            return false;
-        };
-        if value_kind(limit) == Some("oncePerGameObjectAbility") {
-            let maximum = 1_i32.saturating_add(self.activation_class_modifier_amount(
-                "additionalActivation",
-                permanent,
-                rule,
-            )) as usize;
-            return activation_limit_use_count(permanent, limit, rule_index) >= maximum;
-        }
-        activation_limit_flag(limit, self.state.turn_number, rule_index)
-            .is_none_or(|flag| permanent.flags.get(&flag) == Some(&true))
     }
 
     fn ability_class_activation_prohibited(&self, rule: &Value) -> bool {
@@ -14978,7 +14945,7 @@ impl GameEngine {
                         })
                         .filter(|object| {
                             candidates.get("where").is_none_or(|filter| {
-                                matches_stack_filter(&object.card.definition, filter)
+                                self.spell_candidate_matches(object, filter, controller_id)
                             })
                         })
                         .map(|object| TargetRef::StackObject {
@@ -16977,6 +16944,12 @@ impl GameEngine {
                     .collect();
             }
         }
+        declarations = self.expand_total_power_tap_declarations(
+            rule,
+            controller_id,
+            source_instance_id,
+            declarations,
+        );
         declarations.retain(|declaration| {
             // A multi-object choice keys each object as `id:index`.
             let excludes_source = excluded_target_ids.iter().all(|target_id| {
@@ -17097,6 +17070,9 @@ impl GameEngine {
             if (is_instant(&card.definition) || is_sorcery(&card.definition))
                 && !self.card_is_executable_spell(&card.definition)
             {
+                continue;
+            }
+            if !self.spell_cast_legality_allows(&player_id, card, source_zone) {
                 continue;
             }
             let Some(declarations) =
@@ -17552,13 +17528,7 @@ impl GameEngine {
             .iter()
             .filter(|(card, _, _, _)| !is_land(&card.definition))
         {
-            if self.card_casting_prohibited(&player.id, &card.definition) {
-                continue;
-            }
-            if self.spell_casting_prohibited(&player.id) {
-                continue;
-            }
-            if self.spell_cast_from_zone_prohibited(&player.id, source_zone, &card.definition) {
+            if !self.spell_cast_legality_allows(&player.id, card, source_zone) {
                 continue;
             }
             // The permission behind this cast, evaluated on the characteristics
@@ -18289,7 +18259,9 @@ impl GameEngine {
                 prototype_definition.mana_cost = prototype_cost.to_string();
                 prototype_definition.power = Some(prototype_power.to_string());
                 prototype_definition.toughness = Some(prototype_toughness.to_string());
-                if self.card_casting_prohibited(&player.id, &prototype_definition) {
+                let mut prototype_card = card.clone();
+                prototype_card.definition = prototype_definition.clone();
+                if !self.spell_cast_legality_allows(&player.id, &prototype_card, "hand") {
                     continue;
                 }
                 let Some(declarations) = session.declarations_for_card_source(
@@ -23253,15 +23225,11 @@ impl GameEngine {
         if cards.is_empty() {
             return;
         }
-        let card_ids = cards
-            .iter()
-            .map(|card| card.instance_id.clone())
-            .collect::<Vec<_>>();
         self.record_event(
             "cardsEnteredGraveyard",
             Some(player_id.to_string()),
             None,
-            json!({"cardIds":card_ids}),
+            event_history::graveyard_arrival_detail(cards),
         );
     }
 
@@ -24805,6 +24773,10 @@ impl GameEngine {
                 Value::from(mana_spent_from_cast_decisions(cast_decisions)),
             ),
             (
+                "triggeringSpellManaSpentBySymbol".to_string(),
+                mana_payment::triggering_spell_mana_spent_record(cast_decisions),
+            ),
+            (
                 "triggeringSpellTypeLine".to_string(),
                 Value::String(spell.type_line.clone()),
             ),
@@ -25219,6 +25191,9 @@ impl GameEngine {
             .filter(|modifier| {
                 value_kind(modifier) == Some("delayedStepTrigger")
                     && modifier["step"].as_str() == Some(step)
+                    && modifier["notBeforeTurn"]
+                        .as_u64()
+                        .is_none_or(|turn| u64::from(self.state.turn_number) >= turn)
                     && modifier["turnPlayerId"].as_str().is_none_or(|player_id| {
                         self.state
                             .players
@@ -27125,6 +27100,11 @@ impl GameEngine {
                 };
                 if self.state.players[controller_index].battlefield[card_index].controller
                     != action.player_id
+                    && !activated_rule_execution::any_player_may_activate(
+                        &self.state.players[controller_index].battlefield[card_index],
+                        action,
+                        rule_index,
+                    )
                 {
                     return Err(EngineError::new(
                         "player does not control activated ability source",
@@ -27161,12 +27141,18 @@ impl GameEngine {
                 }
                 let cost_trigger_start = self.state.stack.len();
                 let prepared_cost_payment = self.prepare_activated_cost_payment(action, &rule)?;
+                self.validate_total_power_tap_costs(action, &rule, instance_id)?;
                 let mut tapped_sources = self.apply_payment(player_index, action)?;
                 let activation_limit = &rule["activationLimit"];
-                if let Some(prefix) = activation_limit_use_prefix(activation_limit, rule_index) {
+                if let Some(prefix) = activation_limit_use_prefix(
+                    activation_limit,
+                    self.state.turn_number,
+                    rule_index,
+                ) {
                     let use_count = activation_limit_use_count(
                         &self.state.players[controller_index].battlefield[card_index],
                         activation_limit,
+                        self.state.turn_number,
                         rule_index,
                     );
                     self.state.players[controller_index].battlefield[card_index]
@@ -27481,6 +27467,7 @@ impl GameEngine {
                         tapped_sources.push(tapped_source);
                     }
                 }
+                tapped_sources.extend(self.pay_total_power_tap_costs(action, &rule)?);
                 for cost in rule["costs"]
                     .as_array()
                     .into_iter()
@@ -29941,7 +29928,7 @@ impl GameEngine {
             let resolved_final_saga_chapter = stack_object.ability_kind.as_deref()
                 == Some("triggeredAbility")
                 && saga_chapter_rule_is_final(&stack_object.card.definition, &rule);
-            let mut bindings = BTreeMap::new();
+            let mut bindings = self.captured_reference_bindings(&stack_object);
             let mut decisions = stack_object.decisions.clone();
             // CR 603.4: the intervening `if` is rechecked on resolution by
             // the same stack-context evaluator as on publication.
@@ -30028,13 +30015,7 @@ impl GameEngine {
             for flag in casting_cost::CastingMode::of(&stack_object.decisions).follow_up_flags() {
                 card.flags.insert(flag, true);
             }
-            for symbol in ["W", "U", "B", "R", "G"] {
-                let count = mana_symbol_spent_count(&stack_object.decisions, symbol);
-                for threshold in 1..=count {
-                    card.flags
-                        .insert(format!("manaSpent:{symbol}:{threshold}"), true);
-                }
-            }
+            mana_payment::record_mana_spent_flags(&mut card.flags, &stack_object.decisions);
             let was_warped = stack_object
                 .decisions
                 .get("useWarp")
@@ -31241,9 +31222,7 @@ impl GameEngine {
                             .iter()
                             .filter(|player| !player.has_lost && player.id != player_id)
                             .flat_map(|player| player.battlefield.iter())
-                            .filter(|card| {
-                                matches_card_filter(&card.definition, &expression["where"])
-                            })
+                            .filter(|card| self.permanent_state_matches(card, &expression["where"]))
                             .count() as i32,
                     );
                 }
@@ -31521,6 +31500,10 @@ impl GameEngine {
                 .and_then(Value::as_i64)
                 .and_then(|value| i32::try_from(value).ok()),
             Some("manaSpentToCastSource") => Some(mana_spent_from_cast_decisions(decisions)),
+            Some("manaSpentToCast") => self.runtime_mana_spent_to_cast(expression, stack_object),
+            Some("opponentExtremum") => {
+                self.opponent_extremum(expression, &stack_object.controller)
+            }
             Some("colorsOfManaSpentToCastSource") => {
                 Some(mana_colors_spent_from_cast_decisions(decisions))
             }
@@ -32824,9 +32807,11 @@ impl GameEngine {
                 break;
             }
             let cards = match source_zone {
-                "hand" => self.state.players[player_index]
-                    .hand
+                "hand" => self
+                    .state
+                    .players
                     .iter()
+                    .flat_map(|player| player.hand.iter())
                     .filter(|card| object_ids.contains(&card.instance_id))
                     .cloned()
                     .collect::<Vec<_>>(),
@@ -38447,23 +38432,7 @@ impl GameEngine {
             if self.state.outcome.is_some() {
                 return Ok(UntapBoundaryStatus::GameEnded);
             }
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
         }
         if self.state.outcome.is_some() {
@@ -38539,23 +38508,7 @@ impl GameEngine {
             if self.state.outcome.is_some() {
                 break;
             }
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
         }
         if self.state.outcome.is_none() {
@@ -38586,23 +38539,7 @@ impl GameEngine {
         self.execute_turn(provider)?;
         provider.observe_turn_completed(&self.state);
         if self.state.outcome.is_none() {
-            let active_player_id = self.state.players[self.state.active_player].id.clone();
-            let extra_turn = self.state.rule_modifiers.iter().position(|modifier| {
-                value_kind(modifier) == Some("extraTurnForPlayer")
-                    && modifier["playerId"].as_str() == Some(active_player_id.as_str())
-                    && modifier["afterTurn"].as_u64() == Some(u64::from(self.state.turn_number))
-            });
-            if let Some(modifier_index) = extra_turn {
-                self.state.rule_modifiers.remove(modifier_index);
-                self.record_event(
-                    "extraTurnStartedNext",
-                    Some(active_player_id),
-                    None,
-                    json!({}),
-                );
-            } else {
-                self.state.active_player = self.next_live_player_index(self.state.active_player);
-            }
+            self.advance_to_next_turn_player();
             self.state.turn_number += 1;
             if self.state.turn_number > max_turns {
                 self.state.status = GameStatus::TurnLimitReached;

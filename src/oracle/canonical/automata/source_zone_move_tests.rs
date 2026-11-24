@@ -22,6 +22,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             to: SourceZone::Exile,
             face_change: SourceFaceChange::Preserve,
             controller: SourceMoveController::Preserve,
+            tapped: false,
         }
     );
 
@@ -38,6 +39,7 @@ fn source_exile_and_anaphoric_transformed_return_are_separate_moves() {
             to: SourceZone::Battlefield,
             face_change: SourceFaceChange::Transform,
             controller: SourceMoveController::Owner,
+            tapped: false,
         }
     );
 }
@@ -58,4 +60,46 @@ fn return_anaphor_requires_a_parent_source_binding() {
 
     assert_eq!(failure.actual.as_deref(), Some("it"));
     assert!(failure.expected.contains("source binding"));
+}
+
+#[test]
+fn a_source_card_returns_from_its_graveyard_to_the_battlefield_optionally_tapped() {
+    let context = EffectRecognitionContext::default();
+    for (text, tapped) in [
+        (
+            "return this card from your graveyard to the battlefield",
+            false,
+        ),
+        (
+            "return this card from your graveyard to the battlefield tapped",
+            true,
+        ),
+    ] {
+        let tokens = recognize_entities(text);
+        let mut cursor = OracleTokenCursor::new("move-source-test", &tokens);
+        let returned = recognize_source_zone_move_effect(&mut cursor, &[], None, &context)
+            .expect("a graveyard source return parses");
+        assert_eq!(
+            returned,
+            MoveSourceEffectNode {
+                source: LocalObjectReference::SourceSelf,
+                from: SourceZone::Graveyard,
+                to: SourceZone::Battlefield,
+                face_change: SourceFaceChange::Preserve,
+                controller: SourceMoveController::Preserve,
+                tapped,
+            },
+            "{text}"
+        );
+        assert_eq!(cursor.position(), tokens.len(), "{text}");
+    }
+    // Near miss: an attachment or entry counters are not consumed here; the
+    // enclosing sequence must reject the unread tail.
+    let tokens = recognize_entities(
+        "return this card from your graveyard to the battlefield attached to target creature",
+    );
+    let mut cursor = OracleTokenCursor::new("move-source-test", &tokens);
+    recognize_source_zone_move_effect(&mut cursor, &[], None, &context)
+        .expect("the move itself parses");
+    assert_eq!(cursor.peek(), Some("attached"));
 }

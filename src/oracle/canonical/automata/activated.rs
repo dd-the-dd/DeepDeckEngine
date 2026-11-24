@@ -3,7 +3,7 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ActivatedManaAbilityNode, ActivationCostSequenceNode, AddManaEffectNode, EffectSequenceNode,
-    recognize_activation_cost_sequence, recognize_add_mana_effect,
+    recognize_add_mana_effect,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -37,7 +37,9 @@ pub(in crate::oracle::canonical) fn recognize_activated_mana_ability(
         state = match state {
             ActivationState::Costs => {
                 cursor.enter("activation.mana.costs");
-                memory.costs = Some(recognize_activation_cost_sequence(cursor)?);
+                memory.costs = Some(super::recognize_named_activation_cost_sequence(
+                    cursor, name_links,
+                )?);
                 ActivationState::Separator
             }
             ActivationState::Separator => {

@@ -300,6 +300,48 @@ Réalisée sans compilation dans le lot S2 ; preuve à l'intégration.
 - Moteur : `target_numeric_lki.rs` devient `object_lki.rs` (instantané
   d'identité : valeur de mana, force, endurance, contrôleur, propriétaire).
 
+## Résolveur d'antécédent typé (lot 3)
+
+Un seul résolveur dans `binding_environment.rs`, appelé par chaque lecteur
+d'anaphore ; aucun lecteur ne devine une cible ou l'objet d'événement.
+
+- `resolve_pronoun_antecedent(env)` : `it` / `he` / `she`.
+- `resolve_nominal_antecedent(env, nominals, departed_readable)` : `that
+  NOUN`, `the NOUN`, `that creature or planeswalker` (nominal disjonctif).
+  Ordre : contrepartie de blocage, cible lexicale nommée, objet de
+  l'événement (une tête de sous-type de créature nomme `creature`, CR
+  205.3m), antécédent singulier (cible, carte posée, créature équipée), jeton
+  unique créé par l'action précédente.
+- `resolve_possessive_antecedent(env)` : `its PROPERTY` ; sujet de la
+  clause, puis antécédent singulier, puis sujet de l'événement (LKI).
+- `resolve_condition_antecedent(env, nominals)` : API publiée pour la
+  grammaire des conditions (`If it's a creature`, `if its mana value …`).
+- `condition_object_antecedent(condition)` et
+  `recognize_condition_pronoun_subject` : `As long as this creature is
+  equipped, it …` / `As long as enchanted creature is red, it …`.
+- `recognize_bound_player_reference(cursor, env)` : `that player` nomme
+  aussi le contrôleur d'un objet dont la relation de contrôle désignait un
+  autre joueur (`target creature an opponent controls`, `a creature an
+  opponent controls dies`) ; `its controller` sans cible du lecteur.
+- `BindingEnvironment::objects` (`ObjectSetAntecedent`) : l'ensemble que
+  l'action précédente a déclaré ou produit, calculé par
+  `permanent_subject::prior_object_set` et installé par la séquence. Il
+  nomme `those creatures`, `they`, `each of them`, `that token` avec accord
+  de nombre et de nominal : emplacement de cibles pluriel
+  (`PermanentEffectReference::TargetSet`, abaissé en `chosenTargets`),
+  jetons créés, ou collection de champ de bataille relue par la même requête
+  quand l'action ne modifie aucune caractéristique testée
+  (`collection_survives`).
+- `with_object_antecedent` : un `where X is its power` postposé lit
+  l'objet de la clause qu'il clôt (`object_antecedent_after`).
+- Un échec de liaison d'un sujet démonstratif (`that creature`, `those
+  creatures`, `that token`) est engagé (`demonstrative_binding_failure`).
+
+Limites moteur relevées (non contournées) : propriétés LKI d'un objet
+résultat d'action (`that creature's toughness` après un sacrifice,
+`the mana value of the sacrificed permanent` hors sort) ; itération
+`for each land, … that land`.
+
 ## Suite
 
 0. Restes du lot S2 : promotions `optional_bound_mill`,

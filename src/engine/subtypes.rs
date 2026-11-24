@@ -9,16 +9,134 @@ use super::*;
 
 const MARKER_KIND: &str = "subtypeSetModification";
 
+/// The basic land types (CR 205.3i, 305.6).
+pub(super) const BASIC_LAND_TYPES: [&str; 5] = ["Plains", "Island", "Swamp", "Mountain", "Forest"];
+
+/// Each basic land type with the mana symbol of its intrinsic ability.
+const BASIC_LAND_MANA: [(&str, &str); 5] = [
+    ("Plains", "W"),
+    ("Island", "U"),
+    ("Swamp", "B"),
+    ("Mountain", "R"),
+    ("Forest", "G"),
+];
+
+/// The land types (CR 205.3i).
+const LAND_TYPES: [&str; 18] = [
+    "Cave",
+    "Cloud",
+    "Desert",
+    "Forest",
+    "Gate",
+    "Island",
+    "Lair",
+    "Locus",
+    "Mine",
+    "Mountain",
+    "Planet",
+    "Plains",
+    "Power-Plant",
+    "Sphere",
+    "Swamp",
+    "Tower",
+    "Town",
+    "Urza's",
+];
+
+fn is_basic_land_type(subtype: &str) -> bool {
+    BASIC_LAND_TYPES
+        .iter()
+        .any(|land_type| land_type.eq_ignore_ascii_case(subtype))
+}
+
+fn is_land_type(subtype: &str) -> bool {
+    LAND_TYPES
+        .iter()
+        .any(|land_type| land_type.eq_ignore_ascii_case(subtype))
+}
+
+/// The subtype class a registered subtype belongs to: it decides which
+/// subtype-set markers answer a membership query for that subtype.
+pub(super) fn registered_subtype_class(subtype: &str) -> Option<&'static str> {
+    if super::object_predicate::is_creature_subtype(subtype) {
+        Some("creature")
+    } else if is_land_type(subtype) {
+        Some("land")
+    } else {
+        None
+    }
+}
+
 pub(super) fn effect_supported(effect: &Value) -> Option<bool> {
     (value_kind(effect) == Some("modifySubtypeSet")).then(|| {
         effect_domains::characteristic_object_supported(&effect["object"])
-            && effect["subtypeClass"].as_str() == Some("creature")
-            && subtype_set_mode_supported(effect)
+            && match effect["subtypeClass"].as_str() {
+                Some("creature") => subtype_set_mode_supported(effect),
+                Some("land") => land_subtype_set_supported(effect),
+                _ => false,
+            }
             && matches!(
                 value_kind(&effect["duration"]),
                 Some("permanent" | "untilEndOfCurrentTurn")
             )
     })
+}
+
+/// Land subtypes (CR 205.3i): `replace` sets the object's basic land types
+/// (CR 305.7: `becomes an Island`, `the basic land type of your choice`);
+/// `add` adds land types (`an Island in addition to its other types`). A
+/// chosen type reads a `chooseBasicLandType` of the same resolution.
+fn land_subtype_set_supported(effect: &Value) -> bool {
+    let listed = |accepted: fn(&str) -> bool| {
+        effect["subtypes"].as_array().is_some_and(|subtypes| {
+            !subtypes.is_empty()
+                && subtypes
+                    .iter()
+                    .all(|subtype| subtype.as_str().is_some_and(accepted))
+        })
+    };
+    let chosen = value_kind(&effect["subtypes"]) == Some("decisionResult")
+        && effect["subtypes"]["decisionId"].is_string();
+    match effect["mode"].as_str() {
+        Some("replace") => listed(is_basic_land_type) || chosen,
+        Some("add") => listed(is_land_type) || chosen,
+        _ => false,
+    }
+}
+
+/// Whether an effect set this land's subtype to basic land types: the land
+/// then loses its old land types and the abilities of its rules text
+/// (CR 305.7).
+pub(super) fn land_rules_text_replaced(definition: &CardDefinition) -> bool {
+    definition.printed_rules().iter().any(|rule| {
+        value_kind(rule) == Some(MARKER_KIND)
+            && rule["subtypeClass"].as_str() == Some("land")
+            && rule["mode"].as_str() == Some("replace")
+    })
+}
+
+/// The intrinsic mana abilities of the object's basic land types (CR
+/// 305.6), after the land subtype-set markers recorded on it (CR 305.7):
+/// one symbol list per ability.
+pub(super) fn effective_basic_land_mana(definition: &CardDefinition) -> Vec<Vec<String>> {
+    let mut mana = BASIC_LAND_MANA
+        .iter()
+        .filter(|(land_type, _)| {
+            marker_subtype_membership(definition, "land", land_type)
+                .unwrap_or_else(|| has_card_subtype(definition, land_type))
+        })
+        .map(|(_, symbol)| vec![(*symbol).to_string()])
+        .collect::<Vec<_>>();
+    // The colorless entry of the printed reading is not a land type
+    // (CR 205.3i); a land whose rules text was replaced loses it.
+    if !land_rules_text_replaced(definition) {
+        mana.extend(
+            basic_land_mana(definition)
+                .into_iter()
+                .filter(|symbols| symbols.iter().any(|symbol| symbol == "C")),
+        );
+    }
+    mana
 }
 
 /// `all` takes no subtype list; `replace` (CR 205.1b: the new creature types
@@ -108,6 +226,15 @@ impl GameEngine {
                 // No subtype was chosen: nothing changes.
                 return;
             };
+            // A land-type set reads a chosen land type only (CR 205.3i).
+            if effect["subtypeClass"].as_str() == Some("land")
+                && !subtypes.as_array().is_some_and(|list| {
+                    list.iter()
+                        .all(|subtype| subtype.as_str().is_some_and(is_land_type))
+                })
+            {
+                return;
+            }
             let mut resolved = effect.clone();
             resolved["subtypes"] = subtypes.clone();
             chosen = resolved;
@@ -138,13 +265,18 @@ impl GameEngine {
         let temporary = value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn");
         let turn_number = self.state.turn_number;
         if mode != "all" {
-            // CR 205.3d: an object cannot gain a creature subtype unless it
-            // has a type that can carry one, read after earlier layer-4
-            // effects of the same resolution.
+            // CR 205.3d: an object cannot gain a subtype unless it has a
+            // type that can carry one, read after earlier layer-4 effects of
+            // the same resolution: a creature subtype needs a creature (or
+            // kindred), a land type a land.
             let permanent = &self.state.players[player_index].battlefield[card_index];
-            let can_carry = self.permanent_is_creature(permanent)
-                || has_card_type(&permanent.definition, "kindred")
-                || has_card_type(&permanent.definition, "tribal");
+            let can_carry = if subtype_class == "land" {
+                self.permanent_has_card_type(permanent, "Land")
+            } else {
+                self.permanent_is_creature(permanent)
+                    || has_card_type(&permanent.definition, "kindred")
+                    || has_card_type(&permanent.definition, "tribal")
+            };
             if !can_carry {
                 return;
             }
@@ -188,3 +320,10 @@ impl GameEngine {
 ))]
 #[path = "subtypes_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "subtypes_land_tests.rs"]
+mod land_tests;

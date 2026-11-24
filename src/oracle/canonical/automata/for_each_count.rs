@@ -493,6 +493,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Venture(_)
             | SingularPlayerAction::Proliferate
             | SingularPlayerAction::Hand(_)
+            | SingularPlayerAction::ExtraTurn
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,

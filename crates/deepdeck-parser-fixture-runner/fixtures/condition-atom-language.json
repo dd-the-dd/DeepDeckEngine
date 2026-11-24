@@ -1,0 +1,1125 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/condition-atom-language",
+  "cases": [
+    {
+      "id": "real-mercadian-atlas-didnt-play-a-land",
+      "request": {
+        "cardName": "Mercadian Atlas",
+        "typeLine": "Artifact — Book",
+        "manaCost": "{5}",
+        "oracleText": "At the beginning of your end step, if you didn't play a land this turn, you may draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "landPlayed",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-deep-goblin-skulltaker-descended",
+      "request": {
+        "cardName": "Deep Goblin Skulltaker",
+        "typeLine": "Creature — Goblin Warrior",
+        "manaCost": "{2}{B}",
+        "oracleText": "Menace\nAt the beginning of your end step, if you descended this turn, put a +1/+1 counter on this creature. (You descended if a permanent card was put into your graveyard from anywhere.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "cardsEnteredGraveyard",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "isPermanentCard"
+                    },
+                    "measure": "cards"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-bellowing-elk-had-another-creature-enter",
+      "request": {
+        "cardName": "Bellowing Elk",
+        "typeLine": "Creature — Elk",
+        "manaCost": "{3}{G}",
+        "oracleText": "As long as you had another creature enter the battlefield under your control this turn, this creature has trample and indestructible.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "permanentEnteredBattlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Creature"
+                    },
+                    "excludeObject": {
+                      "kind": "self"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-whiplash-trap-conditional-alternative-cost",
+      "request": {
+        "cardName": "Whiplash Trap",
+        "typeLine": "Instant — Trap",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "If an opponent had two or more creatures enter the battlefield under their control this turn, you may pay {U} rather than pay this spell's mana cost.\nReturn two target creatures to their owners' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.start",
+            "found": "you"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-nightpack-ambusher-didnt-cast-a-spell",
+      "request": {
+        "cardName": "Nightpack Ambusher",
+        "typeLine": "Creature — Wolf",
+        "manaCost": "{2}{G}{G}",
+        "oracleText": "Flash\nOther Wolves and Werewolves you control get +1/+1.\nAt the beginning of your end step, if you didn't cast a spell this turn, create a 2/2 green Wolf creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": "==",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "spellCast",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 0
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-landfall-guard-had-a-land-enter",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your end step, if you had a land enter the battlefield under your control this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "permanentEnteredBattlefield",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "cardTypeContains",
+                      "value": "Land"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrificed-three-or-more-clues",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each end step, if you sacrificed three or more Clues this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "permanentSacrificed",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": {
+                      "kind": "subtypeContains",
+                      "value": "Clue"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gained-or-lost-life",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Bat Cleric",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your end step, if you gained or lost life this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": [
+                      "lifeGained",
+                      "lifeLost"
+                    ],
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null,
+                    "measure": "amount"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 1
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-drawn-more-than-one-card",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Legendary Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of combat on your turn, if you've drawn more than one card this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "cardDrawn",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-discarded-two-or-more-cards",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "If you discarded two or more cards this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/0/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "countEventsThisTurn",
+                    "event": "cardDiscarded",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "where": null
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-history-with-a-this-way-scope",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of each end step, if you sacrificed a Clue this way this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.history.scope"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-unknown-history-verb-keeps-its-diagnostic",
+      "request": {
+        "cardName": "History Probe",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}",
+        "oracleText": "At the beginning of your end step, if you juggled a Clue this turn, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.atom-kind"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-at-least-three-red-mana-spent",
+      "request": {
+        "cardName": "Mana Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}{R}",
+        "oracleText": "Mana Probe deals 2 damage to any target. If at least three red mana was spent to cast this spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "manaSpentToCast",
+                    "spell": {
+                      "kind": "self"
+                    },
+                    "symbol": "R"
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 3
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-two-symbols-spent",
+      "request": {
+        "cardName": "Mana Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}{G}",
+        "oracleText": "If {R}{G} was spent to cast this spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/condition",
+                "equals": {
+                  "kind": "and",
+                  "operands": [
+                    {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": {
+                        "kind": "manaSpentToCast",
+                        "spell": {
+                          "kind": "self"
+                        },
+                        "symbol": "R"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    },
+                    {
+                      "kind": "compare",
+                      "operator": ">=",
+                      "left": {
+                        "kind": "manaSpentToCast",
+                        "spell": {
+                          "kind": "self"
+                        },
+                        "symbol": "G"
+                      },
+                      "right": {
+                        "kind": "integer",
+                        "value": 1
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-cast-trigger-five-or-more-mana",
+      "request": {
+        "cardName": "Mana Probe",
+        "typeLine": "Creature — Wizard",
+        "manaCost": "{2}",
+        "oracleText": "Whenever you cast a spell, if five or more mana was spent to cast that spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">=",
+                  "left": {
+                    "kind": "manaSpentToCast",
+                    "spell": {
+                      "kind": "triggeringSpell"
+                    }
+                  },
+                  "right": {
+                    "kind": "integer",
+                    "value": 5
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-court-hussar-unless-white-was-spent",
+      "request": {
+        "cardName": "Court Hussar",
+        "typeLine": "Creature — Vedalken Knight",
+        "manaCost": "{2}{U}",
+        "oracleText": "Vigilance\nWhen this creature enters, look at the top three cards of your library, then put one of them into your hand and the rest on the bottom of your library in any order.\nWhen this creature enters, sacrifice it unless {W} was spent to cast it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-mana-from-a-treasure-provenance",
+      "request": {
+        "cardName": "Mana Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "If mana from a Treasure was spent to cast this spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.cast.mana-spent.amount"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-heliod-conditional-type-removal",
+      "request": {
+        "cardName": "Heliod, Sun-Crowned",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{2}{W}",
+        "oracleText": "Indestructible\nAs long as your devotion to white is less than five, Heliod isn't a creature.\nWhenever you gain life, put a +1/+1 counter on target creature or enchantment you control.\n{1}{W}: Another target creature gains lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "static.combat-restriction.prohibition",
+            "found": "isn't"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-opponent-has-more-cards-in-hand",
+      "request": {
+        "cardName": "Compare Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "If an opponent has more cards in hand than you, draw two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/condition",
+                "equals": {
+                  "kind": "compare",
+                  "operator": ">",
+                  "left": {
+                    "kind": "opponentExtremum",
+                    "extremum": "greatest",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "value": {
+                      "kind": "countCards",
+                      "zone": {
+                        "kind": "hand",
+                        "player": {
+                          "kind": "quantifiedPlayer"
+                        }
+                      },
+                      "where": null
+                    }
+                  },
+                  "right": {
+                    "kind": "countCards",
+                    "zone": {
+                      "kind": "hand",
+                      "player": {
+                        "kind": "controllerOf",
+                        "object": {
+                          "kind": "self"
+                        }
+                      }
+                    },
+                    "where": null
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-two-color-devotion-is-not-one-color",
+      "request": {
+        "cardName": "Compare Probe",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{2}",
+        "oracleText": "As long as your devotion to white and blue is less than seven, Compare Probe isn't a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.static.atom-kind"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-champions-helm-equipped-creature-is-legendary",
+      "request": {
+        "cardName": "Champion's Helm",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{3}",
+        "oracleText": "Equipped creature gets +2/+2.\nAs long as equipped creature is legendary, it has hexproof. (It can't be the target of spells or abilities your opponents control.)\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition",
+                "equals": {
+                  "kind": "objectMatchesFilter",
+                  "object": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "where": {
+                    "kind": "isLegendary"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-spectral-cloak-it-names-the-enchanted-creature",
+      "request": {
+        "cardName": "Spectral Cloak",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{U}{U}",
+        "oracleText": "Enchant creature\nEnchanted creature has shroud as long as it's untapped. (It can't be the target of spells or abilities.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "objectMatchesFilter"
+              },
+              {
+                "pointer": "/condition/object",
+                "equals": {
+                  "kind": "attachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-equipped-power-against-devotion",
+      "request": {
+        "cardName": "Attached Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "As long as equipped creature's power is greater than your devotion to red, equipped creature has first strike.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/condition/kind",
+                "equals": "objectMatchesFilter"
+              },
+              {
+                "pointer": "/condition/where/operator",
+                "equals": ">"
+              },
+              {
+                "pointer": "/condition/where/right/kind",
+                "equals": "devotion"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-equipped-subject-on-an-aura",
+      "request": {
+        "cardName": "Attached Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nAs long as equipped creature is a Human, enchanted creature gets +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "reference.attached-object.role"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-thermokarst-snow-land-departure-record",
+      "request": {
+        "cardName": "Thermokarst",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Destroy target land. If that land was a snow land, you gain 1 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "conditional"
+              },
+              {
+                "pointer": "/effects/1/condition/kind",
+                "equals": "departedObjectMatches"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-extinguish-the-light-mana-value-lki",
+      "request": {
+        "cardName": "Extinguish the Light",
+        "typeLine": "Instant",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Destroy target creature or planeswalker. If its mana value was 3 or less, you gain 3 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition/operator",
+                "equals": "<="
+              },
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "manaValueOf"
+              },
+              {
+                "pointer": "/effects/1/condition/right",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-deaths-caress-human-departure-record",
+      "request": {
+        "cardName": "Death's Caress",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Destroy target creature. If that creature was a Human, you gain life equal to its toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition/kind",
+                "equals": "departedObjectMatches"
+              },
+              {
+                "pointer": "/effects/1/condition/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Human"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-fading-hope-bounced-mana-value",
+      "request": {
+        "cardName": "Fading Hope",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Return target creature to its owner's hand. If its mana value was 3 or less, scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/condition/left/kind",
+                "equals": "manaValueOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-departed-color-is-not-recorded",
+      "request": {
+        "cardName": "Departure Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "Destroy target creature. If that creature was blue, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "condition.sentence.object.last-known-information"
+          }
+        ]
+      }
+    }
+  ]
+}

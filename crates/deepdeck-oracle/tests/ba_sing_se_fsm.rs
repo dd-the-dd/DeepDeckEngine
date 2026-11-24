@@ -151,11 +151,6 @@ fn claimed_near_misses_surface_local_machine_states() {
             "earthbend-activation",
             "earthbend.reminder.quantity-match",
         ),
-        (
-            "{G}, {T}: Earthbend 2. Activate only as an instant.",
-            "earthbend-activation",
-            "activation.timing.sorcery",
-        ),
     ] {
         let parsed = parse(oracle);
         assert_eq!(parsed.status, "unsupported", "{oracle}");
@@ -164,6 +159,15 @@ fn claimed_near_misses_surface_local_machine_states() {
         assert_eq!(diagnostic.automaton.as_deref(), Some(automaton));
         assert_eq!(diagnostic.state.as_deref(), Some(state));
     }
+}
+
+#[test]
+fn another_printed_timing_composes_through_the_shared_restriction_reader() {
+    // `Activate only as an instant` is an ordinary activation restriction
+    // (CR 602.5d), read by the shared restriction reader after the shared
+    // Earthbend action; it is no near miss of the sorcery-timed family.
+    let parsed = parse("{G}, {T}: Earthbend 2. Activate only as an instant.");
+    assert_eq!(parsed.status, "canonical", "{:#?}", parsed.diagnostics);
 }
 
 #[test]

@@ -1,0 +1,751 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "shared-quantity-slots/determiners-and-event-amounts",
+  "cases": [
+    {
+      "id": "exact-ageless-entity-life-gained-amount",
+      "request": {
+        "cardName": "Ageless Entity",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Whenever you gain life, put that many +1/+1 counters on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "triggeredAbility"
+              },
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeGained"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "decisionResult"
+              },
+              {
+                "pointer": "/effects/0/count/decisionId",
+                "equals": "lifeGainedAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-exquisite-blood-life-lost-amount",
+      "request": {
+        "cardName": "Exquisite Blood",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{B}",
+        "oracleText": "Whenever an opponent loses life, you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeLost"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/decisionId",
+                "equals": "lifeLostAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "unseen-life-lost-amount-as-counter-count",
+      "request": {
+        "cardName": "Quantity Probe Alpha",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever an opponent loses life, put that many +1/+1 counters on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "lifeLost"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putCounters"
+              },
+              {
+                "pointer": "/effects/0/count/decisionId",
+                "equals": "lifeLostAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-counters-put-amount-as-life",
+      "request": {
+        "cardName": "Quantity Probe Beta",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever one or more +1/+1 counters are put on this creature, you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "countersPlaced"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/decisionId",
+                "equals": "counterCount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-per-creature-combat-damage-amount",
+      "request": {
+        "cardName": "Quantity Probe Delta",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}",
+        "oracleText": "Whenever a creature you control deals combat damage to a player, you gain that much life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/decisionId",
+                "equals": "damageAmount"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-many-without-event-amount",
+      "request": {
+        "cardName": "Quantity Probe Gamma",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{1}{G}",
+        "oracleText": "Whenever you cast a spell, put that many +1/+1 counters on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "numeric.atom.start",
+            "code": "oracle_machine_failure",
+            "found": "that"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-major-teroh-exile-all-black-creatures",
+      "request": {
+        "cardName": "Major Teroh",
+        "typeLine": "Legendary Creature — Bird Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\n{3}{W}{W}, Sacrifice Major Teroh: Exile all black creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 2,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.zone-batch.collection",
+            "found": "black"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-sacrifice-by-name-then-destroy-all-black-creatures",
+      "request": {
+        "cardName": "Major Teroh",
+        "typeLine": "Legendary Creature — Bird Soldier",
+        "manaCost": "{3}{W}",
+        "oracleText": "Flying\n{3}{W}{W}, Sacrifice Major Teroh: Destroy all black creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "activatedAbility"
+              },
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "sacrificePermanent"
+              },
+              {
+                "pointer": "/costs/1/permanent/kind",
+                "equals": "self"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-source-permanent-by-name",
+      "request": {
+        "cardName": "Quantity Idol",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}, Exile Quantity Idol: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2/kind",
+                "equals": "exileSource"
+              },
+              {
+                "pointer": "/costs/2/zone",
+                "equals": "battlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-source-card-by-name-from-graveyard",
+      "request": {
+        "cardName": "Quantity Bear",
+        "typeLine": "Creature — Bear",
+        "manaCost": "{1}{G}",
+        "oracleText": "{2}{G}, Exile Quantity Bear from your graveyard: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1/kind",
+                "equals": "exileSource"
+              },
+              {
+                "pointer": "/costs/1/zone",
+                "equals": "graveyard"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-sacrifice-another-name",
+      "request": {
+        "cardName": "Quantity Idol",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, Sacrifice Mindslaver: Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "numeric.atom.start",
+            "found": "Mindslaver"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sanctum-weaver-where-x-mana",
+      "request": {
+        "cardName": "Sanctum Weaver",
+        "typeLine": "Enchantment Creature — Dryad",
+        "manaCost": "{1}{G}",
+        "oracleText": "{T}: Add X mana of any one color, where X is the number of enchantments you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/kind",
+                "equals": "manaAbility"
+              },
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "addMana"
+              },
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "chooseColor"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-where-x-power-any-combination",
+      "request": {
+        "cardName": "Quantity Druid",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}{G}",
+        "oracleText": "{T}: Add X mana in any combination of colors, where X is this creature's power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/mana/kind",
+                "equals": "chooseColors"
+              },
+              {
+                "pointer": "/effects/0/mana/amount/kind",
+                "equals": "powerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-where-x-zero-literal-amount",
+      "request": {
+        "cardName": "Quantity Druid",
+        "typeLine": "Creature — Elf Druid",
+        "manaCost": "{2}{G}",
+        "oracleText": "{T}: Add 0 mana of any one color.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.add-any-color-mana.positive-amount"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-cruel-bargain-half-life-rounded-up",
+      "request": {
+        "cardName": "Cruel Bargain",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}{B}{B}",
+        "oracleText": "Draw four cards. You lose half your life, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "loseLife"
+              },
+              {
+                "pointer": "/effects/1/amount/kind",
+                "equals": "divide"
+              },
+              {
+                "pointer": "/effects/1/amount/round",
+                "equals": "up"
+              },
+              {
+                "pointer": "/effects/1/amount/left/kind",
+                "equals": "lifeTotal"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-gain-half-life-rounded-down",
+      "request": {
+        "cardName": "Quantity Tonic",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain half your life, rounded down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/round",
+                "equals": "down"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-half-life-without-rounding",
+      "request": {
+        "cardName": "Quantity Tonic",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You lose half your life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "numeric.arithmetic.half.rounding"
+          }
+        ]
+      }
+    },
+    {
+      "id": "probe-ammit-eternal-remove-all-counters-from-it",
+      "request": {
+        "cardName": "Quantity Crocodile",
+        "typeLine": "Creature — Zombie Crocodile Demon",
+        "manaCost": "{2}{B}",
+        "oracleText": "Whenever this creature deals combat damage to a player, remove all -1/-1 counters from it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/effects/0/counter",
+                "equals": "-1/-1"
+              },
+              {
+                "pointer": "/effects/0/count/kind",
+                "equals": "counterCountOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-remove-all-counters-from-source",
+      "request": {
+        "cardName": "Quantity Hound",
+        "typeLine": "Creature — Dog",
+        "manaCost": "{3}{R}",
+        "oracleText": "At the beginning of your end step, remove all +1/+1 counters from this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "removeCounters"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/effects/0/count/counter",
+                "equals": "+1/+1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-remove-all-counters-without-kind",
+      "request": {
+        "cardName": "Quantity Hexer",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice this creature: Remove all counters from target permanent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.remove-counters.kind"
+          }
+        ]
+      }
+    },
+    {
+      "id": "probe-rites-of-spring-any-number-discard",
+      "request": {
+        "cardName": "Quantity Rites",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Discard any number of cards, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "discardCards"
+              },
+              {
+                "pointer": "/effects/1/cards/kind",
+                "equals": "decisionResult"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-up-to-two-discard",
+      "request": {
+        "cardName": "Quantity Rummage",
+        "typeLine": "Sorcery",
+        "manaCost": "{R}",
+        "oracleText": "Discard up to two cards, then draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/maximum/value",
+                "equals": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-any-number-discard-without-noun",
+      "request": {
+        "cardName": "Quantity Rites",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Discard any number.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.player-discard.any-number",
+            "code": "oracle_machine_failure",
+            "expectedContains": "of"
+          }
+        ]
+      }
+    }
+  ]
+}

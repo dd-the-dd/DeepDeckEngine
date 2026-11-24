@@ -10,11 +10,15 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
         Some("installUntapRestriction") => {
-            target_reference_supported(&effect["permanent"])
+            (target_reference_supported(&effect["permanent"])
                 && matches!(
                     value_kind(&effect["duration"]),
                     Some("nextUntapStep" | "whileSourceControlled")
-                )
+                ))
+                || (matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("self" | "abilitySource")
+                ) && value_kind(&effect["duration"]) == Some("nextUntapStep"))
         }
         Some("installRegenerationShield") => {
             (matches!(
@@ -72,6 +76,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("recipient")
                     .is_none_or(prevention_party_supported)
                 && effect.get("source").is_none_or(prevention_party_supported)
+                // `a SOURCE of your choice` (CR 609.7a) and the `next time`
+                // shield that applies once (CR 615.7).
+                && effect.get("sourceChoice").is_none_or(|choice| {
+                    effect.get("source").is_none() && card_filter_supported(&choice["where"])
+                })
+                && effect.get("nextTimeOnly").is_none_or(Value::is_boolean)
                 && value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
         }
         Some("installCounterLinkedCharacteristics") => {
@@ -155,8 +165,16 @@ impl GameEngine {
         stack_object: &StackObject,
         bindings: &mut BTreeMap<String, RuntimeBinding>,
         decisions: &mut BTreeMap<String, Value>,
-        _provider: &mut P,
+        provider: &mut P,
     ) -> Result<bool, EngineError> {
+        // A source chosen on resolution becomes the shield's source.
+        if let Some(chosen) =
+            self.choose_prevention_source(effect, stack_object, decisions, provider)?
+        {
+            return self
+                .execute_continuous_rules_domain_known(&chosen, stack_object, bindings, decisions)
+                .map(|()| true);
+        }
         self.execute_continuous_rules_domain_known(effect, stack_object, bindings, decisions)
             .map(|()| true)
     }
@@ -170,9 +188,18 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         match value_kind(effect) {
             Some("installUntapRestriction") => {
-                if let Some(TargetRef::Permanent { instance_id }) =
+                let permanent = if matches!(
+                    value_kind(&effect["permanent"]),
+                    Some("self" | "abilitySource")
+                ) {
+                    self.permanent_position(&stack_object.card.instance_id)
+                        .map(|_| TargetRef::Permanent {
+                            instance_id: stack_object.card.instance_id.clone(),
+                        })
+                } else {
                     self.resolve_target(&effect["permanent"], stack_object, bindings)
-                {
+                };
+                if let Some(TargetRef::Permanent { instance_id }) = permanent {
                     let kind = if value_kind(&effect["duration"]) == Some("nextUntapStep") {
                         "skipNextUntap"
                     } else {
@@ -219,9 +246,11 @@ impl GameEngine {
                     self.resolve_target(&effect["object"], stack_object, bindings)
                     && self.permanent_position(&instance_id).is_some()
                 {
+                    // CR 614.1a: a one-shot replacement that lasts this turn
+                    // only; the departure pipeline checks its turn.
                     self.state.rule_modifiers.push(json!({
-                        "kind": "exileIfWouldDie",
-                        "cardInstanceId": instance_id,
+                        "kind": "exileIfDiesThisTurn",
+                        "instanceId": instance_id,
                         "expiresAfterTurn": self.state.turn_number,
                     }));
                 }
@@ -344,7 +373,13 @@ impl GameEngine {
                         }
                     }
                 };
+                if effect["noSource"].as_bool() == Some(true) {
+                    return Ok(());
+                }
                 let source = match effect.get("source") {
+                    None if effect["chosenSourceId"].is_string() => {
+                        effect["chosenSourceId"].clone()
+                    }
                     None => Value::Null,
                     Some(reference) => {
                         match self.resolve_prevention_party(reference, stack_object, bindings) {
@@ -368,6 +403,7 @@ impl GameEngine {
                     "combatOnly": effect["combatOnly"].as_bool().unwrap_or(false),
                     "recipient": recipient,
                     "sourcePermanentId": source,
+                    "nextTimeOnly": effect["nextTimeOnly"].as_bool().unwrap_or(false),
                     "expiresAfterTurn": self.state.turn_number,
                 }));
             }

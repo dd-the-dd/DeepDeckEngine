@@ -516,8 +516,13 @@ impl GameEngine {
                         "combat": combat,
                         "reason": "preventionShield",
                     }),
-                    shield: remaining
-                        .and(shield["shieldId"].as_u64())
+                    // A finite shield is reduced and a `next time` shield is
+                    // used up once the event is dealt (CR 615.7).
+                    shield: shield["shieldId"]
+                        .as_u64()
+                        .filter(|_| {
+                            remaining.is_some() || shield["nextTimeOnly"].as_bool() == Some(true)
+                        })
                         .map(|id| (id, prevented)),
                 });
             }
@@ -617,6 +622,7 @@ impl GameEngine {
             && shield["remaining"]
                 .as_i64()
                 .is_none_or(|remaining| remaining > 0)
+            && shield["spent"].as_bool() != Some(true)
             && match (&shield["recipient"], target) {
                 (Value::Null, _) => true,
                 (recipient, TargetRef::Player { player_id }) => {
@@ -642,9 +648,13 @@ impl GameEngine {
                     value_kind(modifier) == Some("damagePreventionShield")
                         && modifier["shieldId"].as_u64() == Some(shield_id)
                 })
-                && let Some(remaining) = shield["remaining"].as_i64()
             {
-                shield["remaining"] = json!((remaining - i64::from(prevented)).max(0));
+                if let Some(remaining) = shield["remaining"].as_i64() {
+                    shield["remaining"] = json!((remaining - i64::from(prevented)).max(0));
+                }
+                if shield["nextTimeOnly"].as_bool() == Some(true) {
+                    shield["spent"] = Value::Bool(true);
+                }
             }
             if let Some(batch_id) = batch_id {
                 event.detail["batchId"] = json!(batch_id);

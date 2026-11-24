@@ -3,8 +3,7 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
     ActivationCostReductionNode, ActivationCostSequenceNode, EffectSequenceNode,
-    recognize_activation_cost_reduction, recognize_activation_cost_sequence,
-    recognize_effect_sequence_before_activation_reduction,
+    recognize_activation_cost_reduction, recognize_effect_sequence_before_activation_reduction,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,7 +70,9 @@ pub(in crate::oracle::canonical) fn recognize_labeled_activated_effect_sequence(
             }
             LabeledActivationState::Costs => {
                 cursor.enter("activation.labeled.costs");
-                costs = Some(recognize_activation_cost_sequence(cursor)?);
+                costs = Some(super::recognize_named_activation_cost_sequence(
+                    cursor, name_links,
+                )?);
                 LabeledActivationState::EffectSeparator
             }
             LabeledActivationState::EffectSeparator => {

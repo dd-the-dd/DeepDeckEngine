@@ -232,12 +232,246 @@ impl GameEngine {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Activation and cast restrictions (CR 601.3, 602.5): the one restriction
+// reader of the engine. Parsed restrictions are rule metadata (an
+// `activationCondition`, an `activationLimit`, `anyPlayerMayActivate`, an
+// `activationZone`, or a spell's `castOnlyIf` static ability); none of them
+// is ever an effect.
+// ---------------------------------------------------------------------------
+
+/// Engine identifiers of turn steps in turn order (`GameStep`), plus the end
+/// of combat step (CR 511), which the turn structure does not model yet.
+const WINDOW_STEPS: [(&str, Option<GameStep>); 12] = [
+    ("untap", Some(GameStep::Untap)),
+    ("upkeep", Some(GameStep::Upkeep)),
+    ("draw", Some(GameStep::Draw)),
+    ("precombatMain", Some(GameStep::PrecombatMain)),
+    ("beginningOfCombat", Some(GameStep::BeginningOfCombat)),
+    ("declareAttackers", Some(GameStep::DeclareAttackers)),
+    ("declareBlockers", Some(GameStep::DeclareBlockers)),
+    ("combatDamage", Some(GameStep::CombatDamage)),
+    ("endOfCombat", None),
+    ("postcombatMain", Some(GameStep::PostcombatMain)),
+    ("endStep", Some(GameStep::EndStep)),
+    ("cleanup", Some(GameStep::Cleanup)),
+];
+
+/// `duringSteps` is executable when every named step is known and at least
+/// one of them exists in the engine's turn structure: a window of only the
+/// end of combat step would never be offered, which is not its meaning.
+pub(super) fn during_steps_supported(condition: &Value) -> bool {
+    condition["steps"].as_array().is_some_and(|steps| {
+        !steps.is_empty()
+            && steps.iter().all(|step| {
+                step.as_str()
+                    .is_some_and(|step| WINDOW_STEPS.iter().any(|(name, _)| *name == step))
+            })
+            && steps.iter().any(|step| {
+                WINDOW_STEPS
+                    .iter()
+                    .any(|(name, modeled)| step.as_str() == Some(*name) && modeled.is_some())
+            })
+    })
+}
+
+/// Whether the current step is one the window admits.
+pub(super) fn during_steps_holds(current: &GameStep, condition: &Value) -> bool {
+    condition["steps"].as_array().is_some_and(|steps| {
+        steps.iter().any(|step| {
+            WINDOW_STEPS.iter().any(|(name, modeled)| {
+                step.as_str() == Some(*name) && modeled.as_ref() == Some(current)
+            })
+        })
+    })
+}
+
+/// The per-object or per-turn use counter of a counted limit, keyed by the
+/// ability so two restricted abilities of one object never share it.
+pub(super) fn activation_limit_use_prefix(
+    limit: &Value,
+    turn_number: u32,
+    rule_index: usize,
+) -> Option<String> {
+    let id = limit["id"].as_str()?;
+    match value_kind(limit) {
+        Some("oncePerGameObjectAbility") => Some(format!("{id}:ability:{rule_index}:use:")),
+        Some("timesPerTurn") => Some(format!("{id}:ability:{rule_index}:turn:{turn_number}:use:")),
+        _ => None,
+    }
+}
+
+pub(super) fn activation_limit_use_count(
+    permanent: &CardInstance,
+    limit: &Value,
+    turn_number: u32,
+    rule_index: usize,
+) -> usize {
+    activation_limit_use_prefix(limit, turn_number, rule_index).map_or(0, |prefix| {
+        permanent
+            .flags
+            .iter()
+            .filter(|(flag, used)| **used && flag.starts_with(&prefix))
+            .count()
+    })
+}
+
+/// The single-use flag of an uncounted limit. `oncePerTurn` is keyed by its
+/// id, so abilities sharing an id (loyalty abilities, CR 606.3) share it.
+pub(super) fn activation_limit_flag(
+    limit: &Value,
+    turn_number: u32,
+    _rule_index: usize,
+) -> Option<String> {
+    let id = limit["id"].as_str()?;
+    Some(match value_kind(limit) {
+        Some("oncePerTurn") => format!("{id}:turn:{turn_number}"),
+        Some("oncePerGameObject") => id.to_string(),
+        _ => return None,
+    })
+}
+
+/// Executable activation limits of a non-mana activated ability. Abilities
+/// activated from a hand or graveyard keep no per-object use record, so a
+/// limit there stays explicitly unexecutable instead of being ignored.
+pub(super) fn activated_rule_limit_supported(rule: &Value) -> bool {
+    let Some(limit) = rule.get("activationLimit") else {
+        return true;
+    };
+    let off_battlefield = rule
+        .get("activationZone")
+        .and_then(Value::as_str)
+        .is_some_and(|zone| zone != "battlefield");
+    !off_battlefield
+        && limit["id"].is_string()
+        && match value_kind(limit) {
+            Some("oncePerGameObject" | "oncePerGameObjectAbility" | "oncePerTurn") => true,
+            Some("timesPerTurn") => limit["maximum"]
+                .as_u64()
+                .is_some_and(|maximum| maximum >= 1),
+            _ => false,
+        }
+}
+
+/// A spell's `Cast this spell only ...` restriction (CR 601.3): a static
+/// ability of the card being cast whose only modifier is its condition.
+pub(super) fn cast_restriction_rule_supported(rule: &Value) -> bool {
+    zone_of_function::static_zone_of_function(rule) == Some(ZoneOfFunction::StackOrCast)
+        && rule["modifiers"].as_array().is_some_and(|modifiers| {
+            !modifiers.is_empty()
+                && modifiers.iter().all(|modifier| {
+                    value_kind(modifier) == Some("castOnlyIf")
+                        && value_kind(&modifier["object"]) == Some("self")
+                        && condition_supported(&modifier["condition"])
+                })
+        })
+}
+
+/// `Any player may activate this ability` (CR 602.2): a player who does not
+/// control the source may activate exactly that printed or granted ability.
+pub(super) fn any_player_may_activate(
+    source: &CardInstance,
+    action: &LegalAction,
+    rule_index: usize,
+) -> bool {
+    let rule = action
+        .decisions
+        .get("grantedAbilityRule")
+        .or_else(|| source.definition.printed_rules().get(rule_index));
+    rule.is_some_and(|rule| rule["anyPlayerMayActivate"].as_bool() == Some(true))
+}
+
+impl GameEngine {
+    /// Whether the ability has reached its activation limit (CR 602.5b).
+    pub(super) fn activation_limit_reached(
+        &self,
+        permanent: &CardInstance,
+        rule: &Value,
+        rule_index: usize,
+    ) -> bool {
+        let Some(limit) = rule.get("activationLimit") else {
+            return false;
+        };
+        let maximum = match value_kind(limit) {
+            // CR 702.193a: effects may permit additional activations of a
+            // class (`additionalActivation`).
+            Some("oncePerGameObjectAbility") => Some(1_i32.saturating_add(
+                self.activation_class_modifier_amount("additionalActivation", permanent, rule),
+            ) as usize),
+            Some("timesPerTurn") => limit["maximum"]
+                .as_u64()
+                .and_then(|maximum| usize::try_from(maximum).ok()),
+            _ => None,
+        };
+        if let Some(maximum) = maximum {
+            return activation_limit_use_count(
+                permanent,
+                limit,
+                self.state.turn_number,
+                rule_index,
+            ) >= maximum;
+        }
+        activation_limit_flag(limit, self.state.turn_number, rule_index)
+            .is_none_or(|flag| permanent.flags.get(&flag) == Some(&true))
+    }
+
+    /// Whether `player_id` may begin to cast `card` from `source_zone` at
+    /// all (CR 601.3): no effect prohibits the card, spell casting or casting
+    /// from that zone, and the card's own `Cast this spell only ...`
+    /// restrictions hold. Every cast path (priority, prototype, casts during
+    /// resolution and free casts) asks this one question. A face-down spell
+    /// has no abilities, so it never carries the card's restrictions.
+    pub(super) fn spell_cast_legality_allows(
+        &self,
+        player_id: &str,
+        card: &CardInstance,
+        source_zone: &str,
+    ) -> bool {
+        !self.card_casting_prohibited(player_id, &card.definition)
+            && !self.spell_casting_prohibited(player_id)
+            && !self.spell_cast_from_zone_prohibited(player_id, source_zone, &card.definition)
+            && self.spell_cast_restrictions_allow(player_id, card)
+    }
+
+    /// Whether `player_id` may begin to cast `card` now under the card's own
+    /// cast restrictions (CR 601.3). `your` in the condition names the caster.
+    pub(super) fn spell_cast_restrictions_allow(
+        &self,
+        player_id: &str,
+        card: &CardInstance,
+    ) -> bool {
+        card.definition.printed_rules().iter().all(|rule| {
+            value_kind(rule) != Some("staticAbility")
+                || !cast_restriction_rule_supported(rule)
+                || rule["modifiers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .all(|modifier| {
+                        self.condition_value_with_source(
+                            &modifier["condition"],
+                            player_id,
+                            &BTreeMap::new(),
+                            Some(card),
+                        )
+                    })
+        })
+    }
+}
+
 #[cfg(all(
     test,
     any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
 ))]
 #[path = "activated_rule_execution_tests.rs"]
 mod tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "activation_restriction_runtime_tests.rs"]
+mod restriction_tests;
 
 #[cfg(all(
     test,

@@ -28,21 +28,21 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_permanent_operand(
 }
 
 /// Shared predicate/controller capability for non-targeted permanent queries.
+///
+/// A universal collection (`all|each QUERY`) reads every member's controller,
+/// so its controller slot is the one shared player reference of the query:
+/// the ability controller, a population (`your opponents control`, CR 102.3
+/// `you don't control`) or the player the triggering event records
+/// (`defending player controls`). The collection consumer resolves that
+/// reference as a population of controllers (`eachPermanent.player`); a
+/// consumer that only proves a single player refuses it in its own validator.
 pub(in crate::oracle::canonical) fn lower_fixed_controller_permanent_query(
     query: &ObjectQueryNode,
 ) -> Result<(Value, Option<Value>), TargetlessLoweringError> {
     if object_predicate_uses_x(&query.predicate) {
         return Err(TargetlessLoweringError::UnsupportedCollectionPredicate);
     }
-    let controller_filter = match query.controller {
-        None => None,
-        Some(ObjectControllerScope::AbilityController) => Some(controller()),
-        Some(ObjectControllerScope::OpponentOfAbilityController)
-        | Some(ObjectControllerScope::NotAbilityController)
-        | Some(ObjectControllerScope::EventPlayer) => {
-            return Err(TargetlessLoweringError::UnsupportedCollectionController);
-        }
-    };
+    let controller_filter = query.controller.map(lower_object_controller_scope);
     Ok((
         lower_permanent_object_predicate(&query.predicate),
         controller_filter,
@@ -104,6 +104,8 @@ pub(in crate::oracle::canonical) fn lower_unbounded_target_maximum(
 ) -> Option<Value> {
     match candidates["kind"].as_str()? {
         "permanents" => Some(json!({"kind":"countPermanents", "allPlayers":true})),
+        // Every player in the game bounds any number of target players.
+        "players" => Some(json!({"kind":"countPlayers"})),
         "cards"
             if matches!(
                 candidates["zone"]["kind"].as_str(),

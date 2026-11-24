@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "typed-antecedent-binding/target-set-untap-restriction",
+  "seed": 20261124,
+  "rule": {
+    "kind": "spellAbility",
+    "source": { "kind": "self" },
+    "declaration": {
+      "kind": "castingDeclaration",
+      "decisions": [
+        {
+          "kind": "chooseTargets",
+          "id": "targetCreatures",
+          "minimum": 0,
+          "maximum": 2,
+          "candidates": {
+            "kind": "permanents",
+            "where": { "kind": "cardTypeContains", "value": "Creature" }
+          }
+        }
+      ]
+    },
+    "effects": [
+      {
+        "kind": "tapPermanent",
+        "permanent": { "kind": "chosenTargets", "id": "targetCreatures" }
+      },
+      {
+        "kind": "forEachObject",
+        "objects": { "kind": "chosenTargets", "id": "targetCreatures" },
+        "bind": "effect1:untapRestricted",
+        "effects": [
+          {
+            "kind": "installUntapRestriction",
+            "permanent": { "kind": "boundValue", "id": "effect1:untapRestricted" },
+            "duration": { "kind": "nextUntapStep" }
+          }
+        ]
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "player-0",
+    "players": [
+      {
+        "id": "player-0",
+        "name": "Will of the Naga pilot",
+        "hand": [
+          {
+            "id": "will-of-the-naga",
+            "name": "Will of the Naga",
+            "typeLine": "Instant",
+            "manaCost": "{4}{U}{U}"
+          }
+        ]
+      },
+      {
+        "id": "player-1",
+        "name": "Target controller",
+        "battlefield": [
+          {
+            "id": "first-target",
+            "name": "First Target",
+            "typeLine": "Creature - Test",
+            "power": "2",
+            "toughness": "2"
+          },
+          {
+            "id": "second-target",
+            "name": "Second Target",
+            "typeLine": "Creature - Test",
+            "power": "3",
+            "toughness": "3"
+          },
+          {
+            "id": "bystander",
+            "name": "Bystander",
+            "typeLine": "Creature - Test",
+            "power": "1",
+            "toughness": "1"
+          }
+        ]
+      }
+    ]
+  },
+  "execution": {
+    "controllerId": "player-0",
+    "sourceDefinitionId": "will-of-the-naga",
+    "targets": {
+      "targetCreatures:0": {
+        "permanent": { "instanceId": "player-1:first-target:0" }
+      },
+      "targetCreatures:1": {
+        "permanent": { "instanceId": "player-1:second-target:1" }
+      }
+    }
+  },
+  "decisions": [],
+  "assertions": [
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "first-target",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "second-target",
+      "equals": true
+    },
+    {
+      "kind": "permanentTapped",
+      "playerId": "player-1",
+      "definitionId": "bystander",
+      "equals": false
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": { "kind": "skipNextUntap", "cardInstanceId": "player-1:first-target:0" },
+      "equals": 1
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": { "kind": "skipNextUntap", "cardInstanceId": "player-1:second-target:1" },
+      "equals": 1
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": { "kind": "skipNextUntap", "cardInstanceId": "player-1:bystander:2" },
+      "equals": 0
+    },
+    { "kind": "decisionCount", "equals": 0 }
+  ]
+}

@@ -177,7 +177,7 @@ fn guard_atoms_that_cannot_be_resolved_stay_explicit_failures() {
         failure_state(
             "At the beginning of each end step, if an opponent cast two or fewer spells this turn, draw a card."
         ),
-        "selector.predicate.complete"
+        "condition.history.aggregate"
     );
 }
 
