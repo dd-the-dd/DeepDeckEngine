@@ -318,8 +318,9 @@ fn attached_object_events_bind_the_attachment_not_the_source() {
 #[test]
 fn attached_object_event_near_misses_fail_explicitly() {
     for text in [
-        "Whenever equipped artifact dies, draw a card.",
-        "Whenever equipped creature attacks or blocks, draw a card.",
+        // Only a creature attacks; any attached permanent can die.
+        "Whenever equipped artifact attacks, draw a card.",
+        "Whenever equipped creature attacks or explores, draw a card.",
         "Whenever equipped creature dies draw a card.",
     ] {
         rejected("Artifact — Equipment", text);

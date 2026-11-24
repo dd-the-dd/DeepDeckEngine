@@ -172,7 +172,7 @@
       }
     },
     {
-      "id": "compound-event-is-rejected-after-entered-event",
+      "id": "compound-event-after-entered-event-is-an-occurrence-union",
       "request": {
         "cardName": "Compound Event Probe",
         "typeLine": "Creature — Test",
@@ -182,26 +182,29 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
         "abilities": [
           {
             "index": 0,
-            "status": "unsupported",
+            "status": "canonical",
             "recognizer": "native",
-            "abilityType": "triggeredAbility"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 0,
-            "code": "oracle_machine_failure",
-            "automaton": "generic-trigger-program",
-            "state": "trigger.envelope.separator",
-            "expected": ",",
-            "found": "or",
-            "tokenIndex": 4
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "oneOf"
+              },
+              {
+                "pointer": "/event/events/0/kind",
+                "equals": "permanentEntered"
+              },
+              {
+                "pointer": "/event/events/1/lemma",
+                "equals": "attack"
+              }
+            ]
           }
         ]
       }

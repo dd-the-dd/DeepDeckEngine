@@ -45,9 +45,13 @@ fn compile_recognized_trigger_program(
     cursor: &mut OracleTokenCursor<'_>,
     envelope: GenericTriggerEnvelopeNode,
 ) -> MachineResult<CanonicalRuleDraft> {
+    // The zone the ability functions from (CR 113.6) follows from the typed
+    // event: the spell's own cast functions on the stack for any spell, a
+    // battlefield observer needs a permanent face.
     cursor.enter("trigger.program.permanent-face");
     cursor.require(
         !envelope.event.requires_permanent_face()
+            || envelope.event.functions_on_the_stack()
             || type_line_has_permanent_card_type(input.face_type_line),
         "a permanent source face for this battlefield triggered ability",
     )?;

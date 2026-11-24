@@ -4845,6 +4845,12 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    if let Some(supported) = player_action_events::player_milestone_event_supported(event) {
+        return supported;
+    }
+    if let Some(supported) = event_model::designation_gained_event_supported(event) {
+        return supported;
+    }
     if !event_model::member_event_condition_supported(event) {
         return false;
     }
@@ -22376,6 +22382,7 @@ impl GameEngine {
                 return;
             }
         }
+        self.enqueue_room_fully_unlocked_triggers(source);
     }
 
     fn enqueue_permanent_tapped_triggers(&mut self, source: &CardInstance) {
@@ -24892,37 +24899,7 @@ impl GameEngine {
         event_player_id: &str,
         event_object_id: Option<&str>,
     ) {
-        let triggers = self
-            .state
-            .players
-            .iter()
-            .filter(|player| !player.has_lost)
-            .flat_map(|player| player.battlefield.iter())
-            .filter(|source| source.controller == event_player_id)
-            .flat_map(|source| {
-                self.effective_rules(&source)
-                    .iter()
-                    .filter(|rule| {
-                        triggered_rule_supported(rule)
-                            && triggered_event_variants(&rule["event"])
-                                .iter()
-                                .any(|event| {
-                                    value_kind(event) == Some(event_kind)
-                                        && !(event["excludeSource"].as_bool().unwrap_or(false)
-                                            && event_object_id == Some(source.instance_id.as_str()))
-                                })
-                    })
-                    .cloned()
-                    .map(|rule| (source.clone(), rule))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
-        for (source, rule) in triggers {
-            self.put_triggered_ability_on_stack(&source, rule);
-            if self.check_quantity_failure().is_err() {
-                return;
-            }
-        }
+        self.enqueue_observed_player_event_triggers(event_kind, event_player_id, event_object_id);
     }
 
     fn mark_bending_performed(&mut self, player_id: &str, form: &str, source_id: Option<String>) {
@@ -26232,6 +26209,7 @@ impl GameEngine {
                     decisions.insert("conjured".to_string(), Value::Bool(card_was_conjured));
                     decisions
                 });
+                self.enqueue_mana_expended_triggers(&action.player_id, &action.decisions);
                 self.enqueue_targeting_triggers(&stack_id, &stack_targets)?;
                 self.check_state_based_actions_with_provider(Some(provider))?;
             }

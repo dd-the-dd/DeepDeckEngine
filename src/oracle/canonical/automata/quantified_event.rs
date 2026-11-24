@@ -151,6 +151,35 @@ pub(in crate::oracle::canonical) fn recognize_object_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<ObjectEventNode> {
     let subject = recognize_quantified_event_subject(cursor)?;
+    recognize_object_event_frame(cursor, subject)
+}
+
+/// Whether an object-event verb frame in the subject's agreement starts at
+/// the cursor (a lexical probe): an event lemma, the passive auxiliary, or
+/// the `deal` lemma of the shared damage clause.
+pub(in crate::oracle::canonical) fn object_event_frame_starts(
+    cursor: &OracleTokenCursor<'_>,
+    subject: &QuantifiedEventSubjectNode,
+) -> bool {
+    let agreement = if subject.multiplicity == EventMultiplicity::PerObject {
+        VerbAgreement::ThirdPersonSingular
+    } else {
+        VerbAgreement::Base
+    };
+    peek_word(cursor, 0, passive_auxiliary(agreement))
+        || OBJECT_EVENT_LEMMAS
+            .into_iter()
+            .chain([VerbLemma::Deal])
+            .any(|lemma| lemma_at(cursor, lemma, agreement))
+}
+
+/// The verb frame of an object event after its (already read) subject. A
+/// shared-subject occurrence union (`a creature you control enters or
+/// attacks`) reads each alternative frame with the same subject.
+pub(in crate::oracle::canonical) fn recognize_object_event_frame(
+    cursor: &mut OracleTokenCursor<'_>,
+    subject: QuantifiedEventSubjectNode,
+) -> MachineResult<ObjectEventNode> {
     let singular = subject.multiplicity == EventMultiplicity::PerObject;
     // `deal(s) ...` / `is|are dealt ...`: the shared damage clause in the
     // subject's number, active with the event complement or passive.

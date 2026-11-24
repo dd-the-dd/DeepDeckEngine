@@ -314,9 +314,12 @@ impl GameEngine {
                     effect["value"].as_bool(),
                 ) && let Some((player_index, card_index)) = self.permanent_position(&instance_id)
                 {
-                    self.state.players[player_index].battlefield[card_index]
+                    let previous = self.state.players[player_index].battlefield[card_index]
                         .flags
                         .insert(flag.to_string(), value);
+                    if value && previous != Some(true) {
+                        self.publish_designation_gained_observers(&instance_id, flag);
+                    }
                 }
             }
             Some("suspectPermanent") => {

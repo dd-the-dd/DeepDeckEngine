@@ -35,8 +35,14 @@ fn an_unmodified_clause_reads_nothing() {
     let (result, next) = tail(", draw a card.");
     assert!(result.expect("empty tail").is_empty());
     assert_eq!(next.as_deref(), Some(","));
-    // `during combat` is not a turn owner: the clause keeps the tokens.
+    // `during combat` is a combat window, not a turn owner (CR 506.1).
     let (result, next) = tail("during combat, draw a card.");
+    let modifiers = result.expect("combat window");
+    assert!(modifiers.during_combat && modifiers.turn_owner.is_none());
+    assert_eq!(next.as_deref(), Some(","));
+    // `during the declare attackers step` names no typed window: the tail
+    // leaves it to the clause, which fails at its boundary.
+    let (result, next) = tail("during the declare attackers step, draw a card.");
     assert!(result.expect("empty tail").is_empty());
     assert_eq!(next.as_deref(), Some("during"));
 }

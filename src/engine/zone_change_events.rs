@@ -166,6 +166,7 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             "reason",
             "aggregation",
             "entryState",
+            "duringCombat",
         ],
     ) || !event_batch::event_aggregation_supported(event)
     {
@@ -209,6 +210,7 @@ fn died_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
         had_counter: optional_str(event, "hadCounter")?,
         had_any_counters: optional_bool(event, "hadAnyCounters")?,
         damaged_by_source_this_turn: optional_bool(event, "damagedBySourceThisTurn")?,
+        during_combat: optional_bool(event, "duringCombat")?,
         ..ZoneChangePattern::new(subject, ZoneChangeGroup::Death)
     })
 }
@@ -229,6 +231,13 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
     let to = optional_str(event, "to")?;
     let (subject, filter) = match value_kind(object)? {
         "self" => (SubjectRelation::Source, None),
+        // The permanent the observer is attached to (CR 603.10a look-back).
+        "attachedPermanent"
+            if known_fields(object, &["kind", "attachment"])
+                && self_object(&object["attachment"]) =>
+        {
+            (SubjectRelation::AttachedTo, None)
+        }
         "permanents" => {
             if !known_fields(object, &["kind", "controller", "where", "excludeSource"]) {
                 return None;
@@ -283,9 +292,13 @@ fn generic_move_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             ZoneChangeGroup::Entry
         }
         // Look-back departures, observed by the sources captured before it.
-        (Some("battlefield"), _, SubjectRelation::Source | SubjectRelation::Permanents { .. }) => {
-            ZoneChangeGroup::Departure
-        }
+        (
+            Some("battlefield"),
+            _,
+            SubjectRelation::Source
+            | SubjectRelation::Permanents { .. }
+            | SubjectRelation::AttachedTo,
+        ) => ZoneChangeGroup::Departure,
         // A card arriving in a graveyard, from any zone or the written one.
         (
             None | Some("library" | "hand" | "battlefield"),
@@ -332,6 +345,7 @@ fn entry_pattern(event: &Value) -> Option<ZoneChangePattern<'_>> {
             to: Some("battlefield"),
             nontoken: optional_bool(event, "nontoken")?,
             entry_tapped: entry_tapped(event)?,
+            during_combat: optional_bool(event, "duringCombat")?,
             ..ZoneChangePattern::new(SubjectRelation::Source, ZoneChangeGroup::Entry)
         });
     }
