@@ -14,15 +14,6 @@ pub(in crate::oracle::canonical) struct ExplicitTokenCreationNode {
     pub additional: Vec<TokenCreationBodyNode>,
 }
 
-impl ExplicitTokenCreationNode {
-    /// Every description the action creates, in printed order.
-    pub(in crate::oracle::canonical) fn bodies(
-        &self,
-    ) -> impl Iterator<Item = &TokenCreationBodyNode> {
-        std::iter::once(&self.body).chain(self.additional.iter())
-    }
-}
-
 /// What a created token is: a written description (CR 111.4), a copy of
 /// an object with copiable-value exceptions (CR 111.8, 707.9), or a
 /// predefined catalog identity (CR 111.10) whose quantity or attachment the
