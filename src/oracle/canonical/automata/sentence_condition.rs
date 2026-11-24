@@ -1962,6 +1962,26 @@ fn recognize_object_state_predicate(
                 if super::counter_qualifier_starts(cursor, 0) {
                     return super::recognize_counter_qualifier(cursor);
                 }
+                // `has the chosen name`, `has that name` (CR 201.2, 608.2d):
+                // the shared chosen-name relation `with the chosen name`
+                // reads, with the same proof of an earlier `choose` of the
+                // program; outside a program it has no producer.
+                if word_is(cursor, 0, "the")
+                    && word_is(cursor, 1, "chosen")
+                    && word_is(cursor, 2, "name")
+                    || word_is(cursor, 0, "that") && word_is(cursor, 1, "name")
+                {
+                    cursor.enter("condition.sentence.object.chosen-name");
+                    cursor.require(
+                        super::resolution_choice_in_scope(cursor),
+                        "a card name an earlier `choose` instruction of this program records",
+                    )?;
+                    let width = if word_is(cursor, 0, "the") { 3 } else { 2 };
+                    for _ in 0..width {
+                        consume_current(cursor)?;
+                    }
+                    return Ok(ObjectPredicate::Relation(ObjectRelation::ChosenName));
+                }
                 if let Some(keyword) = cursor
                     .peek()
                     .and_then(parameterless_keyword_from_oracle_word)
