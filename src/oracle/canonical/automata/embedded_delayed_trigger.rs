@@ -51,14 +51,6 @@ impl From<DelayedStepTimingNode> for EffectCreatedRuleNode {
 }
 
 impl EffectCreatedRuleNode {
-    /// The step timing of a step-delayed range.
-    pub(in crate::oracle::canonical) fn step_timing(&self) -> Option<DelayedStepTimingNode> {
-        match self {
-            Self::Step(timing) => Some(*timing),
-            Self::Trigger(_) | Self::Replacement(_) | Self::NextDamage(_) => None,
-        }
-    }
-
     /// The event frame the governed actions read. A delayed trigger's
     /// actions read its own event (CR 603.7d-e); a step trigger and a
     /// replacement read the frame of the ability that created them.

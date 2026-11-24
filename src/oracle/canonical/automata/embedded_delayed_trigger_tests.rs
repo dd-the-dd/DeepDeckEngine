@@ -1,9 +1,9 @@
 use crate::oracle::syntax::recognize_entities;
 
-use super::super::{EffectSequenceNode, OracleTokenCursor, recognize_effect_sequence};
+use super::super::{EffectSequenceNode, recognize_effect_sequence};
 use super::{
     CreatedRuleLifetime, DelayedTriggerEventNode, EffectCreatedRuleNode, ObjectDeparture,
-    effect_created_rule_starts,
+    OracleTokenCursor, effect_created_rule_starts,
 };
 
 fn parse(text: &str) -> Result<EffectSequenceNode, String> {
