@@ -589,7 +589,7 @@
       }
     },
     {
-      "id": "near-miss-variable-number-of-declared-sacrifices",
+      "id": "sibling-variable-number-of-declared-sacrifices",
       "request": {
         "cardName": "Generic Declared X Sacrifice",
         "typeLine": "Artifact",
@@ -599,13 +599,24 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilityCount": 1,
-        "diagnostics": [
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "engine.gap.activation-cost-action"
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0", "equals": { "id": "xValue", "kind": "chooseNumber", "minimum": 0 } },
+              {
+                "pointer": "/declaration/decisions/1/quantity",
+                "equals": { "kind": "exactly", "value": { "kind": "decisionResult", "decisionId": "xValue" } }
+              },
+              {
+                "pointer": "/costs/2",
+                "equals": { "kind": "chosenObjectsCost", "action": "sacrifice", "choice": "activationCostChoiceX2" }
+              }
+            ]
           }
         ]
       }

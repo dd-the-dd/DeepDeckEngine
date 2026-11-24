@@ -19,6 +19,18 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
         Some("revealCard") => Some(
             value_kind(&cost["card"]) == Some("self") || target_reference_supported(&cost["card"]),
         ),
+        // Every object of one declared choice (`Sacrifice X Goats`).
+        Some("chosenObjectsCost") => Some(
+            cost["choice"]
+                .as_str()
+                .is_some_and(|choice| !choice.is_empty())
+                && cost["action"]
+                    .as_str()
+                    .is_some_and(|action| CHOSEN_OBJECTS_ACTIONS.contains(&action))
+                && cost
+                    .get("from")
+                    .is_none_or(|zone| matches!(value_kind(zone), Some("hand" | "graveyard"))),
+        ),
         // CR 701.43a: exerting the source permanent.
         Some("exert") => Some(value_kind(&cost["object"]) == Some("self")),
         // CR 701.13a: the payer mills N cards (CR 118.3: N must be there).
@@ -28,6 +40,47 @@ pub(super) fn chosen_object_cost_supported(cost: &Value) -> Option<bool> {
         _ => None,
     }
 }
+
+/// The quantity of a `chooseObjects` declaration: an exact positive literal,
+/// or exactly the value of an earlier number decision of the same
+/// declaration (`Sacrifice X creatures`, CR 107.3a).
+pub(super) fn chosen_quantity_supported(quantity: &Value) -> bool {
+    value_kind(quantity) == Some("exactly")
+        && (integer_value(&quantity["value"]).is_some_and(|value| value > 0)
+            || (value_kind(&quantity["value"]) == Some("decisionResult")
+                && quantity["value"]["decisionId"].is_string()))
+}
+
+/// The number of objects a `chooseObjects` declaration chooses under the
+/// decisions made before it. X may be zero (no object is chosen).
+pub(super) fn declared_chosen_quantity(
+    quantity: &Value,
+    decisions: &BTreeMap<String, Value>,
+) -> Option<i32> {
+    if value_kind(quantity) != Some("exactly") {
+        return None;
+    }
+    if let Some(value) = integer_value(&quantity["value"]) {
+        return (value > 0).then_some(value);
+    }
+    (value_kind(&quantity["value"]) == Some("decisionResult"))
+        .then(|| quantity["value"]["decisionId"].as_str())
+        .flatten()
+        .and_then(|id| decisions.get(id))
+        .and_then(Value::as_i64)
+        .and_then(|value| i32::try_from(value).ok())
+        .filter(|value| *value >= 0)
+}
+
+/// The actions a `chosenObjectsCost` performs on each object of its choice.
+const CHOSEN_OBJECTS_ACTIONS: [&str; 6] = [
+    "sacrifice",
+    "tap",
+    "returnToOwnersHand",
+    "discard",
+    "exile",
+    "reveal",
+];
 
 /// The casting cost kinds whose objects are chosen while casting and paid by
 /// this module.
@@ -298,6 +351,91 @@ impl GameEngine {
                     .any(|card| card.instance_id == source_instance_id))
     }
 
+    /// Every object of one declared choice (`id` or `id:index`), each once.
+    fn declared_choice_objects(action: &LegalAction, choice: &str) -> Vec<TargetRef> {
+        let prefix = format!("{choice}:");
+        let mut seen = BTreeSet::new();
+        action
+            .targets
+            .iter()
+            .filter(|(id, _)| id.as_str() == choice || id.starts_with(&prefix))
+            .filter(|(_, target)| seen.insert(format!("{target:?}")))
+            .map(|(_, target)| target.clone())
+            .collect()
+    }
+
+    /// Performs a `chosenObjectsCost` action on every chosen object, after
+    /// checking each one is still payable (CR 118.3).
+    fn pay_chosen_objects_cost(
+        &mut self,
+        action: &LegalAction,
+        cost: &Value,
+    ) -> Result<(), EngineError> {
+        let choice = cost["choice"]
+            .as_str()
+            .ok_or_else(|| EngineError::new("a chosen-objects cost has no choice"))?;
+        let kind = cost["action"].as_str().unwrap_or_default();
+        let objects = Self::declared_choice_objects(action, choice);
+        let mut permanents = Vec::new();
+        let mut cards = Vec::new();
+        for object in &objects {
+            match (kind, object) {
+                (
+                    "sacrifice" | "tap" | "returnToOwnersHand",
+                    TargetRef::Permanent { instance_id },
+                ) => {
+                    let (player_index, card_index) =
+                        self.permanent_position(instance_id).ok_or_else(|| {
+                            EngineError::new("a chosen cost permanent left the battlefield")
+                        })?;
+                    let permanent = &self.state.players[player_index].battlefield[card_index];
+                    if permanent.controller != action.player_id
+                        || (kind == "tap" && permanent.tapped)
+                    {
+                        return Err(EngineError::new(
+                            "a chosen permanent can no longer pay its cost",
+                        ));
+                    }
+                    permanents.push(instance_id.clone());
+                }
+                ("discard" | "exile" | "reveal", TargetRef::Card { instance_id }) => {
+                    cards.push(instance_id.clone());
+                }
+                _ => return Err(EngineError::new("a chosen cost object has the wrong kind")),
+            }
+        }
+        for instance_id in permanents {
+            match kind {
+                "sacrifice" => self.move_permanent_to_graveyard(&instance_id, "sacrificed")?,
+                "tap" => {
+                    let tapped = self.tap_permanent(&instance_id)?.ok_or_else(|| {
+                        EngineError::new("a tapped permanent cannot pay a tap cost")
+                    })?;
+                    self.enqueue_permanent_tapped_triggers(&tapped);
+                }
+                _ => self.return_permanent_to_hand(&instance_id)?,
+            }
+        }
+        for instance_id in cards {
+            match kind {
+                "discard" => self.discard_card_as_cost(&action.player_id, &instance_id)?,
+                "exile" => self.exile_chosen_card_as_cost(&action.player_id, &instance_id)?,
+                _ => {
+                    let player_index = self.player_index(&action.player_id)?;
+                    if !self.state.players[player_index]
+                        .hand
+                        .iter()
+                        .any(|card| card.instance_id == instance_id)
+                    {
+                        return Err(EngineError::new("a revealed card left the payer's hand"));
+                    }
+                    self.reveal_hand_card_as_cost(&action.player_id, &instance_id);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Pays the activation's reveal and mill costs.
     pub(super) fn apply_activated_chosen_object_costs(
         &mut self,
@@ -308,7 +446,12 @@ impl GameEngine {
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|cost| matches!(value_kind(cost), Some("revealCard" | "millCards" | "exert")))
+            .filter(|cost| {
+                matches!(
+                    value_kind(cost),
+                    Some("revealCard" | "millCards" | "exert" | "chosenObjectsCost")
+                )
+            })
             .cloned()
             .collect::<Vec<_>>();
         if costs.is_empty() {
@@ -383,6 +526,12 @@ impl GameEngine {
         }
         for instance_id in &revealed {
             self.reveal_hand_card_as_cost(&action.player_id, instance_id);
+        }
+        for cost in costs
+            .iter()
+            .filter(|cost| value_kind(cost) == Some("chosenObjectsCost"))
+        {
+            self.pay_chosen_objects_cost(action, cost)?;
         }
         if mill > 0 {
             self.mill_cards(&action.player_id, mill, Some(&action.player_id))?;

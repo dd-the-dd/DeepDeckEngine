@@ -879,7 +879,7 @@
       }
     },
     {
-      "id": "near-miss-martyr-of-sands-reveal-x-remains-engine-gap",
+      "id": "exact-martyr-of-sands-reveal-x-cards",
       "request": {
         "cardName": "Martyr of Sands",
         "typeLine": "Creature — Human Cleric",
@@ -889,12 +889,36 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 0,
-            "state": "engine.gap.activation-cost-action"
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "reveal",
+                  "choice": "activationCostChoiceX1",
+                  "from": {
+                    "kind": "hand",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/zone/kind",
+                "equals": "hand"
+              }
+            ]
           }
         ]
       }
@@ -916,6 +940,94 @@
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-grim-hireling-sacrifice-x-treasures",
+      "request": {
+        "cardName": "Grim Hireling",
+        "typeLine": "Creature — Tiefling Rogue",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever one or more creatures you control deal combat damage to a player, create two Treasure tokens.\n{B}, Sacrifice X Treasures: Target creature gets -X/-X until end of turn. Activate only as a sorcery.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/1",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "sacrifice",
+                  "choice": "activationCostChoiceX1"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unseen-tap-x-untapped-artifacts-excludes-tapped-source",
+      "request": {
+        "cardName": "Generic Relay Engine",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{2}, {T}, Tap X untapped artifacts you control: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/costs/2",
+                "equals": {
+                  "kind": "chosenObjectsCost",
+                  "action": "tap",
+                  "choice": "activationCostChoiceX2"
+                }
+              },
+              {
+                "pointer": "/declaration/decisions/1/candidates/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-random-x-discard-remains-engine-gap",
+      "request": {
+        "cardName": "Generic Relay Engine",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{1}, Discard X cards at random: You gain X life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "engine.gap.activation-cost-action"
           }
         ]
       }

@@ -348,14 +348,10 @@ fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
             "{1}, Untap a tapped creature you control",
             "engine.gap.activation-cost-action",
         ),
-        // The activation announces X; a declaration of X chosen objects
-        // still has no engine schema.
+        // The activation announces X; X cards chosen at random still have
+        // no engine schema (X chosen objects are a declared choice).
         (
-            "{1}, Sacrifice X creatures",
-            "engine.gap.activation-cost-action",
-        ),
-        (
-            "{X}, Sacrifice X creatures",
+            "{1}, Discard X cards at random",
             "engine.gap.activation-cost-action",
         ),
         (

@@ -57,6 +57,41 @@ fn activation_cost_reveal_id(cost: &ChosenRevealCostNode) -> String {
     format!("activationCostReveal{}", cost.cost_index)
 }
 
+/// The declared choice of X objects of a chosen-X cost.
+fn activation_cost_chosen_x_id(cost: &ChosenXCostNode) -> String {
+    format!("activationCostChoiceX{}", cost.cost_index)
+}
+
+/// The candidates of a chosen-X cost: permanents the payer controls (only
+/// untapped ones for a tap cost, CR 701.26a) or cards in one of its zones.
+fn chosen_x_candidates(cost: &ChosenXCostNode, taps_source: bool) -> Value {
+    let candidates = match &cost.filter {
+        PaymentObjectFilter::Permanents(object) => {
+            let filter = lower_permanent_object_predicate(&object.predicate);
+            json!({
+                "kind": "permanents",
+                "controller": controller(),
+                "where": if cost.action == ChosenXAction::Tap {
+                    json!({ "kind": "and", "operands": [filter, { "kind": "not", "operand": { "kind": "isTapped" } }] })
+                } else {
+                    filter
+                },
+            })
+        }
+        PaymentObjectFilter::Cards(filter) => json!({
+            "kind": "cards",
+            "zone": payment_zone(cost.zone.unwrap_or(PaymentOriginZone::Hand)),
+            "where": lower_card_object_predicate(filter),
+        }),
+    };
+    // A `{T}` cost of the same activation already taps the source: it
+    // cannot also be one of the X permanents tapped (CR 118.3).
+    with_source_exclusion(
+        candidates,
+        cost.exclude_source || (cost.action == ChosenXAction::Tap && taps_source),
+    )
+}
+
 /// The declared choice of a Blight cost: the creature receiving its counters.
 fn activation_cost_blight_id(cost: &BlightActivationCostNode) -> String {
     format!("activationCostBlight{}", cost.cost_index)
@@ -94,6 +129,10 @@ fn payment_zone(zone: PaymentOriginZone) -> Value {
 }
 
 fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) -> Vec<Value> {
+    let taps_source = costs
+        .costs
+        .iter()
+        .any(|cost| matches!(cost, LocalActivationCostNode::TapSelf(_)));
     costs
         .costs
         .iter()
@@ -163,6 +202,12 @@ fn lower_activation_object_cost_decisions(costs: &ActivationCostSequenceNode) ->
                     "where": lower_card_object_predicate(&cost.filter),
                 }),
                 json!({ "kind": "exactly", "value": integer(cost.count) }),
+            )),
+            // Exactly the announced X objects (CR 107.3a).
+            LocalActivationCostNode::ChosenX(cost) => Some(object_choice(
+                &activation_cost_chosen_x_id(cost),
+                chosen_x_candidates(cost, taps_source),
+                json!({ "kind": "exactly", "value": { "kind": "decisionResult", "decisionId": "xValue" } }),
             )),
             LocalActivationCostNode::Blight(cost) => Some(object_choice(
                 &activation_cost_blight_id(cost),
@@ -378,6 +423,18 @@ pub(in crate::oracle::canonical) fn lower_local_activation_cost(
             "kind": "revealCard",
             "card": self_ref(),
         }),
+        // One cost over the whole chosen-X declaration.
+        LocalActivationCostNode::ChosenX(cost) => {
+            let mut value = json!({
+                "kind": "chosenObjectsCost",
+                "action": cost.action.as_str(),
+                "choice": activation_cost_chosen_x_id(cost),
+            });
+            if let Some(zone) = cost.zone {
+                value["from"] = payment_zone(zone);
+            }
+            value
+        }
         LocalActivationCostNode::ExertSelf => json!({
             "kind": "exert",
             "object": self_ref(),

@@ -84,6 +84,14 @@ impl ExplicitActivationSourceAvailability {
                 | Cost::Mill { .. }
                 | Cost::ExertSelf
                 | Cost::Blight(_) => {}
+                // `Sacrifice X ...` without `another` may choose the source.
+                Cost::ChosenX(chosen) => {
+                    possibly_departed |= !chosen.exclude_source
+                        && matches!(
+                            chosen.action,
+                            super::ChosenXAction::Sacrifice | super::ChosenXAction::Return
+                        )
+                }
                 // `Sacrifice another ...` cannot move the source (CR 109.1);
                 // without `another` the payer may choose the source itself.
                 Cost::SacrificeObject(selected) => possibly_departed |= !selected.exclude_source,

@@ -105,8 +105,8 @@ mod cast_events;
 mod casting_cost;
 mod casting_permission_modes;
 mod characteristic_observation;
-mod copy_program;
 mod chosen_object_costs;
+mod copy_program;
 mod cost_payment;
 mod cost_query;
 mod counter_placement;
@@ -4671,7 +4671,7 @@ fn declaration_shape_supported(rule: &Value) -> bool {
             }
             Some("chooseObjects") => {
                 decision["id"].is_string()
-                    && exact_quantity_value(&decision["quantity"]).is_some()
+                    && chosen_object_costs::chosen_quantity_supported(&decision["quantity"])
                     && target_candidates_supported(&decision["candidates"])
                     && decision.get("condition").is_none_or(condition_supported)
             }
@@ -14297,6 +14297,7 @@ impl GameEngine {
                 Some("discardCard" | "revealCard") => {
                     cost["card"]["id"].as_str().map(ToOwned::to_owned)
                 }
+                Some("chosenObjectsCost") => cost["choice"].as_str().map(ToOwned::to_owned),
                 Some("tap") if value_kind(&cost["object"]) == Some("chosenTarget") => {
                     cost["object"]["id"].as_str().map(ToOwned::to_owned)
                 }
@@ -16472,8 +16473,11 @@ impl GameEngine {
                                     .ok_or(Failure::GrammarRejected)?,
                                 )
                             } else {
-                                let quantity = exact_quantity_value(&decision["quantity"])
-                                    .ok_or(Failure::GrammarRejected)?;
+                                let quantity = chosen_object_costs::declared_chosen_quantity(
+                                    &decision["quantity"],
+                                    &assignment.decisions,
+                                )
+                                .ok_or(Failure::GrammarRejected)?;
                                 (quantity, quantity)
                             };
                             let minimum = usize::try_from(minimum_value)
