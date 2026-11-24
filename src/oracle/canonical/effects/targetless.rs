@@ -171,7 +171,21 @@ pub(in crate::oracle::canonical) fn lower_targetless_damage_recipient(
             bound_permanent_reference_value(*reference, &[])
                 .ok_or(TargetlessLoweringError::RequiresTarget)
         }
+        DamageRecipientNode::AttackedRecipient(attacker) => {
+            lower_attacked_recipient(*attacker, &[])
+        }
     }
+}
+
+/// `the player or planeswalker ATTACKER is attacking` (CR 506.3): resolved
+/// from the combat at resolution, through the attacker's reference.
+pub(in crate::oracle::canonical) fn lower_attacked_recipient(
+    attacker: PermanentEffectReference,
+    bindings: &[(TargetBinding, String)],
+) -> Result<Value, TargetlessLoweringError> {
+    let object = bound_permanent_reference_value(attacker, bindings)
+        .ok_or(TargetlessLoweringError::RequiresTarget)?;
+    Ok(json!({ "kind": "attackedRecipientOf", "object": object }))
 }
 
 /// Expands procedural actions and retains atomic effects as one-element lists.

@@ -6,6 +6,17 @@
 //! reference, permanent operand and effect duration. The two printed frames
 //! (`that would be dealt [to RECIPIENT] [by SOURCE]` and `SOURCE would deal
 //! [to RECIPIENT]`) differ only in how the source is introduced.
+//!
+//! The same amount shield, written as the subject of a passive clause,
+//! redirects instead of preventing (CR 614.9):
+//!
+//! ```text
+//! Redirection := AMOUNT [combat] damage that would be dealt SCOPE
+//!                (is|are) dealt to PARTY instead
+//! ```
+//!
+//! The scope slots and their children are the prevention frame's; only the
+//! consequence differs, so a shield is either prevention or redirection.
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
@@ -50,13 +61,35 @@ pub(in crate::oracle::canonical) struct PreventDamageEffectNode {
     /// whose damage is prevented, two filters over one declaration (CR
     /// 615.1a): damage dealt to it, and damage it deals.
     pub recipient_also_source: bool,
+    /// `... is dealt to PARTY instead` (CR 614.9): the damage the shield
+    /// covers is dealt to this party rather than prevented.
+    pub redirect: Option<DamagePartyNode>,
     pub duration: EffectDurationNode,
+}
+
+impl PreventDamageEffectNode {
+    /// The parties in declaration order: protected recipient, source and
+    /// the recipient of redirected damage.
+    pub(in crate::oracle::canonical) fn parties(&self) -> [&Option<DamagePartyNode>; 3] {
+        [&self.recipient, &self.source, &self.redirect]
+    }
+}
+
+/// What a damage shield does with the damage it covers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ShieldConsequence {
+    /// `prevent AMOUNT damage ...` (CR 615).
+    Prevent,
+    /// `AMOUNT damage ... is dealt to PARTY instead` (CR 614.9).
+    Redirect,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PartyRole {
     Recipient,
     Source,
+    /// The party redirected damage is dealt to instead.
+    Redirected,
 }
 
 fn is_this_turn(cursor: &OracleTokenCursor<'_>) -> bool {
@@ -106,8 +139,9 @@ fn recognize_party(
     cursor.enter(match role {
         PartyRole::Recipient => "effect.prevent.recipient",
         PartyRole::Source => "effect.prevent.source",
+        PartyRole::Redirected => "effect.redirect-damage.recipient",
     });
-    if role == PartyRole::Recipient
+    if role != PartyRole::Source
         && cursor
             .peek()
             .is_some_and(|raw| raw.eq_ignore_ascii_case("you"))
@@ -139,14 +173,16 @@ fn recognize_party(
         let selector = &targets.slots[0].selector;
         cursor.require(
             match role {
-                PartyRole::Recipient => damage_target_supported(selector),
+                PartyRole::Recipient | PartyRole::Redirected => damage_target_supported(selector),
                 PartyRole::Source => {
                     !matches!(selector, TargetSelector::Any)
                         && selector_guarantees_permanent(selector)
                 }
             },
             match role {
-                PartyRole::Recipient => "a player, any target, or a damageable permanent selector",
+                PartyRole::Recipient | PartyRole::Redirected => {
+                    "a player, any target, or a damageable permanent selector"
+                }
                 PartyRole::Source => "a battlefield permanent as the prevented damage source",
             },
         )?;
@@ -195,9 +231,95 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             recipient: None,
             source: None,
             recipient_also_source: false,
+            redirect: None,
             duration: EffectDurationNode::UntilEndOfCurrentTurn,
         });
     }
+    let node = recognize_damage_shield(
+        &mut trial,
+        name_links,
+        name_failure,
+        context,
+        ShieldConsequence::Prevent,
+    )?;
+    *cursor = trial;
+    Ok(node)
+}
+
+/// True at `all|the next N [combat] damage that would ...` whose sentence
+/// states `is dealt to ... instead`: the redirection frame owns it. Lexical
+/// lookahead within the sentence only; it commits nothing.
+pub(in crate::oracle::canonical) fn damage_redirection_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let word = |offset: usize, expected: &str| {
+        cursor
+            .peek_ahead(offset)
+            .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+    };
+    let mut offset = if word(0, "all") {
+        1
+    } else if word(0, "the") && word(1, "next") && cursor.peek_ahead(2).is_some() {
+        3
+    } else {
+        return false;
+    };
+    if word(offset, "combat") {
+        offset += 1;
+    }
+    if !(word(offset, "damage") && word(offset + 1, "that")) {
+        return false;
+    }
+    let mut dealt = false;
+    while let Some(raw) = cursor.peek_ahead(offset) {
+        if matches!(raw, "." | ";" | ":") {
+            return false;
+        }
+        if (raw.eq_ignore_ascii_case("is") || raw.eq_ignore_ascii_case("are"))
+            && word(offset + 1, "dealt")
+        {
+            dealt = true;
+        }
+        if dealt && raw.eq_ignore_ascii_case("instead") {
+            return true;
+        }
+        offset += 1;
+    }
+    false
+}
+
+/// `all|the next N [combat] damage that would be dealt ... is dealt to
+/// PARTY instead` (CR 614.9): one redirection shield. Punctuation and
+/// following effects stay with the enclosing sequence.
+pub(in crate::oracle::canonical) fn recognize_damage_redirection_effect(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PreventDamageEffectNode> {
+    cursor.enter("effect.redirect-damage.subject");
+    let mut trial = cursor.clone();
+    let node = recognize_damage_shield(
+        &mut trial,
+        name_links,
+        name_failure,
+        context,
+        ShieldConsequence::Redirect,
+    )?;
+    *cursor = trial;
+    Ok(node)
+}
+
+/// The amount, kind, scope and duration of one damage shield, then its
+/// consequence: nothing more for a prevention, `is dealt to PARTY instead`
+/// for a redirection.
+fn recognize_damage_shield(
+    trial: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+    consequence: ShieldConsequence,
+) -> MachineResult<PreventDamageEffectNode> {
     let amount = if trial
         .peek()
         .is_some_and(|raw| raw.eq_ignore_ascii_case("all"))
@@ -206,7 +328,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
         PreventedDamageAmount::All
     } else {
         trial.consume_phrase(&["the", "next"])?;
-        PreventedDamageAmount::Next(recognize_numeric_atom(&mut trial)?)
+        PreventedDamageAmount::Next(recognize_numeric_atom(trial)?)
     };
     trial.enter("effect.prevent.damage-kind");
     let combat_only = trial
@@ -230,17 +352,17 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             .is_some_and(|raw| raw.eq_ignore_ascii_case("would"))
     {
         trial.consume("that")?;
-        super::recognize_relative_damage_clause(&mut trial, super::Voice::Passive)?;
+        super::recognize_relative_damage_clause(trial, super::Voice::Passive)?;
     } else {
         source = Some(recognize_party(
-            &mut trial,
+            trial,
             PartyRole::Source,
             name_links,
             name_failure,
             context,
         )?);
         trial.enter("effect.prevent.frame.would-deal");
-        super::recognize_relative_damage_clause(&mut trial, super::Voice::Active)?;
+        super::recognize_relative_damage_clause(trial, super::Voice::Active)?;
     }
     // The recipient, the `by SOURCE` phrase and the duration are independent
     // optional slots; each may appear once, in any printed order.
@@ -248,7 +370,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
         trial.enter("effect.prevent.clause");
         if is_this_turn(&trial) {
             trial.require(duration.is_none(), "exactly one duration")?;
-            duration = Some(recognize_effect_duration(&mut trial)?);
+            duration = Some(recognize_effect_duration(trial)?);
         } else if ["to", "and", "dealt", "by"]
             .iter()
             .enumerate()
@@ -268,7 +390,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             )?;
             trial.consume_phrase(&["to", "and", "dealt", "by"])?;
             let party = recognize_party(
-                &mut trial,
+                trial,
                 PartyRole::Recipient,
                 name_links,
                 name_failure,
@@ -294,7 +416,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             trial.require(recipient.is_none(), "exactly one damage recipient")?;
             trial.consume("to")?;
             recipient = Some(recognize_party(
-                &mut trial,
+                trial,
                 PartyRole::Recipient,
                 name_links,
                 name_failure,
@@ -310,7 +432,7 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             )?;
             trial.consume("by")?;
             source = Some(recognize_party(
-                &mut trial,
+                trial,
                 PartyRole::Source,
                 name_links,
                 name_failure,
@@ -320,6 +442,29 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
             break;
         }
     }
+    let redirect = match consequence {
+        ShieldConsequence::Prevent => None,
+        ShieldConsequence::Redirect => {
+            trial.enter("effect.redirect-damage.consequence");
+            let verb = trial
+                .peek()
+                .filter(|raw| raw.eq_ignore_ascii_case("is") || raw.eq_ignore_ascii_case("are"))
+                .ok_or_else(|| trial.fail("`is dealt to` the redirected damage's recipient"))?
+                .to_string();
+            trial.consume(&verb)?;
+            trial.consume_phrase(&["dealt", "to"])?;
+            let party = recognize_party(
+                trial,
+                PartyRole::Redirected,
+                name_links,
+                name_failure,
+                context,
+            )?;
+            trial.enter("effect.redirect-damage.instead");
+            trial.consume("instead")?;
+            Some(party)
+        }
+    };
     trial.enter("effect.prevent.duration");
     let duration = trial.require_value(duration, "the duration `this turn`")?;
     trial.require(
@@ -337,13 +482,13 @@ pub(in crate::oracle::canonical) fn recognize_prevent_damage_effect(
         !(targeted(&recipient) && targeted(&source)),
         "at most one target declaration in a damage prevention",
     )?;
-    *cursor = trial;
     Ok(PreventDamageEffectNode {
         amount,
         combat_only,
         recipient,
         source,
         recipient_also_source,
+        redirect,
         duration,
     })
 }

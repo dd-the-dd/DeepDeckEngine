@@ -81,6 +81,12 @@ fn supports_known_effect(effect: &Value) -> bool {
                     .get("recipient")
                     .is_none_or(prevention_party_supported)
                 && effect.get("source").is_none_or(prevention_party_supported)
+                // `... is dealt to PARTY instead` (CR 614.9): a redirection
+                // shield over the same scope.
+                && effect.get("redirectTo").is_none_or(|party| {
+                    prevention_party_supported(party)
+                        && effect.get("recipientAlsoSource").is_none()
+                })
                 // `a SOURCE of your choice` (CR 609.7a) and the `next time`
                 // shield that applies once (CR 615.7).
                 && effect.get("sourceChoice").is_none_or(|choice| {
@@ -415,14 +421,45 @@ impl GameEngine {
                         }
                     }
                 };
+                let redirect_to = match effect.get("redirectTo") {
+                    None => None,
+                    Some(reference) => {
+                        match self.resolve_prevention_party(reference, stack_object, bindings) {
+                            Some(TargetRef::Player { player_id }) => {
+                                Some(json!({ "playerId": player_id }))
+                            }
+                            Some(TargetRef::Permanent { instance_id }) => {
+                                Some(json!({ "permanentId": instance_id }))
+                            }
+                            _ => return Ok(()),
+                        }
+                    }
+                };
                 let shield_id = self
                     .state
                     .rule_modifiers
                     .iter()
-                    .filter(|modifier| value_kind(modifier) == Some("damagePreventionShield"))
+                    .filter(|modifier| {
+                        matches!(
+                            value_kind(modifier),
+                            Some("damagePreventionShield" | "damageRedirectionShield")
+                        )
+                    })
                     .filter_map(|modifier| modifier["shieldId"].as_u64())
                     .max()
                     .map_or(1, |id| id + 1);
+                if let Some(redirect_to) = redirect_to {
+                    self.install_damage_redirection_shield(
+                        shield_id,
+                        remaining,
+                        effect["combatOnly"].as_bool().unwrap_or(false),
+                        recipient,
+                        source,
+                        redirect_to,
+                        effect["nextTimeOnly"].as_bool().unwrap_or(false),
+                    );
+                    return Ok(());
+                }
                 // `dealt to and dealt by PARTY`: the same permanent as the
                 // source of a second, independent shield.
                 let dealt_by_shield = (effect["recipientAlsoSource"].as_bool() == Some(true))

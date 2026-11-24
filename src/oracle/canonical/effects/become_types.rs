@@ -72,6 +72,33 @@ fn lower_stat_component(expression: &NumericExpression) -> Result<Value, &'stati
 /// The copiable-value modifications of a characteristic change (CR 707.9b),
 /// with no object and no duration: the same operation kinds as a resolved
 /// change, so a copy's `except` list and a `becomes` share one vocabulary.
+/// The copiable-value exceptions of a copy as the engine's modification
+/// list (CR 707.9b): the characteristic changes, then `isn't legendary`.
+/// The one lowering of every copy's exceptions; an empty list is none.
+pub(in crate::oracle::canonical) fn lower_copy_exception_list(
+    exceptions: &TokenCopyExceptionsNode,
+) -> Result<Vec<Value>, &'static str> {
+    let mut except = match &exceptions.changes {
+        Some(changes) => lower_copiable_characteristic_changes(changes)?,
+        None => Vec::new(),
+    };
+    if exceptions.not_legendary {
+        except.push(json!({ "kind": "removeSupertype", "supertype": "Legendary" }));
+    }
+    Ok(except)
+}
+
+/// A stack copy's exceptions (CR 707.10): `None` without any, else the
+/// shared modification list; an unsupported change is a lowering failure.
+pub(in crate::oracle::canonical) fn lower_stack_copy_exceptions(
+    cursor: &mut OracleTokenCursor<'_>,
+    exceptions: &TokenCopyExceptionsNode,
+) -> MachineResult<Option<Value>> {
+    cursor.enter("lower.copy-stack-object.exceptions");
+    let except = lower_copy_exception_list(exceptions).map_err(|expected| cursor.fail(expected))?;
+    Ok((!except.is_empty()).then(|| Value::Array(except)))
+}
+
 pub(in crate::oracle::canonical) fn lower_copiable_characteristic_changes<Subject>(
     node: &BecomeTypesNode<Subject>,
 ) -> Result<Vec<Value>, &'static str> {

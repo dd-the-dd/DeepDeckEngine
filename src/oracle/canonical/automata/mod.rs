@@ -67,6 +67,7 @@ mod container_body;
 mod contextual_list;
 mod control_change;
 mod controlled_count_entry;
+mod copy_exception;
 mod cost;
 mod cost_keyword;
 mod counter_delayed_draw;
@@ -333,6 +334,7 @@ pub(super) use container_body::*;
 pub(super) use contextual_list::*;
 pub(super) use control_change::*;
 pub(super) use controlled_count_entry::*;
+pub(super) use copy_exception::*;
 pub(super) use cost::*;
 pub(super) use cost_keyword::*;
 pub(super) use counter_delayed_draw::*;
@@ -1556,6 +1558,9 @@ pub(super) enum DamageRecipientNode {
     BoundPlayer(BoundPlayerReference),
     /// `to it`, `to that creature`: an object the binding environment names.
     BoundObject(PermanentEffectReference),
+    /// `to the player or planeswalker it's attacking` (CR 506.3): what the
+    /// named attacking creature attacks, read from the combat at resolution.
+    AttackedRecipient(PermanentEffectReference),
 }
 
 impl DamageRecipientNode {
@@ -1563,7 +1568,7 @@ impl DamageRecipientNode {
     /// needs the program's target bindings.
     pub(super) fn is_bound(&self) -> bool {
         match self {
-            Self::BoundPlayer(_) | Self::BoundObject(_) => true,
+            Self::BoundPlayer(_) | Self::BoundObject(_) | Self::AttackedRecipient(_) => true,
             Self::All(groups) => groups.iter().any(Self::is_bound),
             _ => false,
         }

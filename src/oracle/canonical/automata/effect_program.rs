@@ -830,6 +830,18 @@ fn complete_outcome_block(
         cursor.enter("program.optional-outcome.complete");
         return Ok(block);
     }
+    if super::copy_new_targets_amendment_starts(cursor) {
+        // CR 707.10c: the permission amends the copy instruction the block
+        // ends with, whatever wrapper gates that instruction.
+        let mut block = block;
+        super::recognize_copy_new_targets_amendment(
+            cursor,
+            super::last_program_copy_instruction_mut(&mut block),
+        )?;
+        cursor.enter("program.copy-new-targets.terminator");
+        cursor.consume(".")?;
+        return complete_outcome_block(cursor, block, name_links, name_failure, context);
+    }
     cursor.enter("program.steps.following");
     // A sentence-initial `Then` only restates the written order of the
     // independent steps (CR 608.2c); the following step owns its sentence.

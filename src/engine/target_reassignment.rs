@@ -1,5 +1,12 @@
 //! One atomic reassignment of a stack object's complete target designation.
 //! Optionality belongs to the enclosing program. Choices are prepared read-only.
+//!
+//! `mode` selects which complete assignments are admissible (CR 115.7):
+//! absent, `choose new targets` (115.7d) admits any of them; `all`, `change
+//! the target(s)` (115.7a), admits only those changing every target to
+//! another legal one, else nothing changes; `one`, `change a target`
+//! (115.7b), admits those changing exactly one target. `to` names the one
+//! new target the changed target must become.
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -37,7 +44,51 @@ impl GameEngine {
             .resolve_player(&effect["player"], resolving, bindings)
             .ok_or_else(|| EngineError::new("target reassignment chooser is unresolved"))?;
         self.player_index(&player)?;
-        let assignments = self.prepare_joint_target_assignments(&original)?;
+        let forced = match effect.get("to") {
+            None => None,
+            Some(reference) if matches!(value_kind(reference), Some("self" | "abilitySource")) => {
+                // A source that left the battlefield is no new target.
+                if self
+                    .permanent_position(&resolving.card.instance_id)
+                    .is_none()
+                {
+                    return Ok(());
+                }
+                Some(TargetRef::Permanent {
+                    instance_id: resolving.card.instance_id.clone(),
+                })
+            }
+            Some(reference) => match self.resolve_target(reference, resolving, bindings) {
+                Some(target) => Some(target),
+                None => return Ok(()),
+            },
+        };
+        let mode = effect["mode"].as_str();
+        let assignments = self
+            .prepare_joint_target_assignments(&original)?
+            .into_iter()
+            .filter(|assignment| match mode {
+                Some("all") => {
+                    !assignment.target_order.is_empty()
+                        && assignment.replaced.len() == assignment.target_order.len()
+                }
+                Some("one") => assignment.replaced.len() == 1,
+                _ => true,
+            })
+            .filter(|assignment| {
+                forced.as_ref().is_none_or(|forced| {
+                    assignment
+                        .replaced
+                        .iter()
+                        .all(|id| assignment.targets.get(id) == Some(forced))
+                })
+            })
+            .collect::<Vec<_>>();
+        // CR 115.7a/b: without an admissible complete assignment the
+        // designation is unchanged.
+        if assignments.is_empty() {
+            return Ok(());
+        }
         if effect["optional"].as_bool() == Some(true)
             && !self.confirm_resolution_action(
                 resolving,

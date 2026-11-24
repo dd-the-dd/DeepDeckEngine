@@ -484,7 +484,7 @@ impl GameEngine {
     /// Applies one copiable-value exception of a token copy (CR 707.9b). The
     /// operations are the characteristic-change vocabulary without object or
     /// duration; each changes the copy's copiable values.
-    fn apply_copy_exception(
+    pub(super) fn apply_copy_exception(
         &self,
         definition: &mut CardDefinition,
         exception: &Value,

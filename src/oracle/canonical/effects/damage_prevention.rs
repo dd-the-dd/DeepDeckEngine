@@ -37,6 +37,25 @@ pub(in crate::oracle::canonical) fn lower_prevent_damage_shield(
     shield
 }
 
+/// The shield for the lowered parties in [`PreventDamageEffectNode::parties`]
+/// order. A redirected party turns the prevention into a redirection of the
+/// same amount, scope and lifetime (CR 614.9); the engine reads `redirectTo`.
+pub(in crate::oracle::canonical) fn lower_damage_shield_parties(
+    node: &PreventDamageEffectNode,
+    amount: Value,
+    parties: Vec<Option<Value>>,
+) -> Value {
+    let mut parties = parties.into_iter();
+    let recipient = parties.next().flatten();
+    let source = parties.next().flatten();
+    let redirect = parties.next().flatten();
+    let mut shield = lower_prevent_damage_shield(node, amount, recipient, source);
+    if let Some(redirect) = redirect {
+        shield["redirectTo"] = redirect;
+    }
+    shield
+}
+
 pub(in crate::oracle::canonical) fn lower_prevention_amount(
     node: &PreventDamageEffectNode,
     declarations: TargetlessDeclarationSupport,
@@ -91,8 +110,17 @@ pub(in crate::oracle::canonical) fn lower_targetless_prevent_damage(
         .as_ref()
         .map(lower_nontargeted_damage_party)
         .transpose()?;
+    let redirect = node
+        .redirect
+        .as_ref()
+        .map(lower_nontargeted_damage_party)
+        .transpose()?;
     let amount = lower_prevention_amount(node, declarations)?;
-    Ok(lower_prevent_damage_shield(node, amount, recipient, source))
+    Ok(lower_damage_shield_parties(
+        node,
+        amount,
+        vec![recipient, source, redirect],
+    ))
 }
 
 /// The single target slot of a party, if it declares one.

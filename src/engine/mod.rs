@@ -3230,6 +3230,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
         Some("stackObjects") => stack_filter_supported(&candidates["where"]),
         Some("stackItems") => {
             stack_item_filter_supported(&candidates["where"])
+                && candidates.get("singleTarget").is_none_or(Value::is_boolean)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
                         || player_complement_reference_supported(controller)
@@ -3258,6 +3259,7 @@ fn target_reference_supported(reference: &Value) -> bool {
         || value_kind(reference) == Some("combatCounterpart")
         || (value_kind(reference) == Some("attachedPermanent")
             && value_kind(&reference["attachment"]) == Some("self"))
+        || damage_execution::attacked_recipient_reference_supported(reference)
 }
 
 fn move_operation_supported(operation: &Value) -> bool {
@@ -14993,6 +14995,9 @@ impl GameEngine {
                         )
                     })
                     .filter(|object| matches_stack_item_filter(object, &candidates["where"]))
+                    .filter(|object| {
+                        candidates["singleTarget"] != true || object.targets.len() == 1
+                    })
                     .map(|object| TargetRef::StackObject {
                         stack_id: object.id.clone(),
                     })
@@ -30586,6 +30591,9 @@ impl GameEngine {
         bindings: &BTreeMap<String, RuntimeBinding>,
     ) -> Option<TargetRef> {
         match value_kind(reference) {
+            Some("attackedRecipientOf") => {
+                self.resolve_attacked_recipient(reference, stack_object, bindings)
+            }
             Some("boundObject" | "singleBoundObject") => reference["binding"]
                 .as_str()
                 .and_then(|id| match bindings.get(id) {

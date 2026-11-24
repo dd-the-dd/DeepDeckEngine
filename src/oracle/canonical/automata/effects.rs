@@ -425,6 +425,9 @@ fn damage_recipient_boundary(cursor: &OracleTokenCursor<'_>) -> bool {
 fn recognize_damage_recipient_group(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<DamageRecipientNode> {
+    if let Some(reference) = super::recognize_damage_recipient_reference(cursor) {
+        return reference;
+    }
     if cursor
         .peek()
         .is_some_and(|token| token.eq_ignore_ascii_case("you"))

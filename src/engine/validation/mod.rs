@@ -8,7 +8,7 @@ mod damage;
 mod tokens;
 
 pub(super) use damage::damage_effect_supported;
-pub(super) use tokens::token_copy_effect_supported;
+pub(super) use tokens::{copy_exception_supported, token_copy_effect_supported};
 
 #[cfg(all(
     test,
