@@ -168,7 +168,7 @@ fn a_target_becomes_the_two_colors_its_controller_chose() {
     let mut engine = engine();
     let source = add(&mut engine, "scuttlemutt", "Artifact Creature - Scarecrow");
     let target = add(&mut engine, "bear", "Creature - Bear");
-    let stack = stack_for(&engine, &source, &rule, Some(&target));
+    let stack = stack_for(&engine, &source, &rule, Some(target.as_str()));
     let mut provider = Choose {
         decision: "characteristicObjects0:chosenColors",
         wanted: json!(["U", "R"]),
@@ -245,7 +245,7 @@ fn a_chosen_basic_land_type_sets_the_target_lands_subtype() {
     let mut engine = engine();
     let shaman = add(&mut engine, "reef-shaman", "Creature - Merfolk Shaman");
     let land = add(&mut engine, "forest", "Basic Land - Forest");
-    let stack = stack_for(&engine, &shaman, &rule, Some(&land));
+    let stack = stack_for(&engine, &shaman, &rule, Some(land.as_str()));
     let mut provider = Choose {
         decision: "characteristicObjects0:chosenSubtype",
         wanted: json!(["Swamp"]),
