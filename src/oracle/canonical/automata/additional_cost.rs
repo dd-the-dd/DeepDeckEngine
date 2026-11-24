@@ -204,14 +204,23 @@ fn recognize_branch(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<Additio
 /// exact literal number of objects; a chosen-X number of objects has no
 /// casting schema yet and is an explicit engine gap.
 fn literal_count(cursor: &mut OracleTokenCursor<'_>, count: NumericAtom) -> MachineResult<i64> {
-    literal_quantity(count).ok_or_else(|| {
+    let count = literal_quantity(count).ok_or_else(|| {
         cursor.enter("additional-cost.action.quantity");
         cursor.engine_gap(
             crate::oracle::canonical::engine_gap::EngineGap::AdditionalCostAction,
             "a literal number of objects chosen while casting (a declaration of X chosen objects has no casting schema)",
         )
-    })
+    })?;
+    cursor.enter("additional-cost.action.quantity");
+    cursor.require(
+        count <= MAX_CHOSEN_COST_OBJECTS,
+        "a chosen-object count within the bounded casting declaration (64)",
+    )?;
+    Ok(count)
 }
+
+/// The casting declaration enumerates each chosen object as its own payment.
+const MAX_CHOSEN_COST_OBJECTS: i64 = 64;
 
 /// The permanents an additional cost acts on are the caster's own: the query
 /// names no controller, or names the caster (`you control`).

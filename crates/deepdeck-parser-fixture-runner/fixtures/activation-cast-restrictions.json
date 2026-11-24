@@ -1052,7 +1052,7 @@
       }
     },
     {
-      "id": "exact-skyscribing-forecast-reveal-cost-gap",
+      "id": "exact-skyscribing-forecast-reveal-cost",
       "request": {
         "cardName": "Skyscribing",
         "typeLine": "Sorcery",
@@ -1062,19 +1062,16 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
+        "outcome": "success",
+        "cardStatus": "canonical",
         "abilities": [
           {
             "index": 1,
-            "status": "unsupported"
-          }
-        ],
-        "diagnostics": [
-          {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "engine.gap.activation-cost-action"
+            "status": "canonical",
+            "ruleAssertions": [
+              { "pointer": "/activationZone", "equals": "hand" },
+              { "pointer": "/costs/1", "equals": { "kind": "revealCard", "card": { "kind": "self" } } }
+            ]
           }
         ]
       }

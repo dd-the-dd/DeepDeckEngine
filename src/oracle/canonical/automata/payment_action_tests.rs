@@ -344,7 +344,10 @@ fn resolution_gains_lower_to_the_engine_cost_program_schema() {
 #[test]
 fn each_context_fails_explicitly_for_an_atom_without_its_engine_schema() {
     for (text, state) in [
-        ("{1}, Blight 1", "engine.gap.activation-cost-action"),
+        (
+            "{1}, Untap a tapped creature you control",
+            "engine.gap.activation-cost-action",
+        ),
         // The activation announces X; a declaration of X chosen objects
         // still has no engine schema.
         (
