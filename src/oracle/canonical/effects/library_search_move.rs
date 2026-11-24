@@ -78,21 +78,20 @@ fn lower_search_effects(
     let slot_ids = (0..search.slots.len())
         .map(|index| format!("{binding}/slot{index}"))
         .collect::<Vec<_>>();
-    let found_cards = if search.slots.is_empty() {
-        decision_result(&binding)
-    } else {
-        json!({
-            "kind": "union",
-            "sets": slot_ids.iter().map(|id| decision_result(id)).collect::<Vec<_>>(),
-        })
-    };
-    let move_effect = lower_search_move(cursor, search, found_cards.clone(), &player, &holder)?;
+    let found_cards = search_found_cards(search);
     let found = |zones: &[CardZoneName]| {
         let mut effects = if search.slots.is_empty() {
             let mut choice = search_choice(search, &binding, &player, &holder, zones, &filter);
             if let Some((minimum, maximum)) = &typed_bounds {
                 choice["minimum"] = minimum.clone();
-                choice["maximum"] = maximum.clone();
+                // `any number of` (CR 701.23a): every matching card of the
+                // searched zones may be found; their count is the maximum.
+                choice["maximum"] = maximum.clone().unwrap_or_else(|| {
+                    json!({
+                        "kind": "countObjects",
+                        "objects": searched_zone_cards(&holder, zones, &filter),
+                    })
+                });
             }
             vec![choice]
         } else {
@@ -111,6 +110,19 @@ fn lower_search_effects(
         "player": player.clone(),
         "cards": found_cards.clone(),
     });
+    // The search ends at its selection: later ordinary actions of the
+    // program reveal, move and shuffle (the shuffle is never inserted here).
+    if search.destination == SearchDestination::Bound {
+        cursor.enter("lower.library-search.bound-result");
+        cursor.require(
+            !search.reveal && search.shuffle_order == SearchShuffleOrder::ByHolderInstruction,
+            "a bound search whose later actions reveal and shuffle",
+        )?;
+        let mut effects = found(&search.origin.zones);
+        effects.push(record);
+        return Ok(effects);
+    }
+    let move_effect = lower_search_move(cursor, search, found_cards.clone(), &player, &holder)?;
     let shuffle = json!({
         "kind": "shuffleZone",
         "zone": library(holder.clone()),
@@ -176,16 +188,112 @@ fn lower_search_effects(
     Ok(effects)
 }
 
-/// The bounds of a typed search count (`up to X`, `that many`): the shared
-/// target-count amounts. An unbounded count is refused by the search parent.
-fn lower_search_count_bounds(count: &TargetCount) -> Option<(Value, Value)> {
-    let TargetCountBound::Amount(maximum) = &count.maximum else {
-        return None;
+/// The bounds of a typed search count (`up to X`, `that many`, `any number
+/// of`): the shared target-count amounts. An unbounded maximum is `None`;
+/// the choice then counts the matching cards of the searched zones.
+fn lower_search_count_bounds(count: &TargetCount) -> Option<(Value, Option<Value>)> {
+    let maximum = match &count.maximum {
+        TargetCountBound::Amount(maximum) => Some(lower_target_count_amount(maximum)?),
+        TargetCountBound::Unbounded => None,
     };
-    Some((
-        lower_target_count_amount(&count.minimum)?,
-        lower_target_count_amount(maximum)?,
-    ))
+    Some((lower_target_count_amount(&count.minimum)?, maximum))
+}
+
+/// Every card of the searched zones that matches the search's card phrase:
+/// the population an unbounded search may find.
+fn searched_zone_cards(holder: &Value, zones: &[CardZoneName], filter: &Value) -> Value {
+    let zone_cards = |zone: &CardZoneName| {
+        let mut cards = json!({
+            "kind": "cardsInZone",
+            "zone": {"kind": zone.ir_name(), "player": holder.clone()},
+        });
+        if !filter.is_null() {
+            cards["where"] = filter.clone();
+        }
+        cards
+    };
+    match zones {
+        [zone] => zone_cards(zone),
+        zones => json!({
+            "kind": "union",
+            "sets": zones.iter().map(zone_cards).collect::<Vec<_>>(),
+        }),
+    }
+}
+
+/// The cards one search found: its choice's result, or the union of its
+/// slot choices (`a Forest card and a Plains card`).
+fn search_found_cards(search: &LibrarySearchEffectNode) -> Value {
+    let binding = lower_collection_binding(search.binding);
+    if search.slots.is_empty() {
+        decision_result(&binding)
+    } else {
+        json!({
+            "kind": "union",
+            "sets": (0..search.slots.len())
+                .map(|index| decision_result(&format!("{binding}/slot{index}")))
+                .collect::<Vec<_>>(),
+        })
+    }
+}
+
+/// The static upper bound on how many cards a search finds, when its count
+/// is literal: one card per slot, or the literal maximum.
+fn search_found_maximum(search: &LibrarySearchEffectNode) -> Option<i64> {
+    if !search.slots.is_empty() {
+        return i64::try_from(search.slots.len()).ok();
+    }
+    match &search.count {
+        None => Some(i64::from(search.maximum)),
+        Some(count) => match &count.maximum {
+            TargetCountBound::Amount(NumericExpression::Atom(NumericAtom::Integer(value))) => {
+                Some(*value)
+            }
+            _ => None,
+        },
+    }
+}
+
+/// After a search that ends at its selection, its found cards become the
+/// observed card collection of the program (CR 608.2c): `it`, `that card`,
+/// `them`, `those cards` and `the rest` of the following ordinary actions
+/// read exactly those identities. A searched library is shuffled only by a
+/// later written instruction (`then shuffle`, `Then that player
+/// shuffles.`); a search without one is refused, never silently shuffled.
+pub(in crate::oracle::canonical) fn observe_bound_library_search(
+    cursor: &mut OracleTokenCursor<'_>,
+    collections: &mut CardCollectionMemory,
+    search: &LibrarySearchEffectNode,
+    later: &[LocalEffectNode],
+) -> MachineResult<()> {
+    if search.destination != SearchDestination::Bound {
+        return Ok(());
+    }
+    cursor.enter("lower.library-search.bound-result.shuffle");
+    cursor.require(
+        !search.origin.zones.contains(&CardZoneName::Library)
+            || later.iter().any(effect_shuffles_a_library),
+        "a later instruction that shuffles the searched library (CR 701.23a)",
+    )?;
+    collections.observe_searched_cards(search_found_cards(search), search_found_maximum(search));
+    Ok(())
+}
+
+/// Whether an action of the program shuffles a library: `shuffle`, a
+/// player's own `shuffles`, a `shuffle ... into` move, or such an action
+/// inside an optional block.
+fn effect_shuffles_a_library(effect: &LocalEffectNode) -> bool {
+    match effect {
+        LocalEffectNode::CardAction(CardActionNode::Shuffle { .. }) => true,
+        LocalEffectNode::CardAction(CardActionNode::Move { destination, .. }) => {
+            destination.shuffle
+        }
+        LocalEffectNode::Performed(performed) => effect_shuffles_a_library(&performed.effect),
+        LocalEffectNode::OptionalSequence(body) => {
+            body.effects.iter().any(effect_shuffles_a_library)
+        }
+        _ => false,
+    }
 }
 
 /// One choice of the found cards among the searched zones (CR 701.23a): the
@@ -327,6 +435,11 @@ fn lower_search_move(
                 "player": player.clone(),
                 "position": "top",
             }),
+            SearchDestination::Bound => {
+                return Err(
+                    cursor.fail("a search destination; a bound result moves by later actions")
+                );
+            }
         },
     }))
 }

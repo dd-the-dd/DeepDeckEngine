@@ -1115,6 +1115,8 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
                 // `Search target player's library ...`: the holder is one
                 // declared player target of this action (CR 115.1).
@@ -1135,6 +1137,8 @@ fn lower_local_effect_sequence_with_collections(
                         &lower_collection_binding(search.binding),
                     );
                     effects.extend(lowered);
+                    let later = &sequence.effects[effect_index + 1..];
+                    observe_bound_library_search(cursor, collections, search, later)?;
                 }
             },
             LocalEffectNode::OptionalLibrarySearch(search) => {

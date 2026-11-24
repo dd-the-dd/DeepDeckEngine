@@ -113,3 +113,48 @@ fn typed_unproved_zone_variants_fail_lowering_without_emitting_partial_actions()
         assert!(lower_controller_library_search_effects(&mut cursor, &node).is_err());
     }
 }
+
+/// `any number of` (CR 701.23a): the choice may take every matching card of
+/// the searched zones, so its maximum is their count, never a guessed bound.
+#[test]
+fn an_unbounded_search_counts_the_matching_cards_of_the_searched_zones() {
+    let effects =
+        lower("Search your library for any number of land cards, exile them, then shuffle.");
+    assert_eq!(effects[0]["kind"], "chooseCards");
+    assert_eq!(effects[0]["minimum"], 0);
+    assert_eq!(effects[0]["maximum"]["kind"], "countObjects");
+    assert_eq!(effects[0]["maximum"]["objects"]["kind"], "cardsInZone");
+    assert_eq!(effects[0]["maximum"]["objects"]["zone"]["kind"], "library");
+    assert_eq!(
+        effects[0]["maximum"]["objects"]["where"], effects[0]["candidates"]["where"],
+        "the count reads the choice's own filter"
+    );
+    assert_eq!(effects[1]["kind"], "moveCards");
+    assert_eq!(effects[1]["to"]["kind"], "exile");
+    assert_eq!(effects[2]["kind"], "shuffleZone");
+}
+
+/// A search that ends at its selection lowers only its choice and its search
+/// record: moving, revealing and shuffling are later actions of the program.
+#[test]
+fn a_bound_search_lowers_its_choice_without_a_move_or_shuffle() {
+    let tokens = recognize_entities(
+        "Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+    );
+    let mut recognize = OracleTokenCursor::new("bound-search-lowering", &tokens);
+    let search = super::recognize_library_search_action(&mut recognize).expect("bound search");
+    assert_eq!(search.destination, super::SearchDestination::Bound);
+    let lower_tokens = recognize_entities("");
+    let mut lower = OracleTokenCursor::new("bound-search-lowering", &lower_tokens);
+    let effects = lower_controller_library_search_effects(&mut lower, &search).expect("lowers");
+    assert_eq!(effects.len(), 2, "{effects:#?}");
+    assert_eq!(effects[0]["kind"], "chooseCards");
+    assert_eq!(effects[0]["id"], "searchedCards");
+    assert_eq!(effects[1]["kind"], "recordLibrarySearch");
+    assert_eq!(effects[1]["cards"]["decisionId"], "searchedCards");
+    assert!(
+        effects
+            .iter()
+            .all(|effect| effect["kind"] != "shuffleZone" && effect["kind"] != "moveCards")
+    );
+}

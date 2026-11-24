@@ -1,0 +1,665 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "library-search/bound-result-and-put-back",
+  "cardName": "Bribery",
+  "cases": [
+    {
+      "id": "exact-bribery-search-binds-its-result-for-later-actions",
+      "request": {
+        "cardName": "Bribery",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}{U}",
+        "oracleText": "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/id",
+                "equals": "searchedCards"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/0/candidates/zone/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/0/candidates/zone/player/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/cards",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "searchedCards"
+                }
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/2/to/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/performer/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-search-move-and-shuffle-in-separate-sentences",
+      "request": {
+        "cardName": "Generic Sentence Search",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Search your library for a basic land card and put it onto the battlefield tapped. Then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/2/to/tapped",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/zone/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-final-parting-partition-of-found-cards",
+      "request": {
+        "cardName": "Final Parting",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Search your library for two cards. Put one into your hand and the other into your graveyard. Then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/0/maximum",
+                "equals": 2
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/2/from",
+                "equals": {
+                  "kind": "decisionResult",
+                  "decisionId": "searchedCards"
+                }
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "hand"
+              },
+              {
+                "pointer": "/effects/4/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/4/cards/kind",
+                "equals": "setDifference"
+              },
+              {
+                "pointer": "/effects/4/to/kind",
+                "equals": "graveyard"
+              },
+              {
+                "pointer": "/effects/5/kind",
+                "equals": "shuffleZone"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mana-severance-unbounded-search",
+      "request": {
+        "cardName": "Mana Severance",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{U}",
+        "oracleText": "Search your library for any number of land cards, exile them, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/minimum",
+                "equals": 0
+              },
+              {
+                "pointer": "/effects/0/maximum/kind",
+                "equals": "countObjects"
+              },
+              {
+                "pointer": "/effects/0/maximum/objects/kind",
+                "equals": "cardsInZone"
+              },
+              {
+                "pointer": "/effects/0/maximum/objects/zone/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "shuffleZone"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "recordLibrarySearch"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-battalion-foot-soldier-optional-unbounded-search",
+      "request": {
+        "cardName": "Battalion Foot Soldier",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "When this creature enters, you may search your library for any number of cards named Battalion Foot Soldier, reveal them, put them into your hand, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/0/effects/0/maximum/kind",
+                "equals": "countObjects"
+              },
+              {
+                "pointer": "/effects/0/effects/1/kind",
+                "equals": "revealCards"
+              },
+              {
+                "pointer": "/effects/0/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/effects/2/to/kind",
+                "equals": "hand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stonehewer-giant-search-then-attach",
+      "request": {
+        "cardName": "Stonehewer Giant",
+        "typeLine": "Creature — Giant Warrior",
+        "manaCost": "{3}{W}{W}",
+        "oracleText": "Vigilance\n{1}{W}, {T}: Search your library for an Equipment card, put it onto the battlefield, attach it to a creature you control, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "activatedAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "battlefield"
+              },
+              {
+                "pointer": "/effects/2/bind",
+                "equals": "movedOntoBattlefield"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "new-combination-search-result-enters-attached-to-the-source",
+      "request": {
+        "cardName": "Generic Aura Caller",
+        "typeLine": "Creature — Giant",
+        "manaCost": "{4}{W}",
+        "oracleText": "When this creature enters, search your library for an Aura card, put it onto the battlefield attached to this creature, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "recordLibrarySearch"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/bind",
+                "equals": "movedOntoBattlefield"
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "attachPermanent"
+              },
+              {
+                "pointer": "/effects/4/kind",
+                "equals": "shuffleZone"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-index-put-them-back-in-any-order",
+      "request": {
+        "cardName": "Index",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Look at the top five cards of your library, then put them back in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "chooseOrder"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/2/to/position",
+                "equals": "top"
+              },
+              {
+                "pointer": "/effects/2/to/player",
+                "equals": {
+                  "kind": "ownerOf",
+                  "object": {
+                    "kind": "candidate"
+                  }
+                }
+              },
+              {
+                "pointer": "/effects/2/order/kind",
+                "equals": "decisionOrder"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-rest-on-the-bottom-of-that-library",
+      "request": {
+        "cardName": "Generic Library Thief",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Look at the top four cards of target opponent's library, exile one of them face down, then put the rest on the bottom of that library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "lookAtTopCards"
+              },
+              {
+                "pointer": "/effects/0/zone/player/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/2/to/kind",
+                "equals": "exile"
+              },
+              {
+                "pointer": "/effects/2/to/faceDown",
+                "equals": true
+              },
+              {
+                "pointer": "/effects/3/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/3/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/3/to/position",
+                "equals": "bottom"
+              },
+              {
+                "pointer": "/effects/3/order/kind",
+                "equals": "random"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-own-library-search-without-a-shuffle",
+      "request": {
+        "cardName": "Generic Unshuffled Search",
+        "typeLine": "Sorcery",
+        "manaCost": "{B}",
+        "oracleText": "Search your library for a card and exile it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "lower.library-search.bound-result.shuffle"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-put-back-without-an-observed-collection",
+      "request": {
+        "cardName": "Generic Empty Put Back",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Put them back in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "messageContains": "observed card collection"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-put-back-of-cards-not-observed-in-a-library",
+      "request": {
+        "cardName": "Generic Hand Put Back",
+        "typeLine": "Sorcery",
+        "manaCost": "{U}",
+        "oracleText": "Reveal your hand, then put them back in any order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-counter-placement-stays-a-counter-action",
+      "request": {
+        "cardName": "Generic Counter Placement",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Put a +1/+1 counter on target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putCounters"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

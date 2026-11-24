@@ -127,6 +127,9 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             // This node selects from and returns to the same player's
             // library; ordering within a zone does not cross its boundary.
             SearchDestination::LibraryTop => false,
+            // The selection only binds the found cards; the action that
+            // later moves them is classified on its own.
+            SearchDestination::Bound => false,
         },
         LocalEffectNode::MoveCards(movement) => {
             fn is_library(zone: LocalZone) -> bool {
