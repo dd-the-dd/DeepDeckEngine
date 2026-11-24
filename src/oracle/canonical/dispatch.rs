@@ -508,19 +508,6 @@ fn parse_existing_native_rule(
         CastQuotaProgramAttempt::NotClaimed => {}
     }
 
-    if ability_kind == "staticAbility" && claims_promoted_cast_prohibition_family(input) {
-        return match parse_promoted_cast_prohibition(input) {
-            Ok(draft) => CanonicalParseOutcome::Parsed {
-                draft,
-                recognizer: RecognizerProvenance::Native,
-            },
-            Err(failure) => CanonicalParseOutcome::Failed {
-                failure,
-                recognizer: RecognizerProvenance::Native,
-            },
-        };
-    }
-
     if claims_promoted_saga_family(input) {
         return match parse_promoted_saga(input) {
             Ok(draft) => CanonicalParseOutcome::Parsed {

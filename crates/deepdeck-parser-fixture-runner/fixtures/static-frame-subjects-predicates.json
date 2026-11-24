@@ -1,0 +1,1482 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static-frame/subjects-predicates-continuations",
+  "cases": [
+    {
+      "id": "exact-leyline-of-sanctity-player-hexproof",
+      "request": {
+        "cardName": "Leyline of Sanctity",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "If this card is in your opening hand, you may begin the game with it on the battlefield.\nYou have hexproof. (You can't be the target of spells or abilities your opponents control.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "playerHexproof"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-rampaging-ferocidon-players-cant-gain-life",
+      "request": {
+        "cardName": "Rampaging Ferocidon",
+        "typeLine": "Creature — Dinosaur",
+        "manaCost": "{2}{R}",
+        "oracleText": "Menace\nPlayers can't gain life.\nWhenever another creature enters, this creature deals 1 damage to that creature's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitPlayerAction"
+              },
+              {
+                "pointer": "/modifiers/0/action",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-telepathy-opponents-hands-revealed",
+      "request": {
+        "cardName": "Telepathy",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}",
+        "oracleText": "Your opponents play with their hands revealed.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "revealHands"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-narset-each-opponent-draw-limit",
+      "request": {
+        "cardName": "Narset, Parter of Veils",
+        "typeLine": "Legendary Planeswalker — Narset",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Each opponent can't draw more than one card each turn.\n−2: Look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "drawLimitPerTurn"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-steel-golem-you-cant-cast-creature-spells",
+      "request": {
+        "cardName": "Steel Golem",
+        "typeLine": "Artifact Creature — Golem",
+        "manaCost": "{3}",
+        "oracleText": "You can't cast creature spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitCast"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-grand-abolisher-turn-scoped-cast-and-activation",
+      "request": {
+        "cardName": "Grand Abolisher",
+        "typeLine": "Creature — Human Cleric",
+        "manaCost": "{W}{W}",
+        "oracleText": "During your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or enchantments.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitCast"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "prohibitActivation"
+              },
+              {
+                "pointer": "/modifiers/1/players",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/1/abilities/kind",
+                "equals": "activatedAbilities"
+              },
+              {
+                "pointer": "/modifiers/1/abilities/sources/kind",
+                "equals": "permanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-basandra-cast-window-combat",
+      "request": {
+        "cardName": "Basandra, Battle Seraph",
+        "typeLine": "Legendary Creature — Angel",
+        "manaCost": "{3}{R}{W}",
+        "oracleText": "Flying\nPlayers can't cast spells during combat.\n{R}: Target creature attacks this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitCast"
+              },
+              {
+                "pointer": "/modifiers/0/duringCombat",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-territorial-dispute-players-cant-play-lands",
+      "request": {
+        "cardName": "Territorial Dispute",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "At the beginning of your upkeep, sacrifice this enchantment unless you sacrifice a land.\nPlayers can't play lands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitPlayerAction"
+              },
+              {
+                "pointer": "/modifiers/0/action",
+                "equals": "playLand"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-jin-gitaxias-possessive-hand-size-reduction",
+      "request": {
+        "cardName": "Jin-Gitaxias, Core Augur",
+        "typeLine": "Legendary Creature — Phyrexian Praetor",
+        "manaCost": "{8}{U}{U}",
+        "oracleText": "Flash\nAt the beginning of your end step, draw seven cards.\nEach opponent's maximum hand size is reduced by seven.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyMaximumHandSize"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": -7
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-minamo-hand-size-increase",
+      "request": {
+        "cardName": "Minamo Scrollkeeper",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Defender\nYour maximum hand size is increased by one.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyMaximumHandSize"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/0/amount",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stoic-angel-untap-limit",
+      "request": {
+        "cardName": "Stoic Angel",
+        "typeLine": "Creature — Angel",
+        "manaCost": "{1}{G}{W}{U}",
+        "oracleText": "Flying, vigilance\nPlayers can't untap more than one creature during their untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "untapLimitPerUntapStep"
+              },
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              },
+              {
+                "pointer": "/modifiers/0/objects/where",
+                "equals": {
+                  "kind": "cardTypeContains",
+                  "value": "Creature"
+                }
+              },
+              {
+                "pointer": "/modifiers/0/maximum",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ghirapur-orrery-each-player-additional-land",
+      "request": {
+        "cardName": "Ghirapur Orrery",
+        "typeLine": "Artifact",
+        "manaCost": "{4}",
+        "oracleText": "Each player may play an additional land on each of their turns.\nAt the beginning of each player's upkeep, if that player has no cards in hand, that player draws three cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "additionalLandPlay"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "eachPlayer"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-sigarda-you-and-humans-coordinated-subjects",
+      "request": {
+        "cardName": "Sigarda, Heron's Grace",
+        "typeLine": "Legendary Creature — Angel",
+        "manaCost": "{3}{G}{W}",
+        "oracleText": "Flying\nYou and Humans you control have hexproof.\n{2}, Exile a card from your graveyard: Create a 1/1 white Human Soldier creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "playerHexproof"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/modifiers/1/keyword",
+                "equals": "hexproof"
+              },
+              {
+                "pointer": "/modifiers/1/objects/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gruul-spellbreaker-turn-condition-player-and-source",
+      "request": {
+        "cardName": "Gruul Spellbreaker",
+        "typeLine": "Creature — Ogre Warrior",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Riot (This creature enters with your choice of a +1/+1 counter or haste.)\nTrample\nDuring your turn, you and this creature have hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "playerHexproof"
+              },
+              {
+                "pointer": "/modifiers/1/objects",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-seedborn-muse-imperative-other-untap",
+      "request": {
+        "cardName": "Seedborn Muse",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Untap all permanents you control during each other player's untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "untapDuringOtherPlayersUntap"
+              },
+              {
+                "pointer": "/modifiers/0/objects/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-prophet-of-kruphix-coordinated-untap-collection",
+      "request": {
+        "cardName": "Prophet of Kruphix",
+        "typeLine": "Creature — Human Wizard",
+        "manaCost": "{3}{G}{U}",
+        "oracleText": "Untap all creatures and lands you control during each other player's untap step.\nYou may cast creature spells as though they had flash.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "untapDuringOtherPlayersUntap"
+              },
+              {
+                "pointer": "/modifiers/0/objects/where/kind",
+                "equals": "or"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-arrest-possessive-activation-prohibition",
+      "request": {
+        "cardName": "Arrest",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature can't attack or block, and its activated abilities can't be activated.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "prohibitActivation"
+              },
+              {
+                "pointer": "/modifiers/2/abilities/sources",
+                "equals": {
+                  "kind": "attachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-faiths-fetters-mana-ability-exception",
+      "request": {
+        "cardName": "Faith's Fetters",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{3}{W}",
+        "oracleText": "Enchant permanent\nWhen this Aura enters, you gain 4 life.\nEnchanted permanent can't attack or block, and its activated abilities can't be activated unless they're mana abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "prohibitActivation"
+              },
+              {
+                "pointer": "/modifiers/2/abilities/where",
+                "equals": {
+                  "kind": "not",
+                  "operand": {
+                    "kind": "isManaAbility"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-lure-object-position-subject",
+      "request": {
+        "cardName": "Lure",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "Enchant creature\nAll creatures able to block enchanted creature do so.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "grantKeyword",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "keyword": "allMustBlockIfAble"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-indrik-umbra-serial-block-requirement",
+      "request": {
+        "cardName": "Indrik Umbra",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{4}{G}{W}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +4/+4 and has first strike, and all creatures able to block it do so.\nUmbra armor (If enchanted creature would be destroyed, instead remove all damage from it and destroy this Aura.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/2/keyword",
+                "equals": "allMustBlockIfAble"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-darkest-hour-color-copula",
+      "request": {
+        "cardName": "Darkest Hour",
+        "typeLine": "Enchantment",
+        "manaCost": "{B}",
+        "oracleText": "All creatures are black.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setColor"
+              },
+              {
+                "pointer": "/modifiers/0/colors",
+                "equals": [
+                  "B"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-heliod-conditional-type-removal",
+      "request": {
+        "cardName": "Heliod, Sun-Crowned",
+        "typeLine": "Legendary Enchantment Creature — God",
+        "manaCost": "{2}{W}",
+        "oracleText": "Indestructible\nAs long as your devotion to white is less than five, Heliod isn't a creature.\nWhenever you gain life, put a +1/+1 counter on target creature or enchantment you control.\n{1}{W}: Another target creature gains lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "removeCardTypeWhile"
+              },
+              {
+                "pointer": "/modifiers/0/cardType",
+                "equals": "Creature"
+              },
+              {
+                "pointer": "/modifiers/0/object",
+                "equals": {
+                  "kind": "self"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-phyrexian-boon-otherwise-sentence",
+      "request": {
+        "cardName": "Phyrexian Boon",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{B}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +2/+1 as long as it's black. Otherwise, it gets -1/-2.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/condition/kind",
+                "equals": "not"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-mind-carver-instead-sentence",
+      "request": {
+        "cardName": "Mind Carver",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{B}",
+        "oracleText": "When this Equipment enters, attach it to target creature you control.\nEquipped creature gets +1/+0. It gets +3/+1 instead as long as an opponent has eight or more cards in their graveyard.\nEquip {2}{B}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/condition/kind",
+                "equals": "not"
+              },
+              {
+                "pointer": "/modifiers/1/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 3
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-trollhide-quoted-grant-reminder",
+      "request": {
+        "cardName": "Trollhide",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}{G}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +2/+2 and has \"{1}{G}: Regenerate this creature.\" (The next time the creature would be destroyed this turn, instead tap it, remove it from combat, and heal all damage on it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantActivatedAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-draconic-destiny-contracted-continuation",
+      "request": {
+        "cardName": "Draconic Destiny",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +1/+1 and has flying, haste, and \"{1}: This creature gets +1/+0 until end of turn.\" It's a Dragon in addition to its other types.\nWhen enchanted creature dies, return this card to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/4/kind",
+                "equals": "addSubtype"
+              },
+              {
+                "pointer": "/modifiers/4/subtype",
+                "equals": "Dragon"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-caterwauling-boggart-separate-controllers",
+      "request": {
+        "cardName": "Caterwauling Boggart",
+        "typeLine": "Creature — Goblin Shaman",
+        "manaCost": "{3}{R}",
+        "oracleText": "Goblins you control and Elementals you control have menace. (They can't be blocked except by two or more creatures.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Goblin"
+                }
+              },
+              {
+                "pointer": "/modifiers/1/objects/where",
+                "equals": {
+                  "kind": "subtypeContains",
+                  "value": "Elemental"
+                }
+              },
+              {
+                "pointer": "/modifiers/1/objects/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-melira-keepers-counter-prohibition",
+      "request": {
+        "cardName": "Melira's Keepers",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{4}{G}",
+        "oracleText": "This creature can't have counters put on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "preventCounters",
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-predatory-impetus-goaded-with-reminder",
+      "request": {
+        "cardName": "Predatory Impetus",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{4}{G}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +3/+3, must be blocked if able, and is goaded. (It attacks each combat if able and attacks a player other than you if able.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/2",
+                "equals": {
+                  "kind": "goadAttachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-humility-base-power-toughness",
+      "request": {
+        "cardName": "Humility",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "All creatures lose all abilities and have base power and toughness 1/1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/1/power",
+                "equals": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-unused-each-opponent-hexproof-as-long-as",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Each opponent has hexproof as long as you control a Zombie.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "playerHexproof"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-enchanted-controller-cant-cast-creature-spells",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nEnchanted creature's controller can't cast creature spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/players",
+                "equals": {
+                  "kind": "controllerOfAttachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-each-of-your-opponents-shroud",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Each of your opponents has shroud.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "playerShroud"
+              },
+              {
+                "pointer": "/modifiers/0/player",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-equipped-creature-possessive-abilities",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature's activated abilities can't be activated.\nEquip {2}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "prohibitActivation"
+              },
+              {
+                "pointer": "/modifiers/0/abilities/sources",
+                "equals": {
+                  "kind": "attachedPermanent",
+                  "attachment": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-all-colors-collection",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Each nonland permanent you control is all colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "setAllColors"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-second-prohibited-action-is-not-dropped",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Players can't gain life or pay life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "static.player.prohibition.action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-opponents-cant-win-is-explicit",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Artifact Creature — Angel",
+        "manaCost": "{2}",
+        "oracleText": "You can't lose the game and your opponents can't win the game.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "static.player.prohibition.action"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-quoted-grant-then-non-reminder-sentence",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nEnchanted creature has \"{T}: Add {G}.\" (Reminder.) Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-player-verb-agreement",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}",
+        "oracleText": "Each opponent have hexproof.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-type-removal-without-condition",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Enchantment Creature — God",
+        "manaCost": "{2}",
+        "oracleText": "This creature isn't a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "abilityIndex": 0
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-qualified-able-blockers",
+      "request": {
+        "cardName": "Static frame near miss",
+        "typeLine": "Creature — Elf",
+        "manaCost": "{2}",
+        "oracleText": "All creatures with flying able to block this creature do so.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.block-requirement"
+          }
+        ]
+      }
+    }
+  ]
+}
