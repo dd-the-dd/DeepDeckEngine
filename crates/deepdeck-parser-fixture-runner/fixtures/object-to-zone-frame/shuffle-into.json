@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/shuffle-into",
+  "cases": [
+    {
+      "id": "exact-alabaster-dragon-shuffles-the-dead-card",
+      "request": {
+        "cardName": "Alabaster Dragon",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Flying\nWhen this creature dies, shuffle it into its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleLibrariesHolding"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-spell-shuffles-itself-by-name",
+      "request": {
+        "cardName": "Probe Zenith",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Draw a card. Shuffle Probe Zenith into its owner's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/cards/kind",
+                "equals": "self"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "shuffleLibrariesHolding"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-shuffle-a-zone-collection-into-your-library",
+      "request": {
+        "cardName": "Shared Shuffle",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Shuffle all creature cards from your graveyard into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/0/to/kind",
+                "equals": "library"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleLibrariesHolding"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-shuffle-declared-card-targets",
+      "request": {
+        "cardName": "Shared Shuffle",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Shuffle up to three target cards from your graveyard into your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/cards/kind",
+                "equals": "chosenTargets"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "shuffleLibrariesHolding"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shuffle-into-another-players-library",
+      "request": {
+        "cardName": "Probe Zenith",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Shuffle Probe Zenith into target player's library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-shuffle-into-a-positioned-library",
+      "request": {
+        "cardName": "Shared Shuffle",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Shuffle all creature cards from your graveyard into the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

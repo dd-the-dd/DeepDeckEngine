@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-to-zone-frame/exile-collections",
+  "cases": [
+    {
+      "id": "exact-final-judgment-exile-all-creatures",
+      "request": {
+        "cardName": "Final Judgment",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Exile all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/kind",
+                "equals": "eachPermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/where/kind",
+                "equals": "cardTypeContains"
+              },
+              {
+                "pointer": "/effects/0/permanent/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-all-nonland-permanents-opponents-control",
+      "request": {
+        "cardName": "Shared Exile Sweep",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all nonland permanents your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/player/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-all-other-creatures-excludes-source",
+      "request": {
+        "cardName": "Shared Exile Sweeper",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{1}",
+        "oracleText": "When this creature enters, exile all other creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "triggeredAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "exilePermanent"
+              },
+              {
+                "pointer": "/effects/0/permanent/excludeSource",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-exile-chosen-permanent-uses-the-selection-operand",
+      "request": {
+        "cardName": "Shared Exile Choice",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "spellAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "choosePermanents"
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "moveCards"
+              },
+              {
+                "pointer": "/effects/1/cards/kind",
+                "equals": "decisionResult"
+              },
+              {
+                "pointer": "/effects/1/to/kind",
+                "equals": "exile"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exile-all-other-spells-is-not-a-permanent-collection",
+      "request": {
+        "cardName": "Shared Exile Negative",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Exile all other spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-exile-all-creatures-in-a-graveyard-keeps-its-card-domain-failure",
+      "request": {
+        "cardName": "Shared Exile Negative",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Exile all creatures in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

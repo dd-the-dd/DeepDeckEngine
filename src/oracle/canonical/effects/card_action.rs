@@ -764,9 +764,15 @@ impl CardCollectionMemory {
             ),
             "an executable hand, graveyard or exile collection",
         )?;
-        let player = self.zone_owner_player(cursor, &query.owner, target_decisions)?;
-        let mut objects =
-            json!({"kind":"cardsInZone","zone":{"kind":query.zone.ir_name(),"player":player}});
+        // `all graveyards`, `an opponent's graveyard`: the zone of every
+        // player of the population, read on resolution.
+        let zone = match &query.owner {
+            CardZoneOwnerNode::Players(players) => json!({"kind":query.zone.ir_name(),
+                "players":lower_player_set_reference(*players)}),
+            owner => json!({"kind":query.zone.ir_name(),
+                "player":self.zone_owner_player(cursor, owner, target_decisions)?}),
+        };
+        let mut objects = json!({"kind":"cardsInZone","zone":zone});
         if let Some(predicate) = &query.predicate {
             validate_object_predicate_numeric_expressions(predicate, declarations)
                 .map_err(|error| cursor.fail(error.expectation()))?;
@@ -787,6 +793,9 @@ impl CardCollectionMemory {
             CardZoneOwnerNode::Player(LocalPlayerReference::Controller) => Ok(controller()),
             CardZoneOwnerNode::Player(_) => {
                 Err(cursor.fail("a resolved collection owner reference"))
+            }
+            CardZoneOwnerNode::Players(_) => {
+                Err(cursor.fail("one zone owner, not a population of players"))
             }
             CardZoneOwnerNode::TargetPlayer(targets) => {
                 let [slot] = targets.slots.as_slice() else {
@@ -1292,7 +1301,21 @@ impl CardCollectionMemory {
                     ));
                 }
                 let mut order = None;
-                match destination.order {
+                // CR 401.4: cards put into the same place of a library at the
+                // same time are arranged by their owner; `your library` names
+                // the controller as that owner, so an unwritten order is the
+                // controller's choice.
+                let owner_orders = destination.order.is_none()
+                    && destination.zone == CardZoneName::Library
+                    && destination.owner
+                        == CardMoveOwnerNode::Player(LocalPlayerReference::Controller)
+                    && !maximum.is_some_and(|maximum| maximum <= 1);
+                let policy = if owner_orders {
+                    Some(CollectionOrder::Chosen)
+                } else {
+                    destination.order
+                };
+                match policy {
                     Some(CollectionOrder::Chosen) => {
                         let id = fresh("remainderOrder", &mut self.next_order);
                         self.allocated_ids.insert(id.clone());
