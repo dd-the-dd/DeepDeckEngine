@@ -1224,7 +1224,7 @@ fn lower_local_effect_sequence_with_collections(
                         effects.push(json!({
                             "kind": "forEachObject",
                             "objects": object,
-                            "bind": id,
+                            "bind": id.clone(),
                             "effects": [{
                                 "kind": "installUntapRestriction",
                                 "permanent": {"kind": "boundValue", "id": id},
