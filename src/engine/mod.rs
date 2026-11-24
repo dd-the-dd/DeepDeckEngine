@@ -27081,6 +27081,11 @@ impl GameEngine {
                 };
                 if self.state.players[controller_index].battlefield[card_index].controller
                     != action.player_id
+                    && !activated_rule_execution::any_player_may_activate(
+                        &self.state.players[controller_index].battlefield[card_index],
+                        action,
+                        rule_index,
+                    )
                 {
                     return Err(EngineError::new(
                         "player does not control activated ability source",

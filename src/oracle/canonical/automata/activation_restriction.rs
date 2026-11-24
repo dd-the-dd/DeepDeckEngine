@@ -11,7 +11,7 @@
 //!              | "activate" "no" "more" "than" Count "each" "turn" "."
 //!              | "activate" "each" LABEL "ability" "only" "once" "."
 //!              | "any" "player" "may" "activate" "this" "ability"
-//!                    ["but" "only" Clauses] "."
+//!                    [["but"] "only" Clauses] "."
 //! Clauses     := Clause (("and" | "," ["and"]) "only" Clause)*
 //! Clause      := "as" "a" "sorcery" | "as" "an" "instant"
 //!              | "once" ["each" "turn"] | Window | "if" Condition
@@ -288,7 +288,10 @@ pub(in crate::oracle::canonical) fn recognize_activation_restriction_sentence(
         node.any_player = true;
         cursor.enter("activation.restriction.activator-connector");
         if word_at(cursor, 0, "but") {
-            cursor.consume_phrase(&["but", "only"])?;
+            cursor.consume("but")?;
+        }
+        if word_at(cursor, 0, "only") {
+            cursor.consume("only")?;
             recognize_restriction_clauses(
                 cursor,
                 &mut node,

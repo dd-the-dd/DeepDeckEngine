@@ -20,7 +20,14 @@ pub(in crate::oracle::canonical) fn lower_restriction_condition(
             // Sorcery timing already implies the acting player's turn (CR 307.1).
             Some(WindowTurnOwner::AbilityPlayer) if sorcery => {}
             Some(WindowTurnOwner::AbilityPlayer) => {
-                operands.push(json!({ "kind": "duringControllerTurn", "player": controller() }));
+                // An any-player activation names the activator, who need
+                // not control the source (CR 602.2).
+                let player = if restrictions.any_player {
+                    json!({ "kind": "abilityController" })
+                } else {
+                    controller()
+                };
+                operands.push(json!({ "kind": "duringControllerTurn", "player": player }));
             }
             Some(WindowTurnOwner::Opponent) => operands.push(json!({ "kind": "notYourTurn" })),
             None => {}

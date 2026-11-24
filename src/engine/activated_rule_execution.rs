@@ -367,6 +367,20 @@ pub(super) fn cast_restriction_rule_supported(rule: &Value) -> bool {
         })
 }
 
+/// `Any player may activate this ability` (CR 602.2): a player who does not
+/// control the source may activate exactly that printed or granted ability.
+pub(super) fn any_player_may_activate(
+    source: &CardInstance,
+    action: &LegalAction,
+    rule_index: usize,
+) -> bool {
+    let rule = action
+        .decisions
+        .get("grantedAbilityRule")
+        .or_else(|| source.definition.printed_rules().get(rule_index));
+    rule.is_some_and(|rule| rule["anyPlayerMayActivate"].as_bool() == Some(true))
+}
+
 impl GameEngine {
     /// Whether the ability has reached its activation limit (CR 602.5b).
     pub(super) fn activation_limit_reached(
