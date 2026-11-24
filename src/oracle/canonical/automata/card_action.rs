@@ -863,6 +863,7 @@ pub(in crate::oracle::canonical) fn recognize_card_action_destination(
             face_down: modifiers.face_down,
             transformed: false,
             shuffle: false,
+            attached_to: None,
         });
     }
     cursor.enter("card-action.move.destination");

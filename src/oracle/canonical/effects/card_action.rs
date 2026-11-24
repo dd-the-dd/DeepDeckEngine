@@ -1410,16 +1410,39 @@ impl CardCollectionMemory {
                         to["enterWithCounters"] =
                             json!([{"counter": counters.counter.as_str(), "count": count}]);
                     }
+                    // `attached to OBJECT` (CR 303.4f): the recipient is
+                    // declared or chosen before the entry; the entered object
+                    // is attached to it afterwards.
+                    let attachment = match &destination.attached_to {
+                        Some(attachment) => {
+                            let id = self.allocate_selection_id("attachRecipient");
+                            Some(lower_entry_attachment_recipient(
+                                cursor,
+                                attachment,
+                                &id,
+                                declarations,
+                                &mut effects,
+                                target_decisions,
+                            )?)
+                        }
+                        None => None,
+                    };
                     self.allocated_ids
                         .insert(MOVED_ONTO_BATTLEFIELD_BINDING.to_string());
                     effects.push(json!({"kind":"moveCards", "cards":cards, "to":to,
                         "bind":MOVED_ONTO_BATTLEFIELD_BINDING}));
+                    if let Some(recipient) = attachment {
+                        effects.push(json!({"kind":"attachPermanent",
+                            "attachment":bound(MOVED_ONTO_BATTLEFIELD_BINDING),
+                            "to":recipient}));
+                    }
                     return Ok(effects);
                 }
                 cursor.require(
                     !destination.tapped
                         && destination.entering_counters.is_none()
                         && !destination.transformed
+                        && destination.attached_to.is_none()
                         && (!destination.face_down || destination.zone == CardZoneName::Exile),
                     "an untapped, counterless, untransformed nonbattlefield destination, face down only in exile",
                 )?;

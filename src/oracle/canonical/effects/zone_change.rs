@@ -271,3 +271,62 @@ pub(in crate::oracle::canonical) fn lower_zone_batch_effect(effect: &ZoneBatchEf
 pub(in crate::oracle::canonical) fn lower_shuffle_libraries_holding(cards: Value) -> Value {
     json!({ "kind": "shuffleLibrariesHolding", "cards": cards })
 }
+
+/// The permanent an entering Aura, Equipment or Fortification is attached
+/// to (CR 303.4f, 301.5c): the source, a bound reference, one declared
+/// target of the enclosing ability, or one permanent chosen on resolution
+/// (the choice is emitted before the entry). `id` names the declaration or
+/// the choice; the caller attaches the entered object to the result.
+pub(in crate::oracle::canonical) fn lower_entry_attachment_recipient(
+    cursor: &OracleTokenCursor<'_>,
+    attachment: &EntryAttachmentNode,
+    id: &str,
+    declarations: TargetlessDeclarationSupport,
+    effects: &mut Vec<Value>,
+    target_decisions: &mut Vec<Value>,
+) -> MachineResult<Value> {
+    match attachment {
+        EntryAttachmentNode::Source => Ok(self_ref()),
+        EntryAttachmentNode::Reference(reference) => {
+            bound_permanent_reference_value(*reference, &[]).ok_or_else(|| {
+                cursor.fail("an attachment reference with a value without a target binding")
+            })
+        }
+        EntryAttachmentNode::Target(targets) => {
+            let [slot] = targets.slots.as_slice() else {
+                return Err(cursor.fail("one attachment target slot"));
+            };
+            let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+                .ok_or_else(|| cursor.fail("a permanent target selector for the attachment"))?;
+            target_decisions.push(target_decision(id, candidates, 1, 1));
+            Ok(chosen_target(id))
+        }
+        EntryAttachmentNode::Chosen(selection) => {
+            let (predicate, controller_filter) =
+                lower_permanent_query_in_context(&selection.query, declarations)
+                    .map_err(|error| cursor.fail(error.expectation()))?;
+            let mut candidates = json!({ "kind": "permanents", "where": predicate });
+            match controller_filter {
+                Some(LoweredQueryController::Player(player)) => candidates["controller"] = player,
+                Some(LoweredQueryController::Population(_)) => {
+                    return Err(cursor.fail(
+                        TargetlessLoweringError::UnsupportedCollectionController.expectation(),
+                    ));
+                }
+                None => {}
+            }
+            if selection.query.exclude_source {
+                candidates["excludeSource"] = json!(true);
+            }
+            effects.push(json!({
+                "kind": "choosePermanents",
+                "id": id,
+                "player": controller(),
+                "candidates": candidates,
+                "minimum": integer(1),
+                "maximum": integer(1),
+            }));
+            Ok(decision_result(id))
+        }
+    }
+}

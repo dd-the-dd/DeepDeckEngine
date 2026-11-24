@@ -83,6 +83,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
                 face_down: false,
                 transformed: false,
                 shuffle: false,
+                attached_to: None,
             },
         })
         .collect::<Vec<_>>();
@@ -127,6 +128,7 @@ pub(in crate::oracle::canonical) fn recognize_shuffle_library_destination(
         face_down: false,
         transformed: false,
         shuffle: true,
+        attached_to: None,
     })
 }
 

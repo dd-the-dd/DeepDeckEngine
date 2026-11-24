@@ -31,6 +31,21 @@ pub(in crate::oracle::canonical) struct CardMoveDestinationNode {
     /// `shuffle X into a library`: each library that received a card is
     /// shuffled after the move (CR 701.24b). Library only.
     pub shuffle: bool,
+    /// `attached to OBJECT`: the permanent an entering Aura, Equipment or
+    /// Fortification becomes attached to (CR 303.4f, 301.5c). Battlefield
+    /// only.
+    pub attached_to: Option<EntryAttachmentNode>,
+}
+
+/// The one permanent `attached to` names, read by the shared readers: the
+/// ability's source (`this creature`), a bound reference (`it`, `that
+/// creature`), one declared target, or one permanent chosen on resolution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum EntryAttachmentNode {
+    Source,
+    Reference(super::PermanentEffectReference),
+    Target(super::TargetListNode),
+    Chosen(super::PermanentSelectionOperandNode),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -93,6 +108,7 @@ pub(in crate::oracle::canonical) struct EntryModifiers {
     /// until an explicit `under X's control` replaces it (CR 110.2a).
     pub controller: CardMoveOwnerNode,
     pub entering_counters: Option<EnteringCountersNode>,
+    pub attached_to: Option<EntryAttachmentNode>,
     explicit_controller: bool,
 }
 
@@ -104,6 +120,7 @@ impl EntryModifiers {
             transformed: false,
             controller,
             entering_counters: None,
+            attached_to: None,
             explicit_controller: false,
         }
     }
@@ -227,8 +244,67 @@ pub(in crate::oracle::canonical) fn recognize_entry_modifiers(
                 )?;
                 modifiers.entering_counters = Some(recognize_entering_counters(cursor)?);
             }
+            Some("attached")
+                if battlefield
+                    && cursor
+                        .peek_ahead(1)
+                        .is_some_and(|raw| raw.eq_ignore_ascii_case("to")) =>
+            {
+                cursor.require(modifiers.attached_to.is_none(), "one attachment")?;
+                modifiers.attached_to = Some(recognize_entry_attachment(cursor)?);
+            }
             _ => return Ok(()),
         }
+    }
+}
+
+/// `attached to this NOUN|it|that NOUN|target NOUN|a NOUN you control`.
+fn recognize_entry_attachment(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<EntryAttachmentNode> {
+    cursor.enter("collection.destination.entry.attached-to");
+    cursor.consume_phrase(&["attached", "to"])?;
+    // `this creature`, `this Equipment`: the ability's own object.
+    if cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("this"))
+        && cursor.peek_ahead(1).is_some_and(|noun| {
+            crate::oracle::characteristic_vocabulary::lookup_object_selector_lexeme(noun).is_some()
+                || crate::oracle::characteristic_vocabulary::lookup_noncreature_subtype(noun)
+                    .is_some()
+        })
+    {
+        let noun = cursor.peek_ahead(1).unwrap_or("permanent").to_owned();
+        cursor.consume("this")?;
+        cursor.consume(&noun)?;
+        return Ok(EntryAttachmentNode::Source);
+    }
+    let operand = super::recognize_verb_object_operand(
+        cursor,
+        super::VerbObjectOperandExpectation {
+            counts: super::TargetCountSupport::Expressed,
+            card_zones: false,
+        },
+    )?;
+    cursor.enter("collection.destination.entry.attached-to.operand");
+    match operand {
+        super::VerbObjectOperandNode::Reference(reference) => {
+            Ok(EntryAttachmentNode::Reference(reference))
+        }
+        super::VerbObjectOperandNode::Targets(targets)
+            if targets.slots.len() == 1
+                && targets.slots[0].cardinality.maximum == 1
+                && targets.slots[0].count.is_none()
+                && targets.slots[0].selector.is_permanent_target() =>
+        {
+            Ok(EntryAttachmentNode::Target(targets))
+        }
+        super::VerbObjectOperandNode::Selection(selection)
+            if selection.bounds == Some(super::ExpressedTargetCardinality::EXACTLY_ONE) =>
+        {
+            Ok(EntryAttachmentNode::Chosen(selection))
+        }
+        _ => Err(cursor.fail("one permanent the entering object is attached to")),
     }
 }
 
@@ -348,6 +424,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             transformed,
             controller: owner,
             entering_counters,
+            attached_to,
             ..
         } = modifiers;
         let order = if trial
@@ -373,6 +450,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_move_destination(
             face_down,
             transformed,
             shuffle: false,
+            attached_to,
         })
     })();
     match result {
