@@ -138,6 +138,8 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     Tempt,
     /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
     Phase,
+    /// `distribute N counters among TARGETS` (CR 601.2d).
+    Distribute,
 }
 
 /// One inflected form of a lemma.
@@ -232,6 +234,21 @@ pub(in crate::oracle::canonical) enum ArgumentFrame {
     /// `an extra turn after this one` (CR 500.7): the acting player takes
     /// the turn directly after the current one.
     ExtraTurn,
+    /// `your next [N] turn(s)|untap step|draw step|combat phase`: the part
+    /// of the acting player's future turns that is skipped (`skip`).
+    SkippedTurnPart,
+    /// `the monarch` | `the initiative`: a player designation the acting
+    /// player takes (`become`, `take`, CR 724, 725).
+    PlayerDesignation,
+    /// `PLAYER`: the tempted player (`the Ring tempts you`).
+    PlayerObject,
+    /// `out` | `in`: the phasing direction particle (`phases out`).
+    PhasingDirection,
+    /// `N [KIND] counters among TARGETS`: counters divided among targets.
+    CountersAmong,
+    /// `OBJECTS from combat` (CR 506.4): the objects stop being attacking or
+    /// blocking creatures.
+    CombatRemoval,
 }
 
 impl ArgumentFrame {
@@ -262,7 +279,9 @@ impl ArgumentFrame {
             | Self::SkippedTurnPart
             | Self::PlayerDesignation
             | Self::PlayerObject
-            | Self::PhasingDirection => None,
+            | Self::PhasingDirection
+            | Self::CountersAmong
+            | Self::CombatRemoval => None,
         }
     }
 }
@@ -488,7 +507,7 @@ const VERB_LEXICON: &[VerbEntry] = &[
             past_participle: "removed",
             present_participle: "removing",
         },
-        frames: &[ArgumentFrame::CountersFrom],
+        frames: &[ArgumentFrame::CountersFrom, ArgumentFrame::CombatRemoval],
         voices: &[Voice::Active, Voice::Passive],
     },
     VerbEntry {
@@ -813,6 +832,18 @@ const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
             present_participle: "phasing",
         },
         frames: &[ArgumentFrame::PhasingDirection],
+        voices: &[Voice::Active],
+    },
+    VerbEntry {
+        lemma: VerbLemma::Distribute,
+        forms: VerbForms {
+            base: "distribute",
+            third_person_singular: "distributes",
+            past: "distributed",
+            past_participle: "distributed",
+            present_participle: "distributing",
+        },
+        frames: &[ArgumentFrame::CountersAmong],
         voices: &[Voice::Active],
     },
     VerbEntry {

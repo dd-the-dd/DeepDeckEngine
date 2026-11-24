@@ -1606,6 +1606,9 @@ pub(in crate::oracle::canonical) enum CounterChangeDirection {
     #[default]
     Put,
     Remove,
+    /// `distribute N counters among TARGETS` (CR 601.2d): `count` is divided
+    /// among the declared targets, at least one each.
+    Divided,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2146,6 +2149,8 @@ pub(super) enum PermanentKeywordAction {
     BecomeDesignated(PermanentDesignation),
     /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
     PhaseOut,
+    /// `remove OBJECT from combat` (CR 506.4).
+    RemoveFromCombat,
 }
 
 impl PermanentKeywordAction {
@@ -2187,7 +2192,8 @@ impl PermanentKeywordAction {
             | Self::Detain
             | Self::Explore
             | Self::BecomeDesignated(_)
-            | Self::PhaseOut => KeywordQuantityPolicy::None,
+            | Self::PhaseOut
+            | Self::RemoveFromCombat => KeywordQuantityPolicy::None,
             Self::Connive => KeywordQuantityPolicy::Optional,
             Self::Endure | Self::Adapt | Self::Monstrosity => KeywordQuantityPolicy::Required,
         }
@@ -2215,6 +2221,7 @@ impl PermanentKeywordAction {
             Self::Monstrosity => "monstrosity",
             Self::BecomeDesignated(designation) => designation.flag(),
             Self::PhaseOut => "phase out",
+            Self::RemoveFromCombat => "remove from combat",
         }
     }
 }

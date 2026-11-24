@@ -969,6 +969,249 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-elven-rite-divided-counters",
+      "request": {
+        "cardName": "Elven Rite",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Distribute two +1/+1 counters among one or two target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putDividedCounters"
+              },
+              {
+                "pointer": "/declaration/decisions/1/kind",
+                "equals": "divideQuantityAmongTargets"
+              },
+              {
+                "pointer": "/declaration/decisions/1/minimumPerTarget",
+                "equals": 1
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-armament-corps-divided-counters-trigger",
+      "request": {
+        "cardName": "Armament Corps",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}{B}{G}",
+        "oracleText": "When this creature enters, distribute two +1/+1 counters among one or two target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-verdurous-gearhulk-any-number-of-targets",
+      "request": {
+        "cardName": "Verdurous Gearhulk",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "Trample\nWhen this creature enters, distribute four +1/+1 counters among any number of target creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-one-two-or-three-targets",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Distribute three -1/-1 counters among one, two, or three target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/declaration/decisions/0/minimum",
+                "equals": 1
+              },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-more-targets-than-counters",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Distribute two +1/+1 counters among three target creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "state": "effect.distribute-counters.target-slot"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-labyrinth-of-skophos-remove-from-combat",
+      "request": {
+        "cardName": "Labyrinth of Skophos",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "{T}: Add {C}.\n{4}, {T}: Remove target attacking or blocking creature from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "removeFromCombat"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gustcloak-runner-untap-and-remove",
+      "request": {
+        "cardName": "Gustcloak Runner",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{W}",
+        "oracleText": "Whenever this creature becomes blocked, you may untap it and remove it from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "unused-combination-remove-all-attackers",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Remove all attacking creatures from combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachObject"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-remove-from-battlefield",
+      "request": {
+        "cardName": "Clause Verb Witness",
+        "typeLine": "Instant",
+        "manaCost": "{0}",
+        "oracleText": "Remove target creature from the battlefield.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0
+          }
+        ]
+      }
     }
   ]
 }

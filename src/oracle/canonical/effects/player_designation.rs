@@ -54,3 +54,33 @@ pub(in crate::oracle::canonical) fn lower_player_prohibition(
         }),
     }
 }
+
+/// `distribute N counters among TARGETS` (CR 601.2d): the division of the
+/// one declared target slot `objects` names, announced with the targets
+/// (each at least one), then the counters each target receives.
+pub(in crate::oracle::canonical) fn lower_divided_counters(
+    objects: &[Value],
+    counter: &str,
+    amount: Value,
+) -> Option<(Value, Value)> {
+    let [object] = objects else {
+        return None;
+    };
+    let targets = object["id"].as_str()?;
+    let division = format!("{targets}:division");
+    Some((
+        json!({
+            "kind": "divideQuantityAmongTargets",
+            "id": division,
+            "targetsDecisionId": targets,
+            "quantity": amount,
+            "minimumPerTarget": 1,
+        }),
+        json!({
+            "kind": "putDividedCounters",
+            "targetsDecisionId": targets,
+            "divisionDecisionId": division,
+            "counter": counter,
+        }),
+    ))
+}

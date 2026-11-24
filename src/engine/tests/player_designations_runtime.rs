@@ -254,3 +254,106 @@ fn a_no_combat_damage_marker_stops_combat_damage_assignment() {
     let attacker = engine.state.players[0].battlefield[0].clone();
     assert!(!engine.deals_combat_damage_in_step(&attacker, CombatDamageStep::All));
 }
+
+#[test]
+fn divided_counters_follow_the_announced_division() {
+    let first = test_instance(
+        "first-creature",
+        test_definition("first-creature", "Creature - Elf"),
+        "player-0",
+    );
+    let second = test_instance(
+        "second-creature",
+        test_definition("second-creature", "Creature - Elf"),
+        "player-1",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![first.clone()];
+    engine.state.players[1].battlefield = vec![second.clone()];
+    let effect = json!({
+        "kind": "putDividedCounters",
+        "targetsDecisionId": "targetCreature",
+        "divisionDecisionId": "targetCreature:division",
+        "counter": "+1/+1",
+    });
+    assert!(effect_supported(&effect));
+    let mut decisions = BTreeMap::from([
+        (
+            "targetCreature".to_string(),
+            json!([
+                { "permanent": { "instanceId": "first-creature" } },
+                { "permanent": { "instanceId": "second-creature" } },
+            ]),
+        ),
+        ("targetCreature:division".to_string(), json!([2, 1])),
+    ]);
+    engine
+        .execute_effect(
+            &effect,
+            None,
+            &controller_stack_object(&first, "player-0"),
+            &mut BTreeMap::new(),
+            &mut decisions,
+            &mut EmeritusDecisionProvider,
+        )
+        .expect("the divided counters resolve");
+    let counters = |engine: &GameEngine, player: usize| {
+        engine.state.players[player].battlefield[0]
+            .counters
+            .get("+1/+1")
+            .copied()
+            .unwrap_or(0)
+    };
+    assert_eq!(counters(&engine, 0), 2);
+    assert_eq!(counters(&engine, 1), 1);
+}
+
+#[test]
+fn a_creature_removed_from_combat_leaves_the_attacks_and_blocks() {
+    let attacker = test_instance(
+        "removed-attacker",
+        test_definition("removed-attacker", "Creature - Bird"),
+        "player-0",
+    );
+    let mut engine = test_engine(2);
+    let mut attacking = attacker.clone();
+    attacking.flags.insert("attacking".to_string(), true);
+    engine.state.players[0].battlefield = vec![attacking];
+    engine.state.combat.attackers.push(DeclaredAttacker {
+        attacker_id: "removed-attacker".to_string(),
+        defender: TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+        defending_player_id: "player-1".to_string(),
+    });
+    run(
+        &mut engine,
+        &json!({ "kind": "removeFromCombat", "permanent": { "kind": "self" } }),
+        &controller_stack_object(&attacker, "player-0"),
+    );
+    assert!(engine.state.combat.attackers.is_empty());
+    assert!(
+        !engine.state.players[0].battlefield[0]
+            .flags
+            .get("attacking")
+            .copied()
+            .unwrap_or(false)
+    );
+    let mut attacks = BTreeMap::from([(
+        "removed-attacker".to_string(),
+        AttackAssignment {
+            defender: TargetRef::Player {
+                player_id: "player-1".to_string(),
+            },
+            defending_player_id: "player-1".to_string(),
+        },
+    )]);
+    let mut blocks = BTreeMap::from([(
+        "other-attacker".to_string(),
+        vec!["removed-attacker".to_string()],
+    )]);
+    engine.prune_removed_from_combat(&mut attacks, &mut blocks);
+    assert!(attacks.is_empty());
+    // The attacker it blocked stays blocked, with no blocker left.
+    assert_eq!(blocks["other-attacker"], Vec::<String>::new());
+}

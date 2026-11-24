@@ -37451,6 +37451,7 @@ impl GameEngine {
             return Ok(());
         }
         self.transition_to_step(GameStep::CombatDamage);
+        self.prune_removed_from_combat(&mut attacks, &mut blocks);
         let combat_event_start = self.state.events.len();
         let result = if self.combat_has_first_strike(&attacks, &blocks) {
             let first_strike_assignments = self.choose_combat_damage_assignments(
@@ -37473,6 +37474,7 @@ impl GameEngine {
                 if self.state.outcome.is_some() || self.force_end_turn {
                     Ok(())
                 } else {
+                    self.prune_removed_from_combat(&mut attacks, &mut blocks);
                     let normal_assignments = self.choose_combat_damage_assignments(
                         provider,
                         &attacks,

@@ -27,6 +27,7 @@ mod movement;
 mod payments;
 mod permanent_movement;
 
+mod combat_removal;
 mod player_designations;
 mod player_status;
 mod reflexive_cost_transactions;
@@ -90,6 +91,7 @@ enum Domain {
     ContinuousRules,
     PlayerStatus,
     PlayerDesignations,
+    CombatRemoval,
     CastingPermissions,
     Triggers,
     Mana,
@@ -192,6 +194,7 @@ fn domain(effect: &Value) -> Option<Domain> {
         ) => Some(Domain::DamageCombat),
         Some(
             "putCounters"
+            | "putDividedCounters"
             | "putCountersOnCreaturesOfTargetPlayer"
             | "putSameCountersAs"
             | "doubleCounters"
@@ -297,6 +300,7 @@ fn domain(effect: &Value) -> Option<Domain> {
         Some("becomeMonarch" | "temptWithRing" | "skipTurnPart") => {
             Some(Domain::PlayerDesignations)
         }
+        Some("removeFromCombat") => Some(Domain::CombatRemoval),
         Some(
             "installNextCreatureSpellModifier"
             | "installTemporaryCantBeCountered"
@@ -371,6 +375,7 @@ pub(super) fn effect_domain_supported(effect: &Value) -> Option<bool> {
         Domain::ContinuousRules => continuous_rules::supports_effect(effect),
         Domain::PlayerStatus => player_status::supports_effect(effect),
         Domain::PlayerDesignations => player_designations::supports_effect(effect),
+        Domain::CombatRemoval => combat_removal::supports_effect(effect),
         Domain::CastingPermissions => casting_permissions::supports_effect(effect),
         Domain::Triggers => triggers::supports_effect(effect),
         Domain::Mana => mana::supports_effect(effect),
@@ -604,6 +609,14 @@ impl GameEngine {
                 provider,
             ),
             Domain::PlayerDesignations => self.execute_player_designations_domain(
+                effect,
+                next_effect,
+                stack_object,
+                bindings,
+                decisions,
+                provider,
+            ),
+            Domain::CombatRemoval => self.execute_combat_removal_domain(
                 effect,
                 next_effect,
                 stack_object,

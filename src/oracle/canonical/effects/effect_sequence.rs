@@ -950,6 +950,36 @@ fn lower_local_effect_sequence_with_collections(
                     "else": [],
                 }));
             }
+            // CR 601.2d: the division is announced with the targets; each
+            // declared target then receives its own share.
+            LocalEffectNode::PutCounters(node)
+                if node.direction == CounterChangeDirection::Divided =>
+            {
+                cursor.enter("lower.distribute-counters");
+                let amount = lower_sequence_bound_amount(
+                    cursor,
+                    &node.count,
+                    sequence,
+                    &target_bindings,
+                    context,
+                )?;
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &node.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                let (decision, effect) =
+                    lower_divided_counters(&objects, node.counter.as_str(), amount).ok_or_else(
+                        || cursor.fail("one declared target slot receiving the divided counters"),
+                    )?;
+                decisions.push(decision);
+                effects.push(effect);
+            }
             LocalEffectNode::PutCounters(node) => {
                 // CR 701.10e: a doubled object's count is read from that same
                 // object, so it is bound per lowered recipient below.

@@ -2697,6 +2697,14 @@ fn recognize_imperative_frame(
             super::recognize_move_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::MoveCounters)
         }
+        VerbLemma::Distribute if super::claims_distribute_counters_effect(cursor) => {
+            super::recognize_distribute_counters_effect(cursor, context)
+                .map(LocalEffectNode::PutCounters)
+        }
+        VerbLemma::Remove if super::remove_from_combat_starts(cursor) => {
+            super::recognize_remove_from_combat(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::PermanentKeywordAction)
+        }
         VerbLemma::Remove if super::claims_remove_counters_effect(cursor) => {
             super::recognize_remove_counters_effect(cursor, name_links, name_failure, context)
                 .map(LocalEffectNode::PutCounters)

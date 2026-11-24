@@ -280,6 +280,11 @@ pub(in crate::oracle::canonical) fn lower_permanent_keyword_action(
         PermanentKeywordAction::PhaseOut => for_each_object(object, scope, |object| {
             vec![json!({ "kind": "phaseOutPermanent", "permanent": object })]
         }),
+        // CR 506.4: each permanent stops being an attacking or blocking
+        // creature; it deals and is dealt no combat damage.
+        PermanentKeywordAction::RemoveFromCombat => for_each_object(object, scope, |object| {
+            vec![json!({ "kind": "removeFromCombat", "permanent": object })]
+        }),
     })
 }
 

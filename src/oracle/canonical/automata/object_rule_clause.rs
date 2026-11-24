@@ -156,6 +156,59 @@ fn recognize_object_rule_predicate(
     }
 }
 
+/// True when `remove OBJECTS from combat` starts here: the `remove` lemma
+/// whose clause reaches `from combat` without a counter noun.
+pub(in crate::oracle::canonical) fn remove_from_combat_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    if !cursor.peek().is_some_and(|raw| {
+        crate::oracle::canonical::automata::is_verb_form(raw, VerbLemma::Remove, VerbForm::Base)
+    }) {
+        return false;
+    }
+    for offset in 1.. {
+        let Some(raw) = cursor.peek_ahead(offset) else {
+            return false;
+        };
+        if matches!(raw, "." | ";" | ":")
+            || raw.eq_ignore_ascii_case("counter")
+            || raw.eq_ignore_ascii_case("counters")
+        {
+            return false;
+        }
+        if raw.eq_ignore_ascii_case("from") {
+            return word_at(cursor, offset + 1, "combat");
+        }
+    }
+    false
+}
+
+/// `remove OBJECTS from combat` (CR 506.4): the objects are the shared
+/// permanent operand; the action is the ordinary keyword-action node.
+pub(in crate::oracle::canonical) fn recognize_remove_from_combat(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PermanentKeywordActionNode> {
+    cursor.enter("effect.remove-from-combat.verb");
+    crate::oracle::canonical::automata::consume_lemma(
+        cursor,
+        VerbLemma::Remove,
+        crate::oracle::canonical::automata::VerbAgreement::Base,
+    )?;
+    cursor.enter("effect.remove-from-combat.objects");
+    let targets =
+        recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    cursor.enter("effect.remove-from-combat.relation");
+    cursor.consume_phrase(&["from", "combat"])?;
+    Ok(PermanentKeywordActionNode {
+        action: PermanentKeywordAction::RemoveFromCombat,
+        targets,
+        quantity: None,
+    })
+}
+
 #[cfg(test)]
 #[path = "object_rule_clause_tests.rs"]
 mod tests;
