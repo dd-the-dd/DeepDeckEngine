@@ -526,6 +526,96 @@
           }
         ]
       }
+    },
+    {
+      "id": "psychic-venom-exact-enchanted-land-event-controller",
+      "request": {
+        "cardName": "Psychic Venom",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchant land\nWhenever enchanted land becomes tapped, this Aura deals 2 damage to that land's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "thunderbreak-regent-exact-targeting-player",
+      "request": {
+        "cardName": "Thunderbreak Regent",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}{R}{R}",
+        "oracleText": "Flying\nWhenever a Dragon you control becomes the target of a spell or ability an opponent controls, this creature deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-targeting-player-unwritten",
+      "request": {
+        "cardName": "Target Probe",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a Dragon you control becomes the target of a spell or ability, this creature deals 3 damage to that player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "enslave-sibling-clause-subject-owner",
+      "request": {
+        "cardName": "Aura Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{2}",
+        "oracleText": "Enchant creature\nAt the beginning of your upkeep, enchanted creature deals 1 damage to its owner.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
     }
   ]
 }

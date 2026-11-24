@@ -238,6 +238,28 @@ fn event_names_player(event: &GenericTriggerEventNode) -> bool {
             event,
             GenericTriggerEventNode::SpellCast(node) if !node.also_copy && !node.source_spell
         )
+        // `becomes the target of a spell or ability an opponent controls`:
+        // the record binds the controller of the targeting object, the
+        // player the event wrote (CR 115.1).
+        || event_names_targeting_player(event)
+}
+
+/// A targeting event whose spell-or-ability selector writes its controller.
+fn event_names_targeting_player(event: &GenericTriggerEventNode) -> bool {
+    match event {
+        GenericTriggerEventNode::BecameTarget(node) => node.targeting_stack.controller.is_some(),
+        GenericTriggerEventNode::SourceEvent(node) => {
+            node.verbs == [super::SourceEventVerb::BecameTarget]
+                && node.modifiers.iter().any(|modifier| {
+                    matches!(
+                        modifier,
+                        super::SourceEventModifier::TargetingStack(selector)
+                            if selector.controller.is_some()
+                    )
+                })
+        }
+        _ => false,
+    }
 }
 
 /// The dealt-damage complement of a source, attached or object damage event.

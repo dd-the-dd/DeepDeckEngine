@@ -629,6 +629,12 @@ impl GameEngine {
                             "targetingControllerId".to_string(),
                             Value::String(targeting_controller_id.clone()),
                         ),
+                        // The player whose spell or ability targets
+                        // (`that player`, CR 115.1, 603.2).
+                        (
+                            "triggeringPlayerId".to_string(),
+                            Value::String(targeting_controller_id.clone()),
+                        ),
                         (
                             "targetedObjectKind".to_string(),
                             Value::String(target_kind.clone()),

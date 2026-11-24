@@ -43,11 +43,16 @@ pub(in crate::oracle::canonical) struct EventObjectSlot {
 
 impl EventObjectSlot {
     fn implies(&self, nominal: TargetNominal) -> bool {
-        predicate_names_nominal(&self.predicate, nominal)
+        self.names(&[nominal])
     }
 
+    /// The event's predicate names the nominal; the permanent an Aura
+    /// enchants is named by any one permanent nominal, the kind its enchant
+    /// ability fixes (CR 303.4a), as for a lexical `enchanted` antecedent.
     fn names(&self, nominals: &[TargetNominal]) -> bool {
         predicate_names_nominals(&self.predicate, nominals)
+            || (self.reference == PermanentEffectReference::Attached(AttachedObjectRole::Enchanted)
+                && names_one_permanent_kind(nominals))
     }
 }
 
@@ -641,9 +646,26 @@ pub(in crate::oracle::canonical) fn recognize_bound_player_reference(
     if that_player_starts(cursor) {
         return recognize_that_player(cursor, environment);
     }
+    // Without a lexical object antecedent or an event subject, `its
+    // controller|owner` in a clause's argument names that clause's singular
+    // subject (`enchanted creature deals 1 damage to its owner`), as a
+    // possessive `its` does. An event subject keeps its own reading.
+    let subject = (environment.object.is_none()
+        && environment
+            .frame
+            .event_object
+            .as_ref()
+            .is_none_or(|slot| !slot.subject))
+    .then_some(environment.subject)
+    .flatten()
+    .filter(|reference| singular_reference(*reference))
+    .map(|reference| ObjectSubjectAntecedent {
+        reference,
+        selector: None,
+    });
     recognize_object_related_player(
         cursor,
-        environment.object.as_ref(),
+        environment.object.as_ref().or(subject.as_ref()),
         environment.frame.event_object.as_ref(),
         environment.frame.event_spell,
     )

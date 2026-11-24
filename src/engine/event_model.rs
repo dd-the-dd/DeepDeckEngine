@@ -1631,3 +1631,10 @@ mod trigger_condition_runtime_tests;
 ))]
 #[path = "event_subject_state_tests.rs"]
 mod event_subject_state_tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "antecedent_producer_runtime_tests.rs"]
+mod antecedent_producer_runtime_tests;
