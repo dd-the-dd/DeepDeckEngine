@@ -185,9 +185,20 @@ impl CardCollectionMemory {
     /// object it became in exile (CR 400.7, 610.3). Returns the binding the
     /// exile primitive must record.
     pub(in crate::oracle::canonical) fn observe_exiled_object(&mut self) -> String {
+        self.observe_exiled_objects(Some(1))
+    }
+
+    /// The cards an exile of declared targets produced (`exile any number
+    /// of target ..., then return those cards`): the same observed exile
+    /// view as one object, with the declaration's maximum when it is a
+    /// literal and no fixed size otherwise.
+    pub(in crate::oracle::canonical) fn observe_exiled_objects(
+        &mut self,
+        maximum: Option<i64>,
+    ) -> String {
         let id = fresh("exiledObject", &mut self.next_view);
         self.allocated_ids.insert(id.clone());
-        self.observe(&id, Some(1));
+        self.observe(&id, maximum);
         self.view_verb = Some(CardCollectionVerb::Exiled);
         self.view_zone = Some(CardZoneName::Exile);
         id

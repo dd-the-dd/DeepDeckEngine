@@ -1777,10 +1777,22 @@ fn lower_local_effect_sequence_with_collections(
                 // A later card action reading `that card`/`it` names the object
                 // this exile produced; record that result only when it is read.
                 if zone_change.action == ZoneChangeAction::Exile
-                    && single_scalar
                     && reads_card_collection_reference(&sequence.effects[effect_index + 1..])
                 {
-                    operation["bind"] = json!(collections.observe_exiled_object());
+                    // A declared collection (`exile any number of target
+                    // ..., then return those cards`) is observed the same
+                    // way: the exile binds every card it actually moved.
+                    operation["bind"] = json!(if single_scalar {
+                        collections.observe_exiled_object()
+                    } else {
+                        let literal_maximum = match zone_change.target.slots.as_slice() {
+                            [slot] if slot.count.is_none() => {
+                                Some(i64::from(slot.cardinality.maximum))
+                            }
+                            _ => None,
+                        };
+                        collections.observe_exiled_objects(literal_maximum)
+                    });
                 }
                 effects.push(operation);
                 if let Some(target_id) = scalar_id {

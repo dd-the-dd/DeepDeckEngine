@@ -195,6 +195,39 @@
       }
     },
     {
+      "id": "real-brago-king-eternal-unbounded-exile-then-return-those-cards",
+      "request": {
+        "cardName": "Brago, King Eternal",
+        "typeLine": "Legendary Creature — Spirit Noble",
+        "manaCost": "{2}{W}{U}",
+        "oracleText": "Flying\nWhenever Brago deals combat damage to a player, exile any number of target nonland permanents you control, then return those cards to the battlefield under their owner's control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              { "pointer": "/declaration/decisions/0/minimum", "equals": 0 },
+              {
+                "pointer": "/declaration/decisions/0/maximum",
+                "equals": { "kind": "countPermanents", "allPlayers": true }
+              },
+              { "pointer": "/effects/0/kind", "equals": "exilePermanent" },
+              { "pointer": "/effects/1/kind", "equals": "moveCards" },
+              { "pointer": "/effects/1/to/kind", "equals": "battlefield" }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "unused-combination-unbounded-graveyard-card-targets-with-numeric-predicate",
       "request": {
         "cardName": "Unused Combination",
