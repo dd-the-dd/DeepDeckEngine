@@ -1353,6 +1353,91 @@
       }
     },
     {
+      "id": "sibling-coordination-keeps-each-subject-qualifier",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Creature — Goblin Shaman",
+        "manaCost": "{2}",
+        "oracleText": "Goblins you control and Elementals have menace.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/1/objects",
+                "equals": {
+                  "kind": "permanents",
+                  "where": {
+                    "kind": "subtypeContains",
+                    "value": "Elemental"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-threshold-serial-color-and-quoted-grant",
+      "request": {
+        "cardName": "Static frame probe",
+        "typeLine": "Creature — Human Warrior",
+        "manaCost": "{2}",
+        "oracleText": "As long as there are seven or more cards in your graveyard, this creature gets +1/+1, is black, and has \"{T}: You gain 1 life.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "setColor",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "colors": [
+                    "B"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "grantActivatedAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-second-prohibited-action-is-not-dropped",
       "request": {
         "cardName": "Static frame near miss",

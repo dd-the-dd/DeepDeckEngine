@@ -1087,7 +1087,7 @@ fn read_optional_color_predicate(
             .peek_ahead(offset)
             .and_then(crate::oracle::characteristic_vocabulary::lookup_card_color)
     };
-    let Some(first) = color_at(cursor, 0) else {
+    let Some(first) = color_at(&*cursor, 0) else {
         return Ok(None);
     };
     // `is black` sets a color; `is a black Zombie` is a type change.
@@ -1102,7 +1102,7 @@ fn read_optional_color_predicate(
         } else {
             break;
         };
-        match color_at(cursor, width + next) {
+        match color_at(&*cursor, width + next) {
             Some(color) => {
                 colors.push(color);
                 width += next + 1;
