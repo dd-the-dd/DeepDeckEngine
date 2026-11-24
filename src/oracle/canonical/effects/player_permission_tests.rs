@@ -75,3 +75,23 @@ fn unsupported_amount_lifetime_and_actor_never_emit_default_values() {
         Err(TargetlessLoweringError::RequiresTarget)
     );
 }
+
+/// CR 702.8a: a temporary flash rule installs the static flash grant for
+/// the rule's lifetime; the spell query is the shared spell filter.
+#[test]
+fn temporary_flash_rule_installs_the_static_flash_grant() {
+    let node = TemporaryPlayerPermissionNode {
+        rule: TemporaryRuleNode::FlashCasting {
+            spells: ObjectPredicate::CardType(ObjectCardType::Creature),
+        },
+        duration: TemporaryRuleDuration::Effect(EffectDurationNode::UntilEndOfCurrentTurn),
+    };
+    let lowered = lower_temporary_player_permission(&node).expect("flash rule lowers");
+    assert_eq!(lowered["kind"], "installTemporaryStaticModifiers");
+    assert_eq!(lowered["duration"]["kind"], "untilEndOfCurrentTurn");
+    let grant = &lowered["modifiers"][0];
+    assert_eq!(grant["kind"], "grantFlashCasting");
+    assert_eq!(grant["player"], controller());
+    assert_eq!(grant["firstEachTurn"], false);
+    assert!(!grant["where"].is_null());
+}

@@ -36,14 +36,24 @@ pub(in crate::oracle::canonical) fn try_parse_casting_permission(
             return CastingPermissionProgramAttempt::Failed(f);
         }
     };
-    let lowered = match node {
-        PlayerPermissionNode::Act(node) => lower_casting_permission(&mut cursor, node),
+    match lower_player_permission(&mut cursor, node) {
+        Ok(rule) => CastingPermissionProgramAttempt::Parsed(rule),
+        Err(f) => CastingPermissionProgramAttempt::Failed(f),
+    }
+}
+
+fn lower_player_permission(
+    cursor: &mut OracleTokenCursor<'_>,
+    node: PlayerPermissionNode,
+) -> MachineResult<CanonicalRuleDraft> {
+    match node {
+        PlayerPermissionNode::Act(node) => lower_casting_permission(cursor, node),
         PlayerPermissionNode::LookAtLibraryTopAnyTime { actor } => {
-            lower_look_permission(&mut cursor, actor)
+            lower_look_permission(cursor, actor)
         }
-        PlayerPermissionNode::CastSelf(node) => lower_self_cast_permission(&mut cursor, &node),
+        PlayerPermissionNode::CastSelf(node) => lower_self_cast_permission(cursor, &node),
         PlayerPermissionNode::ExertAsAttacks { reflexive } => {
-            lower_exert_permission(&mut cursor, reflexive.as_ref())
+            lower_exert_permission(cursor, reflexive.as_ref())
         }
         PlayerPermissionNode::AssignCombatDamageAsThoughUnblocked => Ok(static_permission(
             vec![json!({"kind":"assignCombatDamageAsThoughUnblocked", "object":self_ref()})],
@@ -60,13 +70,40 @@ pub(in crate::oracle::canonical) fn try_parse_casting_permission(
             ],
         )),
         PlayerPermissionNode::AlternativeManaCost { cost, spells } => {
-            lower_alternative_mana_cost_permission(&mut cursor, &cost, spells)
+            lower_alternative_mana_cost_permission(cursor, &cost, spells)
         }
-    };
-    match lowered {
-        Ok(rule) => CastingPermissionProgramAttempt::Parsed(rule),
-        Err(f) => CastingPermissionProgramAttempt::Failed(f),
+        PlayerPermissionNode::Conjoined(nodes) => lower_conjoined_permissions(cursor, nodes),
     }
+}
+
+/// Allowances granted by one static ability: each lowers alone, and the
+/// ability carries every modifier. Only unconditional battlefield statics
+/// combine (a part with its own zone of function or condition is refused).
+fn lower_conjoined_permissions(
+    cursor: &mut OracleTokenCursor<'_>,
+    nodes: Vec<PlayerPermissionNode>,
+) -> MachineResult<CanonicalRuleDraft> {
+    let mut modifiers = Vec::new();
+    let mut operations = Vec::new();
+    for node in nodes {
+        let draft = lower_player_permission(cursor, node)?;
+        cursor.enter("permission.conjunction-capability");
+        cursor.require(
+            draft.rule["kind"] == "staticAbility"
+                && draft.rule["activeWhile"] == active_while_battlefield()
+                && draft.rule.get("condition").is_none(),
+            "allowances that are unconditional statics of the permanent",
+        )?;
+        modifiers.extend(
+            draft.rule["modifiers"]
+                .as_array()
+                .cloned()
+                .unwrap_or_default(),
+        );
+        operations.extend(draft.operations);
+    }
+    let operations = operations.iter().map(String::as_str).collect::<Vec<_>>();
+    Ok(static_permission(modifiers, &operations))
 }
 
 fn static_permission(modifiers: Vec<Value>, operations: &[&str]) -> CanonicalRuleDraft {

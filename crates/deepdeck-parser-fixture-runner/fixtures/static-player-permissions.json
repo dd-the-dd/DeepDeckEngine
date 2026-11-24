@@ -755,6 +755,38 @@
       }
     },
     {
+      "id": "exact-radha-conjoined-allowances",
+      "request": {
+        "cardName": "Radha, Heart of Keld",
+        "typeLine": "Legendary Creature — Elf Warrior",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "You may look at the top card of your library any time, and you may play lands from the top of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "lookAtTopLibrary"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "playCardsFromTopLibrary"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-silver-scrutiny-x-condition",
       "request": {
         "cardName": "Silver Scrutiny",

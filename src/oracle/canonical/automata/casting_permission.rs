@@ -119,6 +119,9 @@ pub(in crate::oracle::canonical) enum PlayerPermissionNode {
     /// `you may choose not to untap SOURCE during your untap step` (CR
     /// 502.3).
     MayChooseNotToUntap,
+    /// `PERMISSION, and you may PERMISSION`: allowances granted together by
+    /// one static ability, in written order.
+    Conjoined(Vec<PlayerPermissionNode>),
 }
 
 /// The source card's own casting permission.
@@ -334,62 +337,37 @@ pub(in crate::oracle::canonical) fn try_recognize_casting_permission(
 ) -> CastingPermissionRecognition {
     let mut trial = cursor.clone();
     let mut committed = false;
-    let parsed = (|| -> MachineResult<PlayerPermissionNode> {
-        let actor = recognize_permission_actor(&mut trial)?;
-        trial.enter("permission.future-allowance");
-        trial.consume("may")?;
-        if peek_is(&trial, 0, "look") && peek_is(&trial, 1, "at") {
-            // `may look at` selects the look allowance of this frame.
-            committed = true;
-            return recognize_look_permission(&mut trial, actor);
-        }
-        let actions = recognize_permitted_actions(&mut trial, actor)?;
-        trial.enter("permission.origin");
-        let origin = if peek_is(&trial, 0, "from") {
-            // A stated origin is explicit semantic selection of this frame,
-            // not cursor progress or a diagnostic-state naming convention.
-            committed = true;
-            recognize_permission_origin(&mut trial, actor)?
-        } else {
-            trial.require(
-                peek_is(&trial, 0, "without") || peek_is(&trial, 0, "as"),
-                "a source zone, a base-cost policy or a timing manner",
-            )?;
-            PermissionOriginNode::UsualZone
-        };
-        trial.enter("permission.base-cost");
-        let base_cost = if peek_is(&trial, 0, "without") {
-            committed = true;
-            trial.consume_phrase(&["without", "paying", "their", "mana", "costs"])?;
-            CastingBaseCostPolicyNode::WithoutManaCost
-        } else {
-            CastingBaseCostPolicyNode::Printed
-        };
-        trial.enter("permission.timing");
-        let conjoined = peek_is(&trial, 0, "and") && peek_is(&trial, 1, "as");
-        let as_though_flash = conjoined || peek_is(&trial, 0, "as");
-        if as_though_flash {
-            committed = true;
-            if conjoined {
-                trial.consume("and")?;
-            }
-            trial.consume_phrase(&["as", "though", manner_pronoun(&actions), "had", "flash"])?;
-        }
-        Ok(PlayerPermissionNode::Act(CastingPermissionNode {
-            window: PermissionTurnWindowNode::Always,
-            actor,
-            actions,
-            origin,
-            base_cost,
-            as_though_flash,
-        }))
-    })();
-    let node = match parsed {
+    let first = match recognize_permission_clause(&mut trial, &mut committed) {
         Ok(node) => node,
         Err(failure) if committed => {
             return CastingPermissionRecognition::FailedCommitted(failure);
         }
         Err(_) => return CastingPermissionRecognition::NotClaimed,
+    };
+    // `PERMISSION, and you may PERMISSION.`: one static ability granting
+    // each permission (CR 113.2c). A second clause after a complete first
+    // one belongs to this frame.
+    let mut nodes = vec![first];
+    while permission_conjunction_follows(&trial) {
+        trial.enter("permission.conjunction");
+        if peek_is(&trial, 0, ",") {
+            if let Err(failure) = trial.consume(",") {
+                return CastingPermissionRecognition::FailedCommitted(failure);
+            }
+        }
+        if let Err(failure) = trial.consume("and") {
+            return CastingPermissionRecognition::FailedCommitted(failure);
+        }
+        let mut second_committed = true;
+        match recognize_permission_clause(&mut trial, &mut second_committed) {
+            Ok(node) => nodes.push(node),
+            Err(failure) => return CastingPermissionRecognition::FailedCommitted(failure),
+        }
+    }
+    let node = if nodes.len() == 1 {
+        nodes.pop().expect("one permission clause")
+    } else {
+        PlayerPermissionNode::Conjoined(nodes)
     };
     trial.enter("permission.complete-envelope");
     if let Err(failure) = trial
@@ -401,6 +379,71 @@ pub(in crate::oracle::canonical) fn try_recognize_casting_permission(
     }
     *cursor = trial;
     CastingPermissionRecognition::Parsed(node)
+}
+
+/// `[,] and you may` / `[,] and PLAYERS may` after a complete clause.
+fn permission_conjunction_follows(cursor: &OracleTokenCursor<'_>) -> bool {
+    let offset = usize::from(peek_is(cursor, 0, ","));
+    peek_is(cursor, offset, "and")
+        && peek_is(cursor, offset + 1, "you")
+        && peek_is(cursor, offset + 2, "may")
+}
+
+/// One `ACTOR may ACTION ...` clause of a collection allowance or of the
+/// look allowance. `committed` becomes true once a word only this frame
+/// reads (an origin, a base-cost policy, a manner, `look at`) is read.
+fn recognize_permission_clause(
+    trial: &mut OracleTokenCursor<'_>,
+    committed: &mut bool,
+) -> MachineResult<PlayerPermissionNode> {
+    let actor = recognize_permission_actor(trial)?;
+    trial.enter("permission.future-allowance");
+    trial.consume("may")?;
+    if peek_is(trial, 0, "look") && peek_is(trial, 1, "at") {
+        // `may look at` selects the look allowance of this frame.
+        *committed = true;
+        return recognize_look_permission(trial, actor);
+    }
+    let actions = recognize_permitted_actions(trial, actor)?;
+    trial.enter("permission.origin");
+    let origin = if peek_is(trial, 0, "from") {
+        // A stated origin is explicit semantic selection of this frame,
+        // not cursor progress or a diagnostic-state naming convention.
+        *committed = true;
+        recognize_permission_origin(trial, actor)?
+    } else {
+        trial.require(
+            peek_is(trial, 0, "without") || peek_is(trial, 0, "as"),
+            "a source zone, a base-cost policy or a timing manner",
+        )?;
+        PermissionOriginNode::UsualZone
+    };
+    trial.enter("permission.base-cost");
+    let base_cost = if peek_is(trial, 0, "without") {
+        *committed = true;
+        trial.consume_phrase(&["without", "paying", "their", "mana", "costs"])?;
+        CastingBaseCostPolicyNode::WithoutManaCost
+    } else {
+        CastingBaseCostPolicyNode::Printed
+    };
+    trial.enter("permission.timing");
+    let conjoined = peek_is(trial, 0, "and") && peek_is(trial, 1, "as");
+    let as_though_flash = conjoined || peek_is(trial, 0, "as");
+    if as_though_flash {
+        *committed = true;
+        if conjoined {
+            trial.consume("and")?;
+        }
+        trial.consume_phrase(&["as", "though", manner_pronoun(&actions), "had", "flash"])?;
+    }
+    Ok(PlayerPermissionNode::Act(CastingPermissionNode {
+        window: PermissionTurnWindowNode::Always,
+        actor,
+        actions,
+        origin,
+        base_cost,
+        as_though_flash,
+    }))
 }
 
 fn word_is(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
