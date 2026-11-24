@@ -287,7 +287,9 @@ fn mark_distinct_other_targets(rule: &mut Value, source_heads: Option<&[ObjectTy
     }
 }
 
-/// Composition entry: resolve the relation everywhere, then consume it.
+/// Composition entry without a known source type line: a non-spell source
+/// is a permanent any permanent slot may name.
+#[cfg(test)]
 fn compose_other_target_relation(rule: &mut Value) {
     compose_other_target_relation_for_source(rule, None);
 }
