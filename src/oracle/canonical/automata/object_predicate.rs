@@ -446,10 +446,21 @@ impl ObjectPredicate {
     pub(in crate::oracle::canonical) fn split_set_constraints(
         &self,
     ) -> Option<(ObjectPredicate, Vec<ObjectQualifier>)> {
-        let members: Vec<&ObjectPredicate> = match self {
-            Self::Intersection(operands) => operands.iter().collect(),
-            other => vec![other],
-        };
+        // The conjunction's members, nested conjunctions flattened: a
+        // coordinated `with different names and total mana value 6 or
+        // less` is one more conjunction of the same selection.
+        fn conjuncts<'a>(predicate: &'a ObjectPredicate, members: &mut Vec<&'a ObjectPredicate>) {
+            match predicate {
+                ObjectPredicate::Intersection(operands) => {
+                    operands
+                        .iter()
+                        .for_each(|operand| conjuncts(operand, members));
+                }
+                other => members.push(other),
+            }
+        }
+        let mut members = Vec::new();
+        conjuncts(self, &mut members);
         let mut rest = Vec::new();
         let mut constraints = Vec::new();
         for member in members {

@@ -112,6 +112,85 @@ pub(super) fn recognize_with_qualifier(
     cursor.enter("selector.with-qualifier.relation");
     cursor.consume("with")?;
     let qualifier = match form {
+        WithQualifierForm::Distinct | WithQualifierForm::Total => {
+            // `with different mana values and total mana value 6 or less`:
+            // set constraints coordinated by `and` constrain one selection.
+            let mut constraints = vec![SelectorPredicate::Qualifier(recognize_set_constraint(
+                cursor,
+                form,
+                plural_head,
+            )?)];
+            while word_at(cursor, 0, "and")
+                && (word_at(cursor, 1, "different") || word_at(cursor, 1, "total"))
+            {
+                cursor.enter("selector.set-constraint.conjunction");
+                cursor.consume("and")?;
+                let next = if word_at(cursor, 0, "different") {
+                    WithQualifierForm::Distinct
+                } else {
+                    WithQualifierForm::Total
+                };
+                constraints.push(SelectorPredicate::Qualifier(recognize_set_constraint(
+                    cursor,
+                    next,
+                    plural_head,
+                )?));
+            }
+            return Ok(match constraints.len() {
+                1 => constraints.pop().expect("one set constraint"),
+                _ => SelectorPredicate::Intersection(constraints),
+            });
+        }
+        WithQualifierForm::Extremum => recognize_extremum(cursor)?,
+        WithQualifierForm::ManaCostSymbol => {
+            cursor.enter("selector.mana-cost-symbol.symbol");
+            let raw = cursor
+                .peek()
+                .ok_or_else(|| cursor.fail("a mana symbol"))?
+                .to_string();
+            let class = mana_symbol_class(&raw)
+                .ok_or_else(|| cursor.fail("a supported mana symbol class (`{X}`)"))?;
+            cursor.advance_to(cursor.position() + 1)?;
+            cursor.enter("selector.mana-cost-symbol.location");
+            cursor.consume_phrase(&["in", "its", "mana", "cost"])?;
+            ObjectQualifier::ManaCostSymbol(class)
+        }
+        WithQualifierForm::KeywordAbility => {
+            cursor.enter("selector.keyword-ability.determiner");
+            let article = word_at(cursor, 0, "a") || word_at(cursor, 0, "an");
+            if article {
+                let raw = cursor.peek().expect("checked article").to_string();
+                cursor.consume(&raw)?;
+            }
+            cursor.enter("selector.keyword-ability.keyword");
+            let raw = cursor
+                .peek()
+                .ok_or_else(|| cursor.fail("a keyword ability"))?
+                .to_string();
+            let keyword = KeywordAbilityName::from_oracle_word(&raw)
+                .ok_or_else(|| cursor.fail("a keyword ability"))?;
+            cursor.advance_to(cursor.position() + 1)?;
+            // `a cycling ability` / `cycling abilities`: the noun agrees with
+            // the article; a bare keyword names the ability itself.
+            cursor.enter("selector.keyword-ability.noun");
+            if article {
+                cursor.consume("ability")?;
+            } else if word_at(cursor, 0, "abilities") {
+                cursor.consume("abilities")?;
+            }
+            ObjectQualifier::KeywordAbility(keyword)
+        }
+    };
+    Ok(SelectorPredicate::Qualifier(qualifier))
+}
+
+/// One set constraint after `with` (or after its coordinating `and`).
+fn recognize_set_constraint(
+    cursor: &mut OracleTokenCursor<'_>,
+    form: WithQualifierForm,
+    plural_head: bool,
+) -> MachineResult<ObjectQualifier> {
+    Ok(match form {
         WithQualifierForm::Distinct => {
             cursor.enter("selector.set-constraint.distinct.head");
             cursor.require(
@@ -159,47 +238,8 @@ pub(super) fn recognize_with_qualifier(
                 maximum: Box::new(maximum),
             }
         }
-        WithQualifierForm::Extremum => recognize_extremum(cursor)?,
-        WithQualifierForm::ManaCostSymbol => {
-            cursor.enter("selector.mana-cost-symbol.symbol");
-            let raw = cursor
-                .peek()
-                .ok_or_else(|| cursor.fail("a mana symbol"))?
-                .to_string();
-            let class = mana_symbol_class(&raw)
-                .ok_or_else(|| cursor.fail("a supported mana symbol class (`{X}`)"))?;
-            cursor.advance_to(cursor.position() + 1)?;
-            cursor.enter("selector.mana-cost-symbol.location");
-            cursor.consume_phrase(&["in", "its", "mana", "cost"])?;
-            ObjectQualifier::ManaCostSymbol(class)
-        }
-        WithQualifierForm::KeywordAbility => {
-            cursor.enter("selector.keyword-ability.determiner");
-            let article = word_at(cursor, 0, "a") || word_at(cursor, 0, "an");
-            if article {
-                let raw = cursor.peek().expect("checked article").to_string();
-                cursor.consume(&raw)?;
-            }
-            cursor.enter("selector.keyword-ability.keyword");
-            let raw = cursor
-                .peek()
-                .ok_or_else(|| cursor.fail("a keyword ability"))?
-                .to_string();
-            let keyword = KeywordAbilityName::from_oracle_word(&raw)
-                .ok_or_else(|| cursor.fail("a keyword ability"))?;
-            cursor.advance_to(cursor.position() + 1)?;
-            // `a cycling ability` / `cycling abilities`: the noun agrees with
-            // the article; a bare keyword names the ability itself.
-            cursor.enter("selector.keyword-ability.noun");
-            if article {
-                cursor.consume("ability")?;
-            } else if word_at(cursor, 0, "abilities") {
-                cursor.consume("abilities")?;
-            }
-            ObjectQualifier::KeywordAbility(keyword)
-        }
-    };
-    Ok(SelectorPredicate::Qualifier(qualifier))
+        _ => return Err(cursor.fail("a set constraint (`different`, `total`)")),
+    })
 }
 
 fn recognize_distinct_property(

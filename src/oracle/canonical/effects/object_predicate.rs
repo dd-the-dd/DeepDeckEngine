@@ -330,6 +330,18 @@ pub(in crate::oracle::canonical) fn lift_target_set_constraints(value: &mut Valu
     }
 }
 
+/// The members of a conjunction, nested conjunctions flattened.
+fn conjunction_members(filter: &Value, members: &mut Vec<Value>) {
+    match filter["kind"].as_str() {
+        Some("and") if filter["operands"].is_array() => filter["operands"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .for_each(|operand| conjunction_members(operand, members)),
+        _ => members.push(filter.clone()),
+    }
+}
+
 fn lift_slot_set_constraints(decision: &mut serde_json::Map<String, Value>) {
     let Some(filter) = decision
         .get_mut("candidates")
@@ -337,24 +349,19 @@ fn lift_slot_set_constraints(decision: &mut serde_json::Map<String, Value>) {
     else {
         return;
     };
-    let mut lifted = Vec::new();
-    if is_set_constraint_atom(filter) {
-        lifted.push(std::mem::replace(filter, Value::Null));
-    } else if filter["kind"].as_str() == Some("and")
-        && let Some(operands) = filter["operands"].as_array_mut()
-    {
-        let (constraints, rest): (Vec<Value>, Vec<Value>) =
-            operands.drain(..).partition(is_set_constraint_atom);
-        lifted = constraints;
-        *filter = match rest.len() {
-            0 => Value::Null,
-            1 => rest.into_iter().next().expect("one remaining operand"),
-            _ => json!({ "kind": "and", "operands": rest }),
-        };
-    }
-    if lifted.is_empty() {
+    let mut members = Vec::new();
+    conjunction_members(filter, &mut members);
+    // A filter without a top-level set constraint keeps its exact IR.
+    if !members.iter().any(is_set_constraint_atom) {
         return;
     }
+    let (mut lifted, rest): (Vec<Value>, Vec<Value>) =
+        members.into_iter().partition(is_set_constraint_atom);
+    *filter = match rest.len() {
+        0 => Value::Null,
+        1 => rest.into_iter().next().expect("one remaining operand"),
+        _ => json!({ "kind": "and", "operands": rest }),
+    };
     if let Some(existing) = decision.remove("selectionConstraint") {
         lifted.insert(0, existing);
     }
