@@ -206,7 +206,7 @@ fn the_created_trigger_event_is_the_printed_trigger_event() {
     let tokens = recognize_entities("Whenever a creature you control attacks, draw a card.");
     let mut cursor = OracleTokenCursor::new("test.printed-event", &tokens);
     let super::EventClauseAttempt::Recognized(printed) =
-        super::read_event_clause(&mut cursor, &[], None, ",")
+        super::super::read_event_clause(&mut cursor, &[], None, ",")
     else {
         panic!("the printed event reads");
     };
