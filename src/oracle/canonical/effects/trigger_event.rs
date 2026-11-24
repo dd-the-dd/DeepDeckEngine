@@ -1907,9 +1907,16 @@ fn lower_local_event(
                 AttachedObjectEventAction::BecomeBlocked => {
                     json!({"kind": "attachedCreatureBecameBlocked", "attachment": self_ref()})
                 }
-                // The mana-ability observer of the enchanted permanent.
+                // The mana-ability observer of the enchanted permanent: the
+                // checked mana discovery refuses its program until the
+                // trigger's recipient and timing context are typed (CR
+                // 605.1b), so a rule with it would fail when the land is
+                // tapped. It stays an explicit engine gap.
                 AttachedObjectEventAction::TappedForMana => {
-                    json!({"kind": "attachedPermanentManaAbilityActivated", "object": self_ref()})
+                    return Err(engine_gap(
+                        cursor,
+                        "a checked mana discovery for a triggered mana ability of the enchanted permanent",
+                    ));
                 }
             })
         }

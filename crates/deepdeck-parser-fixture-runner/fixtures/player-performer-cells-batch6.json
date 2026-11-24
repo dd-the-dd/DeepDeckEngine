@@ -78,7 +78,7 @@
       }
     },
     {
-      "id": "wild-growth-exact-its-controller-adds-additional",
+      "id": "wild-growth-attached-mana-trigger-stays-an-engine-gap",
       "request": {
         "cardName": "Wild Growth",
         "typeLine": "Enchantment — Aura",
@@ -88,59 +88,38 @@
         "faces": []
       },
       "expect": {
-        "outcome": "success",
-        "cardStatus": "canonical",
-        "abilityCount": 2,
-        "abilities": [
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
           {
-            "index": 1,
-            "status": "canonical",
-            "recognizer": "native",
-            "ruleAssertions": [
-              {
-                "pointer": "/kind",
-                "equals": "triggeredAbility"
-              },
-              {
-                "pointer": "/effects/0/kind",
-                "equals": "addMana"
-              },
-              {
-                "pointer": "/effects/0/performer/kind",
-                "equals": "controllerOf"
-              }
-            ]
+            "state": "engine.gap.event-matcher"
           }
         ]
       }
     },
     {
-      "id": "dawns-reflection-sibling-additional-any-combination",
+      "id": "high-tide-sibling-that-player-adds-additional",
       "request": {
-        "cardName": "Dawn's Reflection",
-        "typeLine": "Enchantment — Aura",
-        "manaCost": "{3}{G}",
-        "oracleText": "Enchant land\nWhenever enchanted land is tapped for mana, its controller adds an additional two mana in any combination of colors.",
+        "cardName": "High Tide",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}.",
         "layout": "normal",
         "faces": []
       },
       "expect": {
         "outcome": "success",
         "cardStatus": "canonical",
-        "abilityCount": 2,
+        "abilityCount": 1,
         "abilities": [
           {
-            "index": 1,
+            "index": 0,
             "status": "canonical",
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0/kind",
-                "equals": "addMana"
-              },
-              {
-                "pointer": "/effects/0/performer/kind",
-                "equals": "controllerOf"
+                "pointer": "/kind",
+                "equals": "spellAbility"
               }
             ]
           }
