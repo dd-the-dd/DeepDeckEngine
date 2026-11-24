@@ -360,3 +360,10 @@ impl GameEngine {
         Ok(())
     }
 }
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1")
+))]
+#[path = "characteristic_layers_tests.rs"]
+mod tests;

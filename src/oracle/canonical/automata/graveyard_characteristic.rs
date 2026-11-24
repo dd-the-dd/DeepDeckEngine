@@ -251,6 +251,18 @@ pub(in crate::oracle::canonical) fn recognize_characteristic_defining_power_toug
             State::Terminator => {
                 cursor.enter("characteristic.power-toughness.terminator");
                 cursor.consume(".")?;
+                // A final parenthesized reminder (`(Each {W} in the mana
+                // costs ... counts toward your devotion to white.)`) restates
+                // the rules of the amount; it must close the ability.
+                if cursor.peek() == Some("(") {
+                    cursor.enter("characteristic.power-toughness.reminder");
+                    let close = cursor
+                        .token_slice(cursor.position(), usize::MAX)
+                        .iter()
+                        .position(|token| token.raw == ")")
+                        .ok_or_else(|| cursor.fail("a closed reminder parenthesis"))?;
+                    cursor.advance_to(cursor.position() + close + 1)?;
+                }
                 State::Complete
             }
             State::Complete => {
