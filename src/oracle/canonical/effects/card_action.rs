@@ -778,6 +778,26 @@ impl CardCollectionMemory {
                 .map_err(|error| cursor.fail(error.expectation()))?;
             objects["where"] = lower_card_object_predicate(predicate)
         }
+        // `from your hand or graveyard`: one union of the same owner's
+        // zones, each with the same filter.
+        if !query.additional_zones.is_empty() {
+            cursor.require(
+                query.additional_zones.iter().all(|zone| {
+                    matches!(
+                        zone,
+                        CardZoneName::Hand | CardZoneName::Graveyard | CardZoneName::Exile
+                    )
+                }) && !matches!(query.owner, CardZoneOwnerNode::Players(_)),
+                "a coordinated hand, graveyard or exile zone of one owner",
+            )?;
+            let mut sets = vec![objects.clone()];
+            for other in &query.additional_zones {
+                let mut set = objects.clone();
+                set["zone"]["kind"] = json!(other.ir_name());
+                sets.push(set);
+            }
+            objects = json!({"kind":"union", "sets":sets});
+        }
         Ok(objects)
     }
 
@@ -908,6 +928,10 @@ impl CardCollectionMemory {
                     Some(quantity) => cast_maximum(cursor, quantity)?,
                     None => None,
                 };
+                cursor.require(
+                    query.additional_zones.is_empty(),
+                    "one source zone for a resolution-time cast",
+                )?;
                 (cards, maximum, query.zone)
             }
             // `you may cast target instant card from your graveyard without
@@ -1038,6 +1062,7 @@ impl CardCollectionMemory {
                     // whole hand; `from it` names that hand afterwards.
                     CardOperandNode::ZoneCollection(query)
                         if query.zone == CardZoneName::Hand
+                            && query.additional_zones.is_empty()
                             && query.predicate.is_none()
                             && query.quantity.is_none() =>
                     {
@@ -1182,6 +1207,7 @@ impl CardCollectionMemory {
                             && query.owner
                                 == CardZoneOwnerNode::Player(LocalPlayerReference::Controller)
                             && matches!(query.zone, CardZoneName::Graveyard | CardZoneName::Exile)
+                            && query.additional_zones.is_empty()
                             && permit.duration == Some(EffectDurationNode::UntilEndOfCurrentTurn)
                             && permit.window.is_none()
                             && !permit.without_paying_mana_cost

@@ -70,6 +70,7 @@ pub(in crate::oracle::canonical) fn try_recognize_shuffle_zones_into_library(
                 owner: CardZoneOwnerNode::Player(LocalPlayerReference::Controller),
                 predicate: None,
                 quantity: None,
+                additional_zones: Vec::new(),
             }),
             // The library is shuffled next: the placement order is not
             // observable, and each card goes to its owner's library.

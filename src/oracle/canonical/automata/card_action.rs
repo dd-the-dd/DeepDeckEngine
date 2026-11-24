@@ -329,6 +329,7 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
     };
     cursor.require(
         zone.zone == CardZoneName::Hand
+            && zone.additional_zones.is_empty()
             && zone.predicate.is_none()
             && zone.quantity.is_none()
             && matches!(zone.owner, CardZoneOwnerNode::TargetPlayer(_)),
@@ -703,6 +704,7 @@ fn try_recognize_permitted_card_query(
                         CardSelectionQuantityNode::All { .. } => None,
                         other => Some(other),
                     },
+                    additional_zones: Vec::new(),
                 })
             }
         })

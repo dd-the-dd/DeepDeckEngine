@@ -21,6 +21,9 @@ pub(in crate::oracle::canonical) struct CardZoneCollectionNode {
     /// player chooses this many matching cards on resolution (the shared
     /// selection quantity); `None` names every matching card.
     pub quantity: Option<CardSelectionQuantityNode>,
+    /// `from your hand or graveyard`, `from your graveyard and/or library`:
+    /// the other zones of the same owner, read as one union with `zone`.
+    pub additional_zones: Vec<CardZoneName>,
 }
 
 /// `a|an|N|up to N|any number of ... card(s) from|in your|target player's
@@ -217,6 +220,27 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
         committed = true;
         trial.enter("collection.zone.name");
         let zone = recognize_card_zone_atom(&mut trial)?;
+        // `hand or graveyard`, `hand and/or graveyard`: a coordinated zone
+        // of the same owner. A connector followed by anything else is the
+        // parent's (`... from your graveyard and you gain 1 life`).
+        let mut additional_zones = Vec::new();
+        while trial.peek().is_some_and(|raw| {
+            ["or", "and", "and/or"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+        }) && trial.peek_ahead(1).is_some_and(|raw| {
+            ["hand", "graveyard", "library", "exile"]
+                .iter()
+                .any(|word| raw.eq_ignore_ascii_case(word))
+        }) {
+            trial.enter("collection.zone.coordinated");
+            let connector = trial.peek().unwrap_or("or").to_owned();
+            trial.consume(&connector)?;
+            let other = recognize_card_zone_atom(&mut trial)?;
+            if other != zone && !additional_zones.contains(&other) {
+                additional_zones.push(other);
+            }
+        }
         if matches!(owner, CardZoneOwnerNode::Players(_)) {
             // Another player's hidden zone is not an open collection to
             // read or choose from (CR 400.2); only public zones admit a
@@ -232,6 +256,7 @@ pub(in crate::oracle::canonical) fn try_recognize_card_zone_collection(
             owner,
             predicate,
             quantity,
+            additional_zones,
         })
     })();
     match result {
