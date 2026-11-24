@@ -4189,10 +4189,6 @@ fn parsed_controller_turn_equipped_keywords_follow_turn_and_attachment_state() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-1"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Smaug the Impenetrable; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_temporary_and_noncombat_damage_triggers_execute_with_correct_lifetimes() {
     let hall = parse_oracle_card(OracleCardParseRequest {
@@ -17014,10 +17010,6 @@ fn parsed_shared_mana_abilities_apply_their_selector_and_spending_restriction() 
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Azlask, the Swelling Scourge; see docs/coverage-targets.md"
-)]
 #[test]
 fn parsed_variable_tribal_bonus_executes_with_counter_value_and_keyword_quantity() {
     let parsed = parse_oracle_card(OracleCardParseRequest {
@@ -30510,10 +30502,6 @@ fn parsed_each_combat_group_modifiers_execute_with_multiplayer_scopes() {
 }
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: Celeborn the Wise, Bilbo's Ring; see docs/coverage-targets.md"
-)]
 #[test]
 fn filtered_and_solo_attack_events_and_stack_stats_execute_their_constraints() {
     let filtered = parse_oracle_card(OracleCardParseRequest {

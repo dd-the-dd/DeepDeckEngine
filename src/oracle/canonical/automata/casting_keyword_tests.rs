@@ -232,10 +232,6 @@ fn casting_keyword_near_misses_fail_explicitly() {
             "Blitz—{2}{B}{B}, Pay 2 life. (If you cast this spell for its blitz cost, it gains haste and \"When this creature dies, draw a card.\" Sacrifice it at the beginning of the next end step.)",
             "a nonmana blitz payment",
         ),
-        (
-            "Escalate—Discard a card. (Pay this cost for each mode chosen beyond the first.)",
-            "a nonmana escalate payment",
-        ),
         ("Prototype {1}{W}{W} — X/3", "a variable prototype size"),
         ("Surge {X}{R}", "a variable surge cost"),
     ] {
@@ -244,4 +240,18 @@ fn casting_keyword_near_misses_fail_explicitly() {
             "{reason}: {text}"
         );
     }
+}
+
+/// Collective Brutality: `Escalate—COST` reads its payment through the shared
+/// keyword-cost sequence, so a nonmana escalate payment is the printed line,
+/// not a near-miss (CR 702.120a).
+#[test]
+fn a_nonmana_escalate_payment_reads_through_the_shared_cost_sequence() {
+    let escalate = ability(
+        "Collective Brutality",
+        "Sorcery",
+        "Escalate—Discard a card. (Pay this cost for each mode chosen beyond the first.)",
+    );
+    assert_eq!(escalate["kind"], "escalate");
+    assert_eq!(escalate["cost"]["kind"], "discardCard");
 }

@@ -146,15 +146,17 @@ fn claimed_near_misses_report_the_responsible_native_state() {
             "mobilize",
             "effect.combat-token.attacking",
         ),
+        // The cast prohibition is a player predicate of the shared static
+        // frame (CR 101.2); it owns the turn window and the terminator.
         (
             "Your opponents can't cast spells during each turn.",
-            "cast-prohibition",
-            "turn-context.possessor",
+            "static-continuous-effect",
+            "static.continuous.turn-condition",
         ),
         (
             "Your opponents can't cast spells during your turn twice.",
-            "cast-prohibition",
-            "cast-prohibition.terminator",
+            "static-continuous-effect",
+            "static.continuous.player-terminator",
         ),
     ] {
         let parsed = parse(oracle);
@@ -170,13 +172,21 @@ fn claimed_near_misses_report_the_responsible_native_state() {
 fn adjacent_keyword_and_player_restriction_families_are_not_stolen() {
     // Structural frames now claim every ability explicitly: the near-miss is
     // a committed ability-frame failure, never stolen by the adjacent family.
-    for (oracle, state, found) in [
+    for (oracle, automaton, state, found) in [
         // (Firebending is a keyword template row; Absorb has no expansion.)
-        ("Absorb 2", "ability-frame.keyword.expansion", "Absorb"),
+        (
+            "Absorb 2",
+            "ability-frame",
+            "ability-frame.keyword.expansion",
+            "Absorb",
+        ),
+        // The player subject is read by the static frame, whose activation
+        // prohibition requires the `of OBJECTS` sources it restricts.
         (
             "Your opponents can't activate abilities during your turn.",
-            "ability-frame.static.subject",
-            "Your",
+            "static-continuous-effect",
+            "static.player.lowering.activation-sources",
+            "during",
         ),
     ] {
         let parsed = parse(oracle);
@@ -186,7 +196,7 @@ fn adjacent_keyword_and_player_restriction_families_are_not_stolen() {
         assert_eq!(ability.recognizer, RecognizerProvenance::Native, "{oracle}");
         assert_eq!(
             ability.diagnostics[0].automaton.as_deref(),
-            Some("ability-frame"),
+            Some(automaton),
             "{oracle}"
         );
         assert_eq!(

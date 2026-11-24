@@ -2936,10 +2936,19 @@ fn recognize_exile_frame(
     }
     // `exile all graveyards` names zones; `exile all QUERY` names permanents
     // and stays with the shared object-to-zone operand below.
-    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal
-        && let Ok(batch) = cursor.attempt(recognize_exile_graveyard_collection_effect)
-    {
-        return Ok(LocalEffectNode::ZoneBatch(batch));
+    if super::operand_determiner(cursor, 1) == super::OperandDeterminer::Universal {
+        // A player possessive after the quantifier names the owner of a zone
+        // (`each opponent's graveyard`, `all your opponents' graveyards`,
+        // CR 400.3); no permanent query starts there, so the zone batch owns
+        // the phrase and its failure.
+        if zone_owner_possessive_after_quantifier(cursor) {
+            attempt_frame.commit();
+            return recognize_exile_graveyard_collection_effect(cursor)
+                .map(LocalEffectNode::ZoneBatch);
+        }
+        if let Ok(batch) = cursor.attempt(recognize_exile_graveyard_collection_effect) {
+            return Ok(LocalEffectNode::ZoneBatch(batch));
+        }
     }
     if source_reference_starts_at(
         cursor.position() + 1,
@@ -2960,6 +2969,26 @@ fn recognize_exile_frame(
         ZoneChangeTargetSupport::TargetCollection,
         inputs.context.zone_change_domains,
     )
+}
+
+fn zone_owner_possessive_after_quantifier(cursor: &OracleTokenCursor<'_>) -> bool {
+    let opponent_possessive = |raw: &str| {
+        [
+            "opponent's",
+            "opponent\u{2019}s",
+            "opponents'",
+            "opponents\u{2019}",
+        ]
+        .iter()
+        .any(|form| raw.eq_ignore_ascii_case(form))
+    };
+    match cursor.peek_ahead(2) {
+        Some(raw) if opponent_possessive(raw) => true,
+        Some(raw) if raw.eq_ignore_ascii_case("your") => {
+            cursor.peek_ahead(3).is_some_and(opponent_possessive)
+        }
+        _ => false,
+    }
 }
 
 /// `return ...`: a declared card target (counted heads are claimed by the

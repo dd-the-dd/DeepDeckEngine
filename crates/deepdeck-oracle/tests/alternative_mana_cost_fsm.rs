@@ -160,16 +160,29 @@ fn malformed_family_members_fail_at_the_responsible_local_state() {
 
 #[test]
 fn distinct_alternative_cost_envelopes_remain_outside_this_promoted_boundary() {
-    for oracle_text in ["You may pay {1} rather than pay this spell's mana cost."] {
-        // The shared program rejects the other envelope explicitly.
-        let parsed = parse_card("Other Alternative", oracle_text);
-        assert_eq!(parsed.status, "unsupported", "{oracle_text}");
-        let ability = &parsed.abilities[0];
-        assert!(ability.rule.is_none(), "{oracle_text}");
-        assert_eq!(
-            ability.diagnostics[0].automaton.as_deref(),
-            Some("contextual-effect-program"),
-            "{oracle_text}"
-        );
-    }
+    // A bare mana payment now reads through the shared alternative-cost
+    // sentence parent (CR 118.9) with the same typed lowering.
+    let parsed = parse_card(
+        "Other Alternative",
+        "You may pay {1} rather than pay this spell's mana cost.",
+    );
+    assert_eq!(parsed.status, "canonical");
+    assert_eq!(
+        parsed.abilities[0].rule.as_ref().unwrap()["ability"],
+        json!({
+            "kind": "alternativeCost",
+            "costs": [{ "kind": "payMana", "manaCost": "{1}" }],
+        })
+    );
+    // Another payment replaced (a ward cost, not this spell's mana cost) is
+    // a different envelope and is rejected explicitly.
+    let oracle_text = "You may pay {0} rather than pay the ward cost for the first spell or ability you cast each turn that targets a creature you control.";
+    let parsed = parse_card("Other Alternative", oracle_text);
+    assert_eq!(parsed.status, "unsupported", "{oracle_text}");
+    let ability = &parsed.abilities[0];
+    assert!(ability.rule.is_none(), "{oracle_text}");
+    assert_eq!(
+        ability.diagnostics[0].code, "oracle_machine_failure",
+        "{oracle_text}"
+    );
 }

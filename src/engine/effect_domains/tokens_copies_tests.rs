@@ -296,7 +296,7 @@ fn created_tokens(engine: &GameEngine) -> Vec<CardInstance> {
 fn written_token(power: Value, subtype: &str) -> Value {
     json!({
         "kind": "createTokens",
-        "controller": { "kind": "controller" },
+        "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
         "quantity": { "kind": "integer", "value": 1 },
         "token": {
             "power": power,
@@ -378,7 +378,7 @@ fn a_token_without_stated_statistics_reads_its_characteristic_defining_ability()
         "effects": [
             {
                 "kind": "createTokens",
-                "controller": { "kind": "controller" },
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
                 "quantity": { "kind": "integer", "value": 1 },
                 "token": {
                     "colors": ["green", "white"],
@@ -389,7 +389,7 @@ fn a_token_without_stated_statistics_reads_its_characteristic_defining_ability()
             },
             {
                 "kind": "createTokens",
-                "controller": { "kind": "controller" },
+                "controller": { "kind": "controllerOf", "object": { "kind": "self" } },
                 "quantity": { "kind": "integer", "value": 1 },
                 "tapped": true,
                 "token": {

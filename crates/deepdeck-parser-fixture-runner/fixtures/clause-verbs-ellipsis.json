@@ -245,7 +245,8 @@
         ],
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -472,7 +473,8 @@
         ],
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
@@ -1208,7 +1210,8 @@
         ],
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }

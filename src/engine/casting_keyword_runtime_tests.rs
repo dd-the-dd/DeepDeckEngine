@@ -219,6 +219,11 @@ fn nonmana_kicker_declares_and_pays_its_sacrifice() {
         test_definition("fodder", "Artifact"),
         "player-0",
     ));
+    // Legal-action discovery reads the admitted incarnation of each payment
+    // candidate, so the fixture objects are admitted before it runs.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
     let kicked = engine
         .legal_priority_actions(0)
         .into_iter()
@@ -233,9 +238,6 @@ fn nonmana_kicker_declares_and_pays_its_sacrifice() {
             instance_id: "fodder".to_string()
         })
     );
-    engine
-        .admit_explicit_test_fixture_objects()
-        .expect("fixture objects are admitted");
     engine
         .apply_priority_action(&kicked, &mut FirstOption)
         .expect("the kicked spell is cast");

@@ -110,7 +110,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -131,7 +132,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -216,7 +218,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -237,7 +240,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -288,7 +292,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -357,7 +362,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -394,7 +400,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -462,7 +469,8 @@
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ],
         "abilityCount": 1
@@ -516,7 +524,8 @@
         "abilityCount": 1,
         "diagnostics": [
           {
-            "abilityIndex": 0
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }

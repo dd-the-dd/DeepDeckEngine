@@ -77,18 +77,35 @@ fn another_current_name_beginning_with_awaken_is_a_damage_subject() {
 }
 
 #[test]
-fn unimplemented_awaken_keyword_is_explicitly_unsupported_without_a_name_link() {
+fn awaken_keyword_is_read_by_the_casting_keyword_reader_without_a_name_link() {
     let parsed = parse(
         "Test Spell",
         "Awaken 4—{4}{W} (If you cast this spell for {4}{W}, also put four +1/+1 counters on target land you control and it becomes a 0/0 Elemental creature with haste. It's still a land.)",
     );
 
+    assert_eq!(parsed.status, "canonical");
+    let ability = &parsed.abilities[0];
+    assert_eq!(ability.ability_type, "keywordAbility");
+    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
+    assert_eq!(ability.rule.as_ref().unwrap()["ability"]["kind"], "awaken");
+}
+
+#[test]
+fn unimplemented_madness_keyword_is_explicitly_unsupported_without_a_name_link() {
+    let parsed = parse(
+        "Test Spell",
+        "Madness {1}{R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+    );
+
     assert_eq!(parsed.status, "unsupported");
     assert_eq!(parsed.abilities.len(), 1);
     let ability = &parsed.abilities[0];
-    assert_eq!(ability.ability_type, "keywordAbility");
     assert_eq!(ability.recognizer, RecognizerProvenance::Native);
     assert_eq!(ability.status, "unsupported");
     assert!(ability.rule.is_none());
     assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
+    assert_eq!(
+        ability.diagnostics[0].state.as_deref(),
+        Some("keyword.unsupported.madness")
+    );
 }

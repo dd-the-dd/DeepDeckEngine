@@ -33,9 +33,10 @@ fn banding_after_first_strike_is_the_reported_item() {
 
 #[test]
 fn a_later_parameterized_item_or_the_separator_is_reported() {
+    // The hexproof-from reader owns its quality and names the one it rejects.
     let (state, found) = failure("Flying, hexproof from multicolored");
-    assert_eq!(state, "ability-frame.keyword.expansion");
-    assert_eq!(found, "hexproof");
+    assert_eq!(state, "keyword.protection.quality");
+    assert_eq!(found, "multicolored");
     // Every item reads alone: the `;` list separator is what is missing.
     let (state, found) = failure(
         "Haste; horsemanship (This creature can't be blocked except by creatures with horsemanship.)",

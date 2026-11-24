@@ -24,7 +24,10 @@ fn lowered(text: &str) -> Vec<Value> {
     else {
         panic!("a written description must be recognized: {text}")
     };
-    assert_eq!(next.as_deref(), Some("."), "{text}");
+    // A sentence ending in a quoted ability closes with the quote's own
+    // period, so the description reads to the end of the text.
+    let expected_tail = if text.ends_with('"') { None } else { Some(".") };
+    assert_eq!(next.as_deref(), expected_tail, "{text}");
     lower_explicit_token_creations(&node, TargetlessDeclarationSupport::XValue)
         .unwrap_or_else(|error| panic!("{text}: {error:?}"))
 }

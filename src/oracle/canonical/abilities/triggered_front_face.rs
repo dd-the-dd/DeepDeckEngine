@@ -8,46 +8,7 @@ fn recognize_optional_investigate_reminder(
     if cursor.peek().is_none() {
         return Ok(());
     }
-    cursor.enter("reminder.investigate.open");
-    cursor.consume("(")?;
-    cursor.enter("reminder.investigate.create");
-    crate::oracle::canonical::automata::consume_lemma(
-        cursor,
-        crate::oracle::canonical::automata::VerbLemma::Create,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    )?;
-    cursor.enter("reminder.investigate.quantity");
-    cursor.consume("a")?;
-    cursor.enter("reminder.investigate.token-name");
-    cursor.consume("clue")?;
-    cursor.consume("token")?;
-    cursor.consume(".")?;
-    cursor.enter("reminder.investigate.token-definition");
-    cursor.consume("it's")?;
-    cursor.consume("an")?;
-    cursor.consume("artifact")?;
-    cursor.consume("with")?;
-    cursor.consume("\"")?;
-    cursor.enter("reminder.investigate.activation-cost");
-    cursor.consume("{2}")?;
-    cursor.consume(",")?;
-    crate::oracle::canonical::automata::consume_lemma(
-        cursor,
-        crate::oracle::canonical::automata::VerbLemma::Sacrifice,
-        crate::oracle::canonical::automata::VerbAgreement::Base,
-    )?;
-    cursor.consume("this")?;
-    cursor.consume("token")?;
-    cursor.consume(":")?;
-    cursor.enter("reminder.investigate.activation-effect");
-    cursor.consume("draw")?;
-    cursor.consume("a")?;
-    cursor.consume("card")?;
-    cursor.consume(".")?;
-    cursor.consume("\"")?;
-    cursor.enter("reminder.investigate.close");
-    cursor.consume(")")?;
-    Ok(())
+    crate::oracle::canonical::automata::recognize_investigate_reminder(cursor)
 }
 
 pub(in crate::oracle::canonical) fn claims_promoted_attack_investigate_family(

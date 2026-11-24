@@ -240,6 +240,12 @@ fn a_no_combat_damage_marker_stops_combat_damage_assignment() {
     );
     let mut engine = test_engine(2);
     engine.state.players[0].battlefield = vec![attacker.clone()];
+    // A temporary grant tracks the permanent's incarnation (CR 400.7), so
+    // the fixture permanent is admitted as a game object first.
+    engine
+        .admit_explicit_test_fixture_objects()
+        .expect("fixture objects are admitted");
+    let attacker = engine.state.players[0].battlefield[0].clone();
     assert!(engine.deals_combat_damage_in_step(&attacker, CombatDamageStep::All));
     run(
         &mut engine,

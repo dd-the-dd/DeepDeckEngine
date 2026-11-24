@@ -134,10 +134,6 @@ fn oracle_backend_builds_variable_combat_bonus_from_existing_primitives() {
     );
 }
 
-#[cfg_attr(
-    not(feature = "coverage-targets"),
-    ignore = "coverage target: The Blue Spirit; see docs/coverage-targets.md"
-)]
 #[test]
 fn oracle_backend_preserves_during_combat_on_enter_triggers() {
     let result = parse_oracle_card(OracleCardParseRequest {
@@ -633,8 +629,12 @@ fn backend_returns_working_rules_even_when_other_oracle_text_is_unsupported() {
     assert_eq!(response.status, 200);
     assert_eq!(body["status"], "unsupported");
     assert_eq!(body["engineStatus"], "incomplete");
-    assert_eq!(rules.len(), 2);
-    assert!(rules.iter().all(|rule| rule["kind"] == "manaAbility"));
+    // The enters trigger phases its target out (CR 702.26b); the two mana
+    // abilities execute; the `{4}` put-from-hand activation stays unsupported.
+    assert_eq!(rules.len(), 3);
+    assert_eq!(rules[0]["kind"], "triggeredAbility");
+    assert_eq!(rules[0]["effects"][1]["kind"], "phaseOutPermanent");
+    assert!(rules[1..].iter().all(|rule| rule["kind"] == "manaAbility"));
     assert!(
         body["ruleCoverage"]
             .as_array()

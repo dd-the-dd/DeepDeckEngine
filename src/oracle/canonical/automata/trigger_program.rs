@@ -134,19 +134,17 @@ pub(in crate::oracle::canonical) fn recognize_trigger_program_tail(
         };
     let program_end = cursor.position();
     let once_each_turn = recognize_optional_trigger_limit(cursor)?;
-    // A token reminder may follow the limit sentence; it still belongs to the
-    // body's last catalog token creation and is validated against its
-    // catalog by the shared token reminder reader. Any other parenthetical
-    // stays unread and fails at completion.
+    // A reminder may follow the limit sentence; it still belongs to a token,
+    // keyword action or granted keyword of the body and is validated by that
+    // effect's typed reminder grammar, the same reader the activated
+    // ability uses. A parenthetical no effect explains stays unread and
+    // fails at completion.
     if once_each_turn
         && cursor.peek() == Some("(")
-        && let Some(creation) = value
-            .inner_sequence()
-            .effects
-            .last()
-            .and_then(super::reminded_token_creation)
+        && let Some(reminder) =
+            super::recognize_program_mechanic_reminder(cursor, value.inner_sequence())
     {
-        super::recognize_token_creation_reminder(cursor, &creation)?;
+        reminder?;
     }
     cursor.enter("trigger.program.complete");
     cursor.finish()?;

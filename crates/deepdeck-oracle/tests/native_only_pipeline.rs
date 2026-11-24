@@ -60,7 +60,9 @@ fn both_public_entry_points_reject_an_unclaimed_static_rule() {
     let request = request(
         "Legacy Static Bonus",
         "Enchantment",
-        "Creatures you control are blue.",
+        // `are blue` is now a color change the static frame lowers
+        // (CR 105.3); `every creature type` still has no type-change reader.
+        "Creatures you control are every creature type.",
     );
     let full = parse_oracle_card(request.clone());
     let native = parse_oracle_card_native(request);

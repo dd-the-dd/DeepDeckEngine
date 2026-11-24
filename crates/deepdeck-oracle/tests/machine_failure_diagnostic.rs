@@ -46,7 +46,9 @@ fn an_unread_static_subject_is_owned_by_the_static_frame() {
         card_name: "Test".to_string(),
         type_line: "Enchantment".to_string(),
         mana_cost: Some("{R}{W}".to_string()),
-        oracle_text: Some("Players can't search libraries.".to_string()),
+        // `Players` is now a static player subject; `Nobody` is no subject
+        // any shared child reads.
+        oracle_text: Some("Nobody can search libraries.".to_string()),
         layout: None,
         faces: Vec::new(),
     });
@@ -63,7 +65,7 @@ fn an_unread_static_subject_is_owned_by_the_static_frame() {
         Some("ability-frame.static.subject")
     );
     assert_eq!(diagnostic.token_index, Some(0));
-    assert_eq!(diagnostic.found.as_deref(), Some("Players"));
+    assert_eq!(diagnostic.found.as_deref(), Some("Nobody"));
 }
 
 #[test]
