@@ -13,6 +13,9 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         }
         LocalEffectNode::CardAction(_) => false,
         LocalEffectNode::AddMana(_) => true,
+        // `that player adds {G}`: the mana another player adds is still
+        // mana this program adds while it resolves (CR 605.1a).
+        LocalEffectNode::Performed(node) => produces_mana_while_resolving(&node.effect),
         LocalEffectNode::Retarget(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::TemporaryKeywordGrant(_)
@@ -57,7 +60,6 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
         | LocalEffectNode::UntapRestriction(_)
-        | LocalEffectNode::Performed(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
