@@ -179,11 +179,7 @@ fn bind_pending_action_result_objects(
                     .get(index + 1)
                     .map_or(effects.len(), |(to, _)| *to);
                 let producers = (from..to)
-                    .filter(|position| {
-                        effects[*position]["kind"]
-                            .as_str()
-                            .is_some_and(|kind| verb.runtime_kinds().contains(&kind))
-                    })
+                    .filter(|position| verb.records_result(&effects[*position]))
                     .collect::<Vec<_>>();
                 (!producers.is_empty()).then_some((index, producers))
             });

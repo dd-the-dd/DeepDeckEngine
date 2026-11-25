@@ -104,6 +104,19 @@ impl ActionResultVerb {
         }
     }
 
+    /// True when the lowered runtime action `effect` runs this verb and its
+    /// `bind` records exactly the objects it affected: a kind of
+    /// `runtime_kinds`, or a card move whose destination is exile (`exile
+    /// the top two cards of your library`, `exile target player's
+    /// graveyard`, CR 701.13a), whose `bind` records the moved cards.
+    pub(in crate::oracle::canonical) fn records_result(self, effect: &serde_json::Value) -> bool {
+        match effect["kind"].as_str() {
+            Some(kind) if self.runtime_kinds().contains(&kind) => true,
+            Some("moveCards") => self == Self::Exiled && effect["to"]["kind"] == "exile",
+            _ => false,
+        }
+    }
+
     /// Whether the affected objects keep their characteristics where the
     /// action put them (a card moved between card zones), so a restated
     /// card noun can be re-read on the bound objects. A permanent that left
@@ -467,11 +480,17 @@ pub(in crate::oracle::canonical) fn action_result_verb_produced_by(
                     ..
                 })
         ),
-        ActionResultVerb::Exiled => matches!(
-            effect,
-            LocalEffectNode::TargetCardZoneChange(node)
-                if node.action == CardZoneChangeAction::Exile
-        ),
+        ActionResultVerb::Exiled => match effect {
+            LocalEffectNode::TargetCardZoneChange(node) => {
+                node.action == CardZoneChangeAction::Exile
+            }
+            // `exile the top two cards of your library`, `exile all creature
+            // cards from target player's graveyard`: a card move to exile.
+            LocalEffectNode::CardAction(super::CardActionNode::Move { destination, .. }) => {
+                destination.zone == super::CardZoneName::Exile
+            }
+            _ => false,
+        },
         ActionResultVerb::Sacrificed => matches!(
             effect,
             LocalEffectNode::Sacrifice(SacrificeEffectNode::Selected { .. })
