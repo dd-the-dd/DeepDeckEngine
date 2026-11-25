@@ -1,10 +1,10 @@
 mod ability_frame_claim;
-mod additional_phase;
 mod ability_loss_destroy;
 mod ability_signal;
 mod activated_top_card_delayed_draw;
 mod activated_zone_change;
 mod activation_restriction;
+mod additional_phase;
 mod amass;
 mod attack_tax;
 mod block_restriction;
@@ -156,12 +156,12 @@ mod zone_change_search;
 mod zone_change_token;
 
 pub(super) use ability_frame_claim::*;
-pub(super) use additional_phase::*;
 pub(super) use ability_loss_destroy::*;
 pub(super) use ability_signal::*;
 pub(super) use activated_top_card_delayed_draw::*;
 pub(super) use activated_zone_change::*;
 pub(super) use activation_restriction::*;
+pub(super) use additional_phase::*;
 pub(super) use amass::*;
 pub(super) use attack_tax::*;
 pub(super) use block_restriction::*;

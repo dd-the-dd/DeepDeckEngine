@@ -160,6 +160,7 @@ use mana_postcost_ordered::OrderedManaState;
 mod card_selection;
 mod color_set_query;
 mod entry_observation;
+mod evasion_exception;
 mod event_object;
 mod granted_mana_program;
 mod mana_activation_actions;
@@ -171,7 +172,6 @@ mod mana_discovery_session;
 #[cfg(test)]
 mod mana_legacy_test_adapter;
 mod mana_payment;
-mod evasion_exception;
 mod static_damage_prevention;
 mod static_modifier_site;
 mod static_object_prohibitions;
@@ -15173,7 +15173,11 @@ impl GameEngine {
                         )
                     })
                     .filter(|object| {
-                        self.stack_item_candidate_matches(object, &candidates["where"], controller_id)
+                        self.stack_item_candidate_matches(
+                            object,
+                            &candidates["where"],
+                            controller_id,
+                        )
                     })
                     .filter(|object| {
                         candidates["singleTarget"] != true || object.targets.len() == 1
@@ -38729,7 +38733,8 @@ impl GameEngine {
 
         self.run_priority_window(provider)?;
         let forced_turn_end = self.finish_forced_turn(provider)?
-            || (self.state.outcome.is_none() && self.run_phases_added_after_main_phase(provider)?);
+            || (self.state.outcome.is_none()
+                && self.run_phases_added_after_main_phase(provider)?);
         if !forced_turn_end && self.state.outcome.is_none() {
             self.transition_to_step(GameStep::EndStep);
             self.enqueue_step_triggers("endStep");
