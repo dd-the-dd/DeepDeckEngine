@@ -1,0 +1,408 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "object-query-relatives-history-batch10",
+  "cases": [
+    {
+      "id": "exact-siren-stormtamer-stack-item-targets-you-or-creature",
+      "request": {
+        "cardName": "Siren Stormtamer",
+        "typeLine": "Creature — Siren Pirate Wizard",
+        "manaCost": "{U}",
+        "oracleText": "Flying\n{U}, Sacrifice this creature: Counter target spell or ability that targets you or a creature you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-diplomatic-escort-stack-item-targets-a-creature",
+      "request": {
+        "cardName": "Diplomatic Escort",
+        "typeLine": "Creature — Human Spellshaper",
+        "manaCost": "{1}{U}",
+        "oracleText": "{U}, {T}, Discard a card: Counter target spell or ability that targets a creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-activated-or-triggered-ability-that-targets-a-land-you-control",
+      "request": {
+        "cardName": "Stack Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target activated or triggered ability that targets a land you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-stack-item-targets-a-spell-is-not-a-permanent",
+      "request": {
+        "cardName": "Stack Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Counter target spell or ability that targets a spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.targets.object-domain"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-venomous-breath-blocked-or-was-blocked-by-it",
+      "request": {
+        "cardName": "Venomous Breath",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Choose target creature. At this turn's next end of combat, destroy all creatures that blocked or were blocked by it this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-glyph-of-doom-were-blocked-by-that-creature",
+      "request": {
+        "cardName": "Glyph of Doom",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Choose target Wall creature. At this turn's next end of combat, destroy all creatures that were blocked by that creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-each-creature-that-blocked-this-creature-this-turn",
+      "request": {
+        "cardName": "Block Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{B}",
+        "oracleText": "{T}: Destroy each creature that blocked this creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-anchorless-blocked-this-turn-status-unchanged",
+      "request": {
+        "cardName": "Block Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Destroy each creature that blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-block-history-query-anchor-is-refused",
+      "request": {
+        "cardName": "You Cannot Pass!",
+        "typeLine": "Instant",
+        "manaCost": "{W}",
+        "oracleText": "Destroy target creature that blocked or was blocked by a legendary creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relation.anchor.query"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-autumn-willow-and-baron-sengir-dealt-damage-to-that-creature",
+      "request": {
+        "cardName": "Autumn Willow and Baron Sengir",
+        "typeLine": "Legendary Creature — Avatar Vampire Noble",
+        "manaCost": "{4}{B}{G}",
+        "oracleText": "Shroud (This creature can't be the target of spells or abilities.)\nFlying\nWhenever a creature an opponent controls dies, put a +2/+2 counter on each Vampire you control that dealt damage to that creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-each-creature-that-dealt-combat-damage-to-this-creature",
+      "request": {
+        "cardName": "Damage Probe",
+        "typeLine": "Creature — Wall",
+        "manaCost": "{2}{R}",
+        "oracleText": "{T}: Destroy each creature that dealt combat damage to this creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-dealt-damage-to-a-creature-query-anchor",
+      "request": {
+        "cardName": "Damage Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Destroy each creature that dealt damage to a creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.relative-clause.unsupported"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ice-floe-thats-attacking-you",
+      "request": {
+        "cardName": "Ice Floe",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "You may choose not to untap this land during your untap step.\n{T}: Tap target creature without flying that's attacking you. It doesn't untap during its controller's untap step for as long as this land remains tapped.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-soul-snare-attacking-you-or-a-planeswalker-you-control",
+      "request": {
+        "cardName": "Soul Snare",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "{W}, Sacrifice this enchantment: Exile target creature that's attacking you or a planeswalker you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-blessed-reversal-for-each-creature-attacking-you",
+      "request": {
+        "cardName": "Blessed Reversal",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain 3 life for each creature attacking you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-each-creature-attacking-you-or-planeswalkers-you-control",
+      "request": {
+        "cardName": "Attack Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "Destroy each creature attacking you or planeswalkers you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-attacking-an-opponent-is-not-the-attacked-player-relation",
+      "request": {
+        "cardName": "Attack Probe",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Destroy each creature attacking an opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "selector.controller-qualifier.relation-or-negation"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-legacys-allure-target-power-at-most-source-counters",
+      "request": {
+        "cardName": "Legacy's Allure",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}{U}",
+        "oracleText": "At the beginning of your upkeep, you may put a treasure counter on this enchantment.\nSacrifice this enchantment: Gain control of target creature with power less than or equal to the number of treasure counters on this enchantment. (This effect lasts indefinitely.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-target-creature-mana-value-equal-to-source-charge-counters",
+      "request": {
+        "cardName": "Counter Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: Destroy target creature with mana value equal to the number of charge counters on this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-cast-event-filter-source-counters-stays-refused",
+      "request": {
+        "cardName": "Chalice of the Void",
+        "typeLine": "Artifact",
+        "manaCost": "{X}{X}",
+        "oracleText": "This artifact enters with X charge counters on it.\nWhenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.rhs-context"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-curious-herd-artifacts-that-player-controls",
+      "request": {
+        "cardName": "Curious Herd",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Choose target opponent. You create X 3/3 green Beast creature tokens, where X is the number of artifacts that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-yosei-target-permanents-that-player-controls",
+      "request": {
+        "cardName": "Yosei, the Morning Star",
+        "typeLine": "Legendary Creature — Dragon Spirit",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Flying\nWhen Yosei dies, target player skips their next untap step. Tap up to five target permanents that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-each-land-that-player-controls",
+      "request": {
+        "cardName": "Possessor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Choose target opponent. Destroy each land that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-that-player-controls-without-a-player-antecedent",
+      "request": {
+        "cardName": "Possessor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy each creature that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -3268,7 +3268,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
         }
         Some("stackObjects") => stack_filter_supported(&candidates["where"]),
         Some("stackItems") => {
-            stack_item_filter_supported(&candidates["where"])
+            object_predicate::stack_item_candidate_filter_supported(&candidates["where"])
                 && candidates.get("singleTarget").is_none_or(Value::is_boolean)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
@@ -15134,7 +15134,9 @@ impl GameEngine {
                             controller_id,
                         )
                     })
-                    .filter(|object| matches_stack_item_filter(object, &candidates["where"]))
+                    .filter(|object| {
+                        self.stack_item_candidate_matches(object, &candidates["where"], controller_id)
+                    })
                     .filter(|object| {
                         candidates["singleTarget"] != true || object.targets.len() == 1
                     })

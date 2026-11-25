@@ -2528,7 +2528,9 @@ fn stack_selector_names_spell(selector: &TargetSelector, nominals: &[TargetNomin
             super::StackItemPredicate::Union(operands) => {
                 !operands.is_empty() && operands.iter().all(guarantees_spell)
             }
-            super::StackItemPredicate::Ability(_) | super::StackItemPredicate::Colorless => false,
+            super::StackItemPredicate::Ability(_)
+            | super::StackItemPredicate::Colorless
+            | super::StackItemPredicate::Targets(_) => false,
         }
     }
     nominals == [TargetNominal::Domain(ObjectKind::Spell)]

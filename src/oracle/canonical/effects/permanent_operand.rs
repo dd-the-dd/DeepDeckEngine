@@ -99,6 +99,9 @@ pub(in crate::oracle::canonical) const EMBEDDED_PLAYER_TARGET: &str = "embeddedP
 /// the program declaration pass resolves.
 pub(in crate::oracle::canonical) fn lower_related_player(player: RelatedPlayer) -> Value {
     match player {
+        // `that player` after an earlier player declaration: resolved by the
+        // program lowering (`resolve_bound_player_anchors`).
+        RelatedPlayer::Bound(BoundPlayerReference::Bound(binding)) => bound_player_anchor(binding),
         // The selector admits only references with a context-free value.
         RelatedPlayer::Bound(reference) => bound_player_reference_value(reference, &[], &[])
             .unwrap_or_else(|| json!({ "kind": "unresolvedRelatedPlayer" })),
