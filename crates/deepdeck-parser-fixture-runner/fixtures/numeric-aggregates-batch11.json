@@ -1,0 +1,819 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "numeric-aggregates/batch11",
+  "cases": [
+    {
+      "id": "exact-triumph-of-ferocity",
+      "request": {
+        "cardName": "Triumph of Ferocity",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your upkeep, draw a card if you control the creature with the greatest power or tied for the greatest power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-abzan-beastmaster",
+      "request": {
+        "cardName": "Abzan Beastmaster",
+        "typeLine": "Creature — Dog Shaman",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your upkeep, draw a card if you control the creature with the greatest toughness or tied for the greatest toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-doran-besieged-by-time",
+      "request": {
+        "cardName": "Doran, Besieged by Time",
+        "typeLine": "Legendary Creature — Treefolk Druid",
+        "manaCost": "{1}{W}{B}{G}",
+        "oracleText": "Each creature spell you cast with toughness greater than its power costs {1} less to cast.\nWhenever a creature you control attacks or blocks, it gets +X/+X until end of turn, where X is the difference between its power and toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-might-of-the-nephilim",
+      "request": {
+        "cardName": "Might of the Nephilim",
+        "typeLine": "Instant",
+        "manaCost": "{1}{G}",
+        "oracleText": "Target creature gets +2/+2 until end of turn for each of its colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "known-gap-exact-crackling-drake",
+      "request": {
+        "cardName": "Crackling Drake",
+        "typeLine": "Creature — Drake",
+        "manaCost": "{U}{U}{R}{R}",
+        "oracleText": "Flying\nCrackling Drake's power is equal to the total number of instant and sorcery cards you own in exile and in your graveyard.\nWhen this creature enters, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-rakdos-the-defiler",
+      "request": {
+        "cardName": "Rakdos the Defiler",
+        "typeLine": "Legendary Creature — Demon",
+        "manaCost": "{2}{B}{B}{R}{R}",
+        "oracleText": "Flying, trample\nWhenever Rakdos attacks, sacrifice half the non-Demon permanents you control, rounded up.\nWhenever Rakdos deals combat damage to a player, that player sacrifices half the non-Demon permanents they control of their choice, rounded up.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-knight-of-new-alara",
+      "request": {
+        "cardName": "Knight of New Alara",
+        "typeLine": "Creature — Human Knight",
+        "manaCost": "{2}{G}{W}",
+        "oracleText": "Each other multicolored creature you control gets +1/+1 for each of its colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-exact-bribe-taker",
+      "request": {
+        "cardName": "Bribe Taker",
+        "typeLine": "Creature — Rhino Warrior",
+        "manaCost": "{5}{G}",
+        "oracleText": "Trample\nWhen this creature enters, for each kind of counter on permanents you control, you may put your choice of a +1/+1 counter or a counter of that kind on this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-flourishing-hunter",
+      "request": {
+        "cardName": "Flourishing Hunter",
+        "typeLine": "Creature — Wolf Spirit",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "When this creature enters, you gain life equal to the greatest toughness among other creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-tuya-bearclaw",
+      "request": {
+        "cardName": "Tuya Bearclaw",
+        "typeLine": "Legendary Creature — Human Warrior",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Whenever Tuya Bearclaw attacks, it gets +X/+X until end of turn, where X is the greatest power among other creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-skanos-dragonheart",
+      "request": {
+        "cardName": "Skanos Dragonheart",
+        "typeLine": "Legendary Creature — Dragon Ranger",
+        "manaCost": "{4}{G}",
+        "oracleText": "Whenever Skanos Dragonheart attacks, it gets +X/+X until end of turn, where X is the greatest power among other Dragons you control and Dragon cards in your graveyard.\nChoose a Background (You can have a Background as a second commander.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-carrion-grub",
+      "request": {
+        "cardName": "Carrion Grub",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{3}{B}",
+        "oracleText": "This creature gets +X/+0, where X is the greatest power among creature cards in your graveyard.\nWhen this creature enters, mill four cards. (Put the top four cards of your library into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-emissary-escort",
+      "request": {
+        "cardName": "Emissary Escort",
+        "typeLine": "Artifact Creature — Robot Soldier",
+        "manaCost": "{1}{U}",
+        "oracleText": "This creature gets +X/+0, where X is the greatest mana value among other artifacts you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-ancient-ooze",
+      "request": {
+        "cardName": "Ancient Ooze",
+        "typeLine": "Creature — Ooze",
+        "manaCost": "{5}{G}{G}",
+        "oracleText": "Ancient Ooze's power and toughness are each equal to the total mana value of other creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-perrie-the-pulverizer",
+      "request": {
+        "cardName": "Perrie, the Pulverizer",
+        "typeLine": "Legendary Creature — Rhino Soldier",
+        "manaCost": "{1}{G}{W}{U}",
+        "oracleText": "When Perrie enters, put a shield counter on target creature. (If it would be dealt damage or destroyed, remove a shield counter from it instead.)\nWhenever Perrie attacks, target creature you control gains trample and gets +X/+X until end of turn, where X is the number of different kinds of counters among permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-celebrate-the-harvest",
+      "request": {
+        "cardName": "Celebrate the Harvest",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Search your library for up to X basic land cards, where X is the number of different powers among creatures you control. Put those cards onto the battlefield tapped, then shuffle.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-saavik-stoic-student",
+      "request": {
+        "cardName": "Saavik, Stoic Student",
+        "typeLine": "Legendary Creature — Vulcan Advisor",
+        "manaCost": "{4}{W}",
+        "oracleText": "Flash\nFederation — When Saavik enters, she deals X damage to target attacking or blocking creature an opponent controls, where X is the number of creature types among non-Borg creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-loot-the-key-to-everything",
+      "request": {
+        "cardName": "Loot, the Key to Everything",
+        "typeLine": "Legendary Creature — Beast Noble",
+        "manaCost": "{G}{U}{R}",
+        "oracleText": "Ward {1}\nAt the beginning of your upkeep, exile the top X cards of your library, where X is the number of card types among other nonland permanents you control. You may play those cards this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-occult-epiphany",
+      "request": {
+        "cardName": "Occult Epiphany",
+        "typeLine": "Instant",
+        "manaCost": "{X}{U}",
+        "oracleText": "Draw X cards, then discard X cards. Create a 1/1 white Spirit creature token with flying for each card type among cards discarded this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-ramos-dragon-engine",
+      "request": {
+        "cardName": "Ramos, Dragon Engine",
+        "typeLine": "Legendary Artifact Creature — Dragon",
+        "manaCost": "{6}",
+        "oracleText": "Flying\nWhenever you cast a spell, put a +1/+1 counter on Ramos for each of that spell's colors.\nRemove five +1/+1 counters from Ramos: Add {W}{W}{U}{U}{B}{B}{R}{R}{G}{G}. Activate only once each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-crystal-inhuman-princess",
+      "request": {
+        "cardName": "Crystal, Inhuman Princess",
+        "typeLine": "Legendary Creature — Inhuman Noble Hero",
+        "manaCost": "{1}{R}{G}",
+        "oracleText": "Flying\nWhenever you cast a noncreature spell, Crystal deals X damage to each opponent, where X is the number of colors that spell is.\n{T}: Add {R}, {G}, {W}, or {U}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-mana-cannons",
+      "request": {
+        "cardName": "Mana Cannons",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{R}",
+        "oracleText": "Whenever you cast a multicolored spell, this enchantment deals X damage to any target, where X is the number of colors that spell is.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-multani-maro-sorcerer",
+      "request": {
+        "cardName": "Multani, Maro-Sorcerer",
+        "typeLine": "Legendary Creature — Elemental Sorcerer",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "Shroud (This creature can't be the target of spells or abilities.)\nMultani's power and toughness are each equal to the total number of cards in all players' hands.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-thickest-in-the-thicket",
+      "request": {
+        "cardName": "Thickest in the Thicket",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{G}{G}",
+        "oracleText": "When this enchantment enters, put X +1/+1 counters on target creature, where X is that creature's power.\nAt the beginning of your end step, draw two cards if you control the creature with the greatest power or tied for the greatest power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-padeem-consul-of-innovation",
+      "request": {
+        "cardName": "Padeem, Consul of Innovation",
+        "typeLine": "Legendary Creature — Vedalken Artificer",
+        "manaCost": "{3}{U}",
+        "oracleText": "Artifacts you control have hexproof. (They can't be the targets of spells or abilities your opponents control.)\nAt the beginning of your upkeep, if you control the artifact with the greatest mana value or tied for the greatest mana value, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-triumph-of-cruelty",
+      "request": {
+        "cardName": "Triumph of Cruelty",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{B}",
+        "oracleText": "At the beginning of your upkeep, target opponent discards a card if you control the creature with the greatest power or tied for the greatest power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-jaws-of-defeat",
+      "request": {
+        "cardName": "Jaws of Defeat",
+        "typeLine": "Enchantment",
+        "manaCost": "{3}{B}",
+        "oracleText": "Whenever a creature you control enters, target opponent loses life equal to the difference between that creature's power and its toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-wick-s-patrol",
+      "request": {
+        "cardName": "Wick's Patrol",
+        "typeLine": "Creature — Rat Warlock",
+        "manaCost": "{4}{B}{B}",
+        "oracleText": "When this creature enters, mill three cards. When you do, target creature an opponent controls gets -X/-X until end of turn, where X is the greatest mana value among cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-moonveil-regent",
+      "request": {
+        "cardName": "Moonveil Regent",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{3}{R}",
+        "oracleText": "Flying\nWhenever you cast a spell, you may discard your hand. If you do, draw a card for each of that spell's colors.\nWhen this creature dies, it deals X damage to any target, where X is the number of colors among permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 3
+      }
+    },
+    {
+      "id": "exact-breathe-your-last",
+      "request": {
+        "cardName": "Breathe Your Last",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}{B}",
+        "oracleText": "Destroy target creature or planeswalker. You gain 1 life for each of its colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "exact-ghalta-and-mavren",
+      "request": {
+        "cardName": "Ghalta and Mavren",
+        "typeLine": "Legendary Creature — Dinosaur Vampire",
+        "manaCost": "{3}{G}{G}{W}{W}",
+        "oracleText": "Trample\nWhenever you attack, choose one —\n• Create a tapped and attacking X/X green Dinosaur creature token with trample, where X is the greatest power among other attacking creatures.\n• Create X 1/1 white Vampire creature tokens with lifelink, where X is the number of other attacking creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2
+      }
+    },
+    {
+      "id": "exact-kraven-s-last-hunt",
+      "request": {
+        "cardName": "Kraven's Last Hunt",
+        "typeLine": "Enchantment — Saga",
+        "manaCost": "{3}{G}",
+        "oracleText": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Mill five cards. When you do, this Saga deals damage equal to the greatest power among creature cards in your graveyard to target creature.\nII — Target creature you control gets +2/+2 until end of turn.\nIII — Return target creature card from your graveyard to your hand.",
+        "layout": "saga",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-no-code-creature-types-in-graveyard-damage",
+      "request": {
+        "cardName": "Aggregate Probe Alpha",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Aggregate Probe Alpha deals X damage to any target, where X is the number of creature types among cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-least-toughness-among-opponents-creatures-life",
+      "request": {
+        "cardName": "Aggregate Probe Beta",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{W}",
+        "oracleText": "You gain life equal to the least toughness among creatures your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-total-toughness-of-opponents-creatures-draw",
+      "request": {
+        "cardName": "Aggregate Probe Gamma",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{U}",
+        "oracleText": "Draw cards equal to the total toughness of creatures your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-colors-among-opponents-permanents-life",
+      "request": {
+        "cardName": "Aggregate Probe Delta",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You gain life equal to the number of colors among permanents your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-greatest-mana-value-in-hand-draw",
+      "request": {
+        "cardName": "Aggregate Probe Epsilon",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw cards equal to the greatest mana value among cards in your hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-kinds-of-counters-on-source-draw",
+      "request": {
+        "cardName": "Aggregate Probe Zeta",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: Draw a card for each kind of counter on this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-card-types-among-other-permanents-life",
+      "request": {
+        "cardName": "Aggregate Probe Eta",
+        "typeLine": "Creature — Elemental",
+        "manaCost": "{2}{G}",
+        "oracleText": "When this creature enters, you gain 1 life for each card type among other permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-greatest-power-on-battlefield-union-counters",
+      "request": {
+        "cardName": "Aggregate Probe Theta",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Put X +1/+1 counters on target creature, where X is the greatest power among creatures you control and creature cards in your graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-difference-between-target-power-and-toughness",
+      "request": {
+        "cardName": "Aggregate Probe Iota",
+        "typeLine": "Instant",
+        "manaCost": "{1}{B}",
+        "oracleText": "Target creature gets -X/-X until end of turn, where X is the difference between its power and toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-superlative-holder-least-toughness",
+      "request": {
+        "cardName": "Aggregate Probe Kappa",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}{W}",
+        "oracleText": "At the beginning of your upkeep, you gain 2 life if you control the creature with the least toughness or tied for the least toughness.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "sibling-discard-half-their-hand-rounded-down",
+      "request": {
+        "cardName": "Aggregate Probe Lambda",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target opponent discards half the cards in their hand, rounded down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1
+      }
+    },
+    {
+      "id": "near-miss-half-their-hand-without-rounding",
+      "request": {
+        "cardName": "Aggregate Probe Mu",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Target opponent discards half the cards in their hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aggregate-over-result-without-producer",
+      "request": {
+        "cardName": "Aggregate Probe Nu",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{U}",
+        "oracleText": "Draw cards equal to the greatest mana value among cards discarded this way.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-superlative-holder-without-tie",
+      "request": {
+        "cardName": "Aggregate Probe Xi",
+        "typeLine": "Enchantment",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your upkeep, draw a card if you control the creature with the greatest power.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-colors-of-unresolved-nominal",
+      "request": {
+        "cardName": "Aggregate Probe Omicron",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "You gain 1 life for each of that creature's colors.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-total-colors-not-a-number",
+      "request": {
+        "cardName": "Aggregate Probe Pi",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}",
+        "oracleText": "Draw cards equal to the greatest colors among permanents you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

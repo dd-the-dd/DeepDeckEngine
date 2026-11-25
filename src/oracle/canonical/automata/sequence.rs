@@ -2921,6 +2921,9 @@ fn recognize_effect_sequence_attempt_scoped(
                         let restates_result = {
                             let mut countable = cursor.clone();
                             countable.advance_to(countable.position() + 2).is_ok()
+                                // `card type among cards discarded this way`
+                                // measures the result; the count child owns it.
+                                && !super::distinct_measure_among_starts(&countable)
                                 && super::action_result_reference_starts(&countable)
                         };
                         let count = if restates_result {
@@ -2950,6 +2953,17 @@ fn recognize_effect_sequence_attempt_scoped(
                             // `... for each creature they control`: the player
                             // of the scaled action (`player_set.rs`).
                             super::read_with_acting_player(cursor, recognize_for_each_count)?
+                        } else if let Some(target) = memory
+                            .last_target
+                            .filter(|binding| binding.effect_index + 1 == memory.effects.len())
+                        {
+                            // `for each of its colors`: `its` names the scaled
+                            // action's one declared target (CR 608.2c).
+                            super::with_clause_subject(
+                                cursor,
+                                Some(super::PermanentEffectReference::Target(target)),
+                                recognize_for_each_count,
+                            )?
                         } else {
                             recognize_for_each_count(cursor)?
                         };

@@ -129,6 +129,7 @@ pub(in crate::oracle::canonical) fn equal_to_quantity_family_starts(
         || super::property_total_starts(cursor)
         || super::ability_history_count_starts(cursor)
         || super::comparison_difference_starts(cursor)
+        || super::difference_between_starts(cursor)
         || super::highest_commander_tax_starts(cursor)
         || super::player_numeric_fact_starts(cursor)
         || super::number_of_count_starts(cursor)
@@ -370,13 +371,25 @@ fn recognize_primary(
         if query_context.kind.reads_definition_families()
             && super::greatest_property_among_starts(cursor)
         {
-            return super::recognize_greatest_property_among(cursor);
+            return super::recognize_greatest_property_among(
+                cursor,
+                query_context.kind == NumericReadKind::Definition,
+            );
         }
         // `your highest commander tax among your commanders` (CR 903.8).
         if query_context.kind.reads_definition_families()
             && super::highest_commander_tax_starts(cursor)
         {
             return super::recognize_highest_commander_tax(cursor);
+        }
+        // `the difference between A and B`: the absolute difference of two
+        // operands of this grammar (`comparison_difference.rs`).
+        if query_context.kind.reads_definition_families()
+            && super::difference_between_starts(cursor)
+        {
+            return super::recognize_difference_between(cursor, |cursor| {
+                recognize_sum(cursor, antecedent, event_binding, query_context)
+            });
         }
         // `the difference`: the amount by which the preceding condition's
         // comparison holds (`comparison_difference.rs`).
