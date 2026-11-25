@@ -188,6 +188,57 @@
       }
     },
     {
+      "id": "exact-orbital-plunge-excess-damage-condition",
+      "request": {
+        "cardName": "Orbital Plunge",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Orbital Plunge deals 6 damage to target creature. If excess damage was dealt this way, create a Lander token. (It's an artifact with \"{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\")",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "unused-combination-excess-damage-to-that-creature-draw",
+      "request": {
+        "cardName": "Probe Blast",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Probe Blast deals 5 damage to target creature. If excess damage was dealt to that creature this way, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-excess-damage-without-a-damage-producer",
+      "request": {
+        "cardName": "Probe Blast",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Draw a card. If excess damage was dealt this way, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-spit-flame-graveyard-return",
       "request": {
         "cardName": "Spit Flame",
