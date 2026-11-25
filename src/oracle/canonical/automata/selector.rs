@@ -2120,16 +2120,21 @@ fn recognize_player_relation(
                         super::BoundPlayerReference::EventPlayer => QuerySubjectScope::EventPlayer,
                         other => {
                             // The query is lowered without the program's
-                            // target table; a player that needs one (`that
-                            // player` after `target player`) stays refused.
+                            // target table. `that player` after an earlier
+                            // player declaration of the program (CR 608.2c)
+                            // lowers to a placeholder the program lowering
+                            // resolves against its declared players
+                            // (`resolve_bound_player_anchors`); any other
+                            // player that needs a declaration stays refused.
                             cursor.enter("selector.controller-qualifier.bound-player.lowering");
                             cursor.require(
-                                crate::oracle::canonical::effects::bound_player_reference_value(
-                                    other,
-                                    &[],
-                                    &[],
-                                )
-                                .is_some(),
+                                matches!(other, super::BoundPlayerReference::Bound(_))
+                                    || crate::oracle::canonical::effects::bound_player_reference_value(
+                                        other,
+                                        &[],
+                                        &[],
+                                    )
+                                    .is_some(),
                                 "a bound player resolvable without a declaration of this program",
                             )?;
                             QuerySubjectScope::Player(RelatedPlayer::Bound(other))

@@ -336,6 +336,73 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-curious-herd-artifacts-that-player-controls",
+      "request": {
+        "cardName": "Curious Herd",
+        "typeLine": "Instant",
+        "manaCost": "{3}{G}",
+        "oracleText": "Choose target opponent. You create X 3/3 green Beast creature tokens, where X is the number of artifacts that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-yosei-target-permanents-that-player-controls",
+      "request": {
+        "cardName": "Yosei, the Morning Star",
+        "typeLine": "Legendary Creature — Dragon Spirit",
+        "manaCost": "{4}{W}{W}",
+        "oracleText": "Flying\nWhen Yosei dies, target player skips their next untap step. Tap up to five target permanents that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-each-land-that-player-controls",
+      "request": {
+        "cardName": "Possessor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{R}",
+        "oracleText": "Choose target opponent. Destroy each land that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-that-player-controls-without-a-player-antecedent",
+      "request": {
+        "cardName": "Possessor Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{B}",
+        "oracleText": "Destroy each creature that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
     }
   ]
 }

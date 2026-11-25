@@ -2903,6 +2903,8 @@ fn lower_local_effect_sequence_with_collections(
     }
     super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
         .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
+    super::resolve_bound_player_anchors(cursor, &mut effects, &declared_player_targets)
+        .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
     cursor.enter("lower.action-result.object");
     resolve_action_result_objects(&result_object_plans, &mut effects).map_err(|expected| {
         EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
