@@ -302,7 +302,9 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "installLinkedKeyword"
             | "installLinkedAbilityLoss"
             | "installLinkedDamagePrevention"
-            | "installOneShotModifier",
+            | "installOneShotModifier"
+            | "installCombatRequirement"
+            | "lockLifeTotal",
         ) => Some(Domain::ContinuousRules),
         Some(
             "grantNoMaximumHandSize"

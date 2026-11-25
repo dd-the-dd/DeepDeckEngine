@@ -140,6 +140,17 @@ pub(in crate::oracle::canonical) fn lower_static_combat_clause(
             )?,
             "blockers":objects.clone(),
         }),
+        // CR 506.5: the object is never the only attacker or blocker.
+        CombatClause::CantAttackAlone => marker(GrantedKeyword::CantAttackAlone),
+        CombatClause::CantBlockAlone => marker(GrantedKeyword::CantBlockAlone),
+        // CR 509.1a: a standing capacity adds up over every static ability
+        // that grants one, so it is a counted modifier, not a marker.
+        CombatClause::BlockCapacity(BlockCapacity::Additional(count)) => json!({
+            "kind":"blockCapacity", "objects":objects.clone(), "additional":count,
+        }),
+        CombatClause::BlockCapacity(BlockCapacity::AnyNumber) => json!({
+            "kind":"blockCapacity", "objects":objects.clone(), "anyNumber":true,
+        }),
         CombatClause::CantAttackController { planeswalkers } => json!({
             "kind":"cantAttackSourceController", "objects":objects.clone(),
             "defenders": if *planeswalkers { "playerAndPlaneswalkers" } else { "player" },

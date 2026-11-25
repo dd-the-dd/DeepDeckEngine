@@ -1,0 +1,596 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "combat-requirements-prohibitions-batch10",
+  "cases": [
+    {
+      "id": "matsu-tribe-decoy-exact-blocks-this-creature",
+      "request": {
+        "cardName": "Matsu-Tribe Decoy",
+        "typeLine": "Creature — Snake Warrior",
+        "manaCost": "{2}{G}",
+        "oracleText": "{2}{G}: Target creature blocks this creature this turn if able.\nWhenever this creature deals combat damage to a creature, tap that creature and it doesn't untap during its controller's next untap step.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "trumpeting-armodon-exact-activated-block-requirement",
+      "request": {
+        "cardName": "Trumpeting Armodon",
+        "typeLine": "Creature — Elephant",
+        "manaCost": "{3}{G}",
+        "oracleText": "{1}{G}: Target creature blocks this creature this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "avalanche-tusker-exact-this-combat-block-requirement",
+      "request": {
+        "cardName": "Avalanche Tusker",
+        "typeLine": "Creature — Elephant Warrior",
+        "manaCost": "{2}{G}{U}{R}",
+        "oracleText": "Whenever this creature attacks, target creature defending player controls blocks it this combat if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "giant-ambush-beetle-exact-causative-block",
+      "request": {
+        "cardName": "Giant Ambush Beetle",
+        "typeLine": "Creature — Insect",
+        "manaCost": "{3}{B/G}{R}",
+        "oracleText": "Haste\nWhen this creature enters, you may have target creature block it this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "feral-contest-exact-another-target-blocks-it",
+      "request": {
+        "cardName": "Feral Contest",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{G}",
+        "oracleText": "Put a +1/+1 counter on target creature you control. Another target creature blocks it this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "hunt-down-exact-target-blocks-target",
+      "request": {
+        "cardName": "Hunt Down",
+        "typeLine": "Sorcery",
+        "manaCost": "{G}",
+        "oracleText": "Target creature blocks target creature this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "dulcet-sirens-exact-attacks-target-opponent",
+      "request": {
+        "cardName": "Dulcet Sirens",
+        "typeLine": "Creature — Siren",
+        "manaCost": "{2}{U}",
+        "oracleText": "{U}, {T}: Target creature attacks target opponent this turn if able.\nMorph {U} (You may cast this card face down as a 2/2 creature for {3}. Turn it face up any time for its morph cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "alluring-siren-exact-attacks-you",
+      "request": {
+        "cardName": "Alluring Siren",
+        "typeLine": "Creature — Siren",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}: Target creature an opponent controls attacks you this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "raving-dead-exact-attacks-chosen-player-this-combat",
+      "request": {
+        "cardName": "Raving Dead",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{4}{B}",
+        "oracleText": "Deathtouch\nAt the beginning of combat on your turn, choose an opponent at random. This creature attacks that player this combat if able.\nWhenever this creature deals combat damage to a player, that player loses half their life, rounded down.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "legion-warboss-exact-chained-attacks-this-combat",
+      "request": {
+        "cardName": "Legion Warboss",
+        "typeLine": "Creature — Goblin Soldier",
+        "manaCost": "{2}{R}",
+        "oracleText": "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token. That token gains haste until end of turn and attacks this combat if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "alluring-scent-exact-all-able-blockers",
+      "request": {
+        "cardName": "Alluring Scent",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "All creatures able to block target creature this turn do so.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "taunting-challenge-exact-all-able-blockers",
+      "request": {
+        "cardName": "Taunting Challenge",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{G}{G}",
+        "oracleText": "All creatures able to block target creature this turn do so.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "two-headed-dragon-exact-additional-creature",
+      "request": {
+        "cardName": "Two-Headed Dragon",
+        "typeLine": "Creature — Dragon",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "Flying\nMenace (This creature can't be blocked except by two or more creatures.)\nThis creature can block an additional creature each combat.\n{1}{R}: This creature gets +2/+0 until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "watcher-in-the-web-exact-additional-seven",
+      "request": {
+        "cardName": "Watcher in the Web",
+        "typeLine": "Creature — Spider",
+        "manaCost": "{4}{G}",
+        "oracleText": "Reach (This creature can block creatures with flying.)\nThis creature can block an additional seven creatures each combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "palace-guard-exact-any-number",
+      "request": {
+        "cardName": "Palace Guard",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "This creature can block any number of creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "blockCapacity"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "high-ground-exact-collection-capacity",
+      "request": {
+        "cardName": "High Ground",
+        "typeLine": "Enchantment",
+        "manaCost": "{W}",
+        "oracleText": "Each creature you control can block an additional creature each combat.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "echo-circlet-exact-equipped-capacity",
+      "request": {
+        "cardName": "Echo Circlet",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{2}",
+        "oracleText": "Equipped creature can block an additional creature each combat.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "give-no-ground-exact-chained-any-number",
+      "request": {
+        "cardName": "Give No Ground",
+        "typeLine": "Instant",
+        "manaCost": "{3}{W}",
+        "oracleText": "Target creature gets +2/+6 until end of turn and can block any number of creatures this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "act-of-heroism-exact-chained-additional",
+      "request": {
+        "cardName": "Act of Heroism",
+        "typeLine": "Instant",
+        "manaCost": "{1}{W}",
+        "oracleText": "Untap target creature. It gets +2/+2 until end of turn and can block an additional creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "coastline-chimera-exact-activated-additional",
+      "request": {
+        "cardName": "Coastline Chimera",
+        "typeLine": "Creature — Chimera",
+        "manaCost": "{3}{U}",
+        "oracleText": "Flying\n{1}{W}: This creature can block an additional creature this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "militia-rallier-exact-cant-attack-alone",
+      "request": {
+        "cardName": "Militia Rallier",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "This creature can't attack alone.\nWhenever this creature attacks, untap target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "wojek-bodyguard-exact-cant-attack-or-block-alone",
+      "request": {
+        "cardName": "Wojek Bodyguard",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{R}",
+        "oracleText": "Mentor (Whenever this creature attacks, put a +1/+1 counter on target attacking creature with lesser power.)\nThis creature can't attack or block alone.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "craven-hulk-exact-cant-block-alone",
+      "request": {
+        "cardName": "Craven Hulk",
+        "typeLine": "Creature — Giant Coward",
+        "manaCost": "{3}{R}",
+        "oracleText": "This creature can't block alone.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeyword"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "deadlock-trap-exact-its-activated-abilities",
+      "request": {
+        "cardName": "Deadlock Trap",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "This artifact enters tapped.\nWhen this artifact enters, you get {E}{E} (two energy counters).\n{T}, Pay {E}: Tap target creature or planeswalker. Its activated abilities can't be activated this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "koma-cosmos-serpent-exact-modal-activation-prohibition",
+      "request": {
+        "cardName": "Koma, Cosmos Serpent",
+        "typeLine": "Legendary Creature — Serpent",
+        "manaCost": "{3}{G}{G}{U}{U}",
+        "oracleText": "This spell can't be countered.\nAt the beginning of each upkeep, create a 3/3 blue Serpent creature token named Koma's Coil.\nSacrifice another Serpent: Choose one —\n• Tap target permanent. Its activated abilities can't be activated this turn.\n• Koma gains indestructible until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "flare-of-fortitude-exact-life-total-lock",
+      "request": {
+        "cardName": "Flare of Fortitude",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}{W}",
+        "oracleText": "You may sacrifice a nontoken white creature rather than pay this spell's mana cost.\nUntil end of turn, your life total can't change, and permanents you control gain hexproof and indestructible.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "teferis-protection-exact-preposed-life-total-lock",
+      "request": {
+        "cardName": "Teferi's Protection",
+        "typeLine": "Instant",
+        "manaCost": "{2}{W}",
+        "oracleText": "Until your next turn, your life total can't change and you gain protection from everything. All permanents you control phase out. (While they're phased out, they're treated as though they don't exist. They phase in before you untap during your untap step.)\nExile Teferi's Protection.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-opponent-creature-blocks-this-turn",
+      "request": {
+        "cardName": "Requirement Sibling Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Target creature an opponent controls blocks this turn if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-creature-cant-be-regenerated-this-turn",
+      "request": {
+        "cardName": "Regeneration Sibling Probe",
+        "typeLine": "Instant",
+        "manaCost": "{B}",
+        "oracleText": "Target creature can't be regenerated this turn. Draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-two-targets-attack-you-this-combat",
+      "request": {
+        "cardName": "Attack Sibling Probe",
+        "typeLine": "Creature — Siren",
+        "manaCost": "{1}{U}",
+        "oracleText": "{T}: Up to two target creatures attack you this combat if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-equipped-cant-block-alone",
+      "request": {
+        "cardName": "Alone Sibling Probe",
+        "typeLine": "Artifact — Equipment",
+        "manaCost": "{1}",
+        "oracleText": "Equipped creature can't block alone.\nEquip {1}",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-tap-artifact-activation-prohibition-until-next-turn",
+      "request": {
+        "cardName": "Activation Sibling Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: Tap target artifact. Its activated abilities can't be activated until your next turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-standing-requirement-stays-static",
+      "request": {
+        "cardName": "Standing Requirement Probe",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{2}{R}",
+        "oracleText": "This creature attacks each combat if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "attackEachCombatIfAble"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-effect-each-combat-is-not-a-window",
+      "request": {
+        "cardName": "Each Combat Effect Probe",
+        "typeLine": "Instant",
+        "manaCost": "{R}",
+        "oracleText": "Target creature attacks target opponent each combat if able.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "effect.combat-requirement.window"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-cant-be-blocked-stays-an-evasion-marker",
+      "request": {
+        "cardName": "Evasion Probe",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Target creature can't be blocked this turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-capacity-scaled-for-each-is-refused",
+      "request": {
+        "cardName": "Scaled Capacity Probe",
+        "typeLine": "Creature — Human Soldier",
+        "manaCost": "{2}{W}",
+        "oracleText": "This creature can block an additional creature each combat for each Equipment attached to it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    }
+  ]
+}

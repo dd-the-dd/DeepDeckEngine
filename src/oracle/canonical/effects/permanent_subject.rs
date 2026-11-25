@@ -156,6 +156,7 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::MoveCounters(node) => &node.destination,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::UntapRestriction(node) => &node.objects,
+        LocalEffectNode::RuleChange(node) => node.objects()?,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         _ => return None,
