@@ -43,6 +43,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         }
         Some("optionalAction") => {
             player_reference_supported(&effect["player"])
+                && super::super::once_per_turn::once_per_turn_supported(effect)
                 && super::super::optional_action::measured_instruction_supported(effect)
                 && effect["onPerformed"]
                     .as_array()
@@ -58,6 +59,7 @@ fn supports_known_effect(effect: &Value) -> bool {
         Some("performAction") => super::super::optional_action::performed_action_supported(effect),
         Some("optionalEffects") => {
             player_reference_supported(&effect["player"])
+                && super::super::once_per_turn::once_per_turn_supported(effect)
                 && effect.get("revealSource").is_none_or(Value::is_boolean)
                 && effect["effects"].as_array().is_some_and(|effects| {
                     !effects.is_empty() && effects.iter().all(effect_supported)
@@ -250,6 +252,10 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
+                if self.once_per_turn_spent(effect, stack_object) {
+                    self.record_once_per_turn_unavailable(effect, stack_object);
+                    return Ok(());
+                }
                 let effects = effect["effects"].as_array().cloned().unwrap_or_default();
                 let is_library_shuffle = effects.len() == 1
                     && value_kind(&effects[0]) == Some("shuffleZone")
@@ -278,6 +284,7 @@ impl GameEngine {
                 if !perform {
                     return Ok(());
                 }
+                self.record_once_per_turn(effect, stack_object);
                 if effect["revealSource"].as_bool() == Some(true) {
                     let owner_id = stack_object.card.owner.clone();
                     let viewer_ids = self

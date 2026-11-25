@@ -1263,7 +1263,7 @@
       }
     },
     {
-      "id": "per-player-count-for-each-near-miss",
+      "id": "per-player-count-for-each-distributive-they",
       "request": {
         "cardName": "Shared multiplier source",
         "typeLine": "Sorcery",
@@ -1273,11 +1273,44 @@
         "oracleText": "Each player loses 1 life for each creature they control."
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/player/id",
+                "equals": "actingPlayer"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "per-player-count-for-each-it-near-miss",
+      "request": {
+        "cardName": "Shared multiplier source",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "layout": "normal",
+        "faces": [],
+        "oracleText": "Each player loses 1 life for each creature it controls."
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
         "diagnostics": [
           {
-            "code": "oracle_machine_failure"
+            "code": "oracle_machine_failure",
+            "state": "sequence.connector-or-end",
+            "found": "it"
           }
         ]
       }

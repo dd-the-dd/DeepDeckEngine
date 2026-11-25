@@ -17,7 +17,8 @@ use super::{
 };
 use crate::oracle::characteristic_vocabulary::{
     AcceptedForms, CharacteristicLexeme, ObjectCharacteristic, lookup_card_type,
-    lookup_object_characteristic, lookup_object_domain, lookup_object_selector_lexeme,
+    lookup_creature_subtype, lookup_noncreature_subtype, lookup_object_characteristic,
+    lookup_object_domain, lookup_object_selector_lexeme,
 };
 use crate::oracle::model::RecognizedEntity;
 
@@ -174,6 +175,22 @@ pub(in crate::oracle::canonical) struct BindingEnvironment {
     /// payer, whether the cost was paid or refused. The program parent
     /// publishes it (`publish_installed_unless_payer`).
     pub unless_payer: Option<UnlessPayerAntecedent>,
+    /// Every singular permanent target slot the program declared so far, in
+    /// declaration order (`Choose target creature you control and target
+    /// creature you don't control.`). A definite description (`the
+    /// creature you control`) names the one slot whose declared selector it
+    /// describes (`resolve_definite_description`). The program parent
+    /// publishes it (`publish_program_antecedents`).
+    pub declared_objects: Vec<DeclaredTargetAntecedent>,
+    /// The operand being read belongs to an action whose player slot names
+    /// a player other than the ability's controller (the player who loses
+    /// life, draws, or is dealt the damage; each member of a population in
+    /// turn): a distributive `they` / `that player` without another
+    /// antecedent names that player (`each player loses 1 life for each
+    /// creature they control`). Installed by the action parent around its
+    /// operands only (`player_subject::with_acting_player`); the lowering
+    /// binds it to the action's player slot.
+    pub acting_player: bool,
 }
 
 /// The payer of an `unless` frame as a later reference to that player: the
@@ -255,8 +272,34 @@ pub(in crate::oracle::canonical) fn publish_program_antecedents(
     environment.declared_target = program_declared_target(effects);
     environment.restated_damage_recipient = restated_damage_recipient(effects);
     environment.card_target = program_card_target(effects);
+    environment.declared_objects = program_declared_objects(effects);
     retype_moved_object(&mut environment, effects);
     environment
+}
+
+/// Every exactly-one permanent target slot the actions read so far declared,
+/// with the binding the lowering records it under (CR 115.1, 601.2c).
+fn program_declared_objects(effects: &[super::LocalEffectNode]) -> Vec<DeclaredTargetAntecedent> {
+    let mut declared = Vec::new();
+    for (effect_index, effect) in effects.iter().enumerate() {
+        let Some(targets) = super::permanent_subject::declared_target_list(effect) else {
+            continue;
+        };
+        for (slot_index, slot) in targets.slots.iter().enumerate() {
+            if slot.cardinality.maximum == 1
+                && super::permanent_subject::selector_guarantees_permanent(&slot.selector)
+            {
+                declared.push(DeclaredTargetAntecedent {
+                    binding: super::TargetBinding {
+                        effect_index,
+                        slot_index,
+                    },
+                    selector: slot.selector.clone(),
+                });
+            }
+        }
+    }
+    declared
 }
 
 /// The latest card zone change of the program that declared card targets,
@@ -801,6 +844,8 @@ impl BindingEnvironment {
             restated_damage_recipient: None,
             card_target: None,
             unless_payer: None,
+            declared_objects: Vec::new(),
+            acting_player: false,
         }
     }
 }
@@ -1011,6 +1056,11 @@ pub(in crate::oracle::canonical) enum BoundPlayerReference {
     /// player of the combat the restriction is checked for (CR 506.2,
     /// 508.1c, 509.1b). Only a condition of that frame reads it.
     DefendingPlayer,
+    /// A distributive `they` / `that player` inside an operand of an action
+    /// whose player slot names it (`BindingEnvironment::acting_player`):
+    /// the player who loses the life, draws, or is dealt the damage, each
+    /// member of a population in turn. The lowering substitutes that slot.
+    ActingPlayer,
 }
 
 impl BoundPlayerReference {
@@ -1023,7 +1073,7 @@ impl BoundPlayerReference {
             Self::ObjectRelation { relation, object } => {
                 Some(PlayerEffectSubject::ObjectRelation { relation, object })
             }
-            Self::EventSpellController | Self::DefendingPlayer => None,
+            Self::EventSpellController | Self::DefendingPlayer | Self::ActingPlayer => None,
         }
     }
 }
@@ -1111,7 +1161,9 @@ pub(in crate::oracle::canonical) fn object_related_player_head(
     if first.eq_ignore_ascii_case("its") {
         return player_relation(raw(1)?).map(|relation| (2, relation));
     }
-    if first.eq_ignore_ascii_case("that")
+    // `that land's controller`, or the definite `the land's controller`,
+    // which names the same antecedent (`recognize_definite_object_reference`).
+    if (first.eq_ignore_ascii_case("that") || first.eq_ignore_ascii_case("the"))
         && tokens
             .get(1)
             .is_some_and(|token| token.token_type == "possessiveTypeWord")
@@ -1322,6 +1374,13 @@ pub(in crate::oracle::canonical) fn recognize_that_player(
             object,
         });
     }
+    // `deals damage to each player equal to the number of lands that player
+    // controls`: the player of the action whose operand is being read.
+    if environment.acting_player {
+        cursor.enter("player-subject.acting-player");
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ActingPlayer);
+    }
     Err(cursor.fail_with_span(
         "a prior player binding for `that player`",
         first.index,
@@ -1471,7 +1530,11 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
         cursor.consume("its")?;
         None
     } else {
-        cursor.consume("that")?;
+        cursor.consume(if first.raw.eq_ignore_ascii_case("the") {
+            "the"
+        } else {
+            "that"
+        })?;
         cursor.enter("player-subject.object-relation.nominal");
         let possessive = cursor.consume_type("possessiveTypeWord")?;
         let surface = possessive_base(&possessive.raw)
@@ -1522,6 +1585,16 @@ pub(in crate::oracle::canonical) fn recognize_object_related_player(
             relation,
             object: slot.reference,
         });
+    }
+    // No lexical antecedent proves the object: the object the frame binds
+    // that the one shared reference resolver names (`player_subject.rs`).
+    if let Some(object) =
+        super::source_sacrifice::atomic_action::player_subject::unbound_relation_object(
+            cursor, antecedent, nominal,
+        )
+    {
+        cursor.enter("player-subject.complete");
+        return Ok(BoundPlayerReference::ObjectRelation { relation, object });
     }
     let antecedent = antecedent.ok_or_else(|| {
         cursor.fail_with_span(
@@ -1596,7 +1669,8 @@ pub(in crate::oracle::canonical) fn unresolved_antecedent_state(state: &str) -> 
 }
 
 /// Lexical lookahead for `it` / `that NOUN` (a registered nominal that is
-/// not possessive). It proves no binding.
+/// not possessive) / `that SUBTYPE` (`that Sliver`, `that Equipment`). It
+/// proves no binding.
 pub(in crate::oracle::canonical) fn bound_object_reference_starts(
     cursor: &OracleTokenCursor<'_>,
 ) -> bool {
@@ -1613,6 +1687,279 @@ pub(in crate::oracle::canonical) fn bound_object_reference_starts(
                     token.token_type != "possessiveTypeWord"
                         && registered_nominal(&token.raw).is_some()
                 })
+        || subtype_anaphor_starts(cursor)
+}
+
+/// The one subtype a singular noun names (`Sliver`, `Dragon`, `Equipment`,
+/// CR 205.3): a creature subtype or a noncreature subtype written as Oracle
+/// prints it, capitalized and not possessive. A card type or an object
+/// domain is a registered nominal instead.
+fn subtype_nominal_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<String> {
+    let token = cursor
+        .token_slice(cursor.position() + offset, cursor.position() + offset + 1)
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")?;
+    if registered_nominal(&token.raw).is_some()
+        || !token
+            .raw
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_uppercase())
+    {
+        return None;
+    }
+    lookup_creature_subtype(&token.raw, AcceptedForms::SingularOnly)
+        .map(|subtype| subtype.ir_name().to_string())
+        .or_else(|| lookup_noncreature_subtype(&token.raw).map(str::to_string))
+}
+
+/// Lexical lookahead for `that SUBTYPE` (`that Sliver`, `That Dragon`): a
+/// demonstrative whose head is a subtype noun. It proves no binding.
+pub(in crate::oracle::canonical) fn subtype_anaphor_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("that"))
+        && subtype_nominal_at(cursor, 1).is_some()
+}
+
+/// A predicate guarantees a subtype when it is that subtype, when one
+/// operand of an intersection guarantees it (`target Dragon creature`), or
+/// when every branch of a union does (CR 205.3).
+fn predicate_guarantees_subtype(predicate: &ObjectPredicate, subtype: &str) -> bool {
+    match predicate {
+        ObjectPredicate::Subtype(name) => name.eq_ignore_ascii_case(subtype),
+        ObjectPredicate::Intersection(operands) => operands
+            .iter()
+            .any(|operand| predicate_guarantees_subtype(operand, subtype)),
+        ObjectPredicate::Union(operands) => {
+            !operands.is_empty()
+                && operands
+                    .iter()
+                    .all(|operand| predicate_guarantees_subtype(operand, subtype))
+        }
+        _ => false,
+    }
+}
+
+/// The selector form of [`predicate_guarantees_subtype`].
+fn selector_guarantees_subtype(selector: &TargetSelector, subtype: &str) -> bool {
+    match selector {
+        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
+            predicate_guarantees_subtype(predicate, subtype)
+        }
+        TargetSelector::Union(branches) => {
+            !branches.is_empty()
+                && branches
+                    .iter()
+                    .all(|branch| selector_guarantees_subtype(branch, subtype))
+        }
+        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
+    }
+}
+
+/// The word width of a controller relation at `offset` that a definite
+/// description restates from a declared target (`you control`, `you don't
+/// control`, `an opponent controls`). Lexical lookahead only.
+fn description_controller_width(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
+    let word = |index: usize| {
+        cursor
+            .peek_ahead(offset + index)
+            .map(str::to_ascii_lowercase)
+    };
+    match (word(0)?.as_str(), word(1).as_deref(), word(2).as_deref()) {
+        ("you", Some("control"), _) => Some(2),
+        ("you", Some("don't" | "don’t"), Some("control")) => Some(3),
+        ("an", Some("opponent"), Some("controls")) => Some(3),
+        _ => None,
+    }
+}
+
+/// Lexical lookahead for a definite description of a declared target:
+/// `the NOUN CONTROLLER` (`the creature you control`, `the creature you
+/// don't control`, `the Knight an opponent controls`). It proves no
+/// binding; `the token`, `the chosen creature` and `the exiled card` are
+/// other readers' heads.
+pub(in crate::oracle::canonical) fn definite_description_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    if !cursor
+        .peek()
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("the"))
+    {
+        return false;
+    }
+    let head = cursor
+        .token_slice(cursor.position() + 1, cursor.position() + 2)
+        .first()
+        .filter(|token| token.token_type != "possessiveTypeWord")
+        .is_some_and(|token| {
+            lookup_card_type(&token.raw, AcceptedForms::SingularOnly)
+                .is_some_and(|card_type| card_type.is_permanent_type())
+                || lookup_object_domain(&token.raw, AcceptedForms::SingularOnly)
+                    == Some(ObjectKind::Permanent)
+        })
+        || subtype_nominal_at(cursor, 1).is_some();
+    head && description_controller_width(cursor, 2).is_some()
+}
+
+/// The diagnostic of a definite description no declared target matches.
+pub(in crate::oracle::canonical) const DEFINITE_DESCRIPTION_MISSING: &str =
+    "a declared target of this program whose selector the definite description restates";
+
+/// The diagnostic of a definite description several declared targets match.
+pub(in crate::oracle::canonical) const DEFINITE_DESCRIPTION_AMBIGUOUS: &str = "exactly one declared target the definite description restates; several declared targets match it";
+
+/// A declared selector the description `predicate` + `controller`
+/// restates: the same controller relation, and a nominal the selector
+/// guarantees (a card type, `permanent`, or a subtype).
+fn selector_described_by(
+    selector: &TargetSelector,
+    predicate: &ObjectPredicate,
+    controller: super::ObjectControllerScope,
+) -> bool {
+    let TargetSelector::ControlledObject {
+        controller: declared,
+        ..
+    } = selector
+    else {
+        return false;
+    };
+    if *declared != controller {
+        return false;
+    }
+    match predicate {
+        ObjectPredicate::CardType(card_type) => {
+            selector_names_nominals(selector, &[TargetNominal::CardType(*card_type)])
+        }
+        ObjectPredicate::ObjectKind(kind) => {
+            selector_names_nominals(selector, &[TargetNominal::Domain(*kind)])
+        }
+        ObjectPredicate::Subtype(name) => selector_guarantees_subtype(selector, name),
+        _ => false,
+    }
+}
+
+/// The one resolver of a definite description of a declared target (`the
+/// creature you control`, CR 608.2c): it restates the noun and the
+/// controller relation of exactly one singular permanent target the
+/// program declared (`Choose target creature you control and target
+/// creature you don't control. The creature you control gets +2/+1`). It
+/// never declares a target; a description no declared target matches, or
+/// several match, keeps a distinct committed diagnostic.
+pub(in crate::oracle::canonical) fn resolve_definite_description(
+    environment: &BindingEnvironment,
+    predicate: &ObjectPredicate,
+    controller: super::ObjectControllerScope,
+) -> Result<PermanentEffectReference, &'static str> {
+    let mut matching = environment
+        .declared_objects
+        .iter()
+        .filter(|declared| selector_described_by(&declared.selector, predicate, controller));
+    let first = matching.next().ok_or(DEFINITE_DESCRIPTION_MISSING)?;
+    if matching.next().is_some() {
+        return Err(DEFINITE_DESCRIPTION_AMBIGUOUS);
+    }
+    Ok(PermanentEffectReference::Target(first.binding))
+}
+
+/// Reads `the NOUN CONTROLLER` (`definite_description_starts`) and resolves
+/// it against the declared targets of the environment. The noun and the
+/// relation are read by the shared object query; anything else it reads
+/// (a qualifier, a second relation) is refused, never dropped.
+pub(in crate::oracle::canonical) fn recognize_definite_description(
+    cursor: &mut OracleTokenCursor<'_>,
+    environment: &BindingEnvironment,
+) -> MachineResult<PermanentEffectReference> {
+    cursor.enter("permanent.subject.definite-description");
+    cursor.consume("the")?;
+    let query = super::recognize_object_query(cursor)?;
+    cursor.enter("permanent.subject.definite-description.query");
+    let controller = query
+        .controller
+        .filter(|_| !query.exclude_source)
+        .ok_or_else(|| {
+            cursor.fail("a noun and a controller relation restating a declared target")
+        })?;
+    cursor.require(
+        matches!(
+            query.predicate,
+            ObjectPredicate::CardType(_)
+                | ObjectPredicate::ObjectKind(_)
+                | ObjectPredicate::Subtype(_)
+        ),
+        "one noun restating a declared target's nominal",
+    )?;
+    cursor.enter("permanent.subject.nominal-anaphor.antecedent");
+    // A missing and an ambiguous antecedent keep distinct expectations at
+    // the one unresolved-antecedent state the clause parents commit (and a
+    // labeled paragraph may read again in its enclosing spell, CR 207.2c).
+    resolve_definite_description(environment, &query.predicate, controller)
+        .map_err(|expected| cursor.fail(expected))
+}
+
+/// The diagnostic of `that SUBTYPE` whose antecedents do not guarantee it.
+pub(in crate::oracle::canonical) const SUBTYPE_ANAPHOR_MISSING: &str = "a preceding object whose declared selector, selection or event predicate guarantees this subtype";
+
+/// The one resolver of a subtype anaphor (`that Sliver`, `That Dragon gains
+/// haste`, CR 205.3, 608.2c): the same antecedents, in the same order, as a
+/// nominal anaphor (`resolve_nominal_antecedent`), each named only when the
+/// selector or predicate that declared, selected or recorded it guarantees
+/// the subtype. A subtype the antecedents do not guarantee (`that Dragon`
+/// after `target creature`) is a committed diagnostic; nothing is guessed.
+pub(in crate::oracle::canonical) fn resolve_subtype_antecedent(
+    environment: &BindingEnvironment,
+    subtype: &str,
+    departed_readable: bool,
+) -> Result<PermanentEffectReference, &'static str> {
+    let lexical = environment.object.as_ref().filter(|antecedent| {
+        singular_reference(antecedent.reference)
+            && antecedent
+                .selector
+                .as_ref()
+                .is_some_and(|selector| selector_guarantees_subtype(selector, subtype))
+    });
+    if let Some(result) = environment.result_object.as_ref().filter(|result| {
+        result.number == GrammaticalNumber::Singular
+            && selector_guarantees_subtype(&result.selector, subtype)
+    }) && !lexical.is_some_and(|antecedent| {
+        matches!(
+            antecedent.reference,
+            PermanentEffectReference::Target(binding)
+                if binding.effect_index > result.reference.effect_index
+        )
+    }) {
+        return if result.reference.permanent || departed_readable {
+            Ok(result.permanent_reference())
+        } else {
+            Err(DEPARTED_ACTION_RESULT_OPERAND)
+        };
+    }
+    if let Some(antecedent) = lexical {
+        return Ok(antecedent.reference);
+    }
+    if let Some(slot) = environment
+        .frame
+        .event_object
+        .as_ref()
+        .filter(|slot| predicate_guarantees_subtype(&slot.predicate, subtype))
+    {
+        if slot.departed && !departed_readable {
+            return Err(
+                "a permanent for the nominal anaphor; the event's object left the battlefield",
+            );
+        }
+        return Ok(slot.reference);
+    }
+    if departed_readable
+        && environment.object.is_none()
+        && let Some(target) = environment
+            .declared_target
+            .as_ref()
+            .filter(|target| selector_guarantees_subtype(&target.selector, subtype))
+    {
+        return Ok(PermanentEffectReference::Target(target.binding));
+    }
+    Err(SUBTYPE_ANAPHOR_MISSING)
 }
 
 /// Resolves `it` / `he` / `she` or `that NOUN` against the environment.
@@ -1701,8 +2048,19 @@ fn recognize_determined_object_reference(
     cursor.enter("permanent.subject.nominal-anaphor");
     cursor.consume(determiner)?;
     cursor.enter("permanent.subject.nominal-anaphor.nominal");
-    let (nominals, width) = nominal_disjunction_at(cursor, 0)
-        .ok_or_else(|| cursor.fail("a registered card type or permanent nominal"))?;
+    let Some((nominals, width)) = nominal_disjunction_at(cursor, 0) else {
+        // `that Sliver`, `That Dragon`: a subtype head (CR 205.3) names the
+        // antecedent whose selection guarantees that subtype.
+        let subtype = (determiner == "that")
+            .then(|| subtype_nominal_at(cursor, 0))
+            .flatten()
+            .ok_or_else(|| cursor.fail("a registered card type or permanent nominal"))?;
+        cursor.enter("permanent.subject.nominal-anaphor.antecedent");
+        let reference = resolve_subtype_antecedent(environment, &subtype, departed_readable)
+            .map_err(|expected| cursor.fail(expected))?;
+        cursor.advance_to(cursor.position() + 1)?;
+        return Ok(reference);
+    };
     cursor.enter("permanent.subject.nominal-anaphor.antecedent");
     let reference = resolve_nominal_antecedent(environment, &nominals, departed_readable)
         .map_err(|expected| cursor.fail(expected))?;
@@ -1727,14 +2085,71 @@ pub(in crate::oracle::canonical) fn predicate_names_nominal(
         && predicate.supports_domain(ObjectKind::Permanent))
 }
 
+/// The nominal `another NOUN` presupposes of the object it is contrasted
+/// with (`Ardoz or another creature you control`, `Kemba or another Cat
+/// you control`): `another` names one more member of the same kind, so the
+/// contrasted source is of the kind the predicate guarantees. The first
+/// permanent card type the predicate names wins (a creature subtype head
+/// names `creature`), else `permanent`; a predicate naming none of them
+/// presupposes nothing. It is a lexical antecedent only: the event's object
+/// keeps its runtime identity, and a nominal anaphor still follows from it.
+pub(in crate::oracle::canonical) fn nominal_presupposed_by_another(
+    predicate: &ObjectPredicate,
+) -> Option<TargetNominal> {
+    const KINDS: [ObjectCardType; 6] = [
+        ObjectCardType::Creature,
+        ObjectCardType::Artifact,
+        ObjectCardType::Enchantment,
+        ObjectCardType::Land,
+        ObjectCardType::Planeswalker,
+        ObjectCardType::Battle,
+    ];
+    KINDS
+        .into_iter()
+        .map(TargetNominal::CardType)
+        .chain(std::iter::once(TargetNominal::Domain(
+            ObjectKind::Permanent,
+        )))
+        .find(|nominal| predicate_names_nominal(predicate, *nominal))
+}
+
+/// The nominal a source branch written by name (`Ardoz or another creature
+/// you control enters`) takes from its `another NOUN` alternatives: every
+/// such alternative must presuppose the same nominal. A source surface
+/// without a contrasted `another` branch (`Ardoz or a Cat`) presupposes
+/// nothing, and the source branch keeps no nominal.
+pub(in crate::oracle::canonical) fn presupposed_source_nominal(
+    alternatives: &[super::PermanentDiedEventBranchNode],
+) -> Option<TargetNominal> {
+    if !alternatives
+        .iter()
+        .any(|branch| matches!(branch, super::PermanentDiedEventBranchNode::Source(_)))
+    {
+        return None;
+    }
+    let mut presupposed = alternatives.iter().filter_map(|branch| match branch {
+        super::PermanentDiedEventBranchNode::Filtered {
+            predicate,
+            exclude_source: true,
+            ..
+        } => Some(nominal_presupposed_by_another(predicate)),
+        _ => None,
+    });
+    let first = presupposed.next()??;
+    presupposed
+        .all(|nominal| nominal == Some(first))
+        .then_some(first)
+}
+
 /// A disjunctive nominal (`creature or planeswalker`) names a predicate when
 /// one of its nominals does, or when every branch of a disjunctive predicate
-/// is named by one of them (`target creature or planeswalker`).
+/// is named by one of them (`target creature or planeswalker`, `Kemba or
+/// another Cat you control`: each branch is a creature).
 fn predicate_names_nominals(predicate: &ObjectPredicate, nominals: &[TargetNominal]) -> bool {
     nominals
         .iter()
         .any(|nominal| predicate_names_nominal(predicate, *nominal))
-        || (nominals.len() > 1
+        || (!nominals.is_empty()
             && matches!(
                 predicate,
                 ObjectPredicate::Union(branches)
@@ -2046,10 +2461,28 @@ pub(in crate::oracle::canonical) fn resolve_nominal_antecedent(
             // `enchanted creature ... that creature`: the one permanent the
             // Aura enchants, whose kind its enchant ability fixes (CR
             // 303.4a); the anaphor names that object by a permanent nominal.
+            // When the event wrote the enchanted object with its own noun
+            // (`Whenever enchanted land becomes tapped`), that noun is what
+            // is known of it: `that creature` must follow from it.
             PermanentEffectReference::Attached(AttachedObjectRole::Enchanted)
-                if names_one_permanent_kind(nominals) =>
+                if names_one_permanent_kind(nominals)
+                    && environment.frame.event_object.as_ref().is_none_or(|slot| {
+                        slot.reference != antecedent.reference || slot.names(nominals)
+                    }) =>
             {
                 return Ok(antecedent.reference);
+            }
+            // An antecedent a producer registered with its selector
+            // (`with_registered_antecedent`): named when that selector
+            // names the nominal, as a declared target is.
+            reference
+                if singular_reference(reference)
+                    && antecedent
+                        .selector
+                        .as_ref()
+                        .is_some_and(|selector| selector_names_nominals(selector, nominals)) =>
+            {
+                return Ok(reference);
             }
             _ => {}
         }
@@ -2102,7 +2535,9 @@ fn stack_selector_names_spell(selector: &TargetSelector, nominals: &[TargetNomin
             super::StackItemPredicate::Union(operands) => {
                 !operands.is_empty() && operands.iter().all(guarantees_spell)
             }
-            super::StackItemPredicate::Ability(_) | super::StackItemPredicate::Colorless => false,
+            super::StackItemPredicate::Ability(_)
+            | super::StackItemPredicate::Colorless
+            | super::StackItemPredicate::Targets(_) => false,
         }
     }
     nominals == [TargetNominal::Domain(ObjectKind::Spell)]
@@ -2797,13 +3232,14 @@ fn recognize_participle_object_property(
             bound_object_numeric_property(reference, property, nominal.as_predicate())
                 .map_err(|expected| cursor.fail(expected))
         }
-        // A sacrifice or tap cost of this ability is the other producer of
-        // `the sacrificed|tapped NOUN's PROPERTY` (`cost_paid_object.rs`).
-        None if matches!(
-            verb,
-            super::ActionResultVerb::Sacrificed | super::ActionResultVerb::Tapped
-        ) =>
-        {
+        // A cost of this ability is the other producer of `the
+        // sacrificed|tapped NOUN's PROPERTY` and of `the
+        // discarded|exiled|revealed card's PROPERTY` (`cost_paid_object.rs`):
+        // card composition binds it to that cost or fails explicitly.
+        None if super::CostObjectAction::from_participle(verb).is_some() => {
+            if let Some(expected) = participle_card_target_conflict(environment, verb) {
+                return Err(cursor.fail(expected));
+            }
             *cursor = start;
             super::recognize_sacrificed_cost_object_property(cursor)
         }
@@ -2814,6 +3250,20 @@ fn recognize_participle_object_property(
 /// The diagnostic of `the VERBed NOUN's PROPERTY` without a producer.
 const PARTICIPLE_WITHOUT_PRODUCER: &str = "an earlier action of this program that selected or moved exactly one object of this nominal with this verb";
 
+/// `the exiled card` while the program declared a card target of a card
+/// zone change (`Exile target creature card from your graveyard. ... the
+/// exiled card's toughness`): that declared card, not a card a cost paid
+/// with, may be the one the participle restates, and no reader of it
+/// exists yet. The read is refused instead of being bound to a cost.
+pub(in crate::oracle::canonical) fn participle_card_target_conflict(
+    environment: &BindingEnvironment,
+    verb: super::ActionResultVerb,
+) -> Option<&'static str> {
+    (verb == super::ActionResultVerb::Exiled && environment.card_target.is_some()).then_some(
+        "exactly one producer of the exiled card; a card target this program declared is not read as a cost-paid card",
+    )
+}
+
 /// Reads a clause's arguments with `subject` as the clause subject of the
 /// installed environment, then restores the enclosing environment.
 pub(in crate::oracle::canonical) fn with_clause_subject<T>(
@@ -2823,6 +3273,48 @@ pub(in crate::oracle::canonical) fn with_clause_subject<T>(
 ) -> T {
     let mut environment = installed_binding_environment(cursor);
     environment.subject = subject;
+    with_installed_environment(cursor, environment, read)
+}
+
+/// The producer registration contract: a parent that produced or recorded
+/// exactly one object (an embedded trigger's event object, a reflexive
+/// ability's producer, a card a frame put onto the battlefield) reads its
+/// child with that object as the singular lexical antecedent, with the
+/// selector its production guarantees. `it`, `its PROPERTY`, `that NOUN`
+/// and `that SUBTYPE` then resolve against it by that selector (a nominal
+/// it does not guarantee keeps its committed diagnostic). The parent owns
+/// the object's lowering; nothing here declares or binds it.
+// The registration API other producers (embedded triggers, event
+// objects) call; it has no caller of its own in this module yet.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn with_registered_antecedent<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    reference: PermanentEffectReference,
+    selector: Option<TargetSelector>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.local_object_scope = true;
+    environment.object = Some(ObjectSubjectAntecedent {
+        reference,
+        selector,
+    });
+    with_installed_environment(cursor, environment, read)
+}
+
+/// The plural form of [`with_registered_antecedent`]: a parent that
+/// produced a set of objects (`those creatures`, `they`, `each of them`)
+/// reads its child with that set as the object-set antecedent.
+// The registration API other producers (embedded triggers, event
+// objects) call; it has no caller of its own in this module yet.
+#[allow(dead_code)]
+pub(in crate::oracle::canonical) fn with_registered_object_set<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    set: ObjectSetAntecedent,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.objects = Some(set);
     with_installed_environment(cursor, environment, read)
 }
 

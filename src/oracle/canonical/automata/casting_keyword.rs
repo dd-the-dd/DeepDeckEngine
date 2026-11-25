@@ -6,11 +6,11 @@
 //! ```text
 //! Line      := LEXEME Parameter ["."] [ "(" Reminder ")" ]
 //! Parameter := ε                         (conspire, gravestorm, paradigm,
-//!                                          retrace, jump-start)
-//!            | N                         (teamwork)
+//!                                          retrace, jump-start, aftermath)
+//!            | N                         (teamwork, casualty)
 //!            | MANA                      (spectacle, surge, web-slinging, mayhem,
-//!                                          emerge, sneak, bestow)
-//!            | MANA | "—" COSTS          (blitz, escalate, entwine)
+//!                                          emerge, sneak, bestow, disturb)
+//!            | MANA | "—" COSTS          (blitz, escalate, entwine, madness)
 //!            | "—" COSTS                 (escape, nonmana kicker)
 //!            | N "—" MANA                (impending, awaken)
 //!            | MANA "—" P "/" T          (prototype)
@@ -42,11 +42,20 @@ use crate::oracle::syntax::recognize_entities;
 /// A casting keyword row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CastingKeyword {
+    /// CR 702.127a: the half of a split card castable only from a graveyard,
+    /// exiled whenever it leaves the stack after that cast.
+    Aftermath,
     Awaken,
     /// CR 702.103a.
     Bestow,
     Blitz,
+    /// CR 702.153a: an optional sacrifice of a creature with power N or
+    /// greater as the spell is cast, and a copy of the spell when it is paid.
+    Casualty,
     Conspire,
+    /// CR 702.146a: cast the card transformed from its owner's graveyard
+    /// for this cost rather than its mana cost.
+    Disturb,
     /// CR 702.119a.
     Emerge,
     /// CR 702.42a.
@@ -62,6 +71,9 @@ pub(in crate::oracle::canonical) enum CastingKeyword {
     /// CR 702.33a with a nonmana cost (`Kicker—Sacrifice a land.`); a mana
     /// kicker cost is read by `keyword.rs`.
     Kicker,
+    /// CR 702.35a: a discard replaced by an exile and the linked trigger
+    /// that casts the card for its madness cost.
+    Madness,
     Mayhem,
     Paradigm,
     Prototype,
@@ -109,6 +121,13 @@ struct Definition {
 
 const DEFINITIONS: &[Definition] = &[
     Definition {
+        keyword: CastingKeyword::Aftermath,
+        lexeme: "aftermath",
+        rules_section: "702.127a",
+        parameter: Parameter::None,
+        reminders: &["Cast this spell only from your graveyard. Then exile it."],
+    },
+    Definition {
         keyword: CastingKeyword::Awaken,
         lexeme: "awaken",
         rules_section: "702.113a",
@@ -136,6 +155,16 @@ const DEFINITIONS: &[Definition] = &[
         ],
     },
     Definition {
+        keyword: CastingKeyword::Casualty,
+        lexeme: "casualty",
+        rules_section: "702.153a",
+        parameter: Parameter::Count,
+        reminders: &[
+            "As you cast this spell, you may sacrifice a creature with power $N or greater. When you do, copy this spell.",
+            "As you cast this spell, you may sacrifice a creature with power $N or greater. When you do, copy this spell and you may choose a new target for the copy.",
+        ],
+    },
+    Definition {
         keyword: CastingKeyword::Conspire,
         lexeme: "conspire",
         rules_section: "702.78a",
@@ -143,6 +172,15 @@ const DEFINITIONS: &[Definition] = &[
         reminders: &[
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it and you may choose a new target for the copy.",
             "As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.",
+        ],
+    },
+    Definition {
+        keyword: CastingKeyword::Disturb,
+        lexeme: "disturb",
+        rules_section: "702.146a",
+        parameter: Parameter::Mana,
+        reminders: &[
+            "You may cast this card from your graveyard transformed for its disturb cost.",
         ],
     },
     Definition {
@@ -223,6 +261,15 @@ const DEFINITIONS: &[Definition] = &[
         rules_section: "702.33a",
         parameter: Parameter::CostSequence,
         reminders: &[],
+    },
+    Definition {
+        keyword: CastingKeyword::Madness,
+        lexeme: "madness",
+        rules_section: "702.35a",
+        parameter: Parameter::ManaOrCostSequence,
+        reminders: &[
+            "If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.",
+        ],
     },
     Definition {
         keyword: CastingKeyword::Mayhem,

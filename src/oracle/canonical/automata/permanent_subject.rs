@@ -228,6 +228,10 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::UntapRestriction(node) => {
             Local(subject_after_operand(&node.objects, effect_index))
         }
+        LocalEffectNode::RuleChange(node) => match node.objects() {
+            Some(objects) => Local(subject_after_operand(objects, effect_index)),
+            None => previous,
+        },
         // Another player's action ends the local permanent subject, except
         // the one permanent that player chose on resolution (`target opponent
         // chooses a creature they control. Destroy that creature.`).
@@ -320,7 +324,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(singular_permanent_target(&node.target, effect_index))
         }
         LocalEffectNode::TransformPermanent(node) => {
-            Local(Some(PermanentEffectReference::Source(node.permanent)))
+            Local(subject_after_operand(&node.permanent, effect_index))
         }
         LocalEffectNode::PlayerAction(node) => match &node.action {
             super::SingularPlayerAction::Life(_) => previous,
@@ -344,7 +348,8 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             | super::SingularPlayerAction::Designation(_)
             | super::SingularPlayerAction::Skip(_)
             | super::SingularPlayerAction::Prohibition(_)
-            | super::SingularPlayerAction::Status(_) => previous,
+            | super::SingularPlayerAction::Status(_)
+            | super::SingularPlayerAction::SetLifeTotal(_) => previous,
         },
         // A list that only changes life totals leaves the permanent subject
         // alone; any other action replaces the antecedent.
@@ -381,6 +386,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
         LocalEffectNode::CardAction(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::CopyStackObject(_)
+        | LocalEffectNode::AdditionalPhases(_)
         | LocalEffectNode::Retarget(_)
         | LocalEffectNode::Amass(_)
         | LocalEffectNode::EmpowerJace(_)
@@ -496,6 +502,11 @@ pub(in crate::oracle::canonical) fn subject_after_operand(
         PermanentOperandNode::BoundReference(reference) => Some(*reference),
         PermanentOperandNode::Reference(source) => Some(PermanentEffectReference::Source(*source)),
         PermanentOperandNode::Collection { .. } => None,
+        // The one permanent the action chose on resolution (CR 608.2d) is
+        // published as the action's result (`chosen_operand.rs`).
+        PermanentOperandNode::Chosen(choice) => choice
+            .singular()
+            .then(|| super::chosen_operand_reference(choice, effect_index)),
     }
 }
 
@@ -510,6 +521,7 @@ fn ordinary_permanent_operand(effect: &LocalEffectNode) -> Option<&PermanentOper
         LocalEffectNode::PutCounters(node) => Some(&node.permanent),
         LocalEffectNode::TapPermanents(node) => Some(&node.targets),
         LocalEffectNode::UntapRestriction(node) => Some(&node.objects),
+        LocalEffectNode::RuleChange(node) => node.objects(),
         LocalEffectNode::PermanentKeywordAction(node) => Some(&node.targets),
         LocalEffectNode::ControlChange(node) => Some(&node.objects),
         _ => None,
@@ -610,13 +622,8 @@ pub(in crate::oracle::canonical) fn prior_object_set(
         return plural_target_set(targets, effect_index);
     }
     let operand = ordinary_permanent_operand(effect)?;
-    if matches!(operand, PermanentOperandNode::Collection { .. })
-        && matches!(
-            effect,
-            LocalEffectNode::BecomeTypes(_)
-                | LocalEffectNode::ControlChange(_)
-                | LocalEffectNode::PermanentKeywordAction(_)
-        )
+    if let PermanentOperandNode::Collection { objects, .. } = operand
+        && !collection_membership_kept(effect, objects)
     {
         return None;
     }
@@ -648,6 +655,33 @@ pub(in crate::oracle::canonical) fn prior_object_set(
     }
 }
 
+/// Whether the action itself keeps every member of the queried collection a
+/// member of the same query (CR 608.2c), before the characteristics the
+/// predicate tests are checked (`collection_survives`): a type change may
+/// change any characteristic the query reads, so it never does. A gain of
+/// control (CR 108.4) changes only the controller: it keeps a query with
+/// no controller relation (`all creatures with power 4 or greater`), never
+/// one relative to the old controller (`all creatures your opponents
+/// control`), whose members leave it. Goading, detaining and a
+/// regeneration shield change no characteristic (CR 701.15, 701.35,
+/// 701.19); any other keyword action (phasing, removal from combat,
+/// suspecting, which grants menace) is refused.
+fn collection_membership_kept(effect: &LocalEffectNode, objects: &ObjectQueryNode) -> bool {
+    match effect {
+        LocalEffectNode::BecomeTypes(_) => false,
+        LocalEffectNode::ControlChange(node) => {
+            matches!(node.change, ControlChange::Gain { .. }) && objects.controller.is_none()
+        }
+        LocalEffectNode::PermanentKeywordAction(node) => matches!(
+            node.action,
+            PermanentKeywordAction::Goad
+                | PermanentKeywordAction::Detain
+                | PermanentKeywordAction::Regenerate
+        ),
+        _ => true,
+    }
+}
+
 /// True when `effect` leaves every characteristic `predicate` tests
 /// unchanged, so the collection it acted on is exactly the collection the
 /// same query reads after it (CR 608.2c, 611.2c). Types, colors, names,
@@ -671,7 +705,16 @@ fn collection_survives(effect: &LocalEffectNode, predicate: &ObjectPredicate) ->
         | ObjectPredicate::PermanentCard
         | ObjectPredicate::ChosenCreatureType
         | ObjectPredicate::ChosenColor => true,
-        ObjectPredicate::Status(_) => !matches!(effect, LocalEffectNode::TapPermanents(_)),
+        // Tapping or untapping changes only the tapped status; counters make
+        // a permanent modified (CR 700.9). Combat status is changed by none
+        // of these actions (`untap all attacking creatures. They gain ...`).
+        ObjectPredicate::Status(ObjectStatus::Tapped | ObjectStatus::Untapped) => {
+            !matches!(effect, LocalEffectNode::TapPermanents(_))
+        }
+        ObjectPredicate::Status(ObjectStatus::Modified) => {
+            !matches!(effect, LocalEffectNode::PutCounters(_))
+        }
+        ObjectPredicate::Status(_) => true,
         ObjectPredicate::HasCounter(_) => !matches!(effect, LocalEffectNode::PutCounters(_)),
         ObjectPredicate::HasKeyword(_) => {
             !matches!(effect, LocalEffectNode::TemporaryKeywordGrant(_))
@@ -754,6 +797,7 @@ fn permanent_subject_environment(
     let mut environment = BindingEnvironment::for_permanent_context(context);
     let installed = installed_binding_environment(cursor);
     environment.objects = installed.objects;
+    environment.declared_objects = installed.declared_objects;
     // The selector the program parent published for the same antecedent
     // (a moved permanent retyped from the object it was, CR 400.7) when
     // the context carries none; a different antecedent is never borrowed.
@@ -982,6 +1026,48 @@ pub(in crate::oracle::canonical) fn program_action_result(
     None
 }
 
+/// The target list whose slots an action declares, in the slot order the
+/// lowering binds (`target_slot_selector` reads one slot of it): an
+/// ordinary permanent operand, the chosen targets, the first targeted
+/// party of a damage or fight action, a zone change or a prevention shield.
+pub(in crate::oracle::canonical) fn declared_target_list(
+    effect: &LocalEffectNode,
+) -> Option<&TargetListNode> {
+    let operand = match effect {
+        LocalEffectNode::ModifyStats(node) => &node.targets,
+        LocalEffectNode::TemporaryKeywordGrant(node) => &node.objects,
+        LocalEffectNode::BecomeTypes(node) => &node.objects,
+        LocalEffectNode::PutCounters(node) => &node.permanent,
+        LocalEffectNode::TapPermanents(node) => &node.targets,
+        LocalEffectNode::UntapRestriction(node) => &node.objects,
+        LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
+        LocalEffectNode::ControlChange(node) => &node.objects,
+        LocalEffectNode::Attach(node) => &node.recipient,
+        LocalEffectNode::Choose(node) => return node.permanent_targets(),
+        LocalEffectNode::DealDamage(node) => {
+            return match (&node.source, &node.recipient) {
+                (PermanentOperandNode::Targets(targets), _)
+                | (_, DamageRecipientNode::Targets(targets)) => Some(targets),
+                _ => None,
+            };
+        }
+        LocalEffectNode::Fight(node) => {
+            return match (&node.first, &node.second) {
+                (PermanentOperandNode::Targets(targets), _)
+                | (_, PermanentOperandNode::Targets(targets)) => Some(targets),
+                _ => None,
+            };
+        }
+        LocalEffectNode::ZoneChange(node) => return Some(&node.target),
+        LocalEffectNode::PreventDamage(node) => return prevention_declared_party(node),
+        _ => return None,
+    };
+    match operand {
+        PermanentOperandNode::Targets(targets) => Some(targets),
+        _ => None,
+    }
+}
+
 /// The declared selector of one target slot of an ordinary permanent action.
 pub(in crate::oracle::canonical) fn target_slot_selector(
     effect: &LocalEffectNode,
@@ -994,9 +1080,11 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::PutCounters(node) => &node.permanent,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::UntapRestriction(node) => &node.objects,
+        LocalEffectNode::RuleChange(node) => node.objects()?,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,
+        LocalEffectNode::TransformPermanent(node) => &node.permanent,
         LocalEffectNode::Choose(node) => {
             return node
                 .permanent_targets()
@@ -1048,6 +1136,8 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         PermanentOperandNode::Targets(targets) => {
             targets.slots.get(slot_index).map(|slot| &slot.selector)
         }
+        // `that creature` after an object chosen on resolution.
+        PermanentOperandNode::Chosen(choice) if slot_index == 0 => Some(&choice.selector),
         _ => None,
     }
 }
@@ -1206,8 +1296,17 @@ pub(in crate::oracle::canonical) fn recognize_contextual_permanent_operand(
                     ))
             )
         })
+        // `that Sliver`, `That Dragon`: a subtype head (CR 205.3).
+        || super::subtype_anaphor_starts(cursor)
     {
         return recognize_nominal_permanent_anaphor(cursor, context);
+    }
+    // `the creature you control`: a definite description of one declared
+    // target of the program (CR 608.2c), never a new declaration.
+    if super::definite_description_starts(cursor) {
+        let environment = permanent_subject_environment(cursor, context);
+        return super::recognize_definite_description(cursor, &environment)
+            .map(PermanentOperandNode::BoundReference);
     }
     // `those creatures`, `they`, `each of them`, `that token`: the object set
     // the preceding action declared or produced, with its stated number.

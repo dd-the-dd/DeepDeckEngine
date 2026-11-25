@@ -45,6 +45,17 @@ enum CostObjectProducer {
     /// One discarded card: a chosen `discardCard` cost, or a random
     /// `discardCards` cost of exactly one card (CR 701.9).
     DiscardOne,
+    /// One card a cost chose and discarded (`Discard a creature card`, CR
+    /// 701.9): its characteristics are recorded when it is paid
+    /// (`cost_paid_card_properties.rs`); a random discard selects its card
+    /// only while paying and records no characteristic.
+    DiscardChosen,
+    /// One card a cost chose and exiled from a hand or graveyard (`exile a
+    /// creature card from your graveyard`, CR 406.2).
+    ExileChosenCard,
+    /// One card a cost chose and revealed from its hand (`reveal a creature
+    /// card from your hand`, CR 701.16a).
+    RevealChosenCard,
 }
 
 impl CostObjectProducer {
@@ -67,15 +78,43 @@ impl CostObjectProducer {
                 }
                 _ => false,
             },
+            Self::DiscardChosen => {
+                cost["kind"].as_str() == Some("discardCard") && chosen_card(&cost["card"])
+            }
+            Self::ExileChosenCard => {
+                cost["kind"].as_str() == Some("exileObject") && chosen_card(&cost["object"])
+            }
+            Self::RevealChosenCard => {
+                cost["kind"].as_str() == Some("revealCard") && chosen_card(&cost["card"])
+            }
         }
     }
+
+    /// Whether a spell's own additional cost of another rule of the same
+    /// face may produce the read (CR 601.2b): a cost paid while casting,
+    /// whose object the spell's resolution reads. A tap cost of a chosen
+    /// permanent and the one-card discard object keep their own rule.
+    fn spell_additional_cost(self) -> bool {
+        matches!(
+            self,
+            Self::Sacrifice | Self::DiscardChosen | Self::ExileChosenCard | Self::RevealChosenCard
+        )
+    }
+}
+
+/// A card a cost chose (never the ability's own source).
+fn chosen_card(operand: &Value) -> bool {
+    matches!(
+        operand["kind"].as_str(),
+        Some("chosenObject" | "chosenTarget")
+    )
 }
 
 /// Stack values bound when a cost is paid, keyed by the cost field that asks
 /// the engine to record them (CR 608.2h last known information). A tapped
 /// cost object records only its power: the runtime tap cost has no
 /// toughness or mana-value binding, so the reader refuses those reads.
-const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 6] = [
+const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 15] = [
     (
         "sacrificedPermanentPower",
         "bindPowerAs",
@@ -107,6 +146,54 @@ const COST_OBJECT_BINDINGS: [(&str, &str, CostObjectProducer); 6] = [
         "discardedCardObject",
         "bindObjectAs",
         CostObjectProducer::DiscardOne,
+    ),
+    // The printed characteristics of a card a cost chose (`the discarded
+    // card's mana value`, `the exiled card's power`, `the revealed card's
+    // mana value`), recorded when the cost is paid (CR 608.2h).
+    (
+        "discardedCardPower",
+        "bindPowerAs",
+        CostObjectProducer::DiscardChosen,
+    ),
+    (
+        "discardedCardToughness",
+        "bindToughnessAs",
+        CostObjectProducer::DiscardChosen,
+    ),
+    (
+        "discardedCardManaValue",
+        "bindManaValueAs",
+        CostObjectProducer::DiscardChosen,
+    ),
+    (
+        "exiledCostCardPower",
+        "bindPowerAs",
+        CostObjectProducer::ExileChosenCard,
+    ),
+    (
+        "exiledCostCardToughness",
+        "bindToughnessAs",
+        CostObjectProducer::ExileChosenCard,
+    ),
+    (
+        "exiledCostCardManaValue",
+        "bindManaValueAs",
+        CostObjectProducer::ExileChosenCard,
+    ),
+    (
+        "revealedCostCardPower",
+        "bindPowerAs",
+        CostObjectProducer::RevealChosenCard,
+    ),
+    (
+        "revealedCostCardToughness",
+        "bindToughnessAs",
+        CostObjectProducer::RevealChosenCard,
+    ),
+    (
+        "revealedCostCardManaValue",
+        "bindManaValueAs",
+        CostObjectProducer::RevealChosenCard,
     ),
 ];
 
@@ -824,7 +911,7 @@ fn bind_cost_paid_objects(abilities: &mut [ParsedOracleAbility]) {
                 .map_or(0, |rule| producing_cost_count(rule, producer));
             let target = if own > 0 {
                 (own == 1).then_some(index)
-            } else if spell && producer == CostObjectProducer::Sacrifice {
+            } else if spell && producer.spell_additional_cost() {
                 same_face_spell_producer(abilities, index, producer)
             } else {
                 None

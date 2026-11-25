@@ -46,7 +46,7 @@ use super::{
     recognize_land_played_event, recognize_optional_spell_cast_event_atom,
     recognize_ordinal_card_drawn_event, recognize_permanent_transition_subject,
     recognize_player_event, recognize_source_attacked_event, recognize_source_dealt_damage_event,
-    recognize_step_event, try_recognize_actor_object_event_clause,
+    recognize_step_clause_head, try_recognize_actor_object_event_clause,
     try_recognize_sacrifice_event_clause, try_recognize_source_trigger_event,
 };
 
@@ -264,6 +264,20 @@ fn read_occurrence_union(
 ) -> MachineResult<GenericTriggerEventNode> {
     cursor.enter("trigger.envelope.occurrence-union");
     cursor.consume("or")?;
+    // `ACTOR VERB ... or VERB ...` (CR 603.2): the second occurrence's
+    // subject is elided and is the player actor of the first one (`you play
+    // a land or cast a spell`). Another subject after `or` is read below.
+    if let Some(actor) = elided_player_actor(cursor, &first)
+        && let Some(member) = read_elided_actor_occurrence(cursor, actor)?
+    {
+        let member = close_occurrence(cursor, member, boundary, name_links, name_failure)?;
+        let mut members = vec![first];
+        match member {
+            GenericTriggerEventNode::Compound(rest) => members.extend(rest),
+            member => members.push(member),
+        }
+        return Ok(GenericTriggerEventNode::Compound(members));
+    }
     // A second verb frame of the first occurrence's subject (`a creature you
     // control enters or attacks`), when one starts after `or`.
     let shared_subject = match &first {
@@ -299,6 +313,68 @@ fn read_occurrence_union(
         member => members.push(member),
     }
     Ok(GenericTriggerEventNode::Compound(members))
+}
+
+/// The player actor of a completed occurrence that a following `or VERB`
+/// may share, when no subject of its own follows `or` (a lexical probe of
+/// the shared actor and object-subject readers; nothing is consumed).
+fn elided_player_actor(
+    cursor: &OracleTokenCursor<'_>,
+    first: &GenericTriggerEventNode,
+) -> Option<super::EventActorScope> {
+    let actor = match first {
+        GenericTriggerEventNode::SpellCast(node) if !node.source_spell => node.caster,
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::PlayerEvent {
+            actor,
+            one_or_more: false,
+            ..
+        }) => *actor,
+        GenericTriggerEventNode::Local(LocalTriggerEventNode::LandPlayed {
+            player: super::LocalPlayerReference::Controller,
+            ..
+        }) => super::EventActorScope::Controller,
+        _ => return None,
+    };
+    let mut probe = cursor.clone();
+    let subject_follows = matches!(
+        super::try_recognize_event_actor_scope(&mut probe),
+        Ok(Some(_))
+    ) || cursor.peek().is_some_and(|raw| {
+        ["a", "an", "another", "this", "one", "each"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+    });
+    (!subject_follows).then_some(actor)
+}
+
+/// The occurrence after `or` whose subject is the supplied player actor:
+/// a cast (`cast a spell`) or a player event verb frame (`play a land`,
+/// `discard a card`, `activate an ability ...`). `None` when no verb of
+/// those frames starts at the cursor (nothing consumed); a frame that
+/// starts and fails is the union's failure.
+fn read_elided_actor_occurrence(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: super::EventActorScope,
+) -> MachineResult<Option<GenericTriggerEventNode>> {
+    let start = cursor.checkpoint();
+    cursor.enter("trigger.envelope.occurrence-union.elided-actor");
+    if let Some(event) = super::recognize_spell_cast_event_with_caster(
+        cursor,
+        actor,
+        SpellCastOrdinalSupport::MatchingSpellOrdinals,
+    )? {
+        return Ok(Some(GenericTriggerEventNode::SpellCast(event)));
+    }
+    cursor.rollback(start);
+    let position = cursor.position();
+    match super::recognize_player_event_predicate(cursor, actor, false) {
+        Ok(event) => Ok(Some(GenericTriggerEventNode::Local(event))),
+        Err(failure) if failure.token_index <= position => {
+            cursor.rollback(start);
+            Ok(None)
+        }
+        Err(failure) => Err(failure),
+    }
 }
 
 /// `deals damage to RECIPIENT or RECIPIENT` (CR 120.1): one damage record
@@ -389,7 +465,10 @@ fn absorb_modifiers(
         GenericTriggerEventNode::SourceTransition(node)
             if tail.during_combat
                 && !node.is_union()
-                && node.event != super::SourceTriggerEventKind::Tapped =>
+                && matches!(
+                    node.event,
+                    super::SourceTriggerEventKind::Entered | super::SourceTriggerEventKind::Died
+                ) =>
         {
             GenericTriggerEventNode::SourceEvent(super::SourceEventUnionNode {
                 source: node.source,
@@ -589,11 +668,8 @@ fn read_step_clause(
     name_failure: Option<&NameResolutionFailure>,
     boundary: &str,
 ) -> EventClauseAttempt {
-    cursor.enter("trigger.envelope.step-prefix");
-    if let Err(failure) = cursor.consume_phrase(&["at", "the", "beginning", "of"]) {
-        return EventClauseAttempt::Rejected(failure);
-    }
-    let event = match recognize_step_event(cursor) {
+    // `at the beginning of STEP` or `at [the] end of combat [on TURN]`.
+    let event = match recognize_step_clause_head(cursor) {
         Ok(event) => event,
         Err(failure) => return EventClauseAttempt::Rejected(failure),
     };
@@ -814,6 +890,21 @@ fn read_occurrence_alternatives(
         }
         Err(failure) => reading.reject(cursor, failure),
     }
+    // A player attacking a written recipient (`you attack a player`, `an
+    // opponent attacks you with two or more creatures`, CR 508.1): the
+    // shared quantified attack event, the actor as the attackers' controller.
+    match super::recognize_player_attack_recipient_event(cursor) {
+        Ok(event) => {
+            return reading
+                .finish(
+                    cursor,
+                    GenericTriggerEventNode::Object(event),
+                    BoundaryPolicy::Commit,
+                )
+                .expect("a committed alternative always concludes");
+        }
+        Err(failure) => reading.reject(cursor, failure),
+    }
     // One attack declaration (CR 508.1): the source coordinated with other
     // attackers, or a player attacking with a quantified set.
     let attack_declarations: [AttackDeclarationReader; 2] = [
@@ -842,11 +933,15 @@ fn read_occurrence_alternatives(
         recognize_source_dealt_damage_event,
         super::recognize_last_counter_removed_event,
     ];
-    let player_readers: [PlayerReader; 4] = [
+    let player_readers: [PlayerReader; 6] = [
         recognize_ordinal_card_drawn_event,
         recognize_card_drawn_event,
         recognize_land_played_event,
         recognize_player_event,
+        // `a spell or ability an opponent controls causes you to discard`.
+        super::recognize_caused_player_event,
+        // `a spell or ability you control counters a spell`.
+        super::recognize_stack_object_counter_event,
     ];
     for reader in local_readers {
         match reader(cursor, name_links, name_failure) {

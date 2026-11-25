@@ -448,10 +448,11 @@ fn a_temporary_requirement_with_an_inner_duration_marks_its_target() {
 #[test]
 fn unrepresentable_neighbours_of_the_family_stay_explicitly_unsupported() {
     for (type_line, oracle) in [
-        // Multiple blocks per blocker are not modelled by block declaration.
+        // A fixed block capacity is now a `blockCapacity` modifier; one
+        // scaled by a count has no counted modifier.
         (
             "Enchantment - Aura",
-            "Enchant creature\nEnchanted creature can block an additional creature each combat.",
+            "Enchant creature\nEnchanted creature can block an additional creature for each Forest you control.",
         ),
         // A defender restriction has no per-object temporary marker.
         (

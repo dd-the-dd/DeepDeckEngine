@@ -16,6 +16,9 @@ pub(in crate::oracle::canonical) fn lower_source_transition_event(
                 SourceTriggerEventKind::Entered => "enterBattlefield",
                 SourceTriggerEventKind::Died => "permanentDied",
                 SourceTriggerEventKind::Tapped => "permanentTapped",
+                // CR 701.28: the transformed source's own abilities, read
+                // after the transformation, observe its turning face.
+                SourceTriggerEventKind::Transformed => "permanentTransformed",
             };
             json!({"kind": kind, "object": self_ref()})
         })
@@ -352,6 +355,13 @@ fn lower_counter_placement_event(
         "player": controller(),
         "counter": counter.as_str(),
     });
+    // The singular forms select which counters of one placement occur: each
+    // counter put (CR 122.6), or the counter of the written rank.
+    match event.occurrence {
+        CounterPlacementOccurrence::Placement => {}
+        CounterPlacementOccurrence::EachCounter => lowered["perCounter"] = json!(true),
+        CounterPlacementOccurrence::Ordinal(rank) => lowered["reachesCount"] = json!(rank),
+    }
     cursor.enter("trigger.counters.placer-support");
     match event.placed_by {
         None => {}
@@ -1072,6 +1082,9 @@ fn lower_object_event(
         let source = lower_damage_subject_query(cursor, subject)?;
         return lower_damage_dealt_event(cursor, source, complement);
     }
+    if let Some(lowered) = lower_object_state_event(cursor, event)? {
+        return Ok(lowered);
+    }
     cursor.enter("trigger.object-event.source-exclusion-support");
     // The generic attack and turned-face-up patterns carry their own source
     // exclusion.
@@ -1387,7 +1400,143 @@ fn lower_object_event(
         ObjectEventVerb::DealDamage => {
             unreachable!("dealt damage is lowered by the shared damage-event branch")
         }
+        ObjectEventVerb::BecomeTapped
+        | ObjectEventVerb::BecomeUntapped
+        | ObjectEventVerb::TappedForMana
+        | ObjectEventVerb::PerformedKeywordAction(_) => {
+            unreachable!("state events are lowered by the shared state-event branch")
+        }
     }
+}
+
+/// The state events of an observed permanent: a tap or untap transition
+/// (CR 701.26), a mana ability activation of the permanent (CR 106.11a) and
+/// a completed keyword action of the permanent (CR 701.44, 701.50). Each is
+/// one occurrence per permanent; the subject keeps its controller relation,
+/// its predicate and `another`. `None` for every other verb.
+fn lower_object_state_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    event: &ObjectEventNode,
+) -> MachineResult<Option<Value>> {
+    let subject = &event.subject;
+    let per_event = matches!(subject.multiplicity, EventMultiplicity::PerEvent { .. });
+    Ok(Some(match event.verb {
+        // `one or more PERMANENTS you control become tapped`: one event for
+        // the permanents of one controller tapped together (CR 603.2c).
+        ObjectEventVerb::BecomeTapped if per_event => {
+            cursor.enter("trigger.object-event.tapped-batch");
+            cursor.require(
+                subject.query.controller == Some(ObjectControllerScope::AbilityController)
+                    && !subject.exclude_source
+                    && subject
+                        .query
+                        .predicate
+                        .supports_domain(ObjectKind::Permanent)
+                    && !subject.query.predicate.contains_numeric_comparison()
+                    && domain_filter_is_representable(&subject.query.predicate),
+                "permanents the ability controller controls, without source exclusion or numeric characteristics",
+            )?;
+            let filter = lower_permanent_object_predicate(&subject.query.predicate);
+            cursor.require(!filter.is_null(), "a lowered tapped-permanent predicate")?;
+            json!({
+                "kind": "controlledPermanentsTapped",
+                "player": {"kind": "controllerOf", "object": self_ref()},
+                "where": filter,
+            })
+        }
+        // One tapped or untapped permanent per transition: the observed
+        // permanent pattern with the shared subject query (CR 701.26).
+        ObjectEventVerb::BecomeTapped | ObjectEventVerb::BecomeUntapped => {
+            cursor.enter("trigger.object-event.tap-transition");
+            cursor.require(
+                !per_event,
+                "a singular untapped subject (no one-or-more untap batch is proved)",
+            )?;
+            let object =
+                lower_any_controller_permanents(cursor, subject, "a tapped or untapped permanent")?;
+            let kind = if event.verb == ObjectEventVerb::BecomeTapped {
+                "permanentTapped"
+            } else {
+                "permanentUntapped"
+            };
+            json!({"kind": kind, "object": object})
+        }
+        // The mana-ability observer of the tapped permanent; its controller
+        // is the acting player, matched by the subject's controller relation.
+        ObjectEventVerb::TappedForMana => {
+            cursor.enter("trigger.object-event.tapped-for-mana");
+            cursor.require(
+                !per_event && !subject.exclude_source,
+                "one tapped permanent without a source exclusion",
+            )?;
+            let predicate = &subject.query.predicate;
+            cursor.require(
+                predicate.supports_domain(ObjectKind::Permanent)
+                    && !predicate.contains_numeric_comparison()
+                    && domain_filter_is_representable(predicate),
+                "a representable tapped-permanent predicate without numeric characteristics",
+            )?;
+            let filter = lower_permanent_object_predicate(predicate);
+            cursor.require(!filter.is_null(), "a lowered tapped-permanent predicate")?;
+            let mut lowered = json!({
+                "kind": "controlledPermanentManaAbilityActivated",
+                "where": filter,
+            });
+            match subject.query.controller {
+                None => lowered["anyPlayer"] = json!(true),
+                Some(ObjectControllerScope::AbilityController) => {
+                    lowered["player"] = controller();
+                }
+                Some(ObjectControllerScope::OpponentOfAbilityController) => {
+                    lowered["player"] = json!({"kind": "opponentsOf", "player": controller()});
+                }
+                Some(_) => {
+                    return Err(cursor.fail(
+                        "a tapped permanent of any player, the ability controller or an opponent",
+                    ));
+                }
+            }
+            lowered
+        }
+        // The completion signal the keyword action's program emits with the
+        // acting permanent (`explore_program.rs`, `keyword_action_programs.rs`).
+        ObjectEventVerb::PerformedKeywordAction(action) => {
+            cursor.enter("trigger.object-event.keyword-action");
+            cursor.require(
+                !per_event,
+                "a singular acting permanent (no one-or-more keyword-action batch is proved)",
+            )?;
+            let ability_id = cursor.require_value(
+                performed_keyword_action_signal(action),
+                "a keyword action whose program signals its completion with the acting permanent",
+            )?;
+            let object = lower_any_controller_permanents(cursor, subject, "an acting permanent")?;
+            json!({
+                "kind": "abilityPerformed",
+                "abilityId": ability_id,
+                "player": {"kind": "eachPlayer"},
+                "object": object,
+            })
+        }
+        _ => return Ok(None),
+    }))
+}
+
+/// The completion signal of a keyword action performed by a permanent: the
+/// catalog's `afterActionCompletes` action id, for the actions whose
+/// canonical program attaches the acting permanent to that signal.
+fn performed_keyword_action_signal(action: PermanentKeywordAction) -> Option<&'static str> {
+    if !matches!(
+        action,
+        PermanentKeywordAction::Explore | PermanentKeywordAction::Connive
+    ) {
+        return None;
+    }
+    let registration = crate::oracle::ability_catalog::lookup_registry(action.name())?;
+    (registration.semantics.signal.policy
+        == crate::oracle::ability_catalog::AbilitySignalPolicy::AfterActionCompletes)
+        .then_some(())?;
+    registration.semantics.signal.action_id.as_deref()
 }
 
 /// A per-object block event lowered by the generic block pattern: a subject
@@ -1530,6 +1679,9 @@ fn lower_damage_dealt_event(
         return Ok(pattern);
     };
     lowered["recipient"] = match recipient {
+        DamageRecipient::PermanentBatch(query) => {
+            return lower_damage_recipient_batch(cursor, lowered, query);
+        }
         DamageRecipient::Player(actor) => {
             json!({"kind": "player", "player": event_actor_player(*actor)})
         }
@@ -1542,6 +1694,35 @@ fn lower_damage_dealt_event(
         }
     };
     Ok(lowered)
+}
+
+/// `deals damage to one or more PERMANENTS` (CR 603.2c): the generic damage
+/// pattern with the shared recipient query, triggering once per source and
+/// simultaneous event (`aggregation`), with the total amount dealt to the
+/// matching permanents.
+fn lower_damage_recipient_batch(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut lowered: Value,
+    query: &ObjectQueryNode,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.dealt-damage.recipient-batch-support");
+    let mut recipient = json!({"kind": "permanent"});
+    if let Some(filter) = lower_damage_permanent_query(cursor, query, &mut recipient)? {
+        recipient["where"] = filter;
+    }
+    let mut pattern = json!({
+        "kind": "eventPattern",
+        "lemma": "dealDamage",
+        "source": lowered["source"].take(),
+        "recipient": recipient,
+        "aggregation": "oneOrMore",
+    });
+    for flag in ["combatOnly", "noncombatOnly"] {
+        if let Some(value) = lowered.get(flag) {
+            pattern[flag] = value.clone();
+        }
+    }
+    Ok(pattern)
 }
 
 /// The attacked object of an attack pattern (CR 506.2, 508.1b): each
@@ -2204,6 +2385,11 @@ fn lower_player_event(
     permanent: Option<&PlayerEventCardObject>,
 ) -> MachineResult<Value> {
     cursor.enter("trigger.program.player-event-support");
+    if let Some(lowered) =
+        lower_player_card_selection_event(cursor, actor, actions, one_or_more, card)
+    {
+        return lowered;
+    }
     if let [action] = actions
         && let Some(lowered) =
             lower_player_outcome_event(cursor, actor, *action, one_or_more, permanent)
@@ -2217,29 +2403,7 @@ fn lower_player_event(
             lower_tap_for_mana_event(cursor, actor, one_or_more, permanent)
         }
         [PlayerEventAction::ActivateAbility(kind)] => {
-            cursor.enter("trigger.player-event.activation-support");
-            cursor.require(
-                !one_or_more,
-                "a per-player activation event (no one-or-more player batch)",
-            )?;
-            let mut lowered = match actor {
-                EventActorScope::Controller => {
-                    json!({"kind": "nonManaAbilityActivated", "player": player})
-                }
-                EventActorScope::Opponent => {
-                    json!({"kind": "nonManaAbilityActivated", "opponentOfSourceController": true})
-                }
-                EventActorScope::AnyPlayer => {
-                    return Err(engine_gap(
-                        cursor,
-                        "an activation matcher for any player (the runtime matches the controller or an opponent)",
-                    ));
-                }
-            };
-            if *kind == ActivatedAbilityKind::Loyalty {
-                lowered["loyaltyOnly"] = json!(true);
-            }
-            Ok(lowered)
+            lower_ability_activation_event(cursor, actor, *kind, one_or_more, permanent)
         }
         [action]
             if !action.takes_card_object()
@@ -2385,17 +2549,7 @@ fn lower_fixed_player_event(
     one_or_more: bool,
 ) -> MachineResult<Value> {
     if let PlayerEventAction::BeDealtDamage(damage) = action {
-        // The runtime observes damage dealt to the controller's opponents,
-        // per recipient or as one event for the whole batch.
-        cursor.require(
-            actor == EventActorScope::Opponent,
-            "an opponent actor for a received-damage event (the runtime matches only opponents)",
-        )?;
-        let mut lowered = json!({
-            "kind": "opponentDealtDamage",
-            "player": player,
-            "aggregation": if one_or_more { "oneOrMore" } else { "perRecipient" },
-        });
+        let mut lowered = lower_player_received_damage(cursor, actor, player, one_or_more)?;
         apply_damage_event_kind(cursor, &mut lowered, damage)?;
         return Ok(lowered);
     }
@@ -2460,7 +2614,8 @@ fn lower_fixed_player_event(
             | PlayerEventAction::Clash { .. }
             | PlayerEventAction::Proliferate
             | PlayerEventAction::Exert
-            | PlayerEventAction::CompleteDungeon,
+            | PlayerEventAction::CompleteDungeon
+            | PlayerEventAction::CounterSpell,
             _,
         ) => unreachable!(
             "lowered by the received-damage, action-union, action-frame or outcome branches"

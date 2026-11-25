@@ -200,3 +200,25 @@ fn a_history_with_an_opponent_actor_composes_in_a_guard() {
     ));
     assert_eq!(cursor.peek(), Some(","));
 }
+
+#[test]
+fn once_each_turn_rider_starts_only_a_later_top_level_sentence() {
+    let tokens =
+        recognize_entities("you may draw a card. Do this only once each turn. (Reminder text.)");
+    let cursor = OracleTokenCursor::new("test.once-each-turn", &tokens);
+    let start = once_each_turn_rider_start(&cursor).expect("a later rider sentence");
+    let mut rider = cursor.clone();
+    rider.advance_to(start).unwrap();
+    recognize_once_each_turn_rider(&mut rider).expect("the rider and its reminder");
+    assert_eq!(rider.peek(), None, "the reminder belongs to the rider");
+    // A rider inside a quoted ability belongs to that ability.
+    let quoted = recognize_entities(
+        "it gains \"Whenever this creature attacks, you may draw a card. Do this only once each turn.\"",
+    );
+    let cursor = OracleTokenCursor::new("test.once-each-turn", &quoted);
+    assert_eq!(once_each_turn_rider_start(&cursor), None);
+    // A program cannot open with the rider: it limits an earlier instruction.
+    let opening = recognize_entities("Do this only once each turn.");
+    let cursor = OracleTokenCursor::new("test.once-each-turn", &opening);
+    assert_eq!(once_each_turn_rider_start(&cursor), None);
+}

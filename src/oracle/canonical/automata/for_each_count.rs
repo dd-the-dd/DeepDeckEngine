@@ -1117,6 +1117,7 @@ pub(in crate::oracle::canonical) fn apply_for_each_multiplier(
             | SingularPlayerAction::Skip(_)
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
+            | SingularPlayerAction::SetLifeTotal(_)
             | SingularPlayerAction::ReferencedCards { .. } => return false,
         },
         _ => return false,

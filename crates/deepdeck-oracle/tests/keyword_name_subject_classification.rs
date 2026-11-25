@@ -91,10 +91,11 @@ fn awaken_keyword_is_read_by_the_casting_keyword_reader_without_a_name_link() {
 }
 
 #[test]
-fn unimplemented_madness_keyword_is_explicitly_unsupported_without_a_name_link() {
+fn unimplemented_ripple_keyword_is_explicitly_unsupported_without_a_name_link() {
+    // Madness now has a casting keyword row; ripple has none.
     let parsed = parse(
         "Test Spell",
-        "Madness {1}{R} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
+        "Ripple 4 (When you cast this spell, you may reveal the top four cards of your library. You may cast any revealed cards with the same name as this spell without paying their mana costs. Put the rest on the bottom of your library in any order.)",
     );
 
     assert_eq!(parsed.status, "unsupported");
@@ -106,6 +107,6 @@ fn unimplemented_madness_keyword_is_explicitly_unsupported_without_a_name_link()
     assert_eq!(ability.diagnostics[0].code, "oracle_machine_failure");
     assert_eq!(
         ability.diagnostics[0].state.as_deref(),
-        Some("keyword.unsupported.madness")
+        Some("keyword.unsupported.ripple")
     );
 }

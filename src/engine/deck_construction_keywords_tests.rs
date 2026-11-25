@@ -12,6 +12,10 @@ fn partner_abilities_are_executable_without_in_game_behavior() {
         json!({ "kind": "partner", "variant": "Friends forever", "rulesScope": "deckConstruction" }),
         json!({ "kind": "chooseABackground", "rulesScope": "deckConstruction" }),
         json!({ "kind": "doctorsCompanion", "rulesScope": "deckConstruction" }),
+        // CR 903.3d and 100.2a: a card's own deck-construction rules.
+        json!({ "kind": "commanderEligibility", "rulesScope": "deckConstruction" }),
+        json!({ "kind": "deckCopyLimit", "maximum": null, "rulesScope": "deckConstruction" }),
+        json!({ "kind": "deckCopyLimit", "maximum": 7, "rulesScope": "deckConstruction" }),
     ] {
         assert!(deck_construction_keyword_supported(&ability), "{ability}");
         assert!(
@@ -30,6 +34,9 @@ fn unscoped_or_malformed_partner_abilities_stay_unexecutable() {
         json!({ "kind": "partner", "variant": 3, "rulesScope": "deckConstruction" }),
         json!({ "kind": "chooseABackground", "variant": "x", "rulesScope": "deckConstruction" }),
         json!({ "kind": "companion", "rulesScope": "deckConstruction" }),
+        json!({ "kind": "deckCopyLimit", "maximum": 0, "rulesScope": "deckConstruction" }),
+        json!({ "kind": "deckCopyLimit", "rulesScope": "game", "maximum": null }),
+        json!({ "kind": "commanderEligibility", "variant": "x", "rulesScope": "deckConstruction" }),
     ] {
         assert!(
             !rule_is_executable(&keyword_rule(ability.clone())),

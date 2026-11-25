@@ -33,10 +33,12 @@ fn unclaimed_abilities_are_owned_by_their_structural_frame() {
             "ability-frame.keyword.expansion",
             "Fortify",
         ),
+        // (A leading entry condition now reads through the entry frame; a
+        // condition the shared readers do not know keeps the frame claim.)
         (
-            "Baloth Gorger",
-            "Creature — Beast",
-            "If this creature was kicked, it enters with three +1/+1 counters on it.",
+            "Brimstone Vandal",
+            "Creature — Devil",
+            "If it's neither day nor night, it becomes day as this creature enters.",
             "ability-frame.conditional.body",
             "it",
         ),
@@ -50,11 +52,11 @@ fn unclaimed_abilities_are_owned_by_their_structural_frame() {
             "pay",
         ),
         // A known subject with an unsupported predicate keeps the static
-        // frame's own diagnostic.
+        // frame's own diagnostic (High Ground's block capacity now compiles).
         (
-            "High Ground",
+            "Shadow Watch Probe",
             "Enchantment",
-            "Each creature you control can block an additional creature each combat.",
+            "Each creature you control can block creatures with shadow as though they didn't have shadow.",
             "static.continuous.defender-exception",
             "block",
         ),

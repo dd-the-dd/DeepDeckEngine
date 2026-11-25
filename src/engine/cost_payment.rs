@@ -747,7 +747,7 @@ impl GameEngine {
             .ok_or_else(|| EngineError::new("discard cost source disappeared"))?;
         let card = &self.state.players[player_index].hand[card_index];
         let owner_index = self.player_index(&card.owner)?;
-        let plan = self.prepare_graveyard_destination(owner_index, card)?;
+        let plan = self.prepare_discard_destination(instance_id)?;
         let moved = self.take_prepared_movement_card(source)?;
         self.put_owned_card_into_prepared_graveyard(owner_index, moved, plan)?;
         self.record_event(

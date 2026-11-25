@@ -124,8 +124,9 @@ fn supports_known_effect(effect: &Value) -> bool {
         // mana abilities, can't be activated until the named player's next turn.
         Some("prohibitPermanentActivations") => {
             target_reference_supported(&effect["object"])
-                && value_kind(&effect["duration"]) == Some("untilNextTurn")
-                && player_reference_supported(&effect["duration"]["player"])
+                && (value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn")
+                    || (value_kind(&effect["duration"]) == Some("untilNextTurn")
+                        && player_reference_supported(&effect["duration"]["player"])))
         }
         _ => false,
     }
@@ -633,17 +634,23 @@ impl GameEngine {
                 else {
                     return Ok(());
                 };
-                let Some(expiry_player_id) =
-                    self.resolve_player(&effect["duration"]["player"], stack_object, bindings)
-                else {
-                    return Ok(());
-                };
+                let mut modifier = json!({
+                    "kind": "temporaryActivationProhibition",
+                    "cardInstanceId": instance_id,
+                });
+                if value_kind(&effect["duration"]) == Some("untilEndOfCurrentTurn") {
+                    // `this turn`: the general end-of-turn cleanup removes it.
+                    modifier["expiresAfterTurn"] = json!(self.state.turn_number);
+                } else {
+                    let Some(expiry_player_id) =
+                        self.resolve_player(&effect["duration"]["player"], stack_object, bindings)
+                    else {
+                        return Ok(());
+                    };
+                    modifier["expiresAtTurnStart"] = json!(expiry_player_id);
+                }
                 if self.permanent_position(&instance_id).is_some() {
-                    self.state.rule_modifiers.push(json!({
-                        "kind": "temporaryActivationProhibition",
-                        "cardInstanceId": instance_id,
-                        "expiresAtTurnStart": expiry_player_id,
-                    }));
+                    self.state.rule_modifiers.push(modifier);
                 }
             }
             Some("goadAllCreaturesUntilNextTurn") => {

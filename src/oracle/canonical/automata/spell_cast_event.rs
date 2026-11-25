@@ -258,8 +258,34 @@ pub(in crate::oracle::canonical) fn recognize_optional_spell_cast_event_atom(
     cursor: &mut OracleTokenCursor<'_>,
     ordinal_support: SpellCastOrdinalSupport,
 ) -> MachineResult<Option<SpellCastEventNode>> {
-    let mut state = SpellCastEventState::Subject;
-    let mut frame = SpellCastEventFrame::default();
+    read_spell_cast_event_atom(cursor, ordinal_support, None)
+}
+
+/// The cast clause of a caster written earlier (`you play a land or cast a
+/// spell`, CR 603.2): the same atom from its verb, with the supplied caster
+/// as the subject. `Ok(None)` when no `cast` verb starts at the cursor.
+pub(in crate::oracle::canonical) fn recognize_spell_cast_event_with_caster(
+    cursor: &mut OracleTokenCursor<'_>,
+    caster: SpellCastEventCaster,
+    ordinal_support: SpellCastOrdinalSupport,
+) -> MachineResult<Option<SpellCastEventNode>> {
+    read_spell_cast_event_atom(cursor, ordinal_support, Some(caster))
+}
+
+fn read_spell_cast_event_atom(
+    cursor: &mut OracleTokenCursor<'_>,
+    ordinal_support: SpellCastOrdinalSupport,
+    supplied_caster: Option<SpellCastEventCaster>,
+) -> MachineResult<Option<SpellCastEventNode>> {
+    let mut state = if supplied_caster.is_some() {
+        SpellCastEventState::Cast
+    } else {
+        SpellCastEventState::Subject
+    };
+    let mut frame = SpellCastEventFrame {
+        caster: supplied_caster,
+        ..SpellCastEventFrame::default()
+    };
     loop {
         state = match state {
             SpellCastEventState::Subject => {

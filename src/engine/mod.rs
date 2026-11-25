@@ -93,6 +93,7 @@ fn positive_integer_compositions(
 
 mod ability_signals;
 mod activated_rule_execution;
+mod additional_phase;
 mod adventure;
 mod attack_defender_restriction;
 mod attack_tax;
@@ -108,7 +109,9 @@ mod casting_permission_modes;
 mod characteristic_observation;
 mod chosen_object_costs;
 mod city_blessing;
+mod combat_requirements;
 mod copy_program;
+mod cost_paid_card_properties;
 mod cost_payment;
 mod cost_query;
 mod counter_placement;
@@ -126,6 +129,7 @@ mod defending_player_restriction;
 mod destruction_batch;
 mod effect_domains;
 mod effective_rules;
+mod end_of_combat;
 mod event_batch;
 mod event_card_batch;
 mod event_model;
@@ -144,6 +148,7 @@ mod mana_postcost;
 mod mana_postcost_ordered;
 mod mana_postcost_preview;
 mod myriad;
+mod observed_state_events;
 mod regeneration;
 mod replacement_pipeline;
 mod trigger_multiplicity;
@@ -155,6 +160,7 @@ use mana_postcost_ordered::OrderedManaState;
 mod card_selection;
 mod color_set_query;
 mod entry_observation;
+mod evasion_exception;
 mod event_object;
 mod granted_mana_program;
 mod mana_activation_actions;
@@ -166,6 +172,7 @@ mod mana_discovery_session;
 #[cfg(test)]
 mod mana_legacy_test_adapter;
 mod mana_payment;
+mod static_damage_prevention;
 mod static_modifier_site;
 mod static_object_prohibitions;
 mod static_player_permissions;
@@ -204,6 +211,7 @@ mod object_predicate_eval;
 mod object_relation_eval;
 mod object_snapshot;
 mod offered_action;
+mod once_per_turn;
 mod one_shot_modifier;
 mod opponent_extremum;
 mod optional_action;
@@ -2422,7 +2430,8 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
-            | "blockedThisTurn",
+            | "blockedThisTurn"
+            | "wasBlockedThisTurn",
         ) => true,
         Some("or" | "and") => filter["operands"]
             .as_array()
@@ -2465,14 +2474,16 @@ fn permanent_filter_supported(filter: &Value) -> bool {
 }
 
 fn mana_value(card: &CardDefinition) -> i32 {
-    parse_mana_symbols(&card.mana_cost)
-        .into_iter()
-        .map(|symbol| {
-            symbol
-                .parse::<i32>()
-                .unwrap_or_else(|_| i32::from(symbol != "X"))
-        })
-        .sum()
+    parse_mana_symbols(
+        keyword_programs::front_face_mana_cost(card).unwrap_or(card.mana_cost.as_str()),
+    )
+    .into_iter()
+    .map(|symbol| {
+        symbol
+            .parse::<i32>()
+            .unwrap_or_else(|_| i32::from(symbol != "X"))
+    })
+    .sum()
 }
 
 fn distinct_card_types<'a>(
@@ -3267,7 +3278,7 @@ fn target_candidates_supported(candidates: &Value) -> bool {
         }
         Some("stackObjects") => stack_filter_supported(&candidates["where"]),
         Some("stackItems") => {
-            stack_item_filter_supported(&candidates["where"])
+            object_predicate::stack_item_candidate_filter_supported(&candidates["where"])
                 && candidates.get("singleTarget").is_none_or(Value::is_boolean)
                 && candidates.get("controller").is_none_or(|controller| {
                     player_reference_supported(controller)
@@ -3431,6 +3442,10 @@ fn keyword_kind_supported(value: &Value) -> bool {
                 | "canAttackAsThoughNoDefender"
                 | "cantBeRegenerated"
                 | "allMustBlockIfAble"
+                | "cantAttackAlone"
+                | "cantBlockAlone"
+                | "canBlockAdditionalCreature"
+                | "canBlockAnyNumber"
                 | "maxOneBlocker"
                 | "openingHandBattlefield"
                 | "prowess"
@@ -4070,6 +4085,10 @@ fn keyword_rule_supported(rule: &Value) -> bool {
                 || rebound::rebound_ability_supported(&rule["ability"])
                 || suspend_ability_supported(&rule["ability"])
                 || mayhem_ability_supported(&rule["ability"])
+                || keyword_programs::madness_ability_supported(&rule["ability"])
+                || keyword_programs::aftermath_ability_supported(&rule["ability"])
+                || keyword_programs::disturb_ability_supported(&rule["ability"])
+                || keyword_programs::casualty_ability_supported(&rule["ability"])
                 || value_kind(&rule["ability"]) == Some("graveyardCastWithDiscard")
                 || escape_ability_supported(&rule["ability"])
                 || blitz_ability_supported(&rule["ability"])
@@ -4916,6 +4935,9 @@ fn triggered_event_supported(event: &Value) -> bool {
     if !entry_observation::entry_state_supported(event) {
         return false;
     }
+    if let Some(supported) = observed_state_events::observed_state_event_supported(event) {
+        return supported;
+    }
     if let Some(supported) = player_event_matchers::player_outcome_event_supported(event) {
         return supported;
     }
@@ -4968,7 +4990,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("cardPlotted" | "reflexiveTriggerCreated") => {
             value_kind(&event["object"]) == Some("self")
         }
-        Some("selfDiscarded") => value_kind(&event["object"]) == Some("self"),
+        Some("selfDiscarded") => player_event_matchers::self_discard_event_supported(event),
         Some("landPlayed" | "landPlayedFromExile") => {
             player_reference_supported(&event["player"])
                 && event.get("excludeSource").is_none_or(Value::is_boolean)
@@ -5011,6 +5033,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                             | "postcombatMain"
                             | "endStep"
                             | "beginCombat"
+                            | "endOfCombat"
                     )
                 )
                 && event.get("firstOnly").is_none_or(Value::is_boolean)
@@ -5094,6 +5117,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 || event["opponentOfSourceController"].as_bool() == Some(true))
                 && event.get("where").is_none_or(card_filter_supported)
                 && event.get("loyaltyOnly").is_none_or(Value::is_boolean)
+                && event.get("abilityClass").is_none_or(Value::is_string)
                 && event
                     .get("minimumLoyaltyRemoved")
                     .is_none_or(|value| integer_value(value).is_some_and(|value| value > 0))
@@ -5178,6 +5202,7 @@ fn triggered_event_supported(event: &Value) -> bool {
                 && event
                     .get("resultingCount")
                     .is_none_or(|count| integer_value(count).is_some_and(|count| count > 0))
+                && counter_placement::counter_occurrence_supported(event)
         }
         Some("controlledObjectBecameTarget") => player_reference_supported(&event["player"]),
         Some("stateConditionMet") => condition_supported(&event["condition"]),
@@ -5225,6 +5250,9 @@ fn triggered_event_supported(event: &Value) -> bool {
         Some("playerDiscardedCard" | "cardCycled") => {
             player_action_events::player_card_action_event_supported(event)
         }
+        Some("playerDealtDamage") => player_event_matchers::received_damage_event_supported(event),
+        Some("cardsDiscarded") => player_event_matchers::discard_batch_event_supported(event),
+        Some("spellCounteredBy") => player_event_matchers::spell_countered_event_supported(event),
         Some("opponentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
@@ -5315,6 +5343,7 @@ fn filter_reads_object_history(filter: &Value) -> bool {
         Some(
             "attackedThisTurn"
             | "blockedThisTurn"
+            | "wasBlockedThisTurn"
             | "dealtDamageThisTurn"
             | "wasDealtDamageThisTurn"
             | "dealtDamageToControllerThisTurn"
@@ -5376,6 +5405,12 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
         return supported;
     }
     if let Some(supported) = player_static_modifiers::modifier_supported(modifier) {
+        return supported;
+    }
+    if let Some(supported) = static_damage_prevention::modifier_supported(modifier) {
+        return supported;
+    }
+    if let Some(supported) = evasion_exception::modifier_supported(modifier) {
         return supported;
     }
     if let Some(supported) = GameEngine::static_keyword_loss_supported(modifier) {
@@ -5602,6 +5637,7 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                     .is_some_and(|keyword| keyword_kind_supported(&json!({ "kind": keyword })))
         }
         Some("grantRiot") => static_object_selector_supported(&modifier["objects"]),
+        Some("blockCapacity") => combat_requirements::block_capacity_modifier_supported(modifier),
         Some("allStackObjectsCantBeCountered") => true,
         Some("grantKeyword") => {
             static_keyword_selector_supported(&modifier["objects"])
@@ -10092,8 +10128,12 @@ impl GameEngine {
             Some("decisionResult") => expression["decisionId"]
                 .as_str()
                 .and_then(|decision_id| decisions.get(decision_id))
-                .and_then(Value::as_i64)
-                .and_then(|value| i32::try_from(value).ok()),
+                .and_then(|value| {
+                    value
+                        .as_i64()
+                        .and_then(|value| i32::try_from(value).ok())
+                        .or_else(|| self.deferred_card_characteristic(value))
+                }),
             Some("triggeringSpellManaValue") => decisions
                 .get("triggeringSpellManaValue")
                 .and_then(Value::as_i64)
@@ -10775,6 +10815,11 @@ impl GameEngine {
 
     fn permanent_has_card_type(&self, permanent: &CardInstance, card_type: &str) -> bool {
         if card_type.eq_ignore_ascii_case("Creature")
+            && keyword_programs::reconfigured_while_attached(permanent)
+        {
+            return false;
+        }
+        if card_type.eq_ignore_ascii_case("Creature")
             && permanent
                 .flags
                 .get("impendingCostPaid")
@@ -11139,6 +11184,7 @@ impl GameEngine {
             Some(
                 kind @ ("attackedThisTurn"
                 | "blockedThisTurn"
+                | "wasBlockedThisTurn"
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(permanent, kind),
@@ -11167,6 +11213,7 @@ impl GameEngine {
             Some(
                 kind @ ("attackedThisTurn"
                 | "blockedThisTurn"
+                | "wasBlockedThisTurn"
                 | "dealtDamageThisTurn"
                 | "wasDealtDamageThisTurn"),
             ) => self.permanent_history_this_turn(card, kind),
@@ -11199,6 +11246,16 @@ impl GameEngine {
                             && event.card_instance_id.as_deref()
                                 == Some(permanent.instance_id.as_str())
                             && same_object(&event.detail)
+                    }
+                    // CR 509.1h: a creature a blocker was declared for.
+                    "wasBlockedThisTurn" => {
+                        event.kind == "blockerDeclared"
+                            && event.detail["attackerId"].as_str()
+                                == Some(permanent.instance_id.as_str())
+                            && event
+                                .detail
+                                .get("attackerIdentity")
+                                .is_none_or(|identity| identity.is_null() || *identity == current)
                     }
                     "dealtDamageThisTurn" => {
                         event.kind == "damageDealt"
@@ -13651,7 +13708,7 @@ impl GameEngine {
                 .position(|candidate| candidate.instance_id == instance_id)
                 .ok_or_else(|| EngineError::new("discard cost card is no longer in hand"))?;
             let (discarded, graveyard_destination) =
-                self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                self.take_hand_card_for_discard(player_index, card_index)?;
             self.put_owned_card_into_prepared_graveyard(
                 player_index,
                 discarded,
@@ -14143,8 +14200,11 @@ impl GameEngine {
                             && matches_card_filter(&candidate.definition, &cost["where"])
                     })
                     .ok_or_else(|| EngineError::new("keyword discard is no longer payable"))?;
-                let (discarded, graveyard_destination) =
-                    self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                let (discarded, graveyard_destination) = self.take_hand_card_for_discard_with(
+                    player_index,
+                    card_index,
+                    Some(&mut *provider as &mut dyn DecisionProvider),
+                )?;
                 self.put_owned_card_into_prepared_graveyard(
                     player_index,
                     discarded,
@@ -15153,7 +15213,13 @@ impl GameEngine {
                             controller_id,
                         )
                     })
-                    .filter(|object| matches_stack_item_filter(object, &candidates["where"]))
+                    .filter(|object| {
+                        self.stack_item_candidate_matches(
+                            object,
+                            &candidates["where"],
+                            controller_id,
+                        )
+                    })
                     .filter(|object| {
                         candidates["singleTarget"] != true || object.targets.len() == 1
                     })
@@ -16447,6 +16513,7 @@ impl GameEngine {
             }
             assignments = expanded;
         }
+        assignments = self.expand_casualty_declarations(card, controller_id, assignments);
         if let Some(enchant_ability) = card.printed_rules().iter().find_map(|rule| {
             (value_kind(rule) == Some("keywordAbility")
                 && value_kind(&rule["ability"]) == Some("enchant"))
@@ -17310,6 +17377,14 @@ impl GameEngine {
                         .decisions
                         .insert("xValue".to_string(), Value::from(0));
                 }
+                if !self.prepare_resolution_cast_declaration(
+                    card,
+                    &player_id,
+                    source_zone,
+                    &mut declaration.decisions,
+                ) {
+                    continue;
+                }
                 if source_zone == "hand"
                     && declaration.targets.values().any(|target| {
                         matches!(
@@ -17742,6 +17817,12 @@ impl GameEngine {
                     .into_iter()
                     .map(|(card, source_zone)| (card, source_zone, None, false)),
             )
+            // CR 702.146a, 712.8c: a disturb card on its back face.
+            .chain(
+                self.disturb_casting_sources(player)
+                    .into_iter()
+                    .map(|(card, source_zone)| (card, source_zone, None, false)),
+            )
             .collect::<Vec<_>>();
 
         for (card, source_zone, split_face_index, fused) in casting_sources
@@ -17956,6 +18037,13 @@ impl GameEngine {
                     declaration
                         .decisions
                         .insert("exileOnLeaveStack".to_string(), Value::Bool(true));
+                }
+                if !self.prepare_priority_cast_declaration(
+                    card,
+                    source_zone,
+                    &mut declaration.decisions,
+                ) {
+                    continue;
                 }
                 if *source_zone == "graveyard"
                     && let Some(source_id) = self.arcade_gannon_source_for_card(&player.id, card)
@@ -21839,6 +21927,14 @@ impl GameEngine {
                     })
                 })
             });
+        let triggering_class = self
+            .state
+            .stack
+            .iter()
+            .find(|object| object.id == triggering_stack_id)
+            .and_then(|object| object.ability_rule.as_ref())
+            .and_then(|rule| rule["abilityClass"].as_str())
+            .map(str::to_string);
         let triggering_loyalty_change = self
             .state
             .stack
@@ -21862,17 +21958,15 @@ impl GameEngine {
                             && triggered_event_variants(&rule["event"])
                                 .iter()
                                 .any(|event| {
-                                    let player_matches = if event["opponentOfSourceController"]
+                                    player_event_matchers::activation_player_observed(
+                                        event,
+                                        source,
+                                        activating_player_id,
+                                    ) && event["loyaltyOnly"]
                                         .as_bool()
-                                        == Some(true)
-                                    {
-                                        source.controller != activating_player_id
-                                    } else {
-                                        source.controller == activating_player_id
-                                    };
-                                    player_matches
-                                        && event["loyaltyOnly"].as_bool().is_none_or(|required| {
-                                            !required || triggering_is_loyalty
+                                        .is_none_or(|required| !required || triggering_is_loyalty)
+                                        && event["abilityClass"].as_str().is_none_or(|class| {
+                                            triggering_class.as_deref() == Some(class)
                                         })
                                         && integer_value(&event["minimumLoyaltyRemoved"])
                                             .is_none_or(|minimum| {
@@ -21901,10 +21995,16 @@ impl GameEngine {
             self.put_triggered_ability_on_stack_with_decisions(
                 &source,
                 rule,
-                BTreeMap::from([(
-                    "triggeringStackId".to_string(),
-                    Value::String(triggering_stack_id.to_string()),
-                )]),
+                BTreeMap::from([
+                    (
+                        "triggeringStackId".to_string(),
+                        Value::String(triggering_stack_id.to_string()),
+                    ),
+                    (
+                        "triggeringPlayerId".to_string(),
+                        Value::String(activating_player_id.to_string()),
+                    ),
+                ]),
             );
             if self.check_quantity_failure().is_err() {
                 return;
@@ -22641,6 +22741,7 @@ impl GameEngine {
     }
 
     fn enqueue_individual_permanent_tapped_triggers(&mut self, source: &CardInstance) {
+        self.publish_observed_permanent_tapped(source);
         let triggers = self
             .effective_rules(&source)
             .iter()
@@ -23295,6 +23396,7 @@ impl GameEngine {
     }
 
     fn enqueue_card_discarded_triggers(&mut self, discarding_player_id: &str) {
+        self.enqueue_madness_trigger(discarding_player_id);
         let discarded_id = self
             .state
             .events
@@ -23355,6 +23457,12 @@ impl GameEngine {
                 }
             }
         }
+        if let Some(instance_id) = &discarded_id {
+            self.observe_discard_for_batch(discarding_player_id, instance_id);
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
         let discarded = self
             .state
             .events
@@ -23377,26 +23485,8 @@ impl GameEngine {
                     })
             });
         if let Some(discarded) = discarded {
-            let self_discard_rules = self
-                .effective_rules(&discarded)
-                .iter()
-                .filter(|rule| {
-                    triggered_rule_supported(rule)
-                        && triggered_event_variants(&rule["event"])
-                            .iter()
-                            .any(|event| value_kind(event) == Some("selfDiscarded"))
-                })
-                .cloned()
-                .collect::<Vec<_>>();
-            for rule in self_discard_rules {
-                self.put_triggered_ability_on_stack_with_decisions(
-                    &discarded,
-                    rule,
-                    BTreeMap::new(),
-                );
-                if self.check_quantity_failure().is_err() {
-                    return;
-                }
+            if !self.enqueue_self_discard_triggers(&discarded, discarding_player_id) {
+                return;
             }
             self.enqueue_cards_entered_graveyard_triggers_from(
                 discarding_player_id,
@@ -25694,6 +25784,11 @@ impl GameEngine {
                     .ok_or_else(|| EngineError::new("spell source is no longer available"))?;
                 let source_definition =
                     adventure::casting_definition(&action.decisions, source_definition)?;
+                let source_definition = self.transformed_casting_definition(
+                    &action.decisions,
+                    action.card_instance_id.as_deref(),
+                    source_definition,
+                );
                 let cast_source_zone = action
                     .decisions
                     .get("castSourceZone")
@@ -25933,6 +26028,7 @@ impl GameEngine {
                 // CR 716.3b: on the stack, only the Adventure's characteristics.
                 card.definition =
                     adventure::casting_definition(&action.decisions, card.definition.clone())?;
+                keyword_programs::apply_transformed_cast(&action.decisions, &mut card)?;
                 if action
                     .decisions
                     .get("fused")
@@ -26219,6 +26315,7 @@ impl GameEngine {
                 let optional_sacrifice_count = self.apply_optional_casting_sacrifices(action)?;
                 self.apply_casting_land_sacrifices(action)?;
                 let conspire_count = self.apply_conspire_costs(action, &spell_definition)?;
+                let casualty_count = self.apply_casualty_costs(action, &spell_definition)?;
                 let gravestorm_copy_count = if has_gravestorm {
                     self.state
                         .events
@@ -26323,6 +26420,7 @@ impl GameEngine {
                         );
                     }
                 }
+                self.enqueue_casualty_copies(casualty_count, &stack_id, &action.player_id);
                 if !replicate_counts.is_empty()
                     && let Some(source) = self
                         .state
@@ -27141,8 +27239,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -27242,8 +27343,11 @@ impl GameEngine {
                         .map(|rule| rule["ability"].clone())
                         .ok_or_else(|| EngineError::new("typed cycling rule is not executable"))?;
                     let tapped_sources = self.apply_payment(player_index, action)?;
-                    let (card, graveyard_destination) =
-                        self.take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                    let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                        player_index,
+                        card_index,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
+                    )?;
                     self.put_owned_card_into_prepared_graveyard(
                         player_index,
                         card,
@@ -28873,8 +28977,8 @@ impl GameEngine {
                             .iter()
                             .position(|candidate| candidate.instance_id == instance_id)
                         {
-                            let (discarded, graveyard_destination) = self
-                                .take_zone_card_for_graveyard(player_index, "hand", card_index)?;
+                            let (discarded, graveyard_destination) =
+                                self.take_hand_card_for_discard(player_index, card_index)?;
                             self.put_owned_card_into_prepared_graveyard(
                                 player_index,
                                 discarded,
@@ -31876,8 +31980,12 @@ impl GameEngine {
             Some("decisionResult") => expression["decisionId"]
                 .as_str()
                 .and_then(|id| decisions.get(id))
-                .and_then(Value::as_i64)
-                .and_then(|value| i32::try_from(value).ok()),
+                .and_then(|value| {
+                    value
+                        .as_i64()
+                        .and_then(|value| i32::try_from(value).ok())
+                        .or_else(|| self.deferred_card_characteristic(value))
+                }),
             Some("triggeringSpellManaValue") => decisions
                 .get("triggeringSpellManaValue")
                 .and_then(Value::as_i64)
@@ -33355,7 +33463,10 @@ impl GameEngine {
     ) -> Result<(), EngineError> {
         // CR 608.2d: an impossible option can't be chosen, so the instruction
         // is not performed and only an `If you don't` outcome follows.
-        if !self.optional_action_is_available(&effect["action"], stack_object, bindings) {
+        // A once-each-turn instruction already performed this turn is spent.
+        if !self.optional_action_is_available(&effect["action"], stack_object, bindings)
+            || self.once_per_turn_spent(effect, stack_object)
+        {
             self.record_event(
                 "optionalActionUnavailable",
                 Some(stack_object.controller.clone()),
@@ -33434,6 +33545,7 @@ impl GameEngine {
                 provider,
             )?;
         if performed {
+            self.record_once_per_turn(effect, stack_object);
             self.execute_effects(
                 &effect["onPerformed"],
                 stack_object,
@@ -34343,6 +34455,7 @@ impl GameEngine {
         }
 
         let owner_index = self.player_index(&stack_object.card.owner)?;
+        let countered_definition = stack_object.card.definition.clone();
         let mut card = stack_object.card;
         let graveyard_owner = card.owner.clone();
         let spell_copy = is_spell_copy(&card);
@@ -34402,6 +34515,7 @@ impl GameEngine {
                 "stackId": stack_id,
             }),
         );
+        self.publish_spell_countered(source_controller, &countered_definition);
         if let Some(graveyard_card) = graveyard_card {
             self.enqueue_cards_entered_graveyard_triggers_from(
                 &graveyard_owner,
@@ -36515,9 +36629,10 @@ impl GameEngine {
 
     fn clear_combat_state(&mut self) {
         self.state.combat = CombatState::default();
-        self.state
-            .rule_modifiers
-            .retain(|modifier| value_kind(modifier) != Some("delayedCombatDamageTrigger"));
+        self.state.rule_modifiers.retain(|modifier| {
+            value_kind(modifier) != Some("delayedCombatDamageTrigger")
+                && !combat_requirements::ends_with_combat(modifier)
+        });
         for player in &mut self.state.players {
             for permanent in &mut player.battlefield {
                 permanent.flags.remove("attacking");
@@ -36742,6 +36857,9 @@ impl GameEngine {
                 if defending_player_id.is_empty()
                     || planeswalker_attack_limit_reached
                     || jace_attack_prevented
+                    || self.attack_requirement_excludes_defender(
+                        card, defender, &defenders, &active_id,
+                    )?
                     || (self.permanent_has_self_static_modifier(card, "cantAttackOwner")
                         && defending_player_id == card.owner)
                     || self.defending_player_forbids_attack(card, &defending_player_id)?
@@ -36807,6 +36925,7 @@ impl GameEngine {
             }
         }
         self.add_exert_attack_options(&mut actions);
+        self.retain_lone_attack_partners(selected, &active.battlefield, &mut actions)?;
         let required_attack_available = actions.iter().any(|action| {
             action
                 .attacker_id
@@ -36822,6 +36941,7 @@ impl GameEngine {
                     // are the same effective requirement (CR 508.1d).
                     self.permanent_has_keyword(card, "attackEachCombatIfAble")
                         || self.goad_source_for(card).is_some()
+                        || self.installed_attack_requirement_obeyed_by(card, action)
                 })
         });
         if allow_revisions {
@@ -36848,7 +36968,14 @@ impl GameEngine {
                 });
             }
         }
-        if !required_attack_available {
+        if !required_attack_available
+            && !self.lone_attacker_pending(
+                selected,
+                &active.battlefield,
+                &actions,
+                allow_revisions,
+            )?
+        {
             actions.push(LegalAction {
                 id: format!("finishAttackers:{}", self.state.turn_number),
                 kind: ActionKind::FinishAttackers,
@@ -36994,6 +37121,7 @@ impl GameEngine {
             .iter()
             .any(|(keyword, subtype)| {
                 self.permanent_has_keyword(attacker, keyword)
+                    && !self.block_evasion_ignored(attacker, keyword)
                     && defending_player_index.is_some_and(|player_index| {
                         self.state.players[player_index]
                             .battlefield
@@ -37158,8 +37286,9 @@ impl GameEngine {
             self.permanent_is_creature(card)
                 && !card.tapped
                 && !self.permanent_has_keyword(card, "cantBlock")
-                && !used_blockers.contains(&card.instance_id)
-                && used_blockers.len() < self.combat_participant_limit("block")
+                && self.blocker_has_capacity(card, blocks)
+                && (used_blockers.contains(&card.instance_id)
+                    || used_blockers.len() < self.combat_participant_limit("block"))
         }) {
             for attacker_id in attackers {
                 if !incomplete_menace_attackers.is_empty()
@@ -37174,7 +37303,9 @@ impl GameEngine {
                 else {
                     continue;
                 };
-                if !self.can_block(blocker, attacker) {
+                if !self.can_block(blocker, attacker)
+                    || self.block_pair_excluded(blocker, attacker_id, attackers, blocks)
+                {
                     continue;
                 }
                 let existing_blocker_count = blocks.get(attacker_id).map_or(0, Vec::len);
@@ -37221,6 +37352,13 @@ impl GameEngine {
                 });
             }
         }
+        self.retain_lone_block_partners(
+            defending_index,
+            attackers,
+            used_blockers,
+            blocks,
+            &mut actions,
+        );
         let must_block_available = attackers.iter().any(|attacker_id| {
             active
                 .battlefield
@@ -37249,11 +37387,14 @@ impl GameEngine {
                     .iter()
                     .find(|card| card.instance_id == blocker_id)
                     .is_some_and(|card| self.permanent_has_keyword(card, "blockEachCombatIfAble"))
+                    && !used_blockers.contains(blocker_id)
             })
         });
         if incomplete_menace_attackers.is_empty()
             && !must_block_available
             && !required_blocker_available
+            && !self.block_requirement_pending(defending_index, attackers, blocks, &actions)
+            && !self.lone_blocker_pending(used_blockers, &defender.battlefield)
         {
             actions.push(LegalAction {
                 id: format!("finishBlockers:{}:{}", self.state.turn_number, defender.id),
@@ -37357,8 +37498,7 @@ impl GameEngine {
             declared_actions.push(action);
         }
         if attacks.is_empty() {
-            self.clear_combat_state();
-            return Ok(());
+            return self.end_combat_without_attackers(provider);
         }
         let attacker_ids = attacks.keys().cloned().collect::<Vec<_>>();
         self.record_event(
@@ -37436,6 +37576,12 @@ impl GameEngine {
                     && options[0].kind == ActionKind::FinishBlockers
                 {
                     break;
+                }
+                if options.is_empty() {
+                    return Err(EngineError::new(
+                        "block declaration can't end: a creature that can't block alone has no \
+                         other blocker left to declare (CR 506.5)",
+                    ));
                 }
                 let action = self.choose_action(
                     provider,
@@ -37643,7 +37789,7 @@ impl GameEngine {
         result?;
         self.record_attack_outcomes(&attacks, &blocks, combat_event_start);
         // The end of combat step (CR 511): delayed `at end of combat` triggers.
-        if self.fire_delayed_step_triggers("endOfCombat") > 0 {
+        if self.begin_end_of_combat_step() > 0 {
             self.run_priority_window(provider)?;
             if self.state.outcome.is_some() || self.force_end_turn {
                 self.clear_combat_state();
@@ -38048,6 +38194,8 @@ impl GameEngine {
                     }
                 }
                 for (blocker_id, blocker_power, blocker_deals_damage) in current_blockers {
+                    let blocker_power =
+                        self.blocker_damage_share(&blocker_id, attacker_id, blocker_power, blocks);
                     if blocker_deals_damage && blocker_power > 0 {
                         damage_instances.push((
                             blocker_id,
@@ -38231,8 +38379,11 @@ impl GameEngine {
                 .as_deref()
                 .ok_or_else(|| EngineError::new("discard action has no card"))?;
             let card_index = self.hand_position(active, instance_id)?;
-            let (card, graveyard_destination) =
-                self.take_zone_card_for_graveyard(active, "hand", card_index)?;
+            let (card, graveyard_destination) = self.take_hand_card_for_discard_with(
+                active,
+                card_index,
+                Some(&mut *provider as &mut dyn DecisionProvider),
+            )?;
             let card_id = card.instance_id.clone();
             self.put_owned_card_into_prepared_graveyard(active, card, graveyard_destination)?;
             eprintln!(
@@ -38501,6 +38652,9 @@ impl GameEngine {
         if self.state.outcome.is_some() {
             return Ok(());
         }
+        if self.run_phases_added_after_main_phase(provider)? {
+            return Ok(());
+        }
         let active_player_id = self.state.players[self.state.active_player].id.clone();
         let skip_combat = self.state.rule_modifiers.iter().position(|modifier| {
             value_kind(modifier) == Some("skipCombatNextTurn")
@@ -38545,6 +38699,9 @@ impl GameEngine {
                 return Ok(());
             }
         }
+        if self.run_phases_added_after_combat_phase(provider)? {
+            return Ok(());
+        }
         self.transition_to_step(GameStep::PostcombatMain);
         self.enqueue_step_triggers("postcombatMain");
         self.run_priority_window(provider)?;
@@ -38552,6 +38709,9 @@ impl GameEngine {
             return Ok(());
         }
         if self.state.outcome.is_some() {
+            return Ok(());
+        }
+        if self.run_phases_added_after_main_phase(provider)? {
             return Ok(());
         }
         self.transition_to_step(GameStep::EndStep);
@@ -38643,7 +38803,9 @@ impl GameEngine {
         }
 
         self.run_priority_window(provider)?;
-        let forced_turn_end = self.finish_forced_turn(provider)?;
+        let forced_turn_end = self.finish_forced_turn(provider)?
+            || (self.state.outcome.is_none()
+                && self.run_phases_added_after_main_phase(provider)?);
         if !forced_turn_end && self.state.outcome.is_none() {
             self.transition_to_step(GameStep::EndStep);
             self.enqueue_step_triggers("endStep");

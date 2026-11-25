@@ -56,12 +56,13 @@ fn keyword_actions_and_keyword_abilities_are_named_from_the_catalog() {
             "effect.unsupported-verb.",
             "Exchange",
         ),
+        // Madness now has a casting keyword row; ripple still has none.
         (
-            "Circular Logic",
+            "Thrill of the Hunt Probe",
             "Instant",
-            "Madness {U} (If you discard this card, discard it into exile. When you do, cast it for its madness cost or put it into your graveyard.)",
-            "keyword.unsupported.madness",
-            "Madness",
+            "Ripple 4 (When you cast this spell, you may reveal the top four cards of your library. You may cast any revealed cards with the same name as this spell without paying their mana costs. Put the rest on the bottom of your library in any order.)",
+            "keyword.unsupported.ripple",
+            "Ripple",
         ),
     ] {
         let parsed = parse(name, type_line, text);

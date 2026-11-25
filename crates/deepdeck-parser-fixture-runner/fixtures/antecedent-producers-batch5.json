@@ -369,28 +369,6 @@
       }
     },
     {
-      "id": "near-miss-named-source-branch-writes-no-nominal",
-      "request": {
-        "cardName": "Ardoz, Cobbler of War",
-        "typeLine": "Legendary Creature — Goblin Shaman",
-        "manaCost": "{1}{R}{R}",
-        "oracleText": "Whenever Ardoz or another creature you control enters, that creature gets +2/+0 until end of turn.",
-        "layout": "normal",
-        "faces": []
-      },
-      "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "abilityCount": 1,
-        "diagnostics": [
-          {
-            "code": "oracle_machine_failure",
-            "state": "permanent.subject.nominal-anaphor.antecedent"
-          }
-        ]
-      }
-    },
-    {
       "id": "salt-road-ambushers-exact-turned-face-up-pronoun",
       "request": {
         "cardName": "Salt Road Ambushers",

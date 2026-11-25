@@ -26,9 +26,20 @@
 //!                 ["that isn't a mana ability"]
 //!
 //! AttackDeclaration := Actor "attack(s) with" QuantifiedAttackers
+//! PlayerAttack      := Actor "attack(s)" AttackedRecipient
+//!                      ["with" QuantifiedAttackers]   -- the shared attack event
 //! AttackedRecipient := Attacked ("or" Attacked)*    -- after `attack(s)`
 //! Attacked          := Actor | ("a" | "an") PermanentQuery
+//! ReceivedDamage    := "you're" "dealt" [KIND] "damage"
+//!                    | [KIND] "damage" "is" "dealt" "to" Actor
+//! CausedAction      := StackSelector "causes" Actor "to" ObjectVerb CardObject
+//! CardObject        := ("a" | "an" | "another") CardQuery
+//!                    | "one" "or" "more" CardCollection | "this card"
 //! ```
+//!
+//! After `or`, an occurrence without a subject shares the player actor of
+//! the occurrence before it (`you play a land or cast a spell`); the event
+//! clause reads it with `recognize_player_event_predicate`.
 //!
 //! Actor, verbs and the card object are independent attributes. A union
 //! selects one event occurrence; it shares the actor and the object. Every
@@ -54,6 +65,10 @@ pub(in crate::oracle::canonical) enum ActivatedAbilityKind {
     NonMana,
     /// `a loyalty ability` (CR 606.3): never a mana ability.
     Loyalty,
+    /// `an exhaust ability`, `a boast ability`: an ability the activation
+    /// keyword labels (CR 702.142a, 702.177a, 702.193a), the ability class
+    /// the activated rule records.
+    Labelled(super::ActivationKeyword),
 }
 
 /// One declaration of attackers (CR 508.1) as a trigger event: the attacking
@@ -134,6 +149,10 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     Exert,
     /// `complete a dungeon` (CR 309.7): the acting player completed one.
     CompleteDungeon,
+    /// `STACK-OBJECT counters a SPELL` (CR 701.6): a spell or ability of the
+    /// acting player countered a spell; the countered spell is the event's
+    /// card object and the countering object its cause.
+    CounterSpell,
 }
 
 /// The die results a roll event observes (CR 706.2). Both bounds inclusive;
@@ -195,6 +214,8 @@ impl PlayerEventAction {
                 | Self::Clash { .. }
                 | Self::Proliferate
                 | Self::Exert
+                | Self::ActivateAbility(_)
+                | Self::BeDealtDamage(_)
         )
     }
 
@@ -218,6 +239,38 @@ const FIXED_PLAYER_EVENT_ACTIONS: [PlayerEventAction; 6] = [
 pub(in crate::oracle::canonical) struct PlayerEventCardObject {
     pub query: ObjectQueryNode,
     pub exclude_source: bool,
+    /// How many cards one occurrence names (CR 603.2c).
+    pub selection: PlayerEventCardSelection,
+    /// The spell or ability that caused the action (`a spell or ability an
+    /// opponent controls causes you to discard this card`, CR 701.9): an
+    /// attribute of the occurrence the observer matches. `None` is any cause.
+    pub cause: Option<super::TargetingStackSelectorNode>,
+}
+
+impl PlayerEventCardObject {
+    /// The ability's own card is the object (`this card`).
+    pub(in crate::oracle::canonical) fn is_source_card(&self) -> bool {
+        self.selection == PlayerEventCardSelection::Source
+    }
+
+    /// One occurrence per action of `one or more` cards.
+    pub(in crate::oracle::canonical) fn is_batch(&self) -> bool {
+        self.selection == PlayerEventCardSelection::OneOrMore
+    }
+}
+
+/// The cardinality of the card object of one player-action occurrence.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum PlayerEventCardSelection {
+    /// `a CARD`: one occurrence per matching card.
+    One,
+    /// `one or more CARDS`: one occurrence per action of the player that
+    /// moved at least one matching card (one instruction, one cost), with
+    /// the matching cards' number as the event's object count.
+    OneOrMore,
+    /// `this card` / the source's name: the ability's own card is the
+    /// object, observed from where the action put it (CR 113.6).
+    Source,
 }
 
 /// Third-person singular of a base verb (`scry` -> `scries`).
@@ -278,15 +331,67 @@ fn recognize_union_verb(
     Some(action)
 }
 
+/// `this card` or the source's printed name at the cursor (a lexical probe).
+fn source_card_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    (word_at(cursor, 0, "this") && word_at(cursor, 1, "card"))
+        || super::current_source_name_at(cursor)
+}
+
+/// The card object of a player action:
+///
+/// ```text
+/// CardObject := ("a" | "an" | "another") CardQuery     -- one per card
+///             | "one" "or" "more" CardCollection       -- one per action
+///             | "this card" | SOURCE-NAME              -- the source card
+/// ```
+///
+/// The query is the shared object query (singular) or collection (plural);
+/// the cardinality is a separate attribute of the occurrence.
 fn recognize_card_object(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PlayerEventCardObject> {
     cursor.enter("event.player.card-determiner");
+    if source_card_starts(cursor) {
+        cursor.enter("event.player.card-source");
+        let names = cursor.source_names().to_vec();
+        super::recognize_source_reference(cursor, &names, None)?;
+        return Ok(PlayerEventCardObject {
+            query: ObjectQueryNode {
+                predicate: super::ObjectPredicate::ObjectKind(ObjectKind::Card),
+                controller: None,
+                exclude_source: false,
+            },
+            exclude_source: false,
+            selection: PlayerEventCardSelection::Source,
+            cause: None,
+        });
+    }
+    if word_at(cursor, 0, "one") && word_at(cursor, 1, "or") && word_at(cursor, 2, "more") {
+        cursor.enter("event.player.card-batch");
+        cursor.consume_phrase(&["one", "or", "more"])?;
+        let query = super::recognize_object_collection(cursor)?;
+        cursor.enter("event.player.card-domain");
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Card)
+                && query.predicate.has_nominal_head()
+                && query.controller.is_none(),
+            "a card collection with a nominal head and no controller relation",
+        )?;
+        let exclude_source = query.exclude_source;
+        return Ok(PlayerEventCardObject {
+            query,
+            exclude_source,
+            selection: PlayerEventCardSelection::OneOrMore,
+            cause: None,
+        });
+    }
     let head = cursor
         .peek()
         .map(str::to_ascii_lowercase)
         .filter(|raw| ["a", "an", "another"].contains(&raw.as_str()))
-        .ok_or_else(|| cursor.fail("`a`, `an` or `another` before the card"))?;
+        .ok_or_else(|| {
+            cursor.fail("`a`, `an`, `another`, `one or more` or `this card` before the card")
+        })?;
     cursor.consume(&head)?;
     cursor.enter("event.player.card-query");
     let query = recognize_object_query(cursor)?;
@@ -300,6 +405,8 @@ fn recognize_card_object(
     Ok(PlayerEventCardObject {
         query,
         exclude_source: head == "another",
+        selection: PlayerEventCardSelection::One,
+        cause: None,
     })
 }
 
@@ -309,6 +416,9 @@ fn recognize_card_object(
 pub(in crate::oracle::canonical) fn recognize_player_event(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<LocalTriggerEventNode> {
+    if let Some(event) = recognize_player_received_damage(cursor)? {
+        return Ok(event);
+    }
     cursor.enter("event.player.actor");
     let plural = try_recognize_plural_event_actor_scope(cursor)?;
     let one_or_more = plural.is_some();
@@ -317,6 +427,18 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
         None => try_recognize_event_actor_scope(cursor)?
             .ok_or_else(|| cursor.fail("a player event actor"))?,
     };
+    recognize_player_event_predicate(cursor, actor, one_or_more)
+}
+
+/// The verb frame of a player event after its actor: read after the
+/// written actor, or after `or` with the actor of the previous occurrence
+/// (`you play a land or discard a card`, CR 603.2), whose agreement the
+/// verbs keep.
+pub(in crate::oracle::canonical) fn recognize_player_event_predicate(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    one_or_more: bool,
+) -> MachineResult<LocalTriggerEventNode> {
     let third_person = actor != EventActorScope::Controller && !one_or_more;
     cursor.enter("event.player.action");
     // `gain(s) life` / `lose(s) life`: the shared life clause with the actor
@@ -435,6 +557,13 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
         actions.push(next);
     }
     let card = if first.takes_card_object() {
+        // `you cycle this card` is the source-cycled event (CR 702.29),
+        // which functions while the card is cycled from the hand.
+        cursor.enter("event.player.cycled-source");
+        cursor.require(
+            !(actions.contains(&PlayerEventAction::CycleCard) && source_card_starts(cursor)),
+            "a cycled card other than the source (the source-cycled event reads it)",
+        )?;
         Some(recognize_card_object(cursor)?)
     } else {
         None
@@ -448,6 +577,162 @@ pub(in crate::oracle::canonical) fn recognize_player_event(
         permanent: None,
         first_time_each_turn: false,
     })
+}
+
+/// Reads `STACK-OBJECT causes PLAYER to VERB CARD` (CR 701.9, 609.7): the
+/// player action an effect of a spell or ability made that player perform.
+/// The causing spell or ability is the shared targeting-stack selector
+/// (`a spell or ability an opponent controls`); the performer is the shared
+/// event actor; the action is a card verb of the player-event union read in
+/// the bare infinitive, with the shared card object. The cause is an
+/// attribute of the same occurrence, matched by the observer.
+pub(in crate::oracle::canonical) fn recognize_caused_player_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalTriggerEventNode> {
+    cursor.enter("event.caused-action.cause");
+    let cause = super::recognize_targeting_stack_selector(cursor)?;
+    cursor.enter("event.caused-action.verb");
+    cursor.consume("causes")?;
+    cursor.enter("event.caused-action.performer");
+    let actor = try_recognize_event_actor_scope(cursor)?
+        .ok_or_else(|| cursor.fail("the player the spell or ability causes to act"))?;
+    cursor.enter("event.caused-action.infinitive");
+    cursor.consume("to")?;
+    let action = recognize_union_verb(cursor, false)
+        .filter(|action| action.takes_card_object())
+        .ok_or_else(|| cursor.fail("a card action the caused player performs (`discard`)"))?;
+    let mut card = recognize_card_object(cursor)?;
+    card.cause = Some(cause);
+    cursor.enter("event.caused-action.complete");
+    Ok(LocalTriggerEventNode::PlayerEvent {
+        actor,
+        actions: vec![action],
+        one_or_more: false,
+        card: Some(card),
+        permanent: None,
+        first_time_each_turn: false,
+    })
+}
+
+/// Reads `STACK-OBJECT counters a SPELL` (CR 701.6): a spell or ability
+/// countering a spell. The countering object is the shared targeting-stack
+/// selector (`a spell or ability you control`), whose controller relation is
+/// the acting player; the countered spell is the shared object query in the
+/// spell domain. The countering object is the cause of the occurrence.
+pub(in crate::oracle::canonical) fn recognize_stack_object_counter_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalTriggerEventNode> {
+    cursor.enter("event.counter.countering-object");
+    let cause = super::recognize_targeting_stack_selector(cursor)?;
+    cursor.enter("event.counter.verb");
+    consume_lemma(
+        cursor,
+        VerbLemma::Counter,
+        VerbAgreement::ThirdPersonSingular,
+    )?;
+    cursor.enter("event.counter.countered-article");
+    let article = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| raw == "a" || raw == "an")
+        .ok_or_else(|| cursor.fail("`a` or `an` before the countered spell"))?;
+    cursor.consume(&article)?;
+    cursor.enter("event.counter.countered-spell");
+    let query = recognize_object_query(cursor)?;
+    cursor.require(
+        query.predicate.is_in_domain(ObjectKind::Spell) && query.controller.is_none(),
+        "a countered spell query without a controller relation",
+    )?;
+    let actor = match cause.controller {
+        None => EventActorScope::AnyPlayer,
+        Some(super::ObjectControllerScope::AbilityController) => EventActorScope::Controller,
+        Some(super::ObjectControllerScope::OpponentOfAbilityController) => {
+            EventActorScope::Opponent
+        }
+        Some(_) => return Err(cursor.fail("a player relation of the countering object")),
+    };
+    cursor.enter("event.counter.complete");
+    Ok(LocalTriggerEventNode::PlayerEvent {
+        actor,
+        actions: vec![PlayerEventAction::CounterSpell],
+        one_or_more: false,
+        card: Some(PlayerEventCardObject {
+            query,
+            exclude_source: false,
+            selection: PlayerEventCardSelection::One,
+            cause: Some(cause),
+        }),
+        permanent: None,
+        first_time_each_turn: false,
+    })
+}
+
+/// The received-damage event of one player (CR 120.3) written with the
+/// player in a contracted or prepositional slot, the same occurrence as
+/// `PLAYER is dealt [KIND] damage`:
+///
+/// ```text
+/// "you're" "dealt" [KIND] "damage"           -- the copula fused to `you`
+/// [KIND] "damage" "is" "dealt" "to" PLAYER   -- the damage as subject
+/// ```
+///
+/// The damage kind is the shared dealt-damage complement; PLAYER is the
+/// shared event actor, one player (a recipient union is an explicit
+/// failure). `None` when neither form starts (nothing consumed).
+fn recognize_player_received_damage(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Option<LocalTriggerEventNode>> {
+    let received = |actor, kind| LocalTriggerEventNode::PlayerEvent {
+        actor,
+        actions: vec![PlayerEventAction::BeDealtDamage(kind)],
+        one_or_more: false,
+        card: None,
+        permanent: None,
+        first_time_each_turn: false,
+    };
+    let contracted = cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("you're") || raw.eq_ignore_ascii_case("you’re")
+    });
+    if contracted
+        && cursor
+            .peek_ahead(1)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Deal, super::VerbForm::PastParticiple))
+    {
+        cursor.enter("event.player.received-damage.contracted");
+        consume_verb_word(cursor)?;
+        consume_verb_word(cursor)?;
+        let kind = super::recognize_dealt_damage_complement(cursor)?;
+        return Ok(Some(received(EventActorScope::Controller, kind)));
+    }
+    // `[combat|noncombat] damage is dealt to PLAYER`: a lexical probe of the
+    // passive with the damage as subject before anything is consumed.
+    let theme_length = usize::from(cursor.peek().is_some_and(|raw| {
+        raw.eq_ignore_ascii_case("combat") || raw.eq_ignore_ascii_case("noncombat")
+    }));
+    let passive = word_at(cursor, theme_length, "damage")
+        && word_at(cursor, theme_length + 1, "is")
+        && cursor
+            .peek_ahead(theme_length + 2)
+            .is_some_and(|raw| is_verb_form(raw, VerbLemma::Deal, super::VerbForm::PastParticiple))
+        && word_at(cursor, theme_length + 3, "to");
+    if !passive {
+        return Ok(None);
+    }
+    cursor.enter("event.player.received-damage.theme");
+    let kind = super::recognize_damage_theme(cursor)?;
+    cursor.enter("event.player.received-damage.passive");
+    cursor.consume("is")?;
+    consume_verb_word(cursor)?;
+    cursor.consume("to")?;
+    cursor.enter("event.player.received-damage.recipient");
+    let actor = try_recognize_event_actor_scope(cursor)?
+        .ok_or_else(|| cursor.fail("the player the damage is dealt to"))?;
+    cursor.enter("event.player.received-damage.single-recipient");
+    cursor.require(
+        !word_at(cursor, 0, "or") && !word_at(cursor, 0, "and/or"),
+        "one player recipient (a recipient union is not one player's damage)",
+    )?;
+    Ok(Some(received(actor, kind)))
 }
 
 /// The surface at the cursor is `lemma` in `agreement` (lexicon data).
@@ -491,11 +776,11 @@ fn recognize_player_action_frame(
     if lemma_form_at(cursor, VerbLemma::Activate, agreement) {
         cursor.enter("event.player.activate");
         consume_verb_word(cursor)?;
-        let kind = recognize_activated_ability_query(cursor)?;
+        let (kind, source) = recognize_activated_ability_query(cursor)?;
         cursor.enter("event.player.complete");
         return Ok(Some(event(
             vec![PlayerEventAction::ActivateAbility(kind)],
-            None,
+            source,
         )));
     }
     if lemma_form_at(cursor, VerbLemma::Tap, agreement) {
@@ -515,6 +800,8 @@ fn recognize_player_action_frame(
             Some(PlayerEventCardObject {
                 query,
                 exclude_source,
+                selection: PlayerEventCardSelection::One,
+                cause: None,
             }),
         )));
     }
@@ -549,6 +836,8 @@ fn recognize_player_action_frame(
             Some(PlayerEventCardObject {
                 query,
                 exclude_source,
+                selection: PlayerEventCardSelection::One,
+                cause: None,
             }),
         )));
     }
@@ -711,12 +1000,34 @@ fn recognize_die_roll(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<DieRo
     })
 }
 
-/// `a loyalty ability` | `an ability that isn't a mana ability`: the kinds of
-/// activated abilities the activation record distinguishes. Any other
-/// ability noun phrase fails explicitly.
+/// `that isn't a mana ability` at `offset` (CR 605.1a), a lexical probe.
+fn non_mana_relative_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    word_at(cursor, offset, "that")
+        && cursor.peek_ahead(offset + 1).is_some_and(|raw| {
+            raw.eq_ignore_ascii_case("isn't") || raw.eq_ignore_ascii_case("isn’t")
+        })
+        && word_at(cursor, offset + 2, "a")
+        && word_at(cursor, offset + 3, "mana")
+        && word_at(cursor, offset + 4, "ability")
+}
+
+/// The activated ability an activation event names (CR 602.2):
+///
+/// ```text
+/// AbilityQuery := ("a" | "an") ["loyalty"] "ability" ["of" SOURCE]
+///                 ["that isn't a mana ability"]
+/// SOURCE       := ("a" | "an") ObjectQuery   -- the object whose ability it is
+/// ```
+///
+/// The kind is a property of the activation record: a loyalty ability, or
+/// any ability that isn't a mana ability (CR 605.1a). The source object is
+/// the shared object query, read up to the non-mana relative clause that
+/// qualifies the ability, not the object. An activation that may be a mana
+/// ability (no relative clause, no loyalty) fails explicitly: the runtime
+/// observes only non-mana activations.
 fn recognize_activated_ability_query(
     cursor: &mut OracleTokenCursor<'_>,
-) -> MachineResult<ActivatedAbilityKind> {
+) -> MachineResult<(ActivatedAbilityKind, Option<PlayerEventCardObject>)> {
     cursor.enter("event.player.ability-query.article");
     let article = cursor
         .peek()
@@ -725,24 +1036,99 @@ fn recognize_activated_ability_query(
         .ok_or_else(|| cursor.fail("`a` or `an` before the activated ability"))?;
     cursor.consume(&article)?;
     cursor.enter("event.player.ability-query.noun");
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("loyalty"))
-    {
-        cursor.consume_phrase(&["loyalty", "ability"])?;
-        return Ok(ActivatedAbilityKind::Loyalty);
+    let loyalty = word_at(cursor, 0, "loyalty");
+    if loyalty {
+        cursor.consume("loyalty")?;
     }
+    // `an exhaust ability`: the keyword labelling an activated ability, by
+    // its catalog identity (`power-up`).
+    // The mechanic catalog names it as `ActivationKeyword` does for `each
+    // exhaust ability` (one shared label reader).
+    let labelled = (!loyalty)
+        .then(|| {
+            crate::oracle::ability_catalog::match_catalog_mechanic(
+                cursor.token_slice(cursor.position(), usize::MAX),
+                0,
+            )
+        })
+        .flatten()
+        .filter(|matched| word_at(cursor, matched.end_token, "ability"))
+        .and_then(|matched| {
+            super::ActivationKeyword::from_canonical_id(matched.canonical_id)
+                .map(|keyword| (keyword, matched.end_token))
+        });
+    if let Some((_, width)) = labelled {
+        cursor.advance_to(cursor.position() + width)?;
+    }
+    let labelled = labelled.map(|(keyword, _)| keyword);
     cursor.consume("ability")?;
+    let source = if word_at(cursor, 0, "of") {
+        cursor.enter("event.player.ability-query.source");
+        cursor.consume("of")?;
+        let article = cursor
+            .peek()
+            .map(str::to_ascii_lowercase)
+            .filter(|raw| raw == "a" || raw == "an")
+            .ok_or_else(|| cursor.fail("`a` or `an` before the ability's source object"))?;
+        cursor.consume(&article)?;
+        // The relative clause qualifies the ability: the object query ends
+        // before it, so a comma-separated source list (`an artifact,
+        // creature, or land that isn't a mana ability`) stays one query.
+        // Without the clause it ends at the event's punctuation.
+        let sentence = (0..)
+            .map_while(|offset| cursor.peek_ahead(offset).map(|raw| (offset, raw)))
+            .take_while(|(_, raw)| !matches!(*raw, "." | ";"))
+            .map(|(offset, _)| offset)
+            .collect::<Vec<_>>();
+        let end = sentence
+            .iter()
+            .copied()
+            .find(|offset| non_mana_relative_at(cursor, *offset))
+            .or_else(|| {
+                sentence
+                    .iter()
+                    .copied()
+                    .find(|offset| cursor.peek_ahead(*offset) == Some(","))
+            })
+            .unwrap_or(sentence.len());
+        let end = cursor.position() + end;
+        cursor.enter("event.player.ability-query.source-query");
+        let query = cursor.bounded(end, recognize_object_query)?;
+        cursor.enter("event.player.ability-query.source-domain");
+        cursor.require(
+            query.predicate.supports_domain(ObjectKind::Card) && query.predicate.has_nominal_head(),
+            "an ability source object with a nominal head",
+        )?;
+        let exclude_source = query.exclude_source;
+        Some(PlayerEventCardObject {
+            query,
+            exclude_source,
+            selection: PlayerEventCardSelection::One,
+            cause: None,
+        })
+    } else {
+        None
+    };
     cursor.enter("event.player.ability-query.relative");
-    cursor.consume("that")?;
-    let negation = cursor
-        .peek()
-        .filter(|raw| raw.eq_ignore_ascii_case("isn't") || raw.eq_ignore_ascii_case("isn’t"))
-        .map(str::to_string)
-        .ok_or_else(|| cursor.fail("`that isn't a mana ability`"))?;
-    cursor.consume(&negation)?;
-    cursor.consume_phrase(&["a", "mana", "ability"])?;
-    Ok(ActivatedAbilityKind::NonMana)
+    if loyalty {
+        // A loyalty ability is never a mana ability (CR 606.3).
+        return Ok((ActivatedAbilityKind::Loyalty, source));
+    }
+    if let Some(keyword) = labelled {
+        // The labelling keywords add activation rules to abilities that
+        // are not mana abilities (CR 702.142a, 702.177a, 702.193a); the
+        // written restriction repeats that.
+        if non_mana_relative_at(cursor, 0) {
+            cursor.advance_to(cursor.position() + 5)?;
+        }
+        return Ok((ActivatedAbilityKind::Labelled(keyword), source));
+    }
+    cursor.require(
+        non_mana_relative_at(cursor, 0),
+        "`that isn't a mana ability` (the runtime observes only non-mana activations)",
+    )?;
+    cursor.advance_to(cursor.position() + 5)?;
+    Ok((ActivatedAbilityKind::NonMana, source))
 }
 
 /// Reads `ACTOR attack(s) with N or more ATTACKERS` (CR 508.1): one attack
@@ -778,6 +1164,91 @@ pub(in crate::oracle::canonical) fn recognize_player_attack_declaration(
         attacker,
         attackers,
         source: None,
+    })
+}
+
+/// The attackers' controller relation a player actor writes: the attacking
+/// player controls every attacker it declares (CR 508.1a).
+fn attacker_controller_of(actor: EventActorScope) -> Option<super::ObjectControllerScope> {
+    match actor {
+        EventActorScope::Controller => Some(super::ObjectControllerScope::AbilityController),
+        EventActorScope::Opponent => {
+            Some(super::ObjectControllerScope::OpponentOfAbilityController)
+        }
+        EventActorScope::AnyPlayer => None,
+    }
+}
+
+/// Reads `ACTOR attack(s) RECIPIENT [or RECIPIENT]... [with N or more
+/// ATTACKERS]` (CR 508.1, 603.2c): one attack declaration of the actor, once
+/// per attacked recipient. A player attacking is the declaration of the
+/// attackers that player controls, so the occurrence is the shared
+/// quantified attack event (`one or more creatures you control attack a
+/// player`) with the actor as the attackers' controller relation. The
+/// recipient reader and the attackers' query are the shared ones; `with`
+/// refines the attackers (default: at least one creature).
+///
+/// `Err` before the recipient is a candidate mismatch (`Whenever you
+/// attack,` is the fixed player event); the enclosing clause owns the
+/// boundary.
+pub(in crate::oracle::canonical) fn recognize_player_attack_recipient_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<super::ObjectEventNode> {
+    cursor.enter("event.player-attack.actor");
+    let actor = try_recognize_event_actor_scope(cursor)?
+        .ok_or_else(|| cursor.fail("an attacking player"))?;
+    let agreement = if actor == EventActorScope::Controller {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    };
+    cursor.enter("event.player-attack.verb");
+    consume_lemma(cursor, VerbLemma::Attack, agreement)?;
+    cursor.enter("event.player-attack.recipient");
+    cursor.require(
+        attacked_recipient_starts(cursor),
+        "an attacked player, planeswalker or battle after `attack(s)`",
+    )?;
+    let attacked = recognize_attacked_recipients(cursor)?;
+    let controller = attacker_controller_of(actor);
+    let subject = if word_at(cursor, 0, "with") {
+        cursor.enter("event.player-attack.attackers");
+        cursor.consume("with")?;
+        let attackers = recognize_quantified_event_subject(cursor)?;
+        cursor.require(
+            matches!(attackers.multiplicity, EventMultiplicity::PerEvent { .. }),
+            "`N or more` attackers of one declaration",
+        )?;
+        cursor.require(
+            attackers.query.controller.is_none() && !attackers.exclude_source,
+            "attackers without a second controller relation or source exclusion",
+        )?;
+        QuantifiedEventSubjectNode {
+            query: ObjectQueryNode {
+                controller,
+                ..attackers.query
+            },
+            ..attackers
+        }
+    } else {
+        QuantifiedEventSubjectNode {
+            multiplicity: EventMultiplicity::PerEvent { minimum: 1 },
+            query: ObjectQueryNode {
+                predicate: super::ObjectPredicate::CardType(super::ObjectCardType::Creature),
+                controller,
+                exclude_source: false,
+            },
+            exclude_source: false,
+        }
+    };
+    cursor.enter("event.player-attack.complete");
+    Ok(super::ObjectEventNode {
+        subject,
+        verb: super::ObjectEventVerb::Attack,
+        damage: None,
+        alone: false,
+        attacked,
+        modifiers: super::EventModifierTail::default(),
     })
 }
 

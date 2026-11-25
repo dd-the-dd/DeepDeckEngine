@@ -17,7 +17,9 @@ fn generic_primary_and_specialized_candidate_are_both_exposed_with_distinct_role
                 "../../crates/deepdeck-parser-fixture-runner/fixtures/earthbender-ascension-landfall.json"
             ),
             "unsupported-source-counter-comparator-near-miss",
-            "effect.start",
+            // The generic reader now reads the reflexive intervening `if`
+            // and stops at its unread comparison.
+            "condition.sentence.object.property",
             "condition.source-counter-threshold.comparator-direction",
             "exactly",
         ),

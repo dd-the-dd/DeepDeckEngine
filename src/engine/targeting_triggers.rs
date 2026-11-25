@@ -135,6 +135,7 @@ fn targeting_stack_selector_supported(selector: &Value) -> bool {
             .get("controller")
             .is_none_or(controller_reference_supported)
         && target_candidates_supported(selector)
+        && super::stack_item_filter_supported(&selector["where"])
 }
 
 pub(super) fn newly_targeted_identities(

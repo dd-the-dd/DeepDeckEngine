@@ -9,6 +9,12 @@ pub(super) fn supports_effect(effect: &Value) -> Option<bool> {
 
 fn supports_known_effect(effect: &Value) -> bool {
     match value_kind(effect) {
+        Some("installCombatRequirement") => {
+            super::super::combat_requirements::combat_requirement_effect_supported(effect)
+        }
+        Some("lockLifeTotal") => {
+            super::super::combat_requirements::life_total_lock_supported(effect)
+        }
         Some("installUntapRestriction") => {
             ((target_reference_supported(&effect["permanent"])
                 && matches!(
@@ -229,6 +235,12 @@ impl GameEngine {
             }
             Some("installDamageReplacement") => {
                 self.install_created_damage_replacement(effect, stack_object);
+            }
+            Some("installCombatRequirement") => {
+                self.install_combat_requirement(effect, stack_object, bindings, decisions)?;
+            }
+            Some("lockLifeTotal") => {
+                self.install_life_total_lock(effect, stack_object, bindings)?
             }
             Some("installUntapRestriction") => {
                 let permanent = if matches!(

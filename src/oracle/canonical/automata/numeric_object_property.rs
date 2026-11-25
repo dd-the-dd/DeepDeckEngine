@@ -399,19 +399,32 @@ pub(in crate::oracle::canonical) fn recognize_of_genitive_property(
     let raw = cursor.peek().unwrap_or_default().to_owned();
     cursor.consume(&raw)?;
     cursor.enter("numeric.of-genitive.result");
-    let result = environment
-        .result_object
-        .as_ref()
-        .filter(|result| {
-            result.verb == Some(verb)
-                && result.number == super::GrammaticalNumber::Singular
-                && super::selector_names_nominals(&result.selector, &[nominal])
-        })
-        .ok_or_else(|| {
-            cursor.fail(
-                "an earlier action of this program that selected or moved exactly one object of this nominal with this verb",
-            )
-        })?;
+    let result = environment.result_object.as_ref().filter(|result| {
+        result.verb == Some(verb)
+            && result.number == super::GrammaticalNumber::Singular
+            && super::selector_names_nominals(&result.selector, &[nominal])
+    });
+    let Some(result) = result else {
+        // `the mana value of the exiled card` without an exile of this
+        // program: the card a cost of this ability paid with, which card
+        // composition binds to that one cost or refuses explicitly.
+        if let Some(expected) = super::participle_card_target_conflict(environment, verb) {
+            return Err(cursor.fail(expected));
+        }
+        let card_nominal = matches!(
+            nominal,
+            super::TargetNominal::Domain(super::ObjectKind::Card)
+                | super::TargetNominal::CardType(_)
+        );
+        return card_nominal
+            .then(|| super::cost_paid_participle_property(verb, property))
+            .flatten()
+            .ok_or_else(|| {
+                cursor.fail(
+                    "an earlier action of this program that selected or moved exactly one object of this nominal with this verb",
+                )
+            });
+    };
     super::bound_object_numeric_property(
         result.permanent_reference(),
         property,

@@ -10,6 +10,10 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_permanent_operand(
             Err(TargetlessLoweringError::RequiresTarget)
         }
         PermanentOperandNode::Reference(LocalObjectReference::SourceSelf) => Ok(self_ref()),
+        // A resolution choice is emitted by the program lowering before its
+        // action (`chosen_operand.rs`); a single-effect lowering has no step
+        // to put it in.
+        PermanentOperandNode::Chosen(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         PermanentOperandNode::Collection {
             objects,
             exclude_source,
@@ -95,6 +99,9 @@ pub(in crate::oracle::canonical) const EMBEDDED_PLAYER_TARGET: &str = "embeddedP
 /// the program declaration pass resolves.
 pub(in crate::oracle::canonical) fn lower_related_player(player: RelatedPlayer) -> Value {
     match player {
+        // `that player` after an earlier player declaration: resolved by the
+        // program lowering (`resolve_bound_player_anchors`).
+        RelatedPlayer::Bound(BoundPlayerReference::Bound(binding)) => bound_player_anchor(binding),
         // The selector admits only references with a context-free value.
         RelatedPlayer::Bound(reference) => bound_player_reference_value(reference, &[], &[])
             .unwrap_or_else(|| json!({ "kind": "unresolvedRelatedPlayer" })),

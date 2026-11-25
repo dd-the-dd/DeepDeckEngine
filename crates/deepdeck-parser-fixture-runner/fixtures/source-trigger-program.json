@@ -765,14 +765,44 @@
         "faces": []
       },
       "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "optionalEffects"
+              },
+              {
+                "pointer": "/effects/0/oncePerTurn",
+                "equals": "doThisOnlyOnceEachTurn"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-permission-body-only-twice-each-turn-refused",
+      "request": {
+        "cardName": "Synthetic source near miss",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}",
+        "oracleText": "you may draw a card and proliferate. Do this only twice each turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
-        "abilityCount": 1,
         "diagnostics": [
           {
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
-            "automaton": "contextual-effect-program",
             "state": "effect.start",
             "found": "Do"
           }

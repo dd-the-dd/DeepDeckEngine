@@ -34,6 +34,90 @@ pub(in crate::oracle::canonical) fn validate_object_predicate_numeric_expression
     }
 }
 
+/// The placeholder a query's `that player` lowers to when the player is an
+/// earlier player declaration of the same program (`each creature that
+/// player controls` after `target player`, CR 608.2c). The query is lowered
+/// without the program's declarations; `resolve_bound_player_anchors`
+/// replaces it with that declaration, and the engine refuses one left over.
+pub(in crate::oracle::canonical) const BOUND_PLAYER_ANCHOR: &str = "boundPlayerAnchor";
+
+pub(in crate::oracle::canonical) fn bound_player_anchor(binding: PlayerBinding) -> Value {
+    json!({ "kind": BOUND_PLAYER_ANCHOR, "binding": binding.0 })
+}
+
+/// Replaces every bound-player placeholder of the lowered program with the
+/// player its program declared under that binding. A binding the program
+/// did not declare is an explicit failure, never another player.
+pub(in crate::oracle::canonical) fn resolve_bound_player_anchors(
+    cursor: &mut OracleTokenCursor<'_>,
+    effects: &mut [Value],
+    declared: &[(PlayerTargetBinding, String)],
+) -> MachineResult<()> {
+    fn resolve(
+        value: &mut Value,
+        declared: &[(PlayerTargetBinding, String)],
+    ) -> Result<(), &'static str> {
+        if value["kind"].as_str() == Some(BOUND_PLAYER_ANCHOR) {
+            let binding = value["binding"]
+                .as_u64()
+                .and_then(|binding| usize::try_from(binding).ok())
+                .ok_or("a bound player placeholder with its binding")?;
+            let id = declared
+                .iter()
+                .find_map(|(key, id)| (key.effect_index == binding).then_some(id))
+                .ok_or("an earlier declared player of this program for `that player`")?;
+            *value = chosen_target(id);
+            return Ok(());
+        }
+        match value {
+            Value::Array(values) => values
+                .iter_mut()
+                .try_for_each(|value| resolve(value, declared)),
+            Value::Object(fields) => fields
+                .values_mut()
+                .try_for_each(|value| resolve(value, declared)),
+            _ => Ok(()),
+        }
+    }
+    cursor.enter("lower.query.bound-player");
+    for effect in effects.iter_mut() {
+        resolve(effect, declared).map_err(|expected| cursor.fail(expected))?;
+    }
+    Ok(())
+}
+
+/// CR 115.1: a stack object one of whose targets is a listed player or a
+/// permanent of the listed query. Players and controllers are roles
+/// relative to the ability controller choosing the candidates. Shared by the
+/// spell query and the stack-item selector (`spell or ability that targets
+/// ...`).
+pub(in crate::oracle::canonical) fn lower_targets_relation(targeted: &TargetedObjects) -> Value {
+    let mut atom = json!({ "kind": "targets" });
+    if let Some(player) = targeted.players {
+        atom["players"] = json!(player.ir_name());
+    }
+    if let Some(permanents) = &targeted.permanents {
+        let mut query = json!({
+            "where": lower_permanent_object_predicate(&permanents.predicate),
+        });
+        if let Some(controller) = permanents.controller {
+            query["controller"] = json!(match controller {
+                ObjectControllerScope::AbilityController => "abilityController",
+                ObjectControllerScope::NotAbilityController => "notAbilityController",
+                ObjectControllerScope::OpponentOfAbilityController => {
+                    "opponentOfAbilityController"
+                }
+                // Refused by the engine's target-relation validator.
+                ObjectControllerScope::EventPlayer => "eventPlayer",
+                // Refused by the relative clause before lowering.
+                ObjectControllerScope::Player(_) => "relatedPlayer",
+            });
+        }
+        atom["permanents"] = query;
+    }
+    atom
+}
+
 /// Recursively lowers one shared object-predicate AST. Domain identities are
 /// represented exactly as the former context-specific lowerers represented
 /// them so this extraction does not alter canonical IR.
@@ -145,30 +229,7 @@ fn lower_object_predicate(
         // or a permanent of the listed query. Players and controllers are
         // roles relative to the ability controller choosing the candidates.
         ObjectPredicate::Relation(ObjectRelation::Targets(targeted)) => {
-            let mut atom = json!({ "kind": "targets" });
-            if let Some(player) = targeted.players {
-                atom["players"] = json!(player.ir_name());
-            }
-            if let Some(permanents) = &targeted.permanents {
-                let mut query = json!({
-                    "where": lower_permanent_object_predicate(&permanents.predicate),
-                });
-                if let Some(controller) = permanents.controller {
-                    query["controller"] = json!(match controller {
-                        ObjectControllerScope::AbilityController => "abilityController",
-                        ObjectControllerScope::NotAbilityController => "notAbilityController",
-                        ObjectControllerScope::OpponentOfAbilityController => {
-                            "opponentOfAbilityController"
-                        }
-                        // Refused by the engine's target-relation validator.
-                        ObjectControllerScope::EventPlayer => "eventPlayer",
-                        // Refused by the relative clause before lowering.
-                        ObjectControllerScope::Player(_) => "relatedPlayer",
-                    });
-                }
-                atom["permanents"] = query;
-            }
-            Some(atom)
+            Some(lower_targets_relation(targeted))
         }
         ObjectPredicate::ChosenCreatureType => Some(json!({
             "kind": "chosenCreatureType",
@@ -279,6 +340,17 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
         ObjectQualifier::EnteredUnderControlThisTurn(player) => json!({
             "kind": "enteredUnderControlThisTurn",
             "player": player.ir_name(),
+        }),
+        // The attacked player of an attacking permanent (CR 508.1b); the
+        // engine resolves the role at preparation, as for the entry
+        // controller.
+        ObjectQualifier::AttackingPlayer {
+            player,
+            planeswalkers,
+        } => json!({
+            "kind": "attackingPlayer",
+            "player": player.ir_name(),
+            "orPlaneswalkers": planeswalkers,
         }),
         // `toughness greater than its power`: both operands read the
         // candidate under test (CR 208.1).

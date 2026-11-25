@@ -4,10 +4,18 @@
 //!
 //! ```text
 //! Clause    := SUBJECT Predicate
+//!            | "All creatures able to block" SUBJECT DURATION "do so" -- CR 509.1c
+//!            | "its activated abilities can't be activated" DURATION   -- CR 602.5
+//!            | "your life total can't change" DURATION                  -- CR 119.3
 //! Predicate := (phases|phase) "out"                         -- CR 702.26b
 //!            | (assigns|assign) "no" "combat" "damage" DURATION -- CR 510.1
 //!            | "can't" "be" "regenerated" DURATION          -- CR 701.15
+//!            | (attacks|blocks) [RECIPIENT] WINDOW "if able" -- CR 508.1d, 509.1c
 //! ```
+//!
+//! A requirement, an activation prohibition and a life-total lock are
+//! rules an effect sets for a duration (`RuleChangeNode`); each lowers to
+//! one engine rule modifier, never to a card-specific operation.
 //!
 //! The subject is the shared permanent operand; its number selects the
 //! verb's agreement (`each` is distributive and singular). A phasing is the
@@ -19,13 +27,163 @@ use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 use super::super::{MachineResult, OracleTokenCursor};
 use super::{
-    EffectDurationNode, EffectRecognitionContext, GrantedKeyword, LocalEffectNode,
-    PermanentActionAttempt, PermanentKeywordAction, PermanentKeywordActionNode,
-    PermanentOperandNode, TemporaryKeywordGrantNode, VerbForm, VerbLemma, lookup_verb,
+    CombatRequirementNode, EffectDurationNode, EffectRecognitionContext, GrantedKeyword,
+    LocalEffectNode, PermanentActionAttempt, PermanentEffectReference, PermanentKeywordAction,
+    PermanentKeywordActionNode, PermanentOperandNode, SubjectVerbAgreement,
+    TemporaryKeywordGrantNode, VerbAgreement, VerbForm, VerbLemma, lookup_verb,
     permanent_operand_is_plural, recognize_contextual_permanent_operand,
     recognize_trailing_or_supplied_duration,
 };
 use crate::oracle::canonical::automata::{Auxiliary, is_verb_form, lookup_auxiliary};
+
+/// A rule an effect sets for a duration (CR 611.2a).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum RuleChangeNode {
+    /// `SUBJECT attacks|blocks [RECIPIENT] WINDOW if able`.
+    CombatRequirement(CombatRequirementNode),
+    /// `its activated abilities can't be activated DURATION` (CR 602.5):
+    /// mana abilities included, as for detain (CR 701.35a).
+    ActivationProhibition {
+        objects: PermanentOperandNode,
+        duration: EffectDurationNode,
+    },
+    /// `your life total can't change DURATION` (CR 119.3): the ability
+    /// controller neither gains nor loses life.
+    LifeTotalLock { duration: EffectDurationNode },
+}
+
+impl RuleChangeNode {
+    /// The permanents the rule applies to, when it applies to permanents.
+    pub(in crate::oracle::canonical) fn objects(&self) -> Option<&PermanentOperandNode> {
+        match self {
+            Self::CombatRequirement(node) => Some(&node.creatures),
+            Self::ActivationProhibition { objects, .. } => Some(objects),
+            Self::LifeTotalLock { .. } => None,
+        }
+    }
+
+    /// The ordinary duration of the rule; a `this combat` window has none.
+    pub(in crate::oracle::canonical) fn duration(&self) -> Option<&EffectDurationNode> {
+        match self {
+            Self::CombatRequirement(node) => node.duration(),
+            Self::ActivationProhibition { duration, .. } | Self::LifeTotalLock { duration } => {
+                Some(duration)
+            }
+        }
+    }
+}
+
+fn prohibition_word_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    cursor.peek_ahead(offset).is_some_and(|raw| {
+        lookup_auxiliary(raw).is_some_and(|(auxiliary, _)| auxiliary == Auxiliary::Cannot)
+    })
+}
+
+/// `activated abilities can't be activated` at `offset`.
+fn activation_prohibition_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    word_at(cursor, offset, "activated")
+        && word_at(cursor, offset + 1, "abilities")
+        && prohibition_word_at(cursor, offset + 2)
+        && word_at(cursor, offset + 3, "be")
+        && word_at(cursor, offset + 4, "activated")
+}
+
+/// `its activated abilities can't be activated DURATION`: `its` names the
+/// proven permanent antecedent of the clause (the declared target of the
+/// previous action, the source, a bound object).
+fn recognize_activation_prohibition(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<RuleChangeNode> {
+    cursor.enter("rule-change.activation-prohibition.owner");
+    cursor.consume("its")?;
+    let objects = match super::permanent_subject::proven_permanent_antecedent(context)
+        .ok_or_else(|| cursor.fail("a proven permanent antecedent for `its`"))?
+    {
+        PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
+        other => PermanentOperandNode::BoundReference(other),
+    };
+    cursor.enter("rule-change.activation-prohibition");
+    cursor.consume_phrase(&["activated", "abilities"])?;
+    let prohibition = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("`can't`"))?
+        .to_owned();
+    cursor.consume(&prohibition)?;
+    cursor.consume_phrase(&["be", "activated"])?;
+    cursor.enter("rule-change.activation-prohibition.duration");
+    let duration =
+        recognize_trailing_or_supplied_duration(cursor, context.preposed_duration.as_ref())?;
+    cursor.require(
+        duration != EffectDurationNode::Indefinite,
+        "a duration for the activation prohibition (`this turn`, `until your next turn`)",
+    )?;
+    Ok(RuleChangeNode::ActivationProhibition { objects, duration })
+}
+
+/// `your life total can't change` at the cursor.
+fn life_total_lock_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "your")
+        && word_at(cursor, 1, "life")
+        && word_at(cursor, 2, "total")
+        && prohibition_word_at(cursor, 3)
+        && word_at(cursor, 4, "change")
+}
+
+fn recognize_life_total_lock(
+    cursor: &mut OracleTokenCursor<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<RuleChangeNode> {
+    cursor.enter("rule-change.life-total-lock");
+    cursor.consume_phrase(&["your", "life", "total"])?;
+    let prohibition = cursor
+        .peek()
+        .ok_or_else(|| cursor.fail("`can't`"))?
+        .to_owned();
+    cursor.consume(&prohibition)?;
+    cursor.consume("change")?;
+    cursor.enter("rule-change.life-total-lock.duration");
+    let duration =
+        recognize_trailing_or_supplied_duration(cursor, context.preposed_duration.as_ref())?;
+    cursor.require(
+        duration != EffectDurationNode::Indefinite,
+        "a duration for the life-total lock (`until end of turn`, `until your next turn`)",
+    )?;
+    Ok(RuleChangeNode::LifeTotalLock { duration })
+}
+
+/// Runs a frame child transactionally: the claim was made lexically, so a
+/// failure belongs to the child.
+fn claimed(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> MachineResult<LocalEffectNode>,
+) -> PermanentActionAttempt {
+    let mut trial = cursor.clone();
+    match read(&mut trial) {
+        Ok(node) => {
+            *cursor = trial;
+            PermanentActionAttempt::Parsed(node)
+        }
+        Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+    }
+}
+
+/// The verb agreement of a requirement after `subject`: the bare verb after
+/// a causative `have`, the plural verb after a plural (not distributive)
+/// subject, the singular verb otherwise.
+fn requirement_agreement(
+    subject: &PermanentOperandNode,
+    distributive: bool,
+    context: &EffectRecognitionContext,
+) -> VerbAgreement {
+    if context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive
+        || (permanent_operand_is_plural(subject) && !distributive)
+    {
+        VerbAgreement::Base
+    } else {
+        VerbAgreement::ThirdPersonSingular
+    }
+}
 
 /// The predicate a permanent subject takes in this frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,6 +241,45 @@ pub(in crate::oracle::canonical) fn try_recognize_object_rule_clause(
     name_failure: Option<&NameResolutionFailure>,
     context: &EffectRecognitionContext,
 ) -> PermanentActionAttempt {
+    // Frames claimed by their own head words, before any subject is read.
+    if super::all_able_blockers_starts(cursor) {
+        return claimed(cursor, |cursor| {
+            super::recognize_all_able_blockers(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::TemporaryKeywordGrant)
+        });
+    }
+    if word_at(cursor, 0, "its") && activation_prohibition_at(cursor, 1) {
+        return claimed(cursor, |cursor| {
+            recognize_activation_prohibition(cursor, context).map(LocalEffectNode::RuleChange)
+        });
+    }
+    if life_total_lock_starts(cursor) {
+        return claimed(cursor, |cursor| {
+            recognize_life_total_lock(cursor, context).map(LocalEffectNode::RuleChange)
+        });
+    }
+    // `X gains haste until end of turn and attacks this combat if able`:
+    // the coordinated verb shares the previous action's proven subject.
+    if let Some(reference) = context.verb_chain_subject
+        && super::combat_requirement_starts(cursor)
+    {
+        let subject = match reference {
+            PermanentEffectReference::Source(source) => PermanentOperandNode::Reference(source),
+            other => PermanentOperandNode::BoundReference(other),
+        };
+        let agreement = requirement_agreement(&subject, false, context);
+        return claimed(cursor, |cursor| {
+            super::recognize_combat_requirement(
+                cursor,
+                subject,
+                agreement,
+                name_links,
+                name_failure,
+                context,
+            )
+            .map(|node| LocalEffectNode::RuleChange(RuleChangeNode::CombatRequirement(node)))
+        });
+    }
     let distributive = word_at(cursor, 0, "each");
     let mut subject_end = cursor.clone();
     let subject = match recognize_contextual_permanent_operand(
@@ -94,6 +291,28 @@ pub(in crate::oracle::canonical) fn try_recognize_object_rule_clause(
         Ok(subject) => subject,
         Err(failure) => return PermanentActionAttempt::RejectedCandidate(failure),
     };
+    if super::combat_requirement_starts(&subject_end) {
+        // `Target creature blocks this creature this turn if able`: the
+        // subject's requirement, claimed by its verb and `if able`.
+        let agreement = requirement_agreement(&subject, distributive, context);
+        let mut trial = subject_end;
+        return match super::recognize_combat_requirement(
+            &mut trial,
+            subject,
+            agreement,
+            name_links,
+            name_failure,
+            context,
+        ) {
+            Ok(node) => {
+                *cursor = trial;
+                PermanentActionAttempt::Parsed(LocalEffectNode::RuleChange(
+                    RuleChangeNode::CombatRequirement(node),
+                ))
+            }
+            Err(failure) => PermanentActionAttempt::FailedCommitted(failure),
+        };
+    }
     let Some((predicate, forms)) = predicate_at(&subject_end) else {
         return PermanentActionAttempt::NotClaimed;
     };

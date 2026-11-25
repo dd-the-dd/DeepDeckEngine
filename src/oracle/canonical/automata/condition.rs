@@ -393,6 +393,8 @@ pub(in crate::oracle::canonical) enum HistoryEvent {
     /// CR 506.1: a combat phase began (`the first combat phase of the turn`
     /// is the turn's first such record).
     CombatPhaseStarted,
+    /// CR 700.13: a player committed a crime.
+    CrimeCommitted,
 }
 
 /// The casting mode a cast record keeps (`a spell was warped`).

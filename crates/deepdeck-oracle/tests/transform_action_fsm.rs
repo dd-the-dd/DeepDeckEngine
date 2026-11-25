@@ -79,24 +79,33 @@ fn current_card_name_uses_the_same_source_reference_automaton() {
 }
 
 #[test]
-fn target_transform_remains_a_committed_unknown_at_the_source_boundary() {
+fn a_target_operand_is_transformed_by_the_shared_operand_reader() {
+    // `Transform target permanent.` now reads its operand through the shared
+    // permanent operand grammar: one declared target, transformed on
+    // resolution (CR 701.27a).
     let parsed = parse(
         "Test Shifter",
         "Creature — Shapeshifter",
         "{3}: Transform target permanent.",
     );
 
-    assert_eq!(parsed.status, "unsupported", "{parsed:#?}");
-    let ability = &parsed.abilities[0];
-    assert_eq!(ability.recognizer, RecognizerProvenance::Native);
-    assert!(ability.rule.is_none());
-    assert_eq!(
-        ability.diagnostics[0].automaton.as_deref(),
-        Some("contextual-effect-program")
+    assert_eq!(parsed.status, "canonical", "{parsed:#?}");
+    let rule = parsed.abilities[0].rule.as_ref().expect("a rule");
+    assert_eq!(rule["declaration"]["decisions"][0]["kind"], "chooseTargets");
+    assert_eq!(rule["effects"][0]["kind"], "transformPermanent");
+    assert_eq!(rule["effects"][0]["object"]["kind"], "chosenTarget");
+
+    // Near miss: only a permanent transforms (CR 701.27a); a target card in
+    // a graveyard is refused by the shared permanent target slot.
+    let refused = parse(
+        "Test Shifter",
+        "Creature — Shapeshifter",
+        "{3}: Transform target card in your graveyard.",
     );
+    assert_eq!(refused.status, "unsupported", "{refused:#?}");
+    assert!(refused.abilities[0].rule.is_none());
     assert_eq!(
-        ability.diagnostics[0].state.as_deref(),
-        Some("reference.source.start")
+        refused.abilities[0].diagnostics[0].state.as_deref(),
+        Some("target-list.complete")
     );
-    assert_eq!(ability.diagnostics[0].found.as_deref(), Some("target"));
 }

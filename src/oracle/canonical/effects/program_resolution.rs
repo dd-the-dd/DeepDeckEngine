@@ -132,6 +132,7 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
                 independent_number(amount)
             }
             SingularPlayerAction::Life(life) => independent_number(&life.amount),
+            SingularPlayerAction::SetLifeTotal(total) => independent_number(total),
             // Choice-bearing player actions keep the native lowering boundary.
             // A revealed hand and a referenced discard bind card collections.
             SingularPlayerAction::Counters(node) => independent_number(&node.count),
@@ -238,10 +239,12 @@ fn in_slice(sequence: &EffectSequenceNode, nested: bool) -> bool {
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
         | LocalEffectNode::UntapRestriction(_)
+        | LocalEffectNode::RuleChange(_)
         | LocalEffectNode::Performed(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
+        | LocalEffectNode::AdditionalPhases(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -266,7 +269,8 @@ fn program_in_slice(program: &EffectProgramNode) -> bool {
         | EffectProgramNode::Outcome { .. }
         | EffectProgramNode::Alternatives { .. }
         | EffectProgramNode::Offer { .. }
-        | EffectProgramNode::CreatedReplacement { .. } => false,
+        | EffectProgramNode::CreatedReplacement { .. }
+        | EffectProgramNode::OncePerTurn { .. } => false,
     }
 }
 
@@ -510,10 +514,12 @@ fn resolve_sequence(
             | LocalEffectNode::SelectedPermanents(_)
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::UntapRestriction(_)
+            | LocalEffectNode::RuleChange(_)
             | LocalEffectNode::Performed(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
             | LocalEffectNode::CopyStackObject(_)
+            | LocalEffectNode::AdditionalPhases(_)
             | LocalEffectNode::PreventDamage(_)
             | LocalEffectNode::Attach(_)
             | LocalEffectNode::Choose(_)

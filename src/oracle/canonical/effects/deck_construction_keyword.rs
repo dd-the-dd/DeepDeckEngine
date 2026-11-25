@@ -49,6 +49,56 @@ pub(in crate::oracle::canonical) fn parse_deck_construction_keyword(
     ))
 }
 
+/// A deck-construction rule of the card itself (CR 100.2a, 903.3d) claims
+/// its frame from its sentence shape, before the static frame reads the
+/// card name as a static subject.
+pub(in crate::oracle::canonical) fn claims_deck_construction_rule_family(
+    input: &AbilityInput<'_>,
+) -> bool {
+    deck_construction_rule_starts(
+        &OracleTokenCursor::new("deck-construction-rule-claim", input.tokens),
+        input.name_links,
+        input.name_resolution_failure,
+    )
+}
+
+/// The rule is a characteristic of the card scoped to deck construction,
+/// typed like the partner keywords: the engine accepts it with no in-game
+/// behavior.
+fn lower_deck_construction_rule(rule: &DeckConstructionRule) -> Value {
+    let mut ability = match rule {
+        DeckConstructionRule::CommanderEligibility => json!({ "kind": "commanderEligibility" }),
+        DeckConstructionRule::CopyLimit { maximum } => json!({
+            "kind": "deckCopyLimit",
+            "maximum": maximum.map_or(Value::Null, |maximum| json!(maximum)),
+        }),
+    };
+    ability["rulesScope"] = json!("deckConstruction");
+    ability
+}
+
+pub(in crate::oracle::canonical) fn parse_deck_construction_rule(
+    input: &AbilityInput<'_>,
+) -> MachineResult<CanonicalRuleDraft> {
+    let mut cursor = OracleTokenCursor::new("deck-construction-rule", input.tokens);
+    let rule = recognize_deck_construction_rule(
+        &mut cursor,
+        input.name_links,
+        input.name_resolution_failure,
+    )?;
+    Ok(draft(
+        json!({
+            "kind": "keywordAbility",
+            "source": self_ref(),
+            "ability": lower_deck_construction_rule(&rule),
+        }),
+        &[
+            "Recognize the card's own deck-construction rule with the shared source reference (CR 100.2a, 903.3d)",
+            "Type it as a deck-construction characteristic with no in-game behavior",
+        ],
+    ))
+}
+
 #[cfg(test)]
 #[path = "deck_construction_keyword_tests.rs"]
 mod tests;

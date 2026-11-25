@@ -40,9 +40,17 @@ fn counter_kind_recipient_and_placer_are_independent_attributes() {
 
 #[test]
 fn counter_event_near_misses_keep_their_grammar_state() {
-    // The singular `a counter is put on` counts counters, not placements.
+    // The singular `a counter is put on` counts counters, not placements
+    // (CR 122.6): it is its own occurrence, never a batch.
     assert_eq!(
         read("a +1/+1 counter is put on this creature")
+            .unwrap()
+            .occurrence,
+        CounterPlacementOccurrence::EachCounter
+    );
+    // A counted plural is neither the singular event nor a batch.
+    assert_eq!(
+        read("two +1/+1 counters are put on this creature")
             .unwrap_err()
             .state,
         "event.counters.batch"

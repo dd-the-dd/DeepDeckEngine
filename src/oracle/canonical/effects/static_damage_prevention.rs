@@ -3,18 +3,26 @@
 //! battlefield, as opposed to a resolving spell's shield that lasts a turn.
 //!
 //! ```text
-//! Prevention := "prevent" "all" ["combat"] "damage" "that" "would" "be" "dealt"
-//!               "to" Subject ["by" Source] "." [reminder]
+//! Prevention := "prevent" "all" [Kind] "damage" "that" "would" "be" "dealt"
+//!               Scope "." [reminder]
+//! Kind       := "combat" | "noncombat"                          CR 120.2
+//! Scope      := "to" Recipients ["by" Sources]
+//!             | "to" "and" "dealt" "by" Subject   -- both scopes of one subject
+//!             | "by" Subject                       -- any recipient
+//! Recipients := Recipient ("and" Recipient)*
+//! Recipient  := "you" | Subject
 //! Subject    := the shared static subject (source, attachment, collection)
-//! Source     := an object collection of damage sources
+//! Sources    := an object collection of damage sources
 //! ```
 //!
-//! The recipient is the same subject the static continuous frame reads; the
-//! source is the shared object collection. Each lowers to an engine modifier
-//! only when the engine evaluates that exact scope: every damage or combat
-//! damage to a selected permanent (`preventDamage`), and damage from creature
-//! sources to the ability's own source (`preventCreatureDamageToSelf`). Any
-//! other scope is an explicit failure inside this frame.
+//! The prevention is one filter over the damage event (CR 615.1a): its
+//! damage kind, its recipient and its source are independent slots. The
+//! historical shapes keep their engine modifiers (`preventDamage` on
+//! permanents, `preventPlayerDamage` on the controller,
+//! `preventCreatureDamageToSelf`); every other combination lowers to one
+//! `preventScopedDamage` filter per recipient, which the engine evaluates
+//! generically (`engine/static_damage_prevention.rs`). A source that is not
+//! a battlefield permanent (a spell) is an explicit engine gap.
 use super::super::*;
 use crate::oracle::characteristic_vocabulary::type_line_has_permanent_card_type;
 use crate::oracle::syntax::AbilityInput;
@@ -41,56 +49,151 @@ pub(in crate::oracle::canonical) fn try_parse_static_damage_prevention(
         return StaticDamagePreventionAttempt::NotClaimed;
     }
     match read_static_damage_prevention(&mut cursor, input) {
-        Ok(modifier) => StaticDamagePreventionAttempt::Parsed(draft(
+        Ok(modifiers) => StaticDamagePreventionAttempt::Parsed(draft(
             json!({
                 "kind": "staticAbility",
                 "source": self_ref(),
                 "activeWhile": active_while_battlefield(),
-                "modifiers": [modifier],
+                "modifiers": modifiers,
             }),
             &[
-                "Read the prevented damage kind and its recipient with the shared static subject",
-                "Read an optional damage source with the shared object collection",
-                "Lower to one battlefield-active prevention modifier (CR 615.1a)",
+                "Read the prevented damage kind, its recipients and its sources as independent slots",
+                "Read recipients and sources with the shared static subject and object collection",
+                "Lower each recipient/source scope to one battlefield-active prevention filter (CR 615.1a)",
             ],
         )),
         Err(failure) => StaticDamagePreventionAttempt::Failed(failure),
     }
 }
 
+/// The damage kind a prevention is restricted to (CR 120.2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PreventedDamageKind {
+    Any,
+    Combat,
+    Noncombat,
+}
+
+/// Who is dealt the prevented damage.
+#[derive(Clone, Debug, PartialEq)]
+enum PreventionRecipient {
+    /// The ability's controller (`you`).
+    Controller,
+    /// A static object subject.
+    Objects(Value),
+}
+
+/// The damage sources of a scope: a collection read after `to … by`, whose
+/// query keeps the historical creature-source shape, or a static subject
+/// read after `dealt by`.
+#[derive(Clone, Debug)]
+enum PreventionSources {
+    Collection(ObjectQueryNode),
+    Subject(Value),
+}
+
+/// One recipient/source pair of the prevention filter; an absent slot
+/// matches every recipient or source.
+#[derive(Clone, Debug)]
+struct PreventionScope {
+    recipient: Option<PreventionRecipient>,
+    sources: Option<PreventionSources>,
+}
+
 fn read_static_damage_prevention(
     cursor: &mut OracleTokenCursor<'_>,
     input: &AbilityInput<'_>,
-) -> MachineResult<Value> {
+) -> MachineResult<Vec<Value>> {
     cursor.enter("static.prevent.action");
     cursor.consume("prevent")?;
     cursor.enter("static.prevent.amount");
     cursor.consume("all")?;
     cursor.enter("static.prevent.damage-kind");
-    let combat_only = cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("combat"));
-    if combat_only {
+    let kind = if word_is(cursor, 0, "combat") {
         cursor.consume("combat")?;
-    }
+        PreventedDamageKind::Combat
+    } else if word_is(cursor, 0, "noncombat") {
+        cursor.consume("noncombat")?;
+        PreventedDamageKind::Noncombat
+    } else {
+        PreventedDamageKind::Any
+    };
     cursor.consume("damage")?;
     cursor.enter("static.prevent.frame");
     cursor.consume("that")?;
     recognize_relative_damage_clause(cursor, Voice::Passive)?;
-    cursor.consume("to")?;
+    let scopes = read_prevention_scopes(cursor, input)?;
+    cursor.enter("static.prevent.terminator");
+    cursor.consume(".")?;
+    recognize_optional_trailing_reminder(cursor)?;
+    cursor.enter("static.prevent.complete");
+    cursor.finish()?;
+    cursor.enter("static.prevent.lowering");
+    scopes
+        .into_iter()
+        .map(|scope| lower_prevention_scope(cursor, kind, scope))
+        .collect()
+}
+
+fn word_is(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+}
+
+/// The recipient and source slots after `would be dealt`.
+fn read_prevention_scopes(
+    cursor: &mut OracleTokenCursor<'_>,
+    input: &AbilityInput<'_>,
+) -> MachineResult<Vec<PreventionScope>> {
+    if word_is(cursor, 0, "to") && word_is(cursor, 1, "and") {
+        // `dealt to and dealt by SUBJECT`: one subject fills the recipient
+        // slot of one scope and the source slot of another (CR 615.1a).
+        cursor.enter("static.prevent.to-and-by");
+        cursor.consume_phrase(&["to", "and", "dealt", "by"])?;
+        cursor.enter("static.prevent.recipient");
+        let (objects, _, _) = read_static_subject(cursor, input)?;
+        return Ok(vec![
+            PreventionScope {
+                recipient: Some(PreventionRecipient::Objects(objects.clone())),
+                sources: None,
+            },
+            PreventionScope {
+                recipient: None,
+                sources: Some(PreventionSources::Subject(objects)),
+            },
+        ]);
+    }
+    if word_is(cursor, 0, "by") {
+        // `dealt by SUBJECT`: every recipient of that source's damage.
+        cursor.enter("static.prevent.source");
+        cursor.consume("by")?;
+        let (objects, _, _) = read_static_subject(cursor, input)?;
+        return Ok(vec![PreventionScope {
+            recipient: None,
+            sources: Some(PreventionSources::Subject(objects)),
+        }]);
+    }
     cursor.enter("static.prevent.recipient");
-    cursor.require(
-        !cursor
-            .peek()
-            .is_some_and(|raw| raw.eq_ignore_ascii_case("you") || raw.eq_ignore_ascii_case("and")),
-        "a permanent recipient (a player recipient or a recipient-and-source scope is not a supported static prevention)",
-    )?;
-    let (objects, _, _) = read_static_subject(cursor, input)?;
-    let mut source = None;
-    if cursor
-        .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("by"))
-    {
+    cursor.consume("to")?;
+    let mut recipients = Vec::new();
+    loop {
+        cursor.enter("static.prevent.recipient");
+        if word_is(cursor, 0, "you") {
+            cursor.consume("you")?;
+            recipients.push(PreventionRecipient::Controller);
+        } else {
+            let (objects, _, _) = read_static_subject(cursor, input)?;
+            recipients.push(PreventionRecipient::Objects(objects));
+        }
+        if word_is(cursor, 0, "and") {
+            cursor.consume("and")?;
+            continue;
+        }
+        break;
+    }
+    let mut sources = None;
+    if word_is(cursor, 0, "by") {
         cursor.consume("by")?;
         cursor.enter("static.prevent.source");
         let objects = recognize_object_collection(cursor)?;
@@ -98,36 +201,77 @@ fn read_static_damage_prevention(
             !objects.exclude_source,
             "a damage-source collection without a source exclusion",
         )?;
-        source = Some(objects);
+        sources = Some(PreventionSources::Collection(objects));
     }
-    cursor.enter("static.prevent.terminator");
-    cursor.consume(".")?;
-    recognize_optional_trailing_reminder(cursor)?;
-    cursor.enter("static.prevent.complete");
-    cursor.finish()?;
-    cursor.enter("static.prevent.lowering");
-    match source {
-        None => {
-            let mut modifier = json!({ "kind": "preventDamage", "objects": objects });
-            if combat_only {
-                modifier["combatOnly"] = json!(true);
-            }
-            Ok(modifier)
+    Ok(recipients
+        .into_iter()
+        .map(|recipient| PreventionScope {
+            recipient: Some(recipient),
+            sources: sources.clone(),
+        })
+        .collect())
+}
+
+/// The historical modifier of a scope when one exists, otherwise the
+/// generic `preventScopedDamage` filter.
+fn lower_prevention_scope(
+    cursor: &mut OracleTokenCursor<'_>,
+    kind: PreventedDamageKind,
+    scope: PreventionScope,
+) -> MachineResult<Value> {
+    match (&scope.recipient, &scope.sources, kind) {
+        (Some(PreventionRecipient::Objects(objects)), None, PreventedDamageKind::Any) => {
+            return Ok(json!({ "kind": "preventDamage", "objects": objects }));
         }
-        Some(query) => {
-            if !(!combat_only
-                && objects == self_ref()
-                && query.controller.is_none()
-                && query.predicate == ObjectPredicate::CardType(ObjectCardType::Creature))
-            {
+        (Some(PreventionRecipient::Objects(objects)), None, PreventedDamageKind::Combat) => {
+            return Ok(json!({ "kind": "preventDamage", "objects": objects, "combatOnly": true }));
+        }
+        (Some(PreventionRecipient::Controller), None, PreventedDamageKind::Any) => {
+            return Ok(json!({ "kind": "preventPlayerDamage", "player": controller() }));
+        }
+        (
+            Some(PreventionRecipient::Objects(objects)),
+            Some(PreventionSources::Collection(query)),
+            PreventedDamageKind::Any,
+        ) if *objects == self_ref()
+            && query.controller.is_none()
+            && query.predicate == ObjectPredicate::CardType(ObjectCardType::Creature) =>
+        {
+            return Ok(json!({ "kind": "preventCreatureDamageToSelf", "object": objects }));
+        }
+        _ => {}
+    }
+    let mut modifier = json!({
+        "kind": "preventScopedDamage",
+        "damage": match kind {
+            PreventedDamageKind::Any => "any",
+            PreventedDamageKind::Combat => "combat",
+            PreventedDamageKind::Noncombat => "noncombat",
+        },
+    });
+    match scope.recipient {
+        None => {}
+        Some(PreventionRecipient::Controller) => {
+            modifier["recipients"] = json!({ "player": controller() });
+        }
+        Some(PreventionRecipient::Objects(objects)) => {
+            modifier["recipients"] = json!({ "objects": objects });
+        }
+    }
+    match scope.sources {
+        None => {}
+        Some(PreventionSources::Subject(objects)) => modifier["sources"] = objects,
+        Some(PreventionSources::Collection(query)) => {
+            if !query.denotes_battlefield_permanents() {
                 return Err(cursor.engine_gap(
                     crate::oracle::canonical::engine_gap::EngineGap::SourceScopedPrevention,
-                    "damage from creature sources to the ability's own source (the engine evaluates no other source-scoped static prevention)",
+                    "damage sources that are battlefield permanents (a spell source is not evaluated by a static prevention)",
                 ));
             }
-            Ok(json!({ "kind": "preventCreatureDamageToSelf", "object": objects }))
+            modifier["sources"] = lower_static_permanent_query(cursor, &query)?;
         }
     }
+    Ok(modifier)
 }
 
 /// One balanced trailing parenthetical after the sentence (CR 207.2).

@@ -47,6 +47,9 @@ pub(in crate::oracle::canonical) struct TokenCreationBodyNode {
     /// The tokens enter attacking (CR 508.4): `tapped and attacking`,
     /// `that's attacking`.
     pub attacking: bool,
+    /// `that's tapped and attacking that player`: the defender the tokens
+    /// attack (CR 508.4); `None` admits any defender.
+    pub attack_defender: Option<super::EnteringAttackNode>,
     /// The token's name when the effect gives one (CR 111.4): `NAME, a ...`
     /// or `... token named NAME`.
     pub name: Option<String>,
@@ -480,6 +483,7 @@ fn recognize_token_body_head(
             name: None,
             legendary: false,
             attached_to: None,
+            attack_defender: None,
         })));
     }
     trial.enter("token.creation.supertype");
@@ -545,6 +549,7 @@ fn recognize_token_body_head(
         name,
         legendary,
         attached_to: None,
+        attack_defender: None,
     };
     Ok(Some(TokenBodyHead {
         body,
@@ -611,6 +616,7 @@ fn recognize_predefined_token_head(
         name: None,
         legendary: false,
         attached_to: None,
+        attack_defender: None,
     })))
 }
 
@@ -721,6 +727,7 @@ fn recognize_token_body_tail(
     let mut name = head.name.clone();
     let mut tapped = head.tapped;
     let mut attacking = head.attacking;
+    let mut attack_defender = head.attack_defender.clone();
     loop {
         trial.enter("token.creation.modifier");
         if !with_read && word_at(trial, 0, "with") {
@@ -745,6 +752,13 @@ fn recognize_token_body_tail(
             )?;
             tapped = state.tapped;
             attacking = state.attacking;
+            if attacking {
+                // `that's tapped and attacking that player` (CR 508.4).
+                attack_defender = match super::recognize_entering_attack_defender(trial)? {
+                    super::EnteringAttackNode::AnyDefender => None,
+                    defender => Some(defender),
+                };
+            }
             entry_clause_read = true;
             continue;
         }
@@ -807,6 +821,7 @@ fn recognize_token_body_tail(
         name,
         tapped,
         attacking,
+        attack_defender,
         ..head
     })
 }

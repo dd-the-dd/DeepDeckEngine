@@ -33,6 +33,10 @@ mod league_reference_runtime;
 mod linked_duration_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[path = "tests/antecedent_producers_runtime.rs"]
+mod antecedent_producers_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/rebound_runtime.rs"]
 mod rebound_runtime;
 
@@ -118,6 +122,12 @@ mod sentence_condition_runtime;
 
 #[path = "tests/program_control_outcomes_runtime.rs"]
 mod program_control_outcomes_runtime;
+
+#[path = "tests/once_each_turn_runtime.rs"]
+mod once_each_turn_runtime;
+
+#[path = "tests/reflexive_guard_runtime.rs"]
+mod reflexive_guard_runtime;
 
 #[path = "tests/local_damage_life_fsm_runtime.rs"]
 mod local_damage_life_fsm_runtime;
@@ -244,6 +254,10 @@ mod trigger_frame_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/player_action_event_runtime.rs"]
 mod player_action_event_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/event_slots_player_events_runtime.rs"]
+mod event_slots_player_events_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/source_damage_event_runtime.rs"]
@@ -412,6 +426,21 @@ mod graveyard_source_activation_runtime;
 
 #[path = "tests/entry_counters_runtime.rs"]
 mod entry_counters_runtime;
+
+#[path = "tests/madness_runtime.rs"]
+mod madness_runtime;
+
+#[path = "tests/aftermath_runtime.rs"]
+mod aftermath_runtime;
+
+#[path = "tests/disturb_runtime.rs"]
+mod disturb_runtime;
+
+#[path = "tests/casualty_runtime.rs"]
+mod casualty_runtime;
+
+#[path = "tests/reconfigure_runtime.rs"]
+mod reconfigure_runtime;
 
 #[path = "tests/graveyard_destination_replacement_runtime.rs"]
 mod graveyard_destination_replacement_runtime;
@@ -33203,6 +33232,10 @@ mod player_population_designation_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/resolution_object_choice_runtime.rs"]
 mod resolution_object_choice_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/chosen_operand_runtime.rs"]
+mod chosen_operand_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/quantity_result_reuse_runtime.rs"]

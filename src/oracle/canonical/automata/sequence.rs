@@ -19,7 +19,7 @@ use super::{
     recognize_ordinary_sacrifice_effect, recognize_quantified_player_action,
     recognize_referenced_draw_effect, recognize_scry_effect, recognize_set_ability_loss_effect,
     recognize_source_zone_move_effect, recognize_surveil_effect,
-    recognize_target_card_zone_change_effect, recognize_transform_source_effect,
+    recognize_target_card_zone_change_effect, recognize_transform_effect,
     recognize_untap_permanent_effect, recognize_zone_change_effect_with_policy,
     recognize_zone_change_with_regeneration_amendment_with_support,
     source_or_anaphor_reference_starts_at, source_reference_starts_at,
@@ -267,6 +267,10 @@ struct SequenceMemory {
     /// Anaphor state before each conditional's `If` sentence. Its `Otherwise`
     /// sentence reads the same antecedents, not the `If` branch's results.
     branch_snapshots: Vec<AnaphorSnapshot>,
+    /// Anaphor state where the sentence being read began: the antecedents an
+    /// `Otherwise` sentence reads after a postposed `if` gating that
+    /// sentence's one action (CR 608.2c).
+    sentence_anaphors: Option<AnaphorSnapshot>,
     unless: Vec<super::UnlessFrameNode>,
     /// Remaining per-player actions of one coordinated-subject sentence, in
     /// reverse order. Each is pushed as its own action joined by `and`.
@@ -684,7 +688,8 @@ fn recognize_effect_sequence_attempt_scoped(
         permanent_subject_scope: context.permanent_subject_scope,
         ..SequenceMemory::default()
     };
-    loop {
+    memory.sentence_anaphors = Some(memory.anaphor_snapshot());
+    'sequence: loop {
         state = match state {
             SequenceState::Effect => {
                 cursor.enter("sequence.effect");
@@ -1832,12 +1837,36 @@ fn recognize_effect_sequence_attempt_scoped(
                                     cursor.consume("otherwise")?;
                                     cursor.consume(",")?;
                                     let snapshot = memory.branch_snapshots[index].clone();
+                                    let branch_scope = memory.permanent_subject_scope;
+                                    let branch_player_target = memory.last_player_target;
                                     memory.restore_anaphors(snapshot);
+                                    // A target the `If` branch declared is
+                                    // declared on casting (CR 601.2c): it
+                                    // stays the player antecedent.
+                                    if memory.last_player_target.is_none() {
+                                        memory.last_player_target = branch_player_target;
+                                    }
+                                    // Without an antecedent before the
+                                    // conditional, the object the `If`
+                                    // branch named stays the pronoun's.
+                                    let mut restored = base_action_context.clone();
+                                    restored.permanent_subject_scope =
+                                        memory.permanent_subject_scope;
+                                    if super::permanent_subject::proven_permanent_antecedent(
+                                        &restored,
+                                    )
+                                    .is_none()
+                                    {
+                                        memory.permanent_subject_scope = branch_scope;
+                                    }
                                     memory.open_branch = Some(ConditionalBranch::Else(index));
                                     memory.else_candidate = None;
                                     attempt_frame.clear();
-                                    effect_start = cursor.position();
-                                    continue;
+                                    // The `Otherwise` sentence reads the
+                                    // restored antecedents: its action's
+                                    // binding environment is built again
+                                    // from them, not from the `If` branch.
+                                    continue 'sequence;
                                 }
                                 // `Then, if ...`: the comma punctuates the
                                 // sentence connector, not a clause boundary.
@@ -2067,6 +2096,17 @@ fn recognize_effect_sequence_attempt_scoped(
                         LocalEffectNode::TemporaryPlayerPermission(node) => {
                             node.duration == super::TemporaryRuleDuration::Effect(duration.clone())
                         }
+                        LocalEffectNode::RuleChange(node) => node.duration() == Some(duration),
+                        // `Until your next turn, ... you gain protection from
+                        // everything`: the player grant read the supplied
+                        // duration as its own (CR 611.2a).
+                        LocalEffectNode::PlayerAction(super::PlayerActionNode {
+                            action:
+                                super::SingularPlayerAction::Status(
+                                    super::PlayerStatusAction::GainKeywords(grant),
+                                ),
+                            ..
+                        }) => &grant.duration == duration,
                         LocalEffectNode::ControlChange(super::ControlChangeEffectNode {
                             change:
                                 super::ControlChange::Gain {
@@ -2471,11 +2511,15 @@ fn recognize_effect_sequence_attempt_scoped(
                 }
                 // A quoted ability that ends with its own period has already
                 // closed this sentence inside the quotation marks.
+                // A capitalized `Then` after a quoted ability's own period
+                // opens the next sentence (`... with "This token can't
+                // block." Then if ...`); a lowercase one continues it.
                 let sentence_closed_by_quote = super::quoted_sentence_just_closed(cursor)
                     && !matches!(
                         cursor.peek().map(str::to_ascii_lowercase).as_deref(),
-                        Some("and" | "then" | ",")
-                    );
+                        Some("and" | ",")
+                    )
+                    && cursor.peek() != Some("then");
                 let sentence_head = if sentence_closed_by_quote {
                     Some(".".to_string())
                 } else {
@@ -2557,20 +2601,24 @@ fn recognize_effect_sequence_attempt_scoped(
                             && memory.open_branch.is_none()
                             && memory.sentence_delay.is_none()
                             && memory.sentence_duration.is_none()
-                            && memory.effects.len() == memory.sentence_start + 1
+                            && memory.effects.len() > memory.sentence_start
                             && super::sentence_condition_starts(cursor) =>
                     {
-                        // #11 Branch: a postposed `if CONDITION` gates the one
-                        // action of its sentence (CR 608.2c), the same
-                        // conditional as the preposed form with no else branch.
+                        // #11 Branch: a postposed `if CONDITION` gates the
+                        // action it follows (CR 608.2c), the same conditional
+                        // as the preposed form. After coordinated actions
+                        // (`reveal a card, then put it onto the battlefield
+                        // if ...`) it gates only the last one: the earlier
+                        // actions of the sentence are performed either way.
                         attempt_frame.commit();
+                        let gated = memory.effects.len() - 1;
                         // The condition is checked before its action is
-                        // performed: only earlier sentences' departures and
+                        // performed: only earlier actions' departures and
                         // no card-collection result of this very action.
                         let departed = memory
                             .departed_permanent_targets()
                             .into_iter()
-                            .filter(|binding| binding.effect_index < memory.sentence_start)
+                            .filter(|binding| binding.effect_index < gated)
                             .collect::<Vec<_>>();
                         let mut condition_effects = context.clone();
                         condition_effects.permanent_subject_scope = memory.permanent_subject_scope;
@@ -2598,18 +2646,31 @@ fn recognize_effect_sequence_attempt_scoped(
                             matches!(cursor.peek(), None | Some(".")),
                             "a postposed condition ending its sentence",
                         )?;
-                        // The anaphors an `Otherwise` sentence would read are
-                        // those before this sentence, which are no longer
-                        // known here: no `Otherwise` may follow a postposed `if`.
-                        let snapshot = memory.anaphor_snapshot();
+                        // `ACTION if CONDITION. Otherwise, ACTION.`: the
+                        // `Otherwise` sentence reads the antecedents known
+                        // where the gated sentence began (`draw a card if its
+                        // power is 3 or greater. Otherwise, put two +1/+1
+                        // counters on it.`). After coordinated actions the
+                        // antecedents before the gated one are not recorded:
+                        // no `Otherwise` may follow, and one fails explicitly.
+                        let whole_sentence = gated == memory.sentence_start;
+                        let snapshot = if whole_sentence {
+                            memory
+                                .sentence_anaphors
+                                .clone()
+                                .unwrap_or_else(|| memory.anaphor_snapshot())
+                        } else {
+                            memory.anaphor_snapshot()
+                        };
                         memory.branch_snapshots.push(snapshot);
                         memory.conditionals.push(super::SentenceConditionalNode {
                             condition,
-                            then_first: memory.sentence_start,
+                            then_first: gated,
                             then_end: memory.effects.len(),
                             else_end: None,
                         });
-                        memory.else_candidate = None;
+                        memory.else_candidate =
+                            whole_sentence.then(|| memory.conditionals.len() - 1);
                         SequenceState::ConnectorOrEnd
                     }
                     // `ACTION instead.` closes a created replacement's
@@ -2814,6 +2875,7 @@ fn recognize_effect_sequence_attempt_scoped(
                             attempt_frame.clear();
                             memory.connectors.push(EffectConnector::Then);
                             memory.sentence_start = memory.effects.len();
+                            memory.sentence_anaphors = Some(memory.anaphor_snapshot());
                             SequenceState::Effect
                         } else {
                             SequenceState::Complete
@@ -2880,6 +2942,14 @@ fn recognize_effect_sequence_attempt_scoped(
                                 effect_index,
                                 filter,
                             }
+                        } else if memory
+                            .effects
+                            .last()
+                            .is_some_and(super::names_acting_player)
+                        {
+                            // `... for each creature they control`: the player
+                            // of the scaled action (`player_set.rs`).
+                            super::read_with_acting_player(cursor, recognize_for_each_count)?
                         } else {
                             recognize_for_each_count(cursor)?
                         };
@@ -3191,6 +3261,11 @@ fn recognize_effect(
         )
         .map(LocalEffectNode::PreventDamage);
     }
+    // `After this phase, there is an additional combat phase` (CR 500.8).
+    if super::additional_phases_start(cursor) {
+        attempt_frame.commit();
+        return super::recognize_additional_phases(cursor).map(LocalEffectNode::AdditionalPhases);
+    }
     if super::control_change_starts(cursor) {
         // `[you] gain control of` / `exchange control of` owns its verb frame;
         // `gain N life` never reaches this reader.
@@ -3453,8 +3528,10 @@ fn recognize_imperative_frame(
         VerbLemma::Earthbend => recognize_earthbend_action(cursor).map(LocalEffectNode::Earthbend),
         VerbLemma::Search => super::recognize_library_search_action(cursor)
             .map(LocalEffectNode::ControllerLibrarySearch),
-        VerbLemma::Transform => recognize_transform_source_effect(cursor, name_links, name_failure)
-            .map(LocalEffectNode::TransformPermanent),
+        VerbLemma::Transform => {
+            recognize_transform_effect(cursor, name_links, name_failure, context)
+                .map(LocalEffectNode::TransformPermanent)
+        }
         // `double strike` is the keyword (CR 702.4), never the doubling action.
         VerbLemma::Double
             if !cursor
@@ -3860,6 +3937,18 @@ fn recognize_return_frame(
         }
         TargetCardZoneChangeParseAttempt::NotClaimed
         | TargetCardZoneChangeParseAttempt::RejectedCandidate(_) => {}
+    }
+    // `return enchanted creature to its owner's hand`: the one permanent the
+    // source is attached to (CR 303.4e), the shared bound-reference action.
+    if super::attached_object_operand_follows_verb(cursor) {
+        return super::referenced_permanent_action::recognize_referenced_permanent_action(
+            cursor,
+            super::ReferencedPermanentAction::ReturnToOwnerHand,
+            inputs.name_links,
+            inputs.name_failure,
+            inputs.context,
+        )
+        .map(LocalEffectNode::ReferencedPermanentAction);
     }
     if source_or_anaphor_reference_starts_at(
         cursor.position() + 1,

@@ -3,8 +3,10 @@
 //!
 //! ```text
 //! CostPaidProperty := "the" ("sacrificed" | "tapped") NOUN's PROPERTY
+//!                   | "the" CARDVERB NOUN's PROPERTY
 //!                   | "the" PROPERTY "of" "the" "sacrificed" NOUN
 //!                   | "the" PROPERTY "of" "the" "card" "you" "exiled"
+//! CARDVERB         := "discarded" | "exiled" | "revealed"
 //! PROPERTY         := "power" | "toughness" | "mana" "value"
 //! ```
 //!
@@ -24,6 +26,14 @@
 //! - `the PROPERTY of the card you exiled`: the card an `exileSource` cost
 //!   exiled, which is the ability's own source card (scavenge, CR 702.97a).
 //!   Only its power and toughness are read.
+//! - `the discarded|exiled|revealed card's PROPERTY`: the one card a chosen
+//!   `discardCard`, `exileObject` or `revealCard` cost of the same ability
+//!   (or of the same spell face's additional costs) paid with, by its
+//!   printed characteristics recorded when the cost was paid
+//!   (`src/engine/cost_paid_card_properties.rs`). The binding environment
+//!   reads the participle against an earlier action of the program first
+//!   (`recognize_participle_object_property`); only without such an action
+//!   is the reference this symbolic cost read.
 //!   It is rewritten to the source's property once the producing cost is
 //!   proven; the card keeps its characteristics in exile (CR 400.7 does not
 //!   change what that card is, only that it is a new object).
@@ -41,6 +51,41 @@ pub(in crate::oracle::canonical) enum CostObjectAction {
     Tapped,
     /// The source card an `exileSource` cost exiled.
     ExiledSourceCard,
+    /// The one card a chosen `discardCard` cost discarded.
+    DiscardedCard,
+    /// The one card a chosen `exileObject` cost exiled from a card zone.
+    ExiledCard,
+    /// The one card a chosen `revealCard` cost revealed.
+    RevealedCard,
+}
+
+impl CostObjectAction {
+    /// The cost action an object-producing participle names (`the
+    /// discarded card`), when a cost can produce that object. `the exiled`
+    /// names a chosen card a cost exiled; the source card an `exileSource`
+    /// cost exiled is written `the card you exiled`.
+    pub(in crate::oracle::canonical) fn from_participle(
+        verb: super::ActionResultVerb,
+    ) -> Option<Self> {
+        match verb {
+            super::ActionResultVerb::Sacrificed => Some(Self::Sacrificed),
+            super::ActionResultVerb::Tapped => Some(Self::Tapped),
+            super::ActionResultVerb::Discarded => Some(Self::DiscardedCard),
+            super::ActionResultVerb::Exiled => Some(Self::ExiledCard),
+            super::ActionResultVerb::Revealed => Some(Self::RevealedCard),
+            super::ActionResultVerb::Destroyed
+            | super::ActionResultVerb::Milled
+            | super::ActionResultVerb::Returned => None,
+        }
+    }
+
+    /// A card a cost paid with, read only by a card nominal or a card type.
+    const fn names_card(self) -> bool {
+        matches!(
+            self,
+            Self::DiscardedCard | Self::ExiledCard | Self::RevealedCard
+        )
+    }
 }
 
 /// A characteristic of an object a cost of this ability paid with.
@@ -79,6 +124,29 @@ impl CostPaidObjectProperty {
             }
             (CostObjectAction::ExiledSourceCard, NumericObjectProperty::ManaValue) => {
                 "exiledSourceCardManaValue"
+            }
+            (CostObjectAction::DiscardedCard, NumericObjectProperty::Power) => "discardedCardPower",
+            (CostObjectAction::DiscardedCard, NumericObjectProperty::Toughness) => {
+                "discardedCardToughness"
+            }
+            (CostObjectAction::DiscardedCard, NumericObjectProperty::ManaValue) => {
+                "discardedCardManaValue"
+            }
+            (CostObjectAction::ExiledCard, NumericObjectProperty::Power) => "exiledCostCardPower",
+            (CostObjectAction::ExiledCard, NumericObjectProperty::Toughness) => {
+                "exiledCostCardToughness"
+            }
+            (CostObjectAction::ExiledCard, NumericObjectProperty::ManaValue) => {
+                "exiledCostCardManaValue"
+            }
+            (CostObjectAction::RevealedCard, NumericObjectProperty::Power) => {
+                "revealedCostCardPower"
+            }
+            (CostObjectAction::RevealedCard, NumericObjectProperty::Toughness) => {
+                "revealedCostCardToughness"
+            }
+            (CostObjectAction::RevealedCard, NumericObjectProperty::ManaValue) => {
+                "revealedCostCardManaValue"
             }
         }
     }
@@ -151,6 +219,41 @@ pub(in crate::oracle::canonical) fn cost_paid_object_property_starts(
                 && word(cursor, of + 4, "exiled")))
 }
 
+/// A possessive nominal that may name a card a cost paid with: `card` or a
+/// card type. A permanent or spell nominal names no card in a hand or a
+/// graveyard.
+fn card_cost_nominal(nominal: super::TargetNominal) -> bool {
+    match nominal {
+        super::TargetNominal::Domain(kind) => kind == super::ObjectKind::Card,
+        super::TargetNominal::CardType(_) => true,
+    }
+}
+
+/// The cost-paid property of `verb` written as a participle the binding
+/// environment found no producing action for (`the mana value of the
+/// exiled card`): the symbolic read card composition binds to the same
+/// ability's producing cost (`contextual_binding.rs`), whose absence there
+/// is a binding failure. `None` when no cost produces that participle's
+/// object, or when the cost records no such characteristic (a tap cost
+/// records only the tapped permanent's power).
+pub(in crate::oracle::canonical) fn cost_paid_participle_property(
+    verb: super::ActionResultVerb,
+    property: super::SelectorNumericProperty,
+) -> Option<NumericExpression> {
+    let action = CostObjectAction::from_participle(verb)?;
+    let property = match property {
+        super::SelectorNumericProperty::Power => NumericObjectProperty::Power,
+        super::SelectorNumericProperty::Toughness => NumericObjectProperty::Toughness,
+        super::SelectorNumericProperty::ManaValue => NumericObjectProperty::ManaValue,
+    };
+    if action == CostObjectAction::Tapped && property != NumericObjectProperty::Power {
+        return None;
+    }
+    Some(NumericExpression::SacrificedCostObjectProperty(
+        CostPaidObjectProperty { action, property },
+    ))
+}
+
 /// Reads a cost-paid object property (see the module grammar).
 pub(in crate::oracle::canonical) fn recognize_cost_paid_object_property(
     cursor: &mut OracleTokenCursor<'_>,
@@ -199,19 +302,30 @@ pub(in crate::oracle::canonical) fn recognize_cost_paid_object_property(
             },
         ));
     }
-    let action = if word(cursor, 0, "tapped") {
-        cursor.consume("tapped")?;
-        CostObjectAction::Tapped
-    } else {
-        cursor.consume("sacrificed")?;
-        CostObjectAction::Sacrificed
-    };
+    let action = cursor
+        .peek()
+        .and_then(super::ActionResultVerb::from_word)
+        .and_then(CostObjectAction::from_participle)
+        .ok_or_else(|| {
+            cursor.fail("`sacrificed`, `tapped`, `discarded`, `exiled` or `revealed`")
+        })?;
+    let participle = cursor.peek().unwrap_or_default().to_owned();
+    cursor.consume(&participle)?;
     cursor.enter("numeric.cost-object.possessive-object");
     let object = cursor.consume_type("possessiveTypeWord")?;
     cursor.require(
         registered_possessive_object(&object.raw),
         "a registered possessive card type or object domain",
     )?;
+    if action.names_card() {
+        // `the discarded permanent's power` names no card a cost chose: a
+        // card cost's object is read by the card nominal or a card type.
+        cursor.enter("numeric.cost-object.card-nominal");
+        cursor.require(
+            super::possessive_nominal(&object.raw).is_some_and(card_cost_nominal),
+            "a card nominal (`card's`) or a card type for a card a cost paid with",
+        )?;
+    }
     cursor.enter("numeric.cost-object.property");
     let property = consume_property(cursor)?;
     if action == CostObjectAction::Tapped {

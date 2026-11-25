@@ -274,6 +274,37 @@ fn parse_ability_body(
             (existing, _) => existing,
         },
     };
+    // CR 611.3a: a leading `as long as` / `during` gate wraps any static body
+    // the ordinary frames read (`ability_frame_claim.rs`).
+    let existing = match existing {
+        parsed @ CanonicalParseOutcome::Parsed { .. } => parsed,
+        existing => {
+            match try_parse_conditional_static_frame(input, &mut |body: &AbilityInput<'_>| {
+                parse_ability_body(body, ability_kind)
+            }) {
+                ConditionalStaticAttempt::Parsed(draft) => CanonicalParseOutcome::Parsed {
+                    draft,
+                    recognizer: RecognizerProvenance::Native,
+                },
+                // A frame that read deeper into the same ability keeps its
+                // diagnostic (the body alone no longer binds the gate's `it`).
+                ConditionalStaticAttempt::Committed(failure) => match existing {
+                    CanonicalParseOutcome::Failed {
+                        failure: prior,
+                        recognizer,
+                    } if prior.token_index > failure.token_index => CanonicalParseOutcome::Failed {
+                        failure: prior,
+                        recognizer,
+                    },
+                    _ => CanonicalParseOutcome::Failed {
+                        failure,
+                        recognizer: RecognizerProvenance::Native,
+                    },
+                },
+                ConditionalStaticAttempt::NotClaimed => existing,
+            }
+        }
+    };
     match preserve_committed_generic_failure(existing, committed_generic_failure) {
         // CR 113.3: every ability belongs to a structural frame. When no
         // reader owned it, that frame owns it and reports where it stopped.
@@ -1161,6 +1192,19 @@ fn parse_existing_native_rule(
             StaticSourceCombatRestrictionAttempt::NotClaimed => None,
         };
 
+    // CR 100.2a, 903.3d: the card's own deck-construction rules.
+    if claims_deck_construction_rule_family(input) {
+        return match parse_deck_construction_rule(input) {
+            Ok(draft) => CanonicalParseOutcome::Parsed {
+                draft,
+                recognizer: RecognizerProvenance::Native,
+            },
+            Err(failure) => CanonicalParseOutcome::Failed {
+                failure,
+                recognizer: RecognizerProvenance::Native,
+            },
+        };
+    }
     // CR 702.124a: partner abilities own their keyword frame.
     if claims_deck_construction_keyword_family(input) {
         return match parse_deck_construction_keyword(input) {

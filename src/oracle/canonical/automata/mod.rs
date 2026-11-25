@@ -18,6 +18,7 @@ mod activation_restriction;
 mod activation_timing_annotation;
 mod actor_object_event;
 mod additional_cost;
+mod additional_phase;
 mod alternative_cost;
 mod alternative_return_cost;
 mod amass;
@@ -49,6 +50,7 @@ mod choose_instruction;
 mod chosen_card_name;
 mod chosen_creature_type;
 mod chosen_land_type;
+mod chosen_operand;
 mod clause;
 mod collection;
 mod color;
@@ -290,6 +292,7 @@ pub(super) use activation_restriction::*;
 pub(super) use activation_timing_annotation::*;
 pub(super) use actor_object_event::*;
 pub(super) use additional_cost::*;
+pub(super) use additional_phase::*;
 pub(super) use alternative_cost::*;
 pub(super) use alternative_return_cost::*;
 pub(super) use amass::*;
@@ -324,6 +327,7 @@ pub(super) use choose_instruction::*;
 pub(super) use chosen_card_name::*;
 pub(super) use chosen_creature_type::*;
 pub(super) use chosen_land_type::*;
+pub(super) use chosen_operand::*;
 pub(super) use clause::*;
 pub(super) use collection::*;
 pub(super) use color::*;
@@ -1369,6 +1373,16 @@ pub(super) enum GrantedKeyword {
     /// `can't be regenerated` (CR 701.15): no regeneration shield replaces
     /// the object's destruction while the marker lasts.
     CantBeRegenerated,
+    /// `can't attack alone` / `can't block alone` (CR 506.5).
+    CantAttackAlone,
+    CantBlockAlone,
+    /// `can block an additional creature` / `any number of creatures`
+    /// (CR 509.1a) for the duration of a temporary effect.
+    CanBlockAdditionalCreature,
+    CanBlockAnyNumber,
+    /// `All creatures able to block OBJECT do so` (CR 509.1c): every
+    /// creature able to block the marked object must block it.
+    AllMustBlockIfAble,
     Cascade,
     CantAttack,
     CantBeBlocked,
@@ -1437,6 +1451,11 @@ impl GrantedKeyword {
             Self::AssignsNoCombatDamage => "assignsNoCombatDamage",
             Self::AttackAsThoughNoDefender => "canAttackAsThoughNoDefender",
             Self::CantBeRegenerated => "cantBeRegenerated",
+            Self::CantAttackAlone => "cantAttackAlone",
+            Self::CantBlockAlone => "cantBlockAlone",
+            Self::CanBlockAdditionalCreature => "canBlockAdditionalCreature",
+            Self::CanBlockAnyNumber => "canBlockAnyNumber",
+            Self::AllMustBlockIfAble => "allMustBlockIfAble",
             Self::Cascade => "cascade",
             Self::CantAttack => "cantAttack",
             Self::CantBeBlocked => "cantBeBlocked",
@@ -1556,6 +1575,9 @@ pub(super) enum StackItemPredicate {
     Ability(StackAbilityKind),
     Spell,
     Colorless,
+    /// `that targets you or a creature you control` (CR 115.1): one of the
+    /// stack object's targets is a listed player or permanent.
+    Targets(TargetedObjects),
     Intersection(Vec<StackItemPredicate>),
     Union(Vec<StackItemPredicate>),
 }
@@ -1790,7 +1812,9 @@ pub(in crate::oracle::canonical) struct SurveilEffectNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TransformPermanentEffectNode {
-    pub permanent: LocalObjectReference,
+    /// The shared permanent operand (CR 701.28a): the source, a bound
+    /// reference, declared targets, a collection or a resolution choice.
+    pub permanent: PermanentOperandNode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2277,6 +2301,9 @@ pub(super) enum LocalEffectNode {
     TapPermanents(TapPermanentsEffectNode),
     /// `OBJECTS don't untap during their controller's next untap step`.
     UntapRestriction(UntapRestrictionNode),
+    /// A rule an effect sets for a duration (`object_rule_clause.rs`): a
+    /// combat requirement, an activation prohibition, a life-total lock.
+    RuleChange(RuleChangeNode),
     /// An action another player performs (`that player creates ...`).
     Performed(PerformedEffectNode),
     PermanentKeywordAction(PermanentKeywordActionNode),
@@ -2284,6 +2311,8 @@ pub(super) enum LocalEffectNode {
     ControlChange(ControlChangeEffectNode),
     /// `copy TARGET` over a stack object.
     CopyStackObject(CopyStackObjectEffectNode),
+    /// `After this phase, there is an additional combat phase` (CR 500.8).
+    AdditionalPhases(AdditionalPhasesNode),
     PreventDamage(PreventDamageEffectNode),
     Attach(AttachEffectNode),
     TemporaryPlayerPermission(TemporaryPlayerPermissionNode),

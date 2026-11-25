@@ -31,6 +31,7 @@ impl GameEngine {
         permanent.tapped = false;
         self.end_lapsed_source_state_untap_restrictions();
         self.publish_became_untapped_observers(instance_id);
+        self.publish_observed_permanent_untapped(instance_id);
         UntapAttemptOutcome::Untapped
     }
 }

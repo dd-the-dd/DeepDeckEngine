@@ -12,9 +12,9 @@ use serde_json::Value;
 
 use super::mana::{color_name_to_symbol, parse_mana_symbols};
 use super::{
-    CardDefinition, CardInstance, GameEngine, card_color_symbols, has_card_subtype, has_card_type,
-    integer_value, keyword_rule_supported, mana_value, rule_contains_kind, type_line_contains,
-    value_kind,
+    CardDefinition, CardInstance, GameEngine, StackObject, card_color_symbols, has_card_subtype,
+    has_card_type, integer_value, keyword_rule_supported, mana_value, rule_contains_kind,
+    type_line_contains, value_kind,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -392,6 +392,49 @@ pub(super) fn try_map_predicate_leaves(
         }
         None if predicate.is_null() => Ok(result),
         _ => leaf(predicate),
+    }
+}
+
+/// The candidate filter of a declared stack-item target (`target spell or
+/// ability that targets you or a creature you control`): the shared
+/// stack-item filter leaves, and the `targets` relation of each stack object
+/// to its own chosen targets (CR 115.1). Only the declared-target consumer
+/// evaluates the relation (`stack_item_candidate_matches`); trigger
+/// selectors keep the plain stack-item validator.
+pub(super) fn stack_item_candidate_filter_supported(filter: &Value) -> bool {
+    match value_kind(filter) {
+        Some("targets") => super::object_predicate_eval::targets_atom_supported(filter),
+        Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
+            !operands.is_empty() && operands.iter().all(stack_item_candidate_filter_supported)
+        }),
+        _ => super::stack_item_filter_supported(filter),
+    }
+}
+
+impl GameEngine {
+    /// One stack object as a declared stack-item target candidate, read
+    /// relative to `controller_id` (the player choosing the targets, when
+    /// they are chosen and when they are rechecked on resolution).
+    pub(super) fn stack_item_candidate_matches(
+        &self,
+        object: &StackObject,
+        filter: &Value,
+        controller_id: &str,
+    ) -> bool {
+        match value_kind(filter) {
+            Some("targets") => self.stack_object_targets_match(object, filter, controller_id),
+            Some("and") => filter["operands"].as_array().is_some_and(|operands| {
+                operands.iter().all(|operand| {
+                    self.stack_item_candidate_matches(object, operand, controller_id)
+                })
+            }),
+            Some("or") => filter["operands"].as_array().is_some_and(|operands| {
+                operands.iter().any(|operand| {
+                    self.stack_item_candidate_matches(object, operand, controller_id)
+                })
+            }),
+            _ => super::matches_stack_item_filter(object, filter),
+        }
     }
 }
 

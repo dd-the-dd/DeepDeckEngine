@@ -374,17 +374,17 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             // high-level engine operation or silently wrap a compound effect.
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
+        // The source or a collection; declared, bound and chosen operands
+        // are lowered by the program (`effect_sequence.rs`).
         LocalEffectNode::TransformPermanent(effect) => Ok(json!({
             "kind": "transformPermanent",
-            "object": match &effect.permanent {
-                LocalObjectReference::SourceSelf => self_ref(),
-            },
+            "object": lower_nontargeted_permanent_operand(&effect.permanent)?,
         })),
         // The untap window names the permanent's controller; the sequence
         // lowering owns its subject bindings.
-        LocalEffectNode::UntapRestriction(_) | LocalEffectNode::Performed(_) => {
-            Err(TargetlessLoweringError::UnsupportedEffect)
-        }
+        LocalEffectNode::UntapRestriction(_)
+        | LocalEffectNode::RuleChange(_)
+        | LocalEffectNode::Performed(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         LocalEffectNode::TapPermanents(effect) => Ok(lower_tap_state_change(
             effect.untap,
             lower_nontargeted_permanent_operand(&effect.targets)?,
@@ -442,6 +442,7 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
         LocalEffectNode::Retarget(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
+        | LocalEffectNode::AdditionalPhases(_)
         | LocalEffectNode::CounterSpell(_)
         | LocalEffectNode::TemporaryKeywordGrant(_)
         | LocalEffectNode::MillCards(_)

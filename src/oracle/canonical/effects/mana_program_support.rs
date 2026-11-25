@@ -60,9 +60,11 @@ pub(in crate::oracle::canonical) fn produces_mana_while_resolving(
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
         | LocalEffectNode::UntapRestriction(_)
+        | LocalEffectNode::RuleChange(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
+        | LocalEffectNode::AdditionalPhases(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)
@@ -97,6 +99,7 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
             | SingularPlayerAction::Skip(_)
             | SingularPlayerAction::Prohibition(_)
             | SingularPlayerAction::Status(_)
+            | SingularPlayerAction::SetLifeTotal(_)
             | SingularPlayerAction::ReferencedCards { .. } => false,
         },
         LocalEffectNode::OptionalSequence(body) => {
@@ -224,10 +227,12 @@ pub(in crate::oracle::canonical) fn moves_cards_to_or_from_library(
         | LocalEffectNode::SelectedPermanents(_)
         | LocalEffectNode::TapPermanents(_)
         | LocalEffectNode::UntapRestriction(_)
+        | LocalEffectNode::RuleChange(_)
         | LocalEffectNode::Performed(_)
         | LocalEffectNode::PermanentKeywordAction(_)
         | LocalEffectNode::ControlChange(_)
         | LocalEffectNode::CopyStackObject(_)
+        | LocalEffectNode::AdditionalPhases(_)
         | LocalEffectNode::PreventDamage(_)
         | LocalEffectNode::Attach(_)
         | LocalEffectNode::Choose(_)

@@ -121,7 +121,11 @@ pub(in crate::oracle::canonical) fn recognize_quantified_player_action(
         recognize_player_set_reference(cursor)?
     };
     cursor.enter("effect.quantified-player.subject");
-    let mut actions = vec![recognize_quantified_action(cursor, context)?];
+    // Each member performs the action: a distributive `they` in its operands
+    // names that member (`loses 1 life for each creature they control`).
+    let mut actions = vec![super::read_with_acting_player(cursor, |action| {
+        recognize_quantified_action(action, context)
+    })?];
     loop {
         let checkpoint = cursor.checkpoint();
         cursor.enter("effect.quantified-player.list-separator");
@@ -145,7 +149,9 @@ pub(in crate::oracle::canonical) fn recognize_quantified_player_action(
             cursor.rollback(checkpoint);
             break;
         }
-        actions.push(recognize_quantified_action(cursor, context)?);
+        actions.push(super::read_with_acting_player(cursor, |action| {
+            recognize_quantified_action(action, context)
+        })?);
     }
     cursor.enter("effect.quantified-player.complete");
     Ok(QuantifiedPlayerActionNode {

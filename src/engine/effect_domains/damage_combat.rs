@@ -61,7 +61,8 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && card_filter_supported(&effect["where"])
                 && effect.get("excludeSource").is_none_or(Value::is_boolean)
         }
-        Some("untapAttackingPermanents" | "addCombatPhase") => true,
+        Some("untapAttackingPermanents") => true,
+        Some("addCombatPhase") => additional_phase::add_combat_phase_supported(effect),
         _ => false,
     }
 }
@@ -93,14 +94,26 @@ impl GameEngine {
                 if self.execute_player_set_damage(effect, stack_object, bindings, decisions)? {
                     return Ok(());
                 }
-                let amount = self
-                    .runtime_numeric_expression(
-                        &effect["amount"],
-                        stack_object,
-                        bindings,
-                        decisions,
-                    )
-                    .unwrap_or(0);
+                let amount = self.runtime_numeric_expression(
+                    &effect["amount"],
+                    stack_object,
+                    bindings,
+                    decisions,
+                );
+                // A read of a missing producer is refused, never dealt as 0.
+                if amount.is_none()
+                    && let Some(read) =
+                        crate::engine::cost_paid_card_properties::unresolved_decision_read(
+                            self,
+                            &effect["amount"],
+                            decisions,
+                        )
+                {
+                    return Err(EngineError::new(format!(
+                        "damage amount reads `{read}`, which has no value"
+                    )));
+                }
+                let amount = amount.unwrap_or(0);
                 // The typed damage source (CR 120.1): an illegal declared or
                 // attached object deals nothing (CR 608.2b); a departed event
                 // object deals it as it last existed (CR 608.2h).
@@ -545,10 +558,12 @@ impl GameEngine {
                     .iter()
                     .map(|attacker| attacker.attacker_id.clone())
                     .collect::<Vec<_>>();
+                // The shared untap attempt (prohibitions, stun counters and
+                // untap observers), like every other untap effect.
                 for instance_id in instance_ids {
-                    if let Some((player_index, card_index)) = self.permanent_position(&instance_id)
+                    if self.attempt_untap_permanent(&instance_id)
+                        == untap_attempt::UntapAttemptOutcome::Untapped
                     {
-                        self.state.players[player_index].battlefield[card_index].tapped = false;
                         self.record_event(
                             "permanentUntapped",
                             Some(stack_object.controller.clone()),
@@ -557,6 +572,10 @@ impl GameEngine {
                         );
                     }
                 }
+            }
+            // A written anchor names the phase the added phases follow.
+            Some("addCombatPhase") if effect.get("after").is_some() => {
+                self.schedule_added_combat_phase(effect);
             }
             Some("addCombatPhase") => {
                 self.state.rule_modifiers.push(json!({

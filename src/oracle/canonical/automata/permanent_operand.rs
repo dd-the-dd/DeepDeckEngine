@@ -19,6 +19,11 @@ pub(in crate::oracle::canonical) enum PermanentOperandNode {
         objects: ObjectQueryNode,
         exclude_source: bool,
     },
+    /// `a creature you control`, `an Incubator token you control`: chosen
+    /// by the acting player while the action resolves, never targeted (CR
+    /// 608.2d, 115.1). The shared resolution choice (`chosen_operand.rs`);
+    /// the program lowering emits it before the action and binds its result.
+    Chosen(super::ObjectChoiceNode),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

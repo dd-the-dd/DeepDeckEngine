@@ -566,6 +566,24 @@ fn lower_casting_keyword(
                 "a mana blitz cost (no other blitz payment has a runtime)",
             )?,
         }),
+        // CR 702.35a: the discard is replaced by an exile and the linked
+        // trigger lets the owner cast the card for this mana cost rather
+        // than its mana cost; the runtime owns both abilities.
+        CastingKeyword::Madness => json!({
+            "kind": "madness",
+            "cost": keyword_mana(
+                cursor,
+                node,
+                "a mana madness cost (a nonmana madness payment has no runtime)",
+            )?,
+        }),
+        // CR 702.146a-b: the graveyard route casts the card with its back
+        // face up for this mana cost; it resolves with that face up. The
+        // runtime finds the back face on the card's transforming faces.
+        CastingKeyword::Disturb => json!({
+            "kind": "disturb",
+            "cost": keyword_mana(cursor, node, "a disturb mana cost")?,
+        }),
         // CR 702.187b: the graveyard route admits a card discarded this turn.
         CastingKeyword::Mayhem => json!({
             "kind": "mayhem",
@@ -617,6 +635,19 @@ fn lower_casting_keyword(
             "minimumPower": integer(keyword_count(cursor, node)?),
         }),
         CastingKeyword::Conspire => json!({ "kind": "conspire" }),
+        // CR 702.153a-b: the runtime declares the optional sacrifice as the
+        // spell is cast and copies the spell once per paid instance; a copy
+        // of a permanent spell (a token, CR 707.10c) has no copy runtime.
+        CastingKeyword::Casualty => {
+            cursor.require(
+                spell_face(face_type_line),
+                "an instant or sorcery face for casualty (a copied permanent spell becomes a token, which the copy runtime lacks)",
+            )?;
+            json!({
+                "kind": "casualty",
+                "minimumPower": integer(keyword_count(cursor, node)?),
+            })
+        }
         // CR 702.81a: cast from the graveyard by also discarding a land card.
         CastingKeyword::Retrace => json!({
             "kind": "graveyardCastWithDiscard",
@@ -637,6 +668,17 @@ fn lower_casting_keyword(
             })
         }
         CastingKeyword::Gravestorm => json!({ "kind": "gravestorm" }),
+        // CR 702.127a: three static abilities of one split-card half: it may
+        // be cast from a graveyard, from no other zone, and a graveyard cast
+        // is exiled whenever it leaves the stack. The runtime reads them
+        // from the half that carries the keyword.
+        CastingKeyword::Aftermath => {
+            cursor.require(
+                spell_face(face_type_line),
+                "an instant or sorcery half for aftermath (CR 702.127a)",
+            )?;
+            json!({ "kind": "aftermath" })
+        }
         // CR 702.174a: an optional promise as the spell is cast; the
         // runtime has the chosen opponent draw a card first.
         CastingKeyword::GiftACard => json!({ "kind": "giftCard", "optional": true }),

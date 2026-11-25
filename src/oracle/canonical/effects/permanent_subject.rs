@@ -140,6 +140,9 @@ pub(in crate::oracle::canonical) fn bound_player_reference_value(
         // The defending player of a combat check is bound only while a
         // static combat restriction is checked, never in an effect program.
         BoundPlayerReference::DefendingPlayer => None,
+        // The player slot of the action the operand belongs to, substituted
+        // when the rule is drafted (`bind_pending_acting_players`).
+        BoundPlayerReference::ActingPlayer => Some(json!({"kind": ACTING_PLAYER})),
     }
 }
 
@@ -156,8 +159,10 @@ pub(in crate::oracle::canonical) fn ordinary_action_targets(
         LocalEffectNode::MoveCounters(node) => &node.destination,
         LocalEffectNode::TapPermanents(node) => &node.targets,
         LocalEffectNode::UntapRestriction(node) => &node.objects,
+        LocalEffectNode::RuleChange(node) => node.objects()?,
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
+        LocalEffectNode::TransformPermanent(node) => &node.permanent,
         _ => return None,
     };
     match operand {
@@ -181,6 +186,14 @@ pub(in crate::oracle::canonical) fn lower_ordinary_permanent_subject(
             PermanentOperandNode::BoundReference(reference) => {
                 lower_bound_permanent_reference(cursor, *reference, bindings)?
             }
+            // The program lowering emitted the choice before this action and
+            // bound its result under the action's own key
+            // (`chosen_operand::lower_action_chosen_operand`).
+            PermanentOperandNode::Chosen(choice) => lower_bound_permanent_reference(
+                cursor,
+                chosen_operand_reference(choice, effect_index),
+                bindings,
+            )?,
             _ => lower_nontargeted_permanent_operand(operand)
                 .map_err(|error| cursor.fail(error.expectation()))?,
         }]);

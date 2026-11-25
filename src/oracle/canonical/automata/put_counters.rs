@@ -339,6 +339,24 @@ fn recognize_counter_count(
     Ok(NumericExpression::Atom(atom))
 }
 
+/// The object a counter is put on: the shared permanent operand (a target,
+/// the source, a bound reference, a collection), or a permanent the acting
+/// player chooses while the action resolves (`on a creature you control`,
+/// CR 608.2d), which is never a target and cannot make the action fizzle.
+fn recognize_counter_recipient(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<super::PermanentOperandNode> {
+    if super::chosen_permanent_operand_starts(cursor) {
+        cursor.enter("effect.put-counters.permanent.chosen");
+        return super::recognize_chosen_permanent_operand(cursor)
+            .map(super::PermanentOperandNode::Chosen);
+    }
+    super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)
+}
+
 /// Recognizes one independent `put COUNT COUNTER counters on PERMANENT-OPERAND` effect
 /// with exactly one counter kind: the contract of parents whose own lowering
 /// reads one `counter`/`count` pair. A listed or chosen kind fails here,
@@ -451,7 +469,7 @@ pub(in crate::oracle::canonical) fn recognize_put_counter_placements_effect(
             }
             PutCountersState::Permanent => {
                 cursor.enter("effect.put-counters.permanent");
-                memory.permanent = Some(super::recognize_contextual_permanent_operand(
+                memory.permanent = Some(recognize_counter_recipient(
                     cursor,
                     name_links,
                     name_failure,

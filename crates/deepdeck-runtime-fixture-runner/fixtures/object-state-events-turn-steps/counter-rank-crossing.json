@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "counter-events/the-placement-crossing-the-rank-triggers-once",
+  "seed": 1005,
+  "rule": {
+    "kind": "triggeredAbility",
+    "source": {
+      "kind": "self"
+    },
+    "event": {
+      "kind": "countersPlaced",
+      "player": {
+        "kind": "controllerOf",
+        "object": {
+          "kind": "self"
+        }
+      },
+      "counter": "plan",
+      "object": {
+        "kind": "self"
+      },
+      "reachesCount": 4
+    },
+    "effects": [
+      {
+        "kind": "gainLife",
+        "player": {
+          "kind": "controllerOf",
+          "object": {
+            "kind": "self"
+          }
+        },
+        "amount": {
+          "kind": "integer",
+          "value": 1
+        }
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Schemer",
+        "battlefield": [
+          {
+            "id": "plan-scheme",
+            "name": "Plan Scheme",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "countersPlaced",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  },
+                  "counter": "plan",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "reachesCount": 4
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              }
+            ],
+            "counters": {
+              "plan": 3
+            }
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "plan-scheme",
+        "executeInPlace": true
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "putCounters",
+            "permanent": {
+              "kind": "self"
+            },
+            "counter": "plan",
+            "count": {
+              "kind": "integer",
+              "value": 2
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "resolveTopStack"
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "permanentCounter",
+      "playerId": "p0",
+      "definitionId": "plan-scheme",
+      "counter": "plan",
+      "equals": 5
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 21
+    },
+    {
+      "kind": "stackDepth",
+      "equals": 0
+    }
+  ]
+}

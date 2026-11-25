@@ -322,17 +322,22 @@ fn a_search_action_ends_at_its_selection_when_its_tail_is_not_its_own() {
         SearchDestination::Zone(CardZoneName::Hand)
     );
     assert_eq!(trailing, ".");
+    // Jaheira's Respite: a `where X` the search's count reads belongs to the
+    // search, which then keeps its own complete tail.
+    let (respite, trailing) = parse_action(
+        "Search your library for up to X basic land cards, where X is the number of creatures attacking you, put those cards onto the battlefield tapped, then shuffle.",
+    );
+    assert_eq!(
+        respite.destination,
+        SearchDestination::Battlefield { tapped: true }
+    );
+    assert_eq!(trailing, ".");
 
     for (text, rest) in [
         // Bribery: the move names its controller; the holder shuffles later.
         (
             "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
             "and",
-        ),
-        // Jaheira's Respite: the sentence's `where X` follows the selection.
-        (
-            "Search your library for up to X basic land cards, where X is the number of creatures attacking you, put those cards onto the battlefield tapped, then shuffle.",
-            ",",
         ),
         // Stonehewer Giant: an action the tail does not own follows the move.
         (

@@ -35,6 +35,9 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     EnteredThisTurn,
     AttackedThisTurn,
     BlockedThisTurn,
+    /// `that was blocked this turn` (CR 509.1h): a blocker was declared for
+    /// the attacking object this turn.
+    WasBlockedThisTurn,
     WasDealtDamageThisTurn,
     DealtDamageThisTurn,
     /// `[cards in a zone] that were put there from the battlefield this
@@ -83,6 +86,7 @@ impl ObjectStatus {
             Self::EnteredThisTurn => ("enteredThisTurn", false),
             Self::AttackedThisTurn => ("attackedThisTurn", false),
             Self::BlockedThisTurn => ("blockedThisTurn", false),
+            Self::WasBlockedThisTurn => ("wasBlockedThisTurn", false),
             Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
             Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
             Self::PutThereFromBattlefieldThisTurn => ("putThereFromBattlefieldThisTurn", false),
@@ -421,6 +425,14 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
     /// the ability controller controlled it as it entered. A later control
     /// change does not alter that fact.
     EnteredUnderControlThisTurn(DamagedPlayer),
+    /// `attacking you [or a planeswalker you control]` (CR 508.1b, 506.3):
+    /// the permanent is an attacking creature whose defender is the player
+    /// relative to the ability controller or, when `planeswalkers`, a
+    /// planeswalker that player controls.
+    AttackingPlayer {
+        player: DamagedPlayer,
+        planeswalkers: bool,
+    },
     /// `with toughness greater than its power`: one property of the
     /// candidate compared with another property of the same candidate (CR
     /// 208.1). It depends on nothing but the candidate.
@@ -444,7 +456,8 @@ impl ObjectQualifier {
             Self::DamagedBySourceThisTurn
             | Self::Extremum { .. }
             | Self::DistinctControllers
-            | Self::EnteredUnderControlThisTurn(_) => domain == ObjectKind::Permanent,
+            | Self::EnteredUnderControlThisTurn(_)
+            | Self::AttackingPlayer { .. } => domain == ObjectKind::Permanent,
         }
     }
 

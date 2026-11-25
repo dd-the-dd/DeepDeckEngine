@@ -3,14 +3,18 @@
 //! ```text
 //! CounterEvent := Batch Counters "are" "put" "on" Recipient
 //!               | Actor ("put" | "puts") Batch Counters "on" Recipient
+//!               | ("a" | "an") COUNTER_NAME "counter" "is" "put" "on" Recipient
+//!               | "the" ORDINAL COUNTER_NAME "counter" "is" "put" "on" Recipient
 //! Batch        := "one" "or" "more"
 //! Counters     := [COUNTER_NAME] "counters"
 //! Recipient    := SOURCE | ("a" | "an" | "another") PermanentQuery
 //! ```
 //!
-//! The counter kind, the recipient and the placing player are independent
-//! attributes. `one or more` observes one placement on one permanent; the
-//! singular `a counter is put on` counts counters and is a different event.
+//! The counter kind, the recipient, the placing player and the occurrence
+//! are independent attributes. `one or more` observes one placement on one
+//! permanent; the singular `a counter is put on` observes each counter of a
+//! placement (CR 122.6, 603.2c); `the fourth plan counter is put on` observes
+//! the placement that brings the count of that kind to four.
 use crate::oracle::{
     counter_name::CounterName,
     syntax::{NameResolutionFailure, ResolvedNameLink},
@@ -32,6 +36,18 @@ pub(in crate::oracle::canonical) enum CounterRecipient {
     },
 }
 
+/// Which counters of one placement are occurrences of the event.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CounterPlacementOccurrence {
+    /// `one or more COUNTERS are put on`: one occurrence per placement.
+    Placement,
+    /// `a COUNTER counter is put on`: one occurrence per counter put.
+    EachCounter,
+    /// `the ORDINAL COUNTER counter is put on`: the placement that puts the
+    /// counter of that rank, the count of that kind crossing N.
+    Ordinal(i64),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CounterPlacementEventNode {
     /// The player who puts the counters, when the event names one.
@@ -39,6 +55,7 @@ pub(in crate::oracle::canonical) struct CounterPlacementEventNode {
     /// `None` for counters of any kind.
     pub counter: Option<CounterName>,
     pub recipient: CounterRecipient,
+    pub occurrence: CounterPlacementOccurrence,
 }
 
 fn peek_is(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
@@ -61,6 +78,50 @@ fn recognize_counter_batch(
     cursor.enter("event.counters.noun");
     cursor.consume("counters")?;
     Ok(counter)
+}
+
+/// `a COUNTER counter` / `the ORDINAL COUNTER counter`: one named counter of
+/// the singular passive event.
+fn recognize_singular_counter(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<(CounterName, CounterPlacementOccurrence)> {
+    cursor.enter("event.counters.singular");
+    let occurrence = if peek_is(cursor, 0, "the") {
+        cursor.consume("the")?;
+        cursor.enter("event.counters.ordinal");
+        let rank = super::recognize_ordinal_atom(cursor)?;
+        cursor.require(rank >= 1, "a positive counter rank")?;
+        CounterPlacementOccurrence::Ordinal(rank)
+    } else {
+        let article = cursor
+            .peek()
+            .filter(|raw| raw.eq_ignore_ascii_case("a") || raw.eq_ignore_ascii_case("an"))
+            .map(str::to_string)
+            .ok_or_else(|| cursor.fail("`a`, `an` or `the ORDINAL` before one counter"))?;
+        cursor.consume(&article)?;
+        CounterPlacementOccurrence::EachCounter
+    };
+    cursor.enter("event.counters.kind");
+    let counter = recognize_counter_name(cursor)?;
+    cursor.enter("event.counters.noun");
+    cursor.consume("counter")?;
+    cursor.enter("event.counters.passive");
+    cursor.consume_phrase(&["is", "put", "on"])?;
+    Ok((counter, occurrence))
+}
+
+/// `a|an|the` before a counter noun phrase whose noun is the singular
+/// `counter`: the singular passive event (a lexical probe).
+fn singular_counter_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    let article = ["a", "an", "the"]
+        .iter()
+        .any(|word| peek_is(cursor, 0, word));
+    article
+        && (1..=4).any(|offset| {
+            peek_is(cursor, offset, "counter")
+                && peek_is(cursor, offset + 1, "is")
+                && peek_is(cursor, offset + 2, "put")
+        })
 }
 
 fn recognize_recipient(
@@ -104,6 +165,17 @@ pub(in crate::oracle::canonical) fn recognize_counter_placement_event(
     name_failure: Option<&NameResolutionFailure>,
 ) -> MachineResult<CounterPlacementEventNode> {
     cursor.enter("event.counters.subject");
+    if singular_counter_starts(cursor) {
+        let (counter, occurrence) = recognize_singular_counter(cursor)?;
+        let recipient = recognize_recipient(cursor, name_links, name_failure)?;
+        cursor.enter("event.counters.complete");
+        return Ok(CounterPlacementEventNode {
+            placed_by: None,
+            counter: Some(counter),
+            recipient,
+            occurrence,
+        });
+    }
     let placed_by = try_recognize_event_actor_scope(cursor)?;
     let counter = if let Some(actor) = placed_by {
         cursor.enter("event.counters.action");
@@ -128,6 +200,7 @@ pub(in crate::oracle::canonical) fn recognize_counter_placement_event(
         placed_by,
         counter,
         recipient,
+        occurrence: CounterPlacementOccurrence::Placement,
     })
 }
 

@@ -193,6 +193,7 @@ impl GameEngine {
         targets: &BTreeMap<String, TargetRef>,
         decisions: &mut BTreeMap<String, Value>,
     ) {
+        self.record_cost_paid_card_properties(costs, targets, decisions);
         for cost in costs.as_array().into_iter().flatten() {
             let Some(binding) = cost["bindObjectAs"].as_str() else {
                 continue;

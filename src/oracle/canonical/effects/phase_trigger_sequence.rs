@@ -15,7 +15,9 @@ fn lower_step(step: TurnStep) -> &'static str {
         TurnStep::PrecombatMain => "precombatMain",
         TurnStep::BeginCombat => "beginCombat",
         TurnStep::PostcombatMain | TurnStep::SecondMain => "postcombatMain",
+        TurnStep::EndOfCombat => "endOfCombat",
         TurnStep::EndStep => "endStep",
+        TurnStep::EachMainPhase => unreachable!("every main phase lowers to both main steps"),
     }
 }
 
@@ -31,6 +33,14 @@ pub(in crate::oracle::canonical) fn lower_step_event(event: StepEventNode) -> Va
             json!({ "kind": "controllerOfAttachedPermanent", "attachment": self_ref() })
         }
     };
+    // CR 505.1: every main phase of the turn is one of the two main steps.
+    if event.step == TurnStep::EachMainPhase {
+        let events = ["precombatMain", "postcombatMain"]
+            .into_iter()
+            .map(|step| json!({"kind": "stepBegan", "step": step, "player": player.clone()}))
+            .collect::<Vec<_>>();
+        return json!({"kind": "oneOf", "events": events});
+    }
     let mut lowered = json!({
         "kind": "stepBegan",
         "step": lower_step(event.step),

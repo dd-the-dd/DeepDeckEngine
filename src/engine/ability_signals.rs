@@ -68,6 +68,11 @@ impl GameEngine {
                 detail,
             );
             self.enqueue_ability_signal_triggers(&player_id, ability_id);
+            self.publish_observed_ability_signal(
+                &player_id,
+                ability_id,
+                object.as_ref().map(|(id, _)| id.as_str()),
+            );
         }
         Ok(true)
     }
@@ -90,6 +95,9 @@ impl GameEngine {
                                 .iter()
                                 .any(|event| {
                                     value_kind(event) == Some("abilityPerformed")
+                                        && !super::observed_state_events::names_observed_permanent(
+                                            event,
+                                        )
                                         && event["abilityId"].as_str() == Some(ability_id)
                                         && self.event_player_reference_matches(
                                             &event["player"],

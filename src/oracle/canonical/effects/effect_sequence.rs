@@ -123,6 +123,55 @@ fn lower_untap_restriction_window(
     Ok(window)
 }
 
+/// The player a requirement names as the one to attack (CR 508.1d): the
+/// controller, the event player, a player an earlier action declared, or a
+/// player target this action declares. Any other relation is refused.
+fn lower_requirement_defender(
+    cursor: &OracleTokenCursor<'_>,
+    defender: &PlayerEffectSubject,
+    player_target_bindings: &[PlayerTargetBinding],
+    declared_player_targets: &mut Vec<(PlayerTargetBinding, String)>,
+    decisions: &mut Vec<Value>,
+) -> Result<Value, EffectSequenceLoweringFailure> {
+    match defender {
+        PlayerEffectSubject::Controller => Ok(controller()),
+        PlayerEffectSubject::EventPlayer => Ok(json!({ "kind": "triggeringPlayer" })),
+        PlayerEffectSubject::Bound(binding) => declared_player_targets
+            .iter()
+            .find_map(|(key, id)| (key.effect_index == binding.0).then(|| chosen_target(id)))
+            .ok_or_else(|| {
+                EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a declared player as the requirement's defender"),
+                )
+            }),
+        PlayerEffectSubject::DeclaredTarget { target, binding } => {
+            let key = PlayerTargetBinding {
+                effect_index: binding.0,
+            };
+            let [slot] = target.slots.as_slice() else {
+                return Err(EffectSequenceLoweringFailure::FailedInvariant(
+                    cursor.fail("one declared player target slot"),
+                ));
+            };
+            let (_, candidates) = lower_target_selector_candidates(&slot.selector)
+                .ok_or_else(|| cursor.fail("a supported player target selector"))?;
+            let ordinal = player_target_bindings
+                .iter()
+                .position(|value| *value == key)
+                .ok_or_else(|| cursor.fail("a declared player-target binding"))?;
+            let target_id = player_target_id_for_ordinal(ordinal, player_target_bindings.len());
+            decisions.push(target_decision(&target_id, candidates, 1, 1));
+            declared_player_targets.push((key, target_id.clone()));
+            Ok(chosen_target(&target_id))
+        }
+        PlayerEffectSubject::ObjectRelation { .. } => {
+            Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(
+                "a requirement defender the runtime resolves (you, the event player or a declared player)",
+            )))
+        }
+    }
+}
+
 pub(in crate::oracle::canonical) fn target_id_for_ordinal(
     base_id: &str,
     ordinal: usize,
@@ -300,6 +349,7 @@ fn lower_local_effect_sequence_with_collections(
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
+            | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::TemporaryKeywordGrant(_) => ordinary_action_targets(effect)
                 .into_iter()
                 .flat_map(|targets| targets.slots.iter())
@@ -342,6 +392,23 @@ fn lower_local_effect_sequence_with_collections(
             LocalEffectNode::Fight(fight) => {
                 let mut ids = operand_target_base_ids(&fight.first);
                 ids.extend(operand_target_base_ids(&fight.second));
+                ids
+            }
+            LocalEffectNode::RuleChange(rule) => {
+                let mut ids = rule
+                    .objects()
+                    .map(operand_target_base_ids)
+                    .unwrap_or_default();
+                if let RuleChangeNode::CombatRequirement(CombatRequirementNode {
+                    direction:
+                        CombatRequirementDirection::Block {
+                            attacker: Some(attacker),
+                        },
+                    ..
+                }) = rule
+                {
+                    ids.extend(operand_target_base_ids(attacker));
+                }
                 ids
             }
             LocalEffectNode::PreventDamage(prevent) => prevent
@@ -388,6 +455,17 @@ fn lower_local_effect_sequence_with_collections(
         {
             Some(PlayerTargetBinding { effect_index })
         }
+        // `attacks target opponent this turn if able`: the defender is a
+        // player target this action declares.
+        LocalEffectNode::RuleChange(RuleChangeNode::CombatRequirement(CombatRequirementNode {
+            direction:
+                CombatRequirementDirection::Attack {
+                    defender: Some(PlayerEffectSubject::DeclaredTarget { binding, .. }),
+                },
+            ..
+        })) => Some(PlayerTargetBinding {
+            effect_index: binding.0,
+        }),
         _ => None,
     };
     let player_target_bindings = sequence
@@ -542,6 +620,38 @@ fn lower_local_effect_sequence_with_collections(
         ) {
             collections.clear_antecedent();
         }
+        // An operand chosen while the action resolves (CR 608.2d): its
+        // choice runs right before the action, which reads the bound result.
+        let chosen = super::chosen_operand::lower_action_chosen_operand(
+            effect,
+            effect_index,
+            match context {
+                EffectSequenceLoweringContext::NoExternalX => TargetlessDeclarationSupport::None,
+                EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                    TargetlessDeclarationSupport::XValue
+                }
+            },
+        );
+        if !matches!(chosen, Ok(None)) {
+            cursor.enter("lower.chosen-operand");
+        }
+        if let Some(chosen) = chosen.map_err(|expected| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+        })? {
+            if !collections.claim_instruction_ids(&chosen.choice) {
+                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                    cursor.fail("a program-unique decision for the operand chosen on resolution"),
+                ));
+            }
+            effects.extend(chosen.choice);
+            let key = resolution_choice_binding(effect_index);
+            target_bindings.push((key, chosen.binding.clone()));
+            target_bindings.push((
+                super::permanent_subject::target_set_binding_key(key),
+                chosen.binding.clone(),
+            ));
+            chosen_object_bindings.push(chosen.binding);
+        }
         match effect {
             LocalEffectNode::PlayerAction(action) => {
                 cursor.enter("lower.player-action.subject");
@@ -629,6 +739,8 @@ fn lower_local_effect_sequence_with_collections(
                     SingularPlayerAction::Counters(node) => {
                         ("addPlayerCounters", "count", &node.count)
                     }
+                    // CR 119.5: the difference is gained or lost.
+                    SingularPlayerAction::SetLifeTotal(total) => ("setLifeTotal", "amount", total),
                     SingularPlayerAction::Life(life) => (
                         match life.action {
                             TargetPlayerLifeAction::Gain => "gainLife",
@@ -1055,6 +1167,10 @@ fn lower_local_effect_sequence_with_collections(
                         target_id.to_string(),
                     ));
                 }
+            }
+            // CR 500.8: phases added to this turn after a named phase.
+            LocalEffectNode::AdditionalPhases(node) => {
+                effects.push(lower_additional_phases(node));
             }
             LocalEffectNode::Retarget(node) => {
                 let id = format!("retargetObject{effect_index}");
@@ -1612,6 +1728,183 @@ fn lower_local_effect_sequence_with_collections(
                         "duration": duration.clone(),
                     }));
                 }
+            }
+            // CR 701.28a: each operand permanent transforms; the source keeps
+            // the IR of the targetless lowering.
+            LocalEffectNode::TransformPermanent(transform) => {
+                cursor.enter("lower.transform.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &transform.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                for object in objects {
+                    effects.push(json!({"kind": "transformPermanent", "object": object}));
+                }
+            }
+            LocalEffectNode::RuleChange(rule) => {
+                cursor.enter("lower.rule-change.object");
+                let objects = match rule.objects() {
+                    Some(operand) => lower_ordinary_permanent_subject(
+                        cursor,
+                        operand,
+                        effect_index,
+                        false,
+                        &permanent_target_base_ids,
+                        &mut used_target_base_ids,
+                        &mut decisions,
+                        &mut target_bindings,
+                    )?,
+                    None => Vec::new(),
+                };
+                let lowered = match rule {
+                    RuleChangeNode::CombatRequirement(node) => {
+                        let bound = target_bindings.len();
+                        let attacker = match &node.direction {
+                            CombatRequirementDirection::Block {
+                                attacker: Some(attacker),
+                            } => {
+                                cursor.enter("lower.rule-change.requirement.attacker");
+                                let lowered = lower_ordinary_permanent_subject(
+                                    cursor,
+                                    attacker,
+                                    effect_index,
+                                    false,
+                                    &permanent_target_base_ids,
+                                    &mut used_target_base_ids,
+                                    &mut decisions,
+                                    &mut target_bindings,
+                                )?;
+                                // As for a fight's second fighter, a declared
+                                // attacker is never the action's antecedent
+                                // when its creatures declare their own.
+                                if matches!(node.creatures, PermanentOperandNode::Targets(_)) {
+                                    target_bindings.truncate(bound);
+                                }
+                                let [attacker] = lowered.as_slice() else {
+                                    return Err(EffectSequenceLoweringFailure::FailedSupport(
+                                        cursor.fail("exactly one attacker the requirement names"),
+                                    ));
+                                };
+                                Some(attacker.clone())
+                            }
+                            _ => None,
+                        };
+                        let defender = match &node.direction {
+                            CombatRequirementDirection::Attack {
+                                defender: Some(defender),
+                            } => {
+                                cursor.enter("lower.rule-change.requirement.defender");
+                                Some(lower_requirement_defender(
+                                    cursor,
+                                    defender,
+                                    &player_target_bindings,
+                                    &mut declared_player_targets,
+                                    &mut decisions,
+                                )?)
+                            }
+                            _ => None,
+                        };
+                        cursor.enter("lower.rule-change.requirement.window");
+                        let window = match &node.window {
+                            CombatRequirementWindow::ThisCombat => json!({ "kind": "thisCombat" }),
+                            CombatRequirementWindow::Duration(
+                                EffectDurationNode::UntilEndOfCurrentTurn,
+                            ) => json!({ "kind": "untilEndOfCurrentTurn" }),
+                            CombatRequirementWindow::Duration(_) => {
+                                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+                                    cursor.fail(
+                                        "a requirement window the runtime ends (`this turn`, `this combat`)",
+                                    ),
+                                ));
+                            }
+                        };
+                        objects
+                            .into_iter()
+                            .map(|creatures| {
+                                let mut effect = json!({
+                                    "kind": "installCombatRequirement",
+                                    "requirement": match node.direction {
+                                        CombatRequirementDirection::Attack { .. } => "attack",
+                                        CombatRequirementDirection::Block { .. } => "block",
+                                    },
+                                    "creatures": creatures,
+                                    "window": window.clone(),
+                                });
+                                if let Some(attacker) = &attacker {
+                                    effect["attacker"] = attacker.clone();
+                                }
+                                if let Some(defender) = &defender {
+                                    effect["defender"] = defender.clone();
+                                }
+                                effect
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                    RuleChangeNode::ActivationProhibition { duration, .. } => {
+                        cursor.enter("lower.rule-change.activation-prohibition");
+                        let duration = lower_duration(duration)
+                            .filter(|duration| {
+                                matches!(
+                                    duration["kind"].as_str(),
+                                    Some("untilEndOfCurrentTurn" | "untilNextTurn")
+                                )
+                            })
+                            .ok_or_else(|| {
+                                cursor.fail("an activation-prohibition duration the runtime ends")
+                            })?;
+                        let mut lowered = Vec::new();
+                        for object in objects {
+                            if matches!(
+                                object["kind"].as_str(),
+                                Some("chosenTargets" | "eachPermanent")
+                            ) {
+                                let id = format!("effect{effect_index}:activationProhibited");
+                                lowered.push(json!({
+                                    "kind": "forEachObject",
+                                    "objects": object,
+                                    "bind": id.clone(),
+                                    "effects": [{
+                                        "kind": "prohibitPermanentActivations",
+                                        "object": {"kind": "boundValue", "id": id},
+                                        "duration": duration.clone(),
+                                    }],
+                                }));
+                                continue;
+                            }
+                            lowered.push(json!({
+                                "kind": "prohibitPermanentActivations",
+                                "object": object,
+                                "duration": duration.clone(),
+                            }));
+                        }
+                        lowered
+                    }
+                    RuleChangeNode::LifeTotalLock { duration } => {
+                        cursor.enter("lower.rule-change.life-total-lock");
+                        let duration = lower_duration(duration)
+                            .filter(|duration| {
+                                matches!(
+                                    duration["kind"].as_str(),
+                                    Some("untilEndOfCurrentTurn" | "untilNextTurn")
+                                )
+                            })
+                            .ok_or_else(|| {
+                                cursor.fail("a life-total lock duration the runtime ends")
+                            })?;
+                        vec![json!({
+                            "kind": "lockLifeTotal",
+                            "player": controller(),
+                            "duration": duration,
+                        })]
+                    }
+                };
+                effects.extend(lowered);
             }
             LocalEffectNode::TapPermanents(tap) => {
                 cursor.enter("lower.tap-permanents.object");
@@ -2903,6 +3196,8 @@ fn lower_local_effect_sequence_with_collections(
     }
     super::resolve_relation_target_anchors(cursor, &mut effects, &target_bindings)
         .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
+    super::resolve_bound_player_anchors(cursor, &mut effects, &declared_player_targets)
+        .map_err(EffectSequenceLoweringFailure::UnsupportedSupportLimit)?;
     cursor.enter("lower.action-result.object");
     resolve_action_result_objects(&result_object_plans, &mut effects).map_err(|expected| {
         EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
@@ -4036,6 +4331,7 @@ fn created_tokens_are_next_antecedent(sequence: &EffectSequenceNode, effect_inde
         LocalEffectNode::PutCounters(node) => vec![&node.permanent],
         LocalEffectNode::TapPermanents(node) => vec![&node.targets],
         LocalEffectNode::UntapRestriction(node) => vec![&node.objects],
+        LocalEffectNode::RuleChange(node) => node.objects().into_iter().collect(),
         LocalEffectNode::PermanentKeywordAction(node) => vec![&node.targets],
         // `create a token, then attach this to it` (CR 702.92a, 702.163a):
         // the attach reads the created token as its recipient or attachment.
@@ -4690,7 +4986,9 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
     match operand {
         PermanentOperandNode::Targets(_)
         | PermanentOperandNode::Collection { .. }
-        | PermanentOperandNode::Reference(_) => true,
+        | PermanentOperandNode::Reference(_)
+        // Chosen among battlefield permanents as the action resolves.
+        | PermanentOperandNode::Chosen(_) => true,
         PermanentOperandNode::BoundReference(reference) => match reference {
             PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
             PermanentEffectReference::Target(binding)

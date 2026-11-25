@@ -1,0 +1,171 @@
+{
+  "schemaVersion": "deepdeck-runtime-fixture/v1",
+  "id": "turn-structure/added-combat-phase-then-added-main-phase",
+  "seed": 1006,
+  "rule": {
+    "kind": "spellAbility",
+    "source": {
+      "kind": "self"
+    },
+    "effects": [
+      {
+        "kind": "addCombatPhase",
+        "after": "currentMainPhase",
+        "followedByMainPhase": true
+      }
+    ]
+  },
+  "initialState": {
+    "activePlayerId": "p0",
+    "turnNumber": 1,
+    "step": "postcombatMain",
+    "players": [
+      {
+        "id": "p0",
+        "name": "Assaulter",
+        "battlefield": [
+          {
+            "id": "phase-watcher",
+            "name": "Phase Watcher",
+            "typeLine": "Enchantment",
+            "rules": [
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "stepBegan",
+                  "step": "endOfCombat",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 1
+                    }
+                  }
+                ]
+              },
+              {
+                "kind": "triggeredAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "event": {
+                  "kind": "stepBegan",
+                  "step": "postcombatMain",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                },
+                "effects": [
+                  {
+                    "kind": "gainLife",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    },
+                    "amount": {
+                      "kind": "integer",
+                      "value": 10
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "hand": [
+          {
+            "id": "relentless",
+            "name": "Relentless Assault",
+            "typeLine": "Sorcery",
+            "rules": [
+              {
+                "kind": "spellAbility",
+                "source": {
+                  "kind": "self"
+                },
+                "effects": [
+                  {
+                    "kind": "addCombatPhase",
+                    "after": "currentMainPhase",
+                    "followedByMainPhase": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "p1",
+        "name": "Opponent"
+      }
+    ]
+  },
+  "actions": [
+    {
+      "kind": "executeRule",
+      "execution": {
+        "controllerId": "p0",
+        "sourceDefinitionId": "relentless"
+      },
+      "rule": {
+        "kind": "spellAbility",
+        "source": {
+          "kind": "self"
+        },
+        "effects": [
+          {
+            "kind": "addCombatPhase",
+            "after": "currentMainPhase",
+            "followedByMainPhase": true
+          }
+        ]
+      }
+    },
+    {
+      "kind": "runPostcombatMain",
+      "maximumTurnNumber": 1
+    }
+  ],
+  "assertions": [
+    {
+      "kind": "eventCount",
+      "eventKind": "combatPhaseStarted",
+      "equals": 1
+    },
+    {
+      "kind": "lifeTotal",
+      "playerId": "p0",
+      "equals": 31
+    },
+    {
+      "kind": "ruleModifierCount",
+      "fields": {
+        "kind": "additionalPhases"
+      },
+      "equals": 0
+    }
+  ]
+}

@@ -108,6 +108,7 @@ pub(in crate::oracle::canonical) fn lower_stack_item_filter(
         }
         StackItemPredicate::Spell => json!({ "kind": "isSpell" }),
         StackItemPredicate::Colorless => json!({ "kind": "isColorless" }),
+        StackItemPredicate::Targets(targeted) => lower_targets_relation(targeted),
         StackItemPredicate::Intersection(operands) => {
             and(operands.iter().map(lower_stack_item_filter).collect())
         }

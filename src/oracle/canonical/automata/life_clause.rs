@@ -126,13 +126,200 @@ fn controller_node(
     }
 }
 
-/// `[SUBJECT] gain(s)|lose(s) AMOUNT life` as one effect. `Ok(None)` makes
-/// no claim and restores the cursor.
+/// The possessor of a life total (CR 119.1): one player, or each player of
+/// a population (`each player's life total`).
+enum LifeTotalPossessor {
+    Player(PlayerEffectSubject),
+    Population(super::PlayerSetReferenceNode),
+}
+
+fn word_is(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
+    cursor
+        .peek_ahead(offset)
+        .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
+}
+
+/// The written player noun of a genitive (`player's`, `opponent’s`).
+fn genitive_player_noun(raw: &str) -> Option<&'static str> {
+    match super::performer::genitive_base(raw)?.as_str() {
+        "player" => Some("player"),
+        "opponent" => Some("opponent"),
+        _ => None,
+    }
+}
+
+/// The token length of a life-total possessor followed by `life total
+/// becomes` (`your`, `target player's`, `that opponent's`, `each player's`).
+/// Lexical lookahead only; the possessor readers prove the reference.
+fn life_total_possessor_length(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+    let length = if word_is(cursor, 0, "your") {
+        1
+    } else if ["target", "that", "each"]
+        .iter()
+        .any(|determiner| word_is(cursor, 0, determiner))
+        && cursor
+            .peek_ahead(1)
+            .and_then(genitive_player_noun)
+            .is_some()
+    {
+        2
+    } else {
+        return None;
+    };
+    (word_is(cursor, length, "life")
+        && word_is(cursor, length + 1, "total")
+        && word_is(cursor, length + 2, "becomes"))
+    .then_some(length)
+}
+
+/// The possessor of `length` tokens. A genitive player reference is read by
+/// the shared player-subject reader over a view of the same tokens whose
+/// genitive is its noun (`target player's` is the declared `target player`,
+/// `that player's` the bound `that player`): it declares or binds exactly as
+/// the subject would. A declaration needs the binding the effect sequence
+/// supplies; without it the possessor fails explicitly.
+fn recognize_life_total_possessor(
+    cursor: &mut OracleTokenCursor<'_>,
+    length: usize,
+    bindings: &LifeEffectBindings<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<LifeTotalPossessor> {
+    cursor.enter("effect.life-total.possessor");
+    if length == 1 {
+        cursor.consume("your")?;
+        return Ok(LifeTotalPossessor::Player(PlayerEffectSubject::Controller));
+    }
+    let noun = cursor
+        .peek_ahead(1)
+        .and_then(genitive_player_noun)
+        .ok_or_else(|| cursor.fail("`player's` or `opponent's`"))?;
+    if word_is(cursor, 0, "each") {
+        cursor.enter("effect.life-total.possessor.population");
+        cursor.advance_to(cursor.position() + 2)?;
+        return Ok(LifeTotalPossessor::Population(if noun == "player" {
+            super::PlayerSetReferenceNode::EachPlayer
+        } else {
+            super::PlayerSetReferenceNode::OpponentsOfAbilityController
+        }));
+    }
+    let declaration = if word_is(cursor, 0, "target") {
+        cursor.enter("effect.life-total.possessor.declaration");
+        cursor.require_value(
+            bindings.declared_target,
+            "a player-target binding supplied by the effect sequence",
+        )?
+    } else {
+        PlayerBinding(usize::MAX)
+    };
+    let genitive = cursor.position() + 1;
+    let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
+    if let Some(class) = crate::oracle::syntax::recognize_entities(noun)
+        .into_iter()
+        .next()
+    {
+        tokens[genitive].category = class.category;
+        tokens[genitive].token_type = class.token_type;
+    }
+    tokens[genitive].raw = noun.to_string();
+    let mut view = cursor.with_tokens(&tokens);
+    let player = view.bounded(genitive + 1, |subject| {
+        super::source_sacrifice::atomic_action::player_subject::recognize_player_effect_subject(
+            subject,
+            declaration,
+            bindings.player_antecedent,
+            context.frame.event_player,
+        )
+    })?;
+    cursor.advance_to(view.position())?;
+    Ok(LifeTotalPossessor::Player(player))
+}
+
+/// `becomes AMOUNT` / `becomes equal to AMOUNT` after `life total`: the
+/// shared definition grammar of a number.
+fn recognize_life_total_amount(
+    cursor: &mut OracleTokenCursor<'_>,
+    verb: &str,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("effect.life-total.verb");
+    cursor.consume(verb)?;
+    cursor.enter("effect.life-total.amount");
+    if word_is(cursor, 0, "equal") && word_is(cursor, 1, "to") {
+        cursor.consume_phrase(&["equal", "to"])?;
+        return super::recognize_equal_to_amount_expression(cursor, None);
+    }
+    super::recognize_variable_definition_expression(cursor)
+}
+
+/// `POSSESSOR life total becomes AMOUNT` (CR 119.5): the possessor gains or
+/// loses the difference. One player is the player of the ordinary player
+/// action; each player of a population performs the change in turn order
+/// (CR 101.4), so the amount is read in the performer's person: `they` and
+/// `their` name the member whose total changes (`each player's life total
+/// becomes the number of creatures they control`). A written `you` there
+/// would name the member too and is refused as ambiguous. `Ok(None)` makes
+/// no claim.
+fn try_recognize_life_total_clause(
+    cursor: &mut OracleTokenCursor<'_>,
+    bindings: &LifeEffectBindings<'_>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<Option<LocalEffectNode>> {
+    let Some(length) = life_total_possessor_length(cursor) else {
+        return Ok(None);
+    };
+    cursor.enter("effect.life-total");
+    cursor.require(
+        context.subject_verb_agreement == SubjectVerbAgreement::Finite,
+        "a finite `life total becomes` clause (no causative `have`)",
+    )?;
+    let possessor = recognize_life_total_possessor(cursor, length, bindings, context)?;
+    cursor.consume_phrase(&["life", "total"])?;
+    Ok(Some(match possessor {
+        LifeTotalPossessor::Player(player) => {
+            let total = recognize_life_total_amount(cursor, "becomes")?;
+            LocalEffectNode::PlayerAction(PlayerActionNode {
+                player,
+                action: SingularPlayerAction::SetLifeTotal(total),
+            })
+        }
+        LifeTotalPossessor::Population(players) => {
+            cursor.enter("effect.life-total.population");
+            let verb = cursor.position();
+            let tokens = super::person_shifted_tokens(
+                cursor,
+                VerbAgreement::ThirdPersonSingular,
+                "a player population (`each player's life total`)",
+            )?;
+            let mut shifted = cursor.with_tokens(&tokens);
+            let total = recognize_life_total_amount(&mut shifted, "become")?;
+            let end = shifted.position();
+            if let Some(ambiguous) = super::controller_reference_failure(cursor, verb, end) {
+                return Err(ambiguous);
+            }
+            cursor.advance_to(end)?;
+            LocalEffectNode::Performed(super::PerformedEffectNode {
+                performer: super::PerformerNode::Population {
+                    players,
+                    excluding_controller: false,
+                },
+                effect: Box::new(LocalEffectNode::PlayerAction(PlayerActionNode {
+                    player: PlayerEffectSubject::Controller,
+                    action: SingularPlayerAction::SetLifeTotal(total),
+                })),
+            })
+        }
+    }))
+}
+
+/// `[SUBJECT] gain(s)|lose(s) AMOUNT life` as one effect, or `POSSESSOR life
+/// total becomes AMOUNT`. `Ok(None)` makes no claim and restores the cursor.
 pub(in crate::oracle::canonical) fn try_recognize_life_effect_clause(
     cursor: &mut OracleTokenCursor<'_>,
     bindings: LifeEffectBindings<'_>,
     context: &EffectRecognitionContext,
 ) -> MachineResult<Option<LocalEffectNode>> {
+    if let Some(change) = try_recognize_life_total_clause(cursor, &bindings, context)? {
+        return Ok(Some(change));
+    }
     let causative = context.subject_verb_agreement == SubjectVerbAgreement::BareInfinitive;
     let has_inherited = bindings.inherited.is_some();
     let frame = ClauseFrame {
@@ -153,7 +340,21 @@ pub(in crate::oracle::canonical) fn try_recognize_life_effect_clause(
         })],
         lemmas: LIFE_LEMMAS,
     };
-    let Some(clause) = recognize_clause(cursor, &frame).into_result()? else {
+    // A written player subject other than `you` is the acting player of the
+    // amount (`target opponent loses life equal to the number of creatures
+    // they control`); the imperative and `you` are the controller's.
+    let third_person = !cursor.peek().is_some_and(|raw| {
+        ["you", "gain", "gains", "lose", "loses"]
+            .iter()
+            .any(|word| raw.eq_ignore_ascii_case(word))
+    });
+    let read = |clause: &mut OracleTokenCursor<'_>| recognize_clause(clause, &frame).into_result();
+    let clause = if third_person {
+        super::read_with_acting_player(cursor, read)?
+    } else {
+        read(&mut *cursor)?
+    };
+    let Some(clause) = clause else {
         return Ok(None);
     };
     cursor.enter("effect.life.interpretation");

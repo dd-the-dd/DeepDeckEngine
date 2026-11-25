@@ -65,6 +65,80 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
     ) -> Result<LoweredEffectSequence, E>,
     program_failure: impl Fn(MachineFailure) -> E,
 ) -> Result<LoweredEffectSequence, E> {
+    // `PROGRAM. Do this only once each turn.`: the program's own steps are
+    // lowered as usual, then its one optional instruction is limited.
+    if let EffectProgramNode::OncePerTurn { body } = step {
+        let mut steps = Vec::new();
+        for inner in body.steps() {
+            steps.push(lower_unlimited_program_step(
+                cursor,
+                inner,
+                &mut *lower_with,
+                &program_failure,
+            )?);
+        }
+        let lowered = concatenate_program_steps(cursor, steps).map_err(&program_failure)?;
+        return limit_once_each_turn(cursor, lowered).map_err(program_failure);
+    }
+    lower_unlimited_program_step(cursor, step, lower_with, program_failure)
+}
+
+/// The id a once-each-turn rider records its performed instruction under;
+/// the runtime keys it by the ability's source object and rule.
+const ONCE_EACH_TURN_ID: &str = "doThisOnlyOnceEachTurn";
+
+/// Marks the one optional instruction of a lowered program as performable
+/// once each turn (`oncePerTurn`). The instruction may sit inside the
+/// program's conditionals (`if this creature is tapped, you may untap it`);
+/// an optional instruction nested in another optional one is the outer
+/// one's part. No optional instruction, or more than one, is an explicit
+/// failure: the rider would limit nothing, or an ambiguous instruction.
+fn limit_once_each_turn(
+    cursor: &mut OracleTokenCursor<'_>,
+    mut lowered: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    fn mark(effect: &mut Value, limited: &mut usize) {
+        let kind = effect["kind"].as_str().map(str::to_owned);
+        match kind.as_deref() {
+            Some("optionalEffects" | "optionalAction" | "optionalPayCostPerformEffects") => {
+                effect["oncePerTurn"] = json!(ONCE_EACH_TURN_ID);
+                *limited += 1;
+            }
+            Some("conditional" | "conditionalEffect") => {
+                for key in ["then", "else"] {
+                    if let Some(branch) = effect.get_mut(key).and_then(Value::as_array_mut) {
+                        branch.iter_mut().for_each(|effect| mark(effect, limited));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    cursor.enter("lower.program.once-each-turn");
+    let mut limited = 0;
+    lowered
+        .effects
+        .iter_mut()
+        .for_each(|effect| mark(effect, &mut limited));
+    cursor.require(
+        limited == 1,
+        "exactly one optional instruction that `Do this only once each turn` limits",
+    )?;
+    Ok(lowered)
+}
+
+/// One program step other than a once-each-turn rider (whose body is never
+/// itself limited).
+fn lower_unlimited_program_step<E>(
+    cursor: &mut OracleTokenCursor<'_>,
+    step: &EffectProgramNode,
+    lower_with: &mut impl FnMut(
+        &mut OracleTokenCursor<'_>,
+        &EffectSequenceNode,
+        &mut CardCollectionMemory,
+    ) -> Result<LoweredEffectSequence, E>,
+    program_failure: impl Fn(MachineFailure) -> E,
+) -> Result<LoweredEffectSequence, E> {
     if let EffectProgramNode::Outcome {
         permission,
         producer: OutcomeProducer::Action(action),
@@ -73,6 +147,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         otherwise,
         scope,
         result,
+        guard,
     } = step
     {
         // `If you do` reads the cards the performed instruction observed
@@ -94,11 +169,22 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
         };
         let body = lower_with(cursor, body.inner_sequence(), &mut body_scope)?;
         let otherwise = match otherwise {
-            Some(otherwise) => Some(lower_with(
-                cursor,
-                otherwise.inner_sequence(),
-                &mut CardCollectionMemory::default(),
-            )?),
+            Some(otherwise) => {
+                let lowered = lower_with(
+                    cursor,
+                    otherwise.inner_sequence(),
+                    &mut CardCollectionMemory::default(),
+                )?;
+                // A declined branch written as its own permission keeps its
+                // optional wrapper (`Otherwise, you may ...`).
+                Some(match otherwise.as_ref() {
+                    EffectProgramNode::Optional { .. } => {
+                        wrap_lowered_effect_program(cursor, otherwise, lowered)
+                            .map_err(&program_failure)?
+                    }
+                    _ => lowered,
+                })
+            }
             None => None,
         };
         return lower_action_outcome(
@@ -111,6 +197,7 @@ pub(in crate::oracle::canonical) fn lower_program_step<E>(
             body,
             otherwise,
         )
+        .and_then(|lowered| install_reflexive_guard(cursor, guard.as_ref(), lowered))
         .map_err(program_failure);
     }
     let mut lower = |cursor: &mut OracleTokenCursor<'_>, sequence: &EffectSequenceNode| {
@@ -391,6 +478,11 @@ fn lower_action_outcome(
     } = action;
     let prefix = match scope {
         ProducerScope::Sentence => Vec::new(),
+        // `EXILE. PERMIT. When you exile a nonland card this way, ...`: the
+        // reflexive event names its producing action by the restated verb
+        // (CR 603.12), so the whole instruction runs as written and the
+        // event reads the latest action of that verb, whichever sentence.
+        ProducerScope::FinalInstruction if result.is_some() => Vec::new(),
         ProducerScope::FinalInstruction => {
             cursor.enter("lower.program.outcome.final-instruction");
             // Only a node that wraps its whole sentence (a sentence condition
@@ -543,7 +635,9 @@ fn lower_reflexive_result(
             cursor.fail("an action of the instruction that the reflexive event restates")
         })?;
     cursor.require(
-        result.one_or_more || affects_one_object(&effects[position]),
+        result.one_or_more
+            || affects_one_object(&effects[position])
+            || moves_one_bound_library_top_card(&effects[..position], &effects[position]),
         "a single affected object for a singular reflexive event (`a`/`an`), or `one or more`",
     )?;
     let objects = action_result_objects(&mut effects[position], position)
@@ -616,6 +710,25 @@ fn affects_one_object(member: &Value) -> bool {
         }
         _ => false,
     }
+}
+
+/// True when `member` moves the cards an earlier `bind` of `before` fixed
+/// as the top card of one player's library (`exile the top card of your
+/// library`): a literal count of one from one library is at most one card.
+fn moves_one_bound_library_top_card(before: &[Value], member: &Value) -> bool {
+    if member["kind"] != "moveCards" || member["cards"]["kind"] != "boundObjects" {
+        return false;
+    }
+    let Some(binding) = member["cards"]["binding"].as_str() else {
+        return false;
+    };
+    before.iter().rev().any(|effect| {
+        effect["kind"] == "bind"
+            && effect["id"].as_str() == Some(binding)
+            && effect["value"]["kind"] == "libraryTopCards"
+            && effect["value"]["zone"]["player"].is_object()
+            && effect["value"]["count"] == json!({ "kind": "integer", "value": 1 })
+    })
 }
 
 /// The two complementary outcome programs in `onPerformed`/`onDeclined`
@@ -931,6 +1044,82 @@ fn local_result_names(effect: &Value) -> std::collections::BTreeSet<String> {
     names
 }
 
+/// `When you do, if CONDITION, ...` (CR 603.4, 603.12): the intervening
+/// condition of the one reflexive ability the outcome creates. The runtime
+/// checks it when the reflexive ability would trigger and as it resolves.
+/// It reads no declaration of the reflexive body, so it is lowered with no
+/// object bindings, like a printed trigger's guard.
+fn install_reflexive_guard(
+    cursor: &mut OracleTokenCursor<'_>,
+    guard: Option<&SentenceConditionNode>,
+    mut lowered: LoweredEffectSequence,
+) -> MachineResult<LoweredEffectSequence> {
+    fn install(effect: &mut Value, condition: &Value, installed: &mut usize) {
+        match effect {
+            Value::Object(map)
+                if map.get("kind").and_then(Value::as_str) == Some("createReflexiveTrigger") =>
+            {
+                if let Some(ability) = map.get_mut("ability").and_then(Value::as_object_mut) {
+                    ability.insert("condition".to_string(), condition.clone());
+                    *installed += 1;
+                }
+            }
+            Value::Object(map) => map
+                .values_mut()
+                .for_each(|child| install(child, condition, installed)),
+            Value::Array(items) => items
+                .iter_mut()
+                .for_each(|child| install(child, condition, installed)),
+            _ => {}
+        }
+    }
+    let Some(guard) = guard else {
+        return Ok(lowered);
+    };
+    cursor.enter("lower.program.reflexive.guard");
+    let condition = lower_sentence_condition(
+        cursor,
+        guard,
+        &ConditionObjectBindings {
+            permanent_targets: &[],
+            card_targets: &[],
+            card_focus: None,
+            previous_action_result: None,
+        },
+    )?;
+    // A pronoun of the guard names the instruction's own object as much as
+    // the enclosing trigger's event object (`put a quest counter on this
+    // enchantment. When you do, if it has four or more quest counters`): the
+    // shared trigger-guard reader binds it to the event object, an
+    // antecedent the reflexive frame does not prove.
+    fn reads_event_object(value: &Value) -> bool {
+        match value {
+            Value::Object(map) => {
+                matches!(
+                    map.get("kind").and_then(Value::as_str),
+                    Some("observedEventObject" | "eventObject" | "triggeringPermanent")
+                ) || map.values().any(reads_event_object)
+            }
+            Value::Array(items) => items.iter().any(reads_event_object),
+            _ => false,
+        }
+    }
+    cursor.require(
+        !reads_event_object(&condition),
+        "a reflexive intervening `if` without a pronoun whose antecedent the reflexive frame does not prove",
+    )?;
+    let mut installed = 0;
+    lowered
+        .effects
+        .iter_mut()
+        .for_each(|effect| install(effect, &condition, &mut installed));
+    cursor.require(
+        installed == 1,
+        "one reflexive ability that the intervening `if` conditions",
+    )?;
+    Ok(lowered)
+}
+
 /// CR 603.12: a reflexive ability created by a resolving ability chooses its
 /// own targets when it is put on the stack.
 fn reflexive_trigger(player: &Value, lowered: LoweredEffectSequence) -> Value {
@@ -1006,6 +1195,10 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             cursor.enter("lower.program.created-replacement");
             Err(cursor.fail("a created replacement lowered as its own program step"))
         }
+        EffectProgramNode::OncePerTurn { .. } => {
+            cursor.enter("lower.program.once-each-turn");
+            Err(cursor.fail("a once-each-turn rider lowered around its program's steps"))
+        }
         EffectProgramNode::Outcome {
             producer: OutcomeProducer::Action(_),
             ..
@@ -1019,6 +1212,7 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
             outcome,
             body,
             otherwise,
+            guard,
             ..
         } => {
             cursor.enter("lower.program.optional-cost.complement");
@@ -1027,7 +1221,15 @@ pub(in crate::oracle::canonical) fn wrap_lowered_effect_program(
                 "a complementary outcome lowered with its own sentence",
             )?;
             let lowered = wrap_lowered_effect_program(cursor, body, lowered)?;
-            lower_optional_cost_outcome(cursor, permission.as_ref(), cost, *outcome, lowered, None)
+            let lowered = lower_optional_cost_outcome(
+                cursor,
+                permission.as_ref(),
+                cost,
+                *outcome,
+                lowered,
+                None,
+            )?;
+            install_reflexive_guard(cursor, guard.as_ref(), lowered)
         }
         EffectProgramNode::Optional { player, body } => {
             cursor.enter("lower.program.optional.actor");

@@ -523,7 +523,12 @@ fn recognize_mode_program(
         &mut mode_cursor,
         &mode_links,
         mode_failure.as_ref(),
-        &context.clone().with_unless_frames(),
+        // A mode is one effect program: its sentence conditionals (`Draw a
+        // card if you control an equipped creature.`) are its own (CR 608.2c).
+        &context
+            .clone()
+            .with_unless_frames()
+            .with_sentence_conditionals(),
     )
     .and_then(|mode| {
         mode_cursor.enter("modal.effect-sequence.mode-complete");

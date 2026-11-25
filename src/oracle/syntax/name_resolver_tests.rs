@@ -484,3 +484,66 @@ fn known_source_link_does_not_mask_unrelated_unknown_vocabulary() {
     assert_eq!(failure.unresolved.len(), 1);
     assert_eq!(failure.unresolved[0].raw, "unmappedlexeme");
 }
+
+#[test]
+fn object_vocabulary_runs_are_not_unresolved_names() {
+    // `Non-Elf`, `Snow`, `Nongreen`, `Vehicles`, `non-Soldier`: compact
+    // negations, a supertype and a noncreature subtype plural the tokenizer
+    // leaves UNKNOWN; the shared object query reads them.
+    for text in [
+        "Non-Elf creatures get -2/-2 until end of turn.",
+        "Snow creatures you control get +1/+1 until end of turn.",
+        "Nongreen creatures you control get +1/+0 until end of turn.",
+        "Vehicles you control get +1/+1 until end of turn.",
+        "Each non-Soldier creature gets +1/+1 until end of turn.",
+    ] {
+        let tokens = recognize_entities(text);
+        let resolution = resolve_unknown_names(
+            text,
+            &tokens,
+            &context("Vocabulary Probe"),
+            &ExactNames::default(),
+        );
+        assert!(resolution.is_ok(), "{text}: {resolution:?}");
+    }
+}
+
+#[test]
+fn a_run_with_a_non_vocabulary_word_stays_one_unresolved_name() {
+    for (text, raw) in [
+        ("Kozilek gets +1/+1 until end of turn.", "Kozilek"),
+        (
+            "Non-Elf Kozilek gets +1/+1 until end of turn.",
+            "Non-Elf Kozilek",
+        ),
+    ] {
+        let tokens = recognize_entities(text);
+        let failure = resolve_unknown_names(
+            text,
+            &tokens,
+            &context("Vocabulary Probe"),
+            &ExactNames::default(),
+        )
+        .unwrap_err();
+        assert_eq!(failure.unresolved.len(), 1, "{text}");
+        assert_eq!(failure.unresolved[0].raw, raw, "{text}");
+    }
+}
+
+#[test]
+fn object_vocabulary_surface_reads_negations_case_insensitively_and_rejects_names() {
+    use super::name_resolver::is_object_vocabulary_surface;
+    for surface in [
+        "Non-Elf",
+        "non-Soldier",
+        "Nongreen",
+        "Snow",
+        "Vehicles",
+        "Shard",
+    ] {
+        assert!(is_object_vocabulary_surface(surface), "{surface}");
+    }
+    for surface in ["Kozilek", "Non", "Non-", "Nonsense", "Thanos-Copter"] {
+        assert!(!is_object_vocabulary_surface(surface), "{surface}");
+    }
+}

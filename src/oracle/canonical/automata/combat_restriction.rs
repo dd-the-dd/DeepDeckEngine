@@ -1,10 +1,10 @@
 use super::super::{MachineFailure, MachineResult, OracleTokenCursor};
 use super::{
     BooleanConditionNode, EffectDurationNode, GrantedKeyword, ObjectQueryNode,
-    StaticConditionContext, StaticConditionNode, TemporaryKeywordGrantNode,
-    TemporaryKeywordGrantObjectsNode, recognize_effect_duration, recognize_object_query,
-    recognize_source_reference, recognize_static_condition, recognize_target_list,
-    recognize_trailing_or_supplied_duration,
+    PermanentOperandNode, PlayerEffectSubject, StaticConditionContext, StaticConditionNode,
+    TemporaryKeywordGrantNode, TemporaryKeywordGrantObjectsNode, recognize_effect_duration,
+    recognize_object_query, recognize_source_reference, recognize_static_condition,
+    recognize_target_list, recognize_trailing_or_supplied_duration,
 };
 use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
@@ -129,6 +129,25 @@ pub(in crate::oracle::canonical) enum CombatClause {
     /// `can attack [this turn] as though it didn't have defender` (CR
     /// 702.3b): defender does not restrict the objects' attacks.
     AttackAsThoughNoDefender,
+    /// `can't attack alone` (CR 506.5): the object may attack only while
+    /// another creature attacks too.
+    CantAttackAlone,
+    /// `can't block alone` (CR 506.5): the object may block only while
+    /// another creature blocks too.
+    CantBlockAlone,
+    /// `can block an additional N creature(s)` / `can block any number of
+    /// creatures` (CR 509.1a): the object may block more than one attacker.
+    BlockCapacity(BlockCapacity),
+}
+
+/// How many attackers one blocker may block (CR 509.1a): one by default,
+/// plus the additional creatures an effect allows, or any number.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum BlockCapacity {
+    /// `an additional [N] creature(s)`: N more attackers.
+    Additional(u32),
+    /// `any number of creatures`.
+    AnyNumber,
 }
 
 impl CombatClause {
@@ -143,7 +162,16 @@ impl CombatClause {
             Self::BlocksEachCombat => GrantedKeyword::BlockEachCombatIfAble,
             Self::MustBeBlocked => GrantedKeyword::MustBeBlockedIfAble,
             Self::AttackAsThoughNoDefender => GrantedKeyword::AttackAsThoughNoDefender,
-            Self::CantBeBlockedBy(_)
+            Self::CantAttackAlone => GrantedKeyword::CantAttackAlone,
+            Self::CantBlockAlone => GrantedKeyword::CantBlockAlone,
+            // A temporary capacity marker states one more attacker or any
+            // number; a larger written count has no per-object marker.
+            Self::BlockCapacity(BlockCapacity::Additional(1)) => {
+                GrantedKeyword::CanBlockAdditionalCreature
+            }
+            Self::BlockCapacity(BlockCapacity::AnyNumber) => GrantedKeyword::CanBlockAnyNumber,
+            Self::BlockCapacity(BlockCapacity::Additional(_))
+            | Self::CantBeBlockedBy(_)
             | Self::CantBeBlockedExceptBy(_)
             | Self::CantBlockObjects(_)
             | Self::BlockOnly(_)
@@ -239,18 +267,62 @@ pub(in crate::oracle::canonical) fn combat_clause_starts(cursor: &OracleTokenCur
             || word_at(cursor, offset, "block")
             || (word_at(cursor, offset, "be") && word_at(cursor, offset + 1, "blocked"))
     };
-    let requirement_follows =
-        |offset: usize| word_at(cursor, offset, "each") || duration_starts_at(cursor, offset);
+    // `this combat` is a window the marker durations cannot state: the
+    // requirement frame (`recognize_combat_requirement`) reads it instead.
+    let requirement_follows = |offset: usize| {
+        word_at(cursor, offset, "each")
+            || (duration_starts_at(cursor, offset)
+                && !(word_at(cursor, offset, "this") && word_at(cursor, offset + 1, "combat")))
+    };
     match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
         Some(word) if is_prohibition_word(word) => action_follows(1),
         Some("can") => {
-            (word_at(cursor, 1, "block") && word_at(cursor, 2, "only"))
+            (word_at(cursor, 1, "block")
+                && (word_at(cursor, 2, "only") || block_capacity_follows(cursor, 2)))
                 || (word_at(cursor, 1, "attack") && defender_exception_follows(cursor, 2))
         }
         Some("attack" | "attacks" | "block" | "blocks") => requirement_follows(1),
         Some("must") => word_at(cursor, 1, "be") && word_at(cursor, 2, "blocked"),
         _ => false,
     }
+}
+
+/// `an additional [N] creature(s)` or `any number of creatures` at `offset`.
+fn block_capacity_follows(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    (word_at(cursor, offset, "an") && word_at(cursor, offset + 1, "additional"))
+        || (word_at(cursor, offset, "any")
+            && word_at(cursor, offset + 1, "number")
+            && word_at(cursor, offset + 2, "of"))
+}
+
+/// `an additional [N] creature(s)` | `any number of creatures` (CR 509.1a),
+/// after `can block`. The count is a written cardinal (`seven`,
+/// `ninety-nine`); `creature` agrees with one, `creatures` with more.
+fn recognize_block_capacity(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<BlockCapacity> {
+    cursor.enter("combat-clause.block-capacity");
+    if word_at(cursor, 0, "any") {
+        cursor.consume_phrase(&["any", "number", "of", "creatures"])?;
+        return Ok(BlockCapacity::AnyNumber);
+    }
+    cursor.consume_phrase(&["an", "additional"])?;
+    cursor.enter("combat-clause.block-capacity.count");
+    let count = if word_at(cursor, 0, "creature") {
+        1
+    } else {
+        let raw = cursor
+            .peek()
+            .ok_or_else(|| cursor.fail("a written count of additional creatures"))?
+            .to_owned();
+        let count = crate::oracle::canonical::numeric::parse_number_word(&raw)
+            .filter(|count| *count > 1)
+            .and_then(|count| u32::try_from(count).ok())
+            .ok_or_else(|| cursor.fail("a written count of two or more additional creatures"))?;
+        cursor.consume(&raw)?;
+        count
+    };
+    cursor.enter("combat-clause.block-capacity.noun");
+    cursor.consume(if count == 1 { "creature" } else { "creatures" })?;
+    Ok(BlockCapacity::Additional(count))
 }
 
 /// Static source frame:
@@ -418,11 +490,15 @@ fn bare_block_prohibition_ends(cursor: &OracleTokenCursor<'_>) -> bool {
 ///              | ("block" | "blocks") Requirement
 ///              | "must be blocked" Requirement
 ///              | "can block only" Query
+///              | "can block" Capacity ("each combat" | Duration)?
 ///              | "can attack" Duration? "as though" (it|they) "didn't have defender"
 ///              | "can't" Prohibition
 /// Requirement := "each combat if able" | Duration "if able"   (temporary only)
-/// Prohibition := "attack" ["or" "block"] | "attack you" ["or planeswalkers you control"]
-///              | "block" [Query]
+/// Capacity    := "an additional" [Count] ("creature" | "creatures")
+///              | "any number of creatures"
+/// Prohibition := "attack" ["or" "block"] ["alone"]
+///              | "attack you" ["or planeswalkers you control"]
+///              | "block" ["alone" | Query]
 ///              | "be blocked" [("by" ("more than one creature" | Query))
 ///                              | ("except by" Query)]
 /// ```
@@ -491,6 +567,26 @@ pub(in crate::oracle::canonical) fn recognize_combat_clause(
             clauses.push(CombatClause::AttackAsThoughNoDefender);
             return Ok(());
         }
+        Some("can") if block_capacity_follows(cursor, 2) => {
+            // CR 509.1a: `can block an additional creature each combat`; a
+            // temporary capacity may carry its own duration instead.
+            cursor.consume("can")?;
+            cursor.consume("block")?;
+            *committed = true;
+            let capacity = recognize_block_capacity(cursor)?;
+            cursor.enter("combat-clause.block-capacity.window");
+            if word_at(cursor, 0, "each") {
+                cursor.consume_phrase(&["each", "combat"])?;
+            } else if duration_starts_at(cursor, 0) && !word_at(cursor, 1, "combat") {
+                cursor.require(
+                    context == CombatClauseContext::Temporary && duration.is_none(),
+                    "one duration for a temporary block capacity",
+                )?;
+                *duration = Some(recognize_effect_duration(cursor)?);
+            }
+            clauses.push(CombatClause::BlockCapacity(capacity));
+            return Ok(());
+        }
         Some("can") => {
             cursor.consume("can")?;
             cursor.enter("combat-clause.block-only");
@@ -525,6 +621,22 @@ pub(in crate::oracle::canonical) fn recognize_combat_clause(
                 clauses.push(CombatClause::CantAttackController { planeswalkers });
                 return Ok(());
             }
+            // `can't attack [or block] alone` (CR 506.5): `alone` closes
+            // the coordinated prohibition and qualifies every action of it.
+            let alone = word_at(cursor, 0, "alone")
+                || (word_at(cursor, 0, "or")
+                    && word_at(cursor, 1, "block")
+                    && word_at(cursor, 2, "alone"));
+            if alone {
+                cursor.enter("combat-clause.alone");
+                clauses.push(CombatClause::CantAttackAlone);
+                if word_at(cursor, 0, "or") {
+                    cursor.consume_phrase(&["or", "block"])?;
+                    clauses.push(CombatClause::CantBlockAlone);
+                }
+                cursor.consume("alone")?;
+                return Ok(());
+            }
             clauses.push(CombatClause::Prohibit(GrantedKeyword::CantAttack));
             if word_at(cursor, 0, "or") && word_at(cursor, 1, "block") {
                 cursor.consume_phrase(&["or", "block"])?;
@@ -534,7 +646,11 @@ pub(in crate::oracle::canonical) fn recognize_combat_clause(
         Some("block") => {
             cursor.consume("block")?;
             *committed = true;
-            if bare_block_prohibition_ends(cursor) {
+            if word_at(cursor, 0, "alone") {
+                cursor.enter("combat-clause.alone");
+                cursor.consume("alone")?;
+                clauses.push(CombatClause::CantBlockAlone);
+            } else if bare_block_prohibition_ends(cursor) {
                 clauses.push(CombatClause::Prohibit(GrantedKeyword::CantBlock));
             } else {
                 cursor.enter("static.combat-restriction.blocked-attackers");
@@ -571,6 +687,205 @@ pub(in crate::oracle::canonical) fn recognize_combat_clause(
         _ => return Err(cursor.fail("`attack`, `block`, or `be blocked`")),
     }
     Ok(())
+}
+
+/// The window of an effect-created combat requirement (CR 611.2a): an
+/// ordinary effect duration, or the current combat only (`this combat`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CombatRequirementWindow {
+    Duration(EffectDurationNode),
+    ThisCombat,
+}
+
+/// What a requirement asks of its creatures (CR 508.1d, 509.1c). The
+/// direction is the player attacked or the attacker blocked, when written.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CombatRequirementDirection {
+    /// `attack(s) [PLAYER] ... if able`.
+    Attack {
+        defender: Option<PlayerEffectSubject>,
+    },
+    /// `block(s) [OBJECT] ... if able`.
+    Block {
+        attacker: Option<PermanentOperandNode>,
+    },
+}
+
+/// `SUBJECT attacks|blocks [RECIPIENT] WINDOW if able`: an effect-created
+/// requirement over the creatures of its subject.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) struct CombatRequirementNode {
+    pub creatures: PermanentOperandNode,
+    pub direction: CombatRequirementDirection,
+    pub window: CombatRequirementWindow,
+}
+
+impl CombatRequirementNode {
+    /// The ordinary duration of the window; `this combat` has none.
+    pub(in crate::oracle::canonical) fn duration(&self) -> Option<&EffectDurationNode> {
+        match &self.window {
+            CombatRequirementWindow::Duration(duration) => Some(duration),
+            CombatRequirementWindow::ThisCombat => None,
+        }
+    }
+}
+
+/// The lexical envelope of an effect requirement at the cursor: an `attack`
+/// or `block` verb of the requirement frame in either number, whose clause
+/// closes with `if able` before the sentence ends. A parent checks it before
+/// it hands the predicate to `recognize_combat_requirement`.
+pub(in crate::oracle::canonical) fn combat_requirement_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    let verb = cursor.peek().is_some_and(|raw| {
+        super::lookup_verb(raw, &[super::VerbLemma::Attack, super::VerbLemma::Block]).is_some_and(
+            |(entry, _)| {
+                entry
+                    .frames
+                    .contains(&super::ArgumentFrame::CombatRequirement)
+            },
+        )
+    });
+    verb && (1..)
+        .map_while(|offset| cursor.peek_ahead(offset).map(|raw| (offset, raw)))
+        .take_while(|(_, raw)| !matches!(*raw, "." | ";" | ":" | "("))
+        .any(|(offset, raw)| raw.eq_ignore_ascii_case("if") && word_at(cursor, offset + 1, "able"))
+}
+
+/// Effect frame of a combat requirement (CR 508.1d, 509.1c):
+///
+/// ```text
+/// Requirement := ("attack" | "attacks") [Player] Window "if able"
+///              | ("block" | "blocks") [Object] Window "if able"
+/// Window      := "this combat" | Duration
+/// ```
+///
+/// The subject was read by the parent, which states the verb agreement
+/// (`creatures ... attack`, `target creature blocks`, the bare verb after a
+/// causative `have`). The player is the shared effect-player reference; the
+/// blocked object is the shared permanent operand. A standing `each combat`
+/// belongs to the static and marker frames and fails here explicitly.
+pub(in crate::oracle::canonical) fn recognize_combat_requirement(
+    cursor: &mut OracleTokenCursor<'_>,
+    creatures: PermanentOperandNode,
+    agreement: super::VerbAgreement,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &super::EffectRecognitionContext,
+) -> MachineResult<CombatRequirementNode> {
+    cursor.enter("effect.combat-requirement.verb");
+    let (lemma, _) = super::recognize_operand_verb(
+        cursor,
+        agreement,
+        &[super::VerbLemma::Attack, super::VerbLemma::Block],
+        &[super::ArgumentFrame::CombatRequirement],
+    )?
+    .ok_or_else(|| cursor.fail("`attack` or `block` in the number its subject requires"))?;
+    let recipient_written =
+        !(word_at(cursor, 0, "if") || word_at(cursor, 0, "each") || duration_starts_at(cursor, 0));
+    let direction = if lemma == super::VerbLemma::Attack {
+        cursor.enter("effect.combat-requirement.defender");
+        let defender = if recipient_written {
+            Some(
+                super::source_sacrifice::atomic_action::player_subject::recognize_player_effect_subject(
+                    cursor,
+                    super::PlayerBinding(context.current_effect_index.unwrap_or(usize::MAX)),
+                    None,
+                    context.frame.event_player,
+                )?,
+            )
+        } else {
+            None
+        };
+        CombatRequirementDirection::Attack { defender }
+    } else {
+        cursor.enter("effect.combat-requirement.attacker");
+        let attacker = if recipient_written {
+            let attacker = super::recognize_contextual_permanent_operand(
+                cursor,
+                name_links,
+                name_failure,
+                context,
+            )?;
+            cursor.require(
+                !matches!(attacker, PermanentOperandNode::Collection { .. }),
+                "one attacker the requirement names, not a collection",
+            )?;
+            Some(attacker)
+        } else {
+            None
+        };
+        CombatRequirementDirection::Block { attacker }
+    };
+    cursor.enter("effect.combat-requirement.window");
+    cursor.require(
+        !word_at(cursor, 0, "each"),
+        "a temporary window (`this turn`, `this combat`); `each combat` is a standing requirement",
+    )?;
+    let window = if word_at(cursor, 0, "this") && word_at(cursor, 1, "combat") {
+        cursor.require(
+            context.preposed_duration.is_none(),
+            "one window for the requirement",
+        )?;
+        cursor.consume_phrase(&["this", "combat"])?;
+        CombatRequirementWindow::ThisCombat
+    } else {
+        let duration =
+            recognize_trailing_or_supplied_duration(cursor, context.preposed_duration.as_ref())?;
+        cursor.require(
+            duration != EffectDurationNode::Indefinite,
+            "a window for the requirement (`this turn`, `this combat`, a duration)",
+        )?;
+        CombatRequirementWindow::Duration(duration)
+    };
+    cursor.enter("effect.combat-requirement.if-able");
+    cursor.consume_phrase(&["if", "able"])?;
+    Ok(CombatRequirementNode {
+        creatures,
+        direction,
+        window,
+    })
+}
+
+/// `All creatures able to block OBJECT [DURATION] do so.` (CR 509.1c): the
+/// lure requirement, an effect frame whose object is the shared permanent
+/// operand. It is the temporary form of the static block requirement.
+pub(in crate::oracle::canonical) fn all_able_blockers_starts(
+    cursor: &OracleTokenCursor<'_>,
+) -> bool {
+    word_at(cursor, 0, "all")
+        && word_at(cursor, 1, "creatures")
+        && word_at(cursor, 2, "able")
+        && word_at(cursor, 3, "to")
+        && word_at(cursor, 4, "block")
+}
+
+pub(in crate::oracle::canonical) fn recognize_all_able_blockers(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &super::EffectRecognitionContext,
+) -> MachineResult<TemporaryKeywordGrantNode<PermanentOperandNode>> {
+    cursor.enter("effect.lure.blockers");
+    cursor.consume_phrase(&["all", "creatures", "able", "to", "block"])?;
+    cursor.enter("effect.lure.attacker");
+    let objects =
+        super::recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)?;
+    cursor.enter("effect.lure.duration");
+    let duration =
+        recognize_trailing_or_supplied_duration(cursor, context.preposed_duration.as_ref())?;
+    cursor.require(
+        duration != EffectDurationNode::Indefinite,
+        "a duration for the block requirement (`this turn`)",
+    )?;
+    cursor.enter("effect.lure.do-so");
+    cursor.consume_phrase(&["do", "so"])?;
+    Ok(TemporaryKeywordGrantNode {
+        objects,
+        keywords: vec![GrantedKeyword::AllMustBlockIfAble],
+        abilities: Vec::new(),
+        duration,
+    })
 }
 
 #[cfg(test)]

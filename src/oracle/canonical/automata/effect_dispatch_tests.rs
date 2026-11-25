@@ -164,18 +164,39 @@ fn a_postposed_if_is_the_preposed_conditional() {
 }
 
 #[test]
-fn a_postposed_if_gates_one_action_and_admits_no_otherwise() {
-    // Two actions: the scope of a postposed `if` would be ambiguous.
-    let (status, _, _) = parse(
+fn a_postposed_if_gates_only_the_action_it_follows() {
+    // After coordinated actions, a postposed `if` gates only the last one:
+    // the card is drawn either way (CR 608.2c).
+    let (status, rules, states) = parse(
         "Instant",
         "Draw a card and you gain 2 life if you control a legendary creature.",
     );
-    assert_ne!(status, "canonical");
-    let (status, _, _) = parse(
+    assert_eq!(status, "canonical", "{states:?}");
+    let effects = &rules[0]["effects"];
+    assert_eq!(effects[0]["kind"], "drawCards", "{effects:#}");
+    assert_eq!(effects[1]["kind"], "conditional", "{effects:#}");
+    assert_eq!(effects[1]["then"][0]["kind"], "gainLife", "{effects:#}");
+    // When the gated action is the whole sentence, `Otherwise` is its
+    // declined branch.
+    let (status, rules, states) = parse(
         "Instant",
         "Draw a card if you control a legendary creature. Otherwise, you gain 2 life.",
     );
+    assert_eq!(status, "canonical", "{states:?}");
+    assert_eq!(rules[0]["effects"][0]["else"][0]["kind"], "gainLife");
+    // Near miss: after coordinated actions the scope of `Otherwise` would be
+    // ambiguous, so it stays explicitly unsupported.
+    let (status, _, states) = parse(
+        "Instant",
+        "Draw a card and you gain 2 life if you control a legendary creature. Otherwise, you lose 2 life.",
+    );
     assert_ne!(status, "canonical");
+    assert!(
+        states
+            .iter()
+            .any(|state| state == "sequence.conditional.otherwise"),
+        "{states:?}"
+    );
 }
 
 #[test]

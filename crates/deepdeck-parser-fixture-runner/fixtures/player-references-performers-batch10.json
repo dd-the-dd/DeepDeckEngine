@@ -1,0 +1,583 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "batch10/player-references-performers",
+  "cases": [
+    {
+      "id": "exact-run-behind-genitive-owner",
+      "request": {
+        "cardName": "Run Behind",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "This spell costs {1} less to cast if it targets an attacking creature.\nTarget creature's owner puts it on their choice of the top or bottom of their library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "putPermanentOnOwnerLibrary"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "ownerOf"
+              },
+              {
+                "pointer": "/effects/0/performer/object/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/position",
+                "equals": "ownerChoiceTopOrBottom"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-trip-up-genitive-nonland-owner",
+      "request": {
+        "cardName": "Trip Up",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Target nonland permanent's owner puts it on their choice of the top or bottom of their library.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-lost-in-space-coordinated-genitive-owner",
+      "request": {
+        "cardName": "Lost in Space",
+        "typeLine": "Instant",
+        "manaCost": "{3}{U}",
+        "oracleText": "Target artifact or creature's owner puts it on their choice of the top or bottom of their library. Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-genitive-controller-gains-life",
+      "request": {
+        "cardName": "Genitive Gift",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Target creature's controller gains 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-genitive-controller-sacrifices-it",
+      "request": {
+        "cardName": "Genitive Sacrifice",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Target artifact's controller sacrifices it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/performer/kind",
+                "equals": "controllerOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-genitive-property-is-no-player",
+      "request": {
+        "cardName": "Genitive Power",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Target creature's power becomes 0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-blessed-wind-target-player-life-total",
+      "request": {
+        "cardName": "Blessed Wind",
+        "typeLine": "Sorcery",
+        "manaCost": "{7}{W}{W}",
+        "oracleText": "Target player's life total becomes 20.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "setLifeTotal"
+              },
+              {
+                "pointer": "/effects/0/player/kind",
+                "equals": "chosenTarget"
+              },
+              {
+                "pointer": "/effects/0/amount/value",
+                "equals": 20
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-magister-sphinx-trigger-life-total",
+      "request": {
+        "cardName": "Magister Sphinx",
+        "typeLine": "Artifact Creature — Sphinx",
+        "manaCost": "{4}{W}{U}{B}",
+        "oracleText": "Flying\nWhen this creature enters, target player's life total becomes 10.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-form-of-the-dinosaur-your-life-total",
+      "request": {
+        "cardName": "Form of the Dinosaur",
+        "typeLine": "Enchantment",
+        "manaCost": "{4}{R}{R}",
+        "oracleText": "When this enchantment enters, your life total becomes 15.\nAt the beginning of your upkeep, this enchantment deals 15 damage to target creature an opponent controls and that creature deals damage equal to its power to you.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-biorhythm-each-player-life-total-they-control",
+      "request": {
+        "cardName": "Biorhythm",
+        "typeLine": "Sorcery",
+        "manaCost": "{6}{G}{G}",
+        "oracleText": "Each player's life total becomes the number of creatures they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "setLifeTotal"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/kind",
+                "equals": "countPermanents"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-that-opponent-life-total-after-target",
+      "request": {
+        "cardName": "Life Swap",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target opponent loses 1 life. That player's life total becomes 5.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "setLifeTotal"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-population-life-total-written-you-is-ambiguous",
+      "request": {
+        "cardName": "Ambiguous Total",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Each player's life total becomes the number of creatures you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "expectedContains": "without `you`"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-ghazban-ogre-player-with-the-most-life",
+      "request": {
+        "cardName": "Ghazbán Ogre",
+        "typeLine": "Creature — Ogre",
+        "manaCost": "{G}",
+        "oracleText": "At the beginning of your upkeep, if a player has more life than each other player, the player with the most life gains control of this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-wild-mammoth-player-who-controls-the-most",
+      "request": {
+        "cardName": "Wild Mammoth",
+        "typeLine": "Creature — Elephant",
+        "manaCost": "{2}{G}",
+        "oracleText": "At the beginning of your upkeep, if a player controls more creatures than each other player, the player who controls the most creatures gains control of this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-sokenzan-renegade-most-cards-in-hand",
+      "request": {
+        "cardName": "Sokenzan Renegade",
+        "typeLine": "Creature — Ogre Samurai Mercenary",
+        "manaCost": "{2}{R}",
+        "oracleText": "Bushido 1 (Whenever this creature blocks or becomes blocked, it gets +1/+1 until end of turn.)\nAt the beginning of your upkeep, if a player has more cards in hand than each other player, the player who has the most cards in hand gains control of this creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-player-with-the-fewest-life-draws",
+      "request": {
+        "cardName": "Fewest Draw",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "The player with the least life draws two cards.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/players/superlative/unique",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-or-tied-is-not-one-player",
+      "request": {
+        "cardName": "Tied Draw",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "The player with the most life or tied for most life draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "expectedContains": "or tied"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-stronghold-discipline-each-player-for-each-they-control",
+      "request": {
+        "cardName": "Stronghold Discipline",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}{B}",
+        "oracleText": "Each player loses 1 life for each creature they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-acidic-soil-damage-to-each-player-lands-they-control",
+      "request": {
+        "cardName": "Acidic Soil",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{R}",
+        "oracleText": "Acidic Soil deals damage to each player equal to the number of lands they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "forEachPlayer"
+              },
+              {
+                "pointer": "/effects/0/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/effects/0/amount/player/kind",
+                "equals": "boundValue"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-price-of-progress-that-player-controls",
+      "request": {
+        "cardName": "Price of Progress",
+        "typeLine": "Instant",
+        "manaCost": "{1}{R}",
+        "oracleText": "Price of Progress deals damage to each player equal to twice the number of nonbasic lands that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-typhoon-each-opponent-that-player-controls",
+      "request": {
+        "cardName": "Typhoon",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Typhoon deals damage to each opponent equal to the number of Islands that player controls.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-villainous-wrath-target-opponent-they-control",
+      "request": {
+        "cardName": "Villainous Wrath",
+        "typeLine": "Sorcery",
+        "manaCost": "{3}{B}{B}",
+        "oracleText": "Target opponent loses life equal to the number of creatures they control. Then destroy all creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-target-player-draws-for-each-they-control",
+      "request": {
+        "cardName": "Distributive Draw",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "Target player draws a card for each artifact they control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/count/player/kind",
+                "equals": "chosenTarget"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-that-player-without-antecedent",
+      "request": {
+        "cardName": "Orphan Player",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}",
+        "oracleText": "That player loses 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "state": "player-subject.bound.resolve"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-gloom-sower-blocking-counterpart-controller",
+      "request": {
+        "cardName": "Gloom Sower",
+        "typeLine": "Creature — Horror",
+        "manaCost": "{5}{B}{B}",
+        "oracleText": "Whenever this creature becomes blocked by a creature, that creature's controller loses 2 life and you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-blocking-counterpart-controller-draws",
+      "request": {
+        "cardName": "Counterpart Boar",
+        "typeLine": "Creature — Boar",
+        "manaCost": "{1}",
+        "oracleText": "Whenever this creature becomes blocked by a creature, that creature's controller draws a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-molten-rain-definite-land-controller",
+      "request": {
+        "cardName": "Molten Rain",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}{R}",
+        "oracleText": "Destroy target land. If that land was nonbasic, Molten Rain deals 2 damage to the land's controller.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    }
+  ]
+}

@@ -217,7 +217,7 @@ fn claimed_frames_report_the_furthest_event_failure() {
             "event.source.put-into-graveyard.origin",
         ),
         (
-            "At end of combat, draw a card.",
+            "At end of turn, draw a card.",
             "trigger.envelope.step-prefix",
         ),
         (
@@ -226,7 +226,7 @@ fn claimed_frames_report_the_furthest_event_failure() {
         ),
         // A label naming a mechanic is not a rules-free flavor word (CR 207.2c).
         (
-            "Exile Cannon \u{2014} When this creature enters, draw a card.",
+            "Max speed \u{2014} When this creature enters, draw a card.",
             "trigger.envelope.label",
         ),
     ] {
@@ -286,11 +286,18 @@ fn controlled_object_combat_and_departure_verbs_reuse_controlled_matchers() {
         assert_eq!(lowered["excludeSource"].as_bool(), exclude_source, "{text}");
         assert_eq!(lowered["destination"].as_str(), destination, "{text}");
     }
-    // A controlled object's only `become` frame with a runtime matcher is
-    // `the target of`, which claims only that relation; `becomes tapped`
-    // fails at the object event's own complement.
-    for (text, state) in [(
+    // `becomes tapped` is a state event of each matching permanent, its
+    // controller kept on the object query.
+    let tapped = event(
         "Whenever a creature an opponent controls becomes tapped, draw a card.",
+        "Creature",
+    );
+    assert_eq!(tapped["kind"], "permanentTapped");
+    assert_eq!(tapped["object"]["controller"]["kind"], "opponentsOf");
+    // A `become` complement without a runtime matcher fails at the object
+    // event's own complement.
+    for (text, state) in [(
+        "Whenever a creature an opponent controls becomes renowned, draw a card.",
         "event.object.complement",
     )] {
         assert_eq!(committed_state(text), state, "{text}");
@@ -799,9 +806,17 @@ fn a_transition_union_lowers_both_transitions_of_the_same_subjects() {
     assert_eq!(occurrences["kind"], "oneOf");
     assert_eq!(occurrences["events"][0]["kind"], "permanentEntered");
     assert_eq!(occurrences["events"][1]["lemma"], "attack");
+    // `explores` is an occurrence of the shared subject too: the acting
+    // permanent's completion signal.
+    let explores = event(
+        "Whenever a creature you control enters or explores, draw a card.",
+        "Enchantment",
+    );
+    assert_eq!(explores["events"][0]["kind"], "permanentEntered");
+    assert_eq!(explores["events"][1]["kind"], "abilityPerformed");
     // Near miss: a verb no subject frame reads stays an explicit failure.
     assert!(
-        !committed_state("Whenever a creature you control enters or explores, draw a card.")
+        !committed_state("Whenever a creature you control enters or evolves, draw a card.")
             .is_empty()
     );
 }

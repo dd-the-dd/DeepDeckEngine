@@ -1,6 +1,6 @@
 use crate::oracle::syntax::recognize_entities;
 
-use super::super::{LocalObjectReference, TransformPermanentEffectNode};
+use super::super::{LocalObjectReference, PermanentOperandNode, TransformPermanentEffectNode};
 use super::{OracleTokenCursor, recognize_transform_source_effect};
 
 #[test]
@@ -14,7 +14,7 @@ fn recognizes_transform_this_permanent_as_one_atomic_source_action() {
     assert_eq!(
         effect,
         TransformPermanentEffectNode {
-            permanent: LocalObjectReference::SourceSelf,
+            permanent: PermanentOperandNode::Reference(LocalObjectReference::SourceSelf),
         }
     );
     cursor.finish().expect("transform consumes its full range");
@@ -29,7 +29,10 @@ fn source_object_noun_is_generic() {
         let effect = recognize_transform_source_effect(&mut cursor, &[], None)
             .unwrap_or_else(|failure| panic!("{text} failed: {failure:?}"));
 
-        assert_eq!(effect.permanent, LocalObjectReference::SourceSelf);
+        assert_eq!(
+            effect.permanent,
+            PermanentOperandNode::Reference(LocalObjectReference::SourceSelf)
+        );
         cursor.finish().expect("sibling consumes its full range");
     }
 }

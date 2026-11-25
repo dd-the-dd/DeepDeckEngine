@@ -20,6 +20,19 @@ fn source_operand(expression: &Value) -> bool {
         )
 }
 
+/// `countCounters` of one named kind on the ability source (`the number of
+/// treasure counters on this enchantment`). Only the target binder reads it
+/// here; other consumers keep their own numeric preparation, so it is not a
+/// `contains_source_operand` refusal.
+fn source_counter_operand(expression: &Value) -> bool {
+    value_kind(expression) == Some("countCounters")
+        && expression["counter"].is_string()
+        && matches!(
+            value_kind(&expression["object"]),
+            Some("self" | "abilitySource")
+        )
+}
+
 /// A source-bound operand outside a target-candidate filter has no binder:
 /// support checks refuse it instead of comparing against a missing value.
 pub(super) fn contains_source_operand(filter: &Value) -> bool {
@@ -37,7 +50,9 @@ pub(super) fn contains_source_operand(filter: &Value) -> bool {
 /// `value_of` reads. `None` when a value cannot be read.
 fn bind_filter(filter: &mut Value, value_of: &mut impl FnMut(&Value) -> Option<i32>) -> Option<()> {
     match value_kind(filter) {
-        Some("compare") if source_operand(&filter["right"]) => {
+        Some("compare")
+            if source_operand(&filter["right"]) || source_counter_operand(&filter["right"]) =>
+        {
             let value = value_of(&filter["right"])?;
             filter["right"] = Value::from(value);
         }
@@ -93,6 +108,10 @@ impl GameEngine {
         match value_kind(expression) {
             Some("powerOf") => Some(self.current_power(source)),
             Some("toughnessOf") => Some(self.current_toughness(source)),
+            // CR 122.1: a permanent without counters of the kind has zero.
+            Some("countCounters") => expression["counter"]
+                .as_str()
+                .map(|counter| source.counters.get(counter).copied().unwrap_or(0)),
             _ => None,
         }
     }

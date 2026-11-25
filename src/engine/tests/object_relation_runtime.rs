@@ -488,3 +488,444 @@ fn a_declared_target_filter_binds_its_relation_from_the_source() {
         .collect::<Vec<_>>();
     assert_eq!(legal, vec!["on-bear"]);
 }
+
+/// Whether the battlefield permanent `id` satisfies a prepared relation.
+fn relation_holds(engine: &GameEngine, atom: &Value, id: &str) -> bool {
+    let candidate = engine
+        .state
+        .players
+        .iter()
+        .flat_map(|player| player.battlefield.iter())
+        .find(|permanent| permanent.instance_id == id)
+        .expect("a battlefield candidate");
+    engine.eval_object_relation(
+        atom,
+        super::super::runtime_object_filter::ObjectFilterView::Permanent(candidate),
+    )
+}
+
+fn attacker(attacker_id: &str, defender: TargetRef, defending_player_id: &str) -> DeclaredAttacker {
+    DeclaredAttacker {
+        attacker_id: attacker_id.to_string(),
+        defender,
+        defending_player_id: defending_player_id.to_string(),
+    }
+}
+
+#[test]
+fn block_history_relations_read_this_turns_declarations_per_candidate() {
+    // Venomous Breath / Glyph of Doom: `that blocked or were blocked by it
+    // this turn` reads the turn's block declarations (CR 509.1) for each
+    // candidate, anchored on one bound object; a pair of an earlier turn
+    // does not count.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent("hydra", "Creature \u{2014} Hydra", "player-0", None),
+        permanent("elf", "Creature \u{2014} Elf", "player-0", None),
+    ];
+    engine.state.players[1].battlefield = vec![
+        permanent("wall", "Creature \u{2014} Wall", "player-1", None),
+        permanent("bear", "Creature \u{2014} Bear", "player-1", None),
+    ];
+    engine.record_event(
+        "blockerDeclared",
+        Some("player-1".to_string()),
+        Some("wall".to_string()),
+        json!({ "attackerId": "hydra" }),
+    );
+    engine.record_event(
+        "blockerDeclared",
+        Some("player-1".to_string()),
+        Some("bear".to_string()),
+        json!({ "attackerId": "elf" }),
+    );
+    let hydra = engine.state.players[0].battlefield[0].clone();
+    let hydra_source = stack_source(hydra, "player-0", "activatedAbility");
+    let unprepared = json!({ "kind": "blockedAnchorThisTurn", "object": { "kind": "self" } });
+    assert!(super::super::object_relation_eval::relation_atom_supported(
+        &unprepared
+    ));
+    let blocked_it = engine
+        .prepare_object_relation(
+            &unprepared,
+            &hydra_source,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        )
+        .expect("the source anchor is read");
+    assert!(relation_holds(&engine, &blocked_it, "wall"));
+    assert!(
+        !relation_holds(&engine, &blocked_it, "bear"),
+        "the bear blocked another attacker"
+    );
+    let wall = engine.state.players[1].battlefield[0].clone();
+    let wall_source = stack_source(wall, "player-1", "activatedAbility");
+    let blocked_by = engine
+        .prepare_object_relation(
+            &json!({ "kind": "blockedByAnchorThisTurn", "object": { "kind": "self" } }),
+            &wall_source,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        )
+        .expect("the source anchor is read");
+    assert!(relation_holds(&engine, &blocked_by, "hydra"));
+    assert!(!relation_holds(&engine, &blocked_by, "elf"));
+    // An unprepared atom never matches, and the declarations of an earlier
+    // turn are not this turn's history.
+    assert!(!relation_holds(&engine, &unprepared, "wall"));
+    engine.state.turn_number += 1;
+    assert!(!relation_holds(&engine, &blocked_it, "wall"));
+}
+
+#[test]
+fn damage_to_an_anchor_reads_the_turns_damage_records() {
+    // Autumn Willow and Baron Sengir: `each Vampire you control that dealt
+    // damage to that creature this turn` (CR 120.1). Zero damage is not
+    // dealt (CR 120.8), and the combat form ignores noncombat damage.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![
+        permanent("biter", "Creature \u{2014} Vampire", "player-0", None),
+        permanent("pinger", "Creature \u{2014} Vampire", "player-0", None),
+        permanent("idle", "Creature \u{2014} Vampire", "player-0", None),
+    ];
+    engine.state.players[1].battlefield = vec![permanent(
+        "victim",
+        "Creature \u{2014} Bear",
+        "player-1",
+        None,
+    )];
+    engine.record_event(
+        "damageDealt",
+        None,
+        Some("victim".to_string()),
+        json!({ "amount": 2, "combat": true, "source": "biter" }),
+    );
+    engine.record_event(
+        "damageDealt",
+        None,
+        Some("victim".to_string()),
+        json!({ "amount": 1, "combat": false, "source": "pinger" }),
+    );
+    engine.record_event(
+        "damageDealt",
+        None,
+        Some("victim".to_string()),
+        json!({ "amount": 0, "combat": true, "source": "idle" }),
+    );
+    let victim = engine.state.players[1].battlefield[0].clone();
+    let source = stack_source(victim, "player-1", "triggeredAbility");
+    let any = engine
+        .prepare_object_relation(
+            &json!({ "kind": "dealtDamageToAnchorThisTurn", "object": { "kind": "self" } }),
+            &source,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        )
+        .expect("the anchor is read");
+    let combat = engine
+        .prepare_object_relation(
+            &json!({ "kind": "dealtCombatDamageToAnchorThisTurn", "object": { "kind": "self" } }),
+            &source,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        )
+        .expect("the anchor is read");
+    assert!(relation_holds(&engine, &any, "biter"));
+    assert!(relation_holds(&engine, &any, "pinger"));
+    assert!(!relation_holds(&engine, &any, "idle"), "zero damage");
+    assert!(relation_holds(&engine, &combat, "biter"));
+    assert!(
+        !relation_holds(&engine, &combat, "pinger"),
+        "noncombat damage"
+    );
+}
+
+#[test]
+fn the_attacked_player_relation_reads_each_attackers_defender() {
+    // `creature attacking you [or a planeswalker you control]` (CR 508.1b):
+    // an attacker of a planeswalker is not attacking its controller (CR
+    // 506.3) unless the planeswalker alternative is stated.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![permanent(
+        "jace",
+        "Legendary Planeswalker \u{2014} Jace",
+        "player-0",
+        None,
+    )];
+    engine.state.players[1].battlefield = vec![
+        permanent("orc", "Creature \u{2014} Orc", "player-1", None),
+        permanent("imp", "Creature \u{2014} Imp", "player-1", None),
+        permanent("bear", "Creature \u{2014} Bear", "player-1", None),
+    ];
+    engine.state.combat.attackers = vec![
+        attacker(
+            "orc",
+            TargetRef::Player {
+                player_id: "player-0".to_string(),
+            },
+            "player-0",
+        ),
+        attacker(
+            "imp",
+            TargetRef::Permanent {
+                instance_id: "jace".to_string(),
+            },
+            "player-0",
+        ),
+    ];
+    let jace = engine.state.players[0].battlefield[0].clone();
+    let source = stack_source(jace, "player-0", "activatedAbility");
+    let you_atom = json!({
+        "kind": "attackingPlayer",
+        "player": "abilityController",
+        "orPlaneswalkers": false,
+    });
+    let walkers_atom = json!({
+        "kind": "attackingPlayer",
+        "player": "abilityController",
+        "orPlaneswalkers": true,
+    });
+    assert!(super::super::object_relation_eval::relation_atom_supported(
+        &walkers_atom
+    ));
+    assert!(
+        !super::super::object_relation_eval::relation_atom_supported(&json!({
+            "kind": "attackingPlayer",
+            "player": "anyPlayer",
+        })),
+        "an unresolvable role is refused"
+    );
+    let you = engine
+        .prepare_object_relation(&you_atom, &source, &BTreeMap::new(), &BTreeMap::new())
+        .expect("the role resolves");
+    let you_or_walkers = engine
+        .prepare_object_relation(&walkers_atom, &source, &BTreeMap::new(), &BTreeMap::new())
+        .expect("the role resolves");
+    assert!(relation_holds(&engine, &you, "orc"));
+    assert!(
+        !relation_holds(&engine, &you, "imp"),
+        "it attacks the planeswalker"
+    );
+    assert!(!relation_holds(&engine, &you, "bear"), "not attacking");
+    assert!(relation_holds(&engine, &you_or_walkers, "imp"));
+    // A declared target filter binds the role from its source (Ice Floe).
+    let mut candidates = json!({
+        "kind": "permanents",
+        "where": {
+            "kind": "and",
+            "operands": [
+                { "kind": "cardTypeContains", "value": "Creature" },
+                you_atom,
+            ],
+        },
+    });
+    assert!(super::super::target_candidates_supported(&candidates));
+    let land = permanent("floe", "Land", "player-0", None);
+    engine
+        .bind_source_candidates(&mut candidates, &land)
+        .expect("the source binds the role");
+    let legal = engine.state.players[1]
+        .battlefield
+        .iter()
+        .filter(|permanent| {
+            engine.permanent_matches_target_filter(permanent, &candidates["where"], "player-0")
+        })
+        .map(|permanent| permanent.instance_id.clone())
+        .collect::<Vec<_>>();
+    assert_eq!(legal, vec!["orc"]);
+}
+
+#[test]
+fn a_stack_item_target_relates_each_stack_object_to_its_own_targets() {
+    // Siren Stormtamer: `target spell or ability that targets you or a
+    // creature you control` (CR 115.1), read relative to the player
+    // choosing the target; a trigger selector keeps refusing the relation.
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield =
+        vec![permanent("pet", "Creature \u{2014} Cat", "player-0", None)];
+    engine.state.players[1].battlefield = vec![permanent(
+        "brute",
+        "Creature \u{2014} Ogre",
+        "player-1",
+        None,
+    )];
+    let filter = json!({
+        "kind": "and",
+        "operands": [
+            {
+                "kind": "or",
+                "operands": [
+                    { "kind": "isSpell" },
+                    { "kind": "isActivatedAbility" },
+                    { "kind": "isTriggeredAbility" },
+                ],
+            },
+            {
+                "kind": "targets",
+                "players": "abilityController",
+                "permanents": {
+                    "where": { "kind": "cardTypeContains", "value": "Creature" },
+                    "controller": "abilityController",
+                },
+            },
+        ],
+    });
+    assert!(super::super::object_predicate::stack_item_candidate_filter_supported(&filter));
+    assert!(!super::super::stack_item_filter_supported(&filter));
+    let targeting = |id: &str, target: TargetRef| {
+        let mut object = stack_source(
+            test_instance(id, test_definition(id, "Instant"), "player-1"),
+            "player-1",
+            "spellAbility",
+        );
+        // A spell on the stack carries no ability kind (CR 112.1).
+        object.ability_kind = None;
+        object.targets.insert("t".to_string(), target);
+        object
+    };
+    let at_you = targeting(
+        "bolt",
+        TargetRef::Player {
+            player_id: "player-0".to_string(),
+        },
+    );
+    let at_pet = targeting(
+        "shock",
+        TargetRef::Permanent {
+            instance_id: "pet".to_string(),
+        },
+    );
+    let at_brute = targeting(
+        "grow",
+        TargetRef::Permanent {
+            instance_id: "brute".to_string(),
+        },
+    );
+    let at_them = targeting(
+        "blast",
+        TargetRef::Player {
+            player_id: "player-1".to_string(),
+        },
+    );
+    assert!(engine.stack_item_candidate_matches(&at_you, &filter, "player-0"));
+    assert!(engine.stack_item_candidate_matches(&at_pet, &filter, "player-0"));
+    assert!(!engine.stack_item_candidate_matches(&at_brute, &filter, "player-0"));
+    assert!(!engine.stack_item_candidate_matches(&at_them, &filter, "player-0"));
+    // Relative to the other player, the roles swap.
+    assert!(engine.stack_item_candidate_matches(&at_them, &filter, "player-1"));
+}
+
+#[test]
+fn siren_stormtamer_and_blessed_reversal_lower_executable_relations() {
+    // Parser to runtime: the stack-item relative lowers onto the declared
+    // stack target, and the attacked-player count is executable and counts
+    // only attackers of the ability controller (CR 508.1b).
+    let siren = parsed_rules(
+        "Siren Stormtamer",
+        "Creature \u{2014} Siren Pirate Wizard",
+        "Flying\n{U}, Sacrifice this creature: Counter target spell or ability that targets you or a creature you control.",
+    );
+    assert!(
+        siren
+            .iter()
+            .any(|rule| rule.to_string().contains("\"kind\":\"targets\"")),
+        "{siren:#?}"
+    );
+    let rules = parsed_rules(
+        "Blessed Reversal",
+        "Instant",
+        "You gain 3 life for each creature attacking you.",
+    );
+    let mut engine = test_engine(2);
+    engine.state.players[0].battlefield = vec![permanent(
+        "jace",
+        "Legendary Planeswalker \u{2014} Jace",
+        "player-0",
+        None,
+    )];
+    engine.state.players[1].battlefield = vec![
+        permanent("orc", "Creature \u{2014} Orc", "player-1", None),
+        permanent("ogre", "Creature \u{2014} Ogre", "player-1", None),
+        permanent("imp", "Creature \u{2014} Imp", "player-1", None),
+    ];
+    let you = TargetRef::Player {
+        player_id: "player-0".to_string(),
+    };
+    engine.state.combat.attackers = vec![
+        attacker("orc", you.clone(), "player-0"),
+        attacker("ogre", you, "player-0"),
+        attacker(
+            "imp",
+            TargetRef::Permanent {
+                instance_id: "jace".to_string(),
+            },
+            "player-0",
+        ),
+    ];
+    let life_before = engine.state.players[0].life;
+    let source = stack_source(
+        test_instance(
+            "reversal",
+            test_definition("reversal", "Instant"),
+            "player-0",
+        ),
+        "player-0",
+        "spellAbility",
+    );
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &rules[0]["effects"],
+        &source,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut EmeritusDecisionProvider,
+    )
+    .expect("the spell resolves");
+    assert_eq!(engine.state.players[0].life, life_before + 6);
+}
+
+#[test]
+fn a_target_filter_binds_the_sources_counters_as_its_threshold() {
+    // Legacy's Allure: `target creature with power less than or equal to
+    // the number of treasure counters on this enchantment` reads the
+    // source's counters each time the candidates are enumerated, and its
+    // last known counters once it was sacrificed (CR 608.2h).
+    let mut engine = test_engine(2);
+    let mut allure = permanent("allure", "Enchantment", "player-0", None);
+    allure.counters.insert("treasure".to_string(), 2);
+    engine.state.players[0].battlefield = vec![allure.clone()];
+    let mut small = permanent("small", "Creature \u{2014} Elf", "player-1", None);
+    small.definition.power = Some("2".to_string());
+    let mut big = permanent("big", "Creature \u{2014} Giant", "player-1", None);
+    big.definition.power = Some("3".to_string());
+    engine.state.players[1].battlefield = vec![small, big];
+    let unbound = json!({
+        "kind": "permanents",
+        "where": {
+            "kind": "compare",
+            "operator": "<=",
+            "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "countCounters", "object": { "kind": "self" }, "counter": "treasure" },
+        },
+    });
+    assert!(super::super::target_candidates_supported(&unbound));
+    let legal = |engine: &GameEngine, source: &CardInstance| {
+        let mut candidates = unbound.clone();
+        engine
+            .bind_source_candidates(&mut candidates, source)
+            .expect("the source binds its counters");
+        assert_eq!(candidates["where"]["right"], json!(2));
+        engine.state.players[1]
+            .battlefield
+            .iter()
+            .filter(|permanent| {
+                engine.permanent_matches_target_filter(permanent, &candidates["where"], "player-0")
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(legal(&engine, &allure), vec!["small"]);
+    // Sacrificed as the cost: the carried copy keeps its counters.
+    engine.state.players[0].battlefield.clear();
+    assert_eq!(legal(&engine, &allure), vec!["small"]);
+}

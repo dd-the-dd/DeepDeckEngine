@@ -65,14 +65,50 @@ pub(super) fn is_relation_kind(kind: &str) -> bool {
             | "convoked"
             | "sharesCharacteristic"
             | ENTERED_UNDER_CONTROL
+            | ATTACKING_PLAYER
+            | BLOCKED_ANCHOR_THIS_TURN
+            | BLOCKED_BY_ANCHOR_THIS_TURN
+            | DEALT_DAMAGE_TO_ANCHOR_THIS_TURN
+            | DEALT_COMBAT_DAMAGE_TO_ANCHOR_THIS_TURN
     )
 }
+
+/// `that dealt damage to that creature this turn` (CR 120.1): one of this
+/// turn's damage records names the candidate as the source and an anchor
+/// as the damaged permanent, with a positive amount (CR 120.8: zero damage
+/// is not dealt).
+const DEALT_DAMAGE_TO_ANCHOR_THIS_TURN: &str = "dealtDamageToAnchorThisTurn";
+
+/// The same record restricted to combat damage (CR 510.2).
+const DEALT_COMBAT_DAMAGE_TO_ANCHOR_THIS_TURN: &str = "dealtCombatDamageToAnchorThisTurn";
+
+/// `that blocked it this turn` (CR 509.1): one of this turn's block
+/// declarations pairs this incarnation of the candidate, as the blocker,
+/// with an anchor as the attacker. Read from the declarations, so a pair
+/// whose creatures left combat afterwards still counts.
+const BLOCKED_ANCHOR_THIS_TURN: &str = "blockedAnchorThisTurn";
+
+/// `that was blocked by it this turn` (CR 509.1, 509.1h): the same record
+/// with the candidate as the attacker and an anchor as the blocker.
+const BLOCKED_BY_ANCHOR_THIS_TURN: &str = "blockedByAnchorThisTurn";
 
 /// `that entered the battlefield under your control this turn` (CR
 /// 110.2a): a relation of the permanent to the player who controlled it as
 /// it entered. Its `player` is a role relative to the ability controller,
 /// resolved into `playerIds` at preparation; it has no object anchor.
 const ENTERED_UNDER_CONTROL: &str = "enteredUnderControlThisTurn";
+
+/// `attacking you [or a planeswalker you control]` (CR 508.1b, 506.3): a
+/// relation of an attacking permanent to the player it attacks, or, with
+/// `orPlaneswalkers`, to a planeswalker that player controls. Its `player`
+/// is a role relative to the ability controller, resolved into `playerIds`
+/// at preparation; it has no object anchor.
+const ATTACKING_PLAYER: &str = "attackingPlayer";
+
+/// The relations whose second argument is a player role, not an object.
+fn player_role_relation(kind: Option<&str>) -> bool {
+    matches!(kind, Some(ENTERED_UNDER_CONTROL | ATTACKING_PLAYER))
+}
 
 /// The player roles an entry-controller relation names.
 fn entry_player_role_supported(role: &Value) -> bool {
@@ -106,8 +142,21 @@ pub(super) fn relation_atom_supported(atom: &Value) -> bool {
     if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
         return entry_player_role_supported(&atom["player"]);
     }
+    if value_kind(atom) == Some(ATTACKING_PLAYER) {
+        return entry_player_role_supported(&atom["player"])
+            && atom.get("orPlaneswalkers").is_none_or(Value::is_boolean);
+    }
     let kind = match value_kind(atom) {
-        Some("attachedTo" | "blocking" | "blockedBy" | "convoked") => true,
+        Some(
+            "attachedTo"
+            | "blocking"
+            | "blockedBy"
+            | "convoked"
+            | BLOCKED_ANCHOR_THIS_TURN
+            | BLOCKED_BY_ANCHOR_THIS_TURN
+            | DEALT_DAMAGE_TO_ANCHOR_THIS_TURN
+            | DEALT_COMBAT_DAMAGE_TO_ANCHOR_THIS_TURN,
+        ) => true,
         Some("sharesCharacteristic") => matches!(
             atom["characteristic"].as_str(),
             Some(
@@ -232,7 +281,8 @@ fn source_bindable_anchor(anchor: &Value) -> bool {
 pub(super) fn target_filter_supported_with_relations(filter: &Value) -> bool {
     match value_kind(filter) {
         Some(kind) if is_relation_kind(kind) => {
-            relation_atom_supported(filter) && source_bindable_anchor(&filter["object"])
+            relation_atom_supported(filter)
+                && (player_role_relation(Some(kind)) || source_bindable_anchor(&filter["object"]))
         }
         Some("and" | "or") => filter["operands"].as_array().is_some_and(|operands| {
             !operands.is_empty() && operands.iter().all(target_filter_supported_with_relations)
@@ -534,10 +584,10 @@ impl GameEngine {
         if !relation_atom_supported(atom) {
             return Err(EngineError::new("unsupported object relation atom"));
         }
-        if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
+        if player_role_relation(value_kind(atom)) {
             return self
                 .prepare_entry_controller_relation(atom, &source.controller)
-                .ok_or_else(|| EngineError::new("unsupported entry-controller player role"));
+                .ok_or_else(|| EngineError::new("unsupported relation player role"));
         }
         let anchor = &atom["object"];
         let anchor_ids = self.relation_anchor_ids(anchor, source, bindings, decisions)?;
@@ -642,7 +692,7 @@ impl GameEngine {
             return None;
         }
         let source = source?;
-        if value_kind(atom) == Some(ENTERED_UNDER_CONTROL) {
+        if player_role_relation(value_kind(atom)) {
             return self.prepare_entry_controller_relation(atom, &source.controller);
         }
         let anchor = &atom["object"];
@@ -733,6 +783,38 @@ impl GameEngine {
             })
     }
 
+    /// Whether this turn's block declarations pair this incarnation of
+    /// `candidate` with one of `anchor_ids` (CR 509.1): as the blocker when
+    /// `candidate_blocked`, else as the blocked attacker. Every declaration
+    /// of the turn counts, including blocks whose creatures left combat.
+    fn block_history_with_anchor(
+        &self,
+        candidate: &CardInstance,
+        anchor_ids: &[Value],
+        candidate_blocked: bool,
+    ) -> bool {
+        let candidate_identity = self.object_identity_value(&candidate.instance_id);
+        self.state.events.iter().any(|event| {
+            if event.turn_number != self.state.turn_number || event.kind != "blockerDeclared" {
+                return false;
+            }
+            let attacker = event.detail["attackerId"].as_str();
+            let blocker = event.card_instance_id.as_deref();
+            let (pair_candidate, pair_anchor, identity_field) = if candidate_blocked {
+                (blocker, attacker, "objectIdentity")
+            } else {
+                (attacker, blocker, "attackerIdentity")
+            };
+            pair_candidate == Some(candidate.instance_id.as_str())
+                && pair_anchor
+                    .is_some_and(|anchor| anchor_ids.iter().any(|id| id.as_str() == Some(anchor)))
+                && event
+                    .detail
+                    .get(identity_field)
+                    .is_none_or(|recorded| recorded.is_null() || *recorded == candidate_identity)
+        })
+    }
+
     /// Binds the relation leaves of a candidate domain's filter (each set of
     /// a `union`) to `source`. `None` when an anchor cannot be bound; the
     /// leaf then stays unprepared and matches no candidate.
@@ -820,6 +902,35 @@ impl GameEngine {
             })
     }
 
+    /// CR 508.1b, 506.3: the permanent is an attacking creature of the
+    /// current combat whose defender is one of `player_ids` or, when
+    /// `planeswalkers`, a planeswalker one of them controls. A creature
+    /// attacking a planeswalker is not attacking that planeswalker's
+    /// controller.
+    fn permanent_attacks_player(
+        &self,
+        permanent: &CardInstance,
+        player_ids: &[Value],
+        planeswalkers: bool,
+    ) -> bool {
+        let named = |id: &str| player_ids.iter().any(|player| player.as_str() == Some(id));
+        self.state.combat.attackers.iter().any(|attacker| {
+            attacker.attacker_id == permanent.instance_id
+                && match &attacker.defender {
+                    TargetRef::Player { player_id } => named(player_id.as_str()),
+                    TargetRef::Permanent { instance_id } if planeswalkers => self
+                        .permanent_position(instance_id)
+                        .is_some_and(|(player_index, card_index)| {
+                            let defender =
+                                &self.state.players[player_index].battlefield[card_index];
+                            named(defender.controller.as_str())
+                                && self.permanent_has_card_type(defender, "Planeswalker")
+                        }),
+                    _ => false,
+                }
+        })
+    }
+
     /// Tests one candidate against a prepared relation atom. An unprepared
     /// atom (no `anchorIds`) never matches; its consumers refuse it first.
     pub(super) fn eval_object_relation(
@@ -832,6 +943,17 @@ impl GameEngine {
                 (Some(player_ids), ObjectFilterView::Permanent(permanent)) => {
                     self.permanent_entered_under_control_this_turn(permanent, player_ids)
                 }
+                _ => false,
+            };
+        }
+        if value_kind(relation) == Some(ATTACKING_PLAYER) {
+            return match (relation["playerIds"].as_array(), candidate) {
+                (Some(player_ids), ObjectFilterView::Permanent(permanent)) => self
+                    .permanent_attacks_player(
+                        permanent,
+                        player_ids,
+                        relation["orPlaneswalkers"].as_bool() == Some(true),
+                    ),
                 _ => false,
             };
         }
@@ -854,6 +976,32 @@ impl GameEngine {
                     block.attacker_id == permanent.instance_id && anchored(&block.blocker_id)
                 }) || self.blocked_departed_anchor(permanent, anchor_ids, false)
             }
+            (Some(BLOCKED_ANCHOR_THIS_TURN), ObjectFilterView::Permanent(permanent)) => {
+                self.block_history_with_anchor(permanent, anchor_ids, true)
+            }
+            (Some(BLOCKED_BY_ANCHOR_THIS_TURN), ObjectFilterView::Permanent(permanent)) => {
+                self.block_history_with_anchor(permanent, anchor_ids, false)
+            }
+            (
+                Some(
+                    kind @ (DEALT_DAMAGE_TO_ANCHOR_THIS_TURN
+                    | DEALT_COMBAT_DAMAGE_TO_ANCHOR_THIS_TURN),
+                ),
+                ObjectFilterView::Permanent(permanent),
+            ) => self.state.events.iter().any(|event| {
+                event.turn_number == self.state.turn_number
+                    && event.kind == "damageDealt"
+                    && event.detail["source"].as_str() == Some(permanent.instance_id.as_str())
+                    && event
+                        .card_instance_id
+                        .as_deref()
+                        .is_some_and(|damaged| anchored(damaged))
+                    && event.detail["amount"]
+                        .as_i64()
+                        .is_some_and(|amount| amount > 0)
+                    && (kind == DEALT_DAMAGE_TO_ANCHOR_THIS_TURN
+                        || event.detail["combat"].as_bool() == Some(true))
+            }),
             // CR 702.51c: the creatures tapped to pay the convoke cost of
             // the anchor, recorded with the anchor's latest cast.
             (Some("convoked"), ObjectFilterView::Permanent(permanent)) => {

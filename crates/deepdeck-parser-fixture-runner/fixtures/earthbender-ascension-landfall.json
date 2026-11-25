@@ -297,10 +297,10 @@
             "abilityIndex": 0,
             "code": "oracle_machine_failure",
             "automaton": "generic-trigger-program",
-            "state": "effect.start",
-            "expected": "a supported effect subject",
-            "found": "if",
-            "tokenIndex": 21
+            "state": "condition.sentence.object.property",
+            "expected": "`mana value`, `power`, or `toughness`",
+            "found": "four",
+            "tokenIndex": 24
           },
           {
             "abilityIndex": 0,

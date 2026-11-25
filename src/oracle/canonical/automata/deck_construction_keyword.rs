@@ -14,7 +14,19 @@
 //! is recognized as a partner ability and then fails explicitly until that
 //! trigger is composed. Companion is not a partner ability: it grants a
 //! special action during the game (CR 702.139a, 116.2g).
-use super::super::{MachineResult, OracleTokenCursor};
+//!
+//! A card's own deck-construction rules are read by the same frame:
+//!
+//! ```text
+//! DeckRule := SOURCE "can" "be" "your" "commander" "."            CR 903.3d
+//!           | "a" "deck" "can" "have" ("any" "number" | "up" "to" N)
+//!             "of" "cards" "named" SOURCE "."                      CR 100.2a
+//! ```
+//!
+//! `SOURCE` is the card's own name, linked by the lexical name resolver.
+use super::super::{MachineResult, OracleTokenCursor, parse_number_word};
+use super::{LocalObjectReference, recognize_source_reference, source_reference_starts_at};
+use crate::oracle::syntax::{NameResolutionFailure, ResolvedNameLink};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum DeckConstructionKeyword {
@@ -248,4 +260,98 @@ pub(in crate::oracle::canonical) fn recognize_deck_construction_keyword(
             }
         };
     }
+}
+
+/// A deck-construction rule printed on the card itself. It modifies deck
+/// construction before the game and has no in-game behavior.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum DeckConstructionRule {
+    /// `SOURCE can be your commander.` (CR 903.3d).
+    CommanderEligibility,
+    /// `A deck can have any number of cards named SOURCE.` (`None`) or `up
+    /// to N cards named SOURCE` (CR 100.2a).
+    CopyLimit { maximum: Option<i64> },
+}
+
+/// The lowercase words from the cursor to the end of the ability.
+fn remaining_words(cursor: &OracleTokenCursor<'_>) -> Vec<String> {
+    (0..)
+        .map_while(|offset| cursor.peek_ahead(offset).map(word))
+        .collect()
+}
+
+const COMMANDER_PREDICATE: [&str; 5] = ["can", "be", "your", "commander", "."];
+
+/// Whether the ability is a deck-construction rule of the card itself: it
+/// starts with `a deck can have`, or a source reference whose sentence is
+/// `can be your commander.`.
+pub(in crate::oracle::canonical) fn deck_construction_rule_starts(
+    cursor: &OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> bool {
+    if ["a", "deck", "can", "have"]
+        .iter()
+        .enumerate()
+        .all(|(offset, expected)| at_word(cursor, offset, expected))
+    {
+        return true;
+    }
+    let words = remaining_words(cursor);
+    source_reference_starts_at(cursor.position(), cursor.peek(), name_links, name_failure)
+        && words.len() > COMMANDER_PREDICATE.len()
+        && words[words.len() - COMMANDER_PREDICATE.len()..]
+            .iter()
+            .zip(COMMANDER_PREDICATE)
+            .all(|(actual, expected)| actual == expected)
+}
+
+/// Reads one complete deck-construction rule of the card itself.
+pub(in crate::oracle::canonical) fn recognize_deck_construction_rule(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+) -> MachineResult<DeckConstructionRule> {
+    let rule = if at_word(cursor, 0, "a") && at_word(cursor, 1, "deck") {
+        cursor.enter("deck-construction.copy-limit");
+        consume_words(cursor, &["a", "deck", "can", "have"])?;
+        cursor.enter("deck-construction.copy-limit.quantity");
+        let maximum = if at_word(cursor, 0, "any") {
+            // `any number of cards`; a counted `up to seven cards` has no `of`.
+            consume_words(cursor, &["any", "number", "of"])?;
+            None
+        } else {
+            consume_words(cursor, &["up", "to"])?;
+            let maximum = cursor
+                .peek()
+                .and_then(parse_number_word)
+                .filter(|maximum| *maximum > 0);
+            let maximum = cursor.require_value(maximum, "a positive number of copies")?;
+            cursor.advance_to(cursor.position() + 1)?;
+            Some(maximum)
+        };
+        cursor.enter("deck-construction.copy-limit.name");
+        consume_words(cursor, &["cards", "named"])?;
+        let named = recognize_source_reference(cursor, name_links, name_failure)?;
+        cursor.require(
+            named == LocalObjectReference::SourceSelf,
+            "the card's own name after `named`",
+        )?;
+        cursor.enter("deck-construction.copy-limit.terminator");
+        consume_words(cursor, &["."])?;
+        DeckConstructionRule::CopyLimit { maximum }
+    } else {
+        cursor.enter("deck-construction.commander.subject");
+        let subject = recognize_source_reference(cursor, name_links, name_failure)?;
+        cursor.require(
+            subject == LocalObjectReference::SourceSelf,
+            "the card itself as the commander candidate",
+        )?;
+        cursor.enter("deck-construction.commander.predicate");
+        consume_words(cursor, &COMMANDER_PREDICATE)?;
+        DeckConstructionRule::CommanderEligibility
+    };
+    cursor.enter("deck-construction.complete");
+    cursor.finish()?;
+    Ok(rule)
 }

@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "generic/casualty-casting-keyword",
+  "cases": [
+    {
+      "id": "exact-join-the-maestros",
+      "request": {
+        "cardName": "Join the Maestros",
+        "typeLine": "Sorcery",
+        "manaCost": "{4}{B}",
+        "oracleText": "Casualty 2 (As you cast this spell, you may sacrifice a creature with power 2 or greater. When you do, copy this spell.)\nCreate a 4/3 black Ogre Warrior creature token.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "casualty",
+                "minimumPower": {
+                  "kind": "integer",
+                  "value": 2
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-make-disappear-new-target-reminder",
+      "request": {
+        "cardName": "Make Disappear",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Casualty 1 (As you cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell and you may choose a new target for the copy.)\nCounter target spell unless its controller pays {2}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 2,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "rule": {
+              "kind": "keywordAbility",
+              "source": {
+                "kind": "self"
+              },
+              "ability": {
+                "kind": "casualty",
+                "minimumPower": {
+                  "kind": "integer",
+                  "value": 1
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-casualty-on-creature-face",
+      "request": {
+        "cardName": "Generic Casualty Source",
+        "typeLine": "Creature — Rogue",
+        "manaCost": "{2}{B}",
+        "oracleText": "Casualty 3 (As you cast this spell, you may sacrifice a creature with power 3 or greater. When you do, copy this spell.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.lowering",
+            "expectedContains": "an instant or sorcery face for casualty"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-casualty-reminder-count-mismatch",
+      "request": {
+        "cardName": "Generic Casualty Source",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{B}",
+        "oracleText": "Casualty 2 (As you cast this spell, you may sacrifice a creature with power 3 or greater. When you do, copy this spell.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilityCount": 1,
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "keyword.casting.reminder.body"
+          }
+        ]
+      }
+    }
+  ]
+}
