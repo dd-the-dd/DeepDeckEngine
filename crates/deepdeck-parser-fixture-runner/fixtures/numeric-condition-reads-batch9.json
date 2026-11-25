@@ -1018,6 +1018,33 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-kroxa-sacrifice-unless-escaped-first-ability",
+      "request": {
+        "cardName": "Kroxa, Titan of Death's Hunger",
+        "typeLine": "Legendary Creature — Elder Giant",
+        "manaCost": "{B}{R}",
+        "oracleText": "When Kroxa enters, sacrifice it unless it escaped.\nWhenever Kroxa enters or attacks, each opponent discards a card, then each opponent who didn't discard a nonland card this way loses 3 life.\nEscape—{B}{B}{R}{R}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }
