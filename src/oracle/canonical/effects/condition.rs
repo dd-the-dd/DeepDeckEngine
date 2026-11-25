@@ -715,7 +715,18 @@ fn lower_object_condition(
         ConditionObjectReference::Permanent(reference) => (
             bound_permanent_reference_value(reference, bindings.permanent_targets)
                 .ok_or("the previously declared permanent target slot in this lexical scope")?,
-            lower_permanent_object_predicate(&node.predicate),
+            match reference {
+                // The card an earlier action moved is read as that card.
+                PermanentEffectReference::ActionResult(result) if !result.permanent => {
+                    lower_card_object_predicate(&node.predicate)
+                }
+                _ => lower_permanent_object_predicate(&node.predicate),
+            },
+        ),
+        // The spell the triggering cast record binds, on the stack.
+        ConditionObjectReference::EventSpell => (
+            json!({ "kind": "triggeringStackObject" }),
+            lower_spell_object_predicate(&node.predicate).unwrap_or(Value::Null),
         ),
         ConditionObjectReference::CardTarget(binding) => (
             bindings

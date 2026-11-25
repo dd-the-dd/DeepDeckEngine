@@ -37,6 +37,15 @@ use machine::*;
 use numeric::*;
 use primitive_helpers::*;
 
+/// The byte offset of the body of a labeled spell paragraph whose failure
+/// is an antecedent the paragraph before it may bind (CR 207.2c, 608.2c).
+pub(crate) fn spell_paragraph_continuation(
+    tokens: &[crate::oracle::model::RecognizedEntity],
+    failure_state: &str,
+) -> Option<usize> {
+    automata::spell_paragraph_continuation(tokens, failure_state)
+}
+
 pub(crate) fn compile_named_token_catalog_rules(
     token_name: &str,
     type_line: &str,

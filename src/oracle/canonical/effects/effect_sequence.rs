@@ -1622,6 +1622,17 @@ fn lower_local_effect_sequence_with_collections(
                     }
                     effects.push(action);
                 }
+                // The singular copied stack object is the antecedent a later
+                // condition reads (`copy target spell. If it's ...`).
+                if slot.cardinality == TargetCardinality::EXACTLY_ONE {
+                    target_bindings.push((
+                        TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                        target_id.to_string(),
+                    ));
+                }
             }
             LocalEffectNode::PermanentKeywordAction(keyword_action) => {
                 let quantity = match &keyword_action.quantity {
@@ -2233,15 +2244,21 @@ fn lower_local_effect_sequence_with_collections(
                 // (`that creature`, `its controller`) resolves to.
                 if let DamageRecipientNode::Targets(targets) = &damage.recipient
                     && let [slot] = targets.slots.as_slice()
-                    && slot.cardinality == TargetCardinality::EXACTLY_ONE
                 {
-                    target_bindings.push((
-                        TargetBinding {
-                            effect_index,
-                            slot_index: 0,
-                        },
-                        target_id.clone(),
-                    ));
+                    let binding = TargetBinding {
+                        effect_index,
+                        slot_index: 0,
+                    };
+                    if slot.cardinality == TargetCardinality::EXACTLY_ONE {
+                        target_bindings.push((binding, target_id.clone()));
+                    } else if slot.cardinality.maximum > 1 {
+                        // A plural recipient slot is the set a later `those
+                        // creatures` names (`TargetSet`).
+                        target_bindings.push((
+                            super::permanent_subject::target_set_binding_key(binding),
+                            target_id.clone(),
+                        ));
+                    }
                 }
             }
             LocalEffectNode::ZoneChange(zone_change) => {

@@ -206,6 +206,7 @@ pub(in crate::oracle::canonical) fn recognize_effect_program_with_context(
             }
         };
         let failure = match replacing_sentence(cursor)
+            .or_else(|| super::postposed_replacing_sentence(cursor))
             .filter(|sentence| outcome_start.is_none_or(|start| sentence.end <= start))
         {
             Some(sentence) => match cursor.attempt(|attempt| {
@@ -1112,6 +1113,7 @@ pub(in crate::oracle::canonical) fn effect_program_operator_follows(
         || later_mandatory_outcome_block(cursor).is_some()
         || reflexive_action_block_follows(cursor)
         || replacing_sentence(cursor).is_some()
+        || super::postposed_replacing_sentence(cursor).is_some()
 }
 
 fn optional_program_starts(cursor: &OracleTokenCursor<'_>) -> bool {

@@ -46,6 +46,9 @@ pub(in crate::oracle::canonical) enum ConditionObjectReference {
     /// (CR 608.2h): the numeric properties and the type line its departure
     /// recorded.
     DepartedTarget(TargetBinding),
+    /// The spell a cast event's record binds (CR 601.2, 603.2): `it`, `its`
+    /// or `that spell` in a cast trigger, read on the stack.
+    EventSpell,
 }
 
 impl ConditionObjectReference {
@@ -53,6 +56,22 @@ impl ConditionObjectReference {
     pub(in crate::oracle::canonical) const SOURCE: Self = Self::Permanent(
         PermanentEffectReference::Source(LocalObjectReference::SourceSelf),
     );
+
+    /// The condition subject an antecedent outside the permanent scope is:
+    /// a declared target or an action result keeps its permanent reference
+    /// (the lowering reads its binding), the cast record its own subject.
+    fn from_antecedent(antecedent: ConditionPronounAntecedent) -> Self {
+        match antecedent {
+            ConditionPronounAntecedent::Target(binding) => {
+                Self::Permanent(PermanentEffectReference::Target(binding))
+            }
+            ConditionPronounAntecedent::ActionResult(result) => {
+                Self::Permanent(PermanentEffectReference::ActionResult(result))
+            }
+            ConditionPronounAntecedent::EventObject(reference) => Self::Permanent(reference),
+            ConditionPronounAntecedent::EventSpell => Self::EventSpell,
+        }
+    }
 }
 
 /// The Boolean program of a sentence conditional, an intervening `if` or a
@@ -1350,7 +1369,14 @@ fn recognize_referenced_object_atom(
             "a nominal anaphor of an effect program's proven antecedent",
         )?;
         let environment = condition_binding_environment(cursor, program.effects);
-        ConditionObjectReference::Permanent(recognize_nominal_object_read(cursor, &environment)?)
+        match recognize_condition_nominal_object(cursor, &environment)? {
+            ConditionPronounAntecedentOrObject::Object(reference) => {
+                ConditionObjectReference::Permanent(reference)
+            }
+            ConditionPronounAntecedentOrObject::Antecedent(antecedent) => {
+                ConditionObjectReference::from_antecedent(antecedent)
+            }
+        }
     };
     let phrase = recognize_object_verb_phrase(cursor, false)?;
     finish_object_verb_phrase(cursor, context, object, phrase)
@@ -1938,7 +1964,17 @@ fn condition_binding_environment(
 ) -> BindingEnvironment {
     let mut environment = BindingEnvironment::for_permanent_context(effects);
     let installed = installed_binding_environment(cursor);
-    if let (Some(object), Some(published)) = (environment.object.as_mut(), installed.object)
+    // The program's published antecedents outside the permanent scope: the
+    // one object an earlier action selected or moved, and the latest
+    // declared target that need not be a permanent (a countered spell).
+    inherit_installed_action_result(&mut environment, cursor);
+    environment.declared_target = installed.declared_target.clone();
+    if environment.object.is_none() {
+        // The singular object the program parent installed for this action
+        // (`Counter target spell. If that spell ...`) when the context
+        // proves none of its own.
+        environment.object = installed.object;
+    } else if let (Some(object), Some(published)) = (environment.object.as_mut(), installed.object)
         && object.selector.is_none()
         && object.reference == published.reference
     {
@@ -2227,7 +2263,15 @@ fn resolve_object_anaphor(
     }
     match candidates.as_slice() {
         [reference] => Ok(*reference),
-        [] => Err(cursor.fail("one proven singular antecedent for the pronoun")),
+        // No permanent subject and no card result: the program's other
+        // published antecedents, in the one binding environment (a declared
+        // spell or `any target`, an action result, the cast record).
+        [] => {
+            let environment = condition_binding_environment(cursor, program.effects);
+            resolve_condition_pronoun(&environment)
+                .map(ConditionObjectReference::from_antecedent)
+                .map_err(|expected| cursor.fail(expected))
+        }
         _ => Err(cursor.fail("exactly one proven antecedent for the pronoun, not several")),
     }
 }
@@ -2244,7 +2288,12 @@ fn resolve_card_anaphor(
     match (program.card_target, program.card_focus) {
         (Some(binding), false) => Ok(ConditionObjectReference::CardTarget(binding)),
         (None, true) => Ok(ConditionObjectReference::CardFocus),
-        (None, false) => Err(cursor.fail("one proven singular card antecedent for `that card`")),
+        (None, false) => {
+            let environment = condition_binding_environment(cursor, program.effects);
+            resolve_condition_card(&environment)
+                .map(ConditionObjectReference::from_antecedent)
+                .map_err(|expected| cursor.fail(expected))
+        }
         (Some(_), true) => {
             Err(cursor.fail("exactly one proven card antecedent for `that card`, not several"))
         }
@@ -2278,12 +2327,20 @@ fn finish_referenced_object(
     };
     cursor.enter("condition.sentence.object.domain");
     let domain = match object {
+        // The card an earlier action moved off the battlefield or out of a
+        // hidden zone is read as that card (CR 400.7).
+        ConditionObjectReference::Permanent(PermanentEffectReference::ActionResult(result))
+            if !result.permanent =>
+        {
+            ObjectKind::Card
+        }
         ConditionObjectReference::Permanent(_) | ConditionObjectReference::DepartedTarget(_) => {
             ObjectKind::Permanent
         }
         ConditionObjectReference::CardTarget(_) | ConditionObjectReference::CardFocus => {
             ObjectKind::Card
         }
+        ConditionObjectReference::EventSpell => ObjectKind::Spell,
     };
     cursor.require(
         predicate.supports_domain(domain),

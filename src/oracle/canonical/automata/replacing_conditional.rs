@@ -6,7 +6,13 @@
 //!
 //! ```text
 //! Replacing := Replaced "." "If" COND "," ["instead"] BODY ["instead"] "."
+//!            | Replaced "." BODY "instead" "if" COND "."
 //! ```
+//!
+//! The second form writes the same condition after its body (`That creature
+//! gets -13/-13 until end of turn instead if a creature died this turn.`);
+//! it is located only after the ordinary reading of the program failed
+//! (`postposed_replacing_sentence`).
 //!
 //! The shared effect sequence reads the replaced sentence and the `If`
 //! sentence together, in one binding environment: BODY names the replaced
@@ -33,6 +39,9 @@ pub(in crate::oracle::canonical) enum InsteadPosition {
     /// `If COND, BODY instead.`: the absolute index of the `instead` token,
     /// which directly precedes the sentence's period.
     Postposed(usize),
+    /// `BODY instead if COND.`: the absolute indices of the `instead` token
+    /// directly before the postposed `if`, and of the sentence's period.
+    PostposedCondition { instead: usize, period: usize },
 }
 
 /// The lexical location of a replacing sentence and of the sentence it
@@ -178,6 +187,53 @@ pub(in crate::oracle::canonical) fn replacing_sentence(
     })
 }
 
+/// `BODY instead if COND.` (CR 608.2c): the first later top-level sentence
+/// that ends with a postposed condition introduced by `instead if`, which
+/// replaces the sentence before it. A condition that creates a replacement
+/// effect (`instead if it would ...`, CR 614.1a) is another construct. The
+/// program parent locates it only after its ordinary reading failed.
+pub(in crate::oracle::canonical) fn postposed_replacing_sentence(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<ReplacingSentence> {
+    let sentences = written_sentences(cursor);
+    sentences.windows(2).find_map(|pair| {
+        let (replaced, sentence) = (pair[0], pair[1]);
+        if word_at(cursor, sentence.start, "if") {
+            return None;
+        }
+        let mut depth = 0usize;
+        let mut quoted = false;
+        let instead = (sentence.start + 1..sentence.period).find(|index| {
+            let raw = cursor
+                .token_slice(*index, index + 1)
+                .first()
+                .map_or("", |token| token.raw.as_str());
+            match raw {
+                "\"" => quoted = !quoted,
+                "(" if !quoted => depth += 1,
+                ")" if !quoted => depth = depth.saturating_sub(1),
+                _ => {}
+            }
+            !quoted
+                && depth == 0
+                && word_at(cursor, *index, "instead")
+                && word_at(cursor, index + 1, "if")
+        })?;
+        if (instead + 2..sentence.period).any(|index| word_at(cursor, index, "would")) {
+            return None;
+        }
+        Some(ReplacingSentence {
+            replaced_start: replaced.start,
+            start: sentence.start,
+            end: sentence.end,
+            instead: InsteadPosition::PostposedCondition {
+                instead,
+                period: sentence.period,
+            },
+        })
+    })
+}
+
 /// The actions the shared sequence reads before `end` from the cursor: a
 /// prefix of the whole reading, which must agree with it.
 fn prefix_actions(
@@ -250,6 +306,95 @@ pub(in crate::oracle::canonical) fn recognize_replacing_sequence(
                 )?;
                 cursor.advance_to(sentence.end)?;
             }
+            sequence
+        }
+        InsteadPosition::PostposedCondition { instead, period } => {
+            // The body is read up to `instead`, whose slot holds the
+            // sentence's period in the view, so every earlier token keeps
+            // its index, span and name link.
+            let mut tokens = cursor.token_slice(0, usize::MAX).to_vec();
+            let period_token = tokens
+                .get(period)
+                .filter(|token| token.raw == ".")
+                .cloned()
+                .ok_or_else(|| cursor.fail("a period after the postposed condition"))?;
+            tokens[instead] = period_token;
+            let mut view = cursor.with_tokens(&tokens);
+            let mut sequence = view.bounded(instead + 1, |view| {
+                recognize_effect_sequence_with_context(view, name_links, name_failure, &replacing)
+            })?;
+            cursor.enter("program.replacing.postposed-body");
+            cursor.require(
+                before_condition.len() < sequence.effects.len()
+                    && sequence
+                        .conditionals
+                        .iter()
+                        .all(|conditional| conditional.end() <= before_condition.len()),
+                "an unconditional instruction before the postposed `instead if`",
+            )?;
+            // The condition reads the antecedents of the body it gates: the
+            // permanent subject after the body's actions and the program's
+            // published antecedents; departures are those before the
+            // replaced sentence, where the condition is checked.
+            cursor.enter("program.replacing.postposed-condition");
+            let mut condition_effects = replacing.clone();
+            condition_effects.permanent_subject_scope = sequence.effects.iter().enumerate().fold(
+                replacing.permanent_subject_scope,
+                |scope, (index, effect)| {
+                    super::permanent_subject::permanent_subject_after_effect(effect, index, scope)
+                },
+            );
+            let departed = before_replaced
+                .iter()
+                .enumerate()
+                .filter_map(|(effect_index, effect)| {
+                    matches!(effect, super::LocalEffectNode::ZoneChange(_)).then_some(
+                        super::TargetBinding {
+                            effect_index,
+                            slot_index: 0,
+                        },
+                    )
+                })
+                .collect::<Vec<_>>();
+            let environment = super::publish_program_antecedents(
+                super::installed_binding_environment(cursor),
+                &sequence.effects,
+            );
+            let enclosing =
+                cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+            let condition = cursor.advance_to(instead + 1).and_then(|()| {
+                cursor.bounded(period, |cursor| {
+                    super::recognize_postposed_sentence_condition(
+                        cursor,
+                        &super::SentenceConditionContext {
+                            name_links,
+                            name_failure,
+                            effects: &condition_effects,
+                            card_target: None,
+                            card_focus: false,
+                            departed_targets: &departed,
+                        },
+                    )
+                })
+            });
+            cursor.replace_binding_environment(enclosing);
+            let condition = condition?;
+            cursor.consume(".")?;
+            if cursor.position() < sentence.end {
+                // CR 207.2: a reminder of the replacing sentence.
+                cursor.enter("program.replacing.reminder");
+                cursor.require(
+                    !library_look_reminder_starts_at(cursor),
+                    "a reminder the replacing sentence's own reader validates",
+                )?;
+                cursor.advance_to(sentence.end)?;
+            }
+            sequence.conditionals.push(super::SentenceConditionalNode {
+                condition,
+                then_first: before_condition.len(),
+                then_end: sequence.effects.len(),
+                else_end: None,
+            });
             sequence
         }
     };

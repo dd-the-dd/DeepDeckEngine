@@ -60,3 +60,32 @@ fn active_action_result_clause_needs_this_way() {
     assert!(!starts("you discard a creature card"));
     assert!(!starts("you discarded two or more cards this turn"));
 }
+
+#[test]
+fn postposed_condition_after_instead_is_located_only_by_its_own_reader() {
+    let text = "Target creature gets -1/-1 until end of turn. That creature gets -13/-13 until end of turn instead if a creature died this turn.";
+    let tokens = recognize_entities(text);
+    let cursor = OracleTokenCursor::new("replacing-conditional-test", &tokens);
+    // The preposed reader keeps its own forms.
+    assert!(replacing_sentence(&cursor).is_none());
+    let sentence = postposed_replacing_sentence(&cursor).expect("a postposed replacing sentence");
+    assert_eq!(sentence.replaced_start, 0);
+    let InsteadPosition::PostposedCondition { instead, period } = sentence.instead else {
+        panic!("the postposed-condition form")
+    };
+    assert_eq!(tokens[instead].raw, "instead");
+    assert_eq!(tokens[instead + 1].raw, "if");
+    assert_eq!(tokens[period].raw, ".");
+    // Near misses: a created replacement effect and `instead of`.
+    let located = |text: &str| {
+        let tokens = recognize_entities(text);
+        let cursor = OracleTokenCursor::new("replacing-conditional-test", &tokens);
+        postposed_replacing_sentence(&cursor)
+    };
+    assert!(
+        located("Draw a card. Exile that creature instead if it would die this turn.").is_none()
+    );
+    assert!(
+        located("Draw a card. Put it into your hand instead of into your graveyard.").is_none()
+    );
+}

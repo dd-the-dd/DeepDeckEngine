@@ -389,6 +389,37 @@ Restes : résultats lus dans le corps d'un `If you do` / `When you do`
 mana (liaison de coût moteur absente) ; lecteur source-ou-anaphore typé
 `LocalObjectReference` (dégâts d'un jeton, `it` d'un cyclage).
 
+## Résolveur d'antécédent complété (lot 7)
+
+- Cible déclarée hors permanent : `BindingEnvironment::declared_target`
+  (`DeclaredTargetAntecedent`) publie la dernière cible unique dont le
+  sélecteur ne garantit pas un permanent (sort contrecarré ou copié,
+  `any target` d'un dégât ou d'un bouclier). Les cibles sont déclarées au
+  lancement (CR 601.2c) : une condition postposée la lit même sur l'action
+  qu'elle garde (`publish_installed_declared_target`). Jamais un opérande.
+- Pronom de condition (`it`, `its`, `that card`) : sans sujet permanent ni
+  résultat de collection, `resolve_condition_pronoun` choisit l'antécédent
+  lexical le plus proche (cible déclarée ou résultat d'action, lu comme carte
+  s'il n'est plus un permanent), puis le sujet de l'événement (LKI), puis le
+  sort du registre de lancement (`ConditionObjectReference::EventSpell`,
+  abaissé `triggeringStackObject`). Un résultat sacrifié est refusé
+  (`SACRIFICED_RESULT_CONDITION`, CR 400.7). `that spell` lit la cible de pile
+  déclarée ou le sort lancé.
+- Paragraphes étiquetés d'un sort (CR 207.2c, 608.2c) : quand un paragraphe
+  étiqueté échoue sur un antécédent absent (`unresolved_antecedent_state`),
+  la frontière logique relit son corps comme suite du paragraphe de sort
+  précédent ; le résultat ne remplace les deux que si la lecture jointe est
+  canonique (`spell_paragraph_continuation`, `pipeline.rs`).
+- `BODY instead if COND.` : forme postposée de la phrase remplaçante
+  (`postposed_replacing_sentence`), localisée seulement après l'échec de la
+  lecture ordinaire.
+- Ensembles pluriels : une action `Choose` ou de dégâts avec un seul
+  emplacement pluriel publie `TargetSet` (`those creatures`, `each of them`).
+- Garde `another`/`other` : compte excluant l'incarnation courante de la
+  source (vérifiée à la publication et à la résolution, CR 603.4) ; un
+  événement qui lie un autre objet reste refusé
+  (`trigger.program.guard-other-event-object`).
+
 ## Suite
 
 0. Restes du lot S2 : promotions `optional_bound_mill`,
