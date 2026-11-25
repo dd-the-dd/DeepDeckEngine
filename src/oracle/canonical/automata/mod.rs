@@ -1042,6 +1042,9 @@ pub(super) enum PlayerNumericFact {
     /// The counters of one kind the player has (CR 122.1: experience,
     /// poison, energy).
     Counters(crate::oracle::counter_name::CounterName),
+    /// The player's speed (CR 702.179, Start your engines!): a player value,
+    /// not a counter.
+    Speed,
 }
 
 /// A fact about one opponent of the ability controller that a count reads.

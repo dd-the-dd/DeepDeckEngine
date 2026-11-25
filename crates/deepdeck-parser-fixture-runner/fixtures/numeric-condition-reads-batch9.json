@@ -966,6 +966,58 @@
           }
         ]
       }
+    },
+    {
+      "id": "sibling-gain-life-equal-to-your-speed",
+      "request": {
+        "cardName": "Speed Amount Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{2}",
+        "oracleText": "{T}: You gain life equal to your speed.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "gainLife"
+              },
+              {
+                "pointer": "/effects/0/amount/kind",
+                "equals": "playerSpeed"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-static-condition-speed-or-higher",
+      "request": {
+        "cardName": "Speed Condition Probe",
+        "typeLine": "Creature — Goblin",
+        "manaCost": "{1}{R}",
+        "oracleText": "As long as your speed is 3 or higher, this creature gets +2/+0.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
     }
   ]
 }

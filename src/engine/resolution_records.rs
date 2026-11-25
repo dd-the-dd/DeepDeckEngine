@@ -37,6 +37,7 @@ const SUM_PERMANENTS: &str = "sumPermanentProperty";
 const COUNT_COMPARED: &str = "countPlayersComparedWithController";
 const COUNT_AT_EXTREMUM: &str = "countPlayersAtExtremum";
 const HIGHEST_COMMANDER_TAX: &str = "highestCommanderTax";
+const PLAYER_SPEED: &str = "playerSpeed";
 const QUANTIFIED_PLAYER: &str = "quantifiedPlayer";
 const MAX_DEPTH: usize = 64;
 
@@ -192,7 +193,7 @@ pub(super) fn resolution_record_supported(expression: &Value) -> Option<bool> {
             matches!(expression["extremum"].as_str(), Some("greatest" | "least"))
                 && member_measure_supported(&expression["value"])
         }
-        HIGHEST_COMMANDER_TAX => player_reference_supported(&expression["player"]),
+        HIGHEST_COMMANDER_TAX | PLAYER_SPEED => player_reference_supported(&expression["player"]),
         _ => return None,
     })
 }
@@ -389,7 +390,11 @@ impl GameEngine {
         let kind = value_kind(expression)?;
         if !matches!(
             kind,
-            SUM_PERMANENTS | COUNT_COMPARED | COUNT_AT_EXTREMUM | HIGHEST_COMMANDER_TAX
+            SUM_PERMANENTS
+                | COUNT_COMPARED
+                | COUNT_AT_EXTREMUM
+                | HIGHEST_COMMANDER_TAX
+                | PLAYER_SPEED
         ) {
             return None;
         }
@@ -400,6 +405,15 @@ impl GameEngine {
             SUM_PERMANENTS => self.permanent_property_total(expression, player_id),
             COUNT_COMPARED => self.players_compared_with_controller(expression, player_id),
             HIGHEST_COMMANDER_TAX => self.highest_commander_tax(player_id),
+            // CR 702.179: the engine keeps a player's speed in its player
+            // record (`speed`); a player without one has speed 0.
+            PLAYER_SPEED => self.player_index(player_id).ok().map(|index| {
+                self.state.players[index]
+                    .counters
+                    .get("speed")
+                    .copied()
+                    .unwrap_or(0)
+            }),
             _ => self.players_at_extremum(expression),
         })
     }

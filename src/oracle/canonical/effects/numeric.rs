@@ -614,6 +614,7 @@ fn lower_numeric_expression_in_context(
                 PlayerNumericFact::LifeGainedThisTurn => "lifeGainedThisTurn",
                 PlayerNumericFact::LifeTotal => "lifeTotal",
                 PlayerNumericFact::StartingLifeTotal => "startingLifeTotal",
+                PlayerNumericFact::Speed => "playerSpeed",
                 PlayerNumericFact::Counters(_) => unreachable!("lowered above"),
             },
             "player": controller(),

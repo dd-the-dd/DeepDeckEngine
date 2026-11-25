@@ -387,3 +387,24 @@ fn the_highest_commander_tax_reads_the_owner_commander_record() {
         Some(Some(10))
     );
 }
+
+#[test]
+fn a_player_speed_is_a_player_value_read_from_the_player_record() {
+    let mut engine = engine();
+    let speed = json!({
+        "kind": "playerSpeed",
+        "player": { "kind": "controllerOf", "object": { "kind": "self" } },
+    });
+    assert_eq!(resolution_record_supported(&speed), Some(true));
+    assert_eq!(
+        engine.controller_relative_record(&speed, "player-0"),
+        Some(Some(0))
+    );
+    engine.state.players[0]
+        .counters
+        .insert("speed".to_string(), 3);
+    assert_eq!(
+        engine.controller_relative_record(&speed, "player-0"),
+        Some(Some(3))
+    );
+}

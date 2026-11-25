@@ -495,8 +495,8 @@ pub(in crate::oracle::canonical) fn recognize_count_threshold(
     cursor.enter("condition.threshold.direction");
     cursor.consume("or")?;
     let operator = match cursor.peek().map(str::to_ascii_lowercase).as_deref() {
-        Some("more" | "greater") => ThresholdOperator::AtLeast,
-        Some("fewer" | "less") => ThresholdOperator::AtMost,
+        Some("more" | "greater" | "higher") => ThresholdOperator::AtLeast,
+        Some("fewer" | "less" | "lower") => ThresholdOperator::AtMost,
         _ => return Err(cursor.fail("`more`, `greater`, `fewer` or `less`")),
     };
     consume_current(cursor)?;

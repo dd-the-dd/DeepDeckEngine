@@ -23,6 +23,8 @@ const LIFE_TOTAL: &[&str] = &["your", "life", "total"];
 const STARTING_LIFE_TOTAL: &[&str] = &["your", "starting", "life", "total"];
 /// `half your life`: a player's life is their life total (CR 119.1).
 const LIFE: &[&str] = &["your", "life"];
+/// CR 702.179: the player's speed.
+const SPEED: &[&str] = &["your", "speed"];
 
 fn phrase_starts(cursor: &OracleTokenCursor<'_>, phrase: &[&str]) -> bool {
     phrase.iter().enumerate().all(|(i, word)| {
@@ -60,6 +62,7 @@ pub(in crate::oracle::canonical) fn player_numeric_fact_starts(
     amount_of_life_starts(cursor)
         || phrase_starts(cursor, LIFE)
         || phrase_starts(cursor, STARTING_LIFE_TOTAL)
+        || phrase_starts(cursor, SPEED)
 }
 
 pub(in crate::oracle::canonical) fn recognize_player_numeric_fact(
@@ -91,6 +94,9 @@ pub(in crate::oracle::canonical) fn recognize_player_numeric_fact(
     } else if phrase_starts(cursor, LIFE_TOTAL) {
         cursor.consume_phrase(LIFE_TOTAL)?;
         PlayerNumericFact::LifeTotal
+    } else if phrase_starts(cursor, SPEED) {
+        cursor.consume_phrase(SPEED)?;
+        PlayerNumericFact::Speed
     } else {
         cursor.consume_phrase(LIFE)?;
         PlayerNumericFact::LifeTotal
