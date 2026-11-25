@@ -374,6 +374,10 @@ pub(in crate::oracle::canonical) fn lower_permanent_count(
             let player = match count.controller {
                 Some(ObjectControllerScope::AbilityController) => controller(),
                 Some(ObjectControllerScope::EventPlayer) => json!({ "kind": "triggeringPlayer" }),
+                // `lands they control` of an action's acting player.
+                Some(ObjectControllerScope::Player(RelatedPlayer::Bound(
+                    BoundPlayerReference::ActingPlayer,
+                ))) => json!({ "kind": ACTING_PLAYER }),
                 _ => return None,
             };
             if count.exclude_source

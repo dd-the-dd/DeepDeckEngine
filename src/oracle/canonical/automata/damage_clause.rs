@@ -395,6 +395,32 @@ fn attacking_pronoun_antecedent(
         .ok_or_else(|| cursor.fail("an attacking creature `it` names"))
 }
 
+/// True when a damage recipient group names players only (`each player`,
+/// `target opponent`, `that player`), so the player dealt the damage is the
+/// acting player a distributive `they` / `that player` in the amount names
+/// (`deals damage to each player equal to the number of lands they
+/// control`, CR 608.2c). The controller (`you`) and permanents are not.
+pub(in crate::oracle::canonical) fn damage_recipient_names_player(
+    recipient: &super::DamageRecipientNode,
+) -> bool {
+    match recipient {
+        super::DamageRecipientNode::PlayerSet(_) | super::DamageRecipientNode::BoundPlayer(_) => {
+            true
+        }
+        super::DamageRecipientNode::Player(player) => {
+            *player != super::LocalPlayerReference::Controller
+        }
+        super::DamageRecipientNode::Targets(targets) => {
+            !targets.slots.is_empty()
+                && targets
+                    .slots
+                    .iter()
+                    .all(|slot| matches!(slot.selector, super::TargetSelector::Player(_)))
+        }
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 #[path = "damage_clause_tests.rs"]
 mod tests;

@@ -13,7 +13,7 @@ use super::{
 };
 
 pub(super) fn node_requires_checkpoint(value: &Value) -> bool {
-    value_kind(value) == Some("loseLife")
+    matches!(value_kind(value), Some("loseLife" | "setLifeTotal"))
         || (value_kind(value) == Some("gainLife") && integer_value(&value["amount"]).is_none())
 }
 
@@ -54,6 +54,12 @@ pub(super) fn direct_life_effect_supported(effect: &Value) -> Option<bool> {
                     .get("bind")
                     .is_none_or(|bind| kind == "loseLife" && bind.is_string()),
         ),
+        // CR 119.5: the player gains or loses the difference.
+        Some("setLifeTotal") => Some(
+            numeric_expression_supported(&effect["amount"])
+                && player_reference_supported(&effect["player"])
+                && effect.get("bind").is_none(),
+        ),
         _ => None,
     }
 }
@@ -82,6 +88,11 @@ impl GameEngine {
         bindings: &mut BTreeMap<String, RuntimeBinding>,
         decisions: &BTreeMap<String, Value>,
     ) -> Result<bool, EngineError> {
+        if value_kind(effect) == Some("setLifeTotal") {
+            return self
+                .execute_set_life_total(effect, stack_object, bindings, decisions)
+                .map(|()| true);
+        }
         let Some(kind @ ("gainLife" | "loseLife")) = value_kind(effect) else {
             return Ok(false);
         };
@@ -144,6 +155,69 @@ impl GameEngine {
             }
         }
         Ok(true)
+    }
+
+    /// `PLAYER's life total becomes N` (CR 119.5): each named player gains
+    /// or loses the difference between N and their life total, through the
+    /// ordinary life gain and life loss events, so replacement and
+    /// prevention effects and life triggers see a gain or a loss. Every
+    /// player's difference is read from their own life total when it is
+    /// their turn to change; a player whose total already is N is unchanged.
+    fn execute_set_life_total(
+        &mut self,
+        effect: &Value,
+        stack_object: &StackObject,
+        bindings: &mut BTreeMap<String, RuntimeBinding>,
+        decisions: &BTreeMap<String, Value>,
+    ) -> Result<(), EngineError> {
+        if self.numeric_amount_requires_initially_illegal_target(
+            &effect["amount"],
+            stack_object,
+            bindings,
+            decisions,
+        )? {
+            return Ok(());
+        }
+        let total = self
+            .checked_runtime_numeric_expression(
+                &effect["amount"],
+                stack_object,
+                bindings,
+                decisions,
+                "life.total",
+            )
+            .map_err(|error| {
+                EngineError::new(format!(
+                    "unresolved life total for stack {}: {error}",
+                    stack_object.id
+                ))
+            })?;
+        for player_id in self.resolve_players(&effect["player"], stack_object, bindings) {
+            let player_index = self.player_index(&player_id)?;
+            let player = &self.state.players[player_index];
+            if player.has_lost {
+                continue;
+            }
+            let current = player.life;
+            if total > current {
+                let gained = total
+                    .checked_sub(current)
+                    .ok_or_else(|| EngineError::new("life-total gain overflow"))?;
+                self.gain_life(&player_id, gained)?;
+            } else if total < current {
+                let lost = current
+                    .checked_sub(total)
+                    .ok_or_else(|| EngineError::new("life-total loss overflow"))?;
+                self.execute_life_loss_batch(
+                    vec![player_id],
+                    lost,
+                    &stack_object.card.instance_id,
+                    Some(&stack_object.controller),
+                    LifeLossEventStyle::Direct,
+                )?;
+            }
+        }
+        Ok(())
     }
 }
 

@@ -108,6 +108,80 @@ pub(in crate::oracle::canonical::automata) fn recognize_defending_player_subject
     })
 }
 
+/// Reads an action's operands with its acting player installed: the
+/// distributive `they` / `that player` without another antecedent names
+/// the player of the action being read (`BindingEnvironment::acting_player`).
+/// The parent calls it only when that player is not the ability's
+/// controller and its lowering substitutes the player slot.
+pub(in crate::oracle::canonical::automata) fn with_acting_player<T>(
+    cursor: &mut OracleTokenCursor<'_>,
+    read: impl FnOnce(&mut OracleTokenCursor<'_>) -> T,
+) -> T {
+    let mut environment = installed_binding_environment(cursor);
+    environment.acting_player = true;
+    let enclosing = cursor.replace_binding_environment(Some(std::sync::Arc::new(environment)));
+    let result = read(cursor);
+    cursor.replace_binding_environment(enclosing);
+    result
+}
+
+/// The objects whose controller and owner the runtime reads, live or as
+/// last known information (CR 608.2h): a declared target, the source, its
+/// attached permanent, the event's permanent, the entering permanent, the
+/// other combatant of a block, or a result that is still a permanent.
+fn relation_readable(reference: PermanentEffectReference) -> bool {
+    match reference {
+        PermanentEffectReference::Observed(observed) => matches!(
+            observed,
+            super::super::super::TypedObservedEventObject::EventPermanent
+                | super::super::super::TypedObservedEventObject::EnteringPermanent
+                | super::super::super::TypedObservedEventObject::CombatCounterpart
+        ),
+        PermanentEffectReference::TargetSet(_) => false,
+        PermanentEffectReference::ActionResult(result) => result.permanent,
+        _ => true,
+    }
+}
+
+/// The object of `its|that NOUN's controller|owner` (CR 108.3, 109.4) when
+/// no lexical antecedent proves it, named by the shared resolvers of the
+/// binding environment the program installed: `its` is the event's subject
+/// (`whenever enchanted creature attacks, its controller ...`, the subject
+/// a bare `it` names); `that NOUN's` is the object the nominal anaphor `that
+/// NOUN` names, read for its last known information (`whenever this
+/// creature blocks a creature, that creature's controller ...` names the
+/// other combatant). A lexical antecedent that has the nominal keeps the
+/// ordinary reading; `None` leaves the caller's diagnostic.
+pub(in crate::oracle::canonical::automata) fn unbound_relation_object(
+    cursor: &OracleTokenCursor<'_>,
+    antecedent: Option<&ObjectSubjectAntecedent>,
+    nominal: Option<super::super::super::TargetNominal>,
+) -> Option<PermanentEffectReference> {
+    let environment = installed_binding_environment(cursor);
+    let Some(nominal) = nominal else {
+        if antecedent.is_some() || environment.local_object_scope {
+            return None;
+        }
+        return environment
+            .frame
+            .event_object
+            .as_ref()
+            .filter(|slot| slot.subject && !slot.departed)
+            .map(|slot| slot.reference)
+            .filter(|reference| relation_readable(*reference));
+    };
+    if antecedent.is_some_and(|antecedent| {
+        antecedent.selector.as_ref().is_some_and(|selector| {
+            super::super::super::selector_names_nominals(selector, &[nominal])
+        })
+    }) {
+        return None;
+    }
+    super::super::super::resolve_nominal_antecedent(&environment, &[nominal], true)
+        .ok()
+        .filter(|reference| relation_readable(*reference))
+}
+
 /// `its controller|owner` / `that NOUN's controller|owner` (CR 108.3,
 /// 109.4), resolved by the shared binding environment.
 pub(in crate::oracle::canonical::automata) fn recognize_object_related_player_subject(
@@ -180,6 +254,8 @@ pub(in crate::oracle::canonical::automata) fn recognize_player_effect_subject(
         // layer's performer slot.
         let mut environment = installed_binding_environment(cursor);
         environment.object = None;
+        // The subject names the acting player; it is never its own operand.
+        environment.acting_player = false;
         environment.frame.event_player |= event_player;
         if antecedent.is_some() {
             environment.player = antecedent;
