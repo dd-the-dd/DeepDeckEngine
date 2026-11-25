@@ -45,11 +45,11 @@ mod object_to_zone_frame_runtime;
 mod reference_anaphora_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[path = "tests/binding_environment_runtime.rs"]
-mod binding_environment_runtime;
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/antecedent_continuation_runtime.rs"]
 mod antecedent_continuation_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/binding_environment_runtime.rs"]
+mod binding_environment_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/effect_subject_runtime.rs"]
@@ -33215,11 +33215,11 @@ mod equal_amount_reflexive_runtime;
 #[path = "tests/event_replacement_runtime.rs"]
 mod event_replacement_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
-#[path = "tests/intervening_if_condition_runtime.rs"]
-mod intervening_if_condition_runtime;
-#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/guard_other_exclusion_runtime.rs"]
 mod guard_other_exclusion_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/intervening_if_condition_runtime.rs"]
+mod intervening_if_condition_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-2"))]
 #[path = "tests/leveler_band_runtime.rs"]
 mod leveler_band_runtime;
