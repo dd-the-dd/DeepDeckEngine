@@ -26,9 +26,20 @@
 //!                 ["that isn't a mana ability"]
 //!
 //! AttackDeclaration := Actor "attack(s) with" QuantifiedAttackers
+//! PlayerAttack      := Actor "attack(s)" AttackedRecipient
+//!                      ["with" QuantifiedAttackers]   -- the shared attack event
 //! AttackedRecipient := Attacked ("or" Attacked)*    -- after `attack(s)`
 //! Attacked          := Actor | ("a" | "an") PermanentQuery
+//! ReceivedDamage    := "you're" "dealt" [KIND] "damage"
+//!                    | [KIND] "damage" "is" "dealt" "to" Actor
+//! CausedAction      := StackSelector "causes" Actor "to" ObjectVerb CardObject
+//! CardObject        := ("a" | "an" | "another") CardQuery
+//!                    | "one" "or" "more" CardCollection | "this card"
 //! ```
+//!
+//! After `or`, an occurrence without a subject shares the player actor of
+//! the occurrence before it (`you play a land or cast a spell`); the event
+//! clause reads it with `recognize_player_event_predicate`.
 //!
 //! Actor, verbs and the card object are independent attributes. A union
 //! selects one event occurrence; it shares the actor and the object. Every
