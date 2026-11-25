@@ -2254,11 +2254,11 @@ fn cast_origin_starts(cursor: &OracleTokenCursor<'_>) -> bool {
 /// Alternatives form a union of the same atom; the negated form is the
 /// negation of the caster-owned zone (`anywhere other than your hand`).
 fn recognize_cast_origin(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<SelectorPredicate> {
-    let word = |cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str| {
+    fn word(cursor: &OracleTokenCursor<'_>, offset: usize, expected: &str) -> bool {
         cursor
             .peek_ahead(offset)
             .is_some_and(|raw| raw.eq_ignore_ascii_case(expected))
-    };
+    }
     let mut alternatives = Vec::new();
     loop {
         cursor.enter("selector.cast-origin.from");
