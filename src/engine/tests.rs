@@ -47,6 +47,9 @@ mod reference_anaphora_runtime;
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/binding_environment_runtime.rs"]
 mod binding_environment_runtime;
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/antecedent_continuation_runtime.rs"]
+mod antecedent_continuation_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/effect_subject_runtime.rs"]
