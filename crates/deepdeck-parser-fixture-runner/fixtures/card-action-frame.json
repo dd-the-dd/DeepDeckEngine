@@ -953,6 +953,28 @@
       }
     },
     {
+      "id": "near-miss-fork-exception-names-a-cost-outside-the-copiable-values",
+      "request": {
+        "cardName": "Fork",
+        "typeLine": "Instant",
+        "manaCost": "{R}{R}",
+        "oracleText": "Copy target instant or sorcery spell, except that the copy is red and costs {1} more. You may choose new targets for the copy.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.start"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-flash-player-rule-is-not-a-cast",
       "request": {
         "cardName": "Frame Witness",
@@ -1037,6 +1059,28 @@
                 "equals": true
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-copy-target-ability-plural-copies-disagree-with-one-copy",
+      "request": {
+        "cardName": "Frame Witness",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Copy target activated or triggered ability you control. You may choose new targets for the copies.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "effect.copy-stack-object.new-targets.object"
           }
         ]
       }

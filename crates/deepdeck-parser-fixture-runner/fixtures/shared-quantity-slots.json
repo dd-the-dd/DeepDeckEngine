@@ -689,6 +689,28 @@
       }
     },
     {
+      "id": "near-miss-remove-all-counters-from-a-player",
+      "request": {
+        "cardName": "Quantity Hexer",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{1}{B}",
+        "oracleText": "Sacrifice this creature: Remove all counters from target player.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "target-list.complete"
+          }
+        ]
+      }
+    },
+    {
       "id": "probe-rites-of-spring-any-number-discard",
       "request": {
         "cardName": "Quantity Rites",

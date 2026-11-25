@@ -458,6 +458,28 @@
       }
     },
     {
+      "id": "near-miss-revealed-until-two-cards-then-that-card",
+      "request": {
+        "cardName": "Revealed Until Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{2}{G}",
+        "oracleText": "Reveal cards from the top of your library until you reveal two land cards. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "lower.card-action.bindings"
+          }
+        ]
+      }
+    },
+    {
       "id": "narcolepsy-exact-attached-guard",
       "request": {
         "cardName": "Narcolepsy",

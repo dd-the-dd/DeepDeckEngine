@@ -548,6 +548,27 @@
       }
     },
     {
+      "id": "near-miss-unless-suffix-scaled-payment",
+      "request": {
+        "cardName": "Shared Zone Negative",
+        "typeLine": "Sorcery",
+        "oracleText": "Exile target player's graveyard unless they pay {2} for each card in it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "sequence.unless.sentence-end"
+          }
+        ]
+      }
+    },
+    {
       "id": "non-card-predicate",
       "request": {
         "cardName": "Shared Zone Negative",
