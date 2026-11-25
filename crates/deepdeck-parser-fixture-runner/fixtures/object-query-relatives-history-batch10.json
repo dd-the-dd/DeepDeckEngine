@@ -284,6 +284,58 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-legacys-allure-target-power-at-most-source-counters",
+      "request": {
+        "cardName": "Legacy's Allure",
+        "typeLine": "Enchantment",
+        "manaCost": "{U}{U}",
+        "oracleText": "At the beginning of your upkeep, you may put a treasure counter on this enchantment.\nSacrifice this enchantment: Gain control of target creature with power less than or equal to the number of treasure counters on this enchantment. (This effect lasts indefinitely.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-destroy-target-creature-mana-value-equal-to-source-charge-counters",
+      "request": {
+        "cardName": "Counter Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{3}",
+        "oracleText": "{T}: Destroy target creature with mana value equal to the number of charge counters on this artifact.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "near-miss-cast-event-filter-source-counters-stays-refused",
+      "request": {
+        "cardName": "Chalice of the Void",
+        "typeLine": "Artifact",
+        "manaCost": "{X}{X}",
+        "oracleText": "This artifact enters with X charge counters on it.\nWhenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "selector.numeric-comparison.rhs-context"
+          }
+        ]
+      }
     }
   ]
 }

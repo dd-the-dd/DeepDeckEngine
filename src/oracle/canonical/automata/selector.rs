@@ -2592,8 +2592,9 @@ pub(in crate::oracle::canonical) enum ComparisonRhsAdmission {
     Literal,
     /// Declared target candidates (CR 115.1, 601.2c, 608.2b): an amount that
     /// does not depend on the candidate and is relative to the ability
-    /// controller is bound by the engine each time the candidates are
-    /// enumerated, at declaration and when the target is rechecked.
+    /// controller, or a count of the source's own counters, is bound by the
+    /// engine each time the candidates are enumerated, at declaration and
+    /// when the target is rechecked.
     DeclaredTarget,
     /// A resolution-owned query, prepared with the resolving ability before
     /// its candidates are enumerated. `source_available` proves the source's
@@ -2729,7 +2730,22 @@ impl ComparisonRhsAdmission {
         );
         match self {
             Self::Literal => literal,
-            Self::DeclaredTarget => literal || controller_relative_amount(expression),
+            // The source's own counters (`with power less than or equal to
+            // the number of treasure counters on this enchantment`) are read
+            // by the target binder from the source, or its last known
+            // information, each time the candidates are enumerated (CR
+            // 601.2c, 608.2b, 608.2h), as its power and toughness are.
+            Self::DeclaredTarget => {
+                literal
+                    || controller_relative_amount(expression)
+                    || matches!(
+                        expression,
+                        NumericExpression::CountCounters {
+                            object: super::LocalObjectReference::SourceSelf,
+                            ..
+                        }
+                    )
+            }
             Self::Resolution { source_available } => {
                 resolution_amount(expression, source_available)
             }

@@ -881,3 +881,49 @@ fn siren_stormtamer_and_blessed_reversal_lower_executable_relations() {
     .expect("the spell resolves");
     assert_eq!(engine.state.players[0].life, life_before + 6);
 }
+
+#[test]
+fn a_target_filter_binds_the_sources_counters_as_its_threshold() {
+    // Legacy's Allure: `target creature with power less than or equal to
+    // the number of treasure counters on this enchantment` reads the
+    // source's counters each time the candidates are enumerated, and its
+    // last known counters once it was sacrificed (CR 608.2h).
+    let mut engine = test_engine(2);
+    let mut allure = permanent("allure", "Enchantment", "player-0", None);
+    allure.counters.insert("treasure".to_string(), 2);
+    engine.state.players[0].battlefield = vec![allure.clone()];
+    let mut small = permanent("small", "Creature \u{2014} Elf", "player-1", None);
+    small.definition.power = Some("2".to_string());
+    let mut big = permanent("big", "Creature \u{2014} Giant", "player-1", None);
+    big.definition.power = Some("3".to_string());
+    engine.state.players[1].battlefield = vec![small, big];
+    let unbound = json!({
+        "kind": "permanents",
+        "where": {
+            "kind": "compare",
+            "operator": "<=",
+            "left": { "kind": "powerOf", "object": { "kind": "candidate" } },
+            "right": { "kind": "countCounters", "object": { "kind": "self" }, "counter": "treasure" },
+        },
+    });
+    assert!(super::super::target_candidates_supported(&unbound));
+    let legal = |engine: &GameEngine, source: &CardInstance| {
+        let mut candidates = unbound.clone();
+        engine
+            .bind_source_candidates(&mut candidates, source)
+            .expect("the source binds its counters");
+        assert_eq!(candidates["where"]["right"], json!(2));
+        engine.state.players[1]
+            .battlefield
+            .iter()
+            .filter(|permanent| {
+                engine.permanent_matches_target_filter(permanent, &candidates["where"], "player-0")
+            })
+            .map(|permanent| permanent.instance_id.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(legal(&engine, &allure), vec!["small"]);
+    // Sacrificed as the cost: the carried copy keeps its counters.
+    engine.state.players[0].battlefield.clear();
+    assert_eq!(legal(&engine, &allure), vec!["small"]);
+}
