@@ -554,7 +554,7 @@
       }
     },
     {
-      "id": "near-miss-static-animation-without-retention",
+      "id": "real-static-animation-without-retention-replaces-card-types",
       "request": {
         "cardName": "Ooze Probe",
         "typeLine": "Enchantment — Aura",
@@ -564,13 +564,64 @@
         "faces": []
       },
       "expect": {
-        "outcome": "failure",
-        "cardStatus": "unsupported",
-        "diagnostics": [
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
           {
-            "abilityIndex": 1,
-            "code": "oracle_machine_failure",
-            "state": "static.continuous.characteristic-copula.lowering"
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "abilityType": "staticAbility",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "setCardTypes",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "cardTypes": [
+                    "Creature"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "modifySubtypeSet"
+              },
+              {
+                "pointer": "/modifiers/1/mode",
+                "equals": "replace"
+              },
+              {
+                "pointer": "/modifiers/1/subtypes",
+                "equals": [
+                  "Ooze"
+                ]
+              },
+              {
+                "pointer": "/modifiers/2",
+                "equals": {
+                  "kind": "setColor",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": [
+                    "B"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/3/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ]
           }
         ]
       }

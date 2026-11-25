@@ -35,7 +35,7 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_static_collection_keyword
                     return StaticCollectionKeywordParseAttempt::NotClaimed;
                 }
                 StaticContinuousParseAttempt::Rejected(deeper)
-                    if deeper.token_index >= failure.token_index =>
+                    if deeper.token_index > failure.token_index =>
                 {
                     return StaticCollectionKeywordParseAttempt::Failed(deeper);
                 }
