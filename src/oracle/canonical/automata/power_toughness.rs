@@ -207,6 +207,20 @@ pub(in crate::oracle::canonical) fn recognize_numeric_power_toughness(
     Ok(BasePowerToughnessNode { power, toughness })
 }
 
+/// One unsigned stat component alone (`base power 0`, `base power X`), read
+/// in a one-token bounded view like each component of a pair.
+pub(in crate::oracle::canonical) fn recognize_single_stat_component(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<NumericExpression> {
+    cursor.enter("characteristic.power-toughness.single-component");
+    cursor.require(
+        unsigned_stat_component_at(cursor, 0),
+        "an unsigned stat value (`N` or `X`)",
+    )?;
+    let end = cursor.position() + 1;
+    cursor.bounded(end, |child| recognize_numeric_expression(child, None))
+}
+
 pub(in crate::oracle::canonical) fn recognize_literal_power_toughness(
     cursor: &mut OracleTokenCursor<'_>,
 ) -> MachineResult<PowerToughnessNode> {

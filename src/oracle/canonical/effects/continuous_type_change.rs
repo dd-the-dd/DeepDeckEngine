@@ -82,6 +82,78 @@ pub(in crate::oracle::canonical) fn lower_continuous_type_change(
     Ok(modifiers)
 }
 
+/// The characteristic-change complement of a static copula (`is a 3/3
+/// black Ooze creature. It's still a land.`): its types through the same
+/// type-change lowering, then one battlefield modifier per other stated
+/// characteristic (layer 5 colors, layer 6 keywords, layer 7b base power and
+/// toughness). A retained prior type (CR 205.1b) retains every prior type,
+/// so the new types are additive. Characteristics without a static
+/// battlefield primitive are refused, never dropped.
+pub(in crate::oracle::canonical) fn lower_continuous_characteristic_complement(
+    objects: &Value,
+    objects_are_lands: bool,
+    node: &BecomeTypesNode<()>,
+) -> Result<Vec<Value>, &'static str> {
+    if node.copy_of.is_some()
+        || node.copy_exceptions.is_some()
+        || node.copy_name.is_some()
+        || node.chosen_subtype.is_some()
+        || node.duration.is_some()
+        || node.characteristics.all_creature_types
+        || node.characteristics.loses_all_abilities
+        || !node.characteristics.lost_keywords.is_empty()
+        || node.characteristics.base_power.is_some()
+        || node.characteristics.switches_power_toughness
+    {
+        return Err("a characteristic a static copula lowers to a battlefield modifier");
+    }
+    let types = TypeChangeCharacteristicsNode {
+        supertypes: node.supertypes.clone(),
+        subtypes: node.subtypes.clone(),
+        card_types: node.card_types.clone(),
+        all_basic_land_types: false,
+        retention: if node.retention.retains_prior_types() {
+            TypeChangeRetention::InAdditionToOtherTypes
+        } else {
+            TypeChangeRetention::ReplacesSameClass
+        },
+    };
+    let mut modifiers = lower_continuous_type_change(objects, objects_are_lands, &types)?;
+    match &node.colors {
+        None => {}
+        Some(ColorComplementNode::Colors(colors)) => modifiers.push(json!({
+            "kind": "setColor",
+            "objects": objects.clone(),
+            "colors": colors.colors.iter().map(|color| color.ir_symbol()).collect::<Vec<_>>(),
+        })),
+        Some(ColorComplementNode::AllColors) => {
+            modifiers.push(json!({ "kind": "setAllColors", "objects": objects.clone() }));
+        }
+        Some(ColorComplementNode::Chosen(_)) => {
+            return Err("a stated color set in a static copula");
+        }
+    }
+    if let Some(statistics) = node.base_power_toughness() {
+        let literal = statistics
+            .literal()
+            .ok_or("a literal base power and toughness in a static copula")?;
+        modifiers.push(json!({
+            "kind": "setBasePowerToughness",
+            "objects": objects.clone(),
+            "power": integer(literal.power),
+            "toughness": integer(literal.toughness),
+        }));
+    }
+    for keyword in &node.characteristics.keywords {
+        modifiers.push(json!({
+            "kind": "grantKeyword",
+            "objects": objects.clone(),
+            "keyword": keyword.canonical_name(),
+        }));
+    }
+    Ok(modifiers)
+}
+
 #[cfg(test)]
 #[path = "continuous_type_change_tests.rs"]
 mod tests;

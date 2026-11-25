@@ -4,14 +4,21 @@
 //! Exceptions := "," "except" ["that"] Item ( "and" Item
 //!                                          | ("," Item)+ "," "and" Item )
 //! Item       := [Subject] ("is"|"are") Complement | Subject's Complement
+//!             | ("its" | "his" | "her") "name" "is" LinkedName
 //!             | [Subject] ("has"|"have") GrantedList
 //!             | [Subject] ("has"|"have") "no" "mana" "cost"
 //!             | [Subject] ("isn't"|"aren't") "legendary"
-//! Subject    := "it" | "they" | "the" ("copy"|"copies"|"token"|"tokens")
+//! Subject    := "it" | "he" | "she" | "they"
+//!             | "the" ("copy"|"copies"|"token"|"tokens")
 //!             | "those" PLURAL-CARD-TYPE
-//! Complement := "not" "legendary" | [Article] [PT] [Colors] [TypeNouns
-//!               "in" "addition" "to" ("its"|"their") "other" ["creature"]
-//!               "types"]
+//! Complement := "not" "legendary" | [Article] [Supertypes] [PT] [Colors]
+//!               [TypeNouns] ["in" "addition" "to" ("its"|"their") "other"
+//!               ["creature"] "types"]
+//!
+//! A legendary character's copy is named by its gendered pronouns (`except
+//! his name is Hulkling, Young Avenger, he's 4/4`, CR 201.5): `he`/`she`
+//! name the same copy as `it`. `its name is NAME` takes the name the lexical
+//! resolver linked at that position; an unlinked name fails.
 //! ```
 //!
 //! A serial list (`except it's white, it has no mana cost, and it's a
@@ -55,18 +62,55 @@ pub(in crate::oracle::canonical) struct TokenCopyExceptionsNode {
 /// contracted copula), or a verb sharing the previous item's subject.
 fn exception_item_starts(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
     copy_subject_width(cursor, offset).is_some()
+        || name_exception_at(cursor, offset)
         || [
-            "it's", "they're", "has", "have", "isn't", "aren't", "is", "are",
+            "it's", "he's", "she's", "they're", "has", "have", "isn't", "aren't", "is", "are",
         ]
         .iter()
         .any(|word| word_at(cursor, offset, word))
+}
+
+/// `its|his|her name is`: the name exception's own subject and copula.
+fn name_exception_at(cursor: &OracleTokenCursor<'_>, offset: usize) -> bool {
+    ["its", "his", "her"]
+        .iter()
+        .any(|word| word_at(cursor, offset, word))
+        && word_at(cursor, offset + 1, "name")
+        && word_at(cursor, offset + 2, "is")
+}
+
+/// `its name is NAME` (CR 707.9b): the copy has the name the resolver
+/// linked here, read whole even when it contains a comma.
+fn recognize_name_exception<Subject>(
+    cursor: &mut OracleTokenCursor<'_>,
+    changes: &mut BecomeTypesNode<Subject>,
+) -> super::super::MachineResult<()> {
+    cursor.enter("token.copy.except.name");
+    let possessive = cursor.peek().expect("a possessive pronoun").to_string();
+    cursor.consume(&possessive)?;
+    cursor.consume_phrase(&["name", "is"])?;
+    cursor.enter("token.copy.except.name.link");
+    let position = cursor.position();
+    let link = cursor
+        .source_names()
+        .iter()
+        .find(|link| link.token_start == position && link.token_end > position)
+        .map(|link| (link.token_end, link.canonical_name.clone()))
+        .ok_or_else(|| cursor.fail("a card name the resolver linked"))?;
+    cursor.require(changes.copy_name.is_none(), "one name exception")?;
+    cursor.advance_to(link.0)?;
+    changes.copy_name = Some(link.1);
+    Ok(())
 }
 
 /// The subject of an exception item: the object being made (`it`, `they`)
 /// or its definite description (`the copy`, `the copies`, `the token`,
 /// `the tokens`, `those creatures`, CR 707.9b). Returns its token width.
 fn copy_subject_width(cursor: &OracleTokenCursor<'_>, offset: usize) -> Option<usize> {
-    if word_at(cursor, offset, "it") || word_at(cursor, offset, "they") {
+    if ["it", "he", "she", "they"]
+        .iter()
+        .any(|word| word_at(cursor, offset, word))
+    {
         return Some(1);
     }
     let definite = word_at(cursor, offset, "the")
@@ -179,7 +223,13 @@ fn read_exception_item(
     exceptions: &mut TokenCopyExceptionsNode,
 ) -> super::super::MachineResult<()> {
     cursor.enter("token.copy.except.item");
-    let copula = if word_at(cursor, 0, "it's") || word_at(cursor, 0, "they're") {
+    if name_exception_at(cursor, 0) {
+        return recognize_name_exception(cursor, changes);
+    }
+    let copula = if ["it's", "he's", "she's", "they're"]
+        .iter()
+        .any(|word| word_at(cursor, 0, word))
+    {
         let raw = cursor.peek().expect("a contracted copula").to_string();
         cursor.consume(&raw)?;
         true
@@ -257,6 +307,24 @@ fn recognize_copula_exception(
         let raw = cursor.peek().expect("an article").to_string();
         cursor.consume(&raw)?;
     }
+    // `it's legendary`, `he's a legendary Human`: supertypes the copy has in
+    // addition to the copied ones (CR 205.4).
+    let mut states_supertypes = false;
+    while let Some(supertype) = cursor.peek().and_then(|raw| {
+        crate::oracle::characteristic_vocabulary::lookup_supertype(
+            raw,
+            crate::oracle::characteristic_vocabulary::AcceptedForms::SingularOnly,
+        )
+    }) {
+        cursor.enter("token.copy.except.supertype");
+        cursor.require(
+            !changes.supertypes.contains(&supertype),
+            "one exception per supertype",
+        )?;
+        changes.supertypes.push(supertype);
+        states_supertypes = true;
+        cursor.advance_to(cursor.position() + 1)?;
+    }
     let states_power_toughness = numeric_power_toughness_starts(cursor);
     if states_power_toughness {
         cursor.require(
@@ -289,10 +357,7 @@ fn recognize_copula_exception(
         // A copy exception that adds types keeps the copied ones only when
         // the text says so; a replacing type exception has no primitive.
         cursor.consume_phrase(&["in", "addition", "to"])?;
-        cursor.consume(match number {
-            TypeChangeNumber::Singular => "its",
-            TypeChangeNumber::Plural => "their",
-        })?;
+        consume_retention_possessive(cursor, number)?;
         cursor.consume("other")?;
         if word_at(cursor, 0, "creature") {
             // `its other creature types` keeps the copied creature types: it
@@ -315,9 +380,17 @@ fn recognize_copula_exception(
         changes.card_types = nouns.card_types;
         changes.retention = TypeChangeRetention::InAdditionToOtherTypes;
     } else {
+        if states_supertypes && word_at(cursor, 0, "in") {
+            // `it's legendary in addition to its other types`: the supertype
+            // is added; the retention clause restates it (CR 205.4).
+            cursor.enter("token.copy.except.supertype.retention");
+            cursor.consume_phrase(&["in", "addition", "to"])?;
+            consume_retention_possessive(cursor, number)?;
+            cursor.consume_phrase(&["other", "types"])?;
+        }
         cursor.require(
-            changes.power_toughness.is_some() || changes.colors.is_some(),
-            "a power/toughness, color or type exception after the copula",
+            changes.power_toughness.is_some() || changes.colors.is_some() || states_supertypes,
+            "a power/toughness, color, supertype or type exception after the copula",
         )?;
         // `it's a 1/1`: the article belongs to the stated power/toughness;
         // an article before a color alone still needs its type nouns.
@@ -329,11 +402,33 @@ fn recognize_copula_exception(
     Ok(())
 }
 
+/// The possessive of `in addition to its other types`, agreeing with the
+/// copy: `its`, or the gendered `his`/`her` of a named character's copy
+/// (CR 201.5); `their` for plural copies.
+fn consume_retention_possessive(
+    cursor: &mut OracleTokenCursor<'_>,
+    number: TypeChangeNumber,
+) -> super::super::MachineResult<()> {
+    cursor.enter("token.copy.except.retention.possessive");
+    let accepted: &[&str] = match number {
+        TypeChangeNumber::Singular => &["its", "his", "her"],
+        TypeChangeNumber::Plural => &["their"],
+    };
+    let raw = cursor
+        .peek()
+        .filter(|raw| accepted.iter().any(|word| raw.eq_ignore_ascii_case(word)))
+        .ok_or_else(|| cursor.fail("a possessive agreeing with the copy"))?
+        .to_string();
+    cursor.consume(&raw)
+}
+
 impl<Subject> BecomeTypesNode<Subject> {
     /// Whether any copiable characteristic is stated.
     fn names_types_or_characteristics(&self) -> bool {
         !self.subtypes.is_empty()
             || !self.card_types.is_empty()
+            || !self.supertypes.is_empty()
+            || self.copy_name.is_some()
             || self.colors.is_some()
             || self.base_power_toughness().is_some()
             || !self.characteristics.keywords.is_empty()

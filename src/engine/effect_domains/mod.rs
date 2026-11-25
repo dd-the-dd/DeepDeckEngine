@@ -232,7 +232,7 @@ fn domain(effect: &Value) -> Option<Domain> {
             | "setPermanentFlag"
             | "suspectPermanent",
         ) => Some(Domain::Characteristics),
-        Some("setCardTypes" | "setColors" | "setBasePowerToughness") => {
+        Some("setCardTypes" | "setColors" | "setBasePowerToughness" | "switchPowerToughness") => {
             Some(Domain::CharacteristicLayers)
         }
         Some(

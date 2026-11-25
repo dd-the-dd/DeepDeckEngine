@@ -34,6 +34,16 @@ pub(in super::super) fn copy_exception_supported(exception: &Value) -> bool {
         }
         Some("addCardType") => exception["cardType"].is_string(),
         Some("removeManaCost") => true,
+        // CR 707.9b: a stated name or an added supertype of the copy.
+        Some("setName") => exception["name"]
+            .as_str()
+            .is_some_and(|name| !name.is_empty()),
+        Some("addSupertype") => {
+            matches!(
+                exception["supertype"].as_str(),
+                Some("Legendary" | "Snow" | "Basic")
+            )
+        }
         Some("addSubtypes") => exception["subtypes"]
             .as_array()
             .is_some_and(|subtypes| !subtypes.is_empty() && subtypes.iter().all(Value::is_string)),

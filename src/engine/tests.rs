@@ -169,6 +169,10 @@ mod static_characteristics_runtime;
 mod animation_layers_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/characteristic_change_frame_runtime.rs"]
+mod characteristic_change_frame_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/mobilize_primitives_runtime.rs"]
 mod mobilize_primitives_runtime;
 

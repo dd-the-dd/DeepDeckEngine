@@ -136,6 +136,9 @@ pub(in crate::oracle::canonical) enum VerbLemma {
     /// `the Ring tempts PLAYER` (CR 701.54a): the subject is the Ring, the
     /// object the tempted player.
     Tempt,
+    /// `switch OBJECT's power and toughness` (CR 613.4d): an instruction of
+    /// the ability's controller whose complement is a layer-7d switch.
+    Switch,
     /// `OBJECT phases out` (CR 702.26b): the permanent's phasing status.
     Phase,
     /// `distribute N counters among TARGETS` (CR 601.2d).
@@ -916,6 +919,18 @@ const VERB_LEXICON: &[VerbEntry] = &[
 /// a performed row: the engine runs the ordinary primitive as the
 /// performer's instruction (CR 608.2c).
 const NON_PERFORMED_LEXICON: &[VerbEntry] = &[
+    VerbEntry {
+        lemma: VerbLemma::Switch,
+        forms: VerbForms {
+            base: "switch",
+            third_person_singular: "switches",
+            past: "switched",
+            past_participle: "switched",
+            present_participle: "switching",
+        },
+        frames: &[ArgumentFrame::ObjectSelection],
+        voices: &[Voice::Active],
+    },
     VerbEntry {
         lemma: VerbLemma::Tempt,
         forms: VerbForms {

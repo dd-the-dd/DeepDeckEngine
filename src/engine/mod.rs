@@ -11629,7 +11629,7 @@ impl GameEngine {
             .sum()
     }
 
-    fn current_power(&self, permanent: &CardInstance) -> i32 {
+    fn layered_power(&self, permanent: &CardInstance) -> i32 {
         let reaver_bonus = self
             .battlefield_static_modifiers()
             .iter()
@@ -11662,7 +11662,7 @@ impl GameEngine {
             + self.muckslinger_bonus(permanent)
     }
 
-    fn current_toughness(&self, permanent: &CardInstance) -> i32 {
+    fn layered_toughness(&self, permanent: &CardInstance) -> i32 {
         let reaver_bonus = self
             .battlefield_static_modifiers()
             .iter()
