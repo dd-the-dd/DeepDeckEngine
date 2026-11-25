@@ -289,3 +289,36 @@ fn half_the_creatures_they_control_rounded_up_are_sacrificed_by_that_player() {
     );
     assert_eq!(engine.state.players[0].battlefield.len(), 1);
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn each_color_of_the_declared_target_scales_its_pump() {
+    // Might of the Nephilim: a white-blue target gets +2/+2 twice.
+    let rule = parsed_rule(
+        "Instant",
+        "Target creature gets +2/+2 until end of turn for each of its colors.",
+    );
+    let mut engine = test_engine(2);
+    let mut gold = permanent("gold", "Creature \u{2014} Bird", 1, "player-0");
+    gold.definition.mana_cost = "{W}{U}".to_string();
+    engine.state.players[0].battlefield = vec![gold];
+    let target_id = rule["declaration"]["decisions"][0]["id"]
+        .as_str()
+        .expect("a declared creature")
+        .to_string();
+    resolve(
+        &mut engine,
+        &rule,
+        BTreeMap::from([(
+            target_id,
+            TargetRef::Permanent {
+                instance_id: "gold".to_string(),
+            },
+        )]),
+    );
+    let (player, index) = engine
+        .permanent_position("gold")
+        .expect("on the battlefield");
+    let gold = &engine.state.players[player].battlefield[index];
+    assert_eq!(engine.current_power(gold), 5);
+}
