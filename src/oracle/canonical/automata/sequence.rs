@@ -297,6 +297,9 @@ struct SequenceMemory {
     /// artifact and a land`): a gapped conjunct elides this verb in the
     /// written form and continues the same performer.
     finite_gap: Option<FiniteGap>,
+    /// The tokens of the previous action, the antecedent whose library a
+    /// gapped conjunct's elided library position restates.
+    last_effect_span: Option<(usize, usize)>,
 }
 
 /// The elided verb of a finite clause: its lemma, the written form its
@@ -1563,9 +1566,53 @@ fn recognize_effect_sequence_attempt_scoped(
                                         let mut gapped = at_slot.with_tokens(&tokens);
                                         gapped.enter("sequence.gapped-conjunct");
                                         let mut gapped_frame = SequenceAttemptFrame::default();
-                                        match read_action(&mut gapped, None, &mut gapped_frame) {
-                                            Ok(effect) if gapped.position() > cursor.position() => {
-                                                let end = gapped.position();
+                                        let read =
+                                            read_action(&mut gapped, None, &mut gapped_frame)
+                                                .map(|effect| (effect, gapped.position()));
+                                        // `... and the rest on the bottom`: the
+                                        // conjunct's library is its antecedent's;
+                                        // the same reading with that library
+                                        // restated, positions mapped back.
+                                        let read = match (read, memory.last_effect_span) {
+                                            (Ok(read), _) => Ok(read),
+                                            (Err(error), Some((start, end))) => {
+                                                match super::elided_library_tokens(
+                                                    &tokens,
+                                                    slot + 1,
+                                                    cursor.token_slice(start, end),
+                                                ) {
+                                                    Some((view, inserted_at, inserted)) => {
+                                                        let mut restated =
+                                                            at_slot.with_tokens(&view);
+                                                        restated.enter(
+                                                            "sequence.gapped-conjunct.library",
+                                                        );
+                                                        let mut restated_frame =
+                                                            SequenceAttemptFrame::default();
+                                                        match read_action(
+                                                            &mut restated,
+                                                            None,
+                                                            &mut restated_frame,
+                                                        ) {
+                                                            Ok(effect)
+                                                                if restated.position()
+                                                                    >= inserted_at + inserted =>
+                                                            {
+                                                                Ok((
+                                                                    effect,
+                                                                    restated.position() - inserted,
+                                                                ))
+                                                            }
+                                                            _ => Err(error),
+                                                        }
+                                                    }
+                                                    None => Err(error),
+                                                }
+                                            }
+                                            (Err(error), None) => Err(error),
+                                        };
+                                        match read {
+                                            Ok((effect, end)) if end > cursor.position() => {
                                                 from_ellipsis = true;
                                                 cursor.advance_to(end).map(|()| effect)
                                             }
@@ -2201,6 +2248,7 @@ fn recognize_effect_sequence_attempt_scoped(
                         }
                     }
                 }
+                memory.last_effect_span = Some((effect_start, cursor.position()));
                 memory.effects.push(effect);
                 if !matches!(memory.open_branch, Some(ConditionalBranch::Else(_))) {
                     memory.else_candidate = None;

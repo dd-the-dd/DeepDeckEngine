@@ -118,6 +118,56 @@ pub(in crate::oracle::canonical) fn imperative_lemma_at(
         .map(|(entry, _)| entry.lemma)
 }
 
+/// A gapped conjunct whose library position elides its library (`put that
+/// card on top of your library and the rest on the bottom in any order`):
+/// the bottom or top of the conjunct is the library its antecedent clause
+/// names. Returns the view with the antecedent's `of POSSESSOR library`
+/// written after the elided position, the index the phrase starts at and
+/// its length. Spans stay the written ones: the inserted words point at the
+/// antecedent phrase they restate. `None` when either half is absent.
+pub(in crate::oracle::canonical) fn elided_library_tokens(
+    tokens: &[crate::oracle::model::RecognizedEntity],
+    conjunct_start: usize,
+    antecedent: &[crate::oracle::model::RecognizedEntity],
+) -> Option<(Vec<crate::oracle::model::RecognizedEntity>, usize, usize)> {
+    let is = |token: Option<&crate::oracle::model::RecognizedEntity>, word: &str| {
+        token.is_some_and(|token| token.raw.eq_ignore_ascii_case(word))
+    };
+    let position_word = |token: &crate::oracle::model::RecognizedEntity| {
+        token.raw.eq_ignore_ascii_case("top") || token.raw.eq_ignore_ascii_case("bottom")
+    };
+    // The antecedent's `top|bottom of POSSESSOR... library`.
+    let phrase = antecedent.iter().enumerate().find_map(|(index, token)| {
+        if !position_word(token) || !is(antecedent.get(index + 1), "of") {
+            return None;
+        }
+        let end = (index + 2..antecedent.len().min(index + 6))
+            .find(|end| is(antecedent.get(*end), "library"))?;
+        Some(antecedent[index + 1..=end].to_vec())
+    })?;
+    // The conjunct's `on the bottom|top` / `on top` with no library after it.
+    let mut index = conjunct_start;
+    while let Some(token) = tokens.get(index) {
+        if token.raw == "." || token.raw == ";" {
+            return None;
+        }
+        let on_position = index >= 1
+            && (is(tokens.get(index - 1), "on")
+                || (index >= 2
+                    && is(tokens.get(index - 1), "the")
+                    && is(tokens.get(index - 2), "on")));
+        if position_word(token) && on_position && !is(tokens.get(index + 1), "of") {
+            let insert_at = index + 1;
+            let mut view = tokens[..insert_at].to_vec();
+            view.extend(phrase.iter().cloned());
+            view.extend(tokens[insert_at..].iter().cloned());
+            return Some((view, insert_at, phrase.len()));
+        }
+        index += 1;
+    }
+    None
+}
+
 /// The finite verb of a clause whose explicit subject starts at `start`
 /// and whose predicate ends before `end`: the first token in the subject's
 /// agreement form that the verb lexicon knows. A gapped conjunct of that

@@ -448,6 +448,28 @@
       }
     },
     {
+      "id": "exact-fertile-thicket-gapped-library-ellipsis",
+      "request": {
+        "cardName": "Fertile Thicket",
+        "typeLine": "Land",
+        "manaCost": "",
+        "oracleText": "This land enters tapped.\nWhen this land enters, you may look at the top five cards of your library. If you do, reveal up to one basic land card from among them, then put that card on top of your library and the rest on the bottom in any order.\n{T}: Add {G}.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native"
+          }
+        ]
+      }
+    },
+    {
       "id": "near-miss-face-down-into-a-hand",
       "request": {
         "cardName": "Coordination Witness",
