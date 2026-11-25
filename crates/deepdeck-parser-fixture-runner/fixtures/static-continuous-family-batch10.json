@@ -1007,6 +1007,139 @@
       }
     },
     {
+      "id": "exact-one-with-the-stars-other-card-types",
+      "request": {
+        "cardName": "One with the Stars",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{3}{U}",
+        "oracleText": "Enchant creature or planeswalker\nEnchanted permanent is an enchantment and loses all other card types. (It still has its abilities, but it's no longer a creature or planeswalker.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers",
+                "equals": [
+                  {
+                    "kind": "setCardTypes",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": {
+                        "kind": "self"
+                      }
+                    },
+                    "cardTypes": [
+                      "Enchantment"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ability-loss-without-other-keeps-types",
+      "request": {
+        "cardName": "Generic Curse",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchanted creature loses all abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers",
+                "equals": [
+                  {
+                    "kind": "loseAllAbilities",
+                    "objects": {
+                      "kind": "attachedPermanent",
+                      "attachment": {
+                        "kind": "self"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-serial-grant-then-ability-loss",
+      "request": {
+        "cardName": "Generic Shackle",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchanted creature gets -1/-0, has defender, and loses all abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/keyword",
+                "equals": "defender"
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "loseAllAbilities"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-other-abilities-need-layer-order",
+      "request": {
+        "cardName": "Stasis Field",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}{U}",
+        "oracleText": "Enchanted creature has base power and toughness 0/2, has defender, and loses all other abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.ability-loss.other-abilities"
+          }
+        ]
+      }
+    },
+    {
       "id": "exact-slickshot-crime-history-gate",
       "request": {
         "cardName": "Slickshot Vault-Buster",

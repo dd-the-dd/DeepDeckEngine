@@ -1040,7 +1040,11 @@ fn read_object_predicates(
                 cursor.consume(&verb)?;
                 *committed = true;
                 cursor.enter("static.continuous.ability-loss");
-                if word_in(cursor.peek(), &["all"]) {
+                if word_in(cursor.peek(), &["all"]) && word_in(cursor.peek_ahead(1), &["other"]) {
+                    // `loses all other abilities, card types, and creature
+                    // types`: what the same effect does not itself give.
+                    read_other_characteristic_loss(cursor, objects, &modifiers)?;
+                } else if word_in(cursor.peek(), &["all"]) {
                     cursor.consume_phrase(&["all", "abilities"])?;
                     modifiers
                         .push(json!({ "kind": "loseAllAbilities", "objects": objects.clone() }));
@@ -1500,6 +1504,64 @@ fn read_chosen_type_addition(
         "object": self_ref(),
         "choice": chosen_creature_type(),
     }))
+}
+
+/// `all other ITEM (("," | "and" | ", and") ITEM)*` after `lose(s)`, ITEM :=
+/// `card types` | `creature types` | `abilities`. `other` names what the
+/// same effect gives: the card types or creature types it sets already
+/// replace the prior ones (CR 205.1a-b), so those items confirm the setting
+/// change they follow and add no modifier. Keeping the abilities the same
+/// effect grants while removing every other one needs a layer-6 order the
+/// engine does not apply to a static ability loss: that item fails
+/// explicitly instead of dropping the granted abilities.
+fn read_other_characteristic_loss(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+    modifiers: &[Value],
+) -> MachineResult<()> {
+    cursor.consume_phrase(&["all", "other"])?;
+    let sets = |kind: &str, check: &dyn Fn(&Value) -> bool| {
+        modifiers.iter().any(|modifier| {
+            modifier["kind"] == kind && modifier["objects"] == *objects && check(modifier)
+        })
+    };
+    loop {
+        cursor.enter("static.continuous.ability-loss.other");
+        if word_in(cursor.peek(), &["card"]) {
+            cursor.consume_phrase(&["card", "types"])?;
+            cursor.require(
+                sets("setCardTypes", &|_| true),
+                "card types set by the same effect before `all other card types` (CR 205.1a)",
+            )?;
+        } else if word_in(cursor.peek(), &["creature"]) {
+            cursor.consume_phrase(&["creature", "types"])?;
+            cursor.require(
+                sets("modifySubtypeSet", &|modifier| {
+                    modifier["subtypeClass"] == "creature" && modifier["mode"] == "replace"
+                }),
+                "creature types set by the same effect before `all other creature types` (CR 205.1b)",
+            )?;
+        } else {
+            cursor.enter("static.continuous.ability-loss.other-abilities");
+            return Err(cursor.fail(
+                "`card types` or `creature types` (a static loss that keeps the abilities the same effect grants needs a layer-6 order the engine does not apply, CR 613.7)",
+            ));
+        }
+        let width = match cursor.peek() {
+            Some(",") if word_in(cursor.peek_ahead(1), &["and"]) => 2,
+            Some(",") => 1,
+            Some(raw) if raw.eq_ignore_ascii_case("and") => 1,
+            _ => break,
+        };
+        if !word_in(cursor.peek_ahead(width), &["abilities", "card", "creature"]) {
+            break;
+        }
+        for _ in 0..width {
+            let raw = cursor.peek().unwrap_or_default().to_string();
+            cursor.consume(&raw)?;
+        }
+    }
+    Ok(())
 }
 
 /// `every creature type` / `all creature types` after a copula (CR 205.3m).
@@ -2003,6 +2065,9 @@ impl StaticPredicateHead {
             Self::Combat
                 | Self::ModifyStats
                 | Self::Grant
+                | Self::AbilityLoss
+                | Self::NegatedCopula(_)
+                | Self::NegatedDo
                 | Self::Copula(_)
                 | Self::CounterProhibition
                 | Self::PassiveProhibition
