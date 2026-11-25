@@ -9,6 +9,12 @@ pub(in crate::oracle::canonical) fn lower_player_set_reference(
         PlayerSetReferenceNode::OpponentsOfAbilityController => {
             json!({"kind":"opponentsOf", "player":controller()})
         }
+        // CR 102.3: the controller's opponents but the triggering player.
+        PlayerSetReferenceNode::OpponentsOtherThanEventPlayer => json!({
+            "kind": "filterPlayers",
+            "players": {"kind":"opponentsOf", "player":controller()},
+            "except": {"kind": "triggeringPlayer"},
+        }),
     }
 }
 

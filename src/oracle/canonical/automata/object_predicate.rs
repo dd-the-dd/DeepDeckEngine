@@ -266,6 +266,8 @@ pub(in crate::oracle::canonical) enum KeywordAbilityName {
     Kicker,
     /// CR 702.113: awaken.
     Awaken,
+    /// CR 702.164: toxic, whatever its count (`creatures with toxic`).
+    Toxic,
 }
 
 impl KeywordAbilityName {
@@ -276,6 +278,7 @@ impl KeywordAbilityName {
             "flashback" => Self::Flashback,
             "kicker" => Self::Kicker,
             "awaken" => Self::Awaken,
+            "toxic" => Self::Toxic,
             _ => return None,
         })
     }
@@ -288,6 +291,7 @@ impl KeywordAbilityName {
             Self::Flashback => &["flashback"],
             Self::Kicker => &["kicker"],
             Self::Awaken => &["awaken"],
+            Self::Toxic => &["toxic"],
         }
     }
 }

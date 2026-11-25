@@ -3212,6 +3212,10 @@ mod state_qualifier_tests;
 #[path = "selector_comparative_tests.rs"]
 mod comparative_tests;
 
+#[cfg(test)]
+#[path = "selector_cast_relation_tests.rs"]
+mod cast_relation_tests;
+
 fn player_predicate(raw: &str) -> Option<PlayerPredicate> {
     match lookup_player_role_any_number(raw)? {
         PlayerRole::Any => Some(PlayerPredicate::Any),

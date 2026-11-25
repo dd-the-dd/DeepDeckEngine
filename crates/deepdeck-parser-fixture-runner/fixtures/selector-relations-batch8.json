@@ -435,6 +435,74 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-hydra-omnivore-each-other-opponent",
+      "request": {
+        "cardName": "Hydra Omnivore",
+        "typeLine": "Creature — Hydra",
+        "manaCost": "{4}{G}{G}",
+        "oracleText": "Whenever this creature deals combat damage to an opponent, it deals that much damage to each other opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilityCount": 1,
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "dealDamage"
+              },
+              {
+                "pointer": "/effects/0/recipient",
+                "equals": {
+                  "kind": "filterPlayers",
+                  "players": {
+                    "kind": "opponentsOf",
+                    "player": {
+                      "kind": "controllerOf",
+                      "object": {
+                        "kind": "self"
+                      }
+                    }
+                  },
+                  "except": {
+                    "kind": "triggeringPlayer"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-each-other-opponent-without-event",
+      "request": {
+        "cardName": "Other Opponent Probe",
+        "typeLine": "Sorcery",
+        "manaCost": "{1}{R}",
+        "oracleText": "This spell deals 2 damage to each other opponent.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
     }
   ]
 }

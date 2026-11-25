@@ -5,6 +5,34 @@ use super::super::{MachineResult, OracleTokenCursor};
 pub(in crate::oracle::canonical) enum PlayerSetReferenceNode {
     EachPlayer,
     OpponentsOfAbilityController,
+    /// `each other opponent` after an event naming one opponent (`deals
+    /// combat damage to an opponent, it deals that much damage to each other
+    /// opponent`): the ability controller's opponents but the event's player
+    /// (CR 102.3). Read only by `recognize_other_opponents_of_event_player`.
+    OpponentsOtherThanEventPlayer,
+}
+
+/// `each other opponent`. Lexical lookahead only.
+pub(in crate::oracle::canonical) fn other_opponents_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_at(cursor, 0, "each") && word_at(cursor, 1, "other") && word_at(cursor, 2, "opponent")
+}
+
+/// `each other opponent`: `other` excludes the opponent the triggering
+/// event names, so the frame must bind an event player; without one the
+/// phrase has no antecedent and fails here.
+pub(in crate::oracle::canonical) fn recognize_other_opponents_of_event_player(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<PlayerSetReferenceNode> {
+    cursor.enter("player-set.other-opponent");
+    cursor.consume_phrase(&["each", "other", "opponent"])?;
+    cursor.enter("player-set.other-opponent.antecedent");
+    cursor.require(
+        super::installed_binding_environment(cursor)
+            .frame
+            .event_player,
+        "an event player that `each other opponent` excludes",
+    )?;
+    Ok(PlayerSetReferenceNode::OpponentsOtherThanEventPlayer)
 }
 
 pub(in crate::oracle::canonical) fn recognize_player_set_reference(

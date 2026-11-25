@@ -466,6 +466,12 @@ fn recognize_damage_recipient_group(
         return super::recognize_bound_object_reference(cursor, &environment)
             .map(DamageRecipientNode::BoundObject);
     }
+    // `each other opponent`: the opponents but the one the event names.
+    if super::other_opponents_starts(cursor) {
+        return Ok(DamageRecipientNode::PlayerSet(
+            super::recognize_other_opponents_of_event_player(cursor)?,
+        ));
+    }
     if cursor.peek().is_some_and(|token| {
         token.eq_ignore_ascii_case("each")
             && cursor.peek_ahead(1).is_some_and(|role| {
