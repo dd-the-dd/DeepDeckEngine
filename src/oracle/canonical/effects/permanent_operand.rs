@@ -10,6 +10,10 @@ pub(in crate::oracle::canonical) fn lower_nontargeted_permanent_operand(
             Err(TargetlessLoweringError::RequiresTarget)
         }
         PermanentOperandNode::Reference(LocalObjectReference::SourceSelf) => Ok(self_ref()),
+        // A resolution choice is emitted by the program lowering before its
+        // action (`chosen_operand.rs`); a single-effect lowering has no step
+        // to put it in.
+        PermanentOperandNode::Chosen(_) => Err(TargetlessLoweringError::UnsupportedEffect),
         PermanentOperandNode::Collection {
             objects,
             exclude_source,

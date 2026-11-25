@@ -497,7 +497,8 @@ pub(in crate::oracle::canonical) fn recognize_labeled_controlled_entry_reflexive
                         super::PermanentOperandNode::Reference(reference) => Some(reference),
                         super::PermanentOperandNode::Collection { .. }
                         | super::PermanentOperandNode::Targets(_)
-                        | super::PermanentOperandNode::BoundReference(_) => None,
+                        | super::PermanentOperandNode::BoundReference(_)
+                        | super::PermanentOperandNode::Chosen(_) => None,
                     });
                 condition = Some(recognize_source_counter_threshold(cursor, source)?);
                 LabeledReflexiveState::TargetedPlacement

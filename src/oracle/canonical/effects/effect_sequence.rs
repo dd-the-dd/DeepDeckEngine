@@ -300,6 +300,7 @@ fn lower_local_effect_sequence_with_collections(
             | LocalEffectNode::TapPermanents(_)
             | LocalEffectNode::PermanentKeywordAction(_)
             | LocalEffectNode::ControlChange(_)
+            | LocalEffectNode::TransformPermanent(_)
             | LocalEffectNode::TemporaryKeywordGrant(_) => ordinary_action_targets(effect)
                 .into_iter()
                 .flat_map(|targets| targets.slots.iter())
@@ -541,6 +542,33 @@ fn lower_local_effect_sequence_with_collections(
             })
         ) {
             collections.clear_antecedent();
+        }
+        // An operand chosen while the action resolves (CR 608.2d): its
+        // choice runs right before the action, which reads the bound result.
+        let chosen = super::chosen_operand::lower_action_chosen_operand(
+            effect,
+            effect_index,
+            match context {
+                EffectSequenceLoweringContext::NoExternalX => TargetlessDeclarationSupport::None,
+                EffectSequenceLoweringContext::ValidateXAfterCardComposition => {
+                    TargetlessDeclarationSupport::XValue
+                }
+            },
+        );
+        if !matches!(chosen, Ok(None)) {
+            cursor.enter("lower.chosen-operand");
+        }
+        if let Some(chosen) = chosen.map_err(|expected| {
+            EffectSequenceLoweringFailure::UnsupportedSupportLimit(cursor.fail(expected))
+        })? {
+            effects.extend(chosen.choice);
+            let key = resolution_choice_binding(effect_index);
+            target_bindings.push((key, chosen.binding.clone()));
+            target_bindings.push((
+                super::permanent_subject::target_set_binding_key(key),
+                chosen.binding.clone(),
+            ));
+            chosen_object_bindings.push(chosen.binding);
         }
         match effect {
             LocalEffectNode::PlayerAction(action) => {
@@ -1611,6 +1639,24 @@ fn lower_local_effect_sequence_with_collections(
                         "permanent": object,
                         "duration": duration.clone(),
                     }));
+                }
+            }
+            // CR 701.28a: each operand permanent transforms; the source keeps
+            // the IR of the targetless lowering.
+            LocalEffectNode::TransformPermanent(transform) => {
+                cursor.enter("lower.transform.object");
+                let objects = lower_ordinary_permanent_subject(
+                    cursor,
+                    &transform.permanent,
+                    effect_index,
+                    false,
+                    &permanent_target_base_ids,
+                    &mut used_target_base_ids,
+                    &mut decisions,
+                    &mut target_bindings,
+                )?;
+                for object in objects {
+                    effects.push(json!({"kind": "transformPermanent", "object": object}));
                 }
             }
             LocalEffectNode::TapPermanents(tap) => {
@@ -4690,7 +4736,9 @@ fn operand_on_battlefield(operand: &PermanentOperandNode, sequence: &EffectSeque
     match operand {
         PermanentOperandNode::Targets(_)
         | PermanentOperandNode::Collection { .. }
-        | PermanentOperandNode::Reference(_) => true,
+        | PermanentOperandNode::Reference(_)
+        // Chosen among battlefield permanents as the action resolves.
+        | PermanentOperandNode::Chosen(_) => true,
         PermanentOperandNode::BoundReference(reference) => match reference {
             PermanentEffectReference::Source(_) | PermanentEffectReference::Attached(_) => true,
             PermanentEffectReference::Target(binding)

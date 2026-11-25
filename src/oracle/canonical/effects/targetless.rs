@@ -374,11 +374,11 @@ pub(in crate::oracle::canonical) fn lower_targetless_local_effect(
             // high-level engine operation or silently wrap a compound effect.
             Err(TargetlessLoweringError::UnsupportedEffect)
         }
+        // The source or a collection; declared, bound and chosen operands
+        // are lowered by the program (`effect_sequence.rs`).
         LocalEffectNode::TransformPermanent(effect) => Ok(json!({
             "kind": "transformPermanent",
-            "object": match &effect.permanent {
-                LocalObjectReference::SourceSelf => self_ref(),
-            },
+            "object": lower_nontargeted_permanent_operand(&effect.permanent)?,
         })),
         // The untap window names the permanent's controller; the sequence
         // lowering owns its subject bindings.

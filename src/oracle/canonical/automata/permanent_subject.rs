@@ -320,7 +320,7 @@ pub(in crate::oracle::canonical) fn permanent_subject_after_effect(
             Local(singular_permanent_target(&node.target, effect_index))
         }
         LocalEffectNode::TransformPermanent(node) => {
-            Local(Some(PermanentEffectReference::Source(node.permanent)))
+            Local(subject_after_operand(&node.permanent, effect_index))
         }
         LocalEffectNode::PlayerAction(node) => match &node.action {
             super::SingularPlayerAction::Life(_) => previous,
@@ -496,6 +496,11 @@ pub(in crate::oracle::canonical) fn subject_after_operand(
         PermanentOperandNode::BoundReference(reference) => Some(*reference),
         PermanentOperandNode::Reference(source) => Some(PermanentEffectReference::Source(*source)),
         PermanentOperandNode::Collection { .. } => None,
+        // The one permanent the action chose on resolution (CR 608.2d) is
+        // published as the action's result (`chosen_operand.rs`).
+        PermanentOperandNode::Chosen(choice) => choice
+            .singular()
+            .then(|| super::chosen_operand_reference(choice, effect_index)),
     }
 }
 
@@ -1071,6 +1076,7 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         LocalEffectNode::PermanentKeywordAction(node) => &node.targets,
         LocalEffectNode::ControlChange(node) => &node.objects,
         LocalEffectNode::Attach(node) => &node.recipient,
+        LocalEffectNode::TransformPermanent(node) => &node.permanent,
         LocalEffectNode::Choose(node) => {
             return node
                 .permanent_targets()
@@ -1122,6 +1128,8 @@ pub(in crate::oracle::canonical) fn target_slot_selector(
         PermanentOperandNode::Targets(targets) => {
             targets.slots.get(slot_index).map(|slot| &slot.selector)
         }
+        // `that creature` after an object chosen on resolution.
+        PermanentOperandNode::Chosen(choice) if slot_index == 0 => Some(&choice.selector),
         _ => None,
     }
 }

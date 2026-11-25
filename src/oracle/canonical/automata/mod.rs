@@ -49,6 +49,7 @@ mod choose_instruction;
 mod chosen_card_name;
 mod chosen_creature_type;
 mod chosen_land_type;
+mod chosen_operand;
 mod clause;
 mod collection;
 mod color;
@@ -324,6 +325,7 @@ pub(super) use choose_instruction::*;
 pub(super) use chosen_card_name::*;
 pub(super) use chosen_creature_type::*;
 pub(super) use chosen_land_type::*;
+pub(super) use chosen_operand::*;
 pub(super) use clause::*;
 pub(super) use collection::*;
 pub(super) use color::*;
@@ -1790,7 +1792,9 @@ pub(in crate::oracle::canonical) struct SurveilEffectNode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct TransformPermanentEffectNode {
-    pub permanent: LocalObjectReference,
+    /// The shared permanent operand (CR 701.28a): the source, a bound
+    /// reference, declared targets, a collection or a resolution choice.
+    pub permanent: PermanentOperandNode,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

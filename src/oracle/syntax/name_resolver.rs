@@ -695,6 +695,41 @@ fn source_slice<'a>(
     &source_text[tokens[start].span_start..tokens[end - 1].span_end]
 }
 
+/// Whether one UNKNOWN surface is a word of the shared object-characteristic
+/// vocabulary rather than a name: a card type, supertype (`Snow`), subtype
+/// (`Vehicles`, `Shards`), color or object domain, optionally negated by the
+/// compact `non`/`non-` prefix (`Non-Elf`, `Nongreen`, `non-Soldier`). The
+/// tokenizer leaves these compounds and noncreature subtypes UNKNOWN; the
+/// object query reads them (`selector_atom.rs`), so a run made only of them
+/// is never reported as an unresolved card name (CR 205, 105.2). Lexical
+/// only: it decides no grammar and links nothing.
+pub(crate) fn is_object_vocabulary_surface(raw: &str) -> bool {
+    use crate::oracle::characteristic_vocabulary::{
+        AcceptedForms, lookup_basic_land_subtype, lookup_card_color, lookup_card_type,
+        lookup_creature_subtype_tokens, lookup_noncreature_subtype_forms, lookup_object_domain,
+        lookup_supertype,
+    };
+    let lower = raw.to_ascii_lowercase();
+    let surface = if lower.starts_with("non-") {
+        &raw[4..]
+    } else if lower.starts_with("non") && raw.len() > 3 {
+        &raw[3..]
+    } else {
+        raw
+    };
+    if surface.is_empty() {
+        return false;
+    }
+    let forms = AcceptedForms::SingularOrPlural;
+    lookup_card_type(surface, forms).is_some()
+        || lookup_supertype(surface, AcceptedForms::SingularOnly).is_some()
+        || lookup_basic_land_subtype(surface, forms).is_some()
+        || lookup_creature_subtype_tokens(surface, None, forms).is_some()
+        || lookup_noncreature_subtype_forms(surface, forms).is_some()
+        || lookup_card_color(surface).is_some()
+        || lookup_object_domain(surface, forms).is_some()
+}
+
 fn unresolved_groups(
     source_text: &str,
     tokens: &[RecognizedEntity],
@@ -713,6 +748,16 @@ fn unresolved_groups(
             position += 1;
         }
         let end = position;
+        // `Non-Elf creatures`, `Snow creatures`, `Vehicles you control`: a
+        // run made only of object-vocabulary words is read by the shared
+        // object query, never claimed as a card name. A run with any other
+        // word (`Kozilek`, `Non-Elf Kozilek`) is still reported whole.
+        if tokens[start..end]
+            .iter()
+            .all(|token| is_object_vocabulary_surface(&token.raw))
+        {
+            continue;
+        }
         let span_start = tokens[start].span_start;
         let span_end = tokens[end - 1].span_end;
         failures.push(UnresolvedName {

@@ -14,6 +14,7 @@ mod casting_reduction;
 mod chosen_card_name;
 mod chosen_creature_type;
 mod chosen_land_type;
+mod chosen_operand;
 mod collection_destroy;
 mod color_set_query;
 mod condition;

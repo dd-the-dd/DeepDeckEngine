@@ -85,7 +85,9 @@ fn reminder_object_phrase(operand: &PermanentOperandNode) -> Option<[&'static st
         PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_) => {
             Some(["that", "creature"])
         }
-        PermanentOperandNode::Collection { .. } => None,
+        // A collection, or an object chosen on resolution, has no singular
+        // reminder object this reader restates.
+        PermanentOperandNode::Collection { .. } | PermanentOperandNode::Chosen(_) => None,
     }
 }
 

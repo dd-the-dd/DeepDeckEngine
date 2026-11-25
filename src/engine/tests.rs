@@ -33208,6 +33208,10 @@ mod player_population_designation_runtime;
 #[path = "tests/resolution_object_choice_runtime.rs"]
 mod resolution_object_choice_runtime;
 
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/chosen_operand_runtime.rs"]
+mod chosen_operand_runtime;
+
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
 #[path = "tests/quantity_result_reuse_runtime.rs"]
 mod quantity_result_reuse_runtime;

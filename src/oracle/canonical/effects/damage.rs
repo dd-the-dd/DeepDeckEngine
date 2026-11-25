@@ -546,7 +546,9 @@ pub(in crate::oracle::canonical) fn try_parse_promoted_damage_family(
             if subject.is_some_and(|subject| {
                 matches!(
                     subject,
-                    PermanentOperandNode::Targets(_) | PermanentOperandNode::BoundReference(_)
+                    PermanentOperandNode::Targets(_)
+                        | PermanentOperandNode::BoundReference(_)
+                        | PermanentOperandNode::Chosen(_)
                 )
             }) {
                 return true;

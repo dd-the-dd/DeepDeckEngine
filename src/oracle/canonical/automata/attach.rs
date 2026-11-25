@@ -33,6 +33,26 @@ fn require_individual_operand(
     )
 }
 
+/// One attach slot: the shared permanent operand, or a permanent chosen
+/// while the action resolves (`attach it to a creature you control`, CR
+/// 608.2d), never a target.
+fn recognize_attach_operand(
+    cursor: &mut OracleTokenCursor<'_>,
+    name_links: &[ResolvedNameLink],
+    name_failure: Option<&NameResolutionFailure>,
+    context: &EffectRecognitionContext,
+) -> MachineResult<PermanentOperandNode> {
+    if chosen_permanent_operand_starts(cursor) {
+        let choice = recognize_chosen_permanent_operand(cursor)?;
+        cursor.require(
+            choice.singular(),
+            "one chosen object to attach or attach to",
+        )?;
+        return Ok(PermanentOperandNode::Chosen(choice));
+    }
+    recognize_contextual_permanent_operand(cursor, name_links, name_failure, context)
+}
+
 pub(in crate::oracle::canonical) fn recognize_attach_effect(
     cursor: &mut OracleTokenCursor<'_>,
     name_links: &[ResolvedNameLink],
@@ -51,12 +71,7 @@ pub(in crate::oracle::canonical) fn recognize_attach_effect(
             }
             State::Attachment => {
                 cursor.enter("effect.attach.attachment");
-                let operand = recognize_contextual_permanent_operand(
-                    cursor,
-                    name_links,
-                    name_failure,
-                    context,
-                )?;
+                let operand = recognize_attach_operand(cursor, name_links, name_failure, context)?;
                 require_individual_operand(cursor, &operand)?;
                 attachment = Some(operand);
                 State::Preposition
@@ -68,12 +83,7 @@ pub(in crate::oracle::canonical) fn recognize_attach_effect(
             }
             State::Recipient => {
                 cursor.enter("effect.attach.recipient");
-                let operand = recognize_contextual_permanent_operand(
-                    cursor,
-                    name_links,
-                    name_failure,
-                    context,
-                )?;
+                let operand = recognize_attach_operand(cursor, name_links, name_failure, context)?;
                 require_individual_operand(cursor, &operand)?;
                 if let PermanentOperandNode::Targets(targets) = &operand {
                     cursor.require(
