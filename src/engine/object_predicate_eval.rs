@@ -93,6 +93,10 @@ pub(super) fn set_constraint_supported(constraint: &Value) -> bool {
             SetProperty::from_ir(constraint["property"].as_str()).is_some()
                 && integer_value(&constraint["value"]).is_some()
         }
+        // `that share a creature type` among the chosen set.
+        Some("sharedValue") => super::object_relation_eval::shared_set_characteristic_supported(
+            constraint["characteristic"].as_str(),
+        ),
         _ => false,
     }
 }
@@ -200,6 +204,13 @@ impl GameEngine {
                             value.map(|value| total.saturating_add(i64::from(value)))
                         })
                         .is_some_and(|total| total <= i64::from(maximum))
+                }
+                Some("sharedValue") => {
+                    constraint["characteristic"]
+                        .as_str()
+                        .is_some_and(|characteristic| {
+                            self.selection_shares_characteristic(selection, characteristic)
+                        })
                 }
                 _ => false,
             })

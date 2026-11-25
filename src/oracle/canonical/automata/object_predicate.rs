@@ -43,6 +43,13 @@ pub(in crate::oracle::canonical) enum ObjectStatus {
     /// is a new object that remembers this zone change, CR 603.10a). A fact
     /// of a card in a zone, never of a permanent.
     PutThereFromBattlefieldThisTurn,
+    /// `[cards in a graveyard] that were put there this turn`: the card's
+    /// latest arrival in the zone it is in happened during this turn,
+    /// whatever zone it came from (CR 400.7). A fact of a card in a zone.
+    PutThereThisTurn,
+    /// `[cards in a graveyard] that were milled this turn` (CR 701.13b):
+    /// the card's latest arrival in its zone this turn was a mill.
+    MilledThisTurn,
 }
 
 impl ObjectStatus {
@@ -79,6 +86,8 @@ impl ObjectStatus {
             Self::WasDealtDamageThisTurn => ("wasDealtDamageThisTurn", false),
             Self::DealtDamageThisTurn => ("dealtDamageThisTurn", false),
             Self::PutThereFromBattlefieldThisTurn => ("putThereFromBattlefieldThisTurn", false),
+            Self::PutThereThisTurn => ("putThereThisTurn", false),
+            Self::MilledThisTurn => ("milledThisTurn", false),
         }
     }
 
@@ -87,7 +96,9 @@ impl ObjectStatus {
     /// history of a permanent.
     pub(in crate::oracle::canonical) fn supports_domain(self, domain: ObjectKind) -> bool {
         match self {
-            Self::PutThereFromBattlefieldThisTurn => domain == ObjectKind::Card,
+            Self::PutThereFromBattlefieldThisTurn
+            | Self::PutThereThisTurn
+            | Self::MilledThisTurn => domain == ObjectKind::Card,
             _ => domain == ObjectKind::Permanent,
         }
     }
@@ -405,6 +416,19 @@ pub(in crate::oracle::canonical) enum ObjectQualifier {
         among: Box<ObjectPredicate>,
         population: ExtremumPopulation,
     },
+    /// `that entered the battlefield under your control this turn` (CR
+    /// 110.2a): the permanent entered this turn, and the player relative to
+    /// the ability controller controlled it as it entered. A later control
+    /// change does not alter that fact.
+    EnteredUnderControlThisTurn(DamagedPlayer),
+    /// `with toughness greater than its power`: one property of the
+    /// candidate compared with another property of the same candidate (CR
+    /// 208.1). It depends on nothing but the candidate.
+    CandidatePropertyComparison {
+        left: SelectorNumericProperty,
+        operator: NumericComparisonOperator,
+        right: SelectorNumericProperty,
+    },
 }
 
 impl ObjectQualifier {
@@ -415,10 +439,12 @@ impl ObjectQualifier {
             | Self::ManaCostSymbol(_)
             | Self::DistinctValues(_)
             | Self::TotalAtMost { .. }
-            | Self::SharedValue(_) => true,
-            Self::DamagedBySourceThisTurn | Self::Extremum { .. } | Self::DistinctControllers => {
-                domain == ObjectKind::Permanent
-            }
+            | Self::SharedValue(_)
+            | Self::CandidatePropertyComparison { .. } => true,
+            Self::DamagedBySourceThisTurn
+            | Self::Extremum { .. }
+            | Self::DistinctControllers
+            | Self::EnteredUnderControlThisTurn(_) => domain == ObjectKind::Permanent,
         }
     }
 
@@ -570,7 +596,10 @@ impl ObjectPredicate {
     /// duplicating the walk over shared Boolean predicate composition.
     pub(in crate::oracle::canonical) fn contains_numeric_comparison(&self) -> bool {
         match self {
-            Self::NumericComparison { .. } => true,
+            // A comparison of two candidate properties is a numeric
+            // comparison too: a consumer without that contract refuses it.
+            Self::NumericComparison { .. }
+            | Self::Qualifier(ObjectQualifier::CandidatePropertyComparison { .. }) => true,
             Self::Not(operand) => operand.contains_numeric_comparison(),
             Self::Intersection(operands) | Self::Union(operands) => {
                 operands.iter().any(Self::contains_numeric_comparison)

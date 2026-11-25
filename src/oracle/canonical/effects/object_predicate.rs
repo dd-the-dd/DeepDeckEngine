@@ -216,6 +216,17 @@ fn lower_object_predicate(
     }
 }
 
+/// One numeric property of the candidate under test, as a comparison
+/// operand.
+fn candidate_property(property: SelectorNumericProperty) -> Value {
+    let kind = match property {
+        SelectorNumericProperty::ManaValue => "manaValueOf",
+        SelectorNumericProperty::Power => "powerOf",
+        SelectorNumericProperty::Toughness => "toughnessOf",
+    };
+    json!({ "kind": kind, "object": { "kind": "candidate" } })
+}
+
 fn numeric_property_ir_name(property: SelectorNumericProperty) -> &'static str {
     match property {
         SelectorNumericProperty::ManaValue => "manaValue",
@@ -263,6 +274,23 @@ fn lower_object_qualifier(qualifier: &ObjectQualifier, domain: ObjectPredicateDo
             "property": numeric_property_ir_name(*property),
             "value": lower_numeric_expression(maximum).unwrap_or(Value::Null),
         }),
+        // A relation of the permanent to the player who controlled it as it
+        // entered (CR 110.2a); the engine resolves the role at preparation.
+        ObjectQualifier::EnteredUnderControlThisTurn(player) => json!({
+            "kind": "enteredUnderControlThisTurn",
+            "player": player.ir_name(),
+        }),
+        // `toughness greater than its power`: both operands read the
+        // candidate under test (CR 208.1).
+        ObjectQualifier::CandidatePropertyComparison {
+            left,
+            operator,
+            right,
+        } => compare(
+            operator.ir_operator(),
+            candidate_property(*left),
+            candidate_property(*right),
+        ),
         ObjectQualifier::Extremum {
             property,
             extreme,
@@ -322,7 +350,7 @@ pub(in crate::oracle::canonical) fn lower_controlled_permanent_count(
 fn is_set_constraint_atom(atom: &Value) -> bool {
     matches!(
         atom["kind"].as_str(),
-        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers")
+        Some("distinctValues" | "totalAtMost" | "distinctPermanentControllers" | "sharedValue")
     )
 }
 

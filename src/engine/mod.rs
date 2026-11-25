@@ -2415,6 +2415,8 @@ fn card_filter_supported(filter: &Value) -> bool {
             | "dealtDamageThisTurn"
             | "enteredGraveyardThisTurn"
             | object_event_history::PUT_THERE_FROM_BATTLEFIELD
+            | object_event_history::PUT_THERE_THIS_TURN
+            | object_event_history::MILLED_THIS_TURN
             | "dealtDamageToControllerThisTurn"
             | "wasDealtDamageThisTurn"
             | "attackedThisTurn"
@@ -4690,7 +4692,7 @@ fn target_selection_constraint_supported(constraint: &Value) -> bool {
             constraint,
             target_selection_constraint_supported,
         ),
-        Some("distinctValues" | "totalAtMost") => {
+        Some("distinctValues" | "totalAtMost" | "sharedValue") => {
             object_predicate_eval::set_constraint_supported(constraint)
         }
         _ => false,
@@ -8130,7 +8132,7 @@ impl GameEngine {
                     self.target_selection_satisfies_constraint(selection, one, assignment)
                 })
             }),
-            Some("distinctValues" | "totalAtMost") => {
+            Some("distinctValues" | "totalAtMost" | "sharedValue") => {
                 self.target_selection_satisfies_set_constraint(selection, constraint)
             }
             Some("sameZoneOwner") => {
@@ -11252,9 +11254,9 @@ impl GameEngine {
         decisions: &BTreeMap<String, Value>,
     ) -> bool {
         match value_kind(filter) {
-            Some(object_event_history::PUT_THERE_FROM_BATTLEFIELD) => {
-                self.card_put_there_from_battlefield_this_turn(&card.instance_id)
-            }
+            Some(kind) if object_event_history::is_card_history_kind(kind) => self
+                .card_history_matches(&card.instance_id, kind)
+                .unwrap_or(false),
             Some("enteredGraveyardThisTurn") => self.state.events.iter().any(|event| {
                 event.turn_number == self.state.turn_number
                     && ((event.kind == "cardsEnteredGraveyard"

@@ -414,3 +414,10 @@ mod tests;
 ))]
 #[path = "object_subtype_domain_tests.rs"]
 mod subtype_domain_tests;
+
+#[cfg(all(
+    test,
+    any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3")
+))]
+#[path = "object_query_relations_runtime_tests.rs"]
+mod object_query_relations_runtime_tests;
