@@ -2465,7 +2465,8 @@ fn lower_fixed_player_event(
             | PlayerEventAction::Clash { .. }
             | PlayerEventAction::Proliferate
             | PlayerEventAction::Exert
-            | PlayerEventAction::CompleteDungeon,
+            | PlayerEventAction::CompleteDungeon
+            | PlayerEventAction::CounterSpell,
             _,
         ) => unreachable!(
             "lowered by the received-damage, action-union, action-frame or outcome branches"

@@ -933,13 +933,15 @@ fn read_occurrence_alternatives(
         recognize_source_dealt_damage_event,
         super::recognize_last_counter_removed_event,
     ];
-    let player_readers: [PlayerReader; 5] = [
+    let player_readers: [PlayerReader; 6] = [
         recognize_ordinal_card_drawn_event,
         recognize_card_drawn_event,
         recognize_land_played_event,
         recognize_player_event,
         // `a spell or ability an opponent controls causes you to discard`.
         super::recognize_caused_player_event,
+        // `a spell or ability you control counters a spell`.
+        super::recognize_stack_object_counter_event,
     ];
     for reader in local_readers {
         match reader(cursor, name_links, name_failure) {

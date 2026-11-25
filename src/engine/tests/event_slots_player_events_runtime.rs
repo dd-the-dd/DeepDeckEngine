@@ -375,3 +375,80 @@ fn an_opponent_attacking_you_is_one_event_of_that_declaration() {
     declare(&mut engine, &["their-a", "their-b"], "player-0");
     assert_eq!(triggers_from(&engine, "ward"), 1, "one declaration");
 }
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[test]
+fn a_spell_you_control_countering_a_spell_is_observed_by_its_controller() {
+    let counter_rule = parsed_rules("Test Counterspell", "Instant", "Counter target spell.")
+        .into_iter()
+        .next()
+        .expect("the counterspell compiles");
+    for (countering_player, triggers) in [("player-0", 1), ("player-1", 0)] {
+        let mut engine = test_engine(2);
+        engine.state.players[0].battlefield = vec![parsed_card(
+            "mentor",
+            "player-0",
+            "Lullmage Mentor",
+            "Creature — Merfolk Wizard",
+            "Whenever a spell or ability you control counters a spell, you gain 2 life.",
+        )];
+        let target_owner = if countering_player == "player-0" {
+            "player-1"
+        } else {
+            "player-0"
+        };
+        engine.state.stack.push(StackObject {
+            id: "stack:target".to_string(),
+            controller: target_owner.to_string(),
+            card: plain_card("target-spell", target_owner, "Instant"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: None,
+            ability_rule: None,
+            decisions: BTreeMap::new(),
+            targets: BTreeMap::new(),
+        });
+        engine
+            .admit_explicit_test_fixture_objects()
+            .expect("fixture objects are admitted");
+        let counter = StackObject {
+            id: "stack:counter".to_string(),
+            controller: countering_player.to_string(),
+            card: plain_card("counter", countering_player, "Instant"),
+            cant_be_countered: false,
+            exile_on_leave_stack: false,
+            ability_kind: Some("spellAbility".to_string()),
+            ability_rule: Some(counter_rule.clone()),
+            decisions: BTreeMap::new(),
+            // `Counter target spell.` declares its stack target `targetSpell`.
+            targets: BTreeMap::from([(
+                "targetSpell".to_string(),
+                TargetRef::StackObject {
+                    stack_id: "stack:target".to_string(),
+                },
+            )]),
+        };
+        engine
+            .execute_effects(
+                &counter_rule["effects"],
+                &counter,
+                &mut BTreeMap::new(),
+                &mut BTreeMap::new(),
+                &mut EmeritusDecisionProvider,
+            )
+            .expect("the counterspell resolves");
+        assert!(
+            engine
+                .state
+                .events
+                .iter()
+                .any(|event| event.kind == "spellCountered"),
+            "{countering_player}: the spell was countered"
+        );
+        assert_eq!(
+            triggers_from(&engine, "mentor"),
+            triggers,
+            "{countering_player}: only your spell or ability"
+        );
+    }
+}

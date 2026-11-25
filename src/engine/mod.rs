@@ -5227,6 +5227,7 @@ fn triggered_event_supported(event: &Value) -> bool {
         }
         Some("playerDealtDamage") => player_event_matchers::received_damage_event_supported(event),
         Some("cardsDiscarded") => player_event_matchers::discard_batch_event_supported(event),
+        Some("spellCounteredBy") => player_event_matchers::spell_countered_event_supported(event),
         Some("opponentDealtDamage") => {
             player_reference_supported(&event["player"])
                 && event.get("noncombatOnly").is_none_or(Value::is_boolean)
@@ -34314,6 +34315,7 @@ impl GameEngine {
         }
 
         let owner_index = self.player_index(&stack_object.card.owner)?;
+        let countered_definition = stack_object.card.definition.clone();
         let mut card = stack_object.card;
         let graveyard_owner = card.owner.clone();
         let spell_copy = is_spell_copy(&card);
@@ -34373,6 +34375,7 @@ impl GameEngine {
                 "stackId": stack_id,
             }),
         );
+        self.publish_spell_countered(source_controller, &countered_definition);
         if let Some(graveyard_card) = graveyard_card {
             self.enqueue_cards_entered_graveyard_triggers_from(
                 &graveyard_owner,

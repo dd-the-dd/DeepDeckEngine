@@ -1280,6 +1280,143 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-lullmage-mentor-a-spell-or-ability-you-control-counters-a-spell",
+      "request": {
+        "cardName": "Lullmage Mentor",
+        "typeLine": "Creature — Merfolk Wizard",
+        "manaCost": "{1}{U}{U}",
+        "oracleText": "Whenever a spell or ability you control counters a spell, you may create a 1/1 blue Merfolk creature token.\nTap seven untapped Merfolk you control: Counter target spell.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-baral-counters-a-spell",
+      "request": {
+        "cardName": "Baral, Chief of Compliance",
+        "typeLine": "Legendary Creature — Human Wizard",
+        "manaCost": "{1}{U}",
+        "oracleText": "Instant and sorcery spells you cast cost {1} less to cast.\nWhenever a spell or ability you control counters a spell, you may draw a card. If you do, discard a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "controllerOf",
+                  "object": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-an-opponents-spell-or-ability-counters-a-creature-spell",
+      "request": {
+        "cardName": "Synthetic Grudge",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a spell or ability an opponent controls counters a creature spell, you gain 2 life.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/event/kind",
+                "equals": "spellCounteredBy"
+              },
+              {
+                "pointer": "/event/controller",
+                "equals": {
+                  "kind": "opponentsOf",
+                  "player": {
+                    "kind": "controllerOf",
+                    "object": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/event/where/value",
+                "equals": "Creature"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-a-spell-alone-countering-is-an-engine-gap",
+      "request": {
+        "cardName": "Synthetic Spite",
+        "typeLine": "Creature — Synthetic",
+        "manaCost": "{2}",
+        "oracleText": "Whenever a spell you control counters a spell, draw a card.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "engine.gap.event-matcher",
+            "abilityIndex": 0
+          }
+        ]
+      }
     }
   ]
 }

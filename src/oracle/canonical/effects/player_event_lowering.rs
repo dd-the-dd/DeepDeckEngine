@@ -251,6 +251,9 @@ fn lower_card_selection(
     card: &PlayerEventCardObject,
 ) -> MachineResult<Value> {
     cursor.enter("trigger.player-event.card-selection-support");
+    if actions == [PlayerEventAction::CounterSpell] {
+        return lower_spell_countered_event(cursor, actor, card);
+    }
     cursor.require(
         actions == [PlayerEventAction::DiscardCard] && !one_or_more,
         "one discard event of one player (no other action or player batch on this card object)",
@@ -298,6 +301,37 @@ fn lower_card_selection(
             ));
         }
         lowered["cause"] = lower_action_cause(cursor, cause)?;
+    }
+    Ok(lowered)
+}
+
+/// `a spell or ability ACTOR controls counters a SPELL` (CR 701.6): the
+/// countered-spell observer, the countering object's controller matched with
+/// the shared player relation, the countered spell with the shared spell
+/// predicate.
+fn lower_spell_countered_event(
+    cursor: &mut OracleTokenCursor<'_>,
+    actor: EventActorScope,
+    card: &PlayerEventCardObject,
+) -> MachineResult<Value> {
+    cursor.enter("trigger.player-event.counter-support");
+    let cause = card
+        .cause
+        .as_ref()
+        .ok_or_else(|| cursor.fail("the countering spell or ability"))?;
+    // The countering object's kind is not recorded; its controller is.
+    let mut lowered = lower_action_cause(cursor, cause)?;
+    lowered["kind"] = json!("spellCounteredBy");
+    lowered["controller"] = event_actor_player(actor);
+    let predicate = &card.query.predicate;
+    cursor.require(
+        !predicate.contains_numeric_comparison(),
+        "a countered spell predicate without numeric characteristics",
+    )?;
+    if *predicate != ObjectPredicate::ObjectKind(ObjectKind::Spell) {
+        let filter = lower_spell_object_predicate(predicate)
+            .ok_or_else(|| cursor.fail("a lowered countered-spell predicate"))?;
+        lowered["where"] = filter;
     }
     Ok(lowered)
 }

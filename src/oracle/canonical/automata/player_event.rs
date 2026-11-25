@@ -145,6 +145,10 @@ pub(in crate::oracle::canonical) enum PlayerEventAction {
     Exert,
     /// `complete a dungeon` (CR 309.7): the acting player completed one.
     CompleteDungeon,
+    /// `STACK-OBJECT counters a SPELL` (CR 701.6): a spell or ability of the
+    /// acting player countered a spell; the countered spell is the event's
+    /// card object and the countering object its cause.
+    CounterSpell,
 }
 
 /// The die results a roll event observes (CR 706.2). Both bounds inclusive;
@@ -601,6 +605,59 @@ pub(in crate::oracle::canonical) fn recognize_caused_player_event(
         actions: vec![action],
         one_or_more: false,
         card: Some(card),
+        permanent: None,
+        first_time_each_turn: false,
+    })
+}
+
+/// Reads `STACK-OBJECT counters a SPELL` (CR 701.6): a spell or ability
+/// countering a spell. The countering object is the shared targeting-stack
+/// selector (`a spell or ability you control`), whose controller relation is
+/// the acting player; the countered spell is the shared object query in the
+/// spell domain. The countering object is the cause of the occurrence.
+pub(in crate::oracle::canonical) fn recognize_stack_object_counter_event(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<LocalTriggerEventNode> {
+    cursor.enter("event.counter.countering-object");
+    let cause = super::recognize_targeting_stack_selector(cursor)?;
+    cursor.enter("event.counter.verb");
+    consume_lemma(
+        cursor,
+        VerbLemma::Counter,
+        VerbAgreement::ThirdPersonSingular,
+    )?;
+    cursor.enter("event.counter.countered-article");
+    let article = cursor
+        .peek()
+        .map(str::to_ascii_lowercase)
+        .filter(|raw| raw == "a" || raw == "an")
+        .ok_or_else(|| cursor.fail("`a` or `an` before the countered spell"))?;
+    cursor.consume(&article)?;
+    cursor.enter("event.counter.countered-spell");
+    let query = recognize_object_query(cursor)?;
+    cursor.require(
+        query.predicate.is_in_domain(ObjectKind::Spell) && query.controller.is_none(),
+        "a countered spell query without a controller relation",
+    )?;
+    let actor = match cause.controller {
+        None => EventActorScope::AnyPlayer,
+        Some(super::ObjectControllerScope::AbilityController) => EventActorScope::Controller,
+        Some(super::ObjectControllerScope::OpponentOfAbilityController) => {
+            EventActorScope::Opponent
+        }
+        Some(_) => return Err(cursor.fail("a player relation of the countering object")),
+    };
+    cursor.enter("event.counter.complete");
+    Ok(LocalTriggerEventNode::PlayerEvent {
+        actor,
+        actions: vec![PlayerEventAction::CounterSpell],
+        one_or_more: false,
+        card: Some(PlayerEventCardObject {
+            query,
+            exclude_source: false,
+            selection: PlayerEventCardSelection::One,
+            cause: Some(cause),
+        }),
         permanent: None,
         first_time_each_turn: false,
     })

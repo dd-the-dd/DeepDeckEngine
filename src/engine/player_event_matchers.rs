@@ -142,6 +142,14 @@ pub(super) fn activation_player_observed(
     }
 }
 
+/// `spellCounteredBy` (CR 701.6): a spell or ability whose controller
+/// satisfies `controller` countered a spell matching `where`.
+pub(super) fn spell_countered_event_supported(event: &Value) -> bool {
+    has_only_fields(event, &["kind", "controller", "where"])
+        && player_action_events::event_player_reference_supported(&event["controller"])
+        && event.get("where").is_none_or(card_filter_supported)
+}
+
 /// Whether a damage kind restriction admits one damage record (CR 120.2).
 fn damage_kind_admits(event: &Value, combat: bool) -> bool {
     (!combat || event["noncombatOnly"].as_bool() != Some(true))
@@ -509,6 +517,61 @@ impl GameEngine {
             }
         }
         true
+    }
+
+    /// A spell or ability of `countering_player_id` countered a spell with
+    /// `countered` as its definition (CR 701.6): observers whose controller
+    /// relation and spell predicate match trigger, with the countering
+    /// player bound as the triggering player.
+    pub(super) fn publish_spell_countered(
+        &mut self,
+        countering_player_id: &str,
+        countered: &CardDefinition,
+    ) {
+        let triggers = self
+            .state
+            .players
+            .iter()
+            .filter(|player| !player.has_lost)
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|source| {
+                self.effective_rules(source)
+                    .iter()
+                    .filter(|rule| {
+                        triggered_rule_supported(rule)
+                            && self.rule_active_for_source(source, rule)
+                            && triggered_event_variants(&rule["event"])
+                                .iter()
+                                .any(|event| {
+                                    value_kind(event) == Some("spellCounteredBy")
+                                        && self.event_player_reference_matches(
+                                            &event["controller"],
+                                            source,
+                                            countering_player_id,
+                                        )
+                                        && event.get("where").is_none_or(|filter| {
+                                            matches_card_filter(countered, filter)
+                                        })
+                                })
+                    })
+                    .cloned()
+                    .map(|rule| (source.clone(), rule))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+        for (source, rule) in triggers {
+            self.put_triggered_ability_on_stack_with_decisions(
+                &source,
+                rule,
+                BTreeMap::from([(
+                    "triggeringPlayerId".to_string(),
+                    Value::String(countering_player_id.to_string()),
+                )]),
+            );
+            if self.check_quantity_failure().is_err() {
+                return;
+            }
+        }
     }
 
     /// `playerDealtDamage` observed by `source` for damage dealt to
