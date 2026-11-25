@@ -65,7 +65,7 @@ fn remove_reads_quantity_optional_kind_and_three_holder_forms() {
     let untyped = removal(payment("Remove a counter from this creature").unwrap());
     assert_eq!(
         (untyped.count, untyped.counter),
-        (NumericAtom::Integer(1), None)
+        (CostQuantity::Exactly(NumericAtom::Integer(1)), None)
     );
 
     let one = removal(payment("Remove a +1/+1 counter from a creature you control").unwrap());

@@ -304,16 +304,17 @@ pub(in crate::oracle::canonical) struct CostChosenAmountSlot {
 }
 
 fn published_cost_amount(cursor: &OracleTokenCursor<'_>) -> Option<CostChosenAmountSlot> {
-    installed_binding_environment(cursor)
-        .frame
-        .cost_chosen_amount
+    cursor
+        .binding_environment()
+        .and_then(|environment| environment.frame.cost_chosen_amount.clone())
 }
 
 /// The action being read is the first of its program: no earlier action can
 /// be the antecedent of a restated result, so only a cost can.
 fn reads_first_action(cursor: &OracleTokenCursor<'_>) -> bool {
-    installed_binding_environment(cursor)
-        .effect_index
+    cursor
+        .binding_environment()
+        .and_then(|environment| environment.effect_index)
         .is_none_or(|index| index == 0)
 }
 

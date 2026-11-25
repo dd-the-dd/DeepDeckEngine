@@ -145,7 +145,10 @@ fn quantity_status_exclusion_and_query_compose_for_every_object_verb() {
         let chosen = chosen(&node);
         assert_eq!(
             (chosen.count, chosen.exclude_source),
-            (NumericAtom::Integer(count), exclude_source),
+            (
+                CostQuantity::Exactly(NumericAtom::Integer(count)),
+                exclude_source
+            ),
             "{text}"
         );
     }
