@@ -168,6 +168,10 @@ mod state_condition_atoms_runtime;
 mod static_characteristics_runtime;
 
 #[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
+#[path = "tests/static_continuous_family_runtime.rs"]
+mod static_continuous_family_runtime;
+
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-3"))]
 #[path = "tests/animation_layers_runtime.rs"]
 mod animation_layers_runtime;
 

@@ -10,7 +10,7 @@ impl GameEngine {
         permanent: &CardInstance,
         counter: &str,
     ) -> bool {
-        self.static_modifier_applies_to("preventCounters", permanent)
+        self.static_counter_prohibited(permanent, counter)
             || (counter == "-1/-1"
                 && self
                     .battlefield_static_modifiers()

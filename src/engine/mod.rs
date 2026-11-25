@@ -167,6 +167,7 @@ mod mana_discovery_session;
 mod mana_legacy_test_adapter;
 mod mana_payment;
 mod static_modifier_site;
+mod static_object_prohibitions;
 mod static_player_permissions;
 use granted_mana_program::ManaProgramOrigin;
 mod aura_entry;
@@ -5985,6 +5986,13 @@ fn battlefield_static_modifier_supported(modifier: &Value) -> bool {
                 && numeric_expression_supported(&modifier["count"])
         }
         Some("nonbasicLandsBecomeMountains") => condition_supported(&modifier["condition"]),
+        Some("setCardTypes" | "modifySubtypeSet") => {
+            GameEngine::static_type_modifier_supported(modifier)
+        }
+        Some("cantBeTargeted" | "cantBecomeUntapped") => {
+            static_object_prohibitions::static_object_prohibition_supported(modifier)
+                .unwrap_or(false)
+        }
         _ => static_player_permissions::static_player_permission_modifier_supported(modifier),
     }
 }
@@ -8637,6 +8645,11 @@ impl GameEngine {
                         permanent,
                         &stack_object.controller,
                         &stack_object.card.definition,
+                    ) && !self.static_targeting_prohibited(
+                        permanent,
+                        &stack_object.controller,
+                        &stack_object.card.definition,
+                        stack_object_is_spell(stack_object),
                     )
                 }),
             TargetRef::Player { player_id } => {
@@ -10777,14 +10790,17 @@ impl GameEngine {
                 });
         // CR 205.1a: the latest card-type set recorded on this object replaces
         // its printed card types; later additive effects still add theirs.
-        let base_has_type = effect_domains::marker_card_types(&permanent.definition).map_or_else(
-            || has_card_type(&permanent.definition, card_type),
-            |types| {
-                types
-                    .iter()
-                    .any(|value| value.eq_ignore_ascii_case(card_type))
-            },
-        );
+        let base_has_type = self
+            .static_card_type_set(permanent)
+            .or_else(|| effect_domains::marker_card_types(&permanent.definition))
+            .map_or_else(
+                || has_card_type(&permanent.definition, card_type),
+                |types| {
+                    types
+                        .iter()
+                        .any(|value| value.eq_ignore_ascii_case(card_type))
+                },
+            );
         if !base_has_type && !temporarily_added && !continuously_added {
             return false;
         }
@@ -10884,6 +10900,9 @@ impl GameEngine {
                     .is_some_and(|symbol| !self.permanent_color_symbols(permanent).contains(symbol))
             }),
             Some("subtypeContains") => filter["value"].as_str().is_some_and(|subtype| {
+                if let Some(member) = self.static_subtype_membership(permanent, subtype) {
+                    return member;
+                }
                 let set_subtypes =
                     self.battlefield_static_modifiers()
                         .iter()
@@ -12864,6 +12883,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -12882,6 +12906,11 @@ impl GameEngine {
                         .and_then(Value::as_str)
                         == Some("controllerOf")
                     && matches_stack_filter(card, &modifier["spells"]["where"])
+                    && self.spell_grant_ordinal_open(
+                        modifier,
+                        controller_id,
+                        &modifier["spells"]["where"],
+                    )
             })
     }
 
@@ -16803,6 +16832,12 @@ impl GameEngine {
                             let permanent =
                                 &self.state.players[player_index].battlefield[card_index];
                             !self.permanent_is_protected_from_card(permanent, card)
+                                && !self.static_targeting_prohibited(
+                                    permanent,
+                                    controller_id,
+                                    card,
+                                    true,
+                                )
                                 && !(permanent.controller != controller_id
                                     && self.permanent_has_hexproof_from_own_colors_against(
                                         permanent, card,
@@ -19280,6 +19315,11 @@ impl GameEngine {
                                 candidate,
                                 &player.id,
                                 &permanent.definition,
+                            ) && !self.static_targeting_prohibited(
+                                candidate,
+                                &player.id,
+                                &permanent.definition,
+                                false,
                             )
                         })
                         .filter(|candidate| {
@@ -25961,6 +26001,11 @@ impl GameEngine {
                             && integer_value(&modifier["minimumManaValue"])
                                 .is_some_and(|minimum| spell_mana_value >= minimum)
                             && matches_stack_filter(&spell_definition, &modifier["where"])
+                            && self.spell_grant_ordinal_open(
+                                modifier,
+                                &action.player_id,
+                                &modifier["where"],
+                            )
                     })
                     .count();
                 let cascade_count = keyword_count(&spell_definition, "cascade")
@@ -33951,7 +33996,8 @@ impl GameEngine {
                     };
                     let host = &self.state.players[player_index].battlefield[card_index];
                     host.flags.get("phasedOut").copied().unwrap_or(false)
-                        || (!self.permanent_is_protected_from_card(host, &aura.definition)
+                        || ((!self.permanent_is_protected_from_card(host, &aura.definition)
+                            || self.protection_spares_aura(host, aura))
                             && self
                                 .selection_candidates_with_decisions(
                                     &aura.controller,

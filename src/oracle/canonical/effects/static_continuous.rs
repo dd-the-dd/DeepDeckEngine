@@ -646,6 +646,8 @@ fn read_object_predicates(
     let mut granted = Vec::new();
     let mut changes_types = false;
     let mut goaded = false;
+    // `This effect doesn't remove this Aura|Auras.` after a protection grant.
+    let mut spared_auras: Option<&'static str> = None;
     let mut sentences = vec![StaticSentence {
         first_modifier: 0,
         condition,
@@ -821,6 +823,13 @@ fn read_object_predicates(
                     modifiers
                         .push(json!({ "kind": "goadAttachedPermanent", "attachment": self_ref() }));
                     goaded = true;
+                } else if word_in(cursor.peek(), &["the"])
+                    && word_in(cursor.peek_ahead(1), &["chosen"])
+                {
+                    modifiers.push(read_chosen_type_addition(
+                        cursor, objects, number, committed,
+                    )?);
+                    changes_types = true;
                 } else if let Some(modifier) =
                     read_optional_color_predicate(cursor, objects, committed)?
                 {
@@ -932,13 +941,28 @@ fn read_object_predicates(
                 }));
             }
             Some(StaticPredicateHead::CounterProhibition) => {
-                // CR 122.1: `can't have counters put on it`.
+                // CR 122.1: `can't have [KIND] counters put on it|them`.
                 *committed = true;
                 cursor.enter("static.continuous.counter-prohibition");
                 read_prohibition_word(cursor)?;
-                cursor.consume_phrase(&["have", "counters", "put", "on"])?;
+                cursor.consume("have")?;
+                let counter = if word_in(cursor.peek(), &["counters"]) {
+                    None
+                } else {
+                    cursor.enter("static.continuous.counter-prohibition.kind");
+                    Some(recognize_counter_name(cursor)?)
+                };
+                cursor.consume_phrase(&["counters", "put", "on"])?;
                 read_object_pronoun(cursor, subject_number)?;
-                modifiers.push(json!({ "kind": "preventCounters", "objects": objects.clone() }));
+                let mut modifier = json!({ "kind": "preventCounters", "objects": objects.clone() });
+                if let Some(counter) = counter {
+                    modifier["counter"] = json!(counter.as_str());
+                }
+                modifiers.push(modifier);
+            }
+            Some(StaticPredicateHead::PassiveProhibition) => {
+                *committed = true;
+                modifiers.push(read_passive_prohibition(cursor, objects)?);
             }
             Some(StaticPredicateHead::PossessiveAbilities) => {
                 cursor.enter("static.continuous.activation-prohibition");
@@ -1021,6 +1045,10 @@ fn read_object_predicates(
             }
             Some(".") => {
                 cursor.consume(".")?;
+                if protection_aura_exception_starts(cursor) {
+                    cursor.require(spared_auras.is_none(), "one Aura exception")?;
+                    spared_auras = Some(read_protection_aura_exception(cursor)?);
+                }
                 match read_continuation_start(cursor, &mut sentences, &modifiers, subject_number)? {
                     Some(contracted) => contracted_copula = contracted,
                     None => break,
@@ -1028,6 +1056,23 @@ fn read_object_predicates(
             }
             _ => return Err(cursor.fail("`and` or the end of the static ability")),
         }
+    }
+    if let Some(spared) = spared_auras {
+        // CR 702.16c/d, 303.4d: the protection still applies to every
+        // other quality and event; only the state-based removal of the
+        // spared Auras is waived.
+        cursor.enter("static.continuous.aura-exception.protection");
+        let mut protections = 0;
+        for modifier in &mut modifiers {
+            if modifier["kind"] == "grantProtection" {
+                modifier["sparesAuras"] = json!(spared);
+                protections += 1;
+            }
+        }
+        cursor.require(
+            protections > 0 && attached_subject,
+            "a protection granted to the enchanted permanent before the Aura exception",
+        )?;
     }
     if (!granted.is_empty() || changes_types || goaded) && cursor.peek() == Some("(") {
         // CR 207.2: reminder text of a granted keyword or of a type change
@@ -1131,8 +1176,13 @@ fn modifier_takes_own_condition(modifier: &Value) -> bool {
                 | "loseAllAbilities"
                 | "loseKeywords"
                 | "preventCounters"
+                | "cantBeTargeted"
+                | "cantBeSacrificed"
+                | "cantBecomeUntapped"
                 | "allowAttackWithDefender"
                 | "removeCardTypeWhile"
+                | "setCardTypes"
+                | "modifySubtypeSet"
         )
     )
 }
@@ -1234,6 +1284,43 @@ fn resolve_sentence_conditions(
         "a condition while the card type is removed (`as long as …, it isn't a TYPE`)",
     )?;
     Ok((modifiers, None))
+}
+
+/// `is the chosen type in addition to its other types` (CR 205.1b, 205.3m):
+/// the source adds the creature type stored as it entered (the entry
+/// choice's `chosenCreatureType` binding, validated with the card). Only the
+/// source itself has an engine primitive for the stored type.
+fn read_chosen_type_addition(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+    number: TypeChangeNumber,
+    committed: &mut bool,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.chosen-type");
+    cursor.consume_phrase(&["the", "chosen"])?;
+    *committed = true;
+    if word_in(cursor.peek(), &["creature"]) {
+        cursor.consume("creature")?;
+    }
+    cursor.consume("type")?;
+    cursor.enter("static.continuous.chosen-type.retention");
+    cursor.consume_phrase(&["in", "addition", "to"])?;
+    read_possessive(cursor, number)?;
+    cursor.consume("other")?;
+    if word_in(cursor.peek(), &["creature"]) {
+        cursor.consume("creature")?;
+    }
+    cursor.consume("types")?;
+    cursor.enter("static.continuous.chosen-type.object");
+    cursor.require(
+        *objects == self_ref(),
+        "the source itself taking the chosen creature type",
+    )?;
+    Ok(json!({
+        "kind": "addChosenSubtype",
+        "object": self_ref(),
+        "choice": chosen_creature_type(),
+    }))
 }
 
 /// `isn't a TYPE` (CR 205.1a): a source that is not that card type while
@@ -1376,6 +1463,112 @@ fn read_optional_color_predicate(
         "objects": objects.clone(),
         "colors": colors.iter().map(|color| color.ir_symbol()).collect::<Vec<_>>(),
     })))
+}
+
+fn protection_aura_exception_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    word_in(cursor.peek(), &["this"])
+        && word_in(cursor.peek_ahead(1), &["effect"])
+        && word_in(cursor.peek_ahead(2), &["doesn't"])
+        && word_in(cursor.peek_ahead(3), &["remove"])
+}
+
+/// `This effect doesn't remove this Aura.` / `... doesn't remove Auras.`:
+/// the protection granted by this ability doesn't make this Aura (`source`)
+/// or any Aura (`all`) fall off the protected permanent (CR 303.4d).
+fn read_protection_aura_exception(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<&'static str> {
+    cursor.enter("static.continuous.aura-exception");
+    cursor.consume_phrase(&["this", "effect"])?;
+    let raw = cursor.peek().unwrap_or_default().to_string();
+    cursor.consume(&raw)?;
+    cursor.consume("remove")?;
+    let spared = if word_in(cursor.peek(), &["this"]) {
+        cursor.consume_phrase(&["this", "aura"])?;
+        "source"
+    } else {
+        cursor.consume("auras")?;
+        "all"
+    };
+    cursor.enter("static.continuous.aura-exception.terminator");
+    cursor.consume(".")?;
+    Ok(spared)
+}
+
+/// `can't be the target(s) of …`, `can't be sacrificed`, `can't become
+/// untapped`.
+fn passive_prohibition_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    targeting_prohibition_starts(cursor)
+        || (word_in(cursor.peek(), &["can't", "cannot"])
+            && ((word_in(cursor.peek_ahead(1), &["be"])
+                && word_in(cursor.peek_ahead(2), &["sacrificed"]))
+                || (word_in(cursor.peek_ahead(1), &["become"])
+                    && word_in(cursor.peek_ahead(2), &["untapped"]))))
+}
+
+/// One passive prohibition of the subject's objects, each its own
+/// battlefield modifier:
+///
+/// - `can't be the target(s) of SOURCES` (CR 115.4): `cantBeTargeted`, one
+///   branch per kind of targeting spell or ability with the source's
+///   characteristics and controller (the shared targeting-source reader);
+/// - `can't be sacrificed` (CR 701.21a): `cantBeSacrificed`;
+/// - `can't become untapped` (CR 502.3, 701.26b): `cantBecomeUntapped`, for
+///   the untap step and every untap effect.
+fn read_passive_prohibition(
+    cursor: &mut OracleTokenCursor<'_>,
+    objects: &Value,
+) -> MachineResult<Value> {
+    cursor.enter("static.continuous.passive-prohibition");
+    if targeting_prohibition_starts(cursor) {
+        let node = recognize_targeting_prohibition(cursor)?;
+        cursor.enter("static.continuous.targeting-prohibition.lowering");
+        let mut sources = Vec::new();
+        for branch in &node.branches {
+            let mut source = json!({
+                "stackObject": match branch.kind {
+                    TargetingSourceKind::Spell => "spell",
+                    TargetingSourceKind::Ability => "ability",
+                },
+            });
+            if let Some(predicate) = &branch.source {
+                let filter = lower_card_object_predicate(predicate);
+                cursor.require(
+                    !filter.is_null(),
+                    "source characteristics the shared card filter represents",
+                )?;
+                source["where"] = filter;
+            }
+            if let Some(scope) = branch.controller {
+                source["controller"] = match scope {
+                    ObjectControllerScope::AbilityController => controller(),
+                    ObjectControllerScope::OpponentOfAbilityController => {
+                        json!({ "kind": "opponentsOf", "player": controller() })
+                    }
+                    ObjectControllerScope::NotAbilityController
+                    | ObjectControllerScope::EventPlayer
+                    | ObjectControllerScope::Player(_) => {
+                        return Err(cursor.fail(
+                            "a targeting controller relative to the ability controller (`you control`, `your opponents control`)",
+                        ));
+                    }
+                };
+            }
+            sources.push(source);
+        }
+        return Ok(json!({
+            "kind": "cantBeTargeted",
+            "objects": objects.clone(),
+            "sources": sources,
+        }));
+    }
+    read_prohibition_word(cursor)?;
+    if word_in(cursor.peek(), &["be"]) {
+        cursor.consume_phrase(&["be", "sacrificed"])?;
+        return Ok(json!({ "kind": "cantBeSacrificed", "objects": objects.clone() }));
+    }
+    cursor.consume_phrase(&["become", "untapped"])?;
+    Ok(json!({ "kind": "cantBecomeUntapped", "objects": objects.clone() }))
 }
 
 fn read_prohibition_word(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<()> {
@@ -1600,8 +1793,11 @@ enum StaticPredicateHead {
     ContractedCopula(TypeChangeNumber),
     /// `isn't` / `aren't` a card type.
     NegatedCopula(TypeChangeNumber),
-    /// `can't have counters put on it|them` (CR 122.1).
+    /// `can't have [KIND] counters put on it|them` (CR 122.1).
     CounterProhibition,
+    /// `can't be the target of …`, `can't be sacrificed`, `can't become
+    /// untapped`: a passive prohibition of what may happen to the objects.
+    PassiveProhibition,
     /// `its|their activated abilities can't be activated` (CR 602.5).
     PossessiveAbilities,
     /// The same prohibition after a possessive subject (`enchanted
@@ -1623,6 +1819,7 @@ impl StaticPredicateHead {
                 | Self::Grant
                 | Self::Copula(_)
                 | Self::CounterProhibition
+                | Self::PassiveProhibition
                 | Self::PossessiveAbilities
                 | Self::BlockRequirement
                 | Self::KeywordProhibition
@@ -1638,9 +1835,13 @@ fn static_predicate_head(cursor: &OracleTokenCursor<'_>) -> Option<StaticPredica
     };
     if word_in(cursor.peek(), &["can't", "cannot"])
         && word_in(cursor.peek_ahead(1), &["have"])
-        && word_in(cursor.peek_ahead(2), &["counters"])
+        && (word_in(cursor.peek_ahead(2), &["counters"])
+            || word_in(cursor.peek_ahead(3), &["counters"]))
     {
         return Some(StaticPredicateHead::CounterProhibition);
+    }
+    if passive_prohibition_starts(cursor) {
+        return Some(StaticPredicateHead::PassiveProhibition);
     }
     if word_in(cursor.peek(), &["can't", "cannot"])
         && word_in(cursor.peek_ahead(1), &["have"])
@@ -2202,6 +2403,26 @@ fn read_static_subject_reading(
             possessive,
         });
     }
+    // A sentence-initial word the name resolver could not link (`Nonblack
+    // creatures`, `Face-down creatures you control`) is a source reference
+    // only when no object collection reads it: a linked name or `this NOUN`
+    // stays a source reference.
+    let linked_source =
+        source_reference_starts_at(cursor.position(), cursor.peek(), input.name_links, None);
+    if !linked_source
+        && source_reference_starts_at(
+            cursor.position(),
+            cursor.peek(),
+            input.name_links,
+            input.name_resolution_failure,
+        )
+    {
+        let mut trial = cursor.clone();
+        if let Ok(subject) = read_static_collection_subject(&mut trial) {
+            *cursor = trial;
+            return Ok(subject);
+        }
+    }
     if source_reference_starts_at(
         cursor.position(),
         cursor.peek(),
@@ -2217,6 +2438,13 @@ fn read_static_subject_reading(
             possessive: false,
         });
     }
+    read_static_collection_subject(cursor)
+}
+
+/// `[each | all] COLLECTION`: the shared object collection as the subject.
+fn read_static_collection_subject(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<StaticObjectSubject> {
     cursor.enter("static.continuous.subject.collection");
     // `each` distributes over a singular noun; `all` and a bare collection
     // are plural. Both denote universal membership (no choice).

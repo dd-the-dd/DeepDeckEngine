@@ -1,0 +1,1186 @@
+{
+  "schemaVersion": "deepdeck-parser-fixture/v1",
+  "id": "static-continuous-family-batch9",
+  "cases": [
+    {
+      "id": "real-frogify-replaces-types-colors-and-base-stats",
+      "request": {
+        "cardName": "Frogify",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature loses all abilities and is a blue Frog creature with base power and toughness 1/1. (It loses all other card types and creature types.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "loseAllAbilities",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "setCardTypes",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "cardTypes": [
+                    "Creature"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/2",
+                "equals": {
+                  "kind": "modifySubtypeSet",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "subtypeClass": "creature",
+                  "mode": "replace",
+                  "subtypes": [
+                    "Frog"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/3",
+                "equals": {
+                  "kind": "setColor",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": [
+                    "U"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/4/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-song-of-the-dryads-colorless-forest-land",
+      "request": {
+        "cardName": "Song of the Dryads",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant permanent\nEnchanted permanent is a colorless Forest land.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "setCardTypes",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "cardTypes": [
+                    "Land"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "setLandSubtype",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "subtype": "Forest"
+                }
+              },
+              {
+                "pointer": "/modifiers/2",
+                "equals": {
+                  "kind": "setColor",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "colors": []
+                }
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-lignify-subtype-only-keeps-card-types",
+      "request": {
+        "cardName": "Lignify",
+        "typeLine": "Kindred Enchantment — Treefolk Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature is a Treefolk with base power and toughness 0/4 and loses all abilities.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "modifySubtypeSet",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "subtypeClass": "creature",
+                  "mode": "replace",
+                  "subtypes": [
+                    "Treefolk"
+                  ]
+                }
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "setBasePowerToughness"
+              },
+              {
+                "pointer": "/modifiers/2",
+                "equals": {
+                  "kind": "loseAllAbilities",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-adaptive-automaton-chosen-type-addition",
+      "request": {
+        "cardName": "Adaptive Automaton",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{1}",
+        "oracleText": "As this creature enters, choose a creature type.\nThis creature is the chosen type in addition to its other types.\nOther creatures you control of the chosen type get +1/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "addChosenSubtype",
+                  "object": {
+                    "kind": "self"
+                  },
+                  "choice": {
+                    "kind": "chosenCreatureType",
+                    "decisionId": "chosenCreatureType"
+                  }
+                }
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-vehicle-artifact-creature-retains-types",
+      "request": {
+        "cardName": "Animated Wagon Probe",
+        "typeLine": "Artifact — Vehicle",
+        "manaCost": "{1}",
+        "oracleText": "During turns other than yours, this Vehicle is an artifact creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "addCardType",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "cardType": "Artifact"
+                }
+              },
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "addCardType",
+                  "objects": {
+                    "kind": "self"
+                  },
+                  "cardType": "Creature"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-code-combo-tapped-artifacts-become-walls",
+      "request": {
+        "cardName": "Wall Ward Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Tapped artifacts you control lose all abilities and are 0/1 Wall artifact creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "loseAllAbilities"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/3/kind",
+                "equals": "addSubtype"
+              },
+              {
+                "pointer": "/modifiers/3/subtype",
+                "equals": "Wall"
+              },
+              {
+                "pointer": "/modifiers/4/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "no-code-combo-nonartifact-creatures-become-walls",
+      "request": {
+        "cardName": "Wall Curse Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Nonartifact creatures you control lose all abilities and are 0/1 Wall artifact creatures.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "loseAllAbilities"
+              },
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/2/kind",
+                "equals": "addCardType"
+              },
+              {
+                "pointer": "/modifiers/3/kind",
+                "equals": "addSubtype"
+              },
+              {
+                "pointer": "/modifiers/4/kind",
+                "equals": "setBasePowerToughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-canopy-cover-targeting-prohibition",
+      "request": {
+        "cardName": "Canopy Cover",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature can't be blocked except by creatures with flying or reach.\nEnchanted creature can't be the target of spells or abilities your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "cantBeTargeted",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "sources": [
+                    {
+                      "stackObject": "spell",
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "stackObject": "ability",
+                      "controller": {
+                        "kind": "opponentsOf",
+                        "player": {
+                          "kind": "controllerOf",
+                          "object": {
+                            "kind": "self"
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "abilityType": "staticAbility"
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-spellbane-centaur-source-characteristics",
+      "request": {
+        "cardName": "Spellbane Centaur",
+        "typeLine": "Creature — Centaur",
+        "manaCost": "{1}",
+        "oracleText": "Trample\nCreatures you control can't be the targets of blue spells or abilities from blue sources.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "cantBeTargeted"
+              },
+              {
+                "pointer": "/modifiers/0/sources/0/stackObject",
+                "equals": "spell"
+              },
+              {
+                "pointer": "/modifiers/0/sources/1/stackObject",
+                "equals": "ability"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-thrun-two-scoped-branches",
+      "request": {
+        "cardName": "Thrun Probe",
+        "typeLine": "Legendary Creature — Troll Shaman",
+        "manaCost": "{1}",
+        "oracleText": "Thrun can't be the target of nongreen spells your opponents control or abilities from nongreen sources your opponents control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/objects",
+                "equals": {
+                  "kind": "self"
+                }
+              },
+              {
+                "pointer": "/modifiers/0/sources/0/stackObject",
+                "equals": "spell"
+              },
+              {
+                "pointer": "/modifiers/0/sources/0/controller/kind",
+                "equals": "opponentsOf"
+              },
+              {
+                "pointer": "/modifiers/0/sources/1/stackObject",
+                "equals": "ability"
+              },
+              {
+                "pointer": "/modifiers/0/sources/1/controller/kind",
+                "equals": "opponentsOf"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-blossombind-untap-and-counter-prohibitions",
+      "request": {
+        "cardName": "Blossombind",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nWhen this Aura enters, tap enchanted creature.\nEnchanted creature can't become untapped and can't have counters put on it.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 2,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "cantBecomeUntapped",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              },
+              {
+                "pointer": "/modifiers/1",
+                "equals": {
+                  "kind": "preventCounters",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-typed-counter-prohibition",
+      "request": {
+        "cardName": "Solemn Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Creatures your opponents control can't have +1/+1 counters put on them.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "preventCounters"
+              },
+              {
+                "pointer": "/modifiers/0/counter",
+                "equals": "+1/+1"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-hithlain-style-cant-be-sacrificed",
+      "request": {
+        "cardName": "Rope Probe",
+        "typeLine": "Artifact",
+        "manaCost": "{1}",
+        "oracleText": "This artifact can't be sacrificed.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "cantBeSacrificed",
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-steel-seraph-keyword-choice-ability",
+      "request": {
+        "cardName": "Steel Seraph",
+        "typeLine": "Artifact Creature — Angel",
+        "manaCost": "{1}",
+        "oracleText": "At the beginning of combat on your turn, target creature you control gains your choice of flying, vigilance, or lifelink until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/0/kind",
+                "equals": "chooseOption"
+              },
+              {
+                "pointer": "/effects/0/options",
+                "equals": [
+                  "flying",
+                  "vigilance",
+                  "lifelink"
+                ]
+              },
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/1/keyword/kind",
+                "equals": "chosenOption"
+              },
+              {
+                "pointer": "/effects/1/duration",
+                "equals": {
+                  "kind": "untilEndOfCurrentTurn"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-hungering-puppetbeast-keyword-choice-after-counters",
+      "request": {
+        "cardName": "Hungering Puppetbeast",
+        "typeLine": "Artifact Creature — Construct",
+        "manaCost": "{1}",
+        "oracleText": "{1}, Sacrifice another artifact: Put a +1/+1 counter on this creature. It gains your choice of trample, hexproof, or haste until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/effects/1/kind",
+                "equals": "chooseOption"
+              },
+              {
+                "pointer": "/effects/2/kind",
+                "equals": "grantKeyword"
+              },
+              {
+                "pointer": "/effects/2/keyword/kind",
+                "equals": "chosenOption"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-maelstrom-nexus-first-spell-cascade",
+      "request": {
+        "cardName": "Maelstrom Nexus",
+        "typeLine": "Legendary Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "The first spell you cast each turn has cascade. (When you cast your first spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom of your library in a random order.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantCascadeToSpells"
+              },
+              {
+                "pointer": "/modifiers/0/firstEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-first-creature-spell-convoke",
+      "request": {
+        "cardName": "Convoke Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "The first creature spell you cast each turn has convoke.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantConvoke"
+              },
+              {
+                "pointer": "/modifiers/0/firstEachTurn",
+                "equals": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-radiant-scrollwielder-controlled-spells-lifelink",
+      "request": {
+        "cardName": "Scrollwielder Probe",
+        "typeLine": "Creature — Dwarf Cleric",
+        "manaCost": "{1}",
+        "oracleText": "Instant and sorcery spells you control have lifelink.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeywordToSpells"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "lifelink"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-pestilent-spirit-controlled-spells-deathtouch",
+      "request": {
+        "cardName": "Pestilent Spirit",
+        "typeLine": "Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "Instant and sorcery spells you control have deathtouch. (Any amount of damage they deal to a creature is enough to destroy it.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantKeywordToSpells"
+              },
+              {
+                "pointer": "/modifiers/0/keyword",
+                "equals": "deathtouch"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-spells-you-cast-have-affinity",
+      "request": {
+        "cardName": "Affinity Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Spells you cast have affinity for artifacts.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "reduceCastingCost"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-choke-prefixed-subtype-subject",
+      "request": {
+        "cardName": "Choke",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Islands don't untap during their controllers' untap steps.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "doesNotUntap"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-secret-plans-face-down-subject",
+      "request": {
+        "cardName": "Secret Plans",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Face-down creatures you control get +0/+1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyPowerToughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-nonblack-prefixed-subject",
+      "request": {
+        "cardName": "Evincar Probe",
+        "typeLine": "Creature — Vampire",
+        "manaCost": "{1}",
+        "oracleText": "Nonblack creatures get -1/-1.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "modifyPowerToughness"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sibling-quoted-trigger-grant-through-static-frame",
+      "request": {
+        "cardName": "Battle Cry Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "Creatures you control have \"Whenever this creature attacks, it gets +1/+0 until end of turn.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0/kind",
+                "equals": "grantTriggeredAbility"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-red-ward-protection-spares-this-aura",
+      "request": {
+        "cardName": "Red Ward",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature has protection from red. This effect doesn't remove this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "grantProtection",
+                  "objects": {
+                    "kind": "attachedPermanent",
+                    "attachment": {
+                      "kind": "self"
+                    }
+                  },
+                  "from": [
+                    "red"
+                  ],
+                  "sparesAuras": "source"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "real-spectra-ward-protection-spares-auras",
+      "request": {
+        "cardName": "Spectra Ward",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature gets +2/+2 and has protection from each color. This effect doesn't remove Auras. (It can't be blocked, targeted, or dealt damage by anything that's white, blue, black, red, or green.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 1,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/1/kind",
+                "equals": "grantProtection"
+              },
+              {
+                "pointer": "/modifiers/1/sparesAuras",
+                "equals": "all"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-aura-exception-without-protection",
+      "request": {
+        "cardName": "Exception Probe",
+        "typeLine": "Enchantment — Aura",
+        "manaCost": "{1}",
+        "oracleText": "Enchant creature\nEnchanted creature has flying. This effect doesn't remove this Aura.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure",
+            "state": "static.continuous.aura-exception.protection"
+          }
+        ]
+      }
+    },
+    {
+      "id": "known-gap-kira-inner-counter-of-the-targeting-spell",
+      "request": {
+        "cardName": "Kira, Great Glass-Spinner",
+        "typeLine": "Legendary Creature — Spirit",
+        "manaCost": "{1}",
+        "oracleText": "Flying\nCreatures you control have \"Whenever this creature becomes the target of a spell or ability for the first time each turn, counter that spell or ability.\"",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-targeting-prohibition-unknown-source-qualifier",
+      "request": {
+        "cardName": "Wordy Probe",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{1}",
+        "oracleText": "This creature can't be the target of wordy spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "static.targeting-prohibition.characteristic"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-keyword-choice-over-a-counter",
+      "request": {
+        "cardName": "Choice Probe",
+        "typeLine": "Instant",
+        "manaCost": "{1}",
+        "oracleText": "Target creature gains your choice of a +1/+1 counter or flying until end of turn.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "keyword-list.item",
+            "found": "a"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-ordinal-spell-grant-untracked-keyword",
+      "request": {
+        "cardName": "Ordinal Probe",
+        "typeLine": "Enchantment",
+        "manaCost": "{1}",
+        "oracleText": "The first spell you cast each turn has split second.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "state": "static.spell-grant.ordinal"
+          }
+        ]
+      }
+    }
+  ]
+}

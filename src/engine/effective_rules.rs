@@ -42,7 +42,7 @@ const MERGED_RULE_GRANT_KINDS: [&str; 2] = ["grantTriggeredAbility", "grantKeywo
 /// loss (layer 6 is computed from the printed layer, never from itself), and
 /// type, subtype, control or mana-production changes, whose ordered
 /// projections read the printed static layer only (`static_modifier_site.rs`).
-const GRANTED_STATIC_EXCLUDED_MODIFIERS: [&str; 19] = [
+const GRANTED_STATIC_EXCLUDED_MODIFIERS: [&str; 21] = [
     "grantTriggeredAbility",
     "grantKeywordAbility",
     "grantStaticAbility",
@@ -57,6 +57,8 @@ const GRANTED_STATIC_EXCLUDED_MODIFIERS: [&str; 19] = [
     "addSubtype",
     "setSubtypes",
     "setLandSubtype",
+    "setCardTypes",
+    "modifySubtypeSet",
     "nonbasicLandsBecomeMountains",
     "addAllBasicLandTypes",
     "multiplyManaProduction",
@@ -219,11 +221,13 @@ impl GameEngine {
         } else {
             Vec::new()
         };
+        let rules_text_lost = on_battlefield
+            && (subtypes::land_rules_text_replaced(&object.definition)
+                || self.static_land_subtype_set_applies(object, None));
         EffectiveRules {
             object,
             functioning,
-            rules_text_lost: on_battlefield
-                && subtypes::land_rules_text_replaced(&object.definition),
+            rules_text_lost,
             granted,
         }
     }
@@ -242,12 +246,55 @@ impl GameEngine {
         } else {
             Vec::new()
         };
+        let rules_text_lost = on_battlefield
+            && (subtypes::land_rules_text_replaced(&object.definition)
+                || self.static_land_subtype_set_applies(object, Some(modifiers)));
         EffectiveRules {
             object,
             functioning,
-            rules_text_lost: on_battlefield
-                && subtypes::land_rules_text_replaced(&object.definition),
+            rules_text_lost,
             granted,
+        }
+    }
+
+    /// CR 305.7: a static ability that sets a land's subtype to a basic land
+    /// type (`setLandSubtype`) removes the abilities of its rules text, as a
+    /// recorded subtype-set marker does; the intrinsic mana ability of the
+    /// new type is read by mana production. A cheap printed scan avoids the
+    /// static-modifier collection when no source prints such a change.
+    fn static_land_subtype_set_applies(
+        &self,
+        object: &CardInstance,
+        modifiers: Option<&[(CardInstance, Value)]>,
+    ) -> bool {
+        let printed = self
+            .state
+            .players
+            .iter()
+            .flat_map(|player| player.battlefield.iter())
+            .flat_map(|source| source.definition.rules.iter())
+            .filter_map(|rule| rule["modifiers"].as_array())
+            .flatten()
+            .any(|modifier| value_kind(modifier) == Some("setLandSubtype"));
+        // Like the grant layer, this read is computed from the printed
+        // layer: a nested read while it is collected sees no such loss.
+        if !printed || self.collecting_rule_grants.get() {
+            return false;
+        }
+        let applies = |source: &CardInstance, modifier: &Value| {
+            value_kind(modifier) == Some("setLandSubtype")
+                && Self::static_selector_matches(source, &modifier["objects"], object)
+        };
+        match modifiers {
+            Some(modifiers) => modifiers
+                .iter()
+                .any(|(source, modifier)| applies(source, modifier)),
+            None => self.with_rule_grant_collection(|engine| {
+                engine
+                    .battlefield_static_modifiers()
+                    .iter()
+                    .any(|(source, modifier)| applies(source, modifier))
+            }),
         }
     }
 

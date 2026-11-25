@@ -62,6 +62,7 @@ fn land_type_modifier(value: &Value) -> bool {
                 | "addAllBasicLandTypes"
                 | "nonbasicLandsBecomeMountains"
                 | "addCardType"
+                | "setCardTypes"
                 | "removeCardTypeWhile"
                 | "addSupertype"
                 | "setName"
@@ -294,7 +295,13 @@ impl GameEngine {
                     // proof; reject before consulting a printed type filter.
                     if matches!(
                         value_kind(modifier),
-                        Some("addCardType" | "removeCardTypeWhile" | "addSupertype" | "setName")
+                        Some(
+                            "addCardType"
+                                | "setCardTypes"
+                                | "removeCardTypeWhile"
+                                | "addSupertype"
+                                | "setName"
+                        )
                     ) {
                         return Err(PresenceQueryError::new(
                             "presence.query.card-type-layer",

@@ -345,10 +345,35 @@ fn recognize_keyword_atom_list_in_context(
     resource_commitment: &mut KeywordResourceCommitment,
     effect_owns_connector: bool,
 ) -> MachineResult<KeywordListNode> {
+    recognize_keyword_atom_list_with_choice(
+        cursor,
+        allow_parameterized,
+        quoted_type_line,
+        resource_commitment,
+        effect_owns_connector,
+        false,
+    )
+}
+
+/// The same list; `allow_choice` admits one `your choice of K, K, or K`
+/// atom (CR 608.2d), which only a resolving grant's parent can lower.
+fn recognize_keyword_atom_list_with_choice(
+    cursor: &mut OracleTokenCursor<'_>,
+    allow_parameterized: bool,
+    quoted_type_line: Option<&str>,
+    resource_commitment: &mut KeywordResourceCommitment,
+    effect_owns_connector: bool,
+    allow_choice: bool,
+) -> MachineResult<KeywordListNode> {
     let mut state = KeywordListState::Item;
     let mut keywords = Vec::new();
     loop {
         state = match state {
+            KeywordListState::Item if allow_choice && keyword_choice_starts(cursor) => {
+                let options = recognize_keyword_choice(cursor)?;
+                keywords.push(KeywordAtomNode::Quoted(keyword_choice_node(&options)));
+                KeywordListState::SeparatorOrComplete
+            }
             KeywordListState::Item => {
                 keywords.extend(recognize_keyword_atoms(
                     cursor,
@@ -469,18 +494,92 @@ pub(in crate::oracle::canonical) fn recognize_standalone_keyword_list(
 /// (CR 113.1). A parameterized keyword carries its whole payload: Ward's
 /// cost, protection's qualities, or a count/template keyword's compiled rules
 /// become complete keyword rules of the granted object.
+///
+/// A resolving grant (`gains KEYWORDS until end of turn`) may also offer one
+/// `your choice of K, K, or K` atom: it is carried as a [`KEYWORD_CHOICE_RULE`]
+/// node that only the resolving keyword-grant lowering accepts; every other
+/// consumer of quoted rules refuses that kind explicitly.
 pub(in crate::oracle::canonical) fn recognize_granted_ability_list(
     cursor: &mut OracleTokenCursor<'_>,
     granted_type_line: &str,
 ) -> MachineResult<GrantedAbilityListNode> {
-    let list = recognize_keyword_atom_list_in_context(
+    let list = recognize_keyword_atom_list_with_choice(
         cursor,
         true,
         Some(granted_type_line),
         &mut KeywordResourceCommitment::None,
         false,
+        true,
     )?;
     split_granted_atoms(cursor, list)
+}
+
+/// The kind of the node a `your choice of` atom is carried as inside a
+/// granted list (CR 608.2d): `{"kind": KEYWORD_CHOICE_RULE, "options": [..]}`.
+/// It is not a rule of the granted object; the resolving lowering turns it
+/// into a `chooseOption` decision and one `grantKeyword` reading it.
+pub(in crate::oracle::canonical) const KEYWORD_CHOICE_RULE: &str = "keywordChoice";
+
+fn keyword_choice_node(options: &[GrantedKeyword]) -> QuotedAbilityNode {
+    QuotedAbilityNode {
+        rule: serde_json::json!({
+            "kind": KEYWORD_CHOICE_RULE,
+            "options": options
+                .iter()
+                .map(|keyword| keyword.canonical_name())
+                .collect::<Vec<_>>(),
+        }),
+    }
+}
+
+fn keyword_choice_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    ["your", "choice", "of"]
+        .iter()
+        .enumerate()
+        .all(|(offset, word)| {
+            cursor
+                .peek_ahead(offset)
+                .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
+        })
+}
+
+/// `your choice of K ("," K)* [","] "or" K` (CR 608.2d): two or more
+/// distinct parameterless keywords, one of which the controller chooses as
+/// the grant resolves. Any other item (`a +1/+1 counter`, `protection from
+/// red`) fails here: the choice is committed once `your choice of` is read.
+fn recognize_keyword_choice(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<Vec<GrantedKeyword>> {
+    cursor.enter("keyword-choice.introducer");
+    cursor.consume_phrase(&["your", "choice", "of"])?;
+    let mut options = Vec::new();
+    loop {
+        cursor.enter("keyword-choice.option");
+        let keyword = recognize_parameterless_keyword(cursor)?;
+        cursor.require(!options.contains(&keyword), "distinct keyword options")?;
+        options.push(keyword);
+        cursor.enter("keyword-choice.separator");
+        let comma = cursor.peek() == Some(",");
+        if comma {
+            cursor.consume(",")?;
+        }
+        if cursor
+            .peek()
+            .is_some_and(|raw| raw.eq_ignore_ascii_case("or"))
+        {
+            cursor.consume("or")?;
+            cursor.enter("keyword-choice.last-option");
+            let keyword = recognize_parameterless_keyword(cursor)?;
+            cursor.require(!options.contains(&keyword), "distinct keyword options")?;
+            options.push(keyword);
+            break;
+        }
+        // `K, K, or K`: a comma continues the list; anything else must be
+        // the `or` before the last option.
+        cursor.require(comma, "`or` before the last keyword option")?;
+    }
+    cursor.enter("keyword-choice.complete");
+    Ok(options)
 }
 
 /// The keyword rule a granted Ward or protection atom adds to the object

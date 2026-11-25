@@ -280,10 +280,27 @@
       "expect": {
         "outcome": "failure",
         "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "ruleAssertions": [
+              {
+                "pointer": "/modifiers/0",
+                "equals": {
+                  "kind": "cantBeSacrificed",
+                  "objects": {
+                    "kind": "self"
+                  }
+                }
+              }
+            ]
+          }
+        ],
         "diagnostics": [
           {
-            "code": "oracle_machine_failure",
-            "state": "static.continuous.predicate"
+            "abilityIndex": 1,
+            "code": "oracle_machine_failure"
           }
         ]
       }

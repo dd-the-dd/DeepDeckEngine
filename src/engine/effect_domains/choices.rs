@@ -102,6 +102,22 @@ fn supports_known_effect(effect: &Value) -> bool {
                 && player_reference_supported(&effect["player"])
                 && color_count_bounds(effect).is_some()
         }
+        // `your choice of A, B, or C` (CR 608.2d): one of two or more named
+        // options, chosen while the effect resolves; consumers read the
+        // decision against their own copy of the same options.
+        Some("chooseOption") => {
+            known_fields(effect, &["kind", "id", "player", "options"])
+                && effect["id"].is_string()
+                && player_reference_supported(&effect["player"])
+                && effect["options"].as_array().is_some_and(|options| {
+                    options.len() >= 2
+                        && options.iter().all(Value::is_string)
+                        && options
+                            .iter()
+                            .enumerate()
+                            .all(|(index, option)| !options[..index].contains(option))
+                })
+        }
         // `the basic land type of your choice` (CR 205.3i, 305.6).
         Some("chooseBasicLandType") => {
             known_fields(effect, &["kind", "id", "player"])
@@ -353,6 +369,37 @@ impl GameEngine {
                     Some(stack_object.card.instance_id.clone()),
                     json!({ "decisionId": decision_id, "colors": decisions.get(decision_id) }),
                 );
+            }
+            Some("chooseOption") => {
+                let Some(decision_id) = effect["id"].as_str() else {
+                    return Ok(());
+                };
+                let Some(player_id) =
+                    self.resolve_player(&effect["player"], stack_object, bindings)
+                else {
+                    return Ok(());
+                };
+                let options = effect["options"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>();
+                let values = options.iter().map(|option| vec![option.clone()]).collect();
+                self.make_resolution_decision(
+                    decision_id,
+                    &player_id,
+                    stack_object,
+                    DecisionChoice::OptionSelection {
+                        decision_id: decision_id.to_string(),
+                        options,
+                        prompt: "Choose one option.".to_string(),
+                    },
+                    values,
+                    decisions,
+                    provider,
+                )?;
             }
             Some("chooseBasicLandType") => {
                 let Some(decision_id) = effect["id"].as_str() else {
