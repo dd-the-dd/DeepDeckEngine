@@ -408,6 +408,66 @@
       }
     },
     {
+      "id": "zombie-cannibal-exact-that-players-graveyard-card-target",
+      "request": {
+        "cardName": "Zombie Cannibal",
+        "typeLine": "Creature — Zombie",
+        "manaCost": "{B}",
+        "oracleText": "Whenever this creature deals combat damage to a player, you may exile target card from that player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "graven-abomination-exact-defending-players-graveyard-card-target",
+      "request": {
+        "cardName": "Graven Abomination",
+        "typeLine": "Artifact Creature — Horror",
+        "manaCost": "{3}",
+        "oracleText": "Whenever this creature attacks, exile target card from defending player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "skullsnatcher-exact-up-to-two-from-that-players-graveyard",
+      "request": {
+        "cardName": "Skullsnatcher",
+        "typeLine": "Creature — Rat Ninja",
+        "manaCost": "{1}{B}",
+        "oracleText": "Ninjutsu {B} ({B}, Return an unblocked attacker you control to hand: Put this card onto the battlefield from your hand tapped and attacking.)\nWhenever this creature deals combat damage to a player, exile up to two target cards from that player's graveyard.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "scion-of-darkness-exact-put-onto-battlefield-from-that-players-graveyard",
+      "request": {
+        "cardName": "Scion of Darkness",
+        "typeLine": "Creature — Avatar",
+        "manaCost": "{5}{B}{B}{B}",
+        "oracleText": "Trample\nWhenever this creature deals combat damage to a player, you may put target creature card from that player's graveyard onto the battlefield under your control.\nCycling {3} ({3}, Discard this card: Draw a card.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "untap-up-to-two-lands-that-arent-forests-sibling",
       "request": {
         "cardName": "Operand Tail Untap Probe",

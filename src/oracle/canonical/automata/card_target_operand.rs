@@ -217,6 +217,18 @@ pub(in crate::oracle::canonical) fn try_recognize_card_target_operand(
                 (CardTargetZoneOwner::AnyPlayer, false)
             }
             Some("graveyards") => (CardTargetZoneOwner::AnyPlayer, true),
+            // `from that player's graveyard`, `from defending player's
+            // graveyard`: the player the binding environment names (the
+            // player the triggering event records), through the shared
+            // bound-possessive reader.
+            Some("that" | "defending") => {
+                let player = try_recognize_bound_possessive_player(&mut trial)?
+                    .ok_or_else(|| trial.fail("a bound possessive zone owner"))?;
+                (
+                    CardTargetZoneOwner::Player(LocalPlayerReference::Bound(player)),
+                    false,
+                )
+            }
             _ => {
                 return Err(
                     trial.fail("an explicit source zone owner, a single zone, or graveyards")
