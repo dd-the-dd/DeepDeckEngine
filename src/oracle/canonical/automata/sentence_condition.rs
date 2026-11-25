@@ -290,6 +290,26 @@ fn impossible_outcome_subject_width(cursor: &OracleTokenCursor<'_>) -> Option<us
     (contraction_is(cursor, width, "can", "t") || word_is(cursor, width, "cannot")).then_some(width)
 }
 
+/// `you do` / `you don't` closing a condition atom (before its comma or a
+/// coordinated atom): whether the outcome is the performed one. Lexical
+/// lookahead only; `you don't control ...` and `you do so` are not outcomes.
+fn optional_outcome_atom(cursor: &OracleTokenCursor<'_>) -> Option<bool> {
+    if !word_is(cursor, 0, "you") {
+        return None;
+    }
+    let performed = if word_is(cursor, 1, "do") {
+        true
+    } else if contraction_is(cursor, 1, "don", "t") {
+        false
+    } else {
+        return None;
+    };
+    cursor
+        .peek_ahead(2)
+        .is_some_and(|raw| matches!(raw, "," | "." | "or" | "and"))
+        .then_some(performed)
+}
+
 /// True at a sentence-initial `if` whose condition this child may read, or
 /// at the head of a die-result row (`1-9 |`, CR 706.3).
 pub(in crate::oracle::canonical) fn sentence_condition_starts(
@@ -353,6 +373,12 @@ pub(in crate::oracle::canonical) fn recognize_sentence_condition_atom(
     cursor: &mut OracleTokenCursor<'_>,
     context: &SentenceConditionContext<'_>,
 ) -> MachineResult<ConditionAtom> {
+    // A coordinated atom may restate the introducer (`If you do or if you
+    // control another Dinosaur`); the first atom's `if` is the parent's.
+    if word_is(cursor, 0, "if") {
+        cursor.enter("condition.sentence.restated-if");
+        cursor.consume("if")?;
+    }
     recognize_condition_atom(
         cursor,
         &ConditionContext::program(ConditionScope::Program, context),
@@ -414,6 +440,21 @@ fn read_condition_atom(
         && word_is(cursor, 2, "control")
     {
         return recognize_controlled_quantity_atom(cursor);
+    }
+    // ActionOutcome of the program's previous optional instruction (`If you
+    // do`, `If you don't`, CR 608.2c) when the parent bound no optional
+    // payment: the program lowering resolves the instruction, and fails
+    // explicitly when the previous instruction is not an optional one.
+    if context.payment.is_none()
+        && context.program.is_some()
+        && let Some(performed) = optional_outcome_atom(cursor)
+    {
+        cursor.enter("condition.action-outcome.optional-instruction");
+        cursor.consume("you")?;
+        consume_current(cursor)?;
+        return Ok(ConditionAtom::ActionOutcome(
+            ActionOutcomeNode::OptionalInstruction { performed },
+        ));
     }
     if word_is(cursor, 0, "you") && contraction_is(cursor, 1, "don", "t") {
         cursor.enter("condition.action-outcome.payment-omitted");

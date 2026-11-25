@@ -96,6 +96,11 @@ fn lower_condition_atom(
                 json!({ "kind": "bindingNotEmpty", "binding": binding }),
             ))
         }
+        // Resolved by the program lowering (`resolve_optional_outcomes`).
+        ConditionAtom::ActionOutcome(ActionOutcomeNode::OptionalInstruction { performed }) => {
+            bindings.ok_or("an effect program whose optional instruction the outcome reads")?;
+            Ok(json!({ "kind": OPTIONAL_OUTCOME_CONDITION, "performed": performed }))
+        }
         ConditionAtom::ActionOutcome(ActionOutcomeNode::CostNotPaid { payment }) => {
             Ok(not(json!({
                 "kind": "costWasPaid",

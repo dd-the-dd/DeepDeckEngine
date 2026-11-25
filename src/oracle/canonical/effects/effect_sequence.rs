@@ -3154,7 +3154,15 @@ fn lower_local_effect_sequence_with_collections(
         &declared_player_targets,
         &mut effects,
     )?;
-    conditional_scopes.wrap(cursor, sequence, &action_starts, &decisions, &mut effects)?;
+    conditional_scopes.wrap(
+        cursor,
+        sequence,
+        &action_starts,
+        &mut decisions,
+        context == EffectSequenceLoweringContext::ValidateXAfterCardComposition,
+        &mut effects,
+    )?;
+    resolve_optional_outcomes(cursor, &mut effects)?;
     apply_where_x_bindings(
         cursor,
         &sequence.where_x,
@@ -3409,7 +3417,8 @@ impl ConditionalScopes {
         cursor: &mut OracleTokenCursor<'_>,
         sequence: &EffectSequenceNode,
         action_starts: &[(usize, usize)],
-        decisions: &[Value],
+        decisions: &mut [Value],
+        spell_declarations: bool,
         effects: &mut Vec<Value>,
     ) -> Result<(), EffectSequenceLoweringFailure> {
         for (index, conditional) in sequence.conditionals.iter().enumerate().rev() {
@@ -3431,19 +3440,18 @@ impl ConditionalScopes {
                 (then, otherwise)
             };
             cursor.enter("lower.sentence-conditional.cast-choice-targets");
-            let governed = decisions.get(decisions_from..decisions_to).unwrap_or(&[]);
-            if sentence_condition_depends_on_cast_choice(&conditional.condition)
-                && !governed.iter().all(|decision| {
-                    decision["id"].as_str().is_some_and(|id| {
-                        mentions_identifier(&then, id) && mentions_identifier(&otherwise, id)
-                    })
-                })
-            {
-                return Err(EffectSequenceLoweringFailure::UnsupportedSupportLimit(
-                    cursor.fail(
-                        "a cast-choice conditional branch without target declarations of its own",
-                    ),
-                ));
+            if sentence_condition_depends_on_cast_choice(&conditional.condition) {
+                let governed = decisions
+                    .get_mut(decisions_from..decisions_to)
+                    .unwrap_or(&mut []);
+                gate_cast_choice_targets(
+                    cursor,
+                    spell_declarations,
+                    &condition,
+                    governed,
+                    &then,
+                    &otherwise,
+                )?;
             }
             effects.insert(
                 start_from,
@@ -3457,6 +3465,71 @@ impl ConditionalScopes {
         }
         Ok(())
     }
+}
+
+/// Whether a lowered condition is decided by the choices made as the spell
+/// was cast (CR 601.2b-f), which the casting declarations already hold when
+/// its targets are chosen (CR 601.2c): kicker, alone or composed.
+fn condition_decided_at_casting(condition: &Value) -> bool {
+    match condition["kind"].as_str() {
+        Some("wasKicked") => condition["spell"]["kind"].as_str() == Some("self"),
+        Some("kickerCostWasPaid") => condition["cost"].is_string(),
+        Some("not") => condition_decided_at_casting(&condition["operand"]),
+        Some("and" | "or") => condition["operands"].as_array().is_some_and(|operands| {
+            !operands.is_empty() && operands.iter().all(condition_decided_at_casting)
+        }),
+        _ => false,
+    }
+}
+
+/// Target declarations governed by a cast-choice conditional (CR 601.2c:
+/// `If this spell was kicked, destroy another target land`). A target both
+/// branches act on is declared whichever branch is taken; a target only one
+/// branch acts on is declared only when the cast choices select that branch,
+/// the declaration's `condition` gating it. Only a spell's own casting
+/// declarations hold the choices; any other declaration, a condition not
+/// decided at casting, or a governed declaration that is not a target
+/// fails explicitly.
+fn gate_cast_choice_targets(
+    cursor: &mut OracleTokenCursor<'_>,
+    spell_declarations: bool,
+    condition: &Value,
+    governed: &mut [Value],
+    then: &[Value],
+    otherwise: &[Value],
+) -> Result<(), EffectSequenceLoweringFailure> {
+    let unsupported = |cursor: &mut OracleTokenCursor<'_>| {
+        EffectSequenceLoweringFailure::UnsupportedSupportLimit(
+            cursor.fail("a cast-choice conditional branch without target declarations of its own"),
+        )
+    };
+    for decision in governed.iter_mut() {
+        let Some(id) = decision["id"].as_str().map(str::to_owned) else {
+            return Err(unsupported(cursor));
+        };
+        let in_then = mentions_identifier(then, &id);
+        let in_otherwise = mentions_identifier(otherwise, &id);
+        if in_then && in_otherwise {
+            continue;
+        }
+        if !(spell_declarations
+            && condition_decided_at_casting(condition)
+            && decision["kind"].as_str() == Some("chooseTargets")
+            && in_then != in_otherwise)
+        {
+            return Err(unsupported(cursor));
+        }
+        let gate = if in_then {
+            condition.clone()
+        } else {
+            negation(condition.clone())
+        };
+        decision["condition"] = match decision.get("condition") {
+            Some(existing) => and(vec![existing.clone(), gate]),
+            None => gate,
+        };
+    }
+    Ok(())
 }
 
 /// Whether a lowered program names the declaration `id` anywhere.
@@ -4055,6 +4128,11 @@ mod delayed_frame_lowering;
 #[path = "effect_alternatives.rs"]
 mod effect_alternatives;
 use delayed_frame_lowering::apply_delayed_frames;
+
+#[path = "optional_outcome.rs"]
+mod optional_outcome;
+pub(in crate::oracle::canonical) use optional_outcome::OPTIONAL_OUTCOME_CONDITION;
+use optional_outcome::resolve_optional_outcomes;
 
 #[cfg(test)]
 #[path = "where_x_tests.rs"]

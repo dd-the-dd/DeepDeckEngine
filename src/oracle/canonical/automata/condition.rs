@@ -692,6 +692,11 @@ pub(in crate::oracle::canonical) enum ActionOutcomeNode {
     PreviousActionImpossible,
     /// `if you don't`: the optional payment the parent bound was not paid.
     CostNotPaid { payment: ChoiceBinding },
+    /// `If you do` / `If you don't` (CR 608.2c) after an optional
+    /// instruction of the program (`you may reveal it`): whether it was
+    /// actually performed. Only the program lowering resolves it; a guard
+    /// that kept the instruction from being offered makes `you do` false.
+    OptionalInstruction { performed: bool },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
