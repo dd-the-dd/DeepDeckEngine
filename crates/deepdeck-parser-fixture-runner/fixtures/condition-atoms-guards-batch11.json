@@ -151,6 +151,36 @@
       }
     },
     {
+      "id": "exact-into-the-flood-maw-gift-instead-target",
+      "request": {
+        "cardName": "Into the Flood Maw",
+        "typeLine": "Instant",
+        "manaCost": "{U}",
+        "oracleText": "Gift a tapped Fish (You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)\nReturn target creature an opponent controls to its owner's hand. If the gift was promised, instead return target nonland permanent an opponent controls to its owner's hand.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-jilt-kicked-another-target",
+      "request": {
+        "cardName": "Jilt",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Kicker {1}{R} (You may pay an additional {1}{R} as you cast this spell.)\nReturn target creature to its owner's hand. If this spell was kicked, it deals 2 damage to another target creature.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
       "id": "unused-combination-kicked-tap-target",
       "request": {
         "cardName": "Probe Shock",

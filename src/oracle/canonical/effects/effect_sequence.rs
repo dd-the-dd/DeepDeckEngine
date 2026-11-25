@@ -3486,6 +3486,15 @@ fn condition_decided_at_casting(condition: &Value) -> bool {
     match condition["kind"].as_str() {
         Some("wasKicked") => condition["spell"]["kind"].as_str() == Some("self"),
         Some("kickerCostWasPaid") => condition["cost"].is_string(),
+        // A promised gift, a paid teamwork or escape cost: each is a
+        // decision of the casting declaration (CR 601.2b-f).
+        Some("castChoiceMade") => {
+            condition["spell"]["kind"].as_str() == Some("self")
+                && matches!(
+                    condition["choice"].as_str(),
+                    Some("gift" | "teamwork" | "escape")
+                )
+        }
         Some("not") => condition_decided_at_casting(&condition["operand"]),
         Some("and" | "or") => condition["operands"].as_array().is_some_and(|operands| {
             !operands.is_empty() && operands.iter().all(condition_decided_at_casting)
