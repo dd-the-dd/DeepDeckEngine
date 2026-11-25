@@ -949,12 +949,12 @@
       }
     },
     {
-      "id": "unused-combination-you-flip-then-draw-if-you-win",
+      "id": "unused-combination-draw-then-you-flip-lose-branch",
       "request": {
         "cardName": "Random Outcome Witness",
         "typeLine": "Sorcery",
         "manaCost": "{0}",
-        "oracleText": "You flip three coins. If you win the flip, draw a card.",
+        "oracleText": "Draw a card, then you flip a coin. If you lose the flip, you lose 2 life.",
         "layout": "normal",
         "faces": []
       },
@@ -968,7 +968,7 @@
             "recognizer": "native",
             "ruleAssertions": [
               {
-                "pointer": "/effects/0",
+                "pointer": "/effects/1",
                 "equals": {
                   "kind": "flipCoins",
                   "player": {
@@ -979,19 +979,19 @@
                   },
                   "count": {
                     "kind": "integer",
-                    "value": 3
+                    "value": 1
                   },
                   "bind": "randomOutcome:coinFlip"
                 }
               },
               {
-                "pointer": "/effects/1/condition",
+                "pointer": "/effects/2/condition",
                 "equals": {
                   "kind": "compare",
                   "operator": ">",
                   "left": {
                     "kind": "randomOutcomeValue",
-                    "binding": "randomOutcome:coinFlip"
+                    "binding": "randomOutcome:coinFlip:lost"
                   },
                   "right": {
                     "kind": "integer",
@@ -1000,6 +1000,56 @@
                 }
               }
             ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exact-reality-shift-performer-manifests",
+      "request": {
+        "cardName": "Reality Shift",
+        "typeLine": "Instant",
+        "manaCost": "{1}{U}",
+        "oracleText": "Exile target creature. Its controller manifests the top card of their library. (That player puts the top card of their library onto the battlefield face down as a 2/2 creature. If it's a creature card, it can be turned face up any time for its mana cost.)",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical",
+            "recognizer": "native",
+            "ruleAssertions": []
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-performer-manifests-your-library",
+      "request": {
+        "cardName": "Random Outcome Witness",
+        "typeLine": "Sorcery",
+        "manaCost": "{0}",
+        "oracleText": "Target opponent manifests the top card of your library.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "unsupported"
+          }
+        ],
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure"
           }
         ]
       }
