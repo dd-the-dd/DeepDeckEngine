@@ -163,6 +163,8 @@ mod entry_observation;
 mod evasion_exception;
 mod event_object;
 mod granted_mana_program;
+mod graveyard_position;
+mod hidden_visibility;
 mod mana_activation_actions;
 mod mana_activation_costs;
 mod mana_activation_execution;
@@ -2950,6 +2952,7 @@ fn object_expression_supported(expression: &Value) -> bool {
         Some("cardsExiledWithSource" | "triggeringCard") => true,
         Some("referencedObject") => referenced_object::referenced_object_supported(expression),
         Some("libraryTopCards") => card_selection::library_top_cards_supported(expression),
+        Some("graveyardEndCards") => graveyard_position::graveyard_end_cards_supported(expression),
         Some("boundObjects") => expression["binding"].is_string(),
         Some("decisionResult") => expression["decisionId"].is_string(),
         Some("setDifference") => {
@@ -32375,6 +32378,9 @@ impl GameEngine {
             Some("libraryTopCards") => {
                 self.library_top_card_ids(expression, stack_object, bindings, decisions)
             }
+            Some("graveyardEndCards") => {
+                self.graveyard_end_card_ids(expression, stack_object, bindings, decisions)
+            }
             Some("attachedObject") if value_kind(&expression["attachment"]) == Some("self") => {
                 stack_object
                     .card
@@ -32730,6 +32736,11 @@ impl GameEngine {
                 player
                     .battlefield
                     .iter()
+                    // CR 708.5: a face-down permanent's front face only for
+                    // its controller or a player who looked at it.
+                    .filter(|card| {
+                        self.face_down_permanent_visible_to(player_id, &card.instance_id)
+                    })
                     .chain(&player.graveyard)
                     .chain(&player.exile)
                     .chain(&player.command_zone)

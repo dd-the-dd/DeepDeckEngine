@@ -35,6 +35,8 @@ fn chosen_zone_cards_start(cursor: &OracleTokenCursor<'_>) -> bool {
         || head.eq_ignore_ascii_case("an")
         || head.parse::<i64>().is_ok()
         || super::super::parse_number_word(head).is_some()
+        // `X cards from their hand` (CR 107.3): the variable count.
+        || head == "X"
         || (head.eq_ignore_ascii_case("up")
             && cursor
                 .peek_ahead(1)

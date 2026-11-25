@@ -101,6 +101,8 @@ fn simple_operand(operand: &CardOperandNode) -> bool {
         CardOperandNode::ZoneCollection(_)
         | CardOperandNode::Targets(_)
         | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::GraveyardPosition(_)
+        | CardOperandNode::PermanentTargets(_)
         | CardOperandNode::CardCopies { .. }
         | CardOperandNode::HiddenChoice(_)
         | CardOperandNode::CommandZone { .. }
@@ -364,6 +366,8 @@ impl CollectionScope {
             CardOperandNode::ZoneCollection(_)
             | CardOperandNode::Targets(_)
             | CardOperandNode::LibraryTop(_)
+            | CardOperandNode::GraveyardPosition(_)
+            | CardOperandNode::PermanentTargets(_)
             | CardOperandNode::CardCopies { .. }
             | CardOperandNode::HiddenChoice(_)
             | CardOperandNode::CommandZone { .. }

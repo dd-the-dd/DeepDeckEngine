@@ -10,6 +10,9 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     ZoneCollection(CardZoneCollectionNode),
     Targets(CardTargetOperandNode),
     LibraryTop(CardLibraryTopNode),
+    /// `the top|bottom [N] [QUERY] card(s) of OWNER graveyard`: positioned
+    /// cards of one ordered graveyard, fixed when the action begins.
+    GraveyardPosition(CardGraveyardPositionNode),
     /// `the copy` / `the copies` / `any number of the copies`: the card
     /// copies the preceding copy action of this program created (CR
     /// 707.12). `plural` admits every copy, each cast or not (CR 707.12a).
@@ -18,6 +21,10 @@ pub(in crate::oracle::canonical) enum CardOperandNode {
     },
     /// A choice among cards of a hidden zone or from outside the game.
     HiddenChoice(HiddenCardChoiceNode),
+    /// `target face-down creature`: declared face-down permanents, whose
+    /// hidden front face only a look reads (CR 708.5). No other verb takes
+    /// a permanent as a card operand.
+    PermanentTargets(TargetListNode),
     /// `your commander from the command zone` (CR 408.1, 903.3): the
     /// controller's cards in their own command zone matching the predicate.
     /// The command zone holds only the cards its holder owns there, so the
@@ -157,6 +164,17 @@ pub(in crate::oracle::canonical) struct CastGraveyardExileNode {
     pub graveyard: CastGraveyardOwnerNode,
 }
 
+/// The player a permission is granted to (CR 608.2c): the controller of
+/// the ability (`you may play it`) or the owner of the permitted card, a
+/// player derived from the card itself (`its owner may play it`, CR 108.3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::oracle::canonical) enum CardPermissionGranteeNode {
+    Controller,
+    /// `its owner`: the owner of the one permitted card, read when the
+    /// permission is granted (the card is in exile, so its owner is fixed).
+    CardOwner,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) enum CardPermissionVerb {
     Play,
@@ -195,7 +213,14 @@ pub(in crate::oracle::canonical) enum CardPermissionWindowNode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::oracle::canonical) struct CardPermissionNode {
     pub verb: CardPermissionVerb,
+    /// Who may play or cast the cards; only a later permission (a window)
+    /// is granted to a player other than the controller.
+    pub grantee: CardPermissionGranteeNode,
     pub cards: CardOperandNode,
+    /// `cast it from your graveyard`: the zone the text names for bound
+    /// cards (CR 601.2a: a card is cast from the zone it is in). The cast
+    /// reads only that zone; a bound card elsewhere is not cast.
+    pub origin: Option<CardZoneName>,
     pub duration: Option<EffectDurationNode>,
     /// A window the shared duration does not name, trailing or preposed.
     /// Never present together with `duration`.
@@ -292,6 +317,13 @@ fn operand(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardOperandNode>
     match try_recognize_card_target_operand(cursor) {
         CollectionOperandAttempt::Recognized(fragment) => {
             return Ok(CardOperandNode::Targets(fragment.node));
+        }
+        CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
+        CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
+    }
+    match try_recognize_card_graveyard_position(cursor) {
+        CollectionOperandAttempt::Recognized(fragment) => {
+            return Ok(CardOperandNode::GraveyardPosition(fragment.node));
         }
         CollectionOperandAttempt::FailedCommitted(failure) => return Err(failure),
         CollectionOperandAttempt::NotClaimed | CollectionOperandAttempt::RejectedCandidate(_) => {}
@@ -848,6 +880,25 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
             _ => CardActionNode::LookAt(CardOperandNode::LibraryTop(top)),
         });
     }
+    // `look at target face-down creature` (CR 708.5): a declared face-down
+    // permanent the controller looks at. A possessive target head (`target
+    // player's hand`) stays with the zone reader below.
+    if peek_word(cursor, 0, "target") && !starts_possessive_target_player(cursor) {
+        cursor.enter("card-action.look.permanent-target");
+        let targets = recognize_target_list(cursor)?;
+        cursor.enter("card-action.look.permanent-target.face-down");
+        cursor.require(
+            !targets.slots.is_empty()
+                && targets
+                    .slots
+                    .iter()
+                    .all(|slot| selector_requires_face_down(&slot.selector)),
+            "a face-down permanent to look at (a face-up permanent hides nothing, CR 708.5)",
+        )?;
+        return Ok(CardActionNode::LookAt(CardOperandNode::PermanentTargets(
+            targets,
+        )));
+    }
     cursor.enter("card-action.look.zone");
     if let Some(player) = try_recognize_bound_possessive_player(cursor)? {
         // `look at that player's|defending player's hand`: the whole hand of
@@ -889,6 +940,30 @@ fn recognize_look(cursor: &mut OracleTokenCursor<'_>) -> MachineResult<CardActio
     )))
 }
 
+/// Whether every permanent a target selector admits is face down: the
+/// face-down status (CR 708.2) is a conjunct of each branch.
+fn selector_requires_face_down(selector: &TargetSelector) -> bool {
+    fn requires(predicate: &ObjectPredicate) -> bool {
+        match predicate {
+            ObjectPredicate::Designation(PermanentDesignation::FaceDown) => true,
+            ObjectPredicate::Intersection(operands) => operands.iter().any(requires),
+            ObjectPredicate::Union(operands) => {
+                !operands.is_empty() && operands.iter().all(requires)
+            }
+            _ => false,
+        }
+    }
+    match selector {
+        TargetSelector::Object(predicate) | TargetSelector::ControlledObject { predicate, .. } => {
+            requires(predicate)
+        }
+        TargetSelector::Union(branches) => {
+            !branches.is_empty() && branches.iter().all(selector_requires_face_down)
+        }
+        TargetSelector::Any | TargetSelector::Player(_) | TargetSelector::StackItem(_) => false,
+    }
+}
+
 /// `that player's` / `defending player's`: the shared bound-player
 /// resolver reads the possessive as its player head over a view of the same
 /// tokens whose possessive role word is the plain noun (equal length,
@@ -899,6 +974,36 @@ pub(in crate::oracle::canonical) fn try_recognize_bound_possessive_player(
     let possessive = cursor.peek_ahead(1).is_some_and(|raw| {
         raw.eq_ignore_ascii_case("player's") || raw.eq_ignore_ascii_case("player\u{2019}s")
     });
+    // `its controller's|owner's` (CR 108.3, 109.4): the player related to
+    // the object the binding environment names, read by the same resolver
+    // over a view whose possessive relation word is the plain noun.
+    let relation = peek_word(cursor, 0, "its")
+        .then(|| cursor.peek_ahead(1))
+        .flatten()
+        .map(|raw| raw.replace('\u{2019}', "'").to_ascii_lowercase())
+        .and_then(|raw| match raw.as_str() {
+            "controller's" => Some("controller"),
+            "owner's" => Some("owner"),
+            _ => None,
+        });
+    if let Some(relation) = relation {
+        let environment = cursor
+            .binding_environment()
+            .cloned()
+            .ok_or_else(|| cursor.fail("a binding environment naming the possessive object"))?;
+        let start = cursor.position();
+        let mut view = cursor.token_slice(0, usize::MAX).to_vec();
+        view[start + 1].raw = relation.to_string();
+        let mut trial = cursor.with_tokens(&view);
+        let player = recognize_bound_player_reference(&mut trial, &environment)?;
+        cursor.require(
+            trial.position() == start + 2
+                && matches!(player, BoundPlayerReference::ObjectRelation { .. }),
+            "`its controller's` or `its owner's` naming one bound object's player",
+        )?;
+        cursor.advance_to(start + 2)?;
+        return Ok(Some(player));
+    }
     if !(possessive && (peek_word(cursor, 0, "that") || peek_word(cursor, 0, "defending"))) {
         return Ok(None);
     }
@@ -1198,7 +1303,17 @@ fn try_preposed_permission_window<'a>(
         return None;
     };
     trial.consume(",").ok()?;
-    permission_head_starts(&trial).then_some((trial, window))
+    (permission_head_starts(&trial) || owner_permission_head_starts(&trial))
+        .then_some((trial, window))
+}
+
+/// `its owner may play|cast`: a permission granted to the owner of the
+/// permitted card. Pure lookahead.
+fn owner_permission_head_starts(cursor: &OracleTokenCursor<'_>) -> bool {
+    peek_word(cursor, 0, "its")
+        && peek_word(cursor, 1, "owner")
+        && peek_word(cursor, 2, "may")
+        && (peek_word(cursor, 3, "play") || peek_word(cursor, 3, "cast"))
 }
 
 /// `for as long as it|they|that card|those cards|the exiled card(s)
@@ -2061,20 +2176,22 @@ fn recognize_reveal_until(
     cursor.consume_phrase(&["cards", "from", "the", "top", "of", "your", "library"])?;
     cursor.enter("card-action.reveal-until.condition");
     cursor.consume("until")?;
-    // The acting player restated: `you`, or `they` after a player
-    // performer's person shift.
-    if cursor
+    // The acting player restated (`until you reveal a land card`, or `they`
+    // after a player performer's person shift), or the passive stop
+    // condition with the same count and query (`until four land cards are
+    // revealed`, `until a creature card is revealed`): one stop condition
+    // on the cards the action itself reveals or exiles (CR 701.20a).
+    let active = cursor
         .peek()
-        .is_some_and(|raw| raw.eq_ignore_ascii_case("they"))
-    {
-        cursor.consume("they")?;
-    } else {
-        cursor.consume("you")?;
+        .is_some_and(|raw| raw.eq_ignore_ascii_case("they") || raw.eq_ignore_ascii_case("you"));
+    if active {
+        let actor = cursor.peek().unwrap_or("you").to_ascii_lowercase();
+        cursor.consume(&actor)?;
+        cursor.consume(match verb {
+            CardCollectionVerb::Revealed => "reveal",
+            CardCollectionVerb::Exiled => "exile",
+        })?;
     }
-    cursor.consume(match verb {
-        CardCollectionVerb::Revealed => "reveal",
-        CardCollectionVerb::Exiled => "exile",
-    })?;
     cursor.enter("card-action.reveal-until.quantity");
     // One object noun phrase: its count and card query; this parent
     // type-checks a chosen exact count of unscoped cards.
@@ -2082,6 +2199,23 @@ fn recognize_reveal_until(
         cursor,
         ObjectNounPhraseExpectation::in_domains(&[ObjectKind::Card]),
     )?;
+    if !active {
+        // `is|are revealed`: the participle of the action's own verb, the
+        // auxiliary agreeing with the stated count.
+        cursor.enter("card-action.reveal-until.passive");
+        let singular = matches!(
+            &phrase.determiner,
+            Some(ObjectDeterminer::Chosen {
+                quantity: ChosenObjectQuantity::Exactly(count),
+                ..
+            }) if *count == NumericExpression::from(1)
+        );
+        cursor.consume(if singular { "is" } else { "are" })?;
+        cursor.consume(match verb {
+            CardCollectionVerb::Revealed => "revealed",
+            CardCollectionVerb::Exiled => "exiled",
+        })?;
+    }
     let quantity = match phrase.determiner {
         Some(ObjectDeterminer::Chosen {
             quantity: ChosenObjectQuantity::Exactly(quantity),
@@ -2382,8 +2516,20 @@ fn recognize_card_permission_frame(
 ) -> MachineResult<CardPermissionNode> {
     let supplied_duration = frame.preposed_duration;
     cursor.enter("card-action.permit.head");
-    let optional = peek_word(cursor, 0, "you");
-    if optional {
+    // `its owner may`: only after a preposed window, whose subject the
+    // permitted card restates (`For as long as that card remains exiled,
+    // its owner may play it`).
+    let grantee = if preposed_window.is_some() && owner_permission_head_starts(cursor) {
+        cursor.enter("card-action.permit.grantee.owner");
+        cursor.consume_phrase(&["its", "owner"])?;
+        CardPermissionGranteeNode::CardOwner
+    } else {
+        CardPermissionGranteeNode::Controller
+    };
+    let optional = grantee == CardPermissionGranteeNode::CardOwner || peek_word(cursor, 0, "you");
+    if grantee == CardPermissionGranteeNode::CardOwner {
+        cursor.consume("may")?;
+    } else if optional {
         cursor.consume_phrase(&["you", "may"])?;
     }
     let verb = if optional
@@ -2412,6 +2558,36 @@ fn recognize_card_permission_frame(
             *committed |= permission_tail_starts(cursor);
             cards
         }
+    };
+    // `cast it from your graveyard`: the bound card's zone, restated by the
+    // shared permitted-origin reader; only the controller's own zone of one
+    // kind restates where a bound card is.
+    let origin = if peek_word(cursor, 0, "from")
+        && matches!(
+            cards,
+            CardOperandNode::Reference(CardCollectionReferenceNode::Selected)
+                | CardOperandNode::ObjectAntecedent {
+                    reference: CardCollectionReferenceNode::Selected,
+                    ..
+                }
+        ) {
+        cursor.enter("card-action.permit.cards.origin");
+        cursor.consume("from")?;
+        *committed = true;
+        match recognize_permitted_card_origin(cursor)? {
+            PermittedCardOrigin::Zone {
+                zone,
+                owner: CardZoneOwnerNode::Player(LocalPlayerReference::Controller),
+                additional,
+            } if additional.is_empty() => Some(zone),
+            _ => {
+                return Err(
+                    cursor.fail("`from your hand|graveyard` restating where the bound card is")
+                );
+            }
+        }
+    } else {
+        None
     };
     cursor.enter("card-action.permit.object");
     cursor.require(
@@ -2467,9 +2643,26 @@ fn recognize_card_permission_frame(
     } else {
         None
     };
+    if grantee == CardPermissionGranteeNode::CardOwner {
+        // `its owner` and the permitted `it|that card` name one card.
+        cursor.enter("card-action.permit.grantee.card");
+        cursor.require(
+            matches!(
+                &cards,
+                CardOperandNode::Reference(CardCollectionReferenceNode::Selected)
+                    | CardOperandNode::ObjectAntecedent {
+                        reference: CardCollectionReferenceNode::Selected,
+                        ..
+                    }
+            ),
+            "`it` or `that card`, the one card whose owner the permission names",
+        )?;
+    }
     Ok(CardPermissionNode {
         verb,
+        grantee,
         cards,
+        origin,
         duration,
         window,
         optional,
@@ -2557,10 +2750,14 @@ pub(in crate::oracle::canonical) fn recognize_optional_sequence(
 /// program read that collection (CR 608.2c).
 pub(in crate::oracle::canonical) fn effects_observe_cards(effects: &[LocalEffectNode]) -> bool {
     effects.iter().any(|effect| match effect {
+        // A look at a face-down permanent observes no card (CR 708.5).
+        LocalEffectNode::CardAction(CardActionNode::LookAt(CardOperandNode::PermanentTargets(
+            _,
+        ))) => false,
+        LocalEffectNode::CardAction(CardActionNode::LookAt(_)) => true,
         LocalEffectNode::CardAction(action) => matches!(
             action,
             CardActionNode::Look { .. }
-                | CardActionNode::LookAt(_)
                 | CardActionNode::Reveal(_)
                 | CardActionNode::RevealUntil { .. }
                 | CardActionNode::ChooseFromZone(_)
@@ -2603,6 +2800,8 @@ fn operand_reads_observed_cards(operand: &CardOperandNode) -> bool {
         | CardOperandNode::ZoneCollection(_)
         | CardOperandNode::Targets(_)
         | CardOperandNode::LibraryTop(_)
+        | CardOperandNode::GraveyardPosition(_)
+        | CardOperandNode::PermanentTargets(_)
         | CardOperandNode::CardCopies { .. }
         | CardOperandNode::HiddenChoice(_)
         | CardOperandNode::CommandZone { .. } => false,
