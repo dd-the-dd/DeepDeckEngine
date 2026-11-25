@@ -361,6 +361,13 @@ fn recognize_primary(
         {
             return super::recognize_greatest_property_among(cursor);
         }
+        // `the difference`: the amount by which the preceding condition's
+        // comparison holds (`comparison_difference.rs`).
+        if query_context.kind == NumericReadKind::Definition
+            && super::comparison_difference_starts(cursor)
+        {
+            return super::recognize_comparison_difference(cursor);
+        }
         // `the number of times this ability has resolved this turn`: the
         // resolving ability's own record, before the collection count.
         if query_context.kind == NumericReadKind::Definition

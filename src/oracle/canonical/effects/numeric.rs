@@ -796,6 +796,10 @@ fn lower_numeric_quantity(quantity: &NumericQuantity) -> Option<Value> {
             "operator": operator.ir_operator(),
             "value": lower_player_measure(measure, json!({ "kind": "quantifiedPlayer" })),
         })),
+        // One measure of the ability's controller.
+        NumericQuantity::ControllerMeasure(measure) => {
+            Some(lower_player_measure(measure, controller()))
+        }
         // The players whose measure is the extremum of every player's.
         NumericQuantity::PlayersAtExtremum { measure, extremum } => Some(json!({
             "kind": "countPlayersAtExtremum",

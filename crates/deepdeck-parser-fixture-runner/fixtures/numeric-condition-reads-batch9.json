@@ -786,6 +786,93 @@
           }
         ]
       }
+    },
+    {
+      "id": "exact-damia-draw-the-difference",
+      "request": {
+        "cardName": "Damia, Sage of Stone",
+        "typeLine": "Legendary Creature — Gorgon Wizard",
+        "manaCost": "{4}{B}{G}{U}",
+        "oracleText": "Deathtouch\nSkip your draw step.\nAt the beginning of your upkeep, if you have fewer than seven cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-krang-draw-the-difference",
+      "request": {
+        "cardName": "Krang, Master Mind",
+        "typeLine": "Legendary Artifact Creature — Utrom Warrior",
+        "manaCost": "{6}{U}{U}",
+        "oracleText": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nWhen Krang enters, if you have fewer than four cards in hand, draw cards equal to the difference.\nKrang gets +1/+0 for each other artifact you control.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "exact-doctor-octopus-draw-the-difference",
+      "request": {
+        "cardName": "Doctor Octopus, Master Planner",
+        "typeLine": "Legendary Creature — Human Scientist Villain",
+        "manaCost": "{5}{U}{B}",
+        "oracleText": "Other Villains you control get +2/+2.\nYour maximum hand size is eight.\nAt the beginning of your end step, if you have fewer than eight cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical"
+      }
+    },
+    {
+      "id": "sibling-difference-of-more-than-n-life",
+      "request": {
+        "cardName": "Life Difference Probe",
+        "typeLine": "Creature — Cleric",
+        "manaCost": "{2}{W}",
+        "oracleText": "At the beginning of your upkeep, if you have more than twenty life, you gain life equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "success",
+        "cardStatus": "canonical",
+        "abilities": [
+          {
+            "index": 0,
+            "status": "canonical"
+          }
+        ]
+      }
+    },
+    {
+      "id": "near-miss-difference-of-an-n-or-fewer-threshold",
+      "request": {
+        "cardName": "Threshold Difference Probe",
+        "typeLine": "Creature — Sphinx",
+        "manaCost": "{3}{U}",
+        "oracleText": "At the beginning of your upkeep, if you have six or fewer cards in hand, draw cards equal to the difference.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "code": "oracle_machine_failure",
+            "state": "numeric.difference.antecedent"
+          }
+        ]
+      }
     }
   ]
 }

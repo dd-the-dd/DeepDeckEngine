@@ -460,6 +460,9 @@ pub(in crate::oracle::canonical) enum NumericQuantity {
         measure: super::PlayerStateMeasure,
         extremum: super::PlayerExtremum,
     },
+    /// One measure of the ability's controller (`the difference` reads the
+    /// cards in your hand of the comparison it restates).
+    ControllerMeasure(super::PlayerStateMeasure),
 }
 
 /// The per-turn record of the resolving ability itself (CR 113.3, 602.1,
@@ -560,6 +563,7 @@ impl NumericQuantity {
             | Self::PropertyTotal(_)
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_)
             | Self::Counters {
                 holder: CounterHolder::Source,
                 ..
@@ -584,6 +588,7 @@ impl NumericQuantity {
             | Self::PropertyTotal(_)
             | Self::PlayersComparedWithController { .. }
             | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_)
             | Self::Counters { .. } => false,
         }
     }
@@ -609,7 +614,8 @@ impl NumericQuantity {
             | Self::AbilityHistory(_)
             | Self::PropertyTotal(_)
             | Self::PlayersComparedWithController { .. }
-            | Self::PlayersAtExtremum { .. } => false,
+            | Self::PlayersAtExtremum { .. }
+            | Self::ControllerMeasure(_) => false,
         }
     }
 }
