@@ -57,6 +57,48 @@ pub(in crate::oracle::canonical) fn bound_permanent_reference_value(
     }
 }
 
+/// A lowered object reference that names exactly one object, in the form an
+/// object consumer (a damage source, an attachment or its recipient, a card
+/// action's operand) reads: the source, a declared singular target, the
+/// permanent the source is attached to, the event's object, the combat
+/// counterpart, or one object an earlier action bound. The created tokens
+/// of one creation are read as that one object; a plural declaration or any
+/// player reference is not one object and yields `None`.
+pub(super) fn single_object_reference(value: Value) -> Option<Value> {
+    match value["kind"].as_str()? {
+        "boundObjects" => Some(json!({
+            "kind": "singleBoundObject",
+            "binding": value["binding"].clone(),
+        })),
+        "self"
+        | "chosenTarget"
+        | "attachedPermanent"
+        | "triggeringPermanent"
+        | "observedEventObject"
+        | "singleBoundObject"
+        | "boundObject"
+        | "combatCounterpart" => Some(value),
+        _ => None,
+    }
+}
+
+/// The one-object collection a collection consumer reads for a single
+/// object reference (`referencedObject`): empty once the reference names
+/// nothing, such as an object that became a new object (CR 400.7).
+pub(super) fn referenced_object_collection(object: Value) -> Value {
+    json!({"kind": "referencedObject", "object": object})
+}
+
+/// The exclusion of one object from a collection (`each other creature`
+/// relative to the object dealing the damage): a declared target by its
+/// declaration, any other single object as a one-object collection.
+pub(super) fn exclusion_of_single_object(object: &Value) -> Value {
+    match object["kind"].as_str() {
+        Some("chosenTarget") => json!({"kind": "chosenTargets", "id": object["id"]}),
+        _ => referenced_object_collection(object.clone()),
+    }
+}
+
 /// The key a plural slot's binding is recorded under. Plural slots live in a
 /// key space disjoint from singular slot keys, so a singular reference
 /// (`it`, `its power`) never resolves to a set of targets.

@@ -188,6 +188,18 @@ impl GameEngine {
             .cloned()
     }
 
+    /// The departure capture of one battlefield incarnation, found by its
+    /// object id and incarnation (CR 400.7, 608.2h). Read-only.
+    pub(super) fn departed_incarnation(
+        &self,
+        instance_id: &str,
+        identity: &str,
+    ) -> Option<&StackObject> {
+        self.source_lki_contexts
+            .departed
+            .get(&format!("{instance_id}@{identity}"))
+    }
+
     /// CR 602.2a/602.2h: an activated ability exists before its costs are
     /// paid. While its costs are committed, the pending ability subscribes to
     /// the same actual-departure capture as stack abilities, so a source
