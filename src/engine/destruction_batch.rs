@@ -62,6 +62,7 @@ impl GameEngine {
         &self,
         instance_ids: Vec<String>,
         cannot_regenerate: bool,
+        mut provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<Vec<PlannedDestruction>, EngineError> {
         let mut seen_instance_ids = BTreeSet::new();
         let instance_ids = instance_ids
@@ -146,10 +147,13 @@ impl GameEngine {
                 continue;
             }
 
-            let zone_change = self.plan_graveyard_departure(
+            let zone_change = self.plan_graveyard_departure_with(
                 &permanent,
                 &static_modifiers,
                 GraveyardMoveCause::Destruction,
+                provider
+                    .as_mut()
+                    .map(|provider| &mut **provider as &mut dyn DecisionProvider),
             )?;
             planned.push(PlannedDestruction {
                 permanent,
@@ -161,16 +165,36 @@ impl GameEngine {
         Ok(planned)
     }
 
+    /// Without a chooser: a CR 616.1 replacement order is refused.
+    #[cfg(test)]
     pub(super) fn destroy_permanent_collection_from_stack(
         &mut self,
         instance_ids: Vec<String>,
         cannot_regenerate: bool,
         stack_object: &StackObject,
     ) -> Result<Vec<String>, EngineError> {
+        self.destroy_permanent_collection_from_stack_with(
+            instance_ids,
+            cannot_regenerate,
+            stack_object,
+            None,
+        )
+    }
+
+    /// `destroy_permanent_collection_from_stack` with the chooser of each
+    /// destroyed permanent's CR 616.1 replacement order.
+    pub(super) fn destroy_permanent_collection_from_stack_with(
+        &mut self,
+        instance_ids: Vec<String>,
+        cannot_regenerate: bool,
+        stack_object: &StackObject,
+        provider: Option<&mut dyn DecisionProvider>,
+    ) -> Result<Vec<String>, EngineError> {
         if instance_ids.is_empty() {
             return Ok(Vec::new());
         }
-        let planned = self.plan_collection_destruction(instance_ids, cannot_regenerate)?;
+        let planned =
+            self.plan_collection_destruction(instance_ids, cannot_regenerate, provider)?;
         if planned.is_empty() {
             return Ok(Vec::new());
         }

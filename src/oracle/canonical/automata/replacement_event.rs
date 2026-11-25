@@ -240,15 +240,7 @@ fn quantity_replacement_sentence_starts(cursor: &OracleTokenCursor<'_>) -> bool 
 }
 
 fn preposed_end_of_turn_width(cursor: &OracleTokenCursor<'_>) -> usize {
-    if ["until", "end", "of", "turn", ","]
-        .iter()
-        .enumerate()
-        .all(|(offset, word)| word_at(cursor, offset, word))
-    {
-        5
-    } else {
-        0
-    }
+    super::embedded_delayed_trigger::preposed_lifetime_width(cursor).unwrap_or(0)
 }
 
 /// End (exclusive, absolute) of the sentence starting at the cursor.
@@ -293,11 +285,15 @@ pub(in crate::oracle::canonical) fn try_recognize_created_replacement_sentence(
     let checkpoint = cursor.checkpoint();
     cursor.enter("replacement.created-quantity.lifetime");
     let lifetime = if preposed_end_of_turn_width(cursor) > 0 {
-        if let Err(failure) = cursor.consume_phrase(&["until", "end", "of", "turn", ","]) {
-            cursor.rollback(checkpoint);
-            return ChildOutcome::NoMatch(failure);
+        let lifetime = super::embedded_delayed_trigger::recognize_created_rule_lifetime(cursor)
+            .and_then(|lifetime| cursor.consume(",").map(|_| lifetime));
+        match lifetime {
+            Ok(lifetime) => Some(lifetime),
+            Err(failure) => {
+                cursor.rollback(checkpoint);
+                return ChildOutcome::NoMatch(failure);
+            }
         }
-        Some(CreatedRuleLifetime::ThisTurn)
     } else {
         None
     };

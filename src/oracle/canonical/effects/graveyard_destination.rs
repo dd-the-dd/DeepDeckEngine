@@ -341,8 +341,12 @@ fn lower_departure_objects(
         objects.domain == domain,
         "an object noun of the departure's zone domain",
     )?;
-    // The bare domain noun (`a permanent`, `a card`) filters nothing.
-    if predicate != ObjectPredicate::ObjectKind(domain) {
+    // The bare permanent noun filters nothing. A `card` departing from any
+    // zone (the battlefield included) excludes tokens: tokens are not cards
+    // (CR 108.2), so a dying token keeps its graveyard destination.
+    let filter = if predicate == ObjectPredicate::ObjectKind(domain) {
+        Value::Null
+    } else {
         let filter = if from_battlefield {
             lower_permanent_object_predicate(&predicate)
         } else {
@@ -352,11 +356,19 @@ fn lower_departure_objects(
             !filter.is_null(),
             "a predicate the shared object filter lowers",
         )?;
-        modifier[if from_battlefield {
-            "permanentWhere"
+        filter
+    };
+    if from_battlefield {
+        if !filter.is_null() {
+            modifier["permanentWhere"] = filter;
+        }
+    } else {
+        let not_token = not(json!({ "kind": "isToken" }));
+        modifier["where"] = if filter.is_null() {
+            not_token
         } else {
-            "where"
-        }] = filter;
+            json!({ "kind": "and", "operands": [not_token, filter] })
+        };
     }
     cursor.enter("lower.departure-replacement.controller");
     if let Some(scope) = objects.controller {

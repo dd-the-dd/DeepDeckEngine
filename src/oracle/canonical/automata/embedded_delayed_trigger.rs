@@ -208,19 +208,37 @@ fn word_at(cursor: &OracleTokenCursor<'_>, offset: usize, word: &str) -> bool {
         .is_some_and(|raw| raw.eq_ignore_ascii_case(word))
 }
 
-/// The token width of a preposed created-trigger lifetime with its comma
-/// (`Until end of turn,` / `Until your next turn,`), without consuming.
-fn preposed_lifetime_width(cursor: &OracleTokenCursor<'_>) -> Option<usize> {
+/// The token width of a preposed created-rule lifetime with its comma
+/// (`Until end of turn,` / `Until your next turn,`), without consuming. The
+/// duration is read by the shared effect-duration reader.
+pub(in crate::oracle::canonical) fn preposed_lifetime_width(
+    cursor: &OracleTokenCursor<'_>,
+) -> Option<usize> {
     if !word_at(cursor, 0, "until") {
         return None;
     }
-    let phrase = |words: &[&str]| {
-        words
-            .iter()
-            .enumerate()
-            .all(|(offset, word)| word_at(cursor, offset + 1, word))
-    };
-    (phrase(&["end", "of", "turn", ","]) || phrase(&["your", "next", "turn", ","])).then_some(5)
+    let mut probe = cursor.clone();
+    recognize_created_rule_lifetime(&mut probe).ok()?;
+    word_at(&probe, 0, ",").then(|| probe.position() + 1 - cursor.position())
+}
+
+/// A created rule's lifetime (CR 611.2a), read by the shared effect-duration
+/// reader (`this turn`, `until end of turn`, `until your next turn`) and
+/// mapped to one lifetime. Any other duration is refused explicitly.
+pub(in crate::oracle::canonical) fn recognize_created_rule_lifetime(
+    cursor: &mut OracleTokenCursor<'_>,
+) -> MachineResult<CreatedRuleLifetime> {
+    let duration = super::duration::recognize_effect_duration(cursor)?;
+    cursor.enter("created-rule.lifetime");
+    match duration {
+        super::EffectDurationNode::UntilEndOfCurrentTurn => Ok(CreatedRuleLifetime::ThisTurn),
+        super::EffectDurationNode::UntilNextTurn {
+            player: super::LocalPlayerReference::Controller,
+        } => Ok(CreatedRuleLifetime::UntilYourNextTurn),
+        _ => Err(cursor.fail(
+            "a created-rule lifetime: `this turn`, `until end of turn` or `until your next turn`",
+        )),
+    }
 }
 
 /// The offset of an inline `this turn` that closes a created trigger's
@@ -371,13 +389,7 @@ fn recognize_preposed_lifetime(
         return Ok(None);
     }
     cursor.enter("created-rule.preposed-lifetime");
-    let lifetime = if word_at(cursor, 1, "end") {
-        cursor.consume_phrase(&["until", "end", "of", "turn"])?;
-        CreatedRuleLifetime::ThisTurn
-    } else {
-        cursor.consume_phrase(&["until", "your", "next", "turn"])?;
-        CreatedRuleLifetime::UntilYourNextTurn
-    };
+    let lifetime = recognize_created_rule_lifetime(cursor)?;
     cursor.consume(",")?;
     Ok(Some(lifetime))
 }
@@ -608,8 +620,8 @@ fn recognize_lifetime(
     state: &'static str,
 ) -> MachineResult<CreatedRuleLifetime> {
     cursor.enter(state);
-    cursor.consume_phrase(&["this", "turn"])?;
-    Ok(CreatedRuleLifetime::ThisTurn)
+    cursor.require(word_at(cursor, 0, "this"), "a closing `this turn`")?;
+    recognize_created_rule_lifetime(cursor)
 }
 
 /// Installs the delayed trigger's own event frame for its governed actions

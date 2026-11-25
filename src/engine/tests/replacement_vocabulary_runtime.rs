@@ -461,3 +461,202 @@ fn a_created_damage_doubler_applies_to_its_controllers_sources_this_turn() {
         "the created replacement lasted this turn only"
     );
 }
+
+/// Chooses the replacement of `preferred` and records who was asked.
+struct ChooseSource {
+    preferred: String,
+    asked: Vec<String>,
+}
+impl DecisionProvider for ChooseSource {
+    fn choose(
+        &mut self,
+        _: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        assert_eq!(request.kind, DecisionKind::ReplacementChoice);
+        self.asked.push(request.player_id.clone());
+        request
+            .options
+            .iter()
+            .position(|option| option.card_instance_id.as_deref() == Some(&self.preferred))
+            .ok_or_else(|| EngineError::new("preferred replacement is not offered"))
+    }
+}
+
+/// `If THIS would be put into a graveyard from anywhere, reveal THIS and
+/// shuffle it into its owner's library instead.`
+fn shuffles_itself_from_anywhere() -> Value {
+    battlefield_static(json!({
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": { "kind": "eachPlayer" },
+        "object": { "kind": "self" },
+        "from": { "kind": "anyZone" },
+        "to": { "kind": "ownerLibrary", "position": "shuffle", "revealed": true },
+    }))
+}
+
+/// `If a card or token would be put into a graveyard from anywhere, exile
+/// it instead.`
+fn every_graveyard_exiled() -> Value {
+    json!({
+        "kind": "replaceGraveyardDestination",
+        "graveyardOwners": { "kind": "eachPlayer" },
+        "to": { "kind": "exile" },
+        "from": { "kind": "anyZone" },
+    })
+}
+
+fn colossus(owner: &str) -> CardInstance {
+    let mut definition = test_definition("colossus", "Artifact Creature");
+    definition.rules = vec![shuffles_itself_from_anywhere()];
+    assert!(rule_is_executable(&definition.rules[0]));
+    test_instance("colossus", definition, owner)
+}
+
+/// A dying permanent under two replacements with different outcomes (exile
+/// and a shuffle into its owner's library): its controller chooses which
+/// applies (CR 616.1), and without a chooser the engine refuses instead of
+/// picking one.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn the_controller_of_a_dying_permanent_orders_different_graveyard_replacements() {
+    for preferred in ["colossus", "peace"] {
+        let mut engine = test_engine(2);
+        install_source(&mut engine, "peace", every_graveyard_exiled());
+        engine.state.players[1]
+            .battlefield
+            .push(colossus("player-1"));
+        admit(&mut engine);
+        let stack = spell_stack(json!([]));
+        let refused = engine
+            .destroy_permanent_collection_from_stack(vec!["colossus".to_string()], false, &stack)
+            .expect_err("no chooser: an explicit refusal, not an arbitrary order");
+        assert!(
+            refused
+                .to_string()
+                .contains("requires an explicit decision provider"),
+            "{refused:?}"
+        );
+        assert!(in_zone(&engine, 1, "battlefield", "colossus"));
+        let mut chooser = ChooseSource {
+            preferred: preferred.to_string(),
+            asked: Vec::new(),
+        };
+        engine
+            .destroy_permanent_collection_from_stack_with(
+                vec!["colossus".to_string()],
+                false,
+                &stack,
+                Some(&mut chooser),
+            )
+            .expect("the controller orders the replacements");
+        assert_eq!(chooser.asked, vec!["player-1".to_string()]);
+        assert_eq!(
+            in_zone(&engine, 1, "library", "colossus"),
+            preferred == "colossus"
+        );
+        assert_eq!(
+            in_zone(&engine, 1, "exile", "colossus"),
+            preferred == "peace"
+        );
+        assert!(!died(&engine, "colossus"));
+    }
+}
+
+/// A milled card under its own shuffle replacement and an opponent's exile
+/// replacement: its owner chooses (CR 616.1) instead of the first proposal.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn the_owner_of_a_milled_card_orders_different_graveyard_replacements() {
+    for preferred in ["colossus", "leyline"] {
+        let mut engine = test_engine(2);
+        install_source(
+            &mut engine,
+            "leyline",
+            json!({
+                "kind": "replaceGraveyardDestination",
+                "graveyardOwners": { "kind": "opponentsOf", "player": controller() },
+                "to": { "kind": "exile" },
+                "where": { "kind": "not", "operand": { "kind": "isToken" } },
+                "from": { "kind": "anyZone" },
+            }),
+        );
+        engine.state.players[1].library = vec![colossus("player-1")];
+        admit(&mut engine);
+        let refused = engine
+            .mill_cards("player-1", 1, Some("player-0"))
+            .expect_err("no chooser: an explicit refusal, not the first proposal");
+        assert!(
+            refused
+                .to_string()
+                .contains("requires an explicit decision provider"),
+            "{refused:?}"
+        );
+        assert!(in_zone(&engine, 1, "library", "colossus"));
+        let mut chooser = ChooseSource {
+            preferred: preferred.to_string(),
+            asked: Vec::new(),
+        };
+        engine
+            .mill_cards_with("player-1", 1, Some("player-0"), Some(&mut chooser))
+            .expect("the owner orders the replacements");
+        assert_eq!(chooser.asked, vec!["player-1".to_string()]);
+        assert_eq!(
+            in_zone(&engine, 1, "library", "colossus"),
+            preferred == "colossus"
+        );
+        assert_eq!(
+            in_zone(&engine, 1, "exile", "colossus"),
+            preferred == "leyline"
+        );
+    }
+}
+
+/// `If a card would be put into your graveyard from anywhere this turn,
+/// exile that card instead.` follows cards only: a dying token is no card
+/// (CR 108.2), so it still dies and its dies trigger fires.
+#[cfg(any(not(feature = "ci-test-partition"), feature = "ci-unit-tests-4"))]
+#[test]
+fn a_created_card_replacement_from_anywhere_lets_tokens_die() {
+    let parsed = parse_oracle_card(OracleCardParseRequest {
+        card_name: "Test Will".to_string(),
+        type_line: "Sorcery".to_string(),
+        mana_cost: Some("{2}{B}".to_string()),
+        oracle_text: Some(
+            "If a card would be put into your graveyard from anywhere this turn, exile that card instead."
+                .to_string(),
+        ),
+        layout: None,
+        faces: Vec::new(),
+    });
+    assert_eq!(parsed.status, "canonical", "{parsed:?}");
+    let rule = parsed.abilities[0].rule.clone().expect("a spell ability");
+    assert!(rule_is_executable(&rule));
+    let effects = rule["effects"].clone();
+    let mut engine = test_engine(2);
+    let mut token = test_definition("spirit", "Token Creature - Spirit");
+    token.is_token = true;
+    engine.state.players[0]
+        .battlefield
+        .push(test_instance("spirit", token, "player-0"));
+    creature(&mut engine, 0, "bear");
+    let stack = spell_stack(effects.clone());
+    execute_effects_at_resolution_start(
+        &mut engine,
+        &effects,
+        &stack,
+        &mut BTreeMap::new(),
+        &mut BTreeMap::new(),
+        &mut RandomAi::seeded(7),
+    )
+    .expect("the replacement is created");
+    for id in ["spirit", "bear"] {
+        engine
+            .move_permanent_to_graveyard(id, "destroyed")
+            .expect("the permanent would die");
+    }
+    assert!(died(&engine, "spirit"), "the token is not a card: it dies");
+    assert!(!in_zone(&engine, 0, "exile", "spirit"));
+    assert!(in_zone(&engine, 0, "exile", "bear"), "a card is exiled");
+    assert!(!died(&engine, "bear"));
+}

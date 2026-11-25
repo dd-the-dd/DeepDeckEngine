@@ -1181,6 +1181,28 @@
           }
         ]
       }
+    },
+    {
+      "id": "near-miss-targeting-prohibition-adjacent-characteristics",
+      "request": {
+        "cardName": "Ward Probe",
+        "typeLine": "Creature — Bird",
+        "manaCost": "{1}",
+        "oracleText": "This creature can't be the target of white artifact spells.",
+        "layout": "normal",
+        "faces": []
+      },
+      "expect": {
+        "outcome": "failure",
+        "cardStatus": "unsupported",
+        "diagnostics": [
+          {
+            "abilityIndex": 0,
+            "code": "oracle_machine_failure",
+            "traceContainsState": "static.targeting-prohibition.characteristic-sequence"
+          }
+        ]
+      }
     }
   ]
 }

@@ -73,7 +73,7 @@ impl GameEngine {
         card: CardInstance,
         source: &super::card_zone_transition::CardMovementSource,
     ) -> Result<bool, EngineError> {
-        let plan = self.prepare_graveyard_destination(owner_index, &card);
+        let plan = self.prepare_graveyard_destination(owner_index, &card)?;
         self.put_owned_card_into_prepared_graveyard(
             owner_index,
             super::card_zone_transition::OwnedMovementCard {

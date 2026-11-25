@@ -606,7 +606,7 @@ impl GameEngine {
                 }
             }
             Some("installOneShotModifier") => {
-                self.install_one_shot_modifier(effect, stack_object, bindings);
+                self.install_one_shot_modifier(effect, stack_object, bindings)?;
             }
             _ => {
                 return Err(EngineError::new(format!(

@@ -141,10 +141,11 @@ impl GameEngine {
                             _ => None,
                         })
                         .collect();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if value_kind(&effect["permanent"]) == Some("eachPermanent") {
                     let prepared_filter = self.prepare_runtime_object_filter(
@@ -197,10 +198,11 @@ impl GameEngine {
                         })
                         .map(|permanent| permanent.instance_id.clone())
                         .collect::<Vec<_>>();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if value_kind(&effect["permanent"]) == Some("union") {
                     // Several declared target slots of one instruction are
@@ -217,10 +219,11 @@ impl GameEngine {
                         .into_iter()
                         .filter(|instance_id| self.permanent_position(instance_id).is_some())
                         .collect();
-                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack(
+                    destroyed_ids.extend(self.destroy_permanent_collection_from_stack_with(
                         instance_ids,
                         effect["cannotRegenerate"].as_bool().unwrap_or(false),
                         stack_object,
+                        Some(&mut *provider as &mut dyn DecisionProvider),
                     )?);
                 } else if object_expression_supported(&effect["permanent"]) {
                     let instance_ids = self

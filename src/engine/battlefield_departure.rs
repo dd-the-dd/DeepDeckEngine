@@ -3,9 +3,7 @@
 use super::card_zone_transition::{
     ObjectTransitionReason, ObjectZone, OwnedMovementCard, reset_movement_card,
 };
-use super::replacement_pipeline::{
-    GraveyardReplacementOrigin, ReplacedGraveyardZone, ReplacementOrder,
-};
+use super::replacement_pipeline::{GraveyardReplacementOrigin, ReplacedGraveyardZone};
 use super::*;
 
 #[derive(Clone, Copy)]
@@ -164,6 +162,18 @@ impl GameEngine {
         static_modifiers: &[(CardInstance, Value)],
         cause: GraveyardMoveCause,
     ) -> Result<PlannedGraveyardDeparture, EngineError> {
+        self.plan_graveyard_departure_with(permanent, static_modifiers, cause, None)
+    }
+
+    /// `plan_graveyard_departure` with the chooser of a CR 616.1 order
+    /// between graveyard-destination replacements with different outcomes.
+    pub(super) fn plan_graveyard_departure_with(
+        &self,
+        permanent: &CardInstance,
+        static_modifiers: &[(CardInstance, Value)],
+        cause: GraveyardMoveCause,
+        provider: Option<&mut dyn DecisionProvider>,
+    ) -> Result<PlannedGraveyardDeparture, EngineError> {
         let instance_id = permanent.instance_id.clone();
         let context = cause.diagnostic_prefix();
         let death_replacement = exactly_one_or_none(
@@ -220,17 +230,14 @@ impl GameEngine {
         )?;
         let owner_id = permanent.owner.clone();
         // Propose -> match -> order -> apply (replacement_pipeline.rs): one
-        // graveyard-destination replacement at most may apply here.
+        // graveyard-destination replacement at most may apply here; the
+        // permanent's controller orders different outcomes (CR 616.1).
         let graveyard_replacement = self
             .select_graveyard_destination_replacement(
                 permanent,
                 &owner_id,
                 static_modifiers,
-                &ReplacementOrder::RequireUnique {
-                    ambiguity: format!(
-                        "{context} has multiple graveyard destination replacements for {instance_id}"
-                    ),
-                },
+                provider,
             )?
             .map(|proposal| {
                 let consume_specific = matches!(
@@ -325,7 +332,7 @@ impl GameEngine {
                 .ok_or_else(|| EngineError::new("graveyard policy source disappeared"))?;
             let card = &self.state.players[player].battlefield[index];
             let owner_index = self.player_index(&card.owner)?;
-            Some(self.prepare_graveyard_destination(owner_index, card))
+            Some(self.prepare_graveyard_destination(owner_index, card)?)
         } else {
             None
         };

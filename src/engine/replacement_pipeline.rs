@@ -11,6 +11,28 @@
 
 use super::*;
 
+/// Adapter for an event family whose caller may not supply a chooser: a
+/// deterministic order needs none, and a real CR 616.1 choice without one is
+/// an explicit engine error instead of an arbitrary pick.
+pub(super) struct RequiredReplacementChoiceProvider<'a>(pub Option<&'a mut dyn DecisionProvider>);
+impl DecisionProvider for RequiredReplacementChoiceProvider<'_> {
+    fn choose(
+        &mut self,
+        state: &GameState,
+        request: &EngineDecisionRequest,
+    ) -> Result<usize, EngineError> {
+        self.0
+            .as_mut()
+            .ok_or_else(|| {
+                EngineError::new(format!(
+                    "replacement choice {} requires an explicit decision provider",
+                    request.id
+                ))
+            })?
+            .choose(state, request)
+    }
+}
+
 /// One replacement effect proposed for one event, with a stable identity.
 #[derive(Clone, Debug)]
 pub(super) struct ReplacementProposal<P> {
@@ -31,9 +53,6 @@ pub(super) enum ReplacementOrder<'a> {
         request_prefix: &'a str,
         decision_key: &'a str,
     },
-    /// The event family admits one applicable replacement; several are an
-    /// explicit engine error instead of an arbitrary pick.
-    RequireUnique { ambiguity: String },
     /// Every proposal produces the same outcome and differs only in
     /// attribution: the first proposal in proposal order applies.
     FirstProposed,
@@ -85,9 +104,6 @@ impl GameEngine {
         }
         match order {
             ReplacementOrder::FirstProposed => Ok(applicable[0]),
-            ReplacementOrder::RequireUnique { ambiguity } => {
-                Err(EngineError::new(ambiguity.clone()))
-            }
             ReplacementOrder::AffectedChooses {
                 player_id,
                 request_prefix,
@@ -582,44 +598,54 @@ impl GameEngine {
             )
     }
 
-    /// The one graveyard-destination replacement that applies to `card`
-    /// under `order`. Once one applied, the event no longer puts the card
-    /// into a graveyard, so no other proposal matches it (CR 614.5) and at
-    /// most one proposal is returned.
+    /// The one graveyard-destination replacement that applies to `card`.
+    /// Once one applied, the event no longer puts the card into a graveyard,
+    /// so no other proposal matches it (CR 614.5) and at most one proposal is
+    /// returned. When the applicable proposals lead to different events, the
+    /// controller of the affected permanent, or the owner of the affected
+    /// card outside the battlefield, chooses (CR 616.1); without a decision
+    /// provider that choice is an explicit engine error, never a pick.
     pub(super) fn select_graveyard_destination_replacement(
         &self,
         card: &CardInstance,
         graveyard_owner_id: &str,
         static_modifiers: &[(CardInstance, Value)],
-        order: &ReplacementOrder<'_>,
+        provider: Option<&mut dyn DecisionProvider>,
     ) -> Result<Option<ReplacementProposal<GraveyardReplacement>>, EngineError> {
         let proposals = self.propose_graveyard_destination_replacements(
             card,
             graveyard_owner_id,
             static_modifiers,
         );
-        // Proposals with one outcome (the same zone, no reflexive ability,
-        // no one-shot modifier the application consumes) differ only in
-        // attribution: the order chosen cannot change the event (CR 616.1),
-        // so the first in precedence applies.
-        let equivalent = proposals.iter().all(|proposal| {
-            proposal.program.reflexive.is_none()
-                && !matches!(
-                    proposal.program.origin,
-                    GraveyardReplacementOrigin::SpecificCard { .. }
-                )
-        }) && proposals
-            .windows(2)
-            .all(|pair| pair[0].program.zone == pair[1].program.zone);
+        // Proposals with one outcome (the same zone and no reflexive ability)
+        // produce the same event and differ only in attribution: the order
+        // chosen cannot change the event (CR 616.1), so the first in
+        // precedence applies (a card-specific one-shot modifier first).
+        let equivalent = proposals
+            .iter()
+            .all(|proposal| proposal.program.reflexive.is_none())
+            && proposals
+                .windows(2)
+                .all(|pair| pair[0].program.zone == pair[1].program.zone);
+        let chooser = if self.permanent_position(&card.instance_id).is_some() {
+            card.controller.clone()
+        } else {
+            card.owner.clone()
+        };
+        let choice = ReplacementOrder::AffectedChooses {
+            player_id: &chooser,
+            request_prefix: "graveyard-destination-replacement",
+            decision_key: "graveyardReplacementId",
+        };
         let order = if equivalent {
             &ReplacementOrder::FirstProposed
         } else {
-            order
+            &choice
         };
         // The event: whether the card still goes to a graveyard.
         let mut to_graveyard = true;
         let mut selected = None;
-        let mut provider = super::quantity_replacement::OptionalQuantityProvider(None);
+        let mut provider = RequiredReplacementChoiceProvider(provider);
         self.run_replacement_pipeline(
             &proposals,
             &mut to_graveyard,
